@@ -9,12 +9,40 @@ import { NoteList } from "@/components/NoteList";
 import { AddTaskForm } from "@/components/AddTaskForm";
 import { AddReminderForm } from "@/components/AddReminderForm";
 import { AddNoteForm } from "@/components/AddNoteForm";
+import { SignIn } from "@/components/SignIn";
+import { SignUp } from "@/components/SignUp";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
+  const { user } = useAuth();
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4">
+        <header className="mb-8">
+          <h1 className="text-4xl font-bold text-primary mb-2">Taskify Minder Note</h1>
+          <p className="text-gray-600">Please sign in or sign up to continue</p>
+        </header>
+        
+        <Tabs defaultValue="signin" className="w-full max-w-md mx-auto">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="signin">Sign In</TabsTrigger>
+            <TabsTrigger value="signup">Sign Up</TabsTrigger>
+          </TabsList>
+          <TabsContent value="signin">
+            <SignIn />
+          </TabsContent>
+          <TabsContent value="signup">
+            <SignUp />
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
