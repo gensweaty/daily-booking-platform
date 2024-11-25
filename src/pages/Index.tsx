@@ -2,8 +2,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle, ListTodo, Bell, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TaskList } from "@/components/TaskList";
+import { ReminderList } from "@/components/ReminderList";
+import { NoteList } from "@/components/NoteList";
+import { useToast } from "@/components/ui/use-toast";
 
 const Index = () => {
+  const { toast } = useToast();
+
+  const handleAddItem = (type: string) => {
+    toast({
+      title: "Coming soon!",
+      description: `Adding new ${type} will be available soon.`,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <header className="mb-8">
@@ -31,15 +44,13 @@ const Index = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>My Tasks</CardTitle>
-              <Button className="flex items-center gap-2">
+              <Button onClick={() => handleAddItem('task')} className="flex items-center gap-2">
                 <PlusCircle className="w-4 h-4" />
                 Add Task
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="text-center text-gray-500 py-8">
-                No tasks yet. Click the button above to add your first task!
-              </div>
+              <TaskList />
             </CardContent>
           </Card>
         </TabsContent>
@@ -48,15 +59,13 @@ const Index = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>My Reminders</CardTitle>
-              <Button className="flex items-center gap-2">
+              <Button onClick={() => handleAddItem('reminder')} className="flex items-center gap-2">
                 <PlusCircle className="w-4 h-4" />
                 Add Reminder
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="text-center text-gray-500 py-8">
-                No reminders yet. Click the button above to add your first reminder!
-              </div>
+              <ReminderList />
             </CardContent>
           </Card>
         </TabsContent>
@@ -65,15 +74,13 @@ const Index = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>My Notes</CardTitle>
-              <Button className="flex items-center gap-2">
+              <Button onClick={() => handleAddItem('note')} className="flex items-center gap-2">
                 <PlusCircle className="w-4 h-4" />
                 Add Note
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="text-center text-gray-500 py-8">
-                No notes yet. Click the button above to add your first note!
-              </div>
+              <NoteList />
             </CardContent>
           </Card>
         </TabsContent>
