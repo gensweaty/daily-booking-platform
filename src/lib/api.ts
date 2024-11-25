@@ -8,18 +8,26 @@ export const getTasks = async () => {
     .select('*')
     .order('created_at', { ascending: false });
   
-  if (error) throw error;
+  if (error) {
+    console.error('Error fetching tasks:', error);
+    throw error;
+  }
   return data as Task[];
 };
 
 export const createTask = async (task: Omit<Task, 'id' | 'created_at' | 'user_id'>) => {
-  const { data: userData } = await supabase.auth.getUser();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  
+  if (userError) {
+    console.error('Error getting user:', userError);
+    throw userError;
+  }
+
   const { data, error } = await supabase
     .from('tasks')
     .insert([{
       ...task,
       user_id: userData.user?.id,
-      created_at: new Date().toISOString()
     }])
     .select()
     .single();
@@ -38,18 +46,26 @@ export const getReminders = async () => {
     .select('*')
     .order('due_date', { ascending: true });
   
-  if (error) throw error;
+  if (error) {
+    console.error('Error fetching reminders:', error);
+    throw error;
+  }
   return data as Reminder[];
 };
 
 export const createReminder = async (reminder: Omit<Reminder, 'id' | 'created_at' | 'user_id'>) => {
-  const { data: userData } = await supabase.auth.getUser();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  
+  if (userError) {
+    console.error('Error getting user:', userError);
+    throw userError;
+  }
+
   const { data, error } = await supabase
     .from('reminders')
     .insert([{
       ...reminder,
       user_id: userData.user?.id,
-      created_at: new Date().toISOString()
     }])
     .select()
     .single();
@@ -68,18 +84,26 @@ export const getNotes = async () => {
     .select('*')
     .order('created_at', { ascending: false });
   
-  if (error) throw error;
+  if (error) {
+    console.error('Error fetching notes:', error);
+    throw error;
+  }
   return data as Note[];
 };
 
 export const createNote = async (note: Omit<Note, 'id' | 'created_at' | 'user_id'>) => {
-  const { data: userData } = await supabase.auth.getUser();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  
+  if (userError) {
+    console.error('Error getting user:', userError);
+    throw userError;
+  }
+
   const { data, error } = await supabase
     .from('notes')
     .insert([{
       ...note,
       user_id: userData.user?.id,
-      created_at: new Date().toISOString()
     }])
     .select()
     .single();
