@@ -1,21 +1,20 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { PlusCircle, ListTodo, Bell, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TaskList } from "@/components/TaskList";
 import { ReminderList } from "@/components/ReminderList";
 import { NoteList } from "@/components/NoteList";
-import { useToast } from "@/components/ui/use-toast";
+import { AddTaskForm } from "@/components/AddTaskForm";
+import { AddReminderForm } from "@/components/AddReminderForm";
+import { AddNoteForm } from "@/components/AddNoteForm";
+import { useState } from "react";
 
 const Index = () => {
-  const { toast } = useToast();
-
-  const handleAddItem = (type: string) => {
-    toast({
-      title: "Coming soon!",
-      description: `Adding new ${type} will be available soon.`,
-    });
-  };
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
+  const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -44,10 +43,17 @@ const Index = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>My Tasks</CardTitle>
-              <Button onClick={() => handleAddItem('task')} className="flex items-center gap-2">
-                <PlusCircle className="w-4 h-4" />
-                Add Task
-              </Button>
+              <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="flex items-center gap-2">
+                    <PlusCircle className="w-4 h-4" />
+                    Add Task
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <AddTaskForm onClose={() => setIsTaskDialogOpen(false)} />
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               <TaskList />
@@ -59,10 +65,17 @@ const Index = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>My Reminders</CardTitle>
-              <Button onClick={() => handleAddItem('reminder')} className="flex items-center gap-2">
-                <PlusCircle className="w-4 h-4" />
-                Add Reminder
-              </Button>
+              <Dialog open={isReminderDialogOpen} onOpenChange={setIsReminderDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="flex items-center gap-2">
+                    <PlusCircle className="w-4 h-4" />
+                    Add Reminder
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <AddReminderForm onClose={() => setIsReminderDialogOpen(false)} />
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               <ReminderList />
@@ -74,10 +87,17 @@ const Index = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>My Notes</CardTitle>
-              <Button onClick={() => handleAddItem('note')} className="flex items-center gap-2">
-                <PlusCircle className="w-4 h-4" />
-                Add Note
-              </Button>
+              <Dialog open={isNoteDialogOpen} onOpenChange={setIsNoteDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="flex items-center gap-2">
+                    <PlusCircle className="w-4 h-4" />
+                    Add Note
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <AddNoteForm onClose={() => setIsNoteDialogOpen(false)} />
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               <NoteList />

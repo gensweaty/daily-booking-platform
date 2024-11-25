@@ -12,7 +12,7 @@ export const getTasks = async () => {
   return data as Task[];
 };
 
-export const createTask = async (task: Omit<Task, 'id' | 'created_at'>) => {
+export const createTask = async (task: Omit<Task, 'id' | 'created_at' | 'user_id'>) => {
   const { data, error } = await supabase
     .from('tasks')
     .insert([task])
@@ -34,7 +34,7 @@ export const getReminders = async () => {
   return data as Reminder[];
 };
 
-export const createReminder = async (reminder: Omit<Reminder, 'id' | 'created_at'>) => {
+export const createReminder = async (reminder: Omit<Reminder, 'id' | 'created_at' | 'user_id'>) => {
   const { data, error } = await supabase
     .from('reminders')
     .insert([reminder])
@@ -56,7 +56,7 @@ export const getNotes = async () => {
   return data as Note[];
 };
 
-export const createNote = async (note: Omit<Note, 'id' | 'created_at'>) => {
+export const createNote = async (note: Omit<Note, 'id' | 'created_at' | 'user_id'>) => {
   const { data, error } = await supabase
     .from('notes')
     .insert([note])
