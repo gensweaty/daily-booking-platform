@@ -13,13 +13,21 @@ export const getTasks = async () => {
 };
 
 export const createTask = async (task: Omit<Task, 'id' | 'created_at' | 'user_id'>) => {
+  const { data: userData } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('tasks')
-    .insert([task])
+    .insert([{
+      ...task,
+      user_id: userData.user?.id,
+      created_at: new Date().toISOString()
+    }])
     .select()
     .single();
   
-  if (error) throw error;
+  if (error) {
+    console.error('Error creating task:', error);
+    throw error;
+  }
   return data;
 };
 
@@ -35,13 +43,21 @@ export const getReminders = async () => {
 };
 
 export const createReminder = async (reminder: Omit<Reminder, 'id' | 'created_at' | 'user_id'>) => {
+  const { data: userData } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('reminders')
-    .insert([reminder])
+    .insert([{
+      ...reminder,
+      user_id: userData.user?.id,
+      created_at: new Date().toISOString()
+    }])
     .select()
     .single();
   
-  if (error) throw error;
+  if (error) {
+    console.error('Error creating reminder:', error);
+    throw error;
+  }
   return data;
 };
 
@@ -57,12 +73,20 @@ export const getNotes = async () => {
 };
 
 export const createNote = async (note: Omit<Note, 'id' | 'created_at' | 'user_id'>) => {
+  const { data: userData } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('notes')
-    .insert([note])
+    .insert([{
+      ...note,
+      user_id: userData.user?.id,
+      created_at: new Date().toISOString()
+    }])
     .select()
     .single();
   
-  if (error) throw error;
+  if (error) {
+    console.error('Error creating note:', error);
+    throw error;
+  }
   return data;
 };
