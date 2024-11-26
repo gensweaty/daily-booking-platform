@@ -126,7 +126,8 @@ export const createNote = async (note: Omit<Note, 'id' | 'created_at' | 'user_id
   const { data, error } = await supabase
     .from('notes')
     .insert([{
-      ...note,
+      title: note.title,
+      content: note.content,
       user_id: userData.user.id,
     }])
     .select()
@@ -142,7 +143,11 @@ export const createNote = async (note: Omit<Note, 'id' | 'created_at' | 'user_id
 export const updateNote = async (id: string, updates: Partial<Note>) => {
   const { data, error } = await supabase
     .from('notes')
-    .update(updates)
+    .update({
+      title: updates.title,
+      content: updates.content,
+      order: updates.order,
+    })
     .eq('id', id)
     .select()
     .single();

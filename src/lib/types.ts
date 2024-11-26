@@ -23,6 +23,5 @@ export interface Note {
   content: string;
   created_at: string;
   user_id?: string;
-  color?: string;
   order?: number;
 }

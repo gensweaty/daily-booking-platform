@@ -9,16 +9,6 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { useToast } from "./ui/use-toast";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-const noteColors = [
-  { value: "bg-white", label: "White" },
-  { value: "bg-yellow-50", label: "Yellow" },
-  { value: "bg-green-50", label: "Green" },
-  { value: "bg-blue-50", label: "Blue" },
-  { value: "bg-purple-50", label: "Purple" },
-  { value: "bg-pink-50", label: "Pink" },
-];
 
 export const NoteList = () => {
   const { data: notes, isLoading } = useQuery({
@@ -29,7 +19,6 @@ export const NoteList = () => {
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
-  const [editColor, setEditColor] = useState("bg-white");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -61,7 +50,6 @@ export const NoteList = () => {
     setEditingNote(note);
     setEditTitle(note.title);
     setEditContent(note.content);
-    setEditColor(note.color || "bg-white");
   };
 
   const handleSaveEdit = () => {
@@ -71,7 +59,6 @@ export const NoteList = () => {
       updates: {
         title: editTitle,
         content: editContent,
-        color: editColor,
       },
     });
   };
@@ -110,7 +97,7 @@ export const NoteList = () => {
                     <div
                       ref={provided.innerRef}
                       {...provided.draggableProps}
-                      className={`p-4 rounded-lg shadow border border-gray-200 ${note.color || 'bg-white'}`}
+                      className="p-4 rounded-lg shadow border border-gray-200 bg-white"
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
@@ -164,21 +151,6 @@ export const NoteList = () => {
               onChange={(e) => setEditContent(e.target.value)}
               className="min-h-[200px]"
             />
-            <Select value={editColor} onValueChange={setEditColor}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select note color" />
-              </SelectTrigger>
-              <SelectContent>
-                {noteColors.map((color) => (
-                  <SelectItem key={color.value} value={color.value}>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-4 h-4 rounded ${color.value}`} />
-                      {color.label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Button onClick={handleSaveEdit}>Save Changes</Button>
           </div>
         </DialogContent>
