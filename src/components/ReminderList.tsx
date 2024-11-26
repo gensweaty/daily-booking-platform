@@ -27,7 +27,10 @@ export const ReminderList = () => {
       updateReminder(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
-      toast({ title: "Reminder updated successfully" });
+      toast({ 
+        title: "Success",
+        description: "Reminder updated successfully" 
+      });
       setEditingReminder(null);
     },
   });
@@ -36,7 +39,10 @@ export const ReminderList = () => {
     mutationFn: deleteReminder,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
-      toast({ title: "Reminder deleted successfully" });
+      toast({ 
+        title: "Success",
+        description: "Reminder deleted successfully" 
+      });
     },
   });
 

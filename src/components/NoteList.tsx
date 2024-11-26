@@ -26,7 +26,10 @@ export const NoteList = () => {
       updateNote(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
-      toast({ title: "Note updated successfully" });
+      toast({ 
+        title: "Success",
+        description: "Note updated successfully" 
+      });
       setEditingNote(null);
     },
   });
@@ -35,7 +38,10 @@ export const NoteList = () => {
     mutationFn: deleteNote,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
-      toast({ title: "Note deleted successfully" });
+      toast({ 
+        title: "Success",
+        description: "Note deleted successfully" 
+      });
     },
   });
 

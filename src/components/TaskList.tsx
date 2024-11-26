@@ -26,7 +26,10 @@ export const TaskList = () => {
       updateTask(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      toast({ title: "Task updated successfully" });
+      toast({ 
+        title: "Success",
+        description: "Task updated successfully" 
+      });
       setEditingTask(null);
     },
   });
@@ -35,7 +38,10 @@ export const TaskList = () => {
     mutationFn: deleteTask,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      toast({ title: "Task deleted successfully" });
+      toast({ 
+        title: "Success",
+        description: "Task deleted successfully" 
+      });
     },
   });
 
