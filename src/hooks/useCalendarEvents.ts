@@ -5,9 +5,11 @@ import { CalendarEventType } from "@/lib/types/calendar";
 export const useCalendarEvents = () => {
   const queryClient = useQueryClient();
 
-  const { data: events = [], isLoading } = useQuery({
+  const { data: events = [], isLoading, error } = useQuery({
     queryKey: ['events'],
     queryFn: getEvents,
+    staleTime: 1000 * 60, // 1 minute
+    refetchOnWindowFocus: true,
   });
 
   const createEventMutation = useMutation({
@@ -35,8 +37,9 @@ export const useCalendarEvents = () => {
   return {
     events,
     isLoading,
-    createEvent: createEventMutation.mutate,
-    updateEvent: updateEventMutation.mutate,
-    deleteEvent: deleteEventMutation.mutate,
+    error,
+    createEvent: createEventMutation.mutateAsync,
+    updateEvent: updateEventMutation.mutateAsync,
+    deleteEvent: deleteEventMutation.mutateAsync,
   };
 };

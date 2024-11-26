@@ -15,6 +15,7 @@ import { CalendarView } from "./CalendarView";
 import { EventDialog } from "./EventDialog";
 import { CalendarViewType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -22,7 +23,7 @@ export const Calendar = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
-  const { events, isLoading, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
+  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
   const { toast } = useToast();
 
   const getDaysForView = () => {
@@ -70,7 +71,22 @@ export const Calendar = () => {
     }
   };
 
-  if (isLoading) return <div>Loading calendar...</div>;
+  if (error) {
+    return <div className="text-red-500">Error loading calendar: {error.message}</div>;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
+        <div className="grid grid-cols-7 gap-px">
+          {Array.from({ length: 35 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col gap-4">
@@ -85,7 +101,8 @@ export const Calendar = () => {
 
       <CalendarView
         days={getDaysForView()}
-        events={events}
+        events={events || []}
+        selectedDate={selectedDate}
         onDayClick={(date) => {
           setSelectedSlot(date);
           setIsNewEventDialogOpen(true);
@@ -97,12 +114,21 @@ export const Calendar = () => {
         open={isNewEventDialogOpen}
         onOpenChange={setIsNewEventDialogOpen}
         selectedDate={selectedSlot}
-        onSubmit={(data) => {
-          createEvent(data);
-          toast({
-            title: "Success",
-            description: "Event created successfully",
-          });
+        onSubmit={async (data) => {
+          try {
+            await createEvent(data);
+            setIsNewEventDialogOpen(false);
+            toast({
+              title: "Success",
+              description: "Event created successfully",
+            });
+          } catch (error) {
+            toast({
+              title: "Error",
+              description: "Failed to create event",
+              variant: "destructive",
+            });
+          }
         }}
       />
 
@@ -112,22 +138,40 @@ export const Calendar = () => {
           onOpenChange={() => setSelectedEvent(null)}
           selectedDate={new Date(selectedEvent.start_date)}
           event={selectedEvent}
-          onSubmit={(updates) => {
-            updateEvent({
-              id: selectedEvent.id,
-              updates,
-            });
-            toast({
-              title: "Success",
-              description: "Event updated successfully",
-            });
+          onSubmit={async (updates) => {
+            try {
+              await updateEvent({
+                id: selectedEvent.id,
+                updates,
+              });
+              setSelectedEvent(null);
+              toast({
+                title: "Success",
+                description: "Event updated successfully",
+              });
+            } catch (error) {
+              toast({
+                title: "Error",
+                description: "Failed to update event",
+                variant: "destructive",
+              });
+            }
           }}
-          onDelete={() => {
-            deleteEvent(selectedEvent.id);
-            toast({
-              title: "Success",
-              description: "Event deleted successfully",
-            });
+          onDelete={async () => {
+            try {
+              await deleteEvent(selectedEvent.id);
+              setSelectedEvent(null);
+              toast({
+                title: "Success",
+                description: "Event deleted successfully",
+              });
+            } catch (error) {
+              toast({
+                title: "Error",
+                description: "Failed to delete event",
+                variant: "destructive",
+              });
+            }
           }}
         />
       )}

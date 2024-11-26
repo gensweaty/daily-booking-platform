@@ -4,6 +4,7 @@ import { CalendarEventType } from "@/lib/types/calendar";
 interface CalendarViewProps {
   days: Date[];
   events: CalendarEventType[];
+  selectedDate: Date;
   onDayClick: (date: Date) => void;
   onEventClick: (event: CalendarEventType) => void;
 }
@@ -11,6 +12,7 @@ interface CalendarViewProps {
 export const CalendarView = ({
   days,
   events,
+  selectedDate,
   onDayClick,
   onEventClick,
 }: CalendarViewProps) => {
@@ -21,17 +23,20 @@ export const CalendarView = ({
           {day}
         </div>
       ))}
-      {days.map((day) => (
-        <div
-          key={day.toISOString()}
-          className="bg-white p-4 min-h-[120px] cursor-pointer hover:bg-gray-50"
-          onClick={() => onDayClick(day)}
-        >
-          <div className="font-medium">{format(day, "d")}</div>
-          <div className="mt-2 space-y-1">
-            {events
-              .filter((event) => isSameDay(new Date(event.start_date), day))
-              .map((event) => (
+      {days.map((day) => {
+        const dayEvents = events.filter((event) => 
+          isSameDay(new Date(event.start_date), day)
+        );
+
+        return (
+          <div
+            key={day.toISOString()}
+            className="bg-white p-4 min-h-[120px] cursor-pointer hover:bg-gray-50"
+            onClick={() => onDayClick(day)}
+          >
+            <div className="font-medium">{format(day, "d")}</div>
+            <div className="mt-2 space-y-1">
+              {dayEvents.map((event) => (
                 <div
                   key={event.id}
                   className={`text-sm p-1 rounded ${
@@ -47,9 +52,10 @@ export const CalendarView = ({
                   {event.title}
                 </div>
               ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
