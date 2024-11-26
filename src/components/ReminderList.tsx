@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getReminders, updateReminder, deleteReminder } from "@/lib/api";
 import { Reminder } from "@/lib/types";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState, useEffect } from "react";
@@ -25,10 +25,19 @@ export const ReminderList = () => {
   useEffect(() => {
     // Request notification permission when component mounts
     if ('Notification' in window) {
-      Notification.requestPermission();
+      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            toast({
+              title: "Notifications Enabled",
+              description: "You will receive reminder notifications",
+            });
+          }
+        });
+      }
     }
 
-    // Check for due reminders every minute
+    // Check for due reminders every 30 seconds
     const checkReminders = () => {
       reminders.forEach((reminder: Reminder) => {
         const dueTime = new Date(reminder.due_date).getTime();
@@ -38,9 +47,16 @@ export const ReminderList = () => {
         // If reminder is due within 5 minutes and hasn't been notified
         if (dueTime - now <= fiveMinutes && dueTime > now) {
           if (Notification.permission === "granted") {
+            // Show browser notification
             new Notification("Reminder Due Soon!", {
               body: `${reminder.title} is due at ${format(new Date(reminder.due_date), 'pp')}`,
               icon: "/favicon.ico"
+            });
+            
+            // Show in-app toast notification
+            toast({
+              title: "Reminder Due Soon!",
+              description: `${reminder.title} is due at ${format(new Date(reminder.due_date), 'pp')}`,
             });
           }
         }
@@ -48,9 +64,16 @@ export const ReminderList = () => {
         // If reminder is due now
         if (Math.abs(dueTime - now) < 60000) { // Within 1 minute of due time
           if (Notification.permission === "granted") {
+            // Show browser notification
             new Notification("Reminder Due Now!", {
               body: `${reminder.title} is due now!`,
               icon: "/favicon.ico"
+            });
+            
+            // Show in-app toast notification
+            toast({
+              title: "Reminder Due Now!",
+              description: `${reminder.title} is due now!`,
             });
           }
         }
@@ -59,7 +82,7 @@ export const ReminderList = () => {
 
     const interval = setInterval(checkReminders, 30000); // Check every 30 seconds
     return () => clearInterval(interval);
-  }, [reminders]);
+  }, [reminders, toast]);
 
   const updateReminderMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<Reminder> }) =>
@@ -89,7 +112,9 @@ export const ReminderList = () => {
     setEditingReminder(reminder);
     setEditTitle(reminder.title);
     setEditDescription(reminder.description || "");
-    setEditDueDate(reminder.due_date);
+    // Format the date-time string to match the input format
+    const formattedDate = format(new Date(reminder.due_date), "yyyy-MM-dd'T'HH:mm");
+    setEditDueDate(formattedDate);
   };
 
   const handleSaveEdit = () => {
@@ -121,7 +146,7 @@ export const ReminderList = () => {
                   <p className="text-gray-600 mt-1">{reminder.description}</p>
                 )}
                 <div className="mt-2 text-sm text-gray-500">
-                  Due: {format(new Date(reminder.due_date), 'PPP')}
+                  Due: {format(parseISO(reminder.due_date), 'PPpp')}
                 </div>
               </div>
               <div className="flex gap-2">
