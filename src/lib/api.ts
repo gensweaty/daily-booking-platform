@@ -128,6 +128,7 @@ export const createNote = async (note: Omit<Note, 'id' | 'created_at' | 'user_id
     .insert([{
       title: note.title,
       content: note.content,
+      color: note.color,
       user_id: userData.user.id,
     }])
     .select()
@@ -146,7 +147,7 @@ export const updateNote = async (id: string, updates: Partial<Note>) => {
     .update({
       title: updates.title,
       content: updates.content,
-      order: updates.order,
+      color: updates.color,
     })
     .eq('id', id)
     .select()
