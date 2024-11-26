@@ -4,19 +4,15 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { PlusCircle, ListTodo, Bell, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TaskList } from "@/components/TaskList";
-import { ReminderList } from "@/components/ReminderList";
+import { Calendar } from "@/components/Calendar/Calendar";
 import { NoteList } from "@/components/NoteList";
 import { AddTaskForm } from "@/components/AddTaskForm";
-import { AddReminderForm } from "@/components/AddReminderForm";
 import { AddNoteForm } from "@/components/AddNoteForm";
-import { SignIn } from "@/components/SignIn";
-import { SignUp } from "@/components/SignUp";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
-  const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
   const { user } = useAuth();
 
@@ -34,10 +30,10 @@ const Index = () => {
             <TabsTrigger value="signup">Sign Up</TabsTrigger>
           </TabsList>
           <TabsContent value="signin">
-            <SignIn />
+            {/* SignIn component goes here */}
           </TabsContent>
           <TabsContent value="signup">
-            <SignUp />
+            {/* SignUp component goes here */}
           </TabsContent>
         </Tabs>
       </div>
@@ -48,7 +44,7 @@ const Index = () => {
     <div className="min-h-screen bg-gray-50 p-4">
       <header className="mb-8">
         <h1 className="text-4xl font-bold text-primary mb-2">Taskify Minder Note</h1>
-        <p className="text-gray-600">Manage your tasks, reminders, and notes in one place</p>
+        <p className="text-gray-600">Manage your tasks, calendar, and notes in one place</p>
       </header>
 
       <Tabs defaultValue="tasks" className="w-full max-w-4xl mx-auto">
@@ -57,9 +53,9 @@ const Index = () => {
             <ListTodo className="w-4 h-4" />
             Tasks
           </TabsTrigger>
-          <TabsTrigger value="reminders" className="flex items-center gap-2">
+          <TabsTrigger value="calendar" className="flex items-center gap-2">
             <Bell className="w-4 h-4" />
-            Reminders
+            Calendar
           </TabsTrigger>
           <TabsTrigger value="notes" className="flex items-center gap-2">
             <StickyNote className="w-4 h-4" />
@@ -89,24 +85,10 @@ const Index = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="reminders">
+        <TabsContent value="calendar">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>My Reminders</CardTitle>
-              <Dialog open={isReminderDialogOpen} onOpenChange={setIsReminderDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2">
-                    <PlusCircle className="w-4 h-4" />
-                    Add Reminder
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <AddReminderForm onClose={() => setIsReminderDialogOpen(false)} />
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              <ReminderList />
+            <CardContent className="pt-6">
+              <Calendar />
             </CardContent>
           </Card>
         </TabsContent>
