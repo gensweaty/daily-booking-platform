@@ -54,11 +54,11 @@ export const ReminderList = () => {
             // Play notification sound
             audioRef.current?.play().catch(console.error);
 
-            // Show browser notification with custom icon
+            // Show browser notification
             new Notification("Reminder Due Soon!", {
               body: `${reminder.title} is due at ${format(new Date(reminder.due_date), 'pp')}`,
               icon: "/favicon.ico",
-              image: "/reminder-banner.jpg" // Add a custom banner image
+              badge: "/reminder-banner.jpg" // Changed from 'image' to 'badge'
             });
             
             // Show in-app toast notification
@@ -80,7 +80,7 @@ export const ReminderList = () => {
             new Notification("Reminder Due Now!", {
               body: `${reminder.title} is due now!`,
               icon: "/favicon.ico",
-              image: "/reminder-banner.jpg"
+              badge: "/reminder-banner.jpg" // Changed from 'image' to 'badge'
             });
             
             // Show in-app toast notification
