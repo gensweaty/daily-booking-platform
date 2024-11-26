@@ -97,7 +97,7 @@ export const TaskList = () => {
                   <h3 className="font-semibold mb-4 capitalize">{status.replace('-', ' ')}</h3>
                   <div className="space-y-4">
                     {statusTasks.map((task: Task, index: number) => (
-                      <Draggable key={task.id} draggableId={task.id} index={index}>
+                      <Draggable key={task.id} draggableId={String(task.id)} index={index}>
                         {(provided) => (
                           <div
                             ref={provided.innerRef}

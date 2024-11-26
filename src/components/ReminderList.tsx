@@ -44,10 +44,20 @@ export const ReminderList = () => {
             });
           }
         }
+
+        // If reminder is due now
+        if (Math.abs(dueTime - now) < 60000) { // Within 1 minute of due time
+          if (Notification.permission === "granted") {
+            new Notification("Reminder Due Now!", {
+              body: `${reminder.title} is due now!`,
+              icon: "/favicon.ico"
+            });
+          }
+        }
       });
     };
 
-    const interval = setInterval(checkReminders, 60000); // Check every minute
+    const interval = setInterval(checkReminders, 30000); // Check every 30 seconds
     return () => clearInterval(interval);
   }, [reminders]);
 
