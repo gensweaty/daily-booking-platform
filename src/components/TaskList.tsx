@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getTasks, updateTask, deleteTask } from "@/lib/api";
 import { Task } from "@/lib/types";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
@@ -45,11 +45,11 @@ export const TaskList = () => {
     },
   });
 
-  const handleDragEnd = (result: any) => {
+  const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
 
     const taskId = result.draggableId;
-    const newStatus = result.destination.droppableId;
+    const newStatus = result.destination.droppableId as 'todo' | 'in-progress' | 'done';
 
     updateTaskMutation.mutate({
       id: taskId,
@@ -92,7 +92,7 @@ export const TaskList = () => {
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className="bg-gray-50 p-4 rounded-lg"
+                  className="bg-gray-50 p-4 rounded-lg min-h-[200px]"
                 >
                   <h3 className="font-semibold mb-4 capitalize">{status.replace('-', ' ')}</h3>
                   <div className="space-y-4">

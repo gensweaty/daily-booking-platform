@@ -4,13 +4,13 @@ import { Reminder } from "@/lib/types";
 import { format } from "date-fns";
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { useToast } from "./ui/use-toast";
 
 export const ReminderList = () => {
-  const { data: reminders, isLoading } = useQuery({
+  const { data: reminders = [], isLoading } = useQuery({
     queryKey: ['reminders'],
     queryFn: getReminders,
   });
@@ -21,6 +21,35 @@ export const ReminderList = () => {
   const [editDueDate, setEditDueDate] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Request notification permission when component mounts
+    if ('Notification' in window) {
+      Notification.requestPermission();
+    }
+
+    // Check for due reminders every minute
+    const checkReminders = () => {
+      reminders.forEach((reminder: Reminder) => {
+        const dueTime = new Date(reminder.due_date).getTime();
+        const now = new Date().getTime();
+        const fiveMinutes = 5 * 60 * 1000;
+
+        // If reminder is due within 5 minutes and hasn't been notified
+        if (dueTime - now <= fiveMinutes && dueTime > now) {
+          if (Notification.permission === "granted") {
+            new Notification("Reminder Due Soon!", {
+              body: `${reminder.title} is due at ${format(new Date(reminder.due_date), 'pp')}`,
+              icon: "/favicon.ico"
+            });
+          }
+        }
+      });
+    };
+
+    const interval = setInterval(checkReminders, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [reminders]);
 
   const updateReminderMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<Reminder> }) =>
