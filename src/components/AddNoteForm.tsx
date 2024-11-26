@@ -67,8 +67,13 @@ export const AddNoteForm = ({ onClose }: { onClose: () => void }) => {
         </div>
         <div>
           <Select value={color} onValueChange={setColor}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select color" />
+            <SelectTrigger className="w-full">
+              <SelectValue>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded" style={{ backgroundColor: color }} />
+                  {COLORS.find(c => c.value === color)?.label || 'Select color'}
+                </div>
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {COLORS.map((color) => (
@@ -95,7 +100,7 @@ export const AddNoteForm = ({ onClose }: { onClose: () => void }) => {
             {content.length}/{MAX_CHARS} characters
           </div>
         </div>
-        <Button type="submit">Add Note</Button>
+        <Button type="submit" className="w-full">Add Note</Button>
       </form>
     </>
   );

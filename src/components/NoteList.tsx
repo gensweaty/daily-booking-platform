@@ -29,7 +29,7 @@ export const NoteList = () => {
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
-  const [editColor, setEditColor] = useState(COLORS[0].value);
+  const [editColor, setEditColor] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -92,10 +92,8 @@ export const NoteList = () => {
         {notes?.map((note: Note) => (
           <div
             key={note.id}
-            className="p-4 rounded-lg shadow border border-gray-200"
-            style={{
-              backgroundColor: note.color || COLORS[0].value,
-            }}
+            className="p-4 rounded-lg shadow border border-gray-200 transition-colors duration-200"
+            style={{ backgroundColor: note.color || COLORS[0].value }}
           >
             <div className="flex justify-between items-start">
               <div className="flex-1">
@@ -123,7 +121,7 @@ export const NoteList = () => {
         ))}
       </div>
 
-      <Dialog open={!!editingNote} onOpenChange={() => setEditingNote(null)}>
+      <Dialog open={!!editingNote} onOpenChange={(open) => !open && setEditingNote(null)}>
         <DialogContent>
           <DialogTitle>Edit Note</DialogTitle>
           <div className="space-y-4 mt-4">
@@ -133,8 +131,13 @@ export const NoteList = () => {
               onChange={(e) => setEditTitle(e.target.value)}
             />
             <Select value={editColor} onValueChange={setEditColor}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select color" />
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: editColor }} />
+                    {COLORS.find(c => c.value === editColor)?.label || 'Select color'}
+                  </div>
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {COLORS.map((color) => (
@@ -159,7 +162,7 @@ export const NoteList = () => {
                 {editContent.length}/{MAX_CHARS} characters
               </div>
             </div>
-            <Button onClick={handleSaveEdit}>Save Changes</Button>
+            <Button onClick={handleSaveEdit} className="w-full">Save Changes</Button>
           </div>
         </DialogContent>
       </Dialog>
