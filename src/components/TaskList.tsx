@@ -82,6 +82,28 @@ export const TaskList = () => {
     done: tasks.filter((task: Task) => task.status === 'done'),
   };
 
+  const getColumnStyle = (status: string) => {
+    switch (status) {
+      case 'in-progress':
+        return 'bg-amber-50 border-amber-200';
+      case 'done':
+        return 'bg-green-50 border-green-200';
+      default:
+        return 'bg-gray-50 border-gray-200';
+    }
+  };
+
+  const getTaskStyle = (status: string) => {
+    switch (status) {
+      case 'in-progress':
+        return 'border-l-4 border-l-amber-500';
+      case 'done':
+        return 'border-l-4 border-l-green-500';
+      default:
+        return 'border-l-4 border-l-gray-300';
+    }
+  };
+
   return (
     <>
       <DragDropContext onDragEnd={handleDragEnd}>
@@ -92,7 +114,7 @@ export const TaskList = () => {
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className="bg-gray-50 p-4 rounded-lg min-h-[200px]"
+                  className={`p-4 rounded-lg min-h-[200px] border ${getColumnStyle(status)}`}
                 >
                   <h3 className="font-semibold mb-4 capitalize">{status.replace('-', ' ')}</h3>
                   <div className="space-y-4">
@@ -103,10 +125,10 @@ export const TaskList = () => {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className="p-4 bg-white rounded-lg shadow border border-gray-200"
+                            className={`p-4 bg-white rounded-lg shadow ${getTaskStyle(task.status)}`}
                           >
                             <div className="flex justify-between items-start">
-                              <div>
+                              <div className={task.status === 'done' ? 'line-through text-gray-500' : ''}>
                                 <h3 className="font-semibold">{task.title}</h3>
                                 {task.description && (
                                   <p className="text-gray-600 mt-1">{task.description}</p>

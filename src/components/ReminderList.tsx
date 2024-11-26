@@ -4,12 +4,13 @@ import { Reminder } from "@/lib/types";
 import { format, parseISO } from "date-fns";
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { useToast } from "./ui/use-toast";
 
 export const ReminderList = () => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { data: reminders = [], isLoading } = useQuery({
     queryKey: ['reminders'],
     queryFn: getReminders,
@@ -23,6 +24,9 @@ export const ReminderList = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Initialize audio element
+    audioRef.current = new Audio('/audio/notification.mp3');
+
     // Request notification permission when component mounts
     if ('Notification' in window) {
       if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
@@ -39,7 +43,7 @@ export const ReminderList = () => {
 
     // Check for due reminders every 30 seconds
     const checkReminders = () => {
-      reminders.forEach((reminder: Reminder) => {
+      reminders?.forEach((reminder: Reminder) => {
         const dueTime = new Date(reminder.due_date).getTime();
         const now = new Date().getTime();
         const fiveMinutes = 5 * 60 * 1000;
@@ -47,41 +51,57 @@ export const ReminderList = () => {
         // If reminder is due within 5 minutes and hasn't been notified
         if (dueTime - now <= fiveMinutes && dueTime > now) {
           if (Notification.permission === "granted") {
-            // Show browser notification
+            // Play notification sound
+            audioRef.current?.play().catch(console.error);
+
+            // Show browser notification with custom icon
             new Notification("Reminder Due Soon!", {
               body: `${reminder.title} is due at ${format(new Date(reminder.due_date), 'pp')}`,
-              icon: "/favicon.ico"
+              icon: "/favicon.ico",
+              image: "/reminder-banner.jpg" // Add a custom banner image
             });
             
             // Show in-app toast notification
             toast({
               title: "Reminder Due Soon!",
               description: `${reminder.title} is due at ${format(new Date(reminder.due_date), 'pp')}`,
+              variant: "default",
             });
           }
         }
 
         // If reminder is due now
-        if (Math.abs(dueTime - now) < 60000) { // Within 1 minute of due time
+        if (Math.abs(dueTime - now) < 60000) {
           if (Notification.permission === "granted") {
+            // Play notification sound
+            audioRef.current?.play().catch(console.error);
+
             // Show browser notification
             new Notification("Reminder Due Now!", {
               body: `${reminder.title} is due now!`,
-              icon: "/favicon.ico"
+              icon: "/favicon.ico",
+              image: "/reminder-banner.jpg"
             });
             
             // Show in-app toast notification
             toast({
-              title: "Reminder Due Now!",
+              title: "⏰ Reminder Due Now!",
               description: `${reminder.title} is due now!`,
+              variant: "destructive",
             });
           }
         }
       });
     };
 
-    const interval = setInterval(checkReminders, 30000); // Check every 30 seconds
-    return () => clearInterval(interval);
+    const interval = setInterval(checkReminders, 30000);
+    return () => {
+      clearInterval(interval);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
   }, [reminders, toast]);
 
   const updateReminderMutation = useMutation({
