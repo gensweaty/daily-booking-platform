@@ -69,7 +69,7 @@ export const updateTask = async (id: string, updates: Partial<Task>) => {
   return data;
 };
 
-export const deleteTask = async (id: string) => {
+export const deleteTask = async (id: string): Promise<void> => {
   const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) throw error;
 };
@@ -107,7 +107,7 @@ export const updateEvent = async (id: string, updates: Partial<CalendarEventType
   return data;
 };
 
-export const deleteEvent = async (id: string) => {
+export const deleteEvent = async (id: string): Promise<void> => {
   const { error } = await supabase
     .from('events')
     .delete()
@@ -145,7 +145,7 @@ export const updateReminder = async (id: string, updates: Partial<Reminder>) => 
   return data;
 };
 
-export const deleteReminder = async (id: string) => {
+export const deleteReminder = async (id: string): Promise<void> => {
   const { error } = await supabase.from("reminders").delete().eq("id", id);
   if (error) throw error;
 };
