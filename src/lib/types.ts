@@ -24,7 +24,6 @@ export interface CalendarEvent {
   end_date: string;
   location?: string;
   type: 'meeting' | 'reminder';
-  color?: string;
   created_at: string;
   user_id?: string;
 }

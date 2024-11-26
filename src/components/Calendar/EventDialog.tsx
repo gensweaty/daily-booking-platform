@@ -6,12 +6,14 @@ import { format } from "date-fns";
 import { CalendarEvent } from "@/lib/types";
 import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Trash2 } from "lucide-react";
 
 interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate: Date | null;
   onSubmit: (data: Partial<CalendarEvent>) => void;
+  onDelete?: () => void;
   event?: CalendarEvent;
 }
 
@@ -20,6 +22,7 @@ export const EventDialog = ({
   onOpenChange,
   selectedDate,
   onSubmit,
+  onDelete,
   event,
 }: EventDialogProps) => {
   const [title, setTitle] = useState(event?.title || "");
@@ -43,11 +46,6 @@ export const EventDialog = ({
       end_date: endDate,
       type,
     });
-    setTitle("");
-    setDescription("");
-    setLocation("");
-    setStartDate("");
-    setEndDate("");
   };
 
   return (
@@ -94,9 +92,21 @@ export const EventDialog = ({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
-          <Button type="submit" className="w-full">
-            {event ? "Update Event" : "Create Event"}
-          </Button>
+          <div className="flex justify-between gap-4">
+            <Button type="submit" className="flex-1">
+              {event ? "Update Event" : "Create Event"}
+            </Button>
+            {event && onDelete && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                onClick={onDelete}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </form>
       </DialogContent>
     </Dialog>

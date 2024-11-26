@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { PlusCircle, ListTodo, Bell, StickyNote } from "lucide-react";
+import { PlusCircle, ListTodo, Calendar as CalendarIcon, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TaskList } from "@/components/TaskList";
 import { Calendar } from "@/components/Calendar/Calendar";
@@ -23,7 +23,7 @@ const Index = () => {
           <h1 className="text-4xl font-bold text-primary mb-2">Taskify Minder Note</h1>
           <p className="text-gray-600">Please sign in or sign up to continue</p>
         </header>
-        
+
         <Tabs defaultValue="signin" className="w-full max-w-md mx-auto">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="signin">Sign In</TabsTrigger>
@@ -54,7 +54,7 @@ const Index = () => {
             Tasks
           </TabsTrigger>
           <TabsTrigger value="calendar" className="flex items-center gap-2">
-            <Bell className="w-4 h-4" />
+            <CalendarIcon className="w-4 h-4" />
             Calendar
           </TabsTrigger>
           <TabsTrigger value="notes" className="flex items-center gap-2">

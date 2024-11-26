@@ -9,13 +9,14 @@ import {
   endOfMonth,
   addMonths,
   subMonths,
+  isSameDay,
 } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getEvents, createEvent, updateEvent } from "@/lib/api";
+import { getEvents, createEvent, updateEvent, deleteEvent } from "@/lib/api";
 import { CalendarEvent } from "@/lib/types";
 import { useToast } from "@/components/ui/use-toast";
-import { CalendarHeader } from "./CalendarHeader";
-import { CalendarGrid } from "./CalendarGrid";
+import { Button } from "@/components/ui/button";
+import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { EventDialog } from "./EventDialog";
 
 export const Calendar = () => {
@@ -48,6 +49,15 @@ export const Calendar = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       toast({ title: "Success", description: "Event updated successfully" });
+      setSelectedEvent(null);
+    },
+  });
+
+  const deleteEventMutation = useMutation({
+    mutationFn: deleteEvent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast({ title: "Success", description: "Event deleted successfully" });
       setSelectedEvent(null);
     },
   });
@@ -112,22 +122,72 @@ export const Calendar = () => {
 
   return (
     <div className="h-full flex flex-col gap-4">
-      <CalendarHeader
-        selectedDate={selectedDate}
-        view={view}
-        onViewChange={setView}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        onAddEvent={() => setIsNewEventDialogOpen(true)}
-      />
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={handlePrevious}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <h2 className="text-xl font-semibold">
+            {format(selectedDate, "MMMM yyyy")}
+          </h2>
+          <Button variant="outline" size="icon" onClick={handleNext}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex rounded-lg border border-input overflow-hidden">
+            {["month", "week", "day"].map((v) => (
+              <Button
+                key={v}
+                variant={view === v ? "default" : "ghost"}
+                className="rounded-none"
+                onClick={() => setView(v as "month" | "week" | "day")}
+              >
+                {v.charAt(0).toUpperCase() + v.slice(1)}
+              </Button>
+            ))}
+          </div>
+          <Button onClick={() => setIsNewEventDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Event
+          </Button>
+        </div>
+      </div>
 
-      <CalendarGrid
-        days={days}
-        events={events}
-        selectedDate={selectedDate}
-        onDayClick={handleDayClick}
-        onEventClick={handleEventClick}
-      />
+      <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+          <div key={day} className="bg-white p-4 text-center font-semibold">
+            {day}
+          </div>
+        ))}
+        {days.map((day) => (
+          <div
+            key={day.toISOString()}
+            className="bg-white p-4 min-h-[120px] cursor-pointer hover:bg-gray-50"
+            onClick={() => handleDayClick(day)}
+          >
+            <div className="font-medium">{format(day, "d")}</div>
+            <div className="mt-2 space-y-1">
+              {events
+                .filter((event) => isSameDay(new Date(event.start_date), day))
+                .map((event) => (
+                  <div
+                    key={event.id}
+                    className={`text-sm p-1 rounded ${
+                      event.type === "meeting" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
+                    } cursor-pointer truncate`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEventClick(event);
+                    }}
+                  >
+                    {event.title}
+                  </div>
+                ))}
+            </div>
+          </div>
+        ))}
+      </div>
 
       <EventDialog
         open={isNewEventDialogOpen}
@@ -148,6 +208,7 @@ export const Calendar = () => {
               updates,
             })
           }
+          onDelete={() => deleteEventMutation.mutate(selectedEvent.id)}
         />
       )}
     </div>
