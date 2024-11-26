@@ -1,5 +1,5 @@
-import { supabase } from "@/lib/supabaseClient";
-import { CalendarEvent, Note, Task } from "@/lib/types";
+import { supabase } from "@/lib/supabase";
+import { CalendarEvent, Note, Task, Reminder } from "@/lib/types";
 
 export const getNotes = async () => {
   const { data, error } = await supabase.from<Note>("notes").select("*");
@@ -34,23 +34,6 @@ export const createTask = async (task: Omit<Task, "id" | "created_at">) => {
   const { data, error } = await supabase
     .from("tasks")
     .insert([task])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-};
-
-export const getReminders = async () => {
-  const { data, error } = await supabase.from("reminders").select("*");
-  if (error) throw error;
-  return data;
-};
-
-export const createReminder = async (reminder: Omit<Reminder, "id" | "created_at">) => {
-  const { data, error } = await supabase
-    .from("reminders")
-    .insert([reminder])
     .select()
     .single();
 
@@ -98,4 +81,21 @@ export const deleteEvent = async (id: string) => {
     .eq('id', id);
 
   if (error) throw error;
+};
+
+export const getReminders = async () => {
+  const { data, error } = await supabase.from("reminders").select("*");
+  if (error) throw error;
+  return data;
+};
+
+export const createReminder = async (reminder: Omit<Reminder, "id" | "created_at">) => {
+  const { data, error } = await supabase
+    .from("reminders")
+    .insert([reminder])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 };

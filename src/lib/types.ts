@@ -28,3 +28,12 @@ export interface CalendarEvent {
   created_at: string;
   user_id?: string;
 }
+
+export interface Reminder {
+  id: string;
+  title: string;
+  description?: string;
+  due_date: string;
+  created_at: string;
+  user_id?: string;
+}

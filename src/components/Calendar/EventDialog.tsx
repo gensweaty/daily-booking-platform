@@ -1,27 +1,36 @@
-import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { CalendarEvent } from "@/lib/types";
+import { useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate: Date | null;
   onSubmit: (data: Partial<CalendarEvent>) => void;
+  event?: CalendarEvent;
 }
 
-export const EventDialog = ({ open, onOpenChange, selectedDate, onSubmit }: EventDialogProps) => {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [location, setLocation] = useState("");
+export const EventDialog = ({
+  open,
+  onOpenChange,
+  selectedDate,
+  onSubmit,
+  event,
+}: EventDialogProps) => {
+  const [title, setTitle] = useState(event?.title || "");
+  const [description, setDescription] = useState(event?.description || "");
+  const [location, setLocation] = useState(event?.location || "");
+  const [type, setType] = useState<"meeting" | "reminder">(event?.type || "meeting");
   const [startDate, setStartDate] = useState(
-    selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : ""
+    event?.start_date || (selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : "")
   );
   const [endDate, setEndDate] = useState(
-    selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : ""
+    event?.end_date || (selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : "")
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -32,7 +41,7 @@ export const EventDialog = ({ open, onOpenChange, selectedDate, onSubmit }: Even
       location,
       start_date: startDate,
       end_date: endDate,
-      type: "meeting",
+      type,
     });
     setTitle("");
     setDescription("");
@@ -44,7 +53,7 @@ export const EventDialog = ({ open, onOpenChange, selectedDate, onSubmit }: Even
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle>Add New Event</DialogTitle>
+        <DialogTitle>{event ? "Edit Event" : "Add New Event"}</DialogTitle>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <Input
             placeholder="Event title"
@@ -52,6 +61,15 @@ export const EventDialog = ({ open, onOpenChange, selectedDate, onSubmit }: Even
             onChange={(e) => setTitle(e.target.value)}
             required
           />
+          <Select value={type} onValueChange={(value) => setType(value as "meeting" | "reminder")}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="meeting">Meeting</SelectItem>
+              <SelectItem value="reminder">Reminder</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="grid grid-cols-2 gap-4">
             <Input
               type="datetime-local"
@@ -76,7 +94,9 @@ export const EventDialog = ({ open, onOpenChange, selectedDate, onSubmit }: Even
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
-          <Button type="submit" className="w-full">Create Event</Button>
+          <Button type="submit" className="w-full">
+            {event ? "Update Event" : "Create Event"}
+          </Button>
         </form>
       </DialogContent>
     </Dialog>
