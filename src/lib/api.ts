@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
-import { CalendarEvent, Note, Task, Reminder } from "@/lib/types";
+import { CalendarEventType } from "@/lib/types/calendar";
+import { Note, Task, Reminder } from "@/lib/types";
 
 export const getNotes = async () => {
   const { data, error } = await supabase.from<Note>("notes").select("*");
@@ -51,7 +52,7 @@ export const getEvents = async () => {
   return data;
 };
 
-export const createEvent = async (event: Partial<CalendarEvent>) => {
+export const createEvent = async (event: Partial<CalendarEventType>) => {
   const { data, error } = await supabase
     .from('events')
     .insert([event])
@@ -62,7 +63,7 @@ export const createEvent = async (event: Partial<CalendarEvent>) => {
   return data;
 };
 
-export const updateEvent = async (id: string, updates: Partial<CalendarEvent>) => {
+export const updateEvent = async (id: string, updates: Partial<CalendarEventType>) => {
   const { data, error } = await supabase
     .from('events')
     .update(updates)

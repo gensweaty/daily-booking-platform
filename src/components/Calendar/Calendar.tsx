@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  format,
   startOfWeek,
   endOfWeek,
   eachDayOfInterval,
@@ -9,58 +8,22 @@ import {
   endOfMonth,
   addMonths,
   subMonths,
-  isSameDay,
 } from "date-fns";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getEvents, createEvent, updateEvent, deleteEvent } from "@/lib/api";
-import { CalendarEvent } from "@/lib/types";
-import { useToast } from "@/components/ui/use-toast";
-import { Button } from "@/components/ui/button";
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { useCalendarEvents } from "@/hooks/useCalendarEvents";
+import { CalendarHeader } from "./CalendarHeader";
+import { CalendarView } from "./CalendarView";
 import { EventDialog } from "./EventDialog";
+import { CalendarViewType } from "@/lib/types/calendar";
+import { useToast } from "@/components/ui/use-toast";
 
 export const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [view, setView] = useState<"month" | "week" | "day">("month");
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [view, setView] = useState<CalendarViewType>("month");
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
-
-  const { data: events = [], isLoading } = useQuery({
-    queryKey: ['events'],
-    queryFn: getEvents,
-  });
-
-  const queryClient = useQueryClient();
+  const { events, isLoading, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
   const { toast } = useToast();
-
-  const createEventMutation = useMutation({
-    mutationFn: createEvent,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast({ title: "Success", description: "Event created successfully" });
-      setIsNewEventDialogOpen(false);
-    },
-  });
-
-  const updateEventMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<CalendarEvent> }) =>
-      updateEvent(id, updates),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast({ title: "Success", description: "Event updated successfully" });
-      setSelectedEvent(null);
-    },
-  });
-
-  const deleteEventMutation = useMutation({
-    mutationFn: deleteEvent,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast({ title: "Success", description: "Event deleted successfully" });
-      setSelectedEvent(null);
-    },
-  });
 
   const getDaysForView = () => {
     switch (view) {
@@ -107,93 +70,40 @@ export const Calendar = () => {
     }
   };
 
-  const handleDayClick = (date: Date) => {
-    setSelectedSlot(date);
-    setIsNewEventDialogOpen(true);
-  };
-
-  const handleEventClick = (event: CalendarEvent) => {
-    setSelectedEvent(event);
-  };
-
   if (isLoading) return <div>Loading calendar...</div>;
-
-  const days = getDaysForView();
 
   return (
     <div className="h-full flex flex-col gap-4">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handlePrevious}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h2 className="text-xl font-semibold">
-            {format(selectedDate, "MMMM yyyy")}
-          </h2>
-          <Button variant="outline" size="icon" onClick={handleNext}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex rounded-lg border border-input overflow-hidden">
-            {["month", "week", "day"].map((v) => (
-              <Button
-                key={v}
-                variant={view === v ? "default" : "ghost"}
-                className="rounded-none"
-                onClick={() => setView(v as "month" | "week" | "day")}
-              >
-                {v.charAt(0).toUpperCase() + v.slice(1)}
-              </Button>
-            ))}
-          </div>
-          <Button onClick={() => setIsNewEventDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Event
-          </Button>
-        </div>
-      </div>
+      <CalendarHeader
+        selectedDate={selectedDate}
+        view={view}
+        onViewChange={setView}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
+        onAddEvent={() => setIsNewEventDialogOpen(true)}
+      />
 
-      <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-          <div key={day} className="bg-white p-4 text-center font-semibold">
-            {day}
-          </div>
-        ))}
-        {days.map((day) => (
-          <div
-            key={day.toISOString()}
-            className="bg-white p-4 min-h-[120px] cursor-pointer hover:bg-gray-50"
-            onClick={() => handleDayClick(day)}
-          >
-            <div className="font-medium">{format(day, "d")}</div>
-            <div className="mt-2 space-y-1">
-              {events
-                .filter((event) => isSameDay(new Date(event.start_date), day))
-                .map((event) => (
-                  <div
-                    key={event.id}
-                    className={`text-sm p-1 rounded ${
-                      event.type === "meeting" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
-                    } cursor-pointer truncate`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEventClick(event);
-                    }}
-                  >
-                    {event.title}
-                  </div>
-                ))}
-            </div>
-          </div>
-        ))}
-      </div>
+      <CalendarView
+        days={getDaysForView()}
+        events={events}
+        onDayClick={(date) => {
+          setSelectedSlot(date);
+          setIsNewEventDialogOpen(true);
+        }}
+        onEventClick={setSelectedEvent}
+      />
 
       <EventDialog
         open={isNewEventDialogOpen}
         onOpenChange={setIsNewEventDialogOpen}
         selectedDate={selectedSlot}
-        onSubmit={(data) => createEventMutation.mutate(data)}
+        onSubmit={(data) => {
+          createEvent(data);
+          toast({
+            title: "Success",
+            description: "Event created successfully",
+          });
+        }}
       />
 
       {selectedEvent && (
@@ -202,13 +112,23 @@ export const Calendar = () => {
           onOpenChange={() => setSelectedEvent(null)}
           selectedDate={new Date(selectedEvent.start_date)}
           event={selectedEvent}
-          onSubmit={(updates) =>
-            updateEventMutation.mutate({
+          onSubmit={(updates) => {
+            updateEvent({
               id: selectedEvent.id,
               updates,
-            })
-          }
-          onDelete={() => deleteEventMutation.mutate(selectedEvent.id)}
+            });
+            toast({
+              title: "Success",
+              description: "Event updated successfully",
+            });
+          }}
+          onDelete={() => {
+            deleteEvent(selectedEvent.id);
+            toast({
+              title: "Success",
+              description: "Event deleted successfully",
+            });
+          }}
         />
       )}
     </div>
