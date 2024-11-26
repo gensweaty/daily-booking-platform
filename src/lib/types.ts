@@ -14,6 +14,7 @@ export interface Reminder {
   due_date: string;
   created_at: string;
   user_id?: string;
+  order?: number;
 }
 
 export interface Note {
@@ -22,4 +23,6 @@ export interface Note {
   content: string;
   created_at: string;
   user_id?: string;
+  color?: string;
+  order?: number;
 }
