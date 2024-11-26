@@ -9,6 +9,17 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { useToast } from "./ui/use-toast";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const MAX_CHARS = 10000;
+const COLORS = [
+  { value: "#F2FCE2", label: "Green" },
+  { value: "#FEF7CD", label: "Yellow" },
+  { value: "#FEC6A1", label: "Orange" },
+  { value: "#E5DEFF", label: "Purple" },
+  { value: "#FFDEE2", label: "Pink" },
+  { value: "#D3E4FD", label: "Blue" },
+];
 
 export const NoteList = () => {
   const { data: notes, isLoading } = useQuery({
@@ -19,6 +30,7 @@ export const NoteList = () => {
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
+  const [editColor, setEditColor] = useState(COLORS[0].value);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -50,15 +62,25 @@ export const NoteList = () => {
     setEditingNote(note);
     setEditTitle(note.title);
     setEditContent(note.content);
+    setEditColor(note.color || COLORS[0].value);
   };
 
   const handleSaveEdit = () => {
     if (!editingNote) return;
+    if (editContent.length > MAX_CHARS) {
+      toast({
+        title: "Error",
+        description: `Content exceeds maximum length of ${MAX_CHARS} characters`,
+        variant: "destructive",
+      });
+      return;
+    }
     updateNoteMutation.mutate({
       id: editingNote.id,
       updates: {
         title: editTitle,
         content: editContent,
+        color: editColor,
       },
     });
   };
@@ -70,7 +92,6 @@ export const NoteList = () => {
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
 
-    // Update the order in the database
     items.forEach((note, index) => {
       updateNoteMutation.mutate({
         id: note.id,
@@ -97,7 +118,11 @@ export const NoteList = () => {
                     <div
                       ref={provided.innerRef}
                       {...provided.draggableProps}
-                      className="p-4 rounded-lg shadow border border-gray-200 bg-white"
+                      className="p-4 rounded-lg shadow border border-gray-200"
+                      style={{
+                        backgroundColor: note.color || COLORS[0].value,
+                        ...provided.draggableProps.style,
+                      }}
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
@@ -145,12 +170,33 @@ export const NoteList = () => {
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
             />
-            <Textarea
-              placeholder="Note content"
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="min-h-[200px]"
-            />
+            <Select value={editColor} onValueChange={setEditColor}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select color" />
+              </SelectTrigger>
+              <SelectContent>
+                {COLORS.map((color) => (
+                  <SelectItem key={color.value} value={color.value}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded" style={{ backgroundColor: color.value }} />
+                      {color.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div>
+              <Textarea
+                placeholder="Note content"
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="min-h-[200px]"
+                maxLength={MAX_CHARS}
+              />
+              <div className="text-sm text-gray-500 mt-1">
+                {editContent.length}/{MAX_CHARS} characters
+              </div>
+            </div>
             <Button onClick={handleSaveEdit}>Save Changes</Button>
           </div>
         </DialogContent>

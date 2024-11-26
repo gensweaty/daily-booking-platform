@@ -4,13 +4,13 @@ import { Reminder } from "@/lib/types";
 import { format, parseISO } from "date-fns";
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { useToast } from "./ui/use-toast";
+import { ReminderNotificationManager } from "./reminder/ReminderNotificationManager";
 
 export const ReminderList = () => {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { data: reminders = [], isLoading } = useQuery({
     queryKey: ['reminders'],
     queryFn: getReminders,
@@ -22,87 +22,6 @@ export const ReminderList = () => {
   const [editDueDate, setEditDueDate] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
-  useEffect(() => {
-    // Initialize audio element
-    audioRef.current = new Audio('/audio/notification.mp3');
-
-    // Request notification permission when component mounts
-    if ('Notification' in window) {
-      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-        Notification.requestPermission().then(permission => {
-          if (permission === 'granted') {
-            toast({
-              title: "Notifications Enabled",
-              description: "You will receive reminder notifications",
-            });
-          }
-        });
-      }
-    }
-
-    // Check for due reminders every 30 seconds
-    const checkReminders = () => {
-      reminders?.forEach((reminder: Reminder) => {
-        const dueTime = new Date(reminder.due_date).getTime();
-        const now = new Date().getTime();
-        const fiveMinutes = 5 * 60 * 1000;
-
-        // If reminder is due within 5 minutes and hasn't been notified
-        if (dueTime - now <= fiveMinutes && dueTime > now) {
-          if (Notification.permission === "granted") {
-            // Play notification sound
-            audioRef.current?.play().catch(console.error);
-
-            // Show browser notification
-            new Notification("Reminder Due Soon!", {
-              body: `${reminder.title} is due at ${format(new Date(reminder.due_date), 'pp')}`,
-              icon: "/favicon.ico",
-              badge: "/reminder-banner.jpg" // Changed from 'image' to 'badge'
-            });
-            
-            // Show in-app toast notification
-            toast({
-              title: "Reminder Due Soon!",
-              description: `${reminder.title} is due at ${format(new Date(reminder.due_date), 'pp')}`,
-              variant: "default",
-            });
-          }
-        }
-
-        // If reminder is due now
-        if (Math.abs(dueTime - now) < 60000) {
-          if (Notification.permission === "granted") {
-            // Play notification sound
-            audioRef.current?.play().catch(console.error);
-
-            // Show browser notification
-            new Notification("Reminder Due Now!", {
-              body: `${reminder.title} is due now!`,
-              icon: "/favicon.ico",
-              badge: "/reminder-banner.jpg" // Changed from 'image' to 'badge'
-            });
-            
-            // Show in-app toast notification
-            toast({
-              title: "⏰ Reminder Due Now!",
-              description: `${reminder.title} is due now!`,
-              variant: "destructive",
-            });
-          }
-        }
-      });
-    };
-
-    const interval = setInterval(checkReminders, 30000);
-    return () => {
-      clearInterval(interval);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, [reminders, toast]);
 
   const updateReminderMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<Reminder> }) =>
@@ -132,7 +51,6 @@ export const ReminderList = () => {
     setEditingReminder(reminder);
     setEditTitle(reminder.title);
     setEditDescription(reminder.description || "");
-    // Format the date-time string to match the input format
     const formattedDate = format(new Date(reminder.due_date), "yyyy-MM-dd'T'HH:mm");
     setEditDueDate(formattedDate);
   };
@@ -153,6 +71,7 @@ export const ReminderList = () => {
 
   return (
     <>
+      <ReminderNotificationManager reminders={reminders} />
       <div className="space-y-4">
         {reminders?.map((reminder: Reminder) => (
           <div
