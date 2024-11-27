@@ -25,6 +25,7 @@ const Index = () => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
 
+  // Check for email confirmation
   useEffect(() => {
     const confirmationStatus = searchParams.get("email_confirmed");
     if (confirmationStatus === "true") {
