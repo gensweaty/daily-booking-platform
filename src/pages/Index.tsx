@@ -15,6 +15,7 @@ import { SignUp } from "@/components/SignUp";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { useSearchParams } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
@@ -72,10 +73,13 @@ const Index = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 p-4">
+      <div className="min-h-screen bg-background p-4">
         <header className="mb-8">
+          <div className="flex justify-end mb-4">
+            <ThemeToggle />
+          </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2 text-center">Welcome to Taskify Minder Note</h1>
-          <p className="text-gray-600 text-center">Please sign in or sign up to continue</p>
+          <p className="text-foreground text-center">Complete Agile productivity - tasks notes calendar all in one</p>
         </header>
 
         <div className="w-full max-w-md mx-auto">
@@ -97,21 +101,24 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="min-h-screen bg-background p-4">
       <header className="mb-8">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="text-center sm:text-left">
             <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">Welcome to Taskify Minder Note</h1>
-            <p className="text-gray-600">Hello, {username}! Manage your tasks, calendar, and notes in one place</p>
+            <p className="text-foreground">Hello {username}! Complete Agile productivity - tasks notes calendar all in one</p>
           </div>
-          <Button 
-            variant="outline" 
-            className="flex items-center gap-2"
-            onClick={signOut}
-          >
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2"
+              onClick={signOut}
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
