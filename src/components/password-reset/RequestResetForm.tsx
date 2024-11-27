@@ -19,7 +19,18 @@ export const RequestResetForm = () => {
         redirectTo: `${window.location.origin}/reset-password#recovery`,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Check if it's a rate limit error
+        if (error.message.includes('rate_limit')) {
+          toast({
+            title: "Please wait",
+            description: "For security purposes, please wait a few seconds before requesting another reset link.",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw error;
+      }
 
       toast({
         title: "Check your email",
