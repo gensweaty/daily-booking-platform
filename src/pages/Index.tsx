@@ -12,7 +12,6 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignIn } from "@/components/SignIn";
 import { SignUp } from "@/components/SignUp";
-import { ForgotPassword } from "@/components/ForgotPassword";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { useSearchParams } from "react-router-dom";
@@ -85,19 +84,15 @@ const Index = () => {
 
         <div className="w-full max-w-md mx-auto">
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-8">
+            <TabsList className="grid w-full grid-cols-2 mb-8">
               <TabsTrigger value="signin" className="text-foreground">Sign In</TabsTrigger>
               <TabsTrigger value="signup" className="text-foreground">Sign Up</TabsTrigger>
-              <TabsTrigger value="forgot" className="text-foreground">Forgot Password</TabsTrigger>
             </TabsList>
             <TabsContent value="signin">
               <SignIn />
             </TabsContent>
             <TabsContent value="signup">
               <SignUp />
-            </TabsContent>
-            <TabsContent value="forgot">
-              <ForgotPassword />
             </TabsContent>
           </Tabs>
         </div>

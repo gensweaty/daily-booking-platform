@@ -11,24 +11,11 @@ export const SignUp = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [emailError, setEmailError] = useState("");
   const { toast } = useToast();
-
-  const checkEmailExists = async (email: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password: "dummy-password-for-check",
-    });
-
-    // If we get an invalid credentials error, it means the email exists
-    // If we get a user not found error, the email doesn't exist
-    return error?.message.includes("Invalid login credentials");
-  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setEmailError("");
     
     if (password !== confirmPassword) {
       toast({
@@ -51,14 +38,6 @@ export const SignUp = () => {
     }
 
     try {
-      // Check if email exists
-      const emailExists = await checkEmailExists(email);
-      if (emailExists) {
-        setEmailError("This email is already registered. Please sign in instead.");
-        setIsLoading(false);
-        return;
-      }
-
       // First check if username already exists
       const { data: existingUser } = await supabase
         .from('profiles')
@@ -86,7 +65,18 @@ export const SignUp = () => {
         },
       });
       
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("User already registered")) {
+          toast({
+            title: "Error",
+            description: "This email is already registered. Please sign in instead.",
+            variant: "destructive",
+          });
+        } else {
+          throw error;
+        }
+        return;
+      }
 
       if (data?.user) {
         toast({
@@ -137,17 +127,11 @@ export const SignUp = () => {
             type="email"
             placeholder="Email"
             value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              setEmailError("");
-            }}
+            onChange={(e) => setEmail(e.target.value)}
             required
-            className={`w-full ${emailError ? "border-red-500" : ""}`}
+            className="w-full"
             disabled={isLoading}
           />
-          {emailError && (
-            <p className="text-sm text-red-500 mt-1">{emailError}</p>
-          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>

@@ -25,7 +25,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { error } = await supabase.auth.signOut();
       
       if (error) {
-        // Ignore session_not_found errors as they just mean the user is already signed out
         if (!error.message.includes('session_not_found') && !error.message.includes('JWT expired')) {
           throw error;
         }
