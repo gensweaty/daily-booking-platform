@@ -25,6 +25,15 @@ export const UpdatePasswordForm = () => {
       return;
     }
 
+    if (newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -69,6 +78,7 @@ export const UpdatePasswordForm = () => {
             required
             className="w-full"
             disabled={isLoading}
+            minLength={6}
           />
         </div>
         <div className="space-y-2">
@@ -82,6 +92,7 @@ export const UpdatePasswordForm = () => {
             required
             className="w-full"
             disabled={isLoading}
+            minLength={6}
           />
         </div>
         <Button 

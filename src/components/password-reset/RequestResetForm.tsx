@@ -16,11 +16,10 @@ export const RequestResetForm = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/reset-password?type=recovery`,
       });
 
       if (error) {
-        // Check if it's a rate limit error
         if (error.message.includes('rate_limit')) {
           toast({
             title: "Please wait",
