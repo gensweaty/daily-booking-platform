@@ -23,6 +23,16 @@ export const SignIn = () => {
       });
       
       if (error) {
+        // Check for email provider disabled error
+        if (error.message.includes('email_provider_disabled') || error.message.includes('Email logins are disabled')) {
+          toast({
+            title: "Authentication Error",
+            description: "Email authentication is currently disabled. Please enable it in your Supabase settings.",
+            variant: "destructive",
+          });
+          return;
+        }
+
         toast({
           title: "Error",
           description: "Invalid email or password. Please try again.",
@@ -47,7 +57,7 @@ export const SignIn = () => {
         // Redirect with a slight delay to ensure toast is visible
         setTimeout(() => {
           window.location.href = "/";
-        }, 500);
+        }, 1000);
       }
     } catch (error: any) {
       console.error('Sign in error:', error);
