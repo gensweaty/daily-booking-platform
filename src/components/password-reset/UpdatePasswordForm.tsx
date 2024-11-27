@@ -41,20 +41,14 @@ export const UpdatePasswordForm = ({ accessToken }: UpdatePasswordFormProps) => 
     setIsLoading(true);
 
     try {
-      // First set the session with the recovery token
-      const { data: { session }, error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: '',
+      // Update the user's password directly using the recovery token
+      const { error } = await supabase.auth.updateUser({ 
+        password: newPassword 
+      }, {
+        accessToken // Pass the recovery token directly
       });
 
-      if (sessionError) throw sessionError;
-
-      // Then update the password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (updateError) throw updateError;
+      if (error) throw error;
 
       toast({
         title: "Success",
