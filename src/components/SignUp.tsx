@@ -38,7 +38,24 @@ export const SignUp = () => {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      // First check if username already exists
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username)
+        .single();
+
+      if (existingUser) {
+        toast({
+          title: "Error",
+          description: "This username is already taken. Please choose another one.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -60,15 +77,24 @@ export const SignUp = () => {
         }
         return;
       }
-      
-      toast({
-        title: "Success",
-        description: "Please check your email (including spam folder) to confirm your account before signing in.",
-      });
+
+      if (data?.user) {
+        toast({
+          title: "Success",
+          description: "Please check your email (including spam folder) to confirm your account before signing in.",
+        });
+        
+        // Clear form
+        setEmail("");
+        setUsername("");
+        setPassword("");
+        setConfirmPassword("");
+      }
     } catch (error: any) {
+      console.error('Signup error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "An error occurred during sign up",
         variant: "destructive",
       });
     } finally {
