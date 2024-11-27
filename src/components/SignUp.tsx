@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { User } from "@supabase/supabase-js";
 
 export const SignUp = () => {
   const [email, setEmail] = useState("");
@@ -39,24 +38,6 @@ export const SignUp = () => {
     }
 
     try {
-      // First check if the email is already registered
-      const { data: { users }, error: getUserError } = await supabase.auth.admin.listUsers();
-      
-      if (getUserError) throw getUserError;
-      
-      const existingUser = (users as User[])?.find(user => user.email === email);
-      
-      if (existingUser) {
-        toast({
-          title: "Error",
-          description: "An account with this email already exists. Please sign in instead.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // If email is not registered, proceed with sign up
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -68,27 +49,29 @@ export const SignUp = () => {
         },
       });
       
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("User already registered")) {
+          toast({
+            title: "Error",
+            description: "This email is already registered. Please sign in instead.",
+            variant: "destructive",
+          });
+        } else {
+          throw error;
+        }
+        return;
+      }
       
       toast({
         title: "Success",
         description: "Please check your email (including spam folder) to confirm your account before signing in.",
       });
     } catch (error: any) {
-      // Handle specific error cases
-      if (error.message.includes("User already registered")) {
-        toast({
-          title: "Error",
-          description: "This email is already registered. Please sign in instead.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
