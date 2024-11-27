@@ -20,9 +20,9 @@ export const CalendarView = ({
 }: CalendarViewProps) => {
   if (view === "month") {
     return (
-      <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden text-sm sm:text-base">
+      <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden text-sm sm:text-base">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-          <div key={day} className="bg-white p-2 sm:p-4 text-center font-semibold">
+          <div key={day} className="bg-white dark:bg-gray-800 p-2 sm:p-4 text-center font-semibold text-foreground">
             {day}
           </div>
         ))}
@@ -34,18 +34,18 @@ export const CalendarView = ({
           return (
             <div
               key={day.toISOString()}
-              className="bg-white p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-gray-50"
+              className="bg-white dark:bg-gray-800 p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
               onClick={() => onDayClick(day)}
             >
-              <div className="font-medium">{format(day, "d")}</div>
+              <div className="font-medium text-foreground">{format(day, "d")}</div>
               <div className="mt-1 sm:mt-2 space-y-1">
                 {dayEvents.map((event) => (
                   <div
                     key={event.id}
                     className={`text-xs sm:text-sm p-1 rounded ${
                       event.type === "meeting"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-purple-100 text-purple-700"
+                        ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-100"
+                        : "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-100"
                     } cursor-pointer truncate`}
                     onClick={(e) => {
                       e.stopPropagation();
