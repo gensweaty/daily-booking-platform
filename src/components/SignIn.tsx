@@ -20,9 +20,15 @@ export const SignIn = () => {
       
       if (error) {
         if (error.message.includes("Email not confirmed")) {
+          // Resend confirmation email
+          await supabase.auth.resend({
+            type: 'signup',
+            email: email,
+          });
+          
           toast({
-            title: "Error",
-            description: "Please confirm your email before signing in. Check your inbox and spam folder.",
+            title: "Email Not Confirmed",
+            description: "Please confirm your email before signing in. A new confirmation email has been sent - check your inbox and spam folder.",
             variant: "destructive",
           });
           return;
@@ -33,7 +39,7 @@ export const SignIn = () => {
       if (!data.user?.email_confirmed_at) {
         await supabase.auth.signOut();
         toast({
-          title: "Error",
+          title: "Email Not Confirmed",
           description: "Please confirm your email before signing in. Check your inbox and spam folder.",
           variant: "destructive",
         });

@@ -66,7 +66,7 @@ const Index = () => {
     <div className="min-h-screen bg-gray-50 p-4">
       <header className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-4xl font-bold text-primary mb-2">Taskify Minder Note</h1>
+          <h1 className="text-4xl font-bold text-primary mb-2">Welcome to Taskify Minder Note</h1>
           <p className="text-gray-600">Hello, {username}! Manage your tasks, calendar, and notes in one place</p>
         </div>
         <Button 
