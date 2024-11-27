@@ -8,7 +8,7 @@ export const useCalendarEvents = () => {
   const { data: events = [], isLoading, error } = useQuery({
     queryKey: ['events'],
     queryFn: getEvents,
-    staleTime: 1000 * 60, // 1 minute
+    staleTime: 1000 * 60,
     refetchOnWindowFocus: true,
   });
 

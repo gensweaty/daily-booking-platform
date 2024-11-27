@@ -9,6 +9,7 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { useToast } from "./ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 const MAX_CHARS = 10000;
 const COLORS = [
@@ -21,7 +22,7 @@ const COLORS = [
 ];
 
 export const NoteList = () => {
-  const { data: notes, isLoading } = useQuery({
+  const { data: notes = [], isLoading } = useQuery({
     queryKey: ['notes'],
     queryFn: getNotes,
   });
@@ -84,42 +85,73 @@ export const NoteList = () => {
     });
   };
 
+  const handleDragEnd = (result: any) => {
+    if (!result.destination) return;
+
+    const items = Array.from(notes);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    // Update the notes in the UI immediately
+    queryClient.setQueryData(['notes'], items);
+  };
+
   if (isLoading) return <div>Loading notes...</div>;
 
   return (
     <>
-      <div className="space-y-4">
-        {notes?.map((note: Note) => (
-          <div
-            key={note.id}
-            className="p-4 rounded-lg shadow border border-gray-200 transition-colors duration-200"
-            style={{ backgroundColor: note.color || COLORS[0].value }}
-          >
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <h3 className="font-semibold">{note.title}</h3>
-                <p className="text-gray-600 mt-2 whitespace-pre-wrap">{note.content}</p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleEdit(note)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => deleteNoteMutation.mutate(note.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="notes">
+          {(provided) => (
+            <div 
+              {...provided.droppableProps}
+              ref={provided.innerRef}
+              className="space-y-4"
+            >
+              {notes?.map((note: Note, index: number) => (
+                <Draggable key={note.id} draggableId={note.id} index={index}>
+                  {(provided) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      {...provided.dragHandleProps}
+                      className="p-4 rounded-lg shadow border border-gray-200 transition-colors duration-200"
+                      style={{ 
+                        backgroundColor: note.color || COLORS[0].value,
+                        ...provided.draggableProps.style
+                      }}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h3 className="font-semibold">{note.title}</h3>
+                          <p className="text-gray-600 mt-2 whitespace-pre-wrap">{note.content}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(note)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteNoteMutation.mutate(note.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
             </div>
-          </div>
-        ))}
-      </div>
+          )}
+        </Droppable>
+      </DragDropContext>
 
       <Dialog open={!!editingNote} onOpenChange={(open) => !open && setEditingNote(null)}>
         <DialogContent>
