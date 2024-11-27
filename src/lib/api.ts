@@ -38,42 +38,6 @@ export const deleteNote = async (id: string) => {
   if (error) throw error;
 };
 
-export const getTasks = async () => {
-  const { data, error } = await supabase
-    .from("tasks")
-    .select("*");
-  if (error) throw error;
-  return data;
-};
-
-export const createTask = async (task: Omit<Task, "id" | "created_at">) => {
-  const { data, error } = await supabase
-    .from("tasks")
-    .insert([task])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-};
-
-export const updateTask = async (id: string, updates: Partial<Task>) => {
-  const { data, error } = await supabase
-    .from("tasks")
-    .update(updates)
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-};
-
-export const deleteTask = async (id: string): Promise<void> => {
-  const { error } = await supabase.from("tasks").delete().eq("id", id);
-  if (error) throw error;
-};
-
 export const getEvents = async () => {
   const { data, error } = await supabase
     .from('events')
@@ -113,6 +77,42 @@ export const deleteEvent = async (id: string): Promise<void> => {
     .delete()
     .eq('id', id);
 
+  if (error) throw error;
+};
+
+export const getTasks = async () => {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*");
+  if (error) throw error;
+  return data;
+};
+
+export const createTask = async (task: Omit<Task, "id" | "created_at">) => {
+  const { data, error } = await supabase
+    .from("tasks")
+    .insert([task])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const updateTask = async (id: string, updates: Partial<Task>) => {
+  const { data, error } = await supabase
+    .from("tasks")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const deleteTask = async (id: string): Promise<void> => {
+  const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) throw error;
 };
 

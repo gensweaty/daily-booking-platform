@@ -9,8 +9,45 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      events: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          end_date: string
+          id: string
+          location: string | null
+          start_date: string
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          location?: string | null
+          start_date: string
+          title: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          location?: string | null
+          start_date?: string
+          title?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
+          color: string | null
           content: string
           created_at: string
           id: string
@@ -18,6 +55,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          color?: string | null
           content: string
           created_at?: string
           id?: string
@@ -25,6 +63,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          color?: string | null
           content?: string
           created_at?: string
           id?: string
