@@ -24,11 +24,19 @@ export const SignIn = () => {
       });
       
       if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
+        if (error.message === "Invalid login credentials") {
+          toast({
+            title: "Invalid credentials",
+            description: "Please check your email and password and try again.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
         return;
       }
 
@@ -37,14 +45,13 @@ export const SignIn = () => {
           title: "Success",
           description: "Signed in successfully",
         });
-        
         navigate("/");
       }
     } catch (error: any) {
       console.error('Sign in error:', error);
       toast({
         title: "Error",
-        description: "An error occurred during sign in. Please try again.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
