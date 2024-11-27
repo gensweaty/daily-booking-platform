@@ -37,26 +37,42 @@ export const UpdatePasswordForm = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({
+      // First update the user's password
+      const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       });
 
-      if (error) throw error;
+      if (updateError) throw updateError;
+
+      // Sign out the user to clear any existing session
+      await supabase.auth.signOut();
+
+      // Now try to sign in with the new password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: (await supabase.auth.getUser()).data.user?.email || '',
+        password: newPassword,
+      });
+
+      if (signInError) throw signInError;
 
       toast({
         title: "Success",
-        description: "Your password has been updated successfully. Please sign in with your new password.",
+        description: "Your password has been updated successfully.",
       });
 
-      // Sign out and redirect to login
-      await supabase.auth.signOut();
+      // Redirect to the main page
       navigate("/");
     } catch (error: any) {
+      console.error('Password update error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "An error occurred while updating your password",
         variant: "destructive",
       });
+      
+      // If there's an error, sign out and redirect to sign in
+      await supabase.auth.signOut();
+      navigate("/");
     } finally {
       setIsLoading(false);
     }
