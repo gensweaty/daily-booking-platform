@@ -4,14 +4,13 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,44 +23,31 @@ export const SignIn = () => {
       });
       
       if (error) {
-        if (error.message.includes("Invalid login credentials")) {
-          toast({
-            title: "Error",
-            description: "Invalid email or password. Please try again.",
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        if (error.message.includes("Email not confirmed")) {
-          await supabase.auth.resend({
-            type: 'signup',
-            email: email.trim(),
-          });
-          
-          toast({
-            title: "Email Not Confirmed",
-            description: "Please confirm your email before signing in. A new confirmation email has been sent - check your inbox and spam folder.",
-            variant: "destructive",
-          });
-          return;
-        }
-        throw error;
+        toast({
+          title: "Error",
+          description: "Invalid email or password. Please try again.",
+          variant: "destructive",
+        });
+        return;
       }
 
-      // Get the session to ensure we're properly authenticated
-      const { data: { session } } = await supabase.auth.getSession();
+      // Get the session immediately after sign in
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
+      if (sessionError) {
+        throw sessionError;
+      }
+
       if (session) {
         toast({
           title: "Success",
           description: "Signed in successfully",
         });
         
-        // Force navigation and page reload
-        window.location.href = "/";
-      } else {
-        throw new Error("Failed to establish session");
+        // Redirect with a slight delay to ensure toast is visible
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 500);
       }
     } catch (error: any) {
       console.error('Sign in error:', error);
