@@ -18,10 +18,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { TimeIndicator } from "./TimeIndicator";
 
 export const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [view, setView] = useState<CalendarViewType>("month");
+  const [view, setView] = useState<CalendarViewType>("week"); // Changed default to week
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
@@ -30,7 +31,6 @@ export const Calendar = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect to login if not authenticated
   if (!user) {
     navigate("/signin");
     return null;
@@ -109,16 +109,22 @@ export const Calendar = () => {
         onAddEvent={() => setIsNewEventDialogOpen(true)}
       />
 
-      <CalendarView
-        days={getDaysForView()}
-        events={events || []}
-        selectedDate={selectedDate}
-        onDayClick={(date) => {
-          setSelectedSlot(date);
-          setIsNewEventDialogOpen(true);
-        }}
-        onEventClick={setSelectedEvent}
-      />
+      <div className={`flex ${view !== 'month' ? 'h-[calc(100vh-12rem)] overflow-y-auto' : ''}`}>
+        {view !== 'month' && <TimeIndicator />}
+        <div className="flex-1">
+          <CalendarView
+            days={getDaysForView()}
+            events={events || []}
+            selectedDate={selectedDate}
+            view={view}
+            onDayClick={(date) => {
+              setSelectedSlot(date);
+              setIsNewEventDialogOpen(true);
+            }}
+            onEventClick={setSelectedEvent}
+          />
+        </div>
+      </div>
 
       <EventDialog
         open={isNewEventDialogOpen}

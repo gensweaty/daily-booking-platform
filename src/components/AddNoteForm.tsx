@@ -7,6 +7,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import { DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const MAX_CHARS = 10000;
 const COLORS = [
@@ -24,6 +26,13 @@ export const AddNoteForm = ({ onClose }: { onClose: () => void }) => {
   const [color, setColor] = useState(COLORS[0].value);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  if (!user) {
+    navigate("/signin");
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,18 +45,23 @@ export const AddNoteForm = ({ onClose }: { onClose: () => void }) => {
       return;
     }
     try {
-      await createNote({ title, content, color });
+      await createNote({ 
+        title, 
+        content, 
+        color,
+        user_id: user.id 
+      });
       await queryClient.invalidateQueries({ queryKey: ['notes'] });
       toast({
         title: "Success",
         description: "Note created successfully",
       });
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Note creation error:', error);
       toast({
         title: "Error",
-        description: "Failed to create note. Please try again.",
+        description: error.message || "Failed to create note. Please try again.",
         variant: "destructive",
       });
     }
