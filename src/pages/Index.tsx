@@ -13,30 +13,49 @@ import { useAuth } from "@/contexts/AuthContext";
 import { SignIn } from "@/components/SignIn";
 import { SignUp } from "@/components/SignUp";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/ui/use-toast";
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
   const [username, setUsername] = useState("");
   const { user, signOut } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     const getProfile = async () => {
       if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', user.id)
-          .single();
-        
-        if (profile) {
-          setUsername(profile.username);
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', user.id)
+            .maybeSingle();
+          
+          if (error) throw error;
+          
+          if (data) {
+            setUsername(data.username);
+          } else {
+            // Handle case where profile doesn't exist
+            toast({
+              title: "Profile not found",
+              description: "There was an issue loading your profile.",
+              variant: "destructive",
+            });
+          }
+        } catch (error: any) {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
         }
       }
     };
 
     getProfile();
-  }, [user]);
+  }, [user, toast]);
 
   if (!user) {
     return (
