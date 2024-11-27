@@ -16,12 +16,21 @@ export const ResetPassword = () => {
       
       if (hash && hash.includes('type=recovery') && token) {
         try {
+          // First verify the token is valid
           const { data: { user }, error } = await supabase.auth.getUser(token);
           
           if (!error && user) {
-            setHasValidToken(true);
-            setAccessToken(token);
-            return;
+            // Set the session with the recovery token
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token: token,
+              refresh_token: '',
+            });
+
+            if (!sessionError) {
+              setHasValidToken(true);
+              setAccessToken(token);
+              return;
+            }
           }
         } catch (error) {
           console.error('Error validating token:', error);

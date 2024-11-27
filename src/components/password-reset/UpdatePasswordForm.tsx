@@ -41,15 +41,7 @@ export const UpdatePasswordForm = ({ accessToken }: UpdatePasswordFormProps) => 
     setIsLoading(true);
 
     try {
-      // First set the session with the recovery token
-      const { data: { session }, error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: '',
-      });
-
-      if (sessionError) throw sessionError;
-
-      // Then update the password
+      // Update the password
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       });
