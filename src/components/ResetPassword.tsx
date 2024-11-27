@@ -41,27 +41,17 @@ export const ResetPassword = () => {
           description: "Invalid or expired recovery link. Please request a new one.",
           variant: "destructive",
         });
-        navigate("/reset-password");
+        navigate("/reset-password", { replace: true });
       }
     };
 
     checkRecoveryToken();
   }, [navigate, toast]);
 
-  if (!hasValidToken) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="w-full max-w-md space-y-8">
-          <RequestResetForm />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-8">
-        <UpdatePasswordForm />
+        {hasValidToken ? <UpdatePasswordForm /> : <RequestResetForm />}
       </div>
     </div>
   );

@@ -55,8 +55,10 @@ export const SignIn = () => {
         description: "Signed in successfully",
       });
       
-      // Add navigation after successful login
-      navigate("/");
+      // Wait a brief moment to ensure the session is set
+      setTimeout(() => {
+        navigate("/");
+      }, 100);
     } catch (error: any) {
       toast({
         title: "Error",
