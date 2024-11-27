@@ -38,7 +38,6 @@ export const SignUp = () => {
     }
 
     try {
-      // First check if username already exists
       const { data: existingUser } = await supabase
         .from('profiles')
         .select('username')
@@ -104,10 +103,10 @@ export const SignUp = () => {
 
   return (
     <div className="w-full max-w-md mx-auto p-4 sm:p-6">
-      <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Sign Up</h2>
+      <h2 className="text-2xl font-bold mb-6 text-left">Sign Up</h2>
       <form onSubmit={handleSignUp} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="username">Username</Label>
+          <Label htmlFor="username" className="text-left block">Username</Label>
           <Input
             id="username"
             type="text"
@@ -121,7 +120,7 @@ export const SignUp = () => {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email" className="text-left block">Email</Label>
           <Input
             id="email"
             type="email"
@@ -134,7 +133,7 @@ export const SignUp = () => {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password" className="text-left block">Password</Label>
           <Input
             id="password"
             type="password"
@@ -147,7 +146,7 @@ export const SignUp = () => {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirm Password</Label>
+          <Label htmlFor="confirmPassword" className="text-left block">Confirm Password</Label>
           <Input
             id="confirmPassword"
             type="password"

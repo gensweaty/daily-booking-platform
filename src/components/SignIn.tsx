@@ -4,13 +4,14 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +54,9 @@ export const SignIn = () => {
         title: "Success",
         description: "Signed in successfully",
       });
+      
+      // Add navigation after successful login
+      navigate("/");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -66,10 +70,10 @@ export const SignIn = () => {
 
   return (
     <div className="w-full max-w-md mx-auto p-4 sm:p-6">
-      <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Sign In</h2>
+      <h2 className="text-2xl font-bold mb-6 text-left">Sign In</h2>
       <form onSubmit={handleSignIn} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email" className="text-left block">Email</Label>
           <Input
             id="email"
             type="email"
@@ -83,7 +87,7 @@ export const SignIn = () => {
         </div>
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" className="text-left block">Password</Label>
             <Link 
               to="/reset-password"
               className="text-sm text-primary hover:underline"
