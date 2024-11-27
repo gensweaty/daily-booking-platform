@@ -16,21 +16,6 @@ export const SignIn = () => {
     setIsLoading(true);
 
     try {
-      // First check if the email exists
-      const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('id')
-        .single();
-
-      if (!existingUser) {
-        toast({
-          title: "Error",
-          description: "No account found with this email. Please sign up first.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
