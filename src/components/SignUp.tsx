@@ -38,7 +38,7 @@ export const SignUp = () => {
         email,
         password,
         options: {
-          emailRedirectTo: 'https://taskify-minder-note.lovable.app/auth/callback',
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             username: username,
           }
@@ -49,7 +49,7 @@ export const SignUp = () => {
       
       toast({
         title: "Success",
-        description: "Please check your email to confirm your account",
+        description: "Please check your email (including spam folder) to confirm your account before signing in.",
       });
     } catch (error: any) {
       toast({

@@ -1,22 +1,42 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { PlusCircle, ListTodo, Calendar as CalendarIcon, StickyNote } from "lucide-react";
+import { PlusCircle, ListTodo, Calendar as CalendarIcon, StickyNote, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TaskList } from "@/components/TaskList";
 import { Calendar } from "@/components/Calendar/Calendar";
 import { NoteList } from "@/components/NoteList";
 import { AddTaskForm } from "@/components/AddTaskForm";
 import { AddNoteForm } from "@/components/AddNoteForm";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignIn } from "@/components/SignIn";
 import { SignUp } from "@/components/SignUp";
+import { supabase } from "@/lib/supabase";
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
-  const { user } = useAuth();
+  const [username, setUsername] = useState("");
+  const { user, signOut } = useAuth();
+
+  useEffect(() => {
+    const getProfile = async () => {
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile) {
+          setUsername(profile.username);
+        }
+      }
+    };
+
+    getProfile();
+  }, [user]);
 
   if (!user) {
     return (
@@ -44,9 +64,19 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold text-primary mb-2">Taskify Minder Note</h1>
-        <p className="text-gray-600">Manage your tasks, calendar, and notes in one place</p>
+      <header className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-4xl font-bold text-primary mb-2">Taskify Minder Note</h1>
+          <p className="text-gray-600">Hello, {username}! Manage your tasks, calendar, and notes in one place</p>
+        </div>
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-2"
+          onClick={signOut}
+        >
+          <LogOut className="w-4 h-4" />
+          Sign Out
+        </Button>
       </header>
 
       <Tabs defaultValue="tasks" className="w-full max-w-4xl mx-auto">
