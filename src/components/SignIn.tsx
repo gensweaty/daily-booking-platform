@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export const SignIn = () => {
   const [email, setEmail] = useState("");
@@ -70,15 +70,7 @@ export const SignIn = () => {
           />
         </div>
         <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <Label htmlFor="password" className="text-left block">Password</Label>
-            <Link 
-              to="/reset-password"
-              className="text-sm text-primary hover:underline"
-            >
-              Forgot password?
-            </Link>
-          </div>
+          <Label htmlFor="password" className="text-left block">Password</Label>
           <Input
             id="password"
             type="password"
