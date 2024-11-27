@@ -35,6 +35,16 @@ export const SignIn = () => {
           });
           return;
         }
+        
+        if (error.message.includes("Invalid login credentials")) {
+          toast({
+            title: "Error",
+            description: "Invalid email or password. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
         throw error;
       }
 

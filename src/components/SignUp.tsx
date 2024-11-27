@@ -39,13 +39,16 @@ export const SignUp = () => {
 
     try {
       // First check if username already exists
-      const { data: existingUser } = await supabase
+      const { data: existingUsers, error: fetchError } = await supabase
         .from('profiles')
         .select('username')
-        .eq('username', username)
-        .single();
+        .eq('username', username);
 
-      if (existingUser) {
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      if (existingUsers && existingUsers.length > 0) {
         toast({
           title: "Error",
           description: "This username is already taken. Please choose another one.",
