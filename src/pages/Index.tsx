@@ -14,6 +14,7 @@ import { SignIn } from "@/components/SignIn";
 import { SignUp } from "@/components/SignUp";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
+import { useSearchParams } from "react-router-dom";
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
@@ -21,6 +22,19 @@ const Index = () => {
   const [username, setUsername] = useState("");
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+
+  // Check for email confirmation
+  useEffect(() => {
+    const confirmationStatus = searchParams.get("email_confirmed");
+    if (confirmationStatus === "true") {
+      toast({
+        title: "Email Confirmed",
+        description: "Thank you! Your email has been successfully confirmed.",
+        duration: 5000,
+      });
+    }
+  }, [searchParams, toast]);
 
   useEffect(() => {
     const getProfile = async () => {
@@ -37,7 +51,6 @@ const Index = () => {
           if (data) {
             setUsername(data.username);
           } else {
-            // Handle case where profile doesn't exist
             toast({
               title: "Profile not found",
               description: "There was an issue loading your profile.",
@@ -61,8 +74,8 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-gray-50 p-4">
         <header className="mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-2">Welcome to Taskify Minder Note</h1>
-          <p className="text-gray-600">Please sign in or sign up to continue</p>
+          <h1 className="text-4xl font-bold text-primary mb-2 text-center sm:text-left">Welcome to Taskify Minder Note</h1>
+          <p className="text-gray-600 text-center sm:text-left">Please sign in or sign up to continue</p>
         </header>
 
         <Tabs defaultValue="signin" className="w-full max-w-md mx-auto">
@@ -83,49 +96,51 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
-      <header className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold text-primary mb-2">Welcome to Taskify Minder Note</h1>
-          <p className="text-gray-600">Hello, {username}! Manage your tasks, calendar, and notes in one place</p>
+      <header className="mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="text-center sm:text-left">
+            <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">Welcome to Taskify Minder Note</h1>
+            <p className="text-gray-600">Hello, {username}! Manage your tasks, calendar, and notes in one place</p>
+          </div>
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            onClick={signOut}
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </Button>
         </div>
-        <Button 
-          variant="outline" 
-          className="flex items-center gap-2"
-          onClick={signOut}
-        >
-          <LogOut className="w-4 h-4" />
-          Sign Out
-        </Button>
       </header>
 
       <Tabs defaultValue="tasks" className="w-full max-w-4xl mx-auto">
         <TabsList className="grid w-full grid-cols-3 mb-8">
-          <TabsTrigger value="tasks" className="flex items-center gap-2">
+          <TabsTrigger value="tasks" className="flex items-center gap-2 text-sm sm:text-base">
             <ListTodo className="w-4 h-4" />
-            Tasks
+            <span className="hidden sm:inline">Tasks</span>
           </TabsTrigger>
-          <TabsTrigger value="calendar" className="flex items-center gap-2">
+          <TabsTrigger value="calendar" className="flex items-center gap-2 text-sm sm:text-base">
             <CalendarIcon className="w-4 h-4" />
-            Calendar
+            <span className="hidden sm:inline">Calendar</span>
           </TabsTrigger>
-          <TabsTrigger value="notes" className="flex items-center gap-2">
+          <TabsTrigger value="notes" className="flex items-center gap-2 text-sm sm:text-base">
             <StickyNote className="w-4 h-4" />
-            Notes
+            <span className="hidden sm:inline">Notes</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="tasks">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
               <CardTitle>My Tasks</CardTitle>
               <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2">
+                  <Button className="flex items-center gap-2 w-full sm:w-auto">
                     <PlusCircle className="w-4 h-4" />
                     Add Task
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="sm:max-w-[425px]">
                   <AddTaskForm onClose={() => setIsTaskDialogOpen(false)} />
                 </DialogContent>
               </Dialog>
@@ -138,7 +153,7 @@ const Index = () => {
 
         <TabsContent value="calendar">
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 overflow-x-auto">
               <Calendar />
             </CardContent>
           </Card>
@@ -146,16 +161,16 @@ const Index = () => {
 
         <TabsContent value="notes">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
               <CardTitle>My Notes</CardTitle>
               <Dialog open={isNoteDialogOpen} onOpenChange={setIsNoteDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2">
+                  <Button className="flex items-center gap-2 w-full sm:w-auto">
                     <PlusCircle className="w-4 h-4" />
                     Add Note
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="sm:max-w-[425px]">
                   <AddNoteForm onClose={() => setIsNoteDialogOpen(false)} />
                 </DialogContent>
               </Dialog>
