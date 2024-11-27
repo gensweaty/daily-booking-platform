@@ -8,10 +8,28 @@ import { useToast } from "@/components/ui/use-toast";
 export const RequestResetForm = () => {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [cooldownActive, setCooldownActive] = useState(false);
   const { toast } = useToast();
+
+  const startCooldown = () => {
+    setCooldownActive(true);
+    setTimeout(() => {
+      setCooldownActive(false);
+    }, 15000); // 15 seconds cooldown
+  };
 
   const handleResetRequest = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (cooldownActive) {
+      toast({
+        title: "Please wait",
+        description: "For security purposes, please wait 15 seconds before requesting another reset link.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -20,10 +38,11 @@ export const RequestResetForm = () => {
       });
 
       if (error) {
-        if (error.message.includes('rate_limit')) {
+        if (error.message.includes('rate_limit') || error.message.includes('over_email_send_rate_limit')) {
+          startCooldown();
           toast({
             title: "Please wait",
-            description: "For security purposes, please wait a few seconds before requesting another reset link.",
+            description: "For security purposes, please wait 15 seconds before requesting another reset link.",
             variant: "destructive",
           });
           return;
@@ -31,6 +50,7 @@ export const RequestResetForm = () => {
         throw error;
       }
 
+      startCooldown();
       toast({
         title: "Check your email",
         description: "We've sent you a password reset link. Click the link to reset your password.",
@@ -61,15 +81,20 @@ export const RequestResetForm = () => {
             onChange={(e) => setEmail(e.target.value)}
             required
             className="w-full"
-            disabled={isLoading}
+            disabled={isLoading || cooldownActive}
           />
         </div>
         <Button 
           type="submit" 
           className="w-full"
-          disabled={isLoading}
+          disabled={isLoading || cooldownActive}
         >
-          {isLoading ? "Sending..." : "Send Reset Link"}
+          {cooldownActive 
+            ? "Please wait 15s..." 
+            : isLoading 
+              ? "Sending..." 
+              : "Send Reset Link"
+          }
         </Button>
       </form>
     </div>
