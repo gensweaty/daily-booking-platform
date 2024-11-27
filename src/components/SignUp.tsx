@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
+import { User } from "@supabase/supabase-js";
 
 export const SignUp = () => {
   const [email, setEmail] = useState("");
@@ -43,7 +44,7 @@ export const SignUp = () => {
       
       if (getUserError) throw getUserError;
       
-      const existingUser = users?.find(user => user.email === email);
+      const existingUser = (users as User[])?.find(user => user.email === email);
       
       if (existingUser) {
         toast({
