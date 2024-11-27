@@ -15,8 +15,19 @@ export const ResetPassword = () => {
       try {
         const params = new URLSearchParams(window.location.search);
         const type = params.get('type');
+        const accessToken = params.get('access_token');
         
-        if (type === 'recovery') {
+        if (type === 'recovery' && accessToken) {
+          // Set the access token in the session
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: accessToken,
+          });
+
+          if (error) {
+            throw error;
+          }
+
           setHasValidToken(true);
         } else {
           // If no valid token, show the request form
@@ -25,11 +36,17 @@ export const ResetPassword = () => {
       } catch (error) {
         console.error('Error checking recovery token:', error);
         setHasValidToken(false);
+        toast({
+          title: "Error",
+          description: "Invalid or expired recovery link. Please request a new one.",
+          variant: "destructive",
+        });
+        navigate("/reset-password");
       }
     };
 
     checkRecoveryToken();
-  }, []);
+  }, [navigate, toast]);
 
   if (!hasValidToken) {
     return (
