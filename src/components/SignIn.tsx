@@ -8,11 +8,29 @@ import { Label } from "@/components/ui/label";
 export const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+
     try {
+      // First check if the email exists
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .single();
+
+      if (!existingUser) {
+        toast({
+          title: "Error",
+          description: "No account found with this email. Please sign up first.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -20,7 +38,6 @@ export const SignIn = () => {
       
       if (error) {
         if (error.message.includes("Email not confirmed")) {
-          // Resend confirmation email
           await supabase.auth.resend({
             type: 'signup',
             email: email,
@@ -56,12 +73,14 @@ export const SignIn = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="w-full max-w-md mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-6">Sign In</h2>
+    <div className="w-full max-w-md mx-auto p-4 sm:p-6">
+      <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Sign In</h2>
       <form onSubmit={handleSignIn} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
@@ -72,6 +91,8 @@ export const SignIn = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            className="w-full"
+            disabled={isLoading}
           />
         </div>
         <div className="space-y-2">
@@ -83,9 +104,17 @@ export const SignIn = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            className="w-full"
+            disabled={isLoading}
           />
         </div>
-        <Button type="submit" className="w-full">Sign In</Button>
+        <Button 
+          type="submit" 
+          className="w-full"
+          disabled={isLoading}
+        >
+          {isLoading ? "Signing in..." : "Sign In"}
+        </Button>
       </form>
     </div>
   );

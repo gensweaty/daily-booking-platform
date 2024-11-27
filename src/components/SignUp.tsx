@@ -10,10 +10,12 @@ export const SignUp = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
     if (password !== confirmPassword) {
       toast({
@@ -21,6 +23,7 @@ export const SignUp = () => {
         description: "Passwords do not match",
         variant: "destructive",
       });
+      setIsLoading(false);
       return;
     }
 
@@ -30,10 +33,26 @@ export const SignUp = () => {
         description: "Username must be at least 3 characters long",
         variant: "destructive",
       });
+      setIsLoading(false);
       return;
     }
 
     try {
+      // Check if email already exists
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .single();
+
+      if (existingUser) {
+        toast({
+          title: "Error",
+          description: "An account with this email already exists. Please sign in instead.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -57,12 +76,14 @@ export const SignUp = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="w-full max-w-md mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-6">Sign Up</h2>
+    <div className="w-full max-w-md mx-auto p-4 sm:p-6">
+      <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Sign Up</h2>
       <form onSubmit={handleSignUp} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="username">Username</Label>
@@ -74,6 +95,8 @@ export const SignUp = () => {
             onChange={(e) => setUsername(e.target.value)}
             required
             minLength={3}
+            className="w-full"
+            disabled={isLoading}
           />
         </div>
         <div className="space-y-2">
@@ -85,6 +108,8 @@ export const SignUp = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            className="w-full"
+            disabled={isLoading}
           />
         </div>
         <div className="space-y-2">
@@ -96,6 +121,8 @@ export const SignUp = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            className="w-full"
+            disabled={isLoading}
           />
         </div>
         <div className="space-y-2">
@@ -107,9 +134,17 @@ export const SignUp = () => {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
+            className="w-full"
+            disabled={isLoading}
           />
         </div>
-        <Button type="submit" className="w-full">Sign Up</Button>
+        <Button 
+          type="submit" 
+          className="w-full"
+          disabled={isLoading}
+        >
+          {isLoading ? "Signing up..." : "Sign Up"}
+        </Button>
       </form>
     </div>
   );

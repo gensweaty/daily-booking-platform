@@ -74,22 +74,24 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-gray-50 p-4">
         <header className="mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-2 text-center sm:text-left">Welcome to Taskify Minder Note</h1>
-          <p className="text-gray-600 text-center sm:text-left">Please sign in or sign up to continue</p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2 text-center">Welcome to Taskify Minder Note</h1>
+          <p className="text-gray-600 text-center">Please sign in or sign up to continue</p>
         </header>
 
-        <Tabs defaultValue="signin" className="w-full max-w-md mx-auto">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="signin">Sign In</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
-          </TabsList>
-          <TabsContent value="signin">
-            <SignIn />
-          </TabsContent>
-          <TabsContent value="signup">
-            <SignUp />
-          </TabsContent>
-        </Tabs>
+        <div className="w-full max-w-md mx-auto">
+          <Tabs defaultValue="signin" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-8">
+              <TabsTrigger value="signin">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
+            <TabsContent value="signin">
+              <SignIn />
+            </TabsContent>
+            <TabsContent value="signup">
+              <SignUp />
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     );
   }
