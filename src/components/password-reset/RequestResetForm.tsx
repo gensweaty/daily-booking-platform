@@ -16,7 +16,7 @@ export const RequestResetForm = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password#recovery`,
+        redirectTo: `${window.location.origin}/reset-password`,
       });
 
       if (error) {
@@ -48,35 +48,31 @@ export const RequestResetForm = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold">Reset Password</h2>
-          <p className="text-muted-foreground mt-2">Enter your email to receive a reset link</p>
-        </div>
-        <form onSubmit={handleResetRequest} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full"
-              disabled={isLoading}
-            />
-          </div>
-          <Button 
-            type="submit" 
+    <div className="text-center">
+      <h2 className="text-2xl font-bold">Reset Password</h2>
+      <p className="text-muted-foreground mt-2">Enter your email to receive a reset link</p>
+      <form onSubmit={handleResetRequest} className="space-y-4 mt-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
             className="w-full"
             disabled={isLoading}
-          >
-            {isLoading ? "Sending..." : "Send Reset Link"}
-          </Button>
-        </form>
-      </div>
+          />
+        </div>
+        <Button 
+          type="submit" 
+          className="w-full"
+          disabled={isLoading}
+        >
+          {isLoading ? "Sending..." : "Send Reset Link"}
+        </Button>
+      </form>
     </div>
   );
 };
