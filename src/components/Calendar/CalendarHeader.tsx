@@ -20,32 +20,32 @@ export const CalendarHeader = ({
   onAddEvent,
 }: CalendarHeaderProps) => {
   return (
-    <div className="flex justify-between items-center mb-4">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
+      <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
         <Button variant="outline" size="icon" onClick={onPrevious}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <h2 className="text-xl font-semibold">
+        <h2 className="text-lg sm:text-xl font-semibold">
           {format(selectedDate, "MMMM yyyy")}
         </h2>
         <Button variant="outline" size="icon" onClick={onNext}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
-      <div className="flex items-center gap-4">
-        <div className="flex rounded-lg border border-input overflow-hidden">
+      <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+        <div className="flex rounded-lg border border-input overflow-hidden flex-1 sm:flex-none">
           {["month", "week", "day"].map((v) => (
             <Button
               key={v}
               variant={view === v ? "default" : "ghost"}
-              className="rounded-none"
+              className="rounded-none px-2 sm:px-4 text-sm flex-1"
               onClick={() => onViewChange(v as "month" | "week" | "day")}
             >
               {v.charAt(0).toUpperCase() + v.slice(1)}
             </Button>
           ))}
         </div>
-        <Button onClick={onAddEvent}>Add Event</Button>
+        <Button onClick={onAddEvent} className="whitespace-nowrap">Add Event</Button>
       </div>
     </div>
   );

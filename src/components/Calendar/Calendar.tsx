@@ -22,7 +22,7 @@ import { TimeIndicator } from "./TimeIndicator";
 
 export const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [view, setView] = useState<CalendarViewType>("week"); // Changed default to week
+  const [view, setView] = useState<CalendarViewType>("week");
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
@@ -99,7 +99,7 @@ export const Calendar = () => {
   }
 
   return (
-    <div className="h-full flex flex-col gap-4">
+    <div className="h-full flex flex-col gap-4 max-w-full overflow-hidden">
       <CalendarHeader
         selectedDate={selectedDate}
         view={view}
@@ -109,9 +109,9 @@ export const Calendar = () => {
         onAddEvent={() => setIsNewEventDialogOpen(true)}
       />
 
-      <div className={`flex ${view !== 'month' ? 'h-[calc(100vh-12rem)] overflow-y-auto' : ''}`}>
+      <div className={`flex ${view !== 'month' ? 'h-[calc(100vh-12rem)] overflow-y-auto' : ''} max-w-full -mx-4 sm:mx-0`}>
         {view !== 'month' && <TimeIndicator />}
-        <div className="flex-1">
+        <div className="flex-1 overflow-x-hidden">
           <CalendarView
             days={getDaysForView()}
             events={events || []}

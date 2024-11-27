@@ -20,9 +20,9 @@ export const CalendarView = ({
 }: CalendarViewProps) => {
   if (view === "month") {
     return (
-      <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
+      <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden text-sm sm:text-base">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-          <div key={day} className="bg-white p-4 text-center font-semibold">
+          <div key={day} className="bg-white p-2 sm:p-4 text-center font-semibold">
             {day}
           </div>
         ))}
@@ -34,15 +34,15 @@ export const CalendarView = ({
           return (
             <div
               key={day.toISOString()}
-              className="bg-white p-4 min-h-[120px] cursor-pointer hover:bg-gray-50"
+              className="bg-white p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-gray-50"
               onClick={() => onDayClick(day)}
             >
               <div className="font-medium">{format(day, "d")}</div>
-              <div className="mt-2 space-y-1">
+              <div className="mt-1 sm:mt-2 space-y-1">
                 {dayEvents.map((event) => (
                   <div
                     key={event.id}
-                    className={`text-sm p-1 rounded ${
+                    className={`text-xs sm:text-sm p-1 rounded ${
                       event.type === "meeting"
                         ? "bg-blue-100 text-blue-700"
                         : "bg-purple-100 text-purple-700"
@@ -63,22 +63,19 @@ export const CalendarView = ({
     );
   }
 
-  // Week and Day views
   return (
     <div className="flex-1 grid" style={{ 
       gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` 
     }}>
-      {/* Header */}
       <div className="contents">
         {days.map((day) => (
-          <div key={day.toISOString()} className="border-b border-gray-200 p-2 text-center bg-white">
-            <div className="font-semibold">{format(day, "EEE")}</div>
-            <div className="text-sm text-gray-500">{format(day, "MMM d")}</div>
+          <div key={day.toISOString()} className="border-b border-gray-200 p-1 sm:p-2 text-center bg-white">
+            <div className="font-semibold text-sm">{format(day, "EEE")}</div>
+            <div className="text-xs text-gray-500">{format(day, "MMM d")}</div>
           </div>
         ))}
       </div>
       
-      {/* Time grid */}
       <div className="contents">
         {days.map((day) => (
           <div key={day.toISOString()} className="relative border-r border-gray-200">
@@ -105,7 +102,7 @@ export const CalendarView = ({
                 return (
                   <div
                     key={event.id}
-                    className={`absolute left-1 right-1 rounded px-2 py-1 text-sm ${
+                    className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded px-1 sm:px-2 py-1 text-xs sm:text-sm ${
                       event.type === "meeting"
                         ? "bg-blue-100 text-blue-700"
                         : "bg-purple-100 text-purple-700"
@@ -121,7 +118,7 @@ export const CalendarView = ({
                   >
                     <div className="font-semibold truncate">{event.title}</div>
                     {height > 40 && (
-                      <div className="text-xs truncate">
+                      <div className="text-[10px] sm:text-xs truncate">
                         {format(start, "h:mm a")} - {format(end, "h:mm a")}
                       </div>
                     )}
