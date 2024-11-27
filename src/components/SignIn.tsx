@@ -58,7 +58,8 @@ export const SignIn = () => {
           description: "Signed in successfully",
         });
         
-        navigate("/", { replace: true });
+        // Force navigation and page reload
+        window.location.href = "/";
       } else {
         throw new Error("Failed to establish session");
       }

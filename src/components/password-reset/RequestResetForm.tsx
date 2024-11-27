@@ -33,8 +33,8 @@ export const RequestResetForm = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password?type=recovery`,
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: window.location.origin + "/reset-password",
       });
 
       if (error) {
@@ -56,9 +56,10 @@ export const RequestResetForm = () => {
         description: "We've sent you a password reset link. Click the link to reset your password.",
       });
     } catch (error: any) {
+      console.error('Reset password error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "An error occurred while sending the reset link",
         variant: "destructive",
       });
     } finally {

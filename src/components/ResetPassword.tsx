@@ -47,6 +47,7 @@ export const ResetPassword = () => {
           description: "Invalid or expired recovery link. Please request a new one.",
           variant: "destructive",
         });
+        // Clear the URL parameters
         navigate("/reset-password", { replace: true });
       }
     };
