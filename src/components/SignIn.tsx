@@ -18,16 +18,25 @@ export const SignIn = () => {
     setIsLoading(true);
 
     try {
-      const { error, data } = await supabase.auth.signInWithPassword({
-        email,
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
         password,
       });
       
       if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast({
+            title: "Error",
+            description: "Invalid email or password. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
         if (error.message.includes("Email not confirmed")) {
           await supabase.auth.resend({
             type: 'signup',
-            email: email,
+            email: email.trim(),
           });
           
           toast({
@@ -40,20 +49,10 @@ export const SignIn = () => {
         throw error;
       }
 
-      if (!data.user?.email_confirmed_at) {
-        await supabase.auth.signOut();
-        toast({
-          title: "Email Not Confirmed",
-          description: "Please confirm your email before signing in. Check your inbox and spam folder.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       // Get the session to ensure we're properly authenticated
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (sessionData.session) {
+      if (session) {
         toast({
           title: "Success",
           description: "Signed in successfully",
@@ -64,9 +63,10 @@ export const SignIn = () => {
         throw new Error("Failed to establish session");
       }
     } catch (error: any) {
+      console.error('Sign in error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "An error occurred during sign in. Please try again.",
         variant: "destructive",
       });
     } finally {
