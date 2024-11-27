@@ -12,16 +12,37 @@ export const ResetPassword = () => {
   const [step, setStep] = useState<"request" | "update">("request");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [hasValidToken, setHasValidToken] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     // Check for the reset token in the URL
-    const hash = window.location.hash;
-    if (hash && hash.includes('type=recovery')) {
-      setStep("update");
-    }
-  }, []);
+    const checkRecoveryToken = async () => {
+      const hash = window.location.hash;
+      if (hash && hash.includes('type=recovery')) {
+        // Verify the recovery token is valid
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error || !session) {
+          toast({
+            title: "Invalid or Expired Link",
+            description: "Please request a new password reset link.",
+            variant: "destructive",
+          });
+          setStep("request");
+          return;
+        }
+        setHasValidToken(true);
+        setStep("update");
+      } else {
+        // No recovery token, force back to request step
+        setStep("request");
+        setHasValidToken(false);
+      }
+    };
+
+    checkRecoveryToken();
+  }, [toast]);
 
   const handleResetRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,8 +59,6 @@ export const ResetPassword = () => {
         title: "Check your email",
         description: "We've sent you a password reset link. Click the link to reset your password.",
       });
-      
-      setStep("update");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -53,6 +72,16 @@ export const ResetPassword = () => {
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasValidToken) {
+      toast({
+        title: "Invalid Request",
+        description: "Please use the reset link sent to your email.",
+        variant: "destructive",
+      });
+      setStep("request");
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       toast({
         title: "Error",
@@ -119,6 +148,19 @@ export const ResetPassword = () => {
               {isLoading ? "Sending..." : "Send Reset Link"}
             </Button>
           </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Only show the update password form if there's a valid token
+  if (!hasValidToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md space-y-8 text-center">
+          <h2 className="text-2xl font-bold text-destructive">Invalid Reset Link</h2>
+          <p className="text-muted-foreground">Please request a new password reset link.</p>
+          <Button onClick={() => setStep("request")}>Request New Link</Button>
         </div>
       </div>
     );
