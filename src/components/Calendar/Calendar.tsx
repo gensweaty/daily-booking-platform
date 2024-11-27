@@ -16,6 +16,8 @@ import { EventDialog } from "./EventDialog";
 import { CalendarViewType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 export const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -25,6 +27,14 @@ export const Calendar = () => {
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
   const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect to login if not authenticated
+  if (!user) {
+    navigate("/signin");
+    return null;
+  }
 
   const getDaysForView = () => {
     switch (view) {
@@ -122,10 +132,10 @@ export const Calendar = () => {
               title: "Success",
               description: "Event created successfully",
             });
-          } catch (error) {
+          } catch (error: any) {
             toast({
               title: "Error",
-              description: "Failed to create event",
+              description: error.message,
               variant: "destructive",
             });
           }
@@ -149,10 +159,10 @@ export const Calendar = () => {
                 title: "Success",
                 description: "Event updated successfully",
               });
-            } catch (error) {
+            } catch (error: any) {
               toast({
                 title: "Error",
-                description: "Failed to update event",
+                description: error.message,
                 variant: "destructive",
               });
             }
@@ -165,10 +175,10 @@ export const Calendar = () => {
                 title: "Success",
                 description: "Event deleted successfully",
               });
-            } catch (error) {
+            } catch (error: any) {
               toast({
                 title: "Error",
-                description: "Failed to delete event",
+                description: error.message,
                 variant: "destructive",
               });
             }
