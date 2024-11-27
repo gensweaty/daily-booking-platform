@@ -50,15 +50,19 @@ export const SignIn = () => {
         return;
       }
 
-      toast({
-        title: "Success",
-        description: "Signed in successfully",
-      });
+      // Get the session to ensure we're properly authenticated
+      const { data: sessionData } = await supabase.auth.getSession();
       
-      // Wait a brief moment to ensure the session is set
-      setTimeout(() => {
-        navigate("/");
-      }, 100);
+      if (sessionData.session) {
+        toast({
+          title: "Success",
+          description: "Signed in successfully",
+        });
+        
+        navigate("/", { replace: true });
+      } else {
+        throw new Error("Failed to establish session");
+      }
     } catch (error: any) {
       toast({
         title: "Error",

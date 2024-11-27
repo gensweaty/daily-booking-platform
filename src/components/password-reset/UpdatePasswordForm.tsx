@@ -50,7 +50,7 @@ export const UpdatePasswordForm = () => {
 
       // Sign out and redirect to sign in
       await supabase.auth.signOut();
-      navigate("/");
+      navigate("/", { replace: true });
     } catch (error: any) {
       console.error('Password update error:', error);
       toast({
