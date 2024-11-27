@@ -10,6 +10,8 @@ import { AddTaskForm } from "@/components/AddTaskForm";
 import { AddNoteForm } from "@/components/AddNoteForm";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { SignIn } from "@/components/SignIn";
+import { SignUp } from "@/components/SignUp";
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
@@ -30,10 +32,10 @@ const Index = () => {
             <TabsTrigger value="signup">Sign Up</TabsTrigger>
           </TabsList>
           <TabsContent value="signin">
-            {/* SignIn component goes here */}
+            <SignIn />
           </TabsContent>
           <TabsContent value="signup">
-            {/* SignUp component goes here */}
+            <SignUp />
           </TabsContent>
         </Tabs>
       </div>

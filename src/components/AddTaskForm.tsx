@@ -5,20 +5,32 @@ import { createTask } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import { DialogTitle } from "@/components/ui/dialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const AddTaskForm = ({ onClose }: { onClose: () => void }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to create tasks",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       await createTask({ 
         title, 
         description, 
-        status: 'todo' 
+        status: 'todo',
+        user_id: user.id
       });
       await queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast({
@@ -26,11 +38,11 @@ export const AddTaskForm = ({ onClose }: { onClose: () => void }) => {
         description: "Task created successfully",
       });
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Task creation error:', error);
       toast({
         title: "Error",
-        description: "Failed to create task. Please try again.",
+        description: error.message || "Failed to create task. Please try again.",
         variant: "destructive",
       });
     }
