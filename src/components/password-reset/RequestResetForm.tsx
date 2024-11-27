@@ -25,6 +25,8 @@ export const RequestResetForm = () => {
         title: "Check your email",
         description: "We've sent you a password reset link. Click the link to reset your password.",
       });
+      
+      setEmail("");
     } catch (error: any) {
       console.error('Reset password error:', error);
       toast({

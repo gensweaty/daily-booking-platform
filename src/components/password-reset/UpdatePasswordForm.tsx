@@ -25,23 +25,14 @@ export const UpdatePasswordForm = () => {
       return;
     }
 
-    if (newPassword.length < 6) {
-      toast({
-        title: "Error",
-        description: "Password must be at least 6 characters long",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsLoading(true);
 
     try {
-      const { error: updateError } = await supabase.auth.updateUser({
+      const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
 
-      if (updateError) throw updateError;
+      if (error) throw error;
 
       toast({
         title: "Success",

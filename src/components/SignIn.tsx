@@ -4,60 +4,41 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
       
       if (error) {
-        // Check for email provider disabled error
-        if (error.message.includes('email_provider_disabled') || error.message.includes('Email logins are disabled')) {
-          toast({
-            title: "Authentication Error",
-            description: "Email authentication is currently disabled. Please enable it in your Supabase settings.",
-            variant: "destructive",
-          });
-          return;
-        }
-
         toast({
           title: "Error",
-          description: "Invalid email or password. Please try again.",
+          description: error.message,
           variant: "destructive",
         });
         return;
       }
 
-      // Get the session immediately after sign in
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        throw sessionError;
-      }
-
-      if (session) {
+      if (data?.user) {
         toast({
           title: "Success",
           description: "Signed in successfully",
         });
         
-        // Redirect with a slight delay to ensure toast is visible
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 1000);
+        navigate("/");
       }
     } catch (error: any) {
       console.error('Sign in error:', error);

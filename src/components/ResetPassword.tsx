@@ -14,23 +14,13 @@ export const ResetPassword = () => {
     const checkRecoveryToken = async () => {
       try {
         const params = new URLSearchParams(window.location.search);
-        const accessToken = params.get('access_token');
+        const accessToken = params.get('token');
         
         if (accessToken) {
-          const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+          const { data: { user }, error } = await supabase.auth.getUser();
 
           if (error || !user) {
             throw new Error('Invalid or expired recovery token');
-          }
-
-          // Set the access token in the session
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: accessToken,
-          });
-
-          if (sessionError) {
-            throw sessionError;
           }
 
           setHasValidToken(true);
