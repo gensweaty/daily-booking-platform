@@ -63,32 +63,42 @@ export const CalendarView = ({
     );
   }
 
+  // Updated week and day view to match month view styling
   return (
-    <div className="flex-1 grid" style={{ 
-      gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` 
-    }}>
+    <div className="flex-1 grid bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden" 
+         style={{ gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` }}>
       <div className="contents">
         {days.map((day) => (
-          <div key={day.toISOString()} className="border-b border-gray-200 p-1 sm:p-2 text-center bg-white">
-            <div className="font-semibold text-sm">{format(day, "EEE")}</div>
-            <div className="text-xs text-gray-500">{format(day, "MMM d")}</div>
+          <div 
+            key={day.toISOString()} 
+            className="bg-white dark:bg-gray-800 p-2 sm:p-4 text-center border-b border-gray-200 dark:border-gray-600"
+          >
+            <div className="font-semibold text-sm text-foreground">{format(day, "EEE")}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">{format(day, "MMM d")}</div>
           </div>
         ))}
       </div>
       
       <div className="contents">
         {days.map((day) => (
-          <div key={day.toISOString()} className="relative border-r border-gray-200">
+          <div 
+            key={day.toISOString()} 
+            className="relative bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-600"
+          >
             {Array.from({ length: 24 }).map((_, hour) => (
               <div
                 key={hour}
-                className="h-20 border-b border-gray-100"
+                className="h-20 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 onClick={() => {
                   const date = new Date(day);
                   date.setHours(hour);
                   onDayClick(date);
                 }}
-              />
+              >
+                <span className="text-xs text-gray-500 dark:text-gray-400 pl-2">
+                  {format(new Date().setHours(hour), 'ha')}
+                </span>
+              </div>
             ))}
             {events
               .filter((event) => isSameDay(parseISO(event.start_date), day))
@@ -104,9 +114,9 @@ export const CalendarView = ({
                     key={event.id}
                     className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded px-1 sm:px-2 py-1 text-xs sm:text-sm ${
                       event.type === "meeting"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-purple-100 text-purple-700"
-                    } cursor-pointer overflow-hidden`}
+                        ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-100"
+                        : "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-100"
+                    } cursor-pointer overflow-hidden hover:ring-2 ring-primary transition-all`}
                     style={{
                       top: `${top}px`,
                       height: `${Math.max(height, 20)}px`,
