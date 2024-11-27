@@ -79,7 +79,7 @@ const Index = () => {
             <ThemeToggle />
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2 text-center">Welcome to Taskify Minder Note</h1>
-          <p className="text-foreground text-center">Complete Agile productivity - tasks notes calendar all in one</p>
+          <p className="text-foreground/80 dark:text-foreground text-center">Complete Agile productivity - tasks notes calendar all in one</p>
         </header>
 
         <div className="w-full max-w-md mx-auto">
@@ -106,7 +106,7 @@ const Index = () => {
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="text-center sm:text-left">
             <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">Welcome to Taskify Minder Note</h1>
-            <p className="text-foreground">Hello {username}! Complete Agile productivity - tasks notes calendar all in one</p>
+            <p className="text-foreground/80 dark:text-foreground">Hello {username}! Complete Agile productivity - tasks notes calendar all in one</p>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -141,7 +141,7 @@ const Index = () => {
         <TabsContent value="tasks">
           <Card>
             <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-              <CardTitle>My Tasks</CardTitle>
+              <CardTitle className="text-foreground">My Tasks</CardTitle>
               <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="flex items-center gap-2 w-full sm:w-auto">
@@ -171,7 +171,7 @@ const Index = () => {
         <TabsContent value="notes">
           <Card>
             <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-              <CardTitle>My Notes</CardTitle>
+              <CardTitle className="text-foreground">My Notes</CardTitle>
               <Dialog open={isNoteDialogOpen} onOpenChange={setIsNoteDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="flex items-center gap-2 w-full sm:w-auto">
