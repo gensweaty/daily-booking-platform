@@ -6,7 +6,11 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 
-export const UpdatePasswordForm = () => {
+interface UpdatePasswordFormProps {
+  accessToken: string | null;
+}
+
+export const UpdatePasswordForm = ({ accessToken }: UpdatePasswordFormProps) => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -25,20 +29,40 @@ export const UpdatePasswordForm = () => {
       return;
     }
 
+    if (!accessToken) {
+      toast({
+        title: "Error",
+        description: "Invalid reset token. Please request a new password reset link.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({
+      // First set the session with the recovery token
+      const { data: { session }, error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: '',
+      });
+
+      if (sessionError) throw sessionError;
+
+      // Then update the password
+      const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       });
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
       toast({
         title: "Success",
-        description: "Your password has been updated successfully",
+        description: "Your password has been updated successfully. Please sign in with your new password.",
       });
 
+      // Sign out and redirect to login
+      await supabase.auth.signOut();
       navigate("/");
     } catch (error: any) {
       toast({
