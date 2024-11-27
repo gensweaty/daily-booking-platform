@@ -27,7 +27,7 @@ export const SignUp = () => {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: 'https://taskify-minder-note.lovable.app/auth/callback',
         },
       });
       if (error) throw error;
