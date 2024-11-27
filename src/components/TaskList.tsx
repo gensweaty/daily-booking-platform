@@ -85,11 +85,11 @@ export const TaskList = () => {
   const getColumnStyle = (status: string) => {
     switch (status) {
       case 'in-progress':
-        return 'bg-amber-50 border-amber-200';
+        return 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700';
       case 'done':
-        return 'bg-green-50 border-green-200';
+        return 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700';
       default:
-        return 'bg-gray-50 border-gray-200';
+        return 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-700';
     }
   };
 
@@ -100,9 +100,11 @@ export const TaskList = () => {
       case 'done':
         return 'border-l-4 border-l-green-500';
       default:
-        return 'border-l-4 border-l-gray-300';
+        return 'border-l-4 border-l-gray-300 dark:border-l-gray-600';
     }
   };
+
+  if (isLoading) return <div className="text-foreground">Loading tasks...</div>;
 
   return (
     <>
@@ -116,7 +118,7 @@ export const TaskList = () => {
                   {...provided.droppableProps}
                   className={`p-4 rounded-lg min-h-[200px] border ${getColumnStyle(status)}`}
                 >
-                  <h3 className="font-semibold mb-4 capitalize">{status.replace('-', ' ')}</h3>
+                  <h3 className="font-semibold mb-4 capitalize text-foreground">{status.replace('-', ' ')}</h3>
                   <div className="space-y-4">
                     {statusTasks.map((task: Task, index: number) => (
                       <Draggable key={task.id} draggableId={String(task.id)} index={index}>
@@ -125,13 +127,13 @@ export const TaskList = () => {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`p-4 bg-white rounded-lg shadow ${getTaskStyle(task.status)}`}
+                            className={`p-4 bg-background dark:bg-gray-800 rounded-lg shadow ${getTaskStyle(task.status)}`}
                           >
                             <div className="flex justify-between items-start">
-                              <div className={task.status === 'done' ? 'line-through text-gray-500' : ''}>
+                              <div className={task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}>
                                 <h3 className="font-semibold">{task.title}</h3>
                                 {task.description && (
-                                  <p className="text-gray-600 mt-1">{task.description}</p>
+                                  <p className="text-foreground/80 mt-1">{task.description}</p>
                                 )}
                               </div>
                               <div className="flex gap-2">
@@ -139,6 +141,7 @@ export const TaskList = () => {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleEdit(task)}
+                                  className="text-foreground hover:text-foreground/80"
                                 >
                                   <Pencil className="h-4 w-4" />
                                 </Button>
@@ -146,6 +149,7 @@ export const TaskList = () => {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => deleteTaskMutation.mutate(task.id)}
+                                  className="text-foreground hover:text-foreground/80"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>

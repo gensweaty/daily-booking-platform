@@ -79,14 +79,14 @@ const Index = () => {
             <ThemeToggle />
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2 text-center">Welcome to Taskify Minder Note</h1>
-          <p className="text-foreground/80 dark:text-foreground text-center">Complete Agile productivity - tasks notes calendar all in one</p>
+          <p className="text-foreground/80 text-center">Complete Agile productivity - tasks notes calendar all in one</p>
         </header>
 
         <div className="w-full max-w-md mx-auto">
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-8">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value="signin" className="text-foreground">Sign In</TabsTrigger>
+              <TabsTrigger value="signup" className="text-foreground">Sign Up</TabsTrigger>
             </TabsList>
             <TabsContent value="signin">
               <SignIn />
@@ -106,13 +106,13 @@ const Index = () => {
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="text-center sm:text-left">
             <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">Welcome to Taskify Minder Note</h1>
-            <p className="text-foreground/80 dark:text-foreground">Hello {username}! Complete Agile productivity - tasks notes calendar all in one</p>
+            <p className="text-foreground">Hello {username}! Complete Agile productivity - tasks notes calendar all in one</p>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Button 
               variant="outline" 
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 text-foreground"
               onClick={signOut}
             >
               <LogOut className="w-4 h-4" />
@@ -124,15 +124,15 @@ const Index = () => {
 
       <Tabs defaultValue="tasks" className="w-full max-w-4xl mx-auto">
         <TabsList className="grid w-full grid-cols-3 mb-8">
-          <TabsTrigger value="tasks" className="flex items-center gap-2 text-sm sm:text-base">
+          <TabsTrigger value="tasks" className="flex items-center gap-2 text-sm sm:text-base text-foreground">
             <ListTodo className="w-4 h-4" />
             <span className="hidden sm:inline">Tasks</span>
           </TabsTrigger>
-          <TabsTrigger value="calendar" className="flex items-center gap-2 text-sm sm:text-base">
+          <TabsTrigger value="calendar" className="flex items-center gap-2 text-sm sm:text-base text-foreground">
             <CalendarIcon className="w-4 h-4" />
             <span className="hidden sm:inline">Calendar</span>
           </TabsTrigger>
-          <TabsTrigger value="notes" className="flex items-center gap-2 text-sm sm:text-base">
+          <TabsTrigger value="notes" className="flex items-center gap-2 text-sm sm:text-base text-foreground">
             <StickyNote className="w-4 h-4" />
             <span className="hidden sm:inline">Notes</span>
           </TabsTrigger>
@@ -144,7 +144,7 @@ const Index = () => {
               <CardTitle className="text-foreground">My Tasks</CardTitle>
               <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2 w-full sm:w-auto">
+                  <Button className="flex items-center gap-2 w-full sm:w-auto bg-primary hover:bg-primary/90 text-white">
                     <PlusCircle className="w-4 h-4" />
                     Add Task
                   </Button>
