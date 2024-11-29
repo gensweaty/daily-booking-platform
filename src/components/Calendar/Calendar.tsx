@@ -1,33 +1,150 @@
+import { useState } from "react";
+import {
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  addDays,
+  startOfMonth,
+  endOfMonth,
+  addMonths,
+  subMonths,
+  addHours,
+  setHours,
+  format,
+} from "date-fns";
+import { useCalendarEvents } from "@/hooks/useCalendarEvents";
+import { CalendarHeader } from "./CalendarHeader";
+import { CalendarView } from "./CalendarView";
 import { EventDialog } from "./EventDialog";
-import { CalendarContainer } from "./CalendarContainer";
-import { useCalendarState } from "./hooks/useCalendarState";
+import { CalendarViewType } from "@/lib/types/calendar";
+import { useToast } from "@/components/ui/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { useCalendarEvents } from "@/hooks/useCalendarEvents";
-import { addHours } from "date-fns";
-import { useToast } from "@/components/ui/use-toast";
+import { TimeIndicator } from "./TimeIndicator";
 
 export const Calendar = () => {
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [view, setView] = useState<CalendarViewType>("week");
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<{ date: Date; hour?: number } | null>(null);
+  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
+  const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { createEvent, updateEvent, deleteEvent } = useCalendarEvents();
-  const {
-    selectedEvent,
-    setSelectedEvent,
-    isNewEventDialogOpen,
-    setIsNewEventDialogOpen,
-    selectedSlot,
-  } = useCalendarState();
 
   if (!user) {
     navigate("/signin");
     return null;
   }
 
+  const getDaysForView = () => {
+    switch (view) {
+      case "month":
+        return eachDayOfInterval({
+          start: startOfMonth(selectedDate),
+          end: endOfMonth(selectedDate),
+        });
+      case "week":
+        return eachDayOfInterval({
+          start: startOfWeek(selectedDate),
+          end: endOfWeek(selectedDate),
+        });
+      case "day":
+        return [selectedDate];
+    }
+  };
+
+  const handlePrevious = () => {
+    switch (view) {
+      case "month":
+        setSelectedDate(subMonths(selectedDate, 1));
+        break;
+      case "week":
+        setSelectedDate(addDays(selectedDate, -7));
+        break;
+      case "day":
+        setSelectedDate(addDays(selectedDate, -1));
+        break;
+    }
+  };
+
+  const handleNext = () => {
+    switch (view) {
+      case "month":
+        setSelectedDate(addMonths(selectedDate, 1));
+        break;
+      case "week":
+        setSelectedDate(addDays(selectedDate, 7));
+        break;
+      case "day":
+        setSelectedDate(addDays(selectedDate, 1));
+        break;
+    }
+  };
+
+  const handleDayClick = (date: Date, hour?: number) => {
+    let startDate = date;
+    if (view === "month") {
+      // For month view, set default time to 12:00 PM
+      startDate = setHours(date, 12);
+    } else if (hour !== undefined) {
+      // For week/day view, use the clicked hour
+      startDate = setHours(date, hour);
+    }
+    
+    setSelectedSlot({ 
+      date: startDate,
+      hour: hour
+    });
+    setIsNewEventDialogOpen(true);
+  };
+
+  if (error) {
+    return <div className="text-red-500">Error loading calendar: {error.message}</div>;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
+        <div className="grid grid-cols-7 gap-px">
+          {Array.from({ length: 35 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-full">
-      <CalendarContainer />
+    <div className="h-full flex flex-col gap-4">
+      <CalendarHeader
+        selectedDate={selectedDate}
+        view={view}
+        onViewChange={setView}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
+        onAddEvent={() => {
+          setSelectedSlot({ date: setHours(new Date(), 12) });
+          setIsNewEventDialogOpen(true);
+        }}
+      />
+
+      <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
+        {view !== 'month' && <TimeIndicator />}
+        <div className="flex-1">
+          <CalendarView
+            days={getDaysForView()}
+            events={events || []}
+            selectedDate={selectedDate}
+            view={view}
+            onDayClick={handleDayClick}
+            onEventClick={setSelectedEvent}
+          />
+        </div>
+      </div>
 
       <EventDialog
         open={isNewEventDialogOpen}

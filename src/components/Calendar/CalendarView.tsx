@@ -1,14 +1,12 @@
-import { format, isSameDay } from "date-fns";
+import { format, isSameDay, parseISO } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
-import { Droppable } from "@hello-pangea/dnd";
-import { DraggableEvent } from "./DraggableEvent";
 
 interface CalendarViewProps {
   days: Date[];
   events: CalendarEventType[];
   selectedDate: Date;
   view: "month" | "week" | "day";
-  onDayClick: (date: Date, hour?: number) => void;
+  onDayClick: (date: Date) => void;
   onEventClick: (event: CalendarEventType) => void;
 }
 
@@ -32,33 +30,35 @@ export const CalendarView = ({
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(renderDayHeader)}
         {days.map((day) => {
           const dayEvents = events.filter((event) => 
-            isSameDay(new Date(event.start_date), day)
+            isSameDay(parseISO(event.start_date), day)
           );
 
           return (
-            <Droppable key={day.toISOString()} droppableId={day.toISOString()}>
-              {(provided) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className="bg-[#1e2330] p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-[#252b3b] border border-[#2a3142]"
-                  onClick={() => onDayClick(day)}
-                >
-                  <div className="font-medium text-white">{format(day, "d")}</div>
-                  <div className="mt-1 sm:mt-2 space-y-1">
-                    {dayEvents.map((event, index) => (
-                      <DraggableEvent
-                        key={event.id}
-                        event={event}
-                        index={index}
-                        onClick={onEventClick}
-                      />
-                    ))}
-                    {provided.placeholder}
+            <div
+              key={day.toISOString()}
+              className="bg-[#1e2330] p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-[#252b3b] border border-[#2a3142]"
+              onClick={() => onDayClick(day)}
+            >
+              <div className="font-medium text-white">{format(day, "d")}</div>
+              <div className="mt-1 sm:mt-2 space-y-1">
+                {dayEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className={`text-xs sm:text-sm p-1 rounded ${
+                      event.type === "meeting"
+                        ? "bg-[#4338ca] text-white"
+                        : "bg-[#7c3aed] text-white"
+                    } cursor-pointer truncate hover:opacity-80 transition-opacity`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick(event);
+                    }}
+                  >
+                    {event.title}
                   </div>
-                </div>
-              )}
-            </Droppable>
+                ))}
+              </div>
+            </div>
           );
         })}
       </div>
@@ -87,39 +87,49 @@ export const CalendarView = ({
             className="relative bg-[#1e2330] border-r border-[#2a3142]"
           >
             {Array.from({ length: 24 }).map((_, hour) => (
-              <Droppable key={hour} droppableId={`${day.toISOString()}-${hour}`}>
-                {(provided) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="h-20 border-b border-[#2a3142] hover:bg-[#252b3b] transition-colors cursor-pointer"
-                    onClick={() => onDayClick(day, hour)}
-                  >
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
+              <div
+                key={hour}
+                className="h-20 border-b border-[#2a3142] hover:bg-[#252b3b] transition-colors cursor-pointer"
+                onClick={() => {
+                  const date = new Date(day);
+                  date.setHours(hour);
+                  onDayClick(date);
+                }}
+              />
             ))}
             {events
-              .filter((event) => isSameDay(new Date(event.start_date), day))
-              .map((event, index) => {
-                const start = new Date(event.start_date);
-                const end = new Date(event.end_date);
+              .filter((event) => isSameDay(parseISO(event.start_date), day))
+              .map((event) => {
+                const start = parseISO(event.start_date);
+                const end = parseISO(event.end_date);
                 const top = (start.getHours() + start.getMinutes() / 60) * 80;
                 const height = ((end.getHours() + end.getMinutes() / 60) - 
                               (start.getHours() + start.getMinutes() / 60)) * 80;
                 
                 return (
-                  <DraggableEvent
+                  <div
                     key={event.id}
-                    event={event}
-                    index={index}
+                    className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded px-1 sm:px-2 py-1 text-xs sm:text-sm ${
+                      event.type === "meeting"
+                        ? "bg-[#4338ca] text-white"
+                        : "bg-[#7c3aed] text-white"
+                    } cursor-pointer overflow-hidden hover:opacity-80 transition-opacity`}
                     style={{
                       top: `${top}px`,
                       height: `${Math.max(height, 20)}px`,
                     }}
-                    onClick={onEventClick}
-                  />
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick(event);
+                    }}
+                  >
+                    <div className="font-semibold truncate">{event.title}</div>
+                    {height > 40 && (
+                      <div className="text-[10px] sm:text-xs truncate">
+                        {format(start, "h:mm a")} - {format(end, "h:mm a")}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
           </div>
