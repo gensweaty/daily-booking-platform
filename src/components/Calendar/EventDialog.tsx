@@ -37,11 +37,13 @@ export const EventDialog = ({
   useEffect(() => {
     if (event) {
       // Editing existing event - use event times
-      setStartDate(format(new Date(event.start_date), "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(new Date(event.end_date), "yyyy-MM-dd'T'HH:mm"));
+      const start = new Date(event.start_date);
+      const end = new Date(event.end_date);
+      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     } else if (selectedDate) {
       // Creating new event - use selected time
-      const start = selectedDate;
+      const start = new Date(selectedDate);
       const end = new Date(start);
       end.setHours(start.getHours() + 1);
       
@@ -52,12 +54,17 @@ export const EventDialog = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Create Date objects to ensure proper timezone handling
+    const startDateTime = new Date(startDate);
+    const endDateTime = new Date(endDate);
+    
     onSubmit({
       title,
       description,
       location,
-      start_date: startDate,
-      end_date: endDate,
+      start_date: startDateTime.toISOString(),
+      end_date: endDateTime.toISOString(),
       type,
     });
   };
