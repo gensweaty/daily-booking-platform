@@ -10,7 +10,6 @@ interface TaskCardProps {
   index: number;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
-  onView?: (task: Task) => void;  // Made optional since we're not using it anymore
 }
 
 export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
@@ -57,7 +56,10 @@ export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
                 )}
               </div>
               {task.description && (
-                <p className="text-foreground/80 mt-1 line-clamp-3">{task.description}</p>
+                <div 
+                  className="prose dark:prose-invert max-w-none mt-2 line-clamp-3"
+                  dangerouslySetInnerHTML={{ __html: task.description }}
+                />
               )}
             </div>
             <div className="flex gap-0.5">

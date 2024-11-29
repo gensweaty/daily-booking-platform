@@ -40,9 +40,10 @@ export const NoteCard = ({ note, onEdit, onDelete }: NoteCardProps) => {
               </div>
             )}
           </div>
-          <p className="text-gray-700 dark:text-gray-700 mt-2 whitespace-pre-wrap line-clamp-3">
-            {note.content}
-          </p>
+          <div
+            className="prose dark:prose-invert mt-2 text-gray-700 dark:text-gray-700 line-clamp-3"
+            dangerouslySetInnerHTML={{ __html: note.content }}
+          />
         </div>
         <div className="flex gap-0.5">
           <Button
