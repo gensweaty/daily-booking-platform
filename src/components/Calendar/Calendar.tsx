@@ -12,6 +12,7 @@ import {
   setHours,
   setMinutes,
   format,
+  parseISO,
 } from "date-fns";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
@@ -23,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { TimeIndicator } from "./TimeIndicator";
+import { DragDropContext } from "@hello-pangea/dnd";
 
 export const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -160,89 +162,58 @@ export const Calendar = () => {
   }
 
   return (
-    <div className="h-full flex flex-col gap-4">
-      <CalendarHeader
-        selectedDate={selectedDate}
-        view={view}
-        onViewChange={setView}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        onAddEvent={() => {
-          setSelectedSlot({ date: setHours(new Date(), 12) });
-          setIsNewEventDialogOpen(true);
-        }}
-      />
+    <DragDropContext onDragEnd={(result) => {
+      if (!result.destination) return;
+      const [eventId, sourceDate] = result.draggableId.split("-");
+      const event = events.find((e) => e.id === eventId);
+      if (!event) return;
 
-      <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
-        {view !== 'month' && <TimeIndicator />}
-        <div className="flex-1">
-          <CalendarView
-            days={getDaysForView()}
-            events={events || []}
-            selectedDate={selectedDate}
-            view={view}
-            onDayClick={handleDayClick}
-            onEventClick={setSelectedEvent}
-            onEventDrop={handleEventDrop}
-          />
-        </div>
-      </div>
+      const [destDate, destHour] = result.destination.droppableId.split("-");
+      const newDate = new Date(destDate);
+      const newHour = destHour ? parseInt(destHour) : undefined;
 
-      <EventDialog
-        open={isNewEventDialogOpen}
-        onOpenChange={setIsNewEventDialogOpen}
-        selectedDate={selectedSlot?.date || null}
-        defaultEndDate={selectedSlot?.date ? addHours(selectedSlot.date, 1) : null}
-        onSubmit={async (data) => {
-          try {
-            await createEvent(data);
-            setIsNewEventDialogOpen(false);
-            toast({
-              title: "Success",
-              description: "Event created successfully",
-            });
-          } catch (error: any) {
-            toast({
-              title: "Error",
-              description: error.message,
-              variant: "destructive",
-            });
-          }
-        }}
-      />
-
-      {selectedEvent && (
-        <EventDialog
-          open={!!selectedEvent}
-          onOpenChange={() => setSelectedEvent(null)}
-          selectedDate={new Date(selectedEvent.start_date)}
-          event={selectedEvent}
-          onSubmit={async (updates) => {
-            try {
-              await updateEvent({
-                id: selectedEvent.id,
-                updates,
-              });
-              setSelectedEvent(null);
-              toast({
-                title: "Success",
-                description: "Event updated successfully",
-              });
-            } catch (error: any) {
-              toast({
-                title: "Error",
-                description: error.message,
-                variant: "destructive",
-              });
-            }
+      handleEventDrop(event, newDate, newHour);
+    }}>
+      <div className="h-full flex flex-col gap-4">
+        <CalendarHeader
+          selectedDate={selectedDate}
+          view={view}
+          onViewChange={setView}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onAddEvent={() => {
+            setSelectedSlot({ date: setHours(new Date(), 12) });
+            setIsNewEventDialogOpen(true);
           }}
-          onDelete={async () => {
+        />
+
+        <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
+          {view !== 'month' && <TimeIndicator />}
+          <div className="flex-1">
+            <CalendarView
+              days={getDaysForView()}
+              events={events || []}
+              selectedDate={selectedDate}
+              view={view}
+              onDayClick={handleDayClick}
+              onEventClick={setSelectedEvent}
+              onEventDrop={handleEventDrop}
+            />
+          </div>
+        </div>
+
+        <EventDialog
+          open={isNewEventDialogOpen}
+          onOpenChange={setIsNewEventDialogOpen}
+          selectedDate={selectedSlot?.date || null}
+          defaultEndDate={selectedSlot?.date ? addHours(selectedSlot.date, 1) : null}
+          onSubmit={async (data) => {
             try {
-              await deleteEvent(selectedEvent.id);
-              setSelectedEvent(null);
+              await createEvent(data);
+              setIsNewEventDialogOpen(false);
               toast({
                 title: "Success",
-                description: "Event deleted successfully",
+                description: "Event created successfully",
               });
             } catch (error: any) {
               toast({
@@ -253,7 +224,51 @@ export const Calendar = () => {
             }
           }}
         />
-      )}
-    </div>
+
+        {selectedEvent && (
+          <EventDialog
+            open={!!selectedEvent}
+            onOpenChange={() => setSelectedEvent(null)}
+            selectedDate={new Date(selectedEvent.start_date)}
+            event={selectedEvent}
+            onSubmit={async (updates) => {
+              try {
+                await updateEvent({
+                  id: selectedEvent.id,
+                  updates,
+                });
+                setSelectedEvent(null);
+                toast({
+                  title: "Success",
+                  description: "Event updated successfully",
+                });
+              } catch (error: any) {
+                toast({
+                  title: "Error",
+                  description: error.message,
+                  variant: "destructive",
+                });
+              }
+            }}
+            onDelete={async () => {
+              try {
+                await deleteEvent(selectedEvent.id);
+                setSelectedEvent(null);
+                toast({
+                  title: "Success",
+                  description: "Event deleted successfully",
+                });
+              } catch (error: any) {
+                toast({
+                  title: "Error",
+                  description: error.message,
+                  variant: "destructive",
+                });
+              }
+            }}
+          />
+        )}
+      </div>
+    </DragDropContext>
   );
 };
