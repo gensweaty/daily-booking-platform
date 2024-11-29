@@ -59,6 +59,24 @@ export const SignUp = () => {
     }
 
     try {
+      // First check if email already exists using Supabase's built-in function
+      const { data: emailCheck, error: emailError } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          shouldCreateUser: false
+        }
+      });
+
+      if (!emailError) {
+        toast({
+          title: "Error",
+          description: "This email is already registered. Please use a different email or sign in.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       // Check if username already exists
       const { data: existingUsers, error: fetchError } = await supabase
         .from('profiles')
