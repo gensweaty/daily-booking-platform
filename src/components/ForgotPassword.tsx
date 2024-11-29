@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
@@ -8,10 +8,33 @@ import { Label } from "@/components/ui/label";
 export const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [cooldownTime, setCooldownTime] = useState(0);
   const { toast } = useToast();
+
+  useEffect(() => {
+    let timer: number;
+    if (cooldownTime > 0) {
+      timer = window.setInterval(() => {
+        setCooldownTime((time) => Math.max(0, time - 1));
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [cooldownTime]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (cooldownTime > 0) {
+      toast({
+        title: "Please wait",
+        description: `You can try again in ${cooldownTime} seconds.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -20,11 +43,20 @@ export const ForgotPassword = () => {
       });
 
       if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
+        if (error.message.includes('rate_limit')) {
+          setCooldownTime(9); // Set cooldown timer to 9 seconds
+          toast({
+            title: "Too many attempts",
+            description: "Please wait a few seconds before trying again.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
         return;
       }
 
@@ -34,6 +66,7 @@ export const ForgotPassword = () => {
       });
       
       setEmail("");
+      setCooldownTime(9); // Set cooldown timer after successful request
     } catch (error: any) {
       toast({
         title: "Error",
@@ -59,15 +92,19 @@ export const ForgotPassword = () => {
             onChange={(e) => setEmail(e.target.value)}
             required
             className="w-full"
-            disabled={isLoading}
+            disabled={isLoading || cooldownTime > 0}
           />
         </div>
         <Button 
           type="submit" 
           className="w-full"
-          disabled={isLoading}
+          disabled={isLoading || cooldownTime > 0}
         >
-          {isLoading ? "Sending Reset Instructions..." : "Reset Password"}
+          {isLoading 
+            ? "Sending Reset Instructions..." 
+            : cooldownTime > 0 
+              ? `Wait ${cooldownTime}s to try again` 
+              : "Reset Password"}
         </Button>
       </form>
     </div>
