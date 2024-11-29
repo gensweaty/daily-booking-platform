@@ -86,13 +86,21 @@ export const Calendar = () => {
 
   const handleDayClick = (date: Date, hour?: number) => {
     let startDate = date;
-    if (view === "month") {
-      // For month view, set default time to 12:00 PM
-      startDate = setHours(date, 12);
-    } else if (hour !== undefined) {
+    
+    // Ensure we always use the clicked hour or default to current hour
+    if (hour !== undefined) {
       // For week/day view, use the clicked hour
       startDate = setHours(date, hour);
+    } else if (view === "month") {
+      // For month view, set default time to 12:00 PM
+      startDate = setHours(date, 12);
+    } else {
+      // Default to current hour if no hour specified
+      startDate = setHours(date, new Date().getHours());
     }
+
+    // Ensure minutes are set to 0 for consistency
+    startDate = new Date(startDate.setMinutes(0));
     
     setSelectedSlot({ 
       date: startDate,
@@ -153,7 +161,14 @@ export const Calendar = () => {
         defaultEndDate={selectedSlot?.date ? addHours(selectedSlot.date, 1) : null}
         onSubmit={async (data) => {
           try {
-            await createEvent(data);
+            // Ensure we preserve the exact time when creating the event
+            const eventData = {
+              ...data,
+              start_date: data.start_date,
+              end_date: data.end_date
+            };
+            
+            await createEvent(eventData);
             setIsNewEventDialogOpen(false);
             toast({
               title: "Success",
@@ -177,9 +192,16 @@ export const Calendar = () => {
           event={selectedEvent}
           onSubmit={async (updates) => {
             try {
+              // Ensure we preserve the exact time when updating the event
+              const eventUpdates = {
+                ...updates,
+                start_date: updates.start_date,
+                end_date: updates.end_date
+              };
+              
               await updateEvent({
                 id: selectedEvent.id,
-                updates,
+                updates: eventUpdates,
               });
               setSelectedEvent(null);
               toast({

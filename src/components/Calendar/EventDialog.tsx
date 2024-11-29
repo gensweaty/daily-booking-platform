@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { format } from "date-fns";
+import { format, addHours } from "date-fns";
 import { CalendarEvent } from "@/lib/types";
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,14 +37,19 @@ export const EventDialog = ({
   const [endDate, setEndDate] = useState(
     event?.end_date || 
     (defaultEndDate ? format(defaultEndDate, "yyyy-MM-dd'T'HH:mm") : 
-     selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : "")
+     selectedDate ? format(addHours(selectedDate, 1), "yyyy-MM-dd'T'HH:mm") : "")
   );
 
   useEffect(() => {
     if (selectedDate) {
-      setStartDate(format(selectedDate, "yyyy-MM-dd'T'HH:mm"));
+      const formattedStartDate = format(selectedDate, "yyyy-MM-dd'T'HH:mm");
+      setStartDate(formattedStartDate);
+      
       if (defaultEndDate) {
         setEndDate(format(defaultEndDate, "yyyy-MM-dd'T'HH:mm"));
+      } else {
+        // If no default end date, set it to start date + 1 hour
+        setEndDate(format(addHours(selectedDate, 1), "yyyy-MM-dd'T'HH:mm"));
       }
     }
   }, [selectedDate, defaultEndDate]);
