@@ -39,12 +39,12 @@ export const ForgotPassword = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/reset-password?type=recovery`,
       });
 
       if (error) {
         if (error.message.includes('rate_limit')) {
-          setCooldownTime(9); // Set cooldown timer to 9 seconds
+          setCooldownTime(9);
           toast({
             title: "Too many attempts",
             description: "Please wait a few seconds before trying again.",
@@ -66,7 +66,7 @@ export const ForgotPassword = () => {
       });
       
       setEmail("");
-      setCooldownTime(9); // Set cooldown timer after successful request
+      setCooldownTime(9);
     } catch (error: any) {
       toast({
         title: "Error",
