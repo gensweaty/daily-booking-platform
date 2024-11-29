@@ -31,28 +31,22 @@ export const EventDialog = ({
   const [description, setDescription] = useState(event?.description || "");
   const [location, setLocation] = useState(event?.location || "");
   const [type, setType] = useState<"meeting" | "reminder">(event?.type || "meeting");
-  const [startDate, setStartDate] = useState(
-    event?.start_date || (selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : "")
-  );
-  const [endDate, setEndDate] = useState(
-    event?.end_date || 
-    (defaultEndDate ? format(defaultEndDate, "yyyy-MM-dd'T'HH:mm") : 
-     selectedDate ? format(addHours(selectedDate, 1), "yyyy-MM-dd'T'HH:mm") : "")
-  );
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   useEffect(() => {
-    if (selectedDate) {
-      const formattedStartDate = format(selectedDate, "yyyy-MM-dd'T'HH:mm");
-      setStartDate(formattedStartDate);
-      
-      if (defaultEndDate) {
-        setEndDate(format(defaultEndDate, "yyyy-MM-dd'T'HH:mm"));
-      } else {
-        // If no default end date, set it to start date + 1 hour
-        setEndDate(format(addHours(selectedDate, 1), "yyyy-MM-dd'T'HH:mm"));
-      }
+    if (event) {
+      // Editing existing event
+      setStartDate(format(new Date(event.start_date), "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(new Date(event.end_date), "yyyy-MM-dd'T'HH:mm"));
+    } else if (selectedDate) {
+      // Creating new event
+      const start = new Date(selectedDate);
+      const end = addHours(start, 1);
+      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     }
-  }, [selectedDate, defaultEndDate]);
+  }, [selectedDate, event, defaultEndDate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CalendarEvent } from "@/lib/types";
 import { useToast } from "@/components/ui/use-toast";
-import { addHours, setHours } from "date-fns";
+import { addHours } from "date-fns";
 import { CalendarViewType } from "@/lib/types/calendar";
 
 export const useEventDialog = (
@@ -15,21 +15,23 @@ export const useEventDialog = (
   const { toast } = useToast();
 
   const handleDayClick = (date: Date, hour: number | undefined, view: CalendarViewType) => {
-    let startDate = date;
+    let startDate = new Date(date);
     
-    if (hour !== undefined) {
-      startDate = setHours(date, hour);
-    } else if (view === "month") {
-      startDate = setHours(date, 12);
+    if (view === "month") {
+      // For month view, default to 9 AM
+      startDate.setHours(9, 0, 0, 0);
+    } else if (hour !== undefined) {
+      // For week/day view, use the clicked hour
+      startDate.setHours(hour, 0, 0, 0);
     } else {
-      startDate = setHours(date, new Date().getHours());
+      // Fallback to current hour
+      const currentHour = new Date().getHours();
+      startDate.setHours(currentHour, 0, 0, 0);
     }
-
-    startDate = new Date(startDate.setMinutes(0));
     
     setSelectedSlot({ 
       date: startDate,
-      hour: hour
+      hour: startDate.getHours()
     });
     setSelectedEvent(null);
     setIsNewEventDialogOpen(true);
