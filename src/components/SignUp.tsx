@@ -59,24 +59,7 @@ export const SignUp = () => {
     }
 
     try {
-      // First check if email already exists
-      const { data: existingEmails } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', await supabase.auth.getUser())
-        .single();
-
-      if (existingEmails) {
-        toast({
-          title: "Error",
-          description: "This email is already registered. Please use a different email.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Then check if username already exists
+      // Check if username already exists
       const { data: existingUsers, error: fetchError } = await supabase
         .from('profiles')
         .select('username')
