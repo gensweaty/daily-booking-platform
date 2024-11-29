@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Label } from "../ui/label";
 import { FileUploadField } from "../shared/FileUploadField";
 import { RichTextEditor } from "../shared/RichTextEditor";
+import { useState } from "react";
 
 const COLORS = [
   { value: "#F2FCE2", label: "Green" },
@@ -41,6 +42,9 @@ export const EditNoteDialog = ({
   setEditContent,
   setEditColor,
 }: EditNoteDialogProps) => {
+  const [fileError, setFileError] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   const handleSave = () => {
     onSave({ 
       title: editTitle, 
@@ -86,7 +90,11 @@ export const EditNoteDialog = ({
               onChange={setEditContent}
             />
           </div>
-          <FileUploadField />
+          <FileUploadField 
+            onFileChange={setSelectedFile}
+            fileError={fileError}
+            setFileError={setFileError}
+          />
           <Button onClick={handleSave} className="w-full">
             Save Changes
           </Button>

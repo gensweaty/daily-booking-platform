@@ -3,8 +3,9 @@ import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Color from '@tiptap/extension-color';
+import Underline from '@tiptap/extension-underline';
 import { Button } from '../ui/button';
-import { Bold, Underline, List, Type, Smile } from 'lucide-react';
+import { Bold, Underline as UnderlineIcon, List, Type, Smile } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
@@ -23,6 +24,7 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
         nested: true,
       }),
       Color,
+      Underline,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -51,7 +53,7 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
           onClick={() => editor.chain().focus().toggleUnderline().run()}
           className={editor.isActive('underline') ? 'bg-muted' : ''}
         >
-          <Underline className="h-4 w-4" />
+          <UnderlineIcon className="h-4 w-4" />
         </Button>
         <Button
           variant="ghost"

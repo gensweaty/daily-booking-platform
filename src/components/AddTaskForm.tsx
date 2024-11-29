@@ -19,6 +19,8 @@ interface AddTaskFormProps {
 export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [fileError, setFileError] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -93,7 +95,11 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
             onChange={setDescription}
           />
         </div>
-        <FileUploadField />
+        <FileUploadField 
+          onFileChange={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+        />
         <Button type="submit" className="w-full">
           {editingTask ? 'Update Task' : 'Add Task'}
         </Button>
