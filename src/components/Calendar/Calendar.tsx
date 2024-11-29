@@ -35,6 +35,7 @@ export const Calendar = () => {
     isNewEventDialogOpen,
     setIsNewEventDialogOpen,
     selectedSlot,
+    setSelectedSlot,
     handleDayClick,
     handleCreateEvent,
     handleUpdateEvent,
@@ -131,7 +132,7 @@ export const Calendar = () => {
             events={events || []}
             selectedDate={selectedDate}
             view={view}
-            onDayClick={(date, hour) => handleDayClick(date, hour, view)}
+            onDayClick={(date: Date, hour?: number) => handleDayClick(date, hour, view)}
             onEventClick={setSelectedEvent}
           />
         </div>

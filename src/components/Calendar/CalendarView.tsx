@@ -6,7 +6,7 @@ interface CalendarViewProps {
   events: CalendarEventType[];
   selectedDate: Date;
   view: "month" | "week" | "day";
-  onDayClick: (date: Date) => void;
+  onDayClick: (date: Date, hour?: number) => void;
   onEventClick: (event: CalendarEventType) => void;
 }
 

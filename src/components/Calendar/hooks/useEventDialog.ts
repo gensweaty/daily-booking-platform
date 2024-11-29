@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CalendarEvent } from "@/lib/types";
 import { useToast } from "@/components/ui/use-toast";
 import { addHours, setHours } from "date-fns";
+import { CalendarViewType } from "@/lib/types/calendar";
 
 export const useEventDialog = (
   createEvent: (data: Partial<CalendarEvent>) => Promise<void>,
@@ -13,7 +14,7 @@ export const useEventDialog = (
   const [selectedSlot, setSelectedSlot] = useState<{ date: Date; hour?: number } | null>(null);
   const { toast } = useToast();
 
-  const handleDayClick = (date: Date, hour?: number, view: "month" | "week" | "day") => {
+  const handleDayClick = (date: Date, hour: number | undefined, view: CalendarViewType) => {
     let startDate = date;
     
     if (hour !== undefined) {
@@ -30,7 +31,7 @@ export const useEventDialog = (
       date: startDate,
       hour: hour
     });
-    setSelectedEvent(null); // Reset selected event when creating a new one
+    setSelectedEvent(null);
     setIsNewEventDialogOpen(true);
   };
 
@@ -110,6 +111,7 @@ export const useEventDialog = (
     isNewEventDialogOpen,
     setIsNewEventDialogOpen,
     selectedSlot,
+    setSelectedSlot,
     handleDayClick,
     handleCreateEvent,
     handleUpdateEvent,
