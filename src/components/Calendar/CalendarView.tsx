@@ -19,7 +19,7 @@ export const CalendarView = ({
   onEventClick,
 }: CalendarViewProps) => {
   const renderDayHeader = (day: string) => (
-    <div key={day} className="bg-background p-2 sm:p-4 text-center font-semibold text-foreground border-b border-border">
+    <div key={day} className="bg-background p-1 sm:p-4 text-center font-semibold text-foreground border-b border-border">
       {day}
     </div>
   );
@@ -72,10 +72,10 @@ export const CalendarView = ({
         {days.map((day) => (
           <div 
             key={day.toISOString()} 
-            className="bg-background p-2 sm:p-4 text-center border-b border-border h-20"
+            className="bg-background p-1 sm:p-4 text-center border-b border-border h-20"
           >
-            <div className="font-semibold text-sm text-foreground">{format(day, "EEE")}</div>
-            <div className="text-xs text-muted-foreground">{format(day, "MMM d")}</div>
+            <div className="font-semibold text-xs sm:text-sm text-foreground">{format(day, "EEE")}</div>
+            <div className="text-[10px] sm:text-xs text-muted-foreground">{format(day, "MMM d")}</div>
           </div>
         ))}
       </div>
@@ -102,14 +102,14 @@ export const CalendarView = ({
               .map((event) => {
                 const start = parseISO(event.start_date);
                 const end = parseISO(event.end_date);
-                const top = (start.getHours() + start.getMinutes() / 60) * 80 + 80; // Add header height
+                const top = (start.getHours() + start.getMinutes() / 60) * 80 + 80;
                 const height = ((end.getHours() + end.getMinutes() / 60) - 
                               (start.getHours() + start.getMinutes() / 60)) * 80;
                 
                 return (
                   <div
                     key={event.id}
-                    className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded px-1 sm:px-2 py-1 text-xs sm:text-sm ${
+                    className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded px-0.5 sm:px-2 py-1 text-[10px] sm:text-sm ${
                       event.type === "meeting"
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground"
@@ -125,7 +125,7 @@ export const CalendarView = ({
                   >
                     <div className="font-semibold truncate">{event.title}</div>
                     {height > 40 && (
-                      <div className="text-[10px] sm:text-xs truncate">
+                      <div className="text-[8px] sm:text-xs truncate">
                         {format(start, "h:mm a")} - {format(end, "h:mm a")}
                       </div>
                     )}
