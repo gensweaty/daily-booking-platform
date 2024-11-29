@@ -96,21 +96,15 @@ export const CalendarView = ({
                   key={hour}
                   className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
                   onClick={() => onDayClick(hourDate, hour)}
-                >
-                  {hour === 0 && (
-                    <span className="absolute -left-12 top-0 text-xs text-muted-foreground">
-                      12 AM
-                    </span>
-                  )}
-                </div>
+                />
               );
             })}
             
             {events
               .filter((event) => isSameDay(parseISO(event.start_date), day))
               .map((event) => {
-                const start = parseISO(event.start_date);
-                const end = parseISO(event.end_date);
+                const start = new Date(event.start_date);
+                const end = new Date(event.end_date);
                 const top = start.getHours() * 80 + (start.getMinutes() / 60) * 80;
                 const height = (end.getHours() - start.getHours() + 
                               (end.getMinutes() - start.getMinutes()) / 60) * 80;
