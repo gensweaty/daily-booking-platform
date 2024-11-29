@@ -86,17 +86,17 @@ export const CalendarView = ({
             key={day.toISOString()} 
             className="relative bg-background border-r border-border"
           >
-            {Array.from({ length: 24 }).map((_, hour) => (
-              <div
-                key={hour}
-                className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer"
-                onClick={() => {
-                  const date = new Date(day);
-                  date.setHours(hour);
-                  onDayClick(date);
-                }}
-              />
-            ))}
+            {Array.from({ length: 24 }).map((_, hour) => {
+              const date = new Date(day);
+              date.setHours(hour);
+              return (
+                <div
+                  key={hour}
+                  className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer"
+                  onClick={() => onDayClick(date)}
+                />
+              );
+            })}
             {events
               .filter((event) => isSameDay(parseISO(event.start_date), day))
               .map((event) => {
