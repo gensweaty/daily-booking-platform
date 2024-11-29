@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
+import { Link } from "react-router-dom";
 
 export const SignIn = () => {
   const [email, setEmail] = useState("");
@@ -102,6 +103,14 @@ export const SignIn = () => {
             className="w-full"
             disabled={isLoading}
           />
+        </div>
+        <div className="flex justify-end">
+          <Link 
+            to="/forgot-password" 
+            className="text-sm text-primary hover:underline"
+          >
+            Forgot Password?
+          </Link>
         </div>
         <Button 
           type="submit" 
