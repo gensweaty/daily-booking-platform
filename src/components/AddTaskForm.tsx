@@ -3,14 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createTask, updateTask } from "@/lib/api";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import { DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
+import { FileDisplay } from "@/components/shared/FileDisplay";
 import { Task } from "@/lib/types";
-import { FileDisplay } from "../shared/FileDisplay";
 
 const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
 const MAX_FILE_SIZE_IMAGES = 2048 * 1024; // 2MB
