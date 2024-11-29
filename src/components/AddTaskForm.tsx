@@ -46,10 +46,9 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   useEffect(() => {
     if (editingTask) {
       setTitle(editingTask.title);
-      // Initialize description with the existing task's description
       setDescription(editingTask.description || "");
+      console.log("Setting description:", editingTask.description); // Debug log
     } else {
-      // Reset form when not editing
       setTitle("");
       setDescription("");
     }
