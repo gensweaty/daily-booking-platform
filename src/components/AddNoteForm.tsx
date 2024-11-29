@@ -9,6 +9,8 @@ import { DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import { FileUploadField } from "./shared/FileUploadField";
 
 const MAX_CHARS = 10000;
 const COLORS = [
@@ -24,6 +26,8 @@ export const AddNoteForm = ({ onClose }: { onClose: () => void }) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [color, setColor] = useState(COLORS[0].value);
+  const [file, setFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -45,12 +49,37 @@ export const AddNoteForm = ({ onClose }: { onClose: () => void }) => {
       return;
     }
     try {
-      await createNote({ 
+      const newNote = await createNote({ 
         title, 
         content, 
         color,
         user_id: user.id 
       });
+
+      if (file && newNote) {
+        const fileExt = file.name.split('.').pop();
+        const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('note_attachments')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { error: fileRecordError } = await supabase
+          .from('note_files')
+          .insert({
+            note_id: newNote.id,
+            filename: file.name,
+            file_path: filePath,
+            content_type: file.type,
+            size: file.size,
+            user_id: user.id
+          });
+
+        if (fileRecordError) throw fileRecordError;
+      }
+
       await queryClient.invalidateQueries({ queryKey: ['notes'] });
       toast({
         title: "Success",
@@ -69,52 +98,52 @@ export const AddNoteForm = ({ onClose }: { onClose: () => void }) => {
 
   return (
     <>
-      <DialogTitle>Add New Note</DialogTitle>
+      <DialogTitle className="text-foreground">Add New Note</DialogTitle>
       <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-        <div>
-          <Input
-            placeholder="Note title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <Select value={color} onValueChange={setColor}>
-            <SelectTrigger className="w-full">
-              <SelectValue>
+        <Input
+          placeholder="Note title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          className="bg-background border-gray-700"
+        />
+        <Select value={color} onValueChange={setColor}>
+          <SelectTrigger className="w-full bg-background border-gray-700">
+            <SelectValue>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded" style={{ backgroundColor: color }} />
+                {COLORS.find(c => c.value === color)?.label || 'Select color'}
+              </div>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {COLORS.map((color) => (
+              <SelectItem key={color.value} value={color.value}>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded" style={{ backgroundColor: color }} />
-                  {COLORS.find(c => c.value === color)?.label || 'Select color'}
+                  <div className="w-4 h-4 rounded" style={{ backgroundColor: color.value }} />
+                  {color.label}
                 </div>
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {COLORS.map((color) => (
-                <SelectItem key={color.value} value={color.value}>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded" style={{ backgroundColor: color.value }} />
-                    {color.label}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Textarea
+          placeholder="Note content"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          required
+          className="min-h-[200px] bg-background border-gray-700"
+          maxLength={MAX_CHARS}
+        />
+        <div className="text-sm text-muted-foreground">
+          {content.length}/{MAX_CHARS} characters
         </div>
-        <div>
-          <Textarea
-            placeholder="Note content"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            required
-            className="min-h-[200px]"
-            maxLength={MAX_CHARS}
-          />
-          <div className="text-sm text-gray-500 mt-1">
-            {content.length}/{MAX_CHARS} characters
-          </div>
-        </div>
-        <Button type="submit" className="w-full">Add Note</Button>
+        <FileUploadField
+          onFileChange={setFile}
+          fileError={fileError}
+          setFileError={setFileError}
+        />
+        <Button type="submit" className="w-full bg-primary hover:bg-primary/90">Add Note</Button>
       </form>
     </>
   );
