@@ -10,6 +10,7 @@ interface TaskCardProps {
   index: number;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
+  onView?: (task: Task) => void;  // Made optional since we're not using it anymore
 }
 
 export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
