@@ -64,8 +64,10 @@ export const ResetPassword = () => {
       setNewPassword("");
       setConfirmPassword("");
       
-      // Redirect to sign in page
-      navigate("/");
+      // Redirect to sign in page after a short delay
+      setTimeout(() => {
+        navigate("/");
+      }, 2000);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -79,7 +81,7 @@ export const ResetPassword = () => {
 
   return (
     <div className="w-full max-w-md mx-auto p-4 sm:p-6">
-      <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Set New Password</h2>
+      <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Reset Password</h2>
       <form onSubmit={handlePasswordReset} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="newPassword">New Password</Label>
@@ -112,7 +114,7 @@ export const ResetPassword = () => {
           className="w-full"
           disabled={isLoading}
         >
-          {isLoading ? "Resetting Password..." : "Set New Password"}
+          {isLoading ? "Resetting Password..." : "Reset Password"}
         </Button>
       </form>
     </div>
