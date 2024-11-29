@@ -2,44 +2,39 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getTasks, updateTask, deleteTask } from "@/lib/api";
 import { Task } from "@/lib/types";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { Pencil, Trash2, Maximize2 } from "lucide-react";
+import { Pencil, Trash2, Maximize2, Paperclip } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { useToast } from "./ui/use-toast";
 import { AddTaskForm } from "./AddTaskForm";
 import { TaskFullView } from "./tasks/TaskFullView";
+import { supabase } from "@/lib/supabase";
 
 export const TaskList = () => {
-  const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ['tasks'],
-    queryFn: getTasks,
-  });
-
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
 
-  const updateTaskMutation = useMutation({
-    mutationFn: (params: { id: string; updates: Partial<Task> }) => 
-      updateTask(params.id, params.updates),
+  const deleteTaskMutation = useMutation(deleteTask, {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      toast({ 
+      toast({
         title: "Success",
-        description: "Task updated successfully" 
+        description: "Task deleted successfully",
       });
     },
   });
 
-  const deleteTaskMutation = useMutation({
-    mutationFn: deleteTask,
+  const updateTaskMutation = useMutation({
+    mutationFn: (params: { id: string; updates: Partial<Task> }) =>
+      updateTask(params.id, params.updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      toast({ 
+      toast({
         title: "Success",
-        description: "Task deleted successfully" 
+        description: "Task updated successfully",
       });
     },
   });
@@ -78,6 +73,11 @@ export const TaskList = () => {
     }
   };
 
+  const { data: tasks = [], isLoading } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: getTasks,
+  });
+
   if (isLoading) return <div className="text-foreground">Loading tasks...</div>;
 
   const columns = {
@@ -111,7 +111,10 @@ export const TaskList = () => {
                           >
                             <div className="flex justify-between items-start">
                               <div className={task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}>
-                                <h3 className="font-semibold">{task.title}</h3>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-semibold">{task.title}</h3>
+                                  <TaskFileIndicator taskId={task.id} />
+                                </div>
                                 {task.description && (
                                   <p className="text-foreground/80 mt-1 line-clamp-2">{task.description}</p>
                                 )}
@@ -157,7 +160,7 @@ export const TaskList = () => {
       </DragDropContext>
 
       <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-        <DialogContent>
+        <DialogContent className="bg-[#0A0A0B] border-gray-800 text-white">
           <AddTaskForm 
             onClose={() => setEditingTask(null)} 
             editingTask={editingTask}
@@ -173,5 +176,28 @@ export const TaskList = () => {
         />
       )}
     </>
+  );
+};
+
+// New component for file indicator
+const TaskFileIndicator = ({ taskId }: { taskId: string }) => {
+  const { data: files } = useQuery({
+    queryKey: ['taskFiles', taskId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('files')
+        .select('*')
+        .eq('task_id', taskId);
+      return data || [];
+    },
+  });
+
+  if (!files || files.length === 0) return null;
+
+  return (
+    <div className="flex items-center text-gray-600">
+      <Paperclip className="h-4 w-4" />
+      <span className="text-sm ml-1">{files.length}</span>
+    </div>
   );
 };

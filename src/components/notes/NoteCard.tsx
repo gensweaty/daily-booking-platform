@@ -1,8 +1,10 @@
 import { Note } from "@/lib/types";
-import { Pencil, Trash2, Maximize2 } from "lucide-react";
+import { Pencil, Trash2, Maximize2, Paperclip } from "lucide-react";
 import { Button } from "../ui/button";
 import { useState } from "react";
 import { NoteFullView } from "./NoteFullView";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 interface NoteCardProps {
   note: Note;
@@ -13,6 +15,19 @@ interface NoteCardProps {
 export const NoteCard = ({ note, onEdit, onDelete }: NoteCardProps) => {
   const [isFullView, setIsFullView] = useState(false);
 
+  const { data: files } = useQuery({
+    queryKey: ['noteFiles', note.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('note_files')
+        .select('*')
+        .eq('note_id', note.id);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
   return (
     <>
       <div
@@ -21,7 +36,15 @@ export const NoteCard = ({ note, onEdit, onDelete }: NoteCardProps) => {
       >
         <div className="flex justify-between items-start">
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-900">{note.title}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-900">{note.title}</h3>
+              {files && files.length > 0 && (
+                <div className="flex items-center text-gray-600">
+                  <Paperclip className="h-4 w-4" />
+                  <span className="text-sm ml-1">{files.length}</span>
+                </div>
+              )}
+            </div>
             <p className="text-gray-700 dark:text-gray-700 mt-2 whitespace-pre-wrap line-clamp-3">{note.content}</p>
           </div>
           <div className="flex gap-2">
