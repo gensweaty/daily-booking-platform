@@ -66,7 +66,7 @@ export const CalendarView = ({
   }
 
   return (
-    <div className="flex-1 grid bg-background rounded-lg overflow-y-auto -ml-0.5 sm:ml-0" 
+    <div className="flex-1 grid bg-background rounded-lg overflow-y-auto ml-0" 
          style={{ gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` }}>
       <div className="contents">
         {days.map((day) => (
