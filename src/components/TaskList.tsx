@@ -20,7 +20,8 @@ export const TaskList = () => {
   const { toast } = useToast();
 
   const updateTaskMutation = useMutation({
-    mutationFn: updateTask,
+    mutationFn: (params: { id: string; updates: Partial<Task> }) => 
+      updateTask(params.id, params.updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast({ 
