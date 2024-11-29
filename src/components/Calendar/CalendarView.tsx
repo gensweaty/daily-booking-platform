@@ -1,4 +1,4 @@
-import { format, isSameDay, parseISO } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Droppable } from "@hello-pangea/dnd";
 import { DraggableEvent } from "./DraggableEvent";
@@ -10,7 +10,6 @@ interface CalendarViewProps {
   view: "month" | "week" | "day";
   onDayClick: (date: Date, hour?: number) => void;
   onEventClick: (event: CalendarEventType) => void;
-  onEventDrop?: (event: CalendarEventType, newDate: Date, newHour?: number) => void;
 }
 
 export const CalendarView = ({
@@ -20,7 +19,6 @@ export const CalendarView = ({
   view,
   onDayClick,
   onEventClick,
-  onEventDrop,
 }: CalendarViewProps) => {
   const renderDayHeader = (day: string) => (
     <div key={day} className="bg-[#1e2330] p-2 sm:p-4 text-center font-semibold text-white">
@@ -34,7 +32,7 @@ export const CalendarView = ({
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(renderDayHeader)}
         {days.map((day) => {
           const dayEvents = events.filter((event) => 
-            isSameDay(parseISO(event.start_date), day)
+            isSameDay(new Date(event.start_date), day)
           );
 
           return (
@@ -95,11 +93,7 @@ export const CalendarView = ({
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className="h-20 border-b border-[#2a3142] hover:bg-[#252b3b] transition-colors cursor-pointer"
-                    onClick={() => {
-                      const date = new Date(day);
-                      date.setHours(hour, 0, 0, 0);
-                      onDayClick(date, hour);
-                    }}
+                    onClick={() => onDayClick(day, hour)}
                   >
                     {provided.placeholder}
                   </div>
@@ -107,10 +101,10 @@ export const CalendarView = ({
               </Droppable>
             ))}
             {events
-              .filter((event) => isSameDay(parseISO(event.start_date), day))
+              .filter((event) => isSameDay(new Date(event.start_date), day))
               .map((event, index) => {
-                const start = parseISO(event.start_date);
-                const end = parseISO(event.end_date);
+                const start = new Date(event.start_date);
+                const end = new Date(event.end_date);
                 const top = (start.getHours() + start.getMinutes() / 60) * 80;
                 const height = ((end.getHours() + end.getMinutes() / 60) - 
                               (start.getHours() + start.getMinutes() / 60)) * 80;
