@@ -7,6 +7,9 @@ import { Label } from "../ui/label";
 import { FileUploadField } from "../shared/FileUploadField";
 import { RichTextEditor } from "../shared/RichTextEditor";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { FileDisplay } from "../shared/FileDisplay";
 
 const COLORS = [
   { value: "#F2FCE2", label: "Green" },
@@ -44,6 +47,21 @@ export const EditNoteDialog = ({
 }: EditNoteDialogProps) => {
   const [fileError, setFileError] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const { data: existingFiles } = useQuery({
+    queryKey: ['noteFiles', note?.id],
+    queryFn: async () => {
+      if (!note?.id) return [];
+      const { data, error } = await supabase
+        .from('note_files')
+        .select('*')
+        .eq('note_id', note.id);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!note?.id,
+  });
 
   const handleSave = () => {
     onSave({ 
@@ -94,6 +112,16 @@ export const EditNoteDialog = ({
               onChange={setEditContent}
             />
           </div>
+          {existingFiles && existingFiles.length > 0 && (
+            <div className="space-y-2">
+              <Label>Current Attachments</Label>
+              <FileDisplay 
+                files={existingFiles} 
+                bucketName="note_attachments"
+                allowDelete
+              />
+            </div>
+          )}
           <FileUploadField 
             onFileChange={setSelectedFile}
             fileError={fileError}

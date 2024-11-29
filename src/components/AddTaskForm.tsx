@@ -11,6 +11,8 @@ import { Task } from "@/lib/types";
 import { FileUploadField } from "./shared/FileUploadField";
 import { RichTextEditor } from "./shared/RichTextEditor";
 import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
+import { FileDisplay } from "./shared/FileDisplay";
 
 interface AddTaskFormProps {
   onClose: () => void;
@@ -25,6 +27,21 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
+
+  const { data: existingFiles } = useQuery({
+    queryKey: ['taskFiles', editingTask?.id],
+    queryFn: async () => {
+      if (!editingTask?.id) return [];
+      const { data, error } = await supabase
+        .from('files')
+        .select('*')
+        .eq('task_id', editingTask.id);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!editingTask?.id,
+  });
 
   useEffect(() => {
     if (editingTask) {
@@ -87,6 +104,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       }
 
       await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
       toast({
         title: "Success",
         description: editingTask ? "Task updated successfully" : "Task created successfully",
@@ -124,6 +142,16 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
             onChange={setDescription}
           />
         </div>
+        {existingFiles && existingFiles.length > 0 && (
+          <div className="space-y-2">
+            <Label>Current Attachments</Label>
+            <FileDisplay 
+              files={existingFiles} 
+              bucketName="task_attachments"
+              allowDelete
+            />
+          </div>
+        )}
         <FileUploadField 
           onFileChange={setSelectedFile}
           fileError={fileError}
