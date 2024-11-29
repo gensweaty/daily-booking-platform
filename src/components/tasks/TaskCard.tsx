@@ -60,12 +60,12 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProp
                 <p className="text-foreground/80 mt-1 line-clamp-2">{task.description}</p>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-0.5">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => onView(task)}
-                className="text-foreground hover:text-foreground/80"
+                className="text-foreground hover:text-foreground/80 h-8 w-8"
               >
                 <Maximize2 className="h-4 w-4" />
               </Button>
@@ -73,7 +73,7 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProp
                 variant="ghost"
                 size="icon"
                 onClick={() => onEdit(task)}
-                className="text-foreground hover:text-foreground/80"
+                className="text-foreground hover:text-foreground/80 h-8 w-8"
               >
                 <Pencil className="h-4 w-4" />
               </Button>
@@ -81,7 +81,7 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProp
                 variant="ghost"
                 size="icon"
                 onClick={() => onDelete(task.id)}
-                className="text-foreground hover:text-foreground/80"
+                className="text-foreground hover:text-foreground/80 h-8 w-8"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

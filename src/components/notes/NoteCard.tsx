@@ -47,12 +47,12 @@ export const NoteCard = ({ note, onEdit, onDelete }: NoteCardProps) => {
             </div>
             <p className="text-gray-700 dark:text-gray-700 mt-2 whitespace-pre-wrap line-clamp-3">{note.content}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-0.5">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setIsFullView(true)}
-              className="text-gray-700 dark:text-gray-700 hover:text-gray-900 dark:hover:text-gray-900"
+              className="text-gray-700 dark:text-gray-700 hover:text-gray-900 dark:hover:text-gray-900 h-8 w-8"
             >
               <Maximize2 className="h-4 w-4" />
             </Button>
@@ -60,7 +60,7 @@ export const NoteCard = ({ note, onEdit, onDelete }: NoteCardProps) => {
               variant="ghost"
               size="icon"
               onClick={() => onEdit(note)}
-              className="text-gray-700 dark:text-gray-700 hover:text-gray-900 dark:hover:text-gray-900"
+              className="text-gray-700 dark:text-gray-700 hover:text-gray-900 dark:hover:text-gray-900 h-8 w-8"
             >
               <Pencil className="h-4 w-4" />
             </Button>
@@ -68,7 +68,7 @@ export const NoteCard = ({ note, onEdit, onDelete }: NoteCardProps) => {
               variant="ghost"
               size="icon"
               onClick={() => onDelete(note.id)}
-              className="text-gray-700 dark:text-gray-700 hover:text-gray-900 dark:hover:text-gray-900"
+              className="text-gray-700 dark:text-gray-700 hover:text-gray-900 dark:hover:text-gray-900 h-8 w-8"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
