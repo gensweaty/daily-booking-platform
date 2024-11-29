@@ -19,6 +19,17 @@ export const TaskList = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const updateTaskMutation = useMutation({
+    mutationFn: updateTask,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast({ 
+        title: "Success",
+        description: "Task updated successfully" 
+      });
+    },
+  });
+
   const deleteTaskMutation = useMutation({
     mutationFn: deleteTask,
     onSuccess: () => {
