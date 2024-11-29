@@ -45,6 +45,47 @@ export type Database = {
         }
         Relationships: []
       }
+      files: {
+        Row: {
+          content_type: string
+          created_at: string
+          file_path: string
+          filename: string
+          id: string
+          size: number
+          task_id: number | null
+          user_id: string
+        }
+        Insert: {
+          content_type: string
+          created_at?: string
+          file_path: string
+          filename: string
+          id?: string
+          size: number
+          task_id?: number | null
+          user_id: string
+        }
+        Update: {
+          content_type?: string
+          created_at?: string
+          file_path?: string
+          filename?: string
+          id?: string
+          size?: number
+          task_id?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "files_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notes: {
         Row: {
           color: string | null
@@ -122,6 +163,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: number
+          markdown_content: string | null
           status: string | null
           title: string
           user_id: string
@@ -130,6 +172,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: never
+          markdown_content?: string | null
           status?: string | null
           title: string
           user_id: string
@@ -138,6 +181,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: never
+          markdown_content?: string | null
           status?: string | null
           title?: string
           user_id?: string
