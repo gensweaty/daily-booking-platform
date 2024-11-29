@@ -43,11 +43,10 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     enabled: !!editingTask?.id,
   });
 
-  // Initialize form with existing task data
   useEffect(() => {
     if (editingTask) {
       setTitle(editingTask.title);
-      // Initialize description with HTML content
+      // Initialize description with HTML content, ensuring it's not null
       setDescription(editingTask.description || "");
     } else {
       setTitle("");
