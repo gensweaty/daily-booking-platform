@@ -49,11 +49,27 @@ export const ResetPassword = () => {
     }
 
     try {
+      // Get the current session to ensure we're authenticated for the password reset
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Error",
+          description: "Your reset link has expired. Please request a new password reset.",
+          variant: "destructive",
+        });
+        navigate("/forgot-password");
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
 
       if (error) throw error;
+
+      // Sign out the user after password reset
+      await supabase.auth.signOut();
 
       toast({
         title: "Success",
@@ -67,9 +83,10 @@ export const ResetPassword = () => {
       // Redirect to sign in page immediately
       navigate("/");
     } catch (error: any) {
+      console.error('Password reset error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "An error occurred while resetting your password",
         variant: "destructive",
       });
     } finally {
