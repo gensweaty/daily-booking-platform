@@ -11,41 +11,28 @@ export const useEventDialog = (
 ) => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<{ date: Date; hour?: number } | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{ date: Date } | null>(null);
   const { toast } = useToast();
 
-  const handleDayClick = (date: Date, hour: number | undefined, view: CalendarViewType) => {
-    let startDate = new Date(date);
+  const handleDayClick = (date: Date, hour?: number, view?: CalendarViewType) => {
+    const clickedDate = new Date(date);
     
     if (view === "month") {
-      // For month view, default to 9 AM
-      startDate.setHours(9, 0, 0, 0);
+      // For month view, set a default time (9 AM)
+      clickedDate.setHours(9, 0, 0, 0);
     } else if (hour !== undefined) {
-      // For week/day view, use the clicked hour
-      startDate.setHours(hour, 0, 0, 0);
-    } else {
-      // Fallback to current hour
-      const currentHour = new Date().getHours();
-      startDate.setHours(currentHour, 0, 0, 0);
+      // For week/day view, use the exact clicked hour
+      clickedDate.setHours(hour, 0, 0, 0);
     }
     
-    setSelectedSlot({ 
-      date: startDate,
-      hour: startDate.getHours()
-    });
+    setSelectedSlot({ date: clickedDate });
     setSelectedEvent(null);
     setIsNewEventDialogOpen(true);
   };
 
   const handleCreateEvent = async (data: Partial<CalendarEvent>) => {
     try {
-      const eventData = {
-        ...data,
-        start_date: data.start_date,
-        end_date: data.end_date
-      };
-      
-      await createEvent(eventData);
+      await createEvent(data);
       setIsNewEventDialogOpen(false);
       toast({
         title: "Success",
@@ -64,15 +51,9 @@ export const useEventDialog = (
     if (!selectedEvent) return;
     
     try {
-      const eventUpdates = {
-        ...updates,
-        start_date: updates.start_date,
-        end_date: updates.end_date
-      };
-      
       await updateEvent({
         id: selectedEvent.id,
-        updates: eventUpdates,
+        updates,
       });
       setSelectedEvent(null);
       toast({

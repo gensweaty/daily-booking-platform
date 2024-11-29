@@ -41,12 +41,12 @@ export const EventDialog = ({
       setEndDate(format(new Date(event.end_date), "yyyy-MM-dd'T'HH:mm"));
     } else if (selectedDate) {
       // Creating new event
-      const start = new Date(selectedDate);
+      const start = selectedDate;
       const end = addHours(start, 1);
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     }
-  }, [selectedDate, event, defaultEndDate]);
+  }, [selectedDate, event]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -65,8 +65,9 @@ export const CalendarView = ({
     );
   }
 
+  // Week/Day view with time slots
   return (
-    <div className="flex-1 grid bg-background rounded-lg overflow-y-auto -ml-1" 
+    <div className="flex-1 grid bg-background rounded-lg overflow-y-auto" 
          style={{ gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` }}>
       <div className="contents">
         {days.map((day) => (
@@ -87,24 +88,30 @@ export const CalendarView = ({
             className="relative bg-background border-r border-l border-border"
           >
             {Array.from({ length: 24 }).map((_, hour) => {
-              const date = new Date(day);
-              date.setHours(hour);
+              const hourDate = new Date(day);
+              hourDate.setHours(hour, 0, 0, 0);
+              
               return (
                 <div
                   key={hour}
-                  className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer"
-                  onClick={() => onDayClick(date)}
-                />
+                  className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
+                  onClick={() => onDayClick(hourDate, hour)}
+                >
+                  <span className="absolute -left-12 top-0 text-xs text-muted-foreground">
+                    {format(hourDate, 'h a')}
+                  </span>
+                </div>
               );
             })}
+            
             {events
               .filter((event) => isSameDay(parseISO(event.start_date), day))
               .map((event) => {
                 const start = parseISO(event.start_date);
                 const end = parseISO(event.end_date);
-                const top = (start.getHours() + start.getMinutes() / 60) * 80 + 80;
-                const height = ((end.getHours() + end.getMinutes() / 60) - 
-                              (start.getHours() + start.getMinutes() / 60)) * 80;
+                const top = start.getHours() * 80 + (start.getMinutes() / 60) * 80;
+                const height = (end.getHours() - start.getHours() + 
+                              (end.getMinutes() - start.getMinutes()) / 60) * 80;
                 
                 return (
                   <div
