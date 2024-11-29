@@ -60,8 +60,8 @@ export const SignIn = () => {
       }
 
       toast({
-        title: "Success",
-        description: "Signed in successfully",
+        title: "Welcome back!",
+        description: "You have successfully signed in.",
       });
     } catch (error: any) {
       toast({

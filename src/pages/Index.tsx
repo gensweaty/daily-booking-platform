@@ -25,7 +25,6 @@ const Index = () => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
 
-  // Check for email confirmation
   useEffect(() => {
     const confirmationStatus = searchParams.get("email_confirmed");
     if (confirmationStatus === "true") {
@@ -47,29 +46,23 @@ const Index = () => {
             .eq('id', user.id)
             .maybeSingle();
           
-          if (error) throw error;
+          if (error) {
+            console.error('Error fetching profile:', error);
+            return;
+          }
           
           if (data) {
             setUsername(data.username);
-          } else {
-            toast({
-              title: "Profile not found",
-              description: "There was an issue loading your profile.",
-              variant: "destructive",
-            });
           }
+          // Silently handle the case where profile doesn't exist yet
         } catch (error: any) {
-          toast({
-            title: "Error",
-            description: error.message,
-            variant: "destructive",
-          });
+          console.error('Profile fetch error:', error);
         }
       }
     };
 
     getProfile();
-  }, [user, toast]);
+  }, [user]);
 
   if (!user) {
     return (
@@ -106,7 +99,9 @@ const Index = () => {
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="text-center sm:text-left">
             <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">Welcome to Taskify Minder Note</h1>
-            <p className="text-foreground">Hello {username}! Complete Agile productivity - tasks notes calendar all in one</p>
+            <p className="text-foreground">
+              {username ? `Hello ${username}!` : 'Welcome!'} Complete Agile productivity - tasks notes calendar all in one
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
