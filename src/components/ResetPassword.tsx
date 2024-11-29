@@ -64,10 +64,8 @@ export const ResetPassword = () => {
       setNewPassword("");
       setConfirmPassword("");
       
-      // Redirect to sign in page after a short delay
-      setTimeout(() => {
-        navigate("/");
-      }, 2000);
+      // Redirect to sign in page immediately
+      navigate("/");
     } catch (error: any) {
       toast({
         title: "Error",
