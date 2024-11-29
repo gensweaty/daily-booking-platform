@@ -76,7 +76,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
 
   return (
     <>
-      <DialogTitle>{editingTask ? 'Edit Task' : 'Add New Task'}</DialogTitle>
+      <DialogTitle className="text-foreground">{editingTask ? 'Edit Task' : 'Add New Task'}</DialogTitle>
       <form onSubmit={handleSubmit} className="space-y-4 mt-4">
         <div className="space-y-2">
           <Label htmlFor="title">Title</Label>
@@ -86,6 +86,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
+            className="bg-background border-input"
           />
         </div>
         <div className="space-y-2">

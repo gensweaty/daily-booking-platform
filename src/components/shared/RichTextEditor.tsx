@@ -37,7 +37,6 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
     ],
     content,
     onUpdate: ({ editor }) => {
-      // Prevent auto-save on every keystroke by using the HTML content
       onChange(editor.getHTML());
     },
     editorProps: {
@@ -105,14 +104,14 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
               <Type className="h-4 w-4" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-40">
+          <PopoverContent className="w-40 bg-background border-input">
             <div className="flex flex-col gap-1">
               {colors.map(([color, name]) => (
                 <Button
                   key={color}
                   type="button"
                   variant="ghost"
-                  className="justify-start"
+                  className="justify-start hover:bg-muted"
                   onClick={(e) => {
                     e.preventDefault();
                     editor.chain().focus().setColor(color).run();
@@ -131,7 +130,7 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
               <Smile className="h-4 w-4" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
+          <PopoverContent className="w-auto p-0 bg-background border-input">
             <Picker
               data={data}
               onEmojiSelect={(emoji: any) => {

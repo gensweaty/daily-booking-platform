@@ -55,17 +55,17 @@ export const EditNoteDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="dark:bg-gray-800">
+      <DialogContent className="bg-background border-border">
         <DialogTitle className="text-foreground">Edit Note</DialogTitle>
         <div className="space-y-4 mt-4">
           <Input
             placeholder="Note title"
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
-            className="dark:bg-gray-700 dark:text-gray-100"
+            className="bg-background border-input"
           />
           <Select value={editColor} onValueChange={setEditColor}>
-            <SelectTrigger className="w-full dark:bg-gray-700 dark:text-gray-100">
+            <SelectTrigger className="w-full bg-background border-input">
               <SelectValue>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded" style={{ backgroundColor: editColor }} />
@@ -73,9 +73,13 @@ export const EditNoteDialog = ({
                 </div>
               </SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-background border-input">
               {COLORS.map((color) => (
-                <SelectItem key={color.value} value={color.value}>
+                <SelectItem 
+                  key={color.value} 
+                  value={color.value}
+                  className="hover:bg-muted"
+                >
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded" style={{ backgroundColor: color.value }} />
                     {color.label}
