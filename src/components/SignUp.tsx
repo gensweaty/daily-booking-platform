@@ -13,6 +13,16 @@ export const SignUp = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  const validatePassword = (password: string) => {
+    if (password.length < 6) {
+      return "Password must be at least 6 characters long";
+    }
+    if (!/\d/.test(password)) {
+      return "Password must contain at least one number";
+    }
+    return null;
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -21,6 +31,17 @@ export const SignUp = () => {
       toast({
         title: "Error",
         description: "Passwords do not match",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      toast({
+        title: "Invalid Password",
+        description: passwordError,
         variant: "destructive",
       });
       setIsLoading(false);
@@ -38,7 +59,24 @@ export const SignUp = () => {
     }
 
     try {
-      // First check if username already exists
+      // First check if email already exists
+      const { data: existingEmails } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', await supabase.auth.getUser())
+        .single();
+
+      if (existingEmails) {
+        toast({
+          title: "Error",
+          description: "This email is already registered. Please use a different email.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Then check if username already exists
       const { data: existingUsers, error: fetchError } = await supabase
         .from('profiles')
         .select('username')
@@ -141,7 +179,7 @@ export const SignUp = () => {
           <Input
             id="password"
             type="password"
-            placeholder="Password"
+            placeholder="Password (min. 6 characters, include numbers)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
