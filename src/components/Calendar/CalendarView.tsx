@@ -97,9 +97,11 @@ export const CalendarView = ({
                   className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
                   onClick={() => onDayClick(hourDate, hour)}
                 >
-                  <span className="absolute -left-12 top-0 text-xs text-muted-foreground">
-                    {format(hourDate, 'h a')}
-                  </span>
+                  {hour === 0 && (
+                    <span className="absolute -left-12 top-0 text-xs text-muted-foreground">
+                      12 AM
+                    </span>
+                  )}
                 </div>
               );
             })}
