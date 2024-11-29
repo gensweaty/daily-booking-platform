@@ -5,9 +5,9 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
-import { Input } from "./ui/input";
+import { Dialog, DialogContent } from "./ui/dialog";
 import { useToast } from "./ui/use-toast";
+import { AddTaskForm } from "./AddTaskForm";
 
 export const TaskList = () => {
   const { data: tasks = [], isLoading } = useQuery({
@@ -16,23 +16,8 @@ export const TaskList = () => {
   });
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editDescription, setEditDescription] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
-  const updateTaskMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) =>
-      updateTask(id, updates),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      toast({ 
-        title: "Success",
-        description: "Task updated successfully" 
-      });
-      setEditingTask(null);
-    },
-  });
 
   const deleteTaskMutation = useMutation({
     mutationFn: deleteTask,
@@ -55,31 +40,6 @@ export const TaskList = () => {
       id: taskId,
       updates: { status: newStatus },
     });
-  };
-
-  const handleEdit = (task: Task) => {
-    setEditingTask(task);
-    setEditTitle(task.title);
-    setEditDescription(task.description || "");
-  };
-
-  const handleSaveEdit = () => {
-    if (!editingTask) return;
-    updateTaskMutation.mutate({
-      id: editingTask.id,
-      updates: {
-        title: editTitle,
-        description: editDescription,
-      },
-    });
-  };
-
-  if (isLoading) return <div>Loading tasks...</div>;
-
-  const columns = {
-    todo: tasks.filter((task: Task) => task.status === 'todo'),
-    'in-progress': tasks.filter((task: Task) => task.status === 'in-progress'),
-    done: tasks.filter((task: Task) => task.status === 'done'),
   };
 
   const getColumnStyle = (status: string) => {
@@ -105,6 +65,12 @@ export const TaskList = () => {
   };
 
   if (isLoading) return <div className="text-foreground">Loading tasks...</div>;
+
+  const columns = {
+    todo: tasks.filter((task: Task) => task.status === 'todo'),
+    'in-progress': tasks.filter((task: Task) => task.status === 'in-progress'),
+    done: tasks.filter((task: Task) => task.status === 'done'),
+  };
 
   return (
     <>
@@ -140,7 +106,7 @@ export const TaskList = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => handleEdit(task)}
+                                  onClick={() => setEditingTask(task)}
                                   className="text-foreground hover:text-foreground/80"
                                 >
                                   <Pencil className="h-4 w-4" />
@@ -170,20 +136,10 @@ export const TaskList = () => {
 
       <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
         <DialogContent>
-          <DialogTitle>Edit Task</DialogTitle>
-          <div className="space-y-4 mt-4">
-            <Input
-              placeholder="Task title"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-            />
-            <Input
-              placeholder="Description (optional)"
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-            />
-            <Button onClick={handleSaveEdit}>Save Changes</Button>
-          </div>
+          <AddTaskForm 
+            onClose={() => setEditingTask(null)} 
+            editingTask={editingTask}
+          />
         </DialogContent>
       </Dialog>
     </>
