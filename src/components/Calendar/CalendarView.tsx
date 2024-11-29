@@ -66,7 +66,7 @@ export const CalendarView = ({
   }
 
   return (
-    <div className="flex-1 grid bg-background rounded-lg overflow-y-auto -ml-0.5" 
+    <div className="flex-1 grid bg-background rounded-lg overflow-y-auto -ml-1" 
          style={{ gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` }}>
       <div className="contents">
         {days.map((day) => (
@@ -84,7 +84,7 @@ export const CalendarView = ({
         {days.map((day) => (
           <div 
             key={day.toISOString()} 
-            className="relative bg-background border-r border-border"
+            className="relative bg-background border-r border-l border-border"
           >
             {Array.from({ length: 24 }).map((_, hour) => {
               const date = new Date(day);
