@@ -10,13 +10,14 @@ import {
   subMonths,
   addHours,
   setHours,
+  setMinutes,
   format,
 } from "date-fns";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
 import { CalendarView } from "./CalendarView";
 import { EventDialog } from "./EventDialog";
-import { CalendarViewType } from "@/lib/types/calendar";
+import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,6 +39,46 @@ export const Calendar = () => {
     navigate("/signin");
     return null;
   }
+
+  const handleEventDrop = async (event: CalendarEventType, newDate: Date, newHour?: number) => {
+    try {
+      const startDate = parseISO(event.start_date);
+      const endDate = parseISO(event.end_date);
+      const duration = endDate.getTime() - startDate.getTime();
+
+      let newStartDate = newDate;
+      if (newHour !== undefined) {
+        newStartDate = setHours(setMinutes(newStartDate, 0), newHour);
+      } else {
+        // Preserve the original time if dropping on a day in month view
+        newStartDate = setHours(
+          setMinutes(newStartDate, startDate.getMinutes()),
+          startDate.getHours()
+        );
+      }
+
+      const newEndDate = new Date(newStartDate.getTime() + duration);
+
+      await updateEvent({
+        id: event.id,
+        updates: {
+          start_date: newStartDate.toISOString(),
+          end_date: newEndDate.toISOString(),
+        },
+      });
+
+      toast({
+        title: "Success",
+        description: "Event rescheduled successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   const getDaysForView = () => {
     switch (view) {
@@ -88,10 +129,10 @@ export const Calendar = () => {
     let startDate = date;
     if (view === "month") {
       // For month view, set default time to 12:00 PM
-      startDate = setHours(date, 12);
+      startDate = setHours(setMinutes(date, 0), 12);
     } else if (hour !== undefined) {
       // For week/day view, use the clicked hour
-      startDate = setHours(date, hour);
+      startDate = setHours(setMinutes(date, 0), hour);
     }
     
     setSelectedSlot({ 
@@ -142,6 +183,7 @@ export const Calendar = () => {
             view={view}
             onDayClick={handleDayClick}
             onEventClick={setSelectedEvent}
+            onEventDrop={handleEventDrop}
           />
         </div>
       </div>
