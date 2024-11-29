@@ -8,6 +8,9 @@ import {
   endOfMonth,
   addMonths,
   subMonths,
+  addHours,
+  setHours,
+  format,
 } from "date-fns";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
@@ -25,7 +28,7 @@ export const Calendar = () => {
   const [view, setView] = useState<CalendarViewType>("week");
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{ date: Date; hour?: number } | null>(null);
   const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -81,6 +84,23 @@ export const Calendar = () => {
     }
   };
 
+  const handleDayClick = (date: Date, hour?: number) => {
+    let startDate = date;
+    if (view === "month") {
+      // For month view, set default time to 12:00 PM
+      startDate = setHours(date, 12);
+    } else if (hour !== undefined) {
+      // For week/day view, use the clicked hour
+      startDate = setHours(date, hour);
+    }
+    
+    setSelectedSlot({ 
+      date: startDate,
+      hour: hour
+    });
+    setIsNewEventDialogOpen(true);
+  };
+
   if (error) {
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
@@ -106,7 +126,10 @@ export const Calendar = () => {
         onViewChange={setView}
         onPrevious={handlePrevious}
         onNext={handleNext}
-        onAddEvent={() => setIsNewEventDialogOpen(true)}
+        onAddEvent={() => {
+          setSelectedSlot({ date: setHours(new Date(), 12) });
+          setIsNewEventDialogOpen(true);
+        }}
       />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
@@ -117,10 +140,7 @@ export const Calendar = () => {
             events={events || []}
             selectedDate={selectedDate}
             view={view}
-            onDayClick={(date) => {
-              setSelectedSlot(date);
-              setIsNewEventDialogOpen(true);
-            }}
+            onDayClick={handleDayClick}
             onEventClick={setSelectedEvent}
           />
         </div>
@@ -129,7 +149,8 @@ export const Calendar = () => {
       <EventDialog
         open={isNewEventDialogOpen}
         onOpenChange={setIsNewEventDialogOpen}
-        selectedDate={selectedSlot}
+        selectedDate={selectedSlot?.date || null}
+        defaultEndDate={selectedSlot?.date ? addHours(selectedSlot.date, 1) : null}
         onSubmit={async (data) => {
           try {
             await createEvent(data);

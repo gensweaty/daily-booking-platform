@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { CalendarEvent } from "@/lib/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2 } from "lucide-react";
 
@@ -12,6 +12,7 @@ interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate: Date | null;
+  defaultEndDate?: Date | null;
   onSubmit: (data: Partial<CalendarEvent>) => void;
   onDelete?: () => void;
   event?: CalendarEvent;
@@ -21,6 +22,7 @@ export const EventDialog = ({
   open,
   onOpenChange,
   selectedDate,
+  defaultEndDate,
   onSubmit,
   onDelete,
   event,
@@ -33,8 +35,19 @@ export const EventDialog = ({
     event?.start_date || (selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : "")
   );
   const [endDate, setEndDate] = useState(
-    event?.end_date || (selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : "")
+    event?.end_date || 
+    (defaultEndDate ? format(defaultEndDate, "yyyy-MM-dd'T'HH:mm") : 
+     selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : "")
   );
+
+  useEffect(() => {
+    if (selectedDate) {
+      setStartDate(format(selectedDate, "yyyy-MM-dd'T'HH:mm"));
+      if (defaultEndDate) {
+        setEndDate(format(defaultEndDate, "yyyy-MM-dd'T'HH:mm"));
+      }
+    }
+  }, [selectedDate, defaultEndDate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
