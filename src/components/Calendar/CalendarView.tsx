@@ -72,7 +72,7 @@ export const CalendarView = ({
         {days.map((day) => (
           <div 
             key={day.toISOString()} 
-            className="bg-background p-2 sm:p-4 text-center border-b border-border"
+            className="bg-background p-2 sm:p-4 text-center border-b border-border h-20"
           >
             <div className="font-semibold text-sm text-foreground">{format(day, "EEE")}</div>
             <div className="text-xs text-muted-foreground">{format(day, "MMM d")}</div>
@@ -102,7 +102,7 @@ export const CalendarView = ({
               .map((event) => {
                 const start = parseISO(event.start_date);
                 const end = parseISO(event.end_date);
-                const top = (start.getHours() + start.getMinutes() / 60) * 80;
+                const top = (start.getHours() + start.getMinutes() / 60) * 80 + 80; // Add header height
                 const height = ((end.getHours() + end.getMinutes() / 60) - 
                               (start.getHours() + start.getMinutes() / 60)) * 80;
                 
