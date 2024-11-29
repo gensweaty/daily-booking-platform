@@ -99,7 +99,7 @@ export const Calendar = () => {
   }
 
   return (
-    <div className="h-full flex flex-col gap-4 max-w-full overflow-hidden">
+    <div className="h-full flex flex-col gap-4">
       <CalendarHeader
         selectedDate={selectedDate}
         view={view}
@@ -109,9 +109,9 @@ export const Calendar = () => {
         onAddEvent={() => setIsNewEventDialogOpen(true)}
       />
 
-      <div className={`flex ${view !== 'month' ? 'h-[calc(100vh-12rem)] overflow-y-auto' : ''} max-w-full -mx-4 sm:mx-0`}>
+      <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
         {view !== 'month' && <TimeIndicator />}
-        <div className="flex-1 overflow-x-hidden">
+        <div className="flex-1">
           <CalendarView
             days={getDaysForView()}
             events={events || []}

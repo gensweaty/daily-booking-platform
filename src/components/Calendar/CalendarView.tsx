@@ -66,7 +66,7 @@ export const CalendarView = ({
   }
 
   return (
-    <div className="flex-1 grid bg-[#1e2330] rounded-lg overflow-hidden" 
+    <div className="flex-1 grid bg-[#1e2330] rounded-lg overflow-y-auto" 
          style={{ gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` }}>
       <div className="contents">
         {days.map((day) => (
@@ -95,11 +95,7 @@ export const CalendarView = ({
                   date.setHours(hour);
                   onDayClick(date);
                 }}
-              >
-                <span className="text-xs text-gray-400 pl-2">
-                  {format(new Date().setHours(hour), 'ha')}
-                </span>
-              </div>
+              />
             ))}
             {events
               .filter((event) => isSameDay(parseISO(event.start_date), day))
