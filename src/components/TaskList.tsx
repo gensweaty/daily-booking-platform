@@ -10,6 +10,8 @@ import { useToast } from "./ui/use-toast";
 import { AddTaskForm } from "./AddTaskForm";
 import { TaskFullView } from "./tasks/TaskFullView";
 import { supabase } from "@/lib/supabase";
+import { TaskColumn } from "./tasks/TaskColumn";
+import { TaskCard } from "./tasks/TaskCard";
 
 export const TaskList = () => {
   const queryClient = useQueryClient();
@@ -17,7 +19,8 @@ export const TaskList = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
 
-  const deleteTaskMutation = useMutation(deleteTask, {
+  const deleteTaskMutation = useMutation({
+    mutationFn: (id: string) => deleteTask(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast({
@@ -28,8 +31,8 @@ export const TaskList = () => {
   });
 
   const updateTaskMutation = useMutation({
-    mutationFn: (params: { id: string; updates: Partial<Task> }) =>
-      updateTask(params.id, params.updates),
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) =>
+      updateTask(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast({
@@ -51,28 +54,6 @@ export const TaskList = () => {
     });
   };
 
-  const getColumnStyle = (status: string) => {
-    switch (status) {
-      case 'in-progress':
-        return 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700';
-      case 'done':
-        return 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700';
-      default:
-        return 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-700';
-    }
-  };
-
-  const getTaskStyle = (status: string) => {
-    switch (status) {
-      case 'in-progress':
-        return 'border-l-4 border-l-amber-500';
-      case 'done':
-        return 'border-l-4 border-l-green-500';
-      default:
-        return 'border-l-4 border-l-gray-300 dark:border-l-gray-600';
-    }
-  };
-
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks'],
     queryFn: getTasks,
@@ -91,70 +72,14 @@ export const TaskList = () => {
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {Object.entries(columns).map(([status, statusTasks]) => (
-            <Droppable key={status} droppableId={status}>
-              {(provided) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className={`p-4 rounded-lg min-h-[200px] border ${getColumnStyle(status)}`}
-                >
-                  <h3 className="font-semibold mb-4 capitalize text-foreground">{status.replace('-', ' ')}</h3>
-                  <div className="space-y-4">
-                    {statusTasks.map((task: Task, index: number) => (
-                      <Draggable key={task.id} draggableId={String(task.id)} index={index}>
-                        {(provided) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className={`p-4 bg-background dark:bg-gray-800 rounded-lg shadow ${getTaskStyle(task.status)}`}
-                          >
-                            <div className="flex justify-between items-start">
-                              <div className={task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}>
-                                <div className="flex items-center gap-2">
-                                  <h3 className="font-semibold">{task.title}</h3>
-                                  <TaskFileIndicator taskId={task.id} />
-                                </div>
-                                {task.description && (
-                                  <p className="text-foreground/80 mt-1 line-clamp-2">{task.description}</p>
-                                )}
-                              </div>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => setViewingTask(task)}
-                                  className="text-foreground hover:text-foreground/80"
-                                >
-                                  <Maximize2 className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => setEditingTask(task)}
-                                  className="text-foreground hover:text-foreground/80"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => deleteTaskMutation.mutate(task.id)}
-                                  className="text-foreground hover:text-foreground/80"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                </div>
-              )}
-            </Droppable>
+            <TaskColumn
+              key={status}
+              status={status}
+              tasks={statusTasks}
+              onEdit={setEditingTask}
+              onView={setViewingTask}
+              onDelete={(id) => deleteTaskMutation.mutate(id)}
+            />
           ))}
         </div>
       </DragDropContext>
@@ -176,28 +101,5 @@ export const TaskList = () => {
         />
       )}
     </>
-  );
-};
-
-// New component for file indicator
-const TaskFileIndicator = ({ taskId }: { taskId: string }) => {
-  const { data: files } = useQuery({
-    queryKey: ['taskFiles', taskId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('files')
-        .select('*')
-        .eq('task_id', taskId);
-      return data || [];
-    },
-  });
-
-  if (!files || files.length === 0) return null;
-
-  return (
-    <div className="flex items-center text-gray-600">
-      <Paperclip className="h-4 w-4" />
-      <span className="text-sm ml-1">{files.length}</span>
-    </div>
   );
 };
