@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Task } from "@/lib/types";
 import { FileUploadField } from "./shared/FileUploadField";
 import { RichTextEditor } from "./shared/RichTextEditor";
+import { supabase } from "@/lib/supabase";
 
 interface AddTaskFormProps {
   onClose: () => void;
@@ -44,18 +45,45 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     }
 
     try {
+      let taskId;
       if (editingTask) {
-        await updateTask(editingTask.id, { 
+        const updatedTask = await updateTask(editingTask.id, { 
           title, 
           description,
         });
+        taskId = updatedTask.id;
       } else {
-        await createTask({ 
+        const newTask = await createTask({ 
           title, 
           description, 
           status: 'todo',
           user_id: user.id
         });
+        taskId = newTask.id;
+      }
+
+      if (selectedFile && taskId) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('task_attachments')
+          .upload(filePath, selectedFile);
+
+        if (uploadError) throw uploadError;
+
+        const { error: fileRecordError } = await supabase
+          .from('files')
+          .insert({
+            task_id: taskId,
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user.id
+          });
+
+        if (fileRecordError) throw fileRecordError;
       }
 
       await queryClient.invalidateQueries({ queryKey: ['tasks'] });
