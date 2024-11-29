@@ -8,6 +8,8 @@ import { Label } from "../ui/label";
 import { supabase } from "@/lib/supabase";
 import { useState } from "react";
 import { useToast } from "../ui/use-toast";
+import { FileDisplay } from "../shared/FileDisplay";
+import { useQuery } from "@tanstack/react-query";
 
 const COLORS = [
   { value: "#F2FCE2", label: "Green" },
@@ -18,6 +20,7 @@ const COLORS = [
   { value: "#D3E4FD", label: "Blue" },
 ];
 
+const MAX_CHARS = 10000;
 const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
 const MAX_FILE_SIZE_IMAGES = 2048 * 1024; // 2MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -53,10 +56,24 @@ export const EditNoteDialog = ({
   setEditContent,
   setEditColor,
 }: EditNoteDialogProps) => {
-  const MAX_CHARS = 10000;
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string>("");
   const { toast } = useToast();
+
+  const { data: existingFiles } = useQuery({
+    queryKey: ['noteFiles', note?.id],
+    queryFn: async () => {
+      if (!note) return null;
+      const { data, error } = await supabase
+        .from('note_files')
+        .select('*')
+        .eq('note_id', note.id);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!note,
+  });
 
   const validateFile = (file: File) => {
     const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
@@ -177,8 +194,18 @@ export const EditNoteDialog = ({
               {editContent.length}/{MAX_CHARS} characters
             </div>
           </div>
+          {existingFiles && existingFiles.length > 0 && (
+            <div className="space-y-2 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+              <Label>Current Attachments</Label>
+              <FileDisplay 
+                files={existingFiles} 
+                bucketName="note_attachments"
+                allowDelete={true}
+              />
+            </div>
+          )}
           <div className="space-y-2">
-            <Label htmlFor="file">Attachment (optional)</Label>
+            <Label htmlFor="file">Add Another Attachment (optional)</Label>
             <Input
               id="file"
               type="file"

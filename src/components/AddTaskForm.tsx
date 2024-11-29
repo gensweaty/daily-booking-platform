@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { Task } from "@/lib/types";
+import { FileDisplay } from "../shared/FileDisplay";
 
 const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
 const MAX_FILE_SIZE_IMAGES = 2048 * 1024; // 2MB
@@ -147,6 +148,21 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     }
   };
 
+  const { data: existingFiles } = useQuery({
+    queryKey: ['taskFiles', editingTask?.id],
+    queryFn: async () => {
+      if (!editingTask) return null;
+      const { data, error } = await supabase
+        .from('files')
+        .select('*')
+        .eq('task_id', editingTask.id);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!editingTask,
+  });
+
   return (
     <>
       <DialogTitle>{editingTask ? 'Edit Task' : 'Add New Task'}</DialogTitle>
@@ -171,26 +187,36 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
             className="min-h-[150px]"
           />
         </div>
-        {!editingTask && (
-          <div className="space-y-2">
-            <Label htmlFor="file">Attachment (optional)</Label>
-            <Input
-              id="file"
-              type="file"
-              onChange={handleFileChange}
-              accept={[...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")}
-              className="cursor-pointer"
+        {existingFiles && existingFiles.length > 0 && (
+          <div className="space-y-2 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <Label>Current Attachments</Label>
+            <FileDisplay 
+              files={existingFiles} 
+              bucketName="task_attachments"
+              allowDelete={true}
             />
-            {fileError && (
-              <p className="text-sm text-red-500 mt-1">{fileError}</p>
-            )}
-            <p className="text-sm text-muted-foreground mt-1">
-              Max size: Images - 2MB, Documents - 1MB
-              <br />
-              Supported formats: Images (jpg, jpeg, png, webp), Documents (pdf, docx, xlsx, pptx)
-            </p>
           </div>
         )}
+        <div className="space-y-2">
+          <Label htmlFor="file">
+            {editingTask ? 'Add Another Attachment (optional)' : 'Attachment (optional)'}
+          </Label>
+          <Input
+            id="file"
+            type="file"
+            onChange={handleFileChange}
+            accept={[...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")}
+            className="cursor-pointer"
+          />
+          {fileError && (
+            <p className="text-sm text-red-500 mt-1">{fileError}</p>
+          )}
+          <p className="text-sm text-muted-foreground mt-1">
+            Max size: Images - 2MB, Documents - 1MB
+            <br />
+            Supported formats: Images (jpg, jpeg, png, webp), Documents (pdf, docx, xlsx, pptx)
+          </p>
+        </div>
         <Button type="submit" className="w-full">
           {editingTask ? 'Update Task' : 'Add Task'}
         </Button>
