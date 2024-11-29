@@ -66,7 +66,7 @@ export const CalendarView = ({
   }
 
   return (
-    <div className="flex-1 grid bg-background rounded-lg overflow-y-auto ml-0" 
+    <div className="flex-1 grid bg-background rounded-lg overflow-y-auto -ml-0.5" 
          style={{ gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` }}>
       <div className="contents">
         {days.map((day) => (
@@ -109,7 +109,7 @@ export const CalendarView = ({
                 return (
                   <div
                     key={event.id}
-                    className={`absolute left-1 right-1 rounded px-1 sm:px-2 py-1 text-xs sm:text-sm ${
+                    className={`absolute left-0.5 right-0.5 rounded px-1 sm:px-2 py-1 text-xs sm:text-sm ${
                       event.type === "meeting"
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground"
