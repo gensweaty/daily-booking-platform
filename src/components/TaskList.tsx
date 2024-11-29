@@ -2,12 +2,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getTasks, updateTask, deleteTask } from "@/lib/api";
 import { Task } from "@/lib/types";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Maximize2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { useToast } from "./ui/use-toast";
 import { AddTaskForm } from "./AddTaskForm";
+import { TaskFullView } from "./tasks/TaskFullView";
 
 export const TaskList = () => {
   const { data: tasks = [], isLoading } = useQuery({
@@ -16,6 +17,7 @@ export const TaskList = () => {
   });
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -111,10 +113,18 @@ export const TaskList = () => {
                               <div className={task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}>
                                 <h3 className="font-semibold">{task.title}</h3>
                                 {task.description && (
-                                  <p className="text-foreground/80 mt-1">{task.description}</p>
+                                  <p className="text-foreground/80 mt-1 line-clamp-2">{task.description}</p>
                                 )}
                               </div>
                               <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setViewingTask(task)}
+                                  className="text-foreground hover:text-foreground/80"
+                                >
+                                  <Maximize2 className="h-4 w-4" />
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -154,6 +164,14 @@ export const TaskList = () => {
           />
         </DialogContent>
       </Dialog>
+
+      {viewingTask && (
+        <TaskFullView
+          task={viewingTask}
+          isOpen={!!viewingTask}
+          onClose={() => setViewingTask(null)}
+        />
+      )}
     </>
   );
 };
