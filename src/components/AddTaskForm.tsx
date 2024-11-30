@@ -47,7 +47,6 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   useEffect(() => {
     if (editingTask) {
       setTitle(editingTask.title);
-      // Ensure we properly set the description from the existing task
       setDescription(editingTask.description || "");
     } else {
       setTitle("");
@@ -70,7 +69,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       let taskId;
       const taskData = {
         title,
-        description, // The description will be properly saved as HTML content
+        description,
         status: editingTask ? editingTask.status : 'todo',
         user_id: user.id
       };
