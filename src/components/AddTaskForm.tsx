@@ -43,10 +43,11 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     enabled: !!editingTask?.id,
   });
 
+  // Initialize form data when editing task
   useEffect(() => {
     if (editingTask) {
       setTitle(editingTask.title);
-      // Make sure we handle null/undefined description properly
+      // Ensure we properly set the description from the existing task
       setDescription(editingTask.description || "");
     } else {
       setTitle("");
@@ -69,7 +70,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       let taskId;
       const taskData = {
         title,
-        description: description || "", // Ensure description is never null
+        description, // The description will be properly saved as HTML content
         status: editingTask ? editingTask.status : 'todo',
         user_id: user.id
       };
