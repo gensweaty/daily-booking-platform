@@ -1,6 +1,6 @@
 import { Task } from "@/lib/types";
 import { Draggable } from "@hello-pangea/dnd";
-import { Pencil, Trash2, Paperclip } from "lucide-react";
+import { Pencil, Trash2, Paperclip, Maximize2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -10,9 +10,10 @@ interface TaskCardProps {
   index: number;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
+  onView: (task: Task) => void;
 }
 
-export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
+export const TaskCard = ({ task, index, onEdit, onDelete, onView }: TaskCardProps) => {
   const { data: files } = useQuery({
     queryKey: ['taskFiles', task.id],
     queryFn: async () => {
@@ -63,6 +64,15 @@ export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
               )}
             </div>
             <div className="flex gap-0.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onView(task)}
+                className="text-foreground hover:text-foreground/80 h-8 w-8"
+                title="View task"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
