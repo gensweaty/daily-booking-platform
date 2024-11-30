@@ -43,7 +43,6 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     enabled: !!editingTask?.id,
   });
 
-  // Initialize form data when editing task
   useEffect(() => {
     if (editingTask) {
       setTitle(editingTask.title);
@@ -69,7 +68,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       let taskId;
       const taskData = {
         title,
-        description,
+        description: description.trim(),
         status: editingTask ? editingTask.status : 'todo',
         user_id: user.id
       };
