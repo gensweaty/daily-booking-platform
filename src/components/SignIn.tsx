@@ -17,46 +17,44 @@ export const SignIn = () => {
     setIsLoading(true);
 
     try {
-      const { error, data } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
+
       if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast({
+            title: "Sign In Failed",
+            description: "Invalid email or password. Please check your credentials and try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+
         if (error.message.includes("Email not confirmed")) {
-          await supabase.auth.resend({
+          const { error: resendError } = await supabase.auth.resend({
             type: 'signup',
             email: email,
           });
           
-          toast({
-            title: "Email Not Confirmed",
-            description: "Please confirm your email before signing in. A new confirmation email has been sent - check your inbox and spam folder.",
-            variant: "destructive",
-          });
+          if (!resendError) {
+            toast({
+              title: "Email Not Confirmed",
+              description: "We've sent a new confirmation email. Please check your inbox and spam folder.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Error",
+              description: "Failed to resend confirmation email. Please try again later.",
+              variant: "destructive",
+            });
+          }
           return;
         }
-        
-        if (error.message.includes("Invalid login credentials")) {
-          toast({
-            title: "Error",
-            description: "Invalid email or password. Please try again.",
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        throw error;
-      }
 
-      if (!data.user?.email_confirmed_at) {
-        await supabase.auth.signOut();
-        toast({
-          title: "Email Not Confirmed",
-          description: "Please confirm your email before signing in. Check your inbox and spam folder.",
-          variant: "destructive",
-        });
-        return;
+        throw error;
       }
 
       toast({
@@ -64,9 +62,10 @@ export const SignIn = () => {
         description: "You have successfully signed in.",
       });
     } catch (error: any) {
+      console.error('Sign in error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "An unexpected error occurred. Please try again later.",
         variant: "destructive",
       });
     } finally {
