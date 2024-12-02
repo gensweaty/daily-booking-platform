@@ -11,14 +11,31 @@ export const SignIn = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  const validateInputs = () => {
+    if (!email.trim() || !password.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter both email and password",
+        variant: "destructive",
+      });
+      return false;
+    }
+    return true;
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateInputs()) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: email.trim(),
+        password: password.trim(),
       });
 
       if (error) {
