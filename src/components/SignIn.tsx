@@ -17,6 +17,25 @@ export const SignIn = () => {
     setIsLoading(true);
 
     try {
+      // First check if the user exists
+      const { data: userExists } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', email)
+        .single();
+
+      // If user doesn't exist, show a specific message
+      if (!userExists) {
+        toast({
+          title: "Account Not Found",
+          description: "No account found with this email. Please check your email or sign up.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Attempt to sign in
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -26,7 +45,7 @@ export const SignIn = () => {
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Sign In Failed",
-            description: "Invalid email or password. Please check your credentials and try again.",
+            description: "Invalid password. Please check your password and try again.",
             variant: "destructive",
           });
           return;
