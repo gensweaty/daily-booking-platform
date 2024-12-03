@@ -57,7 +57,7 @@ export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
               </div>
               {task.description && (
                 <div 
-                  className="prose dark:prose-invert max-w-none mt-2 line-clamp-3 text-sm"
+                  className="prose dark:prose-invert max-w-none mt-2 line-clamp-3"
                   dangerouslySetInnerHTML={{ __html: task.description }}
                 />
               )}

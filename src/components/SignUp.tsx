@@ -1,61 +1,139 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/ui/use-toast";
+import { Label } from "@/components/ui/label";
 
 export const SignUp = () => {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const validatePassword = (password: string) => {
+    if (password.length < 6) {
+      return "Password must be at least 6 characters long";
+    }
+    if (!/\d/.test(password)) {
+      return "Password must contain at least one number";
+    }
+    return null;
+  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    
+    if (password !== confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Passwords do not match",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      toast({
+        title: "Invalid Password",
+        description: passwordError,
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    if (username.length < 3) {
+      toast({
+        title: "Error",
+        description: "Username must be at least 3 characters long",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
 
     try {
-      const trimmedEmail = email.trim();
-      const trimmedPassword = password.trim();
-      const trimmedUsername = username.trim();
+      // First check if email already exists using Supabase's built-in function
+      const { data: emailCheck, error: emailError } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          shouldCreateUser: false
+        }
+      });
 
-      if (!trimmedEmail || !trimmedPassword || !trimmedUsername) {
+      if (!emailError) {
         toast({
           title: "Error",
-          description: "Please fill in all fields",
+          description: "This email is already registered. Please use a different email or sign in.",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
-      const { error } = await supabase.auth.signUp({
-        email: trimmedEmail,
-        password: trimmedPassword,
-        options: {
-          data: {
-            username: trimmedUsername,
-          },
-        },
-      });
+      // Check if username already exists
+      const { data: existingUsers, error: fetchError } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username);
 
-      if (error) {
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      if (existingUsers && existingUsers.length > 0) {
         toast({
           title: "Error",
-          description: error.message,
+          description: "This username is already taken. Please choose another one.",
           variant: "destructive",
         });
-      } else {
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username: username,
+          }
+        },
+      });
+      
+      if (error) {
+        if (error.message.includes("User already registered")) {
+          toast({
+            title: "Error",
+            description: "This email is already registered. Please sign in instead.",
+            variant: "destructive",
+          });
+        } else {
+          throw error;
+        }
+        return;
+      }
+
+      if (data?.user) {
         toast({
           title: "Success",
-          description: "Please check your email to confirm your account",
+          description: "Please check your email (including spam folder) to confirm your account before signing in.",
         });
+        
+        // Clear form
         setEmail("");
-        setPassword("");
         setUsername("");
+        setPassword("");
+        setConfirmPassword("");
       }
     } catch (error: any) {
+      console.error('Signup error:', error);
       toast({
         title: "Error",
         description: error.message || "An error occurred during sign up",
@@ -67,47 +145,70 @@ export const SignUp = () => {
   };
 
   return (
-    <form onSubmit={handleSignUp} className="space-y-4 bg-background p-4 rounded-lg border border-border">
-      <div className="space-y-2">
-        <Label htmlFor="username">Username</Label>
-        <Input
-          id="username"
-          type="text"
-          placeholder="Enter your username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-          className="bg-background border-input"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          placeholder="Enter your email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="bg-background border-input"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          type="password"
-          placeholder="Enter your password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="bg-background border-input"
-          minLength={6}
-        />
-      </div>
-      <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? "Signing up..." : "Sign up"}
-      </Button>
-    </form>
+    <div className="w-full max-w-md mx-auto p-4 sm:p-6">
+      <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Sign Up</h2>
+      <form onSubmit={handleSignUp} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="username">Username</Label>
+          <Input
+            id="username"
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            minLength={3}
+            className="w-full"
+            disabled={isLoading}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full"
+            disabled={isLoading}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Password (min. 6 characters, include numbers)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="w-full"
+            disabled={isLoading}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword">Confirm Password</Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            placeholder="Confirm Password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            className="w-full"
+            disabled={isLoading}
+          />
+        </div>
+        <Button 
+          type="submit" 
+          className="w-full"
+          disabled={isLoading}
+        >
+          {isLoading ? "Signing up..." : "Sign Up"}
+        </Button>
+      </form>
+    </div>
   );
 };
