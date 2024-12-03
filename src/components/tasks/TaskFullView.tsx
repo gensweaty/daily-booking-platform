@@ -3,6 +3,7 @@ import { Task } from "@/lib/types";
 import { FileDisplay } from "../shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { Separator } from "../ui/separator";
 
 interface TaskFullViewProps {
   task: Task;

@@ -10,10 +10,9 @@ interface TaskCardProps {
   index: number;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
-  onView: (task: Task) => void;
 }
 
-export const TaskCard = ({ task, index, onEdit, onDelete, onView }: TaskCardProps) => {
+export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
   const { data: files } = useQuery({
     queryKey: ['taskFiles', task.id],
     queryFn: async () => {
@@ -44,7 +43,6 @@ export const TaskCard = ({ task, index, onEdit, onDelete, onView }: TaskCardProp
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           className={`p-4 bg-background dark:bg-gray-800 rounded-lg shadow ${getTaskStyle(task.status)}`}
-          onClick={() => onView(task)}
         >
           <div className="flex justify-between items-start">
             <div className={task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}>
@@ -59,7 +57,7 @@ export const TaskCard = ({ task, index, onEdit, onDelete, onView }: TaskCardProp
               </div>
               {task.description && (
                 <div 
-                  className="prose dark:prose-invert max-w-none mt-2 line-clamp-3 text-sm"
+                  className="prose dark:prose-invert max-w-none mt-2 line-clamp-3"
                   dangerouslySetInnerHTML={{ __html: task.description }}
                 />
               )}
@@ -68,10 +66,7 @@ export const TaskCard = ({ task, index, onEdit, onDelete, onView }: TaskCardProp
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(task);
-                }}
+                onClick={() => onEdit(task)}
                 className="text-foreground hover:text-foreground/80 h-8 w-8"
                 title="Edit task"
               >
@@ -80,10 +75,7 @@ export const TaskCard = ({ task, index, onEdit, onDelete, onView }: TaskCardProp
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(task.id);
-                }}
+                onClick={() => onDelete(task.id)}
                 className="text-foreground hover:text-foreground/80 h-8 w-8"
                 title="Delete task"
               >

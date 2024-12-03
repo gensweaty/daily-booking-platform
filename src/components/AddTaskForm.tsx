@@ -46,8 +46,10 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   useEffect(() => {
     if (editingTask) {
       setTitle(editingTask.title);
+      // Initialize description with the existing task's description
       setDescription(editingTask.description || "");
     } else {
+      // Reset form when not editing
       setTitle("");
       setDescription("");
     }
@@ -66,18 +68,19 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
 
     try {
       let taskId;
-      const taskData = {
-        title,
-        description: description.trim(),
-        status: editingTask ? editingTask.status : 'todo',
-        user_id: user.id
-      };
-
       if (editingTask) {
-        const updatedTask = await updateTask(editingTask.id, taskData);
+        const updatedTask = await updateTask(editingTask.id, { 
+          title, 
+          description,
+        });
         taskId = updatedTask.id;
       } else {
-        const newTask = await createTask(taskData);
+        const newTask = await createTask({ 
+          title, 
+          description, 
+          status: 'todo',
+          user_id: user.id
+        });
         taskId = newTask.id;
       }
 
