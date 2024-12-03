@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { Link } from "react-router-dom";
 
 export const SignIn = () => {
   const [email, setEmail] = useState("");
@@ -17,56 +16,42 @@ export const SignIn = () => {
     setIsLoading(true);
 
     try {
-      const { error, data } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
+
       if (error) {
-        if (error.message.includes("Email not confirmed")) {
-          await supabase.auth.resend({
-            type: 'signup',
-            email: email,
-          });
-          
-          toast({
-            title: "Email Not Confirmed",
-            description: "Please confirm your email before signing in. A new confirmation email has been sent - check your inbox and spam folder.",
-            variant: "destructive",
-          });
-          return;
-        }
-        
         if (error.message.includes("Invalid login credentials")) {
           toast({
-            title: "Error",
-            description: "Invalid email or password. Please try again.",
+            title: "Sign In Failed",
+            description: "Invalid email or password. Please check your credentials and try again.",
             variant: "destructive",
           });
-          return;
+        } else if (error.message.includes("Email not confirmed")) {
+          toast({
+            title: "Email Not Confirmed",
+            description: "Please check your email for the confirmation link before signing in.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
         }
-        
-        throw error;
-      }
-
-      if (!data.user?.email_confirmed_at) {
-        await supabase.auth.signOut();
+      } else if (data.user) {
         toast({
-          title: "Email Not Confirmed",
-          description: "Please confirm your email before signing in. Check your inbox and spam folder.",
-          variant: "destructive",
+          title: "Success",
+          description: "Signed in successfully",
         });
-        return;
       }
-
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully signed in.",
-      });
     } catch (error: any) {
+      console.error('Sign in error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -103,14 +88,6 @@ export const SignIn = () => {
             className="w-full"
             disabled={isLoading}
           />
-        </div>
-        <div className="flex justify-end">
-          <Link 
-            to="/forgot-password" 
-            className="text-sm text-primary hover:underline"
-          >
-            Forgot password?
-          </Link>
         </div>
         <Button 
           type="submit" 
