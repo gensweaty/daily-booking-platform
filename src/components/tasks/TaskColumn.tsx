@@ -41,7 +41,6 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
                 index={index}
                 onEdit={onEdit}
                 onDelete={onDelete}
-                onView={onView}
               />
             ))}
             {provided.placeholder}
