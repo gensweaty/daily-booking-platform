@@ -17,16 +17,33 @@ export const SignIn = () => {
     setIsLoading(true);
 
     try {
+      // Trim inputs to prevent whitespace issues
+      const trimmedEmail = email.trim();
+      const trimmedPassword = password.trim();
+
+      // Basic validation
+      if (!trimmedEmail || !trimmedPassword) {
+        toast({
+          title: "Error",
+          description: "Please enter both email and password",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("Attempting sign in with email:", trimmedEmail);
       const { error, data } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: trimmedEmail,
+        password: trimmedPassword,
       });
       
       if (error) {
+        console.log("Sign in error:", error);
+        
         if (error.message.includes("Email not confirmed")) {
           await supabase.auth.resend({
             type: 'signup',
-            email: email,
+            email: trimmedEmail,
           });
           
           toast({
@@ -59,14 +76,16 @@ export const SignIn = () => {
         return;
       }
 
+      console.log("Sign in successful:", data.user);
       toast({
         title: "Welcome back!",
         description: "You have successfully signed in.",
       });
     } catch (error: any) {
+      console.error("Unexpected error during sign in:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
