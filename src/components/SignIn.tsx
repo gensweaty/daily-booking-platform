@@ -31,12 +31,14 @@ export const SignIn = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
 
       if (error) {
+        console.error('Sign in error:', error);
+        
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Error",
@@ -64,12 +66,15 @@ export const SignIn = () => {
         return;
       }
 
-      toast({
-        title: "Success",
-        description: "Signed in successfully",
-      });
+      if (data.user) {
+        toast({
+          title: "Success",
+          description: "Signed in successfully",
+        });
+      }
       
     } catch (error: any) {
+      console.error('Unexpected error:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
