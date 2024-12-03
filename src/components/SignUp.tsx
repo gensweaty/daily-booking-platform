@@ -27,53 +27,33 @@ export const SignUp = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    if (password !== confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Passwords do not match",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    const passwordError = validatePassword(password);
-    if (passwordError) {
-      toast({
-        title: "Invalid Password",
-        description: passwordError,
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    if (username.length < 3) {
-      toast({
-        title: "Error",
-        description: "Username must be at least 3 characters long",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      // First check if email already exists using Supabase's built-in function
-      const { data: emailCheck, error: emailError } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: {
-          shouldCreateUser: false
-        }
-      });
-
-      if (!emailError) {
+      // Basic validations
+      if (password !== confirmPassword) {
         toast({
           title: "Error",
-          description: "This email is already registered. Please use a different email or sign in.",
+          description: "Passwords do not match",
           variant: "destructive",
         });
-        setIsLoading(false);
+        return;
+      }
+
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        toast({
+          title: "Invalid Password",
+          description: passwordError,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (username.length < 3) {
+        toast({
+          title: "Error",
+          description: "Username must be at least 3 characters long",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -83,9 +63,7 @@ export const SignUp = () => {
         .select('username')
         .eq('username', username);
 
-      if (fetchError) {
-        throw fetchError;
-      }
+      if (fetchError) throw fetchError;
 
       if (existingUsers && existingUsers.length > 0) {
         toast({
@@ -93,16 +71,16 @@ export const SignUp = () => {
           description: "This username is already taken. Please choose another one.",
           variant: "destructive",
         });
-        setIsLoading(false);
         return;
       }
 
+      // Attempt to sign up
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password,
         options: {
           data: {
-            username: username,
+            username: username.trim(),
           }
         },
       });

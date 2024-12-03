@@ -18,25 +18,11 @@ export const SignIn = () => {
 
     try {
       const { error, data } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: email.trim(),
+        password: password.trim(),
       });
       
       if (error) {
-        if (error.message.includes("Email not confirmed")) {
-          await supabase.auth.resend({
-            type: 'signup',
-            email: email,
-          });
-          
-          toast({
-            title: "Email Not Confirmed",
-            description: "Please confirm your email before signing in. A new confirmation email has been sent - check your inbox and spam folder.",
-            variant: "destructive",
-          });
-          return;
-        }
-        
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Error",
@@ -51,9 +37,16 @@ export const SignIn = () => {
 
       if (!data.user?.email_confirmed_at) {
         await supabase.auth.signOut();
+        
+        // Resend confirmation email
+        await supabase.auth.resend({
+          type: 'signup',
+          email: email.trim(),
+        });
+        
         toast({
           title: "Email Not Confirmed",
-          description: "Please confirm your email before signing in. Check your inbox and spam folder.",
+          description: "Please confirm your email before signing in. A new confirmation email has been sent - check your inbox and spam folder.",
           variant: "destructive",
         });
         return;
