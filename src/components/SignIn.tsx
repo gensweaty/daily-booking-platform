@@ -14,59 +14,65 @@ export const SignIn = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate inputs
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    
+    if (!trimmedEmail || !trimmedPassword) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const { error, data } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const { error } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password: trimmedPassword,
       });
-      
+
       if (error) {
-        if (error.message.includes("Email not confirmed")) {
-          await supabase.auth.resend({
-            type: 'signup',
-            email: email,
-          });
-          
-          toast({
-            title: "Email Not Confirmed",
-            description: "Please confirm your email before signing in. A new confirmation email has been sent - check your inbox and spam folder.",
-            variant: "destructive",
-          });
-          return;
-        }
-        
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Error",
             description: "Invalid email or password. Please try again.",
             variant: "destructive",
           });
-          return;
+        } else if (error.message.includes("Email not confirmed")) {
+          await supabase.auth.resend({
+            type: 'signup',
+            email: trimmedEmail,
+          });
+          
+          toast({
+            title: "Email Not Confirmed",
+            description: "Please confirm your email before signing in. A new confirmation email has been sent.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
         }
-        
-        throw error;
-      }
-
-      if (!data.user?.email_confirmed_at) {
-        await supabase.auth.signOut();
-        toast({
-          title: "Email Not Confirmed",
-          description: "Please confirm your email before signing in. Check your inbox and spam folder.",
-          variant: "destructive",
-        });
         return;
       }
 
       toast({
-        title: "Welcome back!",
-        description: "You have successfully signed in.",
+        title: "Success",
+        description: "Signed in successfully",
       });
+      
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -83,7 +89,7 @@ export const SignIn = () => {
           <Input
             id="email"
             type="email"
-            placeholder="Email"
+            placeholder="Enter your email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -96,7 +102,7 @@ export const SignIn = () => {
           <Input
             id="password"
             type="password"
-            placeholder="Password"
+            placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
