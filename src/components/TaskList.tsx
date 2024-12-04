@@ -56,7 +56,12 @@ export const TaskList = () => {
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks'],
-    queryFn: getTasks,
+    queryFn: async () => {
+      console.log('Fetching tasks in TaskList component');
+      const tasks = await getTasks();
+      console.log('Tasks received in TaskList:', tasks);
+      return tasks;
+    },
   });
 
   if (isLoading) return <div className="text-foreground">Loading tasks...</div>;
