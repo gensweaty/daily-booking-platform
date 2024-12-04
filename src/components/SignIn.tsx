@@ -28,64 +28,70 @@ export const SignIn = () => {
           description: "Please enter both email and password",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
       console.log("Attempting sign in with email:", trimmedEmail);
-      const { error, data } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
       
       if (error) {
-        console.log("Sign in error:", error);
+        console.error("Sign in error:", error);
         
         if (error.message.includes("Email not confirmed")) {
-          await supabase.auth.resend({
+          const { error: resendError } = await supabase.auth.resend({
             type: 'signup',
             email: trimmedEmail,
           });
+          
+          if (resendError) {
+            console.error("Error resending confirmation:", resendError);
+          }
           
           toast({
             title: "Email Not Confirmed",
             description: "Please confirm your email before signing in. A new confirmation email has been sent - check your inbox and spam folder.",
             variant: "destructive",
           });
+          setIsLoading(false);
           return;
         }
         
+        // Handle invalid credentials
         if (error.message.includes("Invalid login credentials")) {
           toast({
-            title: "Error",
-            description: "Invalid email or password. Please try again.",
+            title: "Invalid Credentials",
+            description: "The email or password you entered is incorrect. Please try again.",
             variant: "destructive",
           });
+          setIsLoading(false);
           return;
         }
         
-        throw error;
-      }
-
-      if (!data.user?.email_confirmed_at) {
-        await supabase.auth.signOut();
+        // Generic error handler
         toast({
-          title: "Email Not Confirmed",
-          description: "Please confirm your email before signing in. Check your inbox and spam folder.",
+          title: "Error",
+          description: "An error occurred during sign in. Please try again.",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
-      console.log("Sign in successful:", data.user);
+      // Success toast
       toast({
         title: "Welcome back!",
         description: "You have successfully signed in.",
       });
+
     } catch (error: any) {
       console.error("Unexpected error during sign in:", error);
       toast({
         title: "Error",
-        description: error.message || "An unexpected error occurred",
+        description: "An unexpected error occurred. Please try again later.",
         variant: "destructive",
       });
     } finally {
