@@ -44,11 +44,9 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   });
 
   useEffect(() => {
-    console.log('EditingTask changed:', editingTask);
     if (editingTask) {
       setTitle(editingTask.title);
       setDescription(editingTask.description || "");
-      console.log('Setting description to:', editingTask.description);
     } else {
       setTitle("");
       setDescription("");
@@ -71,10 +69,9 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       const taskData = {
         title,
         description,
-        status: editingTask ? undefined : ('todo' as const),
+        status: editingTask ? editingTask.status : ('todo' as const),
         user_id: user.id
       };
-      console.log('Submitting task with data:', taskData);
 
       if (editingTask) {
         const updatedTask = await updateTask(editingTask.id, taskData);
@@ -110,6 +107,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
 
       await queryClient.invalidateQueries({ queryKey: ['tasks'] });
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
+      
       toast({
         title: "Success",
         description: editingTask ? "Task updated successfully" : "Task created successfully",

@@ -81,17 +81,16 @@ export const deleteEvent = async (id: string): Promise<void> => {
 };
 
 export const getTasks = async () => {
-  console.log('Fetching tasks from database...');
   const { data, error } = await supabase
     .from("tasks")
-    .select("*");
+    .select("*")
+    .order('created_at', { ascending: false });
+    
   if (error) throw error;
-  console.log('Tasks fetched:', data);
   return data;
 };
 
 export const createTask = async (task: Omit<Task, "id" | "created_at">) => {
-  console.log('Creating task with data:', task);
   const { data, error } = await supabase
     .from("tasks")
     .insert([task])
@@ -99,12 +98,10 @@ export const createTask = async (task: Omit<Task, "id" | "created_at">) => {
     .single();
 
   if (error) throw error;
-  console.log('Task created:', data);
   return data;
 };
 
 export const updateTask = async (id: string, updates: Partial<Task>) => {
-  console.log('Updating task:', id, 'with data:', updates);
   const { data, error } = await supabase
     .from("tasks")
     .update(updates)
@@ -113,7 +110,6 @@ export const updateTask = async (id: string, updates: Partial<Task>) => {
     .single();
 
   if (error) throw error;
-  console.log('Task updated:', data);
   return data;
 };
 
