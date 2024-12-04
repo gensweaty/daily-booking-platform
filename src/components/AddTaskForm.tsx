@@ -65,7 +65,6 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     }
 
     try {
-      let taskId;
       const taskData = {
         title,
         description,
@@ -73,15 +72,14 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         user_id: user.id
       };
 
+      let taskResponse;
       if (editingTask) {
-        const updatedTask = await updateTask(editingTask.id, taskData);
-        taskId = updatedTask.id;
+        taskResponse = await updateTask(editingTask.id, taskData);
       } else {
-        const newTask = await createTask(taskData);
-        taskId = newTask.id;
+        taskResponse = await createTask(taskData);
       }
 
-      if (selectedFile && taskId) {
+      if (selectedFile && taskResponse) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
@@ -94,7 +92,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         const { error: fileRecordError } = await supabase
           .from('files')
           .insert({
-            task_id: taskId,
+            task_id: taskResponse.id,
             filename: selectedFile.name,
             file_path: filePath,
             content_type: selectedFile.type,
