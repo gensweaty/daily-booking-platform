@@ -71,7 +71,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       const taskData = {
         title,
         description,
-        status: editingTask ? undefined : 'todo',
+        status: editingTask ? undefined : ('todo' as const),
         user_id: user.id
       };
       console.log('Submitting task with data:', taskData);
