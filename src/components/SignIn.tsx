@@ -21,38 +21,54 @@ export const SignIn = () => {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
 
+      // Validate inputs
       if (!trimmedEmail || !trimmedPassword) {
         toast({
           title: "Error",
           description: "Please enter both email and password",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
+      // Attempt to sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
 
       if (error) {
+        console.error("Sign in error details:", error);
+        
+        // Handle specific error cases
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Invalid Credentials",
             description: "The email or password you entered is incorrect. Please try again.",
             variant: "destructive",
           });
+          setIsLoading(false);
           return;
         }
-        throw error;
+
+        // Handle other errors
+        toast({
+          title: "Error",
+          description: "An error occurred during sign in. Please try again.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
       }
 
+      // Handle successful sign in
       if (data?.user) {
         toast({
-          title: "Welcome back!",
+          title: "Success",
           description: "You have successfully signed in.",
         });
-        navigate("/"); // Redirect to home page after successful login
+        navigate("/");
       }
 
     } catch (error: any) {
