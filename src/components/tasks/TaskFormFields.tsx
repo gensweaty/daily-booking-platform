@@ -6,6 +6,7 @@ import { FileDisplay } from "../shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Task } from "@/lib/types";
+import { useEffect } from "react";
 
 interface TaskFormFieldsProps {
   title: string;
@@ -30,8 +31,10 @@ export const TaskFormFields = ({
   setFileError,
   editingTask,
 }: TaskFormFieldsProps) => {
-  console.log("TaskFormFields - editingTask:", editingTask);
-  console.log("TaskFormFields - description:", description);
+  useEffect(() => {
+    console.log("TaskFormFields - description:", description);
+    console.log("TaskFormFields - editingTask:", editingTask);
+  }, [description, editingTask]);
 
   const { data: existingFiles } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
@@ -64,7 +67,7 @@ export const TaskFormFields = ({
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
         <RichTextEditor
-          content={description || ''} // Ensure we pass an empty string if description is null
+          content={description}
           onChange={setDescription}
         />
       </div>

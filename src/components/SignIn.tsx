@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
@@ -13,15 +13,37 @@ export const SignIn = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    // Check for existing session on component mount
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        console.log("Existing session found:", session);
+        navigate("/");
+      }
+    };
+    checkSession();
+
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event, session);
+      if (session) {
+        navigate("/");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    console.log("Attempting sign in...");
 
     try {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
 
-      // Validate inputs
       if (!trimmedEmail || !trimmedPassword) {
         toast({
           title: "Error",
@@ -32,50 +54,35 @@ export const SignIn = () => {
         return;
       }
 
-      // Attempt to sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
 
       if (error) {
-        console.error("Sign in error details:", error);
-        
-        // Handle specific error cases
-        if (error.message.includes("Invalid login credentials")) {
-          toast({
-            title: "Invalid Credentials",
-            description: "The email or password you entered is incorrect. Please try again.",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
-        }
-
-        // Handle other errors
+        console.error("Sign in error:", error);
         toast({
           title: "Error",
-          description: "An error occurred during sign in. Please try again.",
+          description: error.message,
           variant: "destructive",
         });
         setIsLoading(false);
         return;
       }
 
-      // Handle successful sign in
       if (data?.user) {
+        console.log("Sign in successful:", data.user);
         toast({
           title: "Success",
-          description: "You have successfully signed in.",
+          description: "Signed in successfully",
         });
         navigate("/");
       }
-
     } catch (error: any) {
-      console.error("Sign in error:", error);
+      console.error("Unexpected error:", error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again later.",
+        description: "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {

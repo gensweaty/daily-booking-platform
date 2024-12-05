@@ -3,7 +3,7 @@ import { Task } from "@/lib/types";
 import { FileDisplay } from "../shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Separator } from "../ui/separator";
+import { useEffect } from "react";
 
 interface TaskFullViewProps {
   task: Task;
@@ -12,6 +12,10 @@ interface TaskFullViewProps {
 }
 
 export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
+  useEffect(() => {
+    console.log("TaskFullView - task received:", task);
+  }, [task]);
+
   const { data: files } = useQuery({
     queryKey: ['taskFiles', task.id],
     queryFn: async () => {
@@ -35,10 +39,14 @@ export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
           <div className="prose dark:prose-invert">
             <div className="p-4 rounded-lg border border-input bg-muted/50">
               <h3 className="text-sm font-medium mb-2">Description</h3>
-              <div 
-                className="whitespace-pre-wrap text-foreground/80"
-                dangerouslySetInnerHTML={{ __html: task.description || '' }}
-              />
+              {task.description ? (
+                <div 
+                  className="whitespace-pre-wrap text-foreground/80"
+                  dangerouslySetInnerHTML={{ __html: task.description }}
+                />
+              ) : (
+                <p className="text-muted-foreground">No description provided</p>
+              )}
             </div>
           </div>
           {files && files.length > 0 && (
