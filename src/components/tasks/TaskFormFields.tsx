@@ -30,6 +30,9 @@ export const TaskFormFields = ({
   setFileError,
   editingTask,
 }: TaskFormFieldsProps) => {
+  console.log("TaskFormFields - editingTask:", editingTask);
+  console.log("TaskFormFields - description:", description);
+
   const { data: existingFiles } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
     queryFn: async () => {
@@ -61,7 +64,7 @@ export const TaskFormFields = ({
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
         <RichTextEditor
-          content={description}
+          content={description || ''} // Ensure we pass an empty string if description is null
           onChange={setDescription}
         />
       </div>

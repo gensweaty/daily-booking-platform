@@ -25,6 +25,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
 
   useEffect(() => {
     if (editingTask) {
+      console.log("Setting form with editingTask:", editingTask);
       setTitle(editingTask.title);
       setDescription(editingTask.description || "");
     } else {

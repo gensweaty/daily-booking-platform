@@ -4,13 +4,14 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +44,6 @@ export const SignIn = () => {
           });
           return;
         }
-
         throw error;
       }
 
@@ -52,6 +52,7 @@ export const SignIn = () => {
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
+        navigate("/"); // Redirect to home page after successful login
       }
 
     } catch (error: any) {
