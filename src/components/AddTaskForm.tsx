@@ -44,9 +44,12 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   });
 
   useEffect(() => {
+    console.log("EditingTask changed:", editingTask);
     if (editingTask) {
       setTitle(editingTask.title);
+      // Ensure we're setting the description, even if it's an empty string
       setDescription(editingTask.description || "");
+      console.log("Setting description to:", editingTask.description);
     } else {
       setTitle("");
       setDescription("");
