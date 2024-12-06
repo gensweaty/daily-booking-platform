@@ -14,39 +14,33 @@ export const SignIn = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for existing session on component mount
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error("Session check error:", error);
+        return;
+      }
       if (session) {
-        console.log("Existing session found:", session);
+        console.log("Active session found:", session);
         navigate("/");
       }
     };
     checkSession();
-
-    // Subscribe to auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth state changed:", event, session);
-      if (session) {
-        navigate("/");
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    console.log("Attempting sign in...");
+    console.log("Starting sign in process...");
 
     try {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
 
+      // Input validation
       if (!trimmedEmail || !trimmedPassword) {
         toast({
-          title: "Error",
+          title: "Validation Error",
           description: "Please enter both email and password",
           variant: "destructive",
         });
@@ -54,6 +48,8 @@ export const SignIn = () => {
         return;
       }
 
+      // Attempt sign in
+      console.log("Attempting sign in with email:", trimmedEmail);
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
@@ -61,12 +57,15 @@ export const SignIn = () => {
 
       if (error) {
         console.error("Sign in error:", error);
+        let errorMessage = "Invalid email or password";
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password. Please check your credentials and try again.";
+        }
         toast({
-          title: "Error",
-          description: error.message,
+          title: "Sign In Failed",
+          description: errorMessage,
           variant: "destructive",
         });
-        setIsLoading(false);
         return;
       }
 
@@ -79,10 +78,10 @@ export const SignIn = () => {
         navigate("/");
       }
     } catch (error: any) {
-      console.error("Unexpected error:", error);
+      console.error("Unexpected error during sign in:", error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -99,7 +98,7 @@ export const SignIn = () => {
           <Input
             id="email"
             type="email"
-            placeholder="Email"
+            placeholder="Enter your email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -112,7 +111,7 @@ export const SignIn = () => {
           <Input
             id="password"
             type="password"
-            placeholder="Password"
+            placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
