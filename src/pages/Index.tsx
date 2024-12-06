@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { PlusCircle, ListTodo, Calendar as CalendarIcon, StickyNote, LogOut } from "lucide-react";
+import { PlusCircle, ListTodo, Calendar as CalendarIcon, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TaskList } from "@/components/TaskList";
 import { Calendar } from "@/components/Calendar/Calendar";
@@ -10,21 +10,19 @@ import { AddTaskForm } from "@/components/AddTaskForm";
 import { AddNoteForm } from "@/components/AddNoteForm";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { SignIn } from "@/components/SignIn";
-import { SignUp } from "@/components/SignUp";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { useSearchParams } from "react-router-dom";
+import { AuthUI } from "@/components/AuthUI";
+import { DashboardHeader } from "@/components/DashboardHeader";
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
   const [username, setUsername] = useState("");
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
 
   useEffect(() => {
     const confirmationStatus = searchParams.get("email_confirmed");
@@ -64,72 +62,13 @@ const Index = () => {
     getProfile();
   }, [user]);
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/login');
-    } catch (error) {
-      console.error('Sign out error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to sign out. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   if (!user) {
-    return (
-      <div className="min-h-screen bg-background p-4">
-        <header className="mb-8">
-          <div className="flex justify-end mb-4">
-            <ThemeToggle />
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2 text-center">Welcome to Taskify Minder Note</h1>
-          <p className="text-foreground/80 text-center">Complete Agile productivity - tasks notes calendar all in one</p>
-        </header>
-
-        <div className="w-full max-w-md mx-auto">
-          <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
-            <TabsContent value="signin">
-              <SignIn />
-            </TabsContent>
-            <TabsContent value="signup">
-              <SignUp />
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
-    );
+    return <AuthUI />;
   }
 
   return (
     <div className="min-h-screen bg-background p-4">
-      <header className="mb-8">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="text-center sm:text-left">
-            <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">Welcome to Taskify Minder Note</h1>
-            <p className="text-foreground">
-              {username ? `Hello ${username}!` : 'Welcome!'} Complete Agile productivity - tasks notes calendar all in one
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button 
-              variant="outline" 
-              className="flex items-center gap-2 text-foreground"
-              onClick={handleSignOut}
-            >
-              <LogOut className="w-4 h-4" />
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader username={username} />
 
       <Tabs defaultValue="tasks" className="w-full max-w-4xl mx-auto">
         <TabsList className="grid w-full grid-cols-3 mb-8">
