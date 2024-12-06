@@ -26,10 +26,24 @@ export const SignIn = () => {
       }
     };
     checkSession();
+
+    // Subscribe to auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed - Event:", event, "Session:", session?.user?.email);
+      if (session) {
+        navigate("/");
+      }
+    });
+
+    return () => {
+      console.log("Cleaning up auth subscription");
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return; // Prevent multiple submissions
     setIsLoading(true);
     console.log("Starting sign in process...");
 
