@@ -14,7 +14,7 @@ import { SignIn } from "@/components/SignIn";
 import { SignUp } from "@/components/SignUp";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Index = () => {
@@ -24,6 +24,7 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const confirmationStatus = searchParams.get("email_confirmed");
@@ -54,7 +55,6 @@ const Index = () => {
           if (data) {
             setUsername(data.username);
           }
-          // Silently handle the case where profile doesn't exist yet
         } catch (error: any) {
           console.error('Profile fetch error:', error);
         }
@@ -63,6 +63,20 @@ const Index = () => {
 
     getProfile();
   }, [user]);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Sign out error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (!user) {
     return (
@@ -78,8 +92,8 @@ const Index = () => {
         <div className="w-full max-w-md mx-auto">
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-8">
-              <TabsTrigger value="signin" className="text-foreground">Sign In</TabsTrigger>
-              <TabsTrigger value="signup" className="text-foreground">Sign Up</TabsTrigger>
+              <TabsTrigger value="signin">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
             <TabsContent value="signin">
               <SignIn />
@@ -108,7 +122,7 @@ const Index = () => {
             <Button 
               variant="outline" 
               className="flex items-center gap-2 text-foreground"
-              onClick={signOut}
+              onClick={handleSignOut}
             >
               <LogOut className="w-4 h-4" />
               Sign Out
