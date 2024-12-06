@@ -202,7 +202,7 @@ export type Database = {
       tasks: {
         Row: {
           created_at: string
-          description: string | null
+          description: string
           id: number
           markdown_content: string | null
           status: string | null
@@ -211,7 +211,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          description?: string | null
+          description?: string
           id?: never
           markdown_content?: string | null
           status?: string | null
@@ -220,7 +220,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          description?: string | null
+          description?: string
           id?: never
           markdown_content?: string | null
           status?: string | null
