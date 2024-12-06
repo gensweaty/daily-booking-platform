@@ -6,10 +6,9 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
+import { AuthUI } from "./components/AuthUI";
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
-import { SignIn } from "./components/SignIn";
-import { SignUp } from "./components/SignUp";
 import { useAuth } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
@@ -31,10 +30,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // App Routes component to avoid context issues
 const AppRoutes = () => {
+  const { user } = useAuth();
+
   return (
     <Routes>
-      <Route path="/login" element={<SignIn />} />
-      <Route path="/signup" element={<SignUp />} />
+      <Route 
+        path="/login" 
+        element={user ? <Navigate to="/" /> : <AuthUI />} 
+      />
+      <Route 
+        path="/signup" 
+        element={user ? <Navigate to="/" /> : <AuthUI defaultTab="signup" />} 
+      />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route
