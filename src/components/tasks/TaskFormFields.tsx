@@ -6,7 +6,6 @@ import { FileDisplay } from "../shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Task } from "@/lib/types";
-import { useEffect } from "react";
 
 interface TaskFormFieldsProps {
   title: string;

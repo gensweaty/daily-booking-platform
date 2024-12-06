@@ -21,14 +21,6 @@ export const SignIn = () => {
       }
     };
     checkSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        navigate("/");
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -37,8 +29,7 @@ export const SignIn = () => {
     setIsLoading(true);
 
     try {
-      console.log("Attempting sign in with:", email);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
@@ -47,9 +38,15 @@ export const SignIn = () => {
         console.error("Sign in error:", error);
         toast({
           title: "Sign In Failed",
-          description: "Please check your credentials and try again.",
+          description: "Invalid email or password. Please check your credentials and try again.",
           variant: "destructive",
         });
+      } else if (data?.user) {
+        toast({
+          title: "Success",
+          description: "Signed in successfully",
+        });
+        navigate("/");
       }
     } catch (error: any) {
       console.error("Unexpected error during sign in:", error);
