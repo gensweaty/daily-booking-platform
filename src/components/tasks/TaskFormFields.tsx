@@ -45,6 +45,9 @@ export const TaskFormFields = ({
     enabled: !!editingTask?.id,
   });
 
+  console.log("TaskFormFields - Current description:", description);
+  console.log("TaskFormFields - Editing task:", editingTask);
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">

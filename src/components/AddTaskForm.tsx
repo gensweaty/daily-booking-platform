@@ -27,6 +27,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     if (editingTask) {
       console.log("Setting form with editingTask:", editingTask);
       setTitle(editingTask.title);
+      // Ensure description is properly set from editingTask
       setDescription(editingTask.description || "");
     }
   }, [editingTask]);
@@ -49,6 +50,8 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         status: editingTask ? editingTask.status : ('todo' as const),
         user_id: user.id
       };
+
+      console.log("Submitting task with data:", taskData);
 
       let taskResponse;
       if (editingTask) {
