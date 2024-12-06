@@ -15,76 +15,35 @@ export const SignIn = () => {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error("Session check error:", error);
-        return;
-      }
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        console.log("Active session found:", session);
         navigate("/");
       }
     };
     checkSession();
-
-    // Subscribe to auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth state changed - Event:", event, "Session:", session?.user?.email);
-      if (session) {
-        navigate("/");
-      }
-    });
-
-    return () => {
-      console.log("Cleaning up auth subscription");
-      subscription.unsubscribe();
-    };
   }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading) return; // Prevent multiple submissions
     setIsLoading(true);
-    console.log("Starting sign in process...");
 
     try {
-      const trimmedEmail = email.trim();
-      const trimmedPassword = password.trim();
-
-      // Input validation
-      if (!trimmedEmail || !trimmedPassword) {
-        toast({
-          title: "Validation Error",
-          description: "Please enter both email and password",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Attempt sign in
-      console.log("Attempting sign in with email:", trimmedEmail);
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: trimmedEmail,
-        password: trimmedPassword,
+        email: email.trim(),
+        password: password.trim(),
       });
 
       if (error) {
         console.error("Sign in error:", error);
-        let errorMessage = "Invalid email or password";
-        if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password. Please check your credentials and try again.";
-        }
         toast({
           title: "Sign In Failed",
-          description: errorMessage,
+          description: "Invalid email or password. Please check your credentials and try again.",
           variant: "destructive",
         });
         return;
       }
 
       if (data?.user) {
-        console.log("Sign in successful:", data.user);
         toast({
           title: "Success",
           description: "Signed in successfully",
