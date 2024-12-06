@@ -28,9 +28,6 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       console.log("Setting form with editingTask:", editingTask);
       setTitle(editingTask.title);
       setDescription(editingTask.description || "");
-    } else {
-      setTitle("");
-      setDescription("");
     }
   }, [editingTask]);
 

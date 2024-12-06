@@ -31,12 +31,6 @@ export const TaskFormFields = ({
   setFileError,
   editingTask,
 }: TaskFormFieldsProps) => {
-  useEffect(() => {
-    if (editingTask?.description) {
-      setDescription(editingTask.description);
-    }
-  }, [editingTask, setDescription]);
-
   const { data: existingFiles } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
     queryFn: async () => {
@@ -68,7 +62,7 @@ export const TaskFormFields = ({
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
         <RichTextEditor
-          content={description || ''}
+          content={description}
           onChange={setDescription}
         />
       </div>
