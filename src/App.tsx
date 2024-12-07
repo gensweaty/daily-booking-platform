@@ -27,27 +27,54 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const AppRoutes = () => {
-  const { user } = useAuth();
-  console.log("Current user state:", user);
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  
+  if (user) {
+    return <Navigate to="/" />;
+  }
+  
+  return <>{children}</>;
+};
 
+const AppRoutes = () => {
   return (
     <Routes>
       <Route 
         path="/login" 
-        element={user ? <Navigate to="/" /> : <AuthUI defaultTab="signin" />} 
+        element={
+          <PublicRoute>
+            <AuthUI defaultTab="signin" />
+          </PublicRoute>
+        } 
       />
       <Route 
         path="/signup" 
-        element={user ? <Navigate to="/" /> : <AuthUI defaultTab="signup" />} 
+        element={
+          <PublicRoute>
+            <AuthUI defaultTab="signup" />
+          </PublicRoute>
+        } 
       />
       <Route 
         path="/forgot-password" 
-        element={<ForgotPassword />} 
+        element={
+          <PublicRoute>
+            <ForgotPassword />
+          </PublicRoute>
+        } 
       />
       <Route 
         path="/reset-password" 
-        element={<ResetPassword />} 
+        element={
+          <PublicRoute>
+            <ResetPassword />
+          </PublicRoute>
+        } 
       />
       <Route
         path="/"
