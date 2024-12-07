@@ -1,13 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { PlusCircle, ListTodo, Calendar as CalendarIcon, StickyNote } from "lucide-react";
+import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TaskList } from "@/components/TaskList";
 import { Calendar } from "@/components/Calendar/Calendar";
-import { NoteList } from "@/components/NoteList";
 import { AddTaskForm } from "@/components/AddTaskForm";
-import { AddNoteForm } from "@/components/AddNoteForm";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -15,10 +13,10 @@ import { useToast } from "@/components/ui/use-toast";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { AuthUI } from "@/components/AuthUI";
 import { DashboardHeader } from "@/components/DashboardHeader";
+import { Statistics } from "@/components/Statistics";
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
-  const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
   const [username, setUsername] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
@@ -33,7 +31,6 @@ const Index = () => {
         description: "Thank you! Your email has been successfully confirmed.",
         duration: 5000,
       });
-      // Redirect to login page after email confirmation
       navigate("/login");
     }
   }, [searchParams, toast, navigate]);
@@ -73,21 +70,29 @@ const Index = () => {
     <div className="min-h-screen bg-background p-4">
       <DashboardHeader username={username} />
 
-      <Tabs defaultValue="tasks" className="w-full max-w-4xl mx-auto">
+      <Tabs defaultValue="calendar" className="w-full max-w-4xl mx-auto">
         <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsTrigger value="calendar" className="flex items-center gap-2 text-sm sm:text-base text-foreground">
+            <CalendarIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">Booking Calendar</span>
+          </TabsTrigger>
           <TabsTrigger value="tasks" className="flex items-center gap-2 text-sm sm:text-base text-foreground">
             <ListTodo className="w-4 h-4" />
             <span className="hidden sm:inline">Tasks</span>
           </TabsTrigger>
-          <TabsTrigger value="calendar" className="flex items-center gap-2 text-sm sm:text-base text-foreground">
-            <CalendarIcon className="w-4 h-4" />
-            <span className="hidden sm:inline">Calendar</span>
-          </TabsTrigger>
-          <TabsTrigger value="notes" className="flex items-center gap-2 text-sm sm:text-base text-foreground">
-            <StickyNote className="w-4 h-4" />
-            <span className="hidden sm:inline">Notes</span>
+          <TabsTrigger value="statistics" className="flex items-center gap-2 text-sm sm:text-base text-foreground">
+            <BarChart className="w-4 h-4" />
+            <span className="hidden sm:inline">Statistics</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="calendar">
+          <Card>
+            <CardContent className="pt-6 overflow-x-auto">
+              <Calendar defaultView="month" />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="tasks">
           <Card>
@@ -111,32 +116,13 @@ const Index = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="calendar">
+        <TabsContent value="statistics">
           <Card>
-            <CardContent className="pt-6 overflow-x-auto">
-              <Calendar />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="notes">
-          <Card>
-            <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-              <CardTitle className="text-foreground">My Notes</CardTitle>
-              <Dialog open={isNoteDialogOpen} onOpenChange={setIsNoteDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2 w-full sm:w-auto">
-                    <PlusCircle className="w-4 h-4" />
-                    Add Note
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <AddNoteForm onClose={() => setIsNoteDialogOpen(false)} />
-                </DialogContent>
-              </Dialog>
+            <CardHeader>
+              <CardTitle className="text-foreground">Statistics</CardTitle>
             </CardHeader>
             <CardContent>
-              <NoteList />
+              <Statistics />
             </CardContent>
           </Card>
         </TabsContent>

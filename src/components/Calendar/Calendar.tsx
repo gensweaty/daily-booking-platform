@@ -22,9 +22,13 @@ import { TimeIndicator } from "./TimeIndicator";
 import { useEventDialog } from "./hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export const Calendar = () => {
+interface CalendarProps {
+  defaultView?: CalendarViewType;
+}
+
+export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [view, setView] = useState<CalendarViewType>("week");
+  const [view, setView] = useState<CalendarViewType>(defaultView);
   const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
   const { user } = useAuth();
   const navigate = useNavigate();
