@@ -17,7 +17,7 @@ export const ForgotPassword = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
@@ -25,13 +25,14 @@ export const ForgotPassword = () => {
 
       toast({
         title: "Success",
-        description: "Check your email for the password reset link",
+        description: "If an account exists with this email, you will receive a password reset link.",
       });
       setEmail("");
     } catch (error: any) {
+      console.error("Password reset request error:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "An error occurred while sending the reset link. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -40,35 +41,37 @@ export const ForgotPassword = () => {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto p-4 sm:p-6">
-      <Link to="/" className="flex items-center gap-2 text-sm mb-6 text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="w-4 h-4" />
-        Back to Sign In
-      </Link>
-      
-      <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Reset Password</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
+    <div className="min-h-screen bg-background p-4">
+      <div className="w-full max-w-md mx-auto p-4 sm:p-6">
+        <Link to="/login" className="flex items-center gap-2 text-sm mb-6 text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="w-4 h-4" />
+          Back to Sign In
+        </Link>
+        
+        <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Reset Password</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full"
+              disabled={isLoading}
+            />
+          </div>
+          <Button 
+            type="submit" 
             className="w-full"
             disabled={isLoading}
-          />
-        </div>
-        <Button 
-          type="submit" 
-          className="w-full"
-          disabled={isLoading}
-        >
-          {isLoading ? "Sending..." : "Send Reset Link"}
-        </Button>
-      </form>
+          >
+            {isLoading ? "Sending..." : "Send Reset Link"}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 };
