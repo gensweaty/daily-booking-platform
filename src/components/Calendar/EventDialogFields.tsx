@@ -83,15 +83,18 @@ export const EventDialogFields = ({
         />
       </div>
 
-      <Select value={type} onValueChange={(value) => setType(value as "birthday" | "private_party")}>
-        <SelectTrigger>
-          <SelectValue placeholder="Select type" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="birthday">Birthday</SelectItem>
-          <SelectItem value="private_party">Private Party</SelectItem>
-        </SelectContent>
-      </Select>
+      <div className="space-y-2">
+        <Label>Event Type</Label>
+        <Select value={type} onValueChange={(value) => setType(value as "birthday" | "private_party")}>
+          <SelectTrigger className="w-full bg-background border-input">
+            <SelectValue placeholder="Select type" />
+          </SelectTrigger>
+          <SelectContent className="bg-background border-input shadow-md">
+            <SelectItem value="birthday" className="hover:bg-muted">Birthday</SelectItem>
+            <SelectItem value="private_party" className="hover:bg-muted">Private Party</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <Input
@@ -99,25 +102,27 @@ export const EventDialogFields = ({
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
           required
+          className="bg-background border-input"
         />
         <Input
           type="datetime-local"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
           required
+          className="bg-background border-input"
         />
       </div>
 
       <div className="space-y-2">
         <Label>Payment Status</Label>
         <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-          <SelectTrigger>
+          <SelectTrigger className="w-full bg-background border-input">
             <SelectValue placeholder="Select payment status" />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="not_paid">Not paid</SelectItem>
-            <SelectItem value="partly">Paid Partly</SelectItem>
-            <SelectItem value="fully">Paid Fully</SelectItem>
+          <SelectContent className="bg-background border-input shadow-md">
+            <SelectItem value="not_paid" className="hover:bg-muted">Not paid</SelectItem>
+            <SelectItem value="partly" className="hover:bg-muted">Paid Partly</SelectItem>
+            <SelectItem value="fully" className="hover:bg-muted">Paid Fully</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -133,6 +138,7 @@ export const EventDialogFields = ({
             value={paymentAmount}
             onChange={(e) => setPaymentAmount(e.target.value)}
             required
+            className="bg-background border-input"
           />
         </div>
       )}
@@ -144,6 +150,7 @@ export const EventDialogFields = ({
           placeholder="Add notes about the event"
           value={eventNotes}
           onChange={(e) => setEventNotes(e.target.value)}
+          className="bg-background border-input"
         />
       </div>
     </div>
