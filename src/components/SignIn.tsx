@@ -40,7 +40,7 @@ export const SignIn = () => {
     setIsLoading(true);
     
     try {
-      console.log("Starting sign in process...");
+      console.log("Starting sign in process with email:", email.trim());
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -53,16 +53,17 @@ export const SignIn = () => {
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Sign in failed",
-            description: "Please check your email and password, or sign up if you don't have an account.",
+            description: "The email or password is incorrect. Please try again or sign up if you don't have an account.",
             variant: "destructive",
           });
         } else if (error.message.includes("Email not confirmed")) {
           toast({
             title: "Email not verified",
-            description: "Please verify your email address before signing in. Check your inbox and spam folder.",
+            description: "Please check your inbox and spam folder for the verification email.",
             variant: "destructive",
           });
         } else {
+          console.error("Unexpected error during sign in:", error);
           toast({
             title: "Error",
             description: "An unexpected error occurred. Please try again.",
@@ -72,12 +73,20 @@ export const SignIn = () => {
         return;
       }
 
-      if (data.session) {
+      if (data?.session) {
+        console.log("Sign in successful, session created");
         toast({
           title: "Success",
           description: "Signed in successfully",
         });
         navigate("/");
+      } else {
+        console.error("No session created after successful sign in");
+        toast({
+          title: "Error",
+          description: "Failed to create session. Please try again.",
+          variant: "destructive",
+        });
       }
       
     } catch (error: any) {
