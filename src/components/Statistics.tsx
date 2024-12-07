@@ -1,31 +1,17 @@
-import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  BarChart as BarChartIcon,
-  Calendar as CalendarIcon,
-  CheckSquare,
-  Clock,
-  BanknoteIcon,
-  TrendingUp
-} from "lucide-react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  Legend
-} from 'recharts';
+import { CheckSquare, Clock, BanknoteIcon, CalendarIcon } from "lucide-react";
 import { format, parseISO, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths } from 'date-fns';
+import { StatCard } from "./Statistics/StatCard";
+import { BookingChart } from "./Statistics/BookingChart";
+import { IncomeChart } from "./Statistics/IncomeChart";
+import { DateRangeSelect } from "./Statistics/DateRangeSelect";
+import { useState } from "react";
 
 export const Statistics = () => {
   const { user } = useAuth();
+  const [monthsRange, setMonthsRange] = useState(6);
 
   const { data: taskStats } = useQuery({
     queryKey: ['taskStats', user?.id],
@@ -35,33 +21,30 @@ export const Statistics = () => {
         .select('status')
         .eq('user_id', user?.id);
 
-      const stats = {
+      return {
         total: tasks?.length || 0,
         completed: tasks?.filter(t => t.status === 'done').length || 0,
         inProgress: tasks?.filter(t => t.status === 'in-progress').length || 0,
         todo: tasks?.filter(t => t.status === 'todo').length || 0,
       };
-
-      return stats;
     },
     enabled: !!user,
   });
 
   const { data: eventStats } = useQuery({
-    queryKey: ['eventStats', user?.id],
+    queryKey: ['eventStats', user?.id, monthsRange],
     queryFn: async () => {
       const { data: events } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', user?.id);
 
-      // Calculate monthly bookings
-      const last6Months = eachMonthOfInterval({
-        start: startOfMonth(subMonths(new Date(), 5)),
+      const lastMonths = eachMonthOfInterval({
+        start: startOfMonth(subMonths(new Date(), monthsRange - 1)),
         end: endOfMonth(new Date())
       });
 
-      const monthlyBookings = last6Months.map(month => {
+      const monthlyBookings = lastMonths.map(month => {
         const monthStart = startOfMonth(month);
         const monthEnd = endOfMonth(month);
         const monthEvents = events?.filter(event => {
@@ -121,89 +104,22 @@ export const Statistics = () => {
     },
   ];
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-background border border-border p-2 rounded-lg shadow-lg">
-          <p className="text-sm font-medium">{label}</p>
-          {payload.map((pld: any, index: number) => (
-            <p key={index} className="text-sm">
-              {pld.name === "Income (₾)" ? 
-                `${pld.name}: ₾${pld.value.toFixed(2)}` :
-                `${pld.name}: ${pld.value}`
-              }
-            </p>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
     <div className="space-y-6">
+      <DateRangeSelect 
+        selectedRange={monthsRange}
+        onRangeChange={setMonthsRange}
+      />
+      
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={index} className="p-4 flex flex-col space-y-2">
-              <div className="flex items-center space-x-2">
-                <Icon className="w-4 h-4 text-muted-foreground" />
-                <h3 className="text-sm font-medium">{stat.title}</h3>
-              </div>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">{stat.description}</p>
-            </Card>
-          );
-        })}
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card className="p-4">
-          <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" />
-            Booking Dynamics
-          </h3>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={eventStats?.monthlyStats || []}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip content={<CustomTooltip />} />
-                <Line
-                  type="monotone"
-                  dataKey="bookings"
-                  stroke="#8884d8"
-                  name="Bookings"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
-            <BanknoteIcon className="w-4 h-4" />
-            Monthly Income
-          </h3>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={eventStats?.monthlyStats || []}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Bar
-                  dataKey="income"
-                  fill="#82ca9d"
-                  name="Income (₾)"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+        <BookingChart data={eventStats?.monthlyStats || []} />
+        <IncomeChart data={eventStats?.monthlyStats || []} />
       </div>
     </div>
   );
