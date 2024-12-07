@@ -11,7 +11,10 @@ import { useState } from "react";
 
 export const Statistics = () => {
   const { user } = useAuth();
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [dateRange, setDateRange] = useState({ 
+    start: startOfMonth(new Date()),
+    end: endOfMonth(new Date())
+  });
 
   const { data: taskStats } = useQuery({
     queryKey: ['taskStats', user?.id],
@@ -32,16 +35,18 @@ export const Statistics = () => {
   });
 
   const { data: eventStats } = useQuery({
-    queryKey: ['eventStats', user?.id, selectedDate],
+    queryKey: ['eventStats', user?.id, dateRange.start, dateRange.end],
     queryFn: async () => {
       const { data: events } = await supabase
         .from('events')
         .select('*')
-        .eq('user_id', user?.id);
+        .eq('user_id', user?.id)
+        .gte('start_date', dateRange.start.toISOString())
+        .lte('start_date', dateRange.end.toISOString());
 
       const lastMonths = eachMonthOfInterval({
-        start: startOfMonth(subMonths(selectedDate, 5)),
-        end: endOfMonth(selectedDate)
+        start: subMonths(dateRange.end, 5),
+        end: dateRange.end
       });
 
       const monthlyBookings = lastMonths.map(month => {
@@ -56,9 +61,7 @@ export const Statistics = () => {
           month: format(month, 'MMM yyyy'),
           bookings: monthEvents?.length || 0,
           income: monthEvents?.reduce((acc, event) => {
-            if (event.payment_status === 'fully') {
-              return acc + (event.payment_amount || 0);
-            } else if (event.payment_status === 'partly') {
+            if (event.payment_status === 'fully' || event.payment_status === 'partly') {
               return acc + (event.payment_amount || 0);
             }
             return acc;
@@ -66,12 +69,19 @@ export const Statistics = () => {
         };
       });
 
+      const totalIncome = events?.reduce((acc, event) => {
+        if (event.payment_status === 'fully' || event.payment_status === 'partly') {
+          return acc + (event.payment_amount || 0);
+        }
+        return acc;
+      }, 0) || 0;
+
       return {
         total: events?.length || 0,
         meetings: events?.filter(e => e.type === 'meeting').length || 0,
         reminders: events?.filter(e => e.type === 'reminder').length || 0,
         monthlyStats: monthlyBookings,
-        totalIncome: monthlyBookings.reduce((acc, month) => acc + month.income, 0),
+        totalIncome,
       };
     },
     enabled: !!user,
@@ -107,8 +117,8 @@ export const Statistics = () => {
   return (
     <div className="space-y-6">
       <DateRangeSelect 
-        selectedDate={selectedDate}
-        onDateChange={setSelectedDate}
+        selectedDate={dateRange.start}
+        onDateChange={(start, end) => setDateRange({ start, end: end || start })}
       />
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

@@ -9,7 +9,7 @@ import { DateRange } from "react-day-picker";
 
 interface DateRangeSelectProps {
   selectedDate: Date;
-  onDateChange: (date: Date) => void;
+  onDateChange: (start: Date, end: Date | null) => void;
 }
 
 export const DateRangeSelect = ({ selectedDate, onDateChange }: DateRangeSelectProps) => {
@@ -53,7 +53,7 @@ export const DateRangeSelect = ({ selectedDate, onDateChange }: DateRangeSelectP
             onSelect={(newDate) => {
               setDate(newDate);
               if (newDate?.from) {
-                onDateChange(newDate.from);
+                onDateChange(newDate.from, newDate?.to || null);
                 setOpen(false);
               }
             }}
