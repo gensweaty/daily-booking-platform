@@ -126,14 +126,14 @@ export const EventDialogFields = ({
             <SelectValue placeholder="Select payment status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Not paid</SelectItem>
+            <SelectItem value="not_paid">Not paid</SelectItem>
             <SelectItem value="partly">Paid Partly</SelectItem>
             <SelectItem value="fully">Paid Fully</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {paymentStatus && (
+      {paymentStatus && paymentStatus !== 'not_paid' && (
         <div className="space-y-2">
           <Label htmlFor="amount">Payment Amount</Label>
           <Input
