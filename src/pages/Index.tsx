@@ -76,13 +76,13 @@ const Index = () => {
             <CalendarIcon className="w-4 h-4" />
             <span className="hidden sm:inline">Booking Calendar</span>
           </TabsTrigger>
-          <TabsTrigger value="tasks" className="flex items-center gap-2 text-sm sm:text-base text-foreground">
-            <ListTodo className="w-4 h-4" />
-            <span className="hidden sm:inline">Tasks</span>
-          </TabsTrigger>
           <TabsTrigger value="statistics" className="flex items-center gap-2 text-sm sm:text-base text-foreground">
             <BarChart className="w-4 h-4" />
             <span className="hidden sm:inline">Statistics</span>
+          </TabsTrigger>
+          <TabsTrigger value="tasks" className="flex items-center gap-2 text-sm sm:text-base text-foreground">
+            <ListTodo className="w-4 h-4" />
+            <span className="hidden sm:inline">Tasks</span>
           </TabsTrigger>
         </TabsList>
 
@@ -90,6 +90,17 @@ const Index = () => {
           <Card>
             <CardContent className="pt-6 overflow-x-auto">
               <Calendar defaultView="month" />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="statistics">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-foreground">Statistics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Statistics />
             </CardContent>
           </Card>
         </TabsContent>
@@ -112,17 +123,6 @@ const Index = () => {
             </CardHeader>
             <CardContent>
               <TaskList />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="statistics">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-foreground">Statistics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Statistics />
             </CardContent>
           </Card>
         </TabsContent>
