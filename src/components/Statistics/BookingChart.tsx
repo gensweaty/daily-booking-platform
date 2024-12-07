@@ -19,23 +19,32 @@ interface BookingChartProps {
 }
 
 export const BookingChart = ({ data }: BookingChartProps) => {
-  // Transform data to create a smooth continuous line
-  const transformedData = data.map((item, index, array) => {
-    let bookingValue = item.bookings;
+  // Transform data to create a natural progression line
+  const transformedData = data.reduce((acc: any[], item, index, array) => {
+    // Always add the current data point
+    acc.push(item);
     
-    // If it's not the first item and there's a change in bookings,
-    // create intermediate points for smoother transitions
-    if (index > 0 && array[index - 1].bookings !== item.bookings) {
-      const prevValue = array[index - 1].bookings;
-      const currentValue = item.bookings;
-      bookingValue = prevValue + (currentValue - prevValue) * 0.5;
+    // If there's a next item and there's a change in bookings,
+    // add intermediate points for smoother transition
+    if (index < array.length - 1 && array[index + 1].bookings !== item.bookings) {
+      const currentBookings = item.bookings;
+      const nextBookings = array[index + 1].bookings;
+      const diff = nextBookings - currentBookings;
+      
+      // Add two intermediate points for smoother curve
+      acc.push({
+        day: `${item.day}-1`,
+        bookings: currentBookings + (diff * 0.33)
+      });
+      
+      acc.push({
+        day: `${item.day}-2`,
+        bookings: currentBookings + (diff * 0.66)
+      });
     }
     
-    return {
-      ...item,
-      bookings: bookingValue
-    };
-  });
+    return acc;
+  }, []);
 
   return (
     <Card className="p-4">
@@ -46,7 +55,7 @@ export const BookingChart = ({ data }: BookingChartProps) => {
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart 
-            data={transformedData || []}
+            data={transformedData}
             margin={{ top: 10, right: 30, left: 10, bottom: 30 }}
           >
             <CartesianGrid 
@@ -60,6 +69,7 @@ export const BookingChart = ({ data }: BookingChartProps) => {
               tickLine={false}
               tick={{ fontSize: 12, fill: '#6b7280' }}
               dy={10}
+              interval={2}  // Show every third label to avoid crowding
             />
             <YAxis 
               axisLine={false}
