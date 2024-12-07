@@ -14,8 +14,8 @@ interface EventDialogFieldsProps {
   setUserEmail: (value: string) => void;
   eventNotes: string;
   setEventNotes: (value: string) => void;
-  type: "meeting" | "reminder";
-  setType: (value: "meeting" | "reminder") => void;
+  type: "birthday" | "private_party";
+  setType: (value: "birthday" | "private_party") => void;
   startDate: string;
   setStartDate: (value: string) => void;
   endDate: string;
@@ -51,10 +51,10 @@ export const EventDialogFields = ({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="title">User Name (required)</Label>
+        <Label htmlFor="title">Full Name (required)</Label>
         <Input
           id="title"
-          placeholder="User name"
+          placeholder="Full name"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
@@ -62,18 +62,7 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="surname">User Surname (required)</Label>
-        <Input
-          id="surname"
-          placeholder="User surname"
-          value={userSurname}
-          onChange={(e) => setUserSurname(e.target.value)}
-          required
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="number">User Number</Label>
+        <Label htmlFor="number">Phone Number</Label>
         <Input
           id="number"
           type="tel"
@@ -84,7 +73,7 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="email">User Email</Label>
+        <Label htmlFor="email">Email</Label>
         <Input
           id="email"
           type="email"
@@ -94,13 +83,13 @@ export const EventDialogFields = ({
         />
       </div>
 
-      <Select value={type} onValueChange={(value) => setType(value as "meeting" | "reminder")}>
+      <Select value={type} onValueChange={(value) => setType(value as "birthday" | "private_party")}>
         <SelectTrigger>
           <SelectValue placeholder="Select type" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="meeting">Meeting</SelectItem>
-          <SelectItem value="reminder">Reminder</SelectItem>
+          <SelectItem value="birthday">Birthday</SelectItem>
+          <SelectItem value="private_party">Private Party</SelectItem>
         </SelectContent>
       </Select>
 
