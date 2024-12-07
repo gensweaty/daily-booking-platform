@@ -11,7 +11,7 @@ import { useState } from "react";
 
 export const Statistics = () => {
   const { user } = useAuth();
-  const [monthsRange, setMonthsRange] = useState(6);
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   const { data: taskStats } = useQuery({
     queryKey: ['taskStats', user?.id],
@@ -32,7 +32,7 @@ export const Statistics = () => {
   });
 
   const { data: eventStats } = useQuery({
-    queryKey: ['eventStats', user?.id, monthsRange],
+    queryKey: ['eventStats', user?.id, selectedDate],
     queryFn: async () => {
       const { data: events } = await supabase
         .from('events')
@@ -40,8 +40,8 @@ export const Statistics = () => {
         .eq('user_id', user?.id);
 
       const lastMonths = eachMonthOfInterval({
-        start: startOfMonth(subMonths(new Date(), monthsRange - 1)),
-        end: endOfMonth(new Date())
+        start: startOfMonth(subMonths(selectedDate, 5)),
+        end: endOfMonth(selectedDate)
       });
 
       const monthlyBookings = lastMonths.map(month => {
@@ -107,8 +107,8 @@ export const Statistics = () => {
   return (
     <div className="space-y-6">
       <DateRangeSelect 
-        selectedRange={monthsRange}
-        onRangeChange={setMonthsRange}
+        selectedDate={selectedDate}
+        onDateChange={setSelectedDate}
       />
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

@@ -1,25 +1,48 @@
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 interface DateRangeSelectProps {
-  selectedRange: number;
-  onRangeChange: (months: number) => void;
+  selectedDate: Date;
+  onDateChange: (date: Date) => void;
 }
 
-export const DateRangeSelect = ({ selectedRange, onRangeChange }: DateRangeSelectProps) => {
+export const DateRangeSelect = ({ selectedDate, onDateChange }: DateRangeSelectProps) => {
+  const [open, setOpen] = useState(false);
+
   return (
     <div className="flex items-center gap-2 mb-4">
-      <Select value={selectedRange.toString()} onValueChange={(value) => onRangeChange(parseInt(value))}>
-        <SelectTrigger className="w-[180px]">
-          <SelectValue placeholder="Select time range" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="3">Last 3 months</SelectItem>
-          <SelectItem value="6">Last 6 months</SelectItem>
-          <SelectItem value="12">Last 12 months</SelectItem>
-        </SelectContent>
-      </Select>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className={cn(
+              "w-[240px] justify-start text-left font-normal",
+              !selectedDate && "text-muted-foreground"
+            )}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {selectedDate ? format(selectedDate, "MMMM yyyy") : <span>Pick a month</span>}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(date) => {
+              if (date) {
+                onDateChange(date);
+                setOpen(false);
+              }
+            }}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
     </div>
   );
 };
