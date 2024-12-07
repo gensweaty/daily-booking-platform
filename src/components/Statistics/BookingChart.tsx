@@ -1,8 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { TrendingUp } from "lucide-react";
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -27,11 +27,12 @@ export const BookingChart = ({ data }: BookingChartProps) => {
       </h3>
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data || []}>
+          <LineChart data={data || []}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis 
               dataKey="day"
               label={{ value: 'Days of Month', position: 'bottom' }}
+              tick={{ fontSize: 12 }}
             />
             <YAxis 
               label={{ 
@@ -40,14 +41,20 @@ export const BookingChart = ({ data }: BookingChartProps) => {
                 position: 'insideLeft',
                 offset: -5
               }}
+              tick={{ fontSize: 12 }}
+              allowDecimals={false}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Bar
+            <Line
+              type="monotone"
               dataKey="bookings"
-              fill="#8884d8"
+              stroke="#2DD4BF"
+              strokeWidth={2}
+              dot={{ fill: "#2DD4BF", r: 4 }}
+              activeDot={{ r: 6 }}
               name="Bookings"
             />
-          </BarChart>
+          </LineChart>
         </ResponsiveContainer>
       </div>
     </Card>
