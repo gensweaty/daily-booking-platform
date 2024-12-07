@@ -29,7 +29,32 @@ export const SignIn = () => {
     setIsLoading(true);
 
     try {
-      console.log("Attempting sign in with email:", email);
+      console.log("Starting sign in process...");
+      console.log("Email being used:", email.trim());
+      
+      // First check if the user exists
+      const { data: { users }, error: getUserError } = await supabase.auth.admin.listUsers({
+        filters: {
+          email: email.trim()
+        }
+      });
+
+      if (getUserError) {
+        console.error("Error checking user:", getUserError);
+        throw getUserError;
+      }
+
+      if (!users || users.length === 0) {
+        toast({
+          title: "Error",
+          description: "No account found with this email. Please sign up first.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Attempt to sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
@@ -39,11 +64,10 @@ export const SignIn = () => {
         console.error("Sign in error:", error);
         let errorMessage = "Invalid email or password.";
         
-        // More specific error messages based on the error code
         if (error.message.includes("Email not confirmed")) {
-          errorMessage = "Please verify your email address before signing in.";
+          errorMessage = "Please verify your email address before signing in. Check your inbox (and spam folder) for the verification link.";
         } else if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password. Please check your credentials and try again.";
+          errorMessage = "Incorrect email or password. Please try again.";
         }
         
         toast({
