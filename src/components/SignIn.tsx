@@ -112,12 +112,14 @@ export const SignIn = () => {
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <Label htmlFor="password">Password</Label>
-            <Link 
-              to="/forgot-password" 
-              className="text-sm text-primary hover:underline"
+            <Button 
+              variant="link" 
+              className="px-0 font-normal text-primary hover:underline"
+              type="button"
+              onClick={() => navigate("/forgot-password")}
             >
               Forgot password?
-            </Link>
+            </Button>
           </div>
           <Input
             id="password"

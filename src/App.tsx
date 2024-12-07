@@ -42,8 +42,14 @@ const AppRoutes = () => {
         path="/signup" 
         element={user ? <Navigate to="/" /> : <AuthUI defaultTab="signup" />} 
       />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route 
+        path="/forgot-password" 
+        element={<ForgotPassword />} 
+      />
+      <Route 
+        path="/reset-password" 
+        element={<ResetPassword />} 
+      />
       <Route
         path="/"
         element={
@@ -52,6 +58,8 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      {/* Catch all route */}
+      <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
 };
