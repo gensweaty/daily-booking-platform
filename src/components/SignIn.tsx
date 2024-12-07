@@ -90,7 +90,7 @@ export const SignIn = () => {
 
   const handleForgotPassword = () => {
     console.log("Navigating to forgot password page");
-    navigate("/forgot-password");
+    window.location.href = "/forgot-password";
   };
 
   return (
