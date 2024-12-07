@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -12,23 +12,56 @@ export const ResetPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Check if we're in a recovery flow
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log("Current session:", session);
-      
-      // If no session or not in recovery mode, redirect to login
-      if (!session?.user) {
-        console.log("No session found, redirecting to login");
-        navigate("/login");
-        return;
+    const checkRecoveryToken = async () => {
+      try {
+        // Get the recovery token from the URL
+        const fragment = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = fragment.get('access_token');
+        const refreshToken = fragment.get('refresh_token');
+        const type = fragment.get('type');
+
+        console.log("URL params:", { accessToken, refreshToken, type });
+
+        if (!accessToken || type !== 'recovery') {
+          console.log("No recovery token found or wrong type, redirecting to login");
+          navigate("/login");
+          return;
+        }
+
+        // Set the session with the recovery token
+        const { data: { session }, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken || '',
+        });
+
+        if (error || !session) {
+          console.error("Error setting session:", error);
+          toast({
+            title: "Error",
+            description: "Invalid or expired recovery link. Please request a new one.",
+            variant: "destructive",
+          });
+          navigate("/forgot-password");
+          return;
+        }
+
+        console.log("Recovery session set successfully");
+      } catch (error) {
+        console.error("Error in recovery flow:", error);
+        toast({
+          title: "Error",
+          description: "An error occurred. Please try again.",
+          variant: "destructive",
+        });
+        navigate("/forgot-password");
       }
     };
-    
-    checkSession();
-  }, [navigate]);
+
+    checkRecoveryToken();
+  }, [navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +89,7 @@ export const ResetPassword = () => {
     }
 
     try {
-      // First update the password
+      // Update the user's password
       const { error: updateError } = await supabase.auth.updateUser({
         password: password
       });

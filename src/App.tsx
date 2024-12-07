@@ -34,7 +34,8 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
     return <div>Loading...</div>;
   }
   
-  if (user) {
+  // Allow access to reset-password route even if user is logged in
+  if (user && window.location.pathname !== '/reset-password') {
     return <Navigate to="/" />;
   }
   
