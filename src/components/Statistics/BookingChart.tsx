@@ -19,28 +19,15 @@ interface BookingChartProps {
 }
 
 export const BookingChart = ({ data }: BookingChartProps) => {
-  // Transform data to show cumulative growth
+  // Transform data to show real cumulative growth
   const transformedData = data.reduce((acc: any[], item, index) => {
-    const previousTotal = index > 0 ? acc[index - 1].bookings : 0;
+    const previousTotal = index > 0 ? acc[index - 1].total : 0;
     const currentTotal = previousTotal + item.bookings;
     
-    // Add the main point
-    acc.push({
-      point: index + 1,
-      bookings: currentTotal,
-    });
-    
-    // If there's a change in bookings, add intermediate points for smoother curve
-    if (item.bookings > 0) {
-      // Add two intermediate points for each booking for smoother curve
+    if (currentTotal > previousTotal) {
       acc.push({
-        point: index + 1.33,
-        bookings: currentTotal - (item.bookings * 0.66),
-      });
-      
-      acc.push({
-        point: index + 1.66,
-        bookings: currentTotal - (item.bookings * 0.33),
+        point: acc.length + 1,
+        total: currentTotal,
       });
     }
     
@@ -70,7 +57,7 @@ export const BookingChart = ({ data }: BookingChartProps) => {
               tickLine={false}
               tick={{ fontSize: 12, fill: '#6b7280' }}
               dy={10}
-              interval={1}
+              label={{ value: 'Number of Bookings', position: 'bottom', offset: 20 }}
             />
             <YAxis 
               axisLine={false}
@@ -79,11 +66,12 @@ export const BookingChart = ({ data }: BookingChartProps) => {
               domain={[0, 'auto']}
               allowDecimals={false}
               dx={-10}
+              label={{ value: 'Total Bookings', angle: -90, position: 'left', offset: 0 }}
             />
             <Tooltip content={<CustomTooltip />} />
             <Line
               type="monotone"
-              dataKey="bookings"
+              dataKey="total"
               stroke="#2DD4BF"
               strokeWidth={2}
               dot={{
