@@ -1,71 +1,61 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate("/");
-      }
-    };
-    checkSession();
-  }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading) return;
     setIsLoading(true);
 
     try {
-      console.log("Starting sign in process...");
-      console.log("Email being used:", email.trim());
+      // Trim whitespace from credentials
+      const trimmedEmail = email.trim();
+      const trimmedPassword = password.trim();
 
-      // Attempt to sign in
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password.trim(),
+        email: trimmedEmail,
+        password: trimmedPassword,
       });
 
       if (error) {
-        console.error("Sign in error:", error);
-        let errorMessage = "Invalid email or password.";
+        let errorMessage = "An error occurred during sign in";
         
-        if (error.message.includes("Email not confirmed")) {
-          errorMessage = "Please verify your email address before signing in. Check your inbox (and spam folder) for the verification link.";
-        } else if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Incorrect email or password. Please try again.";
+        // Provide more specific error messages based on the error code
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password. Please check your credentials and try again.";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Please verify your email address before signing in. Check your inbox and spam folder.";
         }
-        
+
+        console.error("Sign in error:", error);
         toast({
-          title: "Sign In Failed",
+          title: "Error",
           description: errorMessage,
           variant: "destructive",
         });
-      } else if (data?.user) {
-        console.log("Sign in successful:", data.user);
+        return;
+      }
+
+      if (data?.user) {
         toast({
           title: "Success",
           description: "Signed in successfully",
         });
-        navigate("/");
       }
     } catch (error: any) {
-      console.error("Unexpected error during sign in:", error);
+      console.error("Sign in error:", error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: error.message || "An error occurred during sign in",
         variant: "destructive",
       });
     } finally {
@@ -82,7 +72,7 @@ export const SignIn = () => {
           <Input
             id="email"
             type="email"
-            placeholder="Enter your email"
+            placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -91,25 +81,25 @@ export const SignIn = () => {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex justify-between items-center">
+            <Label htmlFor="password">Password</Label>
+            <Link 
+              to="/forgot-password" 
+              className="text-sm text-primary hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <Input
             id="password"
             type="password"
-            placeholder="Enter your password"
+            placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             className="w-full"
             disabled={isLoading}
           />
-        </div>
-        <div className="flex justify-end">
-          <Link 
-            to="/forgot-password" 
-            className="text-sm text-primary hover:underline"
-          >
-            Forgot password?
-          </Link>
         </div>
         <Button 
           type="submit" 
