@@ -7,7 +7,7 @@ import {
   Calendar as CalendarIcon,
   CheckSquare,
   Clock,
-  DollarSign,
+  BanknoteIcon,
   TrendingUp
 } from "lucide-react";
 import {
@@ -115,11 +115,30 @@ export const Statistics = () => {
     },
     {
       title: "Total Income",
-      value: `$${eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
-      icon: DollarSign,
+      value: `₾${eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
+      icon: BanknoteIcon,
       description: "From all events",
     },
   ];
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-background border border-border p-2 rounded-lg shadow-lg">
+          <p className="text-sm font-medium">{label}</p>
+          {payload.map((pld: any, index: number) => (
+            <p key={index} className="text-sm">
+              {pld.name === "Income (₾)" ? 
+                `${pld.name}: ₾${pld.value.toFixed(2)}` :
+                `${pld.name}: ${pld.value}`
+              }
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="space-y-6">
@@ -151,7 +170,7 @@ export const Statistics = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip />
+                <Tooltip content={<CustomTooltip />} />
                 <Line
                   type="monotone"
                   dataKey="bookings"
@@ -165,7 +184,7 @@ export const Statistics = () => {
 
         <Card className="p-4">
           <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
-            <DollarSign className="w-4 h-4" />
+            <BanknoteIcon className="w-4 h-4" />
             Monthly Income
           </h3>
           <div className="h-[300px]">
@@ -174,12 +193,12 @@ export const Statistics = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip />
+                <Tooltip content={<CustomTooltip />} />
                 <Legend />
                 <Bar
                   dataKey="income"
                   fill="#82ca9d"
-                  name="Income ($)"
+                  name="Income (₾)"
                 />
               </BarChart>
             </ResponsiveContainer>
