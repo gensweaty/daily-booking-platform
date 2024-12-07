@@ -44,11 +44,11 @@ export const BookingChart = ({ data }: BookingChartProps) => {
         <TrendingUp className="w-4 h-4" />
         Total Bookings Growth
       </h3>
-      <div className="h-[300px]">
+      <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart 
             data={transformedData}
-            margin={{ top: 10, right: 30, left: 10, bottom: 30 }}
+            margin={{ top: 10, right: 30, left: 10, bottom: 40 }}
           >
             <CartesianGrid 
               strokeDasharray="3 3" 
@@ -60,8 +60,15 @@ export const BookingChart = ({ data }: BookingChartProps) => {
               axisLine={false}
               tickLine={false}
               tick={{ fontSize: 12, fill: '#6b7280' }}
-              dy={10}
-              label={{ value: 'Booking Dates', position: 'bottom', offset: 20 }}
+              dy={16}
+              height={60}
+              interval={0}
+              label={{ 
+                value: 'Booking Dates', 
+                position: 'bottom', 
+                offset: 20,
+                style: { textAnchor: 'middle' }
+              }}
             />
             <YAxis 
               axisLine={false}
@@ -70,7 +77,13 @@ export const BookingChart = ({ data }: BookingChartProps) => {
               domain={[0, 'auto']}
               allowDecimals={false}
               dx={-10}
-              label={{ value: 'Total Bookings', angle: -90, position: 'left', offset: 0 }}
+              label={{ 
+                value: 'Total Bookings', 
+                angle: -90, 
+                position: 'insideLeft', 
+                offset: 0,
+                style: { textAnchor: 'middle' }
+              }}
             />
             <Tooltip content={<CustomTooltip />} />
             <Line
