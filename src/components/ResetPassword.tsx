@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
@@ -12,6 +12,23 @@ export const ResetPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Check if we're in a recovery flow
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("Current session:", session);
+      
+      // If no session or not in recovery mode, redirect to login
+      if (!session?.user) {
+        console.log("No session found, redirecting to login");
+        navigate("/login");
+        return;
+      }
+    };
+    
+    checkSession();
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,13 +56,14 @@ export const ResetPassword = () => {
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({
+      // First update the password
+      const { error: updateError } = await supabase.auth.updateUser({
         password: password
       });
 
-      if (error) {
-        console.error("Password update error:", error);
-        throw error;
+      if (updateError) {
+        console.error("Password update error:", updateError);
+        throw updateError;
       }
 
       console.log("Password updated successfully");
@@ -54,7 +72,7 @@ export const ResetPassword = () => {
         description: "Password updated successfully. Please sign in with your new password.",
       });
 
-      // Sign out the user and redirect to sign in
+      // Sign out and redirect to login
       await supabase.auth.signOut();
       navigate("/login");
     } catch (error: any) {
