@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export const SignIn = () => {
   const [email, setEmail] = useState("");
@@ -88,11 +88,6 @@ export const SignIn = () => {
     }
   };
 
-  const handleForgotPassword = () => {
-    console.log("Navigating to forgot password page");
-    window.location.href = "/forgot-password";
-  };
-
   return (
     <div className="w-full max-w-md mx-auto p-4 sm:p-6">
       <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Sign In</h2>
@@ -113,14 +108,12 @@ export const SignIn = () => {
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <Label htmlFor="password">Password</Label>
-            <Button 
-              variant="link" 
-              className="px-0 font-normal text-primary hover:underline"
-              type="button"
-              onClick={handleForgotPassword}
+            <Link 
+              to="/forgot-password"
+              className="text-sm font-medium text-primary hover:underline"
             >
               Forgot password?
-            </Button>
+            </Link>
           </div>
           <Input
             id="password"
