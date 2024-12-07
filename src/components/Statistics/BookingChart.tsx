@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { CustomTooltip } from "./CustomTooltip";
+import { format } from 'date-fns';
 
 interface BookingChartProps {
   data: Array<{
@@ -19,15 +20,15 @@ interface BookingChartProps {
 }
 
 export const BookingChart = ({ data }: BookingChartProps) => {
-  // Transform data to show real cumulative growth
-  const transformedData = data.reduce((acc: Array<{ point: number; total: number }>, item) => {
+  // Transform data to show real cumulative growth with dates
+  const transformedData = data.reduce((acc: Array<{ date: string; total: number }>, item) => {
     const previousTotal = acc.length > 0 ? acc[acc.length - 1].total : 0;
     const currentTotal = previousTotal + item.bookings;
     
     // Only add points when there's an actual increase in bookings
     if (currentTotal > previousTotal) {
       acc.push({
-        point: acc.length + 1,
+        date: item.day,
         total: currentTotal,
       });
     }
@@ -53,12 +54,12 @@ export const BookingChart = ({ data }: BookingChartProps) => {
               vertical={false}
             />
             <XAxis 
-              dataKey="point"
+              dataKey="date"
               axisLine={false}
               tickLine={false}
               tick={{ fontSize: 12, fill: '#6b7280' }}
               dy={10}
-              label={{ value: 'Number of Bookings', position: 'bottom', offset: 20 }}
+              label={{ value: 'Booking Dates', position: 'bottom', offset: 20 }}
             />
             <YAxis 
               axisLine={false}
