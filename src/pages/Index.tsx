@@ -12,7 +12,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { AuthUI } from "@/components/AuthUI";
 import { DashboardHeader } from "@/components/DashboardHeader";
 
@@ -23,6 +23,7 @@ const Index = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const confirmationStatus = searchParams.get("email_confirmed");
@@ -32,8 +33,10 @@ const Index = () => {
         description: "Thank you! Your email has been successfully confirmed.",
         duration: 5000,
       });
+      // Redirect to login page after email confirmation
+      navigate("/login");
     }
-  }, [searchParams, toast]);
+  }, [searchParams, toast, navigate]);
 
   useEffect(() => {
     const getProfile = async () => {
