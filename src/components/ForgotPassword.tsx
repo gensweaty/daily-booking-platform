@@ -18,25 +18,7 @@ export const ForgotPassword = () => {
     console.log("Attempting to send reset email to:", email);
 
     try {
-      // First, check if the user exists
-      const { data: users, error: userError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('username', email)
-        .single();
-
-      if (userError) {
-        console.log("User lookup error:", userError);
-        // Don't reveal if email exists for security
-        toast({
-          title: "Reset Link Sent",
-          description: "If an account exists with this email, you will receive a password reset link.",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Send the reset password email
+      // Send the reset password email directly without checking profiles
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
