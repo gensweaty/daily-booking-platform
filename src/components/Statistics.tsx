@@ -38,6 +38,7 @@ export const Statistics = () => {
   const { data: eventStats } = useQuery({
     queryKey: ['eventStats', user?.id, dateRange.start, dateRange.end],
     queryFn: async () => {
+      // Get events for the selected date range
       const { data: events } = await supabase
         .from('events')
         .select('*')

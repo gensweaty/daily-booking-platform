@@ -27,10 +27,20 @@ export const IncomeChart = ({ data }: IncomeChartProps) => {
       </h3>
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
+          <BarChart data={data || []}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" />
-            <YAxis />
+            <XAxis 
+              dataKey="month"
+              label={{ value: 'Months', position: 'bottom' }}
+            />
+            <YAxis 
+              label={{ 
+                value: 'Income (₾)', 
+                angle: -90, 
+                position: 'insideLeft',
+                offset: -5
+              }}
+            />
             <Tooltip content={<CustomTooltip />} />
             <Bar
               dataKey="income"

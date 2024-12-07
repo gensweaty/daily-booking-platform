@@ -27,10 +27,20 @@ export const BookingChart = ({ data }: BookingChartProps) => {
       </h3>
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
+          <BarChart data={data || []}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="day" />
-            <YAxis />
+            <XAxis 
+              dataKey="day"
+              label={{ value: 'Days of Month', position: 'bottom' }}
+            />
+            <YAxis 
+              label={{ 
+                value: 'Number of Bookings', 
+                angle: -90, 
+                position: 'insideLeft',
+                offset: -5
+              }}
+            />
             <Tooltip content={<CustomTooltip />} />
             <Bar
               dataKey="bookings"
