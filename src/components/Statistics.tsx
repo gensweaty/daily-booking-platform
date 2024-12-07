@@ -45,12 +45,13 @@ export const Statistics = () => {
         .gte('start_date', dateRange.start.toISOString())
         .lte('start_date', dateRange.end.toISOString());
 
-      const lastMonths = eachMonthOfInterval({
-        start: subMonths(dateRange.end, 5),
+      // Get the months between start and end date for the chart
+      const monthsInRange = eachMonthOfInterval({
+        start: dateRange.start,
         end: dateRange.end
       });
 
-      const monthlyBookings = lastMonths.map(month => {
+      const monthlyBookings = monthsInRange.map(month => {
         const monthStart = startOfMonth(month);
         const monthEnd = endOfMonth(month);
         const monthEvents = events?.filter(event => {
