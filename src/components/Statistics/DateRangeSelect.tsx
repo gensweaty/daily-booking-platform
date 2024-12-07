@@ -5,6 +5,7 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { DateRange } from "react-day-picker";
 
 interface DateRangeSelectProps {
   selectedDate: Date;
@@ -13,6 +14,10 @@ interface DateRangeSelectProps {
 
 export const DateRangeSelect = ({ selectedDate, onDateChange }: DateRangeSelectProps) => {
   const [open, setOpen] = useState(false);
+  const [date, setDate] = useState<DateRange | undefined>({
+    from: selectedDate,
+    to: selectedDate,
+  });
 
   return (
     <div className="flex items-center gap-2 mb-4">
@@ -21,25 +26,39 @@ export const DateRangeSelect = ({ selectedDate, onDateChange }: DateRangeSelectP
           <Button
             variant="outline"
             className={cn(
-              "w-[240px] justify-start text-left font-normal",
-              !selectedDate && "text-muted-foreground"
+              "w-[280px] justify-start text-left font-normal",
+              !date && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {selectedDate ? format(selectedDate, "MMMM yyyy") : <span>Pick a month</span>}
+            {date?.from ? (
+              date.to ? (
+                <>
+                  {format(date.from, "LLL dd, y")} - {format(date.to, "LLL dd, y")}
+                </>
+              ) : (
+                format(date.from, "LLL dd, y")
+              )
+            ) : (
+              <span>Pick a date range</span>
+            )}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
           <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={(date) => {
-              if (date) {
-                onDateChange(date);
+            initialFocus
+            mode="range"
+            defaultMonth={selectedDate}
+            selected={date}
+            onSelect={(newDate) => {
+              setDate(newDate);
+              if (newDate?.from) {
+                onDateChange(newDate.from);
                 setOpen(false);
               }
             }}
-            initialFocus
+            numberOfMonths={2}
+            className="bg-background border rounded-md shadow-md"
           />
         </PopoverContent>
       </Popover>
