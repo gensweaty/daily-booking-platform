@@ -37,9 +37,9 @@ export const SignIn = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
-    setIsLoading(true);
-
+    
     try {
+      setIsLoading(true);
       console.log("Starting sign in process...");
       
       const trimmedEmail = email.trim();
@@ -47,7 +47,7 @@ export const SignIn = () => {
 
       console.log("Attempting sign in with email:", trimmedEmail);
       
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
@@ -68,14 +68,11 @@ export const SignIn = () => {
         return;
       }
 
-      if (data?.user) {
-        console.log("Sign in successful:", data.user);
-        toast({
-          title: "Success",
-          description: "Signed in successfully",
-        });
-        navigate("/");
-      }
+      toast({
+        title: "Success",
+        description: "Signed in successfully",
+      });
+      
     } catch (error: any) {
       console.error("Sign in error:", error);
       toast({
