@@ -22,8 +22,7 @@ export const SignIn = () => {
     };
     checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth state changed:", event, session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         navigate("/");
       }
@@ -39,21 +38,22 @@ export const SignIn = () => {
     if (isLoading) return;
     
     setIsLoading(true);
-    console.log("Attempting to sign in with email:", email);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("Starting sign in process...");
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
+      console.log("Sign in response:", { data, error });
+
       if (error) {
-        console.error("Sign in error:", error);
-        
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Sign in failed",
-            description: "Invalid email or password. Please check your credentials or sign up if you don't have an account.",
+            description: "Please check your email and password, or sign up if you don't have an account.",
             variant: "destructive",
           });
         } else if (error.message.includes("Email not confirmed")) {
@@ -65,17 +65,20 @@ export const SignIn = () => {
         } else {
           toast({
             title: "Error",
-            description: error.message || "An unexpected error occurred. Please try again.",
+            description: "An unexpected error occurred. Please try again.",
             variant: "destructive",
           });
         }
         return;
       }
 
-      toast({
-        title: "Success",
-        description: "Signed in successfully",
-      });
+      if (data.session) {
+        toast({
+          title: "Success",
+          description: "Signed in successfully",
+        });
+        navigate("/");
+      }
       
     } catch (error: any) {
       console.error("Sign in error:", error);
