@@ -45,7 +45,7 @@ export const CalendarView = ({
                   <div
                     key={event.id}
                     className={`text-xs sm:text-sm p-1 rounded ${
-                      event.type === "meeting"
+                      event.type === "birthday"
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground"
                     } cursor-pointer truncate hover:opacity-80 transition-opacity`}

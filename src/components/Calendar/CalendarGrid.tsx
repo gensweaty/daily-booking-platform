@@ -39,7 +39,7 @@ export const CalendarGrid = ({
                 <div
                   key={event.id}
                   className={`text-sm p-1 rounded ${
-                    event.type === "meeting" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
+                    event.type === "birthday" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
                   } cursor-pointer truncate`}
                   onClick={(e) => {
                     e.stopPropagation();
