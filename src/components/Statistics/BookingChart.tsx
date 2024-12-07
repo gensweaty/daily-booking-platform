@@ -20,10 +20,11 @@ interface BookingChartProps {
 
 export const BookingChart = ({ data }: BookingChartProps) => {
   // Transform data to show real cumulative growth
-  const transformedData = data.reduce((acc: any[], item, index) => {
-    const previousTotal = index > 0 ? acc[index - 1].total : 0;
+  const transformedData = data.reduce((acc: Array<{ point: number; total: number }>, item) => {
+    const previousTotal = acc.length > 0 ? acc[acc.length - 1].total : 0;
     const currentTotal = previousTotal + item.bookings;
     
+    // Only add points when there's an actual increase in bookings
     if (currentTotal > previousTotal) {
       acc.push({
         point: acc.length + 1,
