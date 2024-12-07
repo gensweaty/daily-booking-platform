@@ -35,7 +35,7 @@ const AppRoutes = () => {
     <Routes>
       <Route 
         path="/login" 
-        element={user ? <Navigate to="/" /> : <AuthUI />} 
+        element={user ? <Navigate to="/" /> : <AuthUI defaultTab="signin" />} 
       />
       <Route 
         path="/signup" 
