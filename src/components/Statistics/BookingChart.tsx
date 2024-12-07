@@ -21,14 +21,16 @@ interface BookingChartProps {
 
 export const BookingChart = ({ data }: BookingChartProps) => {
   // Transform data to show real cumulative growth with dates
-  const transformedData = data.reduce((acc: Array<{ date: string; total: number }>, item) => {
+  const transformedData = data.reduce((acc: Array<{ date: string; total: number }>, item, index, arr) => {
     const previousTotal = acc.length > 0 ? acc[acc.length - 1].total : 0;
     const currentTotal = previousTotal + item.bookings;
     
     // Only add points when there's an actual increase in bookings
     if (currentTotal > previousTotal) {
+      // Format the date as "DD MMM" (e.g., "15 Jan")
+      const formattedDate = `${parseInt(item.day)} ${format(new Date(), 'MMM')}`;
       acc.push({
-        date: item.day,
+        date: formattedDate,
         total: currentTotal,
       });
     }
