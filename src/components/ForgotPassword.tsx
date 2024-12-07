@@ -15,14 +15,35 @@ export const ForgotPassword = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    console.log("Attempting to send reset email to:", email);
 
     try {
+      // First check if the user exists
+      const { data: users, error: userError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', email)
+        .single();
+
+      if (userError) {
+        console.log("User lookup error:", userError);
+        // Don't reveal if email exists or not for security
+        toast({
+          title: "Reset Link Sent",
+          description: "If an account exists with this email, you will receive a password reset link.",
+        });
+        setEmail("");
+        return;
+      }
+
+      // Send the reset password email
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
       if (error) throw error;
 
+      console.log("Reset password email sent successfully");
       toast({
         title: "Success",
         description: "If an account exists with this email, you will receive a password reset link.",
@@ -30,10 +51,10 @@ export const ForgotPassword = () => {
       setEmail("");
     } catch (error: any) {
       console.error("Password reset request error:", error);
+      // Don't reveal if email exists or not
       toast({
-        title: "Error",
-        description: error.message || "An error occurred while sending the reset link",
-        variant: "destructive",
+        title: "Reset Link Sent",
+        description: "If an account exists with this email, you will receive a password reset link.",
       });
     } finally {
       setIsLoading(false);

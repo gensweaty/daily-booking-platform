@@ -16,6 +16,7 @@ export const ResetPassword = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    console.log("Attempting to reset password");
 
     if (password !== confirmPassword) {
       toast({
@@ -44,6 +45,7 @@ export const ResetPassword = () => {
 
       if (error) throw error;
 
+      console.log("Password updated successfully");
       toast({
         title: "Success",
         description: "Password updated successfully. Please sign in with your new password.",
