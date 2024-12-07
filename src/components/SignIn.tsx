@@ -31,28 +31,6 @@ export const SignIn = () => {
     try {
       console.log("Starting sign in process...");
       console.log("Email being used:", email.trim());
-      
-      // First check if the user exists
-      const { data: { users }, error: getUserError } = await supabase.auth.admin.listUsers({
-        filters: {
-          email: email.trim()
-        }
-      });
-
-      if (getUserError) {
-        console.error("Error checking user:", getUserError);
-        throw getUserError;
-      }
-
-      if (!users || users.length === 0) {
-        toast({
-          title: "Error",
-          description: "No account found with this email. Please sign up first.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
 
       // Attempt to sign in
       const { data, error } = await supabase.auth.signInWithPassword({
