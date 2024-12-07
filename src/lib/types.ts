@@ -16,17 +16,7 @@ export interface Note {
   user_id?: string;
 }
 
-export interface CalendarEvent {
-  id: string;
-  title: string;
-  description?: string;
-  start_date: string;
-  end_date: string;
-  location?: string;
-  type: 'meeting' | 'reminder';
-  created_at: string;
-  user_id?: string;
-}
+export type { CalendarEventType as CalendarEvent } from './types/calendar';
 
 export interface Reminder {
   id: string;

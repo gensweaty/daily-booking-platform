@@ -1,29 +1,25 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
-import { CalendarEvent } from "@/lib/types";
+import { CalendarEventType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2 } from "lucide-react";
-import { Label } from "@/components/ui/label";
+import { EventDialogFields } from "./EventDialogFields";
 
 interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate: Date | null;
   defaultEndDate?: Date | null;
-  onSubmit: (data: Partial<CalendarEvent>) => void;
+  onSubmit: (data: Partial<CalendarEventType>) => void;
   onDelete?: () => void;
-  event?: CalendarEvent;
+  event?: CalendarEventType;
 }
 
 export const EventDialog = ({
   open,
   onOpenChange,
   selectedDate,
-  defaultEndDate,
   onSubmit,
   onDelete,
   event,
@@ -41,13 +37,11 @@ export const EventDialog = ({
 
   useEffect(() => {
     if (event) {
-      // Editing existing event - use event times
       const start = new Date(event.start_date);
       const end = new Date(event.end_date);
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     } else if (selectedDate) {
-      // Creating new event - use selected time
       const start = new Date(selectedDate);
       const end = new Date(start);
       end.setHours(start.getHours() + 1);
@@ -60,7 +54,6 @@ export const EventDialog = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Create Date objects to ensure proper timezone handling
     const startDateTime = new Date(startDate);
     const endDateTime = new Date(endDate);
     
@@ -83,114 +76,29 @@ export const EventDialog = ({
       <DialogContent>
         <DialogTitle>{event ? "Edit Event" : "Add New Event"}</DialogTitle>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">User Name (required)</Label>
-            <Input
-              id="title"
-              placeholder="User name"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="surname">User Surname (required)</Label>
-            <Input
-              id="surname"
-              placeholder="User surname"
-              value={userSurname}
-              onChange={(e) => setUserSurname(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="number">User Number</Label>
-            <Input
-              id="number"
-              type="tel"
-              placeholder="Phone number"
-              value={userNumber}
-              onChange={(e) => setUserNumber(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">User Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="Email address"
-              value={userEmail}
-              onChange={(e) => setUserEmail(e.target.value)}
-            />
-          </div>
-
-          <Select value={type} onValueChange={(value) => setType(value as "meeting" | "reminder")}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="meeting">Meeting</SelectItem>
-              <SelectItem value="reminder">Reminder</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              type="datetime-local"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-            />
-            <Input
-              type="datetime-local"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Payment Status</Label>
-            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select payment status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Not paid</SelectItem>
-                <SelectItem value="partly">Paid Partly</SelectItem>
-                <SelectItem value="fully">Paid Fully</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {paymentStatus && (
-            <div className="space-y-2">
-              <Label htmlFor="amount">Payment Amount</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                placeholder="Enter amount"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-                required
-              />
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Event Notes</Label>
-            <Textarea
-              id="notes"
-              placeholder="Add notes about the event"
-              value={eventNotes}
-              onChange={(e) => setEventNotes(e.target.value)}
-            />
-          </div>
-
+          <EventDialogFields
+            title={title}
+            setTitle={setTitle}
+            userSurname={userSurname}
+            setUserSurname={setUserSurname}
+            userNumber={userNumber}
+            setUserNumber={setUserNumber}
+            userEmail={userEmail}
+            setUserEmail={setUserEmail}
+            eventNotes={eventNotes}
+            setEventNotes={setEventNotes}
+            type={type}
+            setType={setType}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
+            paymentStatus={paymentStatus}
+            setPaymentStatus={setPaymentStatus}
+            paymentAmount={paymentAmount}
+            setPaymentAmount={setPaymentAmount}
+          />
+          
           <div className="flex justify-between gap-4">
             <Button type="submit" className="flex-1">
               {event ? "Update Event" : "Create Event"}
