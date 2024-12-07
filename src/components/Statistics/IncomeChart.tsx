@@ -25,7 +25,7 @@ export const IncomeChart = ({ data }: IncomeChartProps) => {
         <BanknoteIcon className="w-4 h-4" />
         Three Month Income Comparison
       </h3>
-      <div className="h-[300px] w-full">
+      <div className="h-[345px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart 
             data={data || []}
