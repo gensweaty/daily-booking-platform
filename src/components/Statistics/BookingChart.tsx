@@ -19,27 +19,28 @@ interface BookingChartProps {
 }
 
 export const BookingChart = ({ data }: BookingChartProps) => {
-  // Transform data to create a natural progression line
-  const transformedData = data.reduce((acc: any[], item, index, array) => {
-    // Always add the current data point
-    acc.push(item);
+  // Transform data to show cumulative growth
+  const transformedData = data.reduce((acc: any[], item, index) => {
+    const previousTotal = index > 0 ? acc[index - 1].bookings : 0;
+    const currentTotal = previousTotal + item.bookings;
     
-    // If there's a next item and there's a change in bookings,
-    // add intermediate points for smoother transition
-    if (index < array.length - 1 && array[index + 1].bookings !== item.bookings) {
-      const currentBookings = item.bookings;
-      const nextBookings = array[index + 1].bookings;
-      const diff = nextBookings - currentBookings;
-      
-      // Add two intermediate points for smoother curve
+    // Add the main point
+    acc.push({
+      point: index + 1,
+      bookings: currentTotal,
+    });
+    
+    // If there's a change in bookings, add intermediate points for smoother curve
+    if (item.bookings > 0) {
+      // Add two intermediate points for each booking for smoother curve
       acc.push({
-        day: `${item.day}-1`,
-        bookings: currentBookings + (diff * 0.33)
+        point: index + 1.33,
+        bookings: currentTotal - (item.bookings * 0.66),
       });
       
       acc.push({
-        day: `${item.day}-2`,
-        bookings: currentBookings + (diff * 0.66)
+        point: index + 1.66,
+        bookings: currentTotal - (item.bookings * 0.33),
       });
     }
     
@@ -50,7 +51,7 @@ export const BookingChart = ({ data }: BookingChartProps) => {
     <Card className="p-4">
       <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
         <TrendingUp className="w-4 h-4" />
-        Daily Bookings
+        Total Bookings Growth
       </h3>
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -64,12 +65,12 @@ export const BookingChart = ({ data }: BookingChartProps) => {
               vertical={false}
             />
             <XAxis 
-              dataKey="day"
+              dataKey="point"
               axisLine={false}
               tickLine={false}
               tick={{ fontSize: 12, fill: '#6b7280' }}
               dy={10}
-              interval={2}  // Show every third label to avoid crowding
+              interval={1}
             />
             <YAxis 
               axisLine={false}
@@ -97,7 +98,7 @@ export const BookingChart = ({ data }: BookingChartProps) => {
                 strokeWidth: 2,
                 fill: "#fff"
               }}
-              name="Bookings"
+              name="Total Bookings"
               connectNulls
             />
           </LineChart>
