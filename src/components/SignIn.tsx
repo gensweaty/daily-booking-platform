@@ -23,6 +23,7 @@ export const SignIn = () => {
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event, session);
       if (session) {
         navigate("/");
       }
@@ -38,22 +39,53 @@ export const SignIn = () => {
     if (isLoading) return;
     
     setIsLoading(true);
+    console.log("Attempting to sign in with email:", email);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      // First, check if the user exists
+      const { data: { users }, error: getUserError } = await supabase.auth.admin.listUsers({
+        filters: {
+          email: email.trim()
+        }
+      });
+
+      if (getUserError) {
+        console.error("Error checking user existence:", getUserError);
+        toast({
+          title: "Error",
+          description: "An error occurred while checking user credentials.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // If no user found with this email
+      if (!users || users.length === 0) {
+        console.log("No user found with this email");
+        toast({
+          title: "Sign in failed",
+          description: "No account found with this email. Please sign up first.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Attempt to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
-      if (error) {
-        // Handle specific error cases
-        if (error.message.includes("Invalid login credentials")) {
+      if (signInError) {
+        console.error("Sign in error:", signInError);
+        
+        if (signInError.message.includes("Invalid login credentials")) {
           toast({
             title: "Sign in failed",
-            description: "Invalid email or password. Please check your credentials and try again.",
+            description: "Incorrect password. Please try again.",
             variant: "destructive",
           });
-        } else if (error.message.includes("Email not confirmed")) {
+        } else if (signInError.message.includes("Email not confirmed")) {
           toast({
             title: "Email not verified",
             description: "Please verify your email address before signing in. Check your inbox and spam folder.",
@@ -62,7 +94,7 @@ export const SignIn = () => {
         } else {
           toast({
             title: "Error",
-            description: "An unexpected error occurred. Please try again.",
+            description: signInError.message || "An unexpected error occurred. Please try again.",
             variant: "destructive",
           });
         }
