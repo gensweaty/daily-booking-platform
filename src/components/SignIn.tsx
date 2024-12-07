@@ -110,7 +110,7 @@ export const SignIn = () => {
             <Label htmlFor="password">Password</Label>
             <Link 
               to="/forgot-password"
-              className="text-sm font-medium text-primary hover:underline"
+              className="text-sm text-primary hover:underline"
             >
               Forgot password?
             </Link>
