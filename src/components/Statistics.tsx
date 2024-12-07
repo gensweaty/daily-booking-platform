@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { CheckSquare, Clock, BanknoteIcon, CalendarIcon } from "lucide-react";
-import { format, parseISO, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { StatCard } from "./Statistics/StatCard";
 import { BookingChart } from "./Statistics/BookingChart";
 import { IncomeChart } from "./Statistics/IncomeChart";
@@ -45,23 +45,44 @@ export const Statistics = () => {
         .gte('start_date', dateRange.start.toISOString())
         .lte('start_date', dateRange.end.toISOString());
 
-      // Get the months between start and end date for the chart
-      const monthsInRange = eachMonthOfInterval({
+      // Get all days in the selected month for daily bookings
+      const daysInRange = eachDayOfInterval({
         start: dateRange.start,
         end: dateRange.end
       });
 
-      const monthlyBookings = monthsInRange.map(month => {
-        const monthStart = startOfMonth(month);
-        const monthEnd = endOfMonth(month);
-        const monthEvents = events?.filter(event => {
+      const dailyBookings = daysInRange.map(day => {
+        const dayEvents = events?.filter(event => {
           const eventDate = parseISO(event.start_date);
-          return eventDate >= monthStart && eventDate <= monthEnd;
+          return format(eventDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
         });
 
         return {
+          day: format(day, 'dd'),
+          bookings: dayEvents?.length || 0,
+        };
+      });
+
+      // Get three months for income comparison (previous, current, next)
+      const threeMonths = [
+        subMonths(startOfMonth(currentDate), 1),
+        startOfMonth(currentDate),
+        addMonths(startOfMonth(currentDate), 1)
+      ];
+
+      const monthlyIncome = await Promise.all(threeMonths.map(async (month) => {
+        const monthStart = startOfMonth(month);
+        const monthEnd = endOfMonth(month);
+        
+        const { data: monthEvents } = await supabase
+          .from('events')
+          .select('*')
+          .eq('user_id', user?.id)
+          .gte('start_date', monthStart.toISOString())
+          .lte('start_date', monthEnd.toISOString());
+
+        return {
           month: format(month, 'MMM yyyy'),
-          bookings: monthEvents?.length || 0,
           income: monthEvents?.reduce((acc, event) => {
             if (event.payment_status === 'fully' || event.payment_status === 'partly') {
               return acc + (event.payment_amount || 0);
@@ -69,7 +90,7 @@ export const Statistics = () => {
             return acc;
           }, 0) || 0,
         };
-      });
+      }));
 
       const totalIncome = events?.reduce((acc, event) => {
         if (event.payment_status === 'fully' || event.payment_status === 'partly') {
@@ -82,7 +103,8 @@ export const Statistics = () => {
         total: events?.length || 0,
         meetings: events?.filter(e => e.type === 'meeting').length || 0,
         reminders: events?.filter(e => e.type === 'reminder').length || 0,
-        monthlyStats: monthlyBookings,
+        dailyStats: dailyBookings,
+        monthlyIncome,
         totalIncome,
       };
     },
@@ -130,8 +152,8 @@ export const Statistics = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <BookingChart data={eventStats?.monthlyStats || []} />
-        <IncomeChart data={eventStats?.monthlyStats || []} />
+        <BookingChart data={eventStats?.dailyStats || []} />
+        <IncomeChart data={eventStats?.monthlyIncome || []} />
       </div>
     </div>
   );
