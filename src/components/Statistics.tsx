@@ -11,9 +11,10 @@ import { useState } from "react";
 
 export const Statistics = () => {
   const { user } = useAuth();
+  const currentDate = new Date();
   const [dateRange, setDateRange] = useState({ 
-    start: startOfMonth(new Date()),
-    end: endOfMonth(new Date())
+    start: startOfMonth(currentDate),
+    end: endOfMonth(currentDate)
   });
 
   const { data: taskStats } = useQuery({
@@ -117,7 +118,7 @@ export const Statistics = () => {
   return (
     <div className="space-y-6">
       <DateRangeSelect 
-        selectedDate={dateRange.start}
+        selectedDate={dateRange}
         onDateChange={(start, end) => setDateRange({ start, end: end || start })}
       />
       

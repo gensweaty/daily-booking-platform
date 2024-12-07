@@ -8,15 +8,18 @@ import { useState } from "react";
 import { DateRange } from "react-day-picker";
 
 interface DateRangeSelectProps {
-  selectedDate: Date;
+  selectedDate: {
+    start: Date;
+    end: Date;
+  };
   onDateChange: (start: Date, end: Date | null) => void;
 }
 
 export const DateRangeSelect = ({ selectedDate, onDateChange }: DateRangeSelectProps) => {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<DateRange | undefined>({
-    from: selectedDate,
-    to: selectedDate,
+    from: selectedDate.start,
+    to: selectedDate.end,
   });
 
   return (
@@ -48,7 +51,7 @@ export const DateRangeSelect = ({ selectedDate, onDateChange }: DateRangeSelectP
           <Calendar
             initialFocus
             mode="range"
-            defaultMonth={selectedDate}
+            defaultMonth={selectedDate.start}
             selected={date}
             onSelect={(newDate) => {
               setDate(newDate);
