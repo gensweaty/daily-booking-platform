@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -12,20 +12,6 @@ export const ResetPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-
-  // Check if we have a valid reset token
-  useEffect(() => {
-    const type = searchParams.get("type");
-    if (type !== "recovery") {
-      toast({
-        title: "Error",
-        description: "Invalid password reset link. Please request a new one.",
-        variant: "destructive",
-      });
-      navigate("/forgot-password");
-    }
-  }, [searchParams, navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

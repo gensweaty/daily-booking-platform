@@ -17,7 +17,7 @@ export const ForgotPassword = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
@@ -32,7 +32,7 @@ export const ForgotPassword = () => {
       console.error("Password reset request error:", error);
       toast({
         title: "Error",
-        description: "An error occurred while sending the reset link. Please try again.",
+        description: error.message || "An error occurred while sending the reset link",
         variant: "destructive",
       });
     } finally {
