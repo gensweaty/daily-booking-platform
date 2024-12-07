@@ -54,10 +54,20 @@ export const SignIn = () => {
 
       if (error) {
         console.error("Sign in error:", error);
-        let errorMessage = "Invalid email or password. Please check your credentials and try again.";
         
-        if (error.message.includes("Email not confirmed")) {
-          errorMessage = "Please verify your email address before signing in. Check your inbox and spam folder.";
+        // Parse the error message from the response body if available
+        let errorMessage = "An error occurred during sign in";
+        try {
+          if (error.message.includes("Invalid login credentials")) {
+            errorMessage = "Invalid email or password. Please check your credentials and try again.";
+          } else if (error.message.includes("Email not confirmed")) {
+            errorMessage = "Please verify your email address before signing in. Check your inbox and spam folder.";
+          } else {
+            // Keep the original error message if it's not one we specifically handle
+            errorMessage = error.message;
+          }
+        } catch (parseError) {
+          console.error("Error parsing error message:", parseError);
         }
 
         toast({
