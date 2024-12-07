@@ -17,10 +17,10 @@ export type Database = {
           id: string
           payment_amount: number | null
           payment_status: string | null
+          social_network_link: string | null
           start_date: string
           title: string
           type: string
-          user_email: string | null
           user_id: string | null
           user_number: string | null
           user_surname: string | null
@@ -32,10 +32,10 @@ export type Database = {
           id?: string
           payment_amount?: number | null
           payment_status?: string | null
+          social_network_link?: string | null
           start_date: string
           title: string
           type: string
-          user_email?: string | null
           user_id?: string | null
           user_number?: string | null
           user_surname?: string | null
@@ -47,10 +47,10 @@ export type Database = {
           id?: string
           payment_amount?: number | null
           payment_status?: string | null
+          social_network_link?: string | null
           start_date?: string
           title?: string
           type?: string
-          user_email?: string | null
           user_id?: string | null
           user_number?: string | null
           user_surname?: string | null

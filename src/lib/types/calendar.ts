@@ -5,7 +5,7 @@ export interface CalendarEventType {
   title: string;
   user_surname?: string;
   user_number?: string;
-  user_email?: string;
+  social_network_link?: string;
   event_notes?: string;
   start_date: string;
   end_date: string;

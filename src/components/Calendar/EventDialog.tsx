@@ -27,7 +27,7 @@ export const EventDialog = ({
   const [title, setTitle] = useState(event?.title || "");
   const [userSurname, setUserSurname] = useState(event?.user_surname || "");
   const [userNumber, setUserNumber] = useState(event?.user_number || "");
-  const [userEmail, setUserEmail] = useState(event?.user_email || "");
+  const [socialNetworkLink, setSocialNetworkLink] = useState(event?.social_network_link || "");
   const [eventNotes, setEventNotes] = useState(event?.event_notes || "");
   const [type, setType] = useState<"birthday" | "private_party">(event?.type || "birthday");
   const [startDate, setStartDate] = useState("");
@@ -61,7 +61,7 @@ export const EventDialog = ({
       title,
       user_surname: userSurname,
       user_number: userNumber,
-      user_email: userEmail,
+      social_network_link: socialNetworkLink,
       event_notes: eventNotes,
       start_date: startDateTime.toISOString(),
       end_date: endDateTime.toISOString(),
@@ -83,8 +83,8 @@ export const EventDialog = ({
             setUserSurname={setUserSurname}
             userNumber={userNumber}
             setUserNumber={setUserNumber}
-            userEmail={userEmail}
-            setUserEmail={setUserEmail}
+            socialNetworkLink={socialNetworkLink}
+            setSocialNetworkLink={setSocialNetworkLink}
             eventNotes={eventNotes}
             setEventNotes={setEventNotes}
             type={type}

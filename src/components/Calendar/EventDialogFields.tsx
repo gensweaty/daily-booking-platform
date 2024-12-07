@@ -10,8 +10,8 @@ interface EventDialogFieldsProps {
   setUserSurname: (value: string) => void;
   userNumber: string;
   setUserNumber: (value: string) => void;
-  userEmail: string;
-  setUserEmail: (value: string) => void;
+  socialNetworkLink: string;
+  setSocialNetworkLink: (value: string) => void;
   eventNotes: string;
   setEventNotes: (value: string) => void;
   type: "birthday" | "private_party";
@@ -33,8 +33,8 @@ export const EventDialogFields = ({
   setUserSurname,
   userNumber,
   setUserNumber,
-  userEmail,
-  setUserEmail,
+  socialNetworkLink,
+  setSocialNetworkLink,
   eventNotes,
   setEventNotes,
   type,
@@ -73,13 +73,13 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="socialNetwork">Social Network Link</Label>
         <Input
-          id="email"
-          type="email"
-          placeholder="Email address"
-          value={userEmail}
-          onChange={(e) => setUserEmail(e.target.value)}
+          id="socialNetwork"
+          type="url"
+          placeholder="Social network profile link"
+          value={socialNetworkLink}
+          onChange={(e) => setSocialNetworkLink(e.target.value)}
         />
       </div>
 
