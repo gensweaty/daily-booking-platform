@@ -50,6 +50,47 @@ export type Database = {
           },
         ]
       }
+      note_files: {
+        Row: {
+          content_type: string | null
+          created_at: string | null
+          file_path: string
+          filename: string
+          id: string
+          note_id: string | null
+          size: number | null
+          user_id: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string | null
+          file_path: string
+          filename: string
+          id?: string
+          note_id?: string | null
+          size?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string | null
+          file_path?: string
+          filename?: string
+          id?: string
+          note_id?: string | null
+          size?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_files_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notes: {
         Row: {
           color: string | null
@@ -74,6 +115,24 @@ export type Database = {
           id?: string
           title?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          username?: string
         }
         Relationships: []
       }
