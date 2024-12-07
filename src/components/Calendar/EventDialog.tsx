@@ -7,6 +7,7 @@ import { CalendarEvent } from "@/lib/types";
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 interface EventDialogProps {
   open: boolean;
@@ -28,11 +29,15 @@ export const EventDialog = ({
   event,
 }: EventDialogProps) => {
   const [title, setTitle] = useState(event?.title || "");
-  const [description, setDescription] = useState(event?.description || "");
-  const [location, setLocation] = useState(event?.location || "");
+  const [userSurname, setUserSurname] = useState(event?.user_surname || "");
+  const [userNumber, setUserNumber] = useState(event?.user_number || "");
+  const [userEmail, setUserEmail] = useState(event?.user_email || "");
+  const [eventNotes, setEventNotes] = useState(event?.event_notes || "");
   const [type, setType] = useState<"meeting" | "reminder">(event?.type || "meeting");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState(event?.payment_status || "");
+  const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
 
   useEffect(() => {
     if (event) {
@@ -61,11 +66,15 @@ export const EventDialog = ({
     
     onSubmit({
       title,
-      description,
-      location,
+      user_surname: userSurname,
+      user_number: userNumber,
+      user_email: userEmail,
+      event_notes: eventNotes,
       start_date: startDateTime.toISOString(),
       end_date: endDateTime.toISOString(),
       type,
+      payment_status: paymentStatus || null,
+      payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
     });
   };
 
@@ -74,12 +83,50 @@ export const EventDialog = ({
       <DialogContent>
         <DialogTitle>{event ? "Edit Event" : "Add New Event"}</DialogTitle>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <Input
-            placeholder="Event title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
+          <div className="space-y-2">
+            <Label htmlFor="title">User Name (required)</Label>
+            <Input
+              id="title"
+              placeholder="User name"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="surname">User Surname (required)</Label>
+            <Input
+              id="surname"
+              placeholder="User surname"
+              value={userSurname}
+              onChange={(e) => setUserSurname(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="number">User Number</Label>
+            <Input
+              id="number"
+              type="tel"
+              placeholder="Phone number"
+              value={userNumber}
+              onChange={(e) => setUserNumber(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">User Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="Email address"
+              value={userEmail}
+              onChange={(e) => setUserEmail(e.target.value)}
+            />
+          </div>
+
           <Select value={type} onValueChange={(value) => setType(value as "meeting" | "reminder")}>
             <SelectTrigger>
               <SelectValue placeholder="Select type" />
@@ -89,6 +136,7 @@ export const EventDialog = ({
               <SelectItem value="reminder">Reminder</SelectItem>
             </SelectContent>
           </Select>
+
           <div className="grid grid-cols-2 gap-4">
             <Input
               type="datetime-local"
@@ -103,16 +151,46 @@ export const EventDialog = ({
               required
             />
           </div>
-          <Input
-            placeholder="Location (optional)"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
-          <Textarea
-            placeholder="Description (optional)"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
+
+          <div className="space-y-2">
+            <Label>Payment Status</Label>
+            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select payment status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Not paid</SelectItem>
+                <SelectItem value="partly">Paid Partly</SelectItem>
+                <SelectItem value="fully">Paid Fully</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {paymentStatus && (
+            <div className="space-y-2">
+              <Label htmlFor="amount">Payment Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                placeholder="Enter amount"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                required
+              />
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Event Notes</Label>
+            <Textarea
+              id="notes"
+              placeholder="Add notes about the event"
+              value={eventNotes}
+              onChange={(e) => setEventNotes(e.target.value)}
+            />
+          </div>
+
           <div className="flex justify-between gap-4">
             <Button type="submit" className="flex-1">
               {event ? "Update Event" : "Create Event"}

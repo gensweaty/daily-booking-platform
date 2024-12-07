@@ -12,36 +12,48 @@ export type Database = {
       events: {
         Row: {
           created_at: string | null
-          description: string | null
           end_date: string
+          event_notes: string | null
           id: string
-          location: string | null
+          payment_amount: number | null
+          payment_status: string | null
           start_date: string
           title: string
           type: string
+          user_email: string | null
           user_id: string | null
+          user_number: string | null
+          user_surname: string | null
         }
         Insert: {
           created_at?: string | null
-          description?: string | null
           end_date: string
+          event_notes?: string | null
           id?: string
-          location?: string | null
+          payment_amount?: number | null
+          payment_status?: string | null
           start_date: string
           title: string
           type: string
+          user_email?: string | null
           user_id?: string | null
+          user_number?: string | null
+          user_surname?: string | null
         }
         Update: {
           created_at?: string | null
-          description?: string | null
           end_date?: string
+          event_notes?: string | null
           id?: string
-          location?: string | null
+          payment_amount?: number | null
+          payment_status?: string | null
           start_date?: string
           title?: string
           type?: string
+          user_email?: string | null
           user_id?: string | null
+          user_number?: string | null
+          user_surname?: string | null
         }
         Relationships: []
       }
