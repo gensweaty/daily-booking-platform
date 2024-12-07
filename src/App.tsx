@@ -13,7 +13,6 @@ import { useAuth } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
-// Protected Route wrapper component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
@@ -28,7 +27,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// App Routes component to avoid context issues
 const AppRoutes = () => {
   const { user } = useAuth();
 
@@ -58,7 +56,6 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
-      {/* Catch all route */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );

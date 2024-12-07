@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export const SignIn = () => {
   const [email, setEmail] = useState("");
@@ -22,7 +22,6 @@ export const SignIn = () => {
     };
     checkSession();
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("Auth state changed:", event, session);
       if (session) {
@@ -43,7 +42,6 @@ export const SignIn = () => {
     try {
       console.log("Starting sign in process...");
       
-      // Trim whitespace from credentials
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
 
@@ -56,11 +54,9 @@ export const SignIn = () => {
 
       if (error) {
         console.error("Sign in error:", error);
-        let errorMessage = "An error occurred during sign in";
+        let errorMessage = "Invalid email or password. Please check your credentials and try again.";
         
-        if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password. Please check your credentials and try again.";
-        } else if (error.message.includes("Email not confirmed")) {
+        if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please verify your email address before signing in. Check your inbox and spam folder.";
         }
 
@@ -92,6 +88,11 @@ export const SignIn = () => {
     }
   };
 
+  const handleForgotPassword = () => {
+    console.log("Navigating to forgot password page");
+    navigate("/forgot-password");
+  };
+
   return (
     <div className="w-full max-w-md mx-auto p-4 sm:p-6">
       <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Sign In</h2>
@@ -116,7 +117,7 @@ export const SignIn = () => {
               variant="link" 
               className="px-0 font-normal text-primary hover:underline"
               type="button"
-              onClick={() => navigate("/forgot-password")}
+              onClick={handleForgotPassword}
             >
               Forgot password?
             </Button>
