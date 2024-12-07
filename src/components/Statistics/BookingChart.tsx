@@ -19,15 +19,16 @@ interface BookingChartProps {
 }
 
 export const BookingChart = ({ data }: BookingChartProps) => {
-  // Transform data to create a continuous line
+  // Transform data to create a smooth continuous line
   const transformedData = data.map((item, index, array) => {
     let bookingValue = item.bookings;
     
     // If it's not the first item and there's a change in bookings,
-    // create a smooth transition
+    // create intermediate points for smoother transitions
     if (index > 0 && array[index - 1].bookings !== item.bookings) {
-      bookingValue = array[index - 1].bookings + 
-        (item.bookings - array[index - 1].bookings) * 0.5;
+      const prevValue = array[index - 1].bookings;
+      const currentValue = item.bookings;
+      bookingValue = prevValue + (currentValue - prevValue) * 0.5;
     }
     
     return {
@@ -44,28 +45,29 @@ export const BookingChart = ({ data }: BookingChartProps) => {
       </h3>
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={transformedData || []}>
-            <CartesianGrid strokeDasharray="3 3" />
+          <LineChart 
+            data={transformedData || []}
+            margin={{ top: 10, right: 30, left: 10, bottom: 30 }}
+          >
+            <CartesianGrid 
+              strokeDasharray="3 3" 
+              stroke="#e5e7eb"
+              vertical={false}
+            />
             <XAxis 
               dataKey="day"
-              label={{ value: 'Days of Month', position: 'bottom' }}
-              tick={{ fontSize: 12 }}
-              interval={0}
-              angle={-45}
-              textAnchor="end"
-              height={60}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 12, fill: '#6b7280' }}
+              dy={10}
             />
             <YAxis 
-              label={{ 
-                value: 'Number of Bookings', 
-                angle: -90, 
-                position: 'insideLeft',
-                offset: -5
-              }}
-              tick={{ fontSize: 12 }}
-              allowDecimals={false}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 12, fill: '#6b7280' }}
               domain={[0, 'auto']}
-              tickCount={5}
+              allowDecimals={false}
+              dx={-10}
             />
             <Tooltip content={<CustomTooltip />} />
             <Line
@@ -73,8 +75,18 @@ export const BookingChart = ({ data }: BookingChartProps) => {
               dataKey="bookings"
               stroke="#2DD4BF"
               strokeWidth={2}
-              dot={{ fill: "#2DD4BF", r: 4 }}
-              activeDot={{ r: 6 }}
+              dot={{
+                fill: "#2DD4BF",
+                r: 4,
+                strokeWidth: 2,
+                stroke: "#fff"
+              }}
+              activeDot={{
+                r: 6,
+                stroke: "#2DD4BF",
+                strokeWidth: 2,
+                fill: "#fff"
+              }}
               name="Bookings"
               connectNulls
             />
