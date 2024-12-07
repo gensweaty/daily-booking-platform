@@ -22,7 +22,10 @@ export const ForgotPassword = () => {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Password reset request error:", error);
+        throw error;
+      }
 
       console.log("Reset password email sent successfully");
       toast({
