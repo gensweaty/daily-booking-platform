@@ -40,16 +40,19 @@ export const SignIn = () => {
     setIsLoading(true);
     
     try {
-      console.log("Starting sign in process with email:", email.trim());
+      const trimmedEmail = email.trim();
+      const trimmedPassword = password.trim();
       
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password.trim(),
+      console.log("Attempting sign in with email:", trimmedEmail);
+      
+      const { error } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password: trimmedPassword,
       });
 
-      console.log("Sign in response:", { data, error });
-
       if (error) {
+        console.error("Sign in error:", error);
+        
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Sign in failed",
@@ -63,34 +66,20 @@ export const SignIn = () => {
             variant: "destructive",
           });
         } else {
-          console.error("Unexpected error during sign in:", error);
           toast({
             title: "Error",
             description: "An unexpected error occurred. Please try again.",
             variant: "destructive",
           });
         }
-        return;
-      }
-
-      if (data?.session) {
-        console.log("Sign in successful, session created");
+      } else {
         toast({
           title: "Success",
           description: "Signed in successfully",
         });
-        navigate("/");
-      } else {
-        console.error("No session created after successful sign in");
-        toast({
-          title: "Error",
-          description: "Failed to create session. Please try again.",
-          variant: "destructive",
-        });
       }
-      
     } catch (error: any) {
-      console.error("Sign in error:", error);
+      console.error("Unexpected error during sign in:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
