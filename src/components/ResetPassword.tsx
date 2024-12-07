@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -12,40 +12,44 @@ export const ResetPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     const checkRecoveryToken = async () => {
       try {
-        // Get the recovery token from the URL
-        const fragment = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = fragment.get('access_token');
-        const refreshToken = fragment.get('refresh_token');
-        const type = fragment.get('type');
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log("Current session:", session);
 
-        console.log("URL params:", { accessToken, refreshToken, type });
+        if (!session) {
+          // Get the recovery token from the URL
+          const fragment = new URLSearchParams(window.location.hash.substring(1));
+          const accessToken = fragment.get('access_token');
+          const refreshToken = fragment.get('refresh_token');
+          const type = fragment.get('type');
 
-        if (!accessToken || type !== 'recovery') {
-          console.log("No recovery token found or wrong type, redirecting to login");
-          navigate("/login");
-          return;
-        }
+          console.log("URL params:", { accessToken, refreshToken, type });
 
-        // Set the session with the recovery token
-        const { data: { session }, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken || '',
-        });
+          if (!accessToken || type !== 'recovery') {
+            console.log("No recovery token found or wrong type, redirecting to login");
+            navigate("/login");
+            return;
+          }
 
-        if (error || !session) {
-          console.error("Error setting session:", error);
-          toast({
-            title: "Error",
-            description: "Invalid or expired recovery link. Please request a new one.",
-            variant: "destructive",
+          // Set the session with the recovery token
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
           });
-          navigate("/forgot-password");
-          return;
+
+          if (error) {
+            console.error("Error setting session:", error);
+            toast({
+              title: "Error",
+              description: "Invalid or expired recovery link. Please request a new one.",
+              variant: "destructive",
+            });
+            navigate("/forgot-password");
+            return;
+          }
         }
 
         console.log("Recovery session set successfully");
