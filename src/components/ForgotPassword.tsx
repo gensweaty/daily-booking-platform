@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/lib/supabase";
-import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabase";
 import { Link } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -14,28 +14,27 @@ export const ForgotPassword = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    console.log("Attempting to send reset email to:", email);
+    if (isLoading) return;
 
+    setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
-      console.log("Reset password email sent successfully");
       toast({
-        title: "Reset Link Sent",
-        description: "If an account exists with this email, you will receive a password reset link.",
+        title: "Check your email",
+        description: "We've sent you a password reset link.",
       });
-      setEmail("");
     } catch (error: any) {
-      console.error("Password reset request error:", error);
-      // Don't reveal if email exists or not for security
       toast({
-        title: "Reset Link Sent",
-        description: "If an account exists with this email, you will receive a password reset link.",
+        title: "Error",
+        description: error.message || "Something went wrong. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -44,13 +43,15 @@ export const ForgotPassword = () => {
 
   return (
     <div className="min-h-screen bg-background p-4">
+      <header className="mb-8">
+        <div className="flex justify-end mb-4">
+          <ThemeToggle />
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2 text-center">Reset Password</h1>
+        <p className="text-foreground/80 text-center">Enter your email to receive a password reset link</p>
+      </header>
+
       <div className="w-full max-w-md mx-auto p-4 sm:p-6">
-        <Link to="/login" className="flex items-center gap-2 text-sm mb-6 text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Sign In
-        </Link>
-        
-        <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Reset Password</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -70,8 +71,16 @@ export const ForgotPassword = () => {
             className="w-full"
             disabled={isLoading}
           >
-            {isLoading ? "Sending..." : "Send Reset Link"}
+            {isLoading ? "Sending reset link..." : "Send Reset Link"}
           </Button>
+          <div className="text-center mt-4">
+            <Link 
+              to="/login" 
+              className="text-sm text-primary hover:underline"
+            >
+              Back to Sign In
+            </Link>
+          </div>
         </form>
       </div>
     </div>
