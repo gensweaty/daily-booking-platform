@@ -43,7 +43,10 @@ export const ResetPassword = () => {
         password: password
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Password update error:", error);
+        throw error;
+      }
 
       console.log("Password updated successfully");
       toast({
