@@ -6,8 +6,6 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
-import useEmblaCarousel from "embla-carousel-react";
 
 interface ImageCarouselProps {
   images: {
@@ -16,29 +14,9 @@ interface ImageCarouselProps {
     title?: string;
   }[];
   className?: string;
-  showArrows?: boolean;
 }
 
-export const ImageCarousel = ({ images, className, showArrows = true }: ImageCarouselProps) => {
-  const [emblaRef, emblaApi] = useEmblaCarousel({
-    align: "start",
-    loop: true,
-  });
-
-  useEffect(() => {
-    if (emblaApi) {
-      console.log("Setting up auto-scroll");
-      const intervalId = setInterval(() => {
-        emblaApi.scrollNext();
-      }, 5000);
-
-      return () => {
-        console.log("Cleaning up auto-scroll");
-        clearInterval(intervalId);
-      };
-    }
-  }, [emblaApi]);
-
+export const ImageCarousel = ({ images, className }: ImageCarouselProps) => {
   return (
     <div className={cn("w-full relative", className)}>
       <Carousel
@@ -48,7 +26,7 @@ export const ImageCarousel = ({ images, className, showArrows = true }: ImageCar
         }}
         className="w-full"
       >
-        <CarouselContent ref={emblaRef}>
+        <CarouselContent>
           {images.map((image, index) => (
             <CarouselItem key={index} className="md:basis-1/1">
               <div className="p-1">
@@ -71,12 +49,8 @@ export const ImageCarousel = ({ images, className, showArrows = true }: ImageCar
             </CarouselItem>
           ))}
         </CarouselContent>
-        {showArrows && (
-          <>
-            <CarouselPrevious className="absolute left-2 md:-left-12" />
-            <CarouselNext className="absolute right-2 md:-right-12" />
-          </>
-        )}
+        <CarouselPrevious className="hidden md:flex -left-12" />
+        <CarouselNext className="hidden md:flex -right-12" />
       </Carousel>
     </div>
   );

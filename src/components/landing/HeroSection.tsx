@@ -5,24 +5,16 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 
 const productImages = [
   {
-    src: "/lovable-uploads/76253e7c-d562-4b00-90f8-906bad45ae0c.png",
-    alt: "Task Management Preview",
+    src: "/lovable-uploads/7c1cf779-ae3c-44e7-bb09-416636a68b72.png",
+    alt: "Calendar Preview",
   },
   {
-    src: "/lovable-uploads/7b20b6f1-7c13-47c8-a4f4-ab8373a7b421.png",
-    alt: "Statistics Preview",
+    src: "/lovable-uploads/6ed3a140-619e-4555-8c77-60246cfb2077.png",
+    alt: "Analytics Preview",
   },
   {
-    src: "/lovable-uploads/bdaf6dc6-c47f-4ea5-af15-5a00b55d1ed5.png",
-    alt: "Calendar Day View",
-  },
-  {
-    src: "/lovable-uploads/f6dde861-2a29-4190-ac37-23bfda379185.png",
-    alt: "Calendar Week View",
-  },
-  {
-    src: "/lovable-uploads/077c5504-2559-42f6-8354-7cc9ea93be8f.png",
-    alt: "Calendar Month View",
+    src: "/lovable-uploads/9abedd44-1226-45b3-ab8e-cf31550ffddd.png",
+    alt: "Tasks Preview",
   },
 ];
 

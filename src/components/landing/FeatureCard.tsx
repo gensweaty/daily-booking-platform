@@ -14,7 +14,6 @@ interface FeatureCardProps {
     title?: string;
   }[];
   reverse?: boolean;
-  showArrows?: boolean;
 }
 
 export const FeatureCard = ({
@@ -25,7 +24,6 @@ export const FeatureCard = ({
   image,
   carousel,
   reverse,
-  showArrows = true,
 }: FeatureCardProps) => {
   return (
     <div className={`grid md:grid-cols-2 gap-12 items-center mb-20 ${
@@ -46,15 +44,11 @@ export const FeatureCard = ({
           ))}
         </ul>
       </div>
-      <div className={`rounded-xl overflow-hidden shadow-xl bg-white p-4 relative ${
+      <div className={`rounded-xl overflow-hidden shadow-xl bg-white p-4 ${
         reverse ? 'order-1 md:order-2' : ''
       }`}>
         {carousel ? (
-          <ImageCarousel 
-            images={carousel} 
-            showArrows={showArrows}
-            className="relative"
-          />
+          <ImageCarousel images={carousel} />
         ) : (
           <img 
             src={image} 
