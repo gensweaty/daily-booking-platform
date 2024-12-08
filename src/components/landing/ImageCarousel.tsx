@@ -54,13 +54,13 @@ export const ImageCarousel = ({
             <CarouselItem key={index} className="md:basis-1/1">
               <div className="p-1">
                 <div className={cn(
-                  "rounded-xl overflow-hidden border shadow-md transition-all",
+                  "rounded-xl overflow-hidden transition-all",
                   "hover:shadow-lg"
                 )}>
                   <img
                     src={image.src}
                     alt={image.alt}
-                    className="w-full h-auto object-cover aspect-video"
+                    className="w-full h-full object-cover aspect-[16/9]"
                   />
                   {showTitles && image.title && (
                     <div className="p-4 bg-white">
@@ -76,7 +76,7 @@ export const ImageCarousel = ({
           className={cn(
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             "transition-opacity duration-300",
-            "absolute left-2 md:-left-12 bg-white/80 hover:bg-white",
+            "absolute left-2 md:-left-16 bg-white/80 hover:bg-white",
             "border-none shadow-lg hover:shadow-xl",
             "w-10 h-10 rounded-full"
           )}
@@ -85,7 +85,7 @@ export const ImageCarousel = ({
           className={cn(
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             "transition-opacity duration-300",
-            "absolute right-2 md:-right-12 bg-white/80 hover:bg-white",
+            "absolute right-2 md:-right-16 bg-white/80 hover:bg-white",
             "border-none shadow-lg hover:shadow-xl",
             "w-10 h-10 rounded-full"
           )}
