@@ -3,7 +3,9 @@ import { SignIn } from "@/components/SignIn";
 import { SignUp } from "@/components/SignUp";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface AuthUIProps {
   defaultTab?: "signin" | "signup";
@@ -14,7 +16,6 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const location = useLocation();
 
   useEffect(() => {
-    // Update active tab based on URL path
     if (location.pathname === "/signup") {
       setActiveTab("signup");
     } else if (location.pathname === "/login") {
@@ -25,7 +26,20 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   return (
     <div className="min-h-screen bg-background p-4">
       <header className="mb-8">
-        <div className="flex justify-end mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => window.history.back()}
+              className="hover:bg-accent"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <Link to="/" className="text-2xl font-bold text-primary hover:text-primary/90">
+              Taskify Minder
+            </Link>
+          </div>
           <ThemeToggle />
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2 text-center">Welcome to Taskify Minder Note</h1>
