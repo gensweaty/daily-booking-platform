@@ -6,6 +6,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface ImageCarouselProps {
   images: {
@@ -18,7 +19,7 @@ interface ImageCarouselProps {
 
 export const ImageCarousel = ({ images, className }: ImageCarouselProps) => {
   return (
-    <div className={cn("w-full relative", className)}>
+    <div className={cn("w-full relative group", className)}>
       <Carousel
         opts={{
           align: "start",
@@ -49,8 +50,14 @@ export const ImageCarousel = ({ images, className }: ImageCarouselProps) => {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="hidden md:flex -left-12" />
-        <CarouselNext className="hidden md:flex -right-12" />
+        <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between pointer-events-none">
+          <CarouselPrevious className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-auto">
+            <ChevronLeft className="h-4 w-4" />
+          </CarouselPrevious>
+          <CarouselNext className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-auto">
+            <ChevronRight className="h-4 w-4" />
+          </CarouselNext>
+        </div>
       </Carousel>
     </div>
   );
