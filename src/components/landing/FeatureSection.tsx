@@ -1,24 +1,23 @@
 import { Calendar, ChartBar, ListTodo } from "lucide-react";
+import { FeatureCard } from "./FeatureCard";
 
 const calendarViews = [
   {
-    src: "/lovable-uploads/a5037169-b68e-4d70-b8e0-4dd0a79d91ac.png",
-    alt: "Day View",
+    src: "/lovable-uploads/c4430958-5d5d-46a8-97ed-7378c4f15b1e.png",
+    alt: "Day View Calendar",
     title: "Day View"
   },
   {
-    src: "/lovable-uploads/d9831d98-508f-469d-8d7f-090c0207a457.png",
-    alt: "Week View",
+    src: "/lovable-uploads/5969dfdd-614f-499e-a670-fb5348c50ff9.png",
+    alt: "Week View Calendar",
     title: "Week View"
   },
   {
-    src: "/lovable-uploads/4e4173c2-e0d8-494f-a48f-c9a013724c95.png",
-    alt: "Month View",
+    src: "/lovable-uploads/7f9abac0-265d-4a11-bc2a-35b7732ba899.png",
+    alt: "Month View Calendar",
     title: "Month View"
-  },
+  }
 ];
-
-import { FeatureCard } from "./FeatureCard";
 
 export const FeatureSection = () => {
   const features = [
