@@ -28,7 +28,11 @@ export const ImageCarousel = ({ images, className, showArrows = true }: ImageCar
   useEffect(() => {
     if (emblaApi) {
       const intervalId = setInterval(() => {
-        emblaApi.scrollNext();
+        if (emblaApi.canScrollNext()) {
+          emblaApi.scrollNext();
+        } else {
+          emblaApi.scrollTo(0);
+        }
       }, 5000);
 
       return () => clearInterval(intervalId);
@@ -69,8 +73,8 @@ export const ImageCarousel = ({ images, className, showArrows = true }: ImageCar
         </CarouselContent>
         {showArrows && (
           <>
-            <CarouselPrevious className="hidden md:flex -left-12" />
-            <CarouselNext className="hidden md:flex -right-12" />
+            <CarouselPrevious />
+            <CarouselNext />
           </>
         )}
       </Carousel>
