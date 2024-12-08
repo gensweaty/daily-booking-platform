@@ -20,6 +20,17 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  if (!RESEND_API_KEY) {
+    console.error("RESEND_API_KEY is not set");
+    return new Response(
+      JSON.stringify({ error: "Server configuration error" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+
   try {
     const contactRequest: ContactRequest = await req.json();
     console.log("Received contact request:", contactRequest);
@@ -44,28 +55,33 @@ const handler = async (req: Request): Promise<Response> => {
       }),
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      console.log("Email sent successfully:", data);
+    const data = await res.json();
+    console.log("Resend API response:", data);
 
+    if (res.ok) {
       return new Response(JSON.stringify(data), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } else {
-      const error = await res.text();
-      console.error("Error sending email:", error);
-      return new Response(JSON.stringify({ error }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.error("Error from Resend API:", data);
+      return new Response(
+        JSON.stringify({ error: "Failed to send email", details: data }),
+        {
+          status: res.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
   } catch (error: any) {
     console.error("Error in send-contact-email function:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "Internal server error", details: error.message }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 };
 
