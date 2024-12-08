@@ -17,7 +17,7 @@ export const HeroSection = () => {
       </nav>
 
       <div className="grid md:grid-cols-2 gap-12 items-center">
-        <div className="space-y-6">
+        <div className="space-y-8">
           <h2 className="text-4xl md:text-5xl font-bold leading-tight">
             Your Professional Booking & Task Management Solution
           </h2>
@@ -30,11 +30,21 @@ export const HeroSection = () => {
             </Button>
           </Link>
         </div>
-        <div className="rounded-lg overflow-hidden shadow-xl">
+        <div className="grid grid-cols-2 gap-4">
           <img 
-            src="/dashboard-preview.png" 
-            alt="Dashboard Preview" 
-            className="w-full border border-border rounded-lg shadow-lg"
+            src="/lovable-uploads/7c1cf779-ae3c-44e7-bb09-416636a68b72.png" 
+            alt="Calendar Preview" 
+            className="rounded-lg shadow-lg col-span-2"
+          />
+          <img 
+            src="/lovable-uploads/6ed3a140-619e-4555-8c77-60246cfb2077.png" 
+            alt="Analytics Preview" 
+            className="rounded-lg shadow-lg"
+          />
+          <img 
+            src="/lovable-uploads/9abedd44-1226-45b3-ab8e-cf31550ffddd.png" 
+            alt="Tasks Preview" 
+            className="rounded-lg shadow-lg"
           />
         </div>
       </div>

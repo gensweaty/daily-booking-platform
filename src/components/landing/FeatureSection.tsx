@@ -48,10 +48,10 @@ export const FeatureSection = () => {
             feature.reverse ? 'md:flex-row-reverse' : ''
           }`}>
             <div className={`space-y-6 ${feature.reverse ? 'order-2 md:order-1' : ''}`}>
-              <div className="inline-block p-2 bg-primary/10 rounded-lg mb-4">
+              <div className="flex items-center gap-3 mb-4">
                 <feature.icon className="w-6 h-6 text-primary" />
+                <h3 className="text-2xl font-bold">{feature.title}</h3>
               </div>
-              <h3 className="text-2xl font-bold">{feature.title}</h3>
               <p className="text-lg text-muted-foreground">{feature.description}</p>
               <ul className="space-y-3">
                 {feature.benefits.map((benefit, idx) => (
