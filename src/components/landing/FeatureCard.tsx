@@ -44,11 +44,11 @@ export const FeatureCard = ({
           ))}
         </ul>
       </div>
-      <div className={`rounded-xl overflow-hidden shadow-xl bg-white p-4 ${
+      <div className={`rounded-xl overflow-hidden shadow-xl bg-white p-4 relative ${
         reverse ? 'order-1 md:order-2' : ''
       }`}>
         {carousel ? (
-          <ImageCarousel images={carousel} />
+          <ImageCarousel images={carousel} showArrows={true} />
         ) : (
           <img 
             src={image} 

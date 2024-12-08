@@ -14,9 +14,10 @@ interface ImageCarouselProps {
     title?: string;
   }[];
   className?: string;
+  showArrows?: boolean;
 }
 
-export const ImageCarousel = ({ images, className }: ImageCarouselProps) => {
+export const ImageCarousel = ({ images, className, showArrows = false }: ImageCarouselProps) => {
   return (
     <div className={cn("w-full relative", className)}>
       <Carousel
@@ -49,8 +50,12 @@ export const ImageCarousel = ({ images, className }: ImageCarouselProps) => {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="hidden md:flex -left-12" />
-        <CarouselNext className="hidden md:flex -right-12" />
+        {showArrows && (
+          <>
+            <CarouselPrevious className="hidden md:flex -left-12" />
+            <CarouselNext className="hidden md:flex -right-12" />
+          </>
+        )}
       </Carousel>
     </div>
   );
