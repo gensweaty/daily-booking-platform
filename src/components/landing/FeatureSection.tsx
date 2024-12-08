@@ -2,17 +2,17 @@ import { Calendar, ChartBar, ListTodo } from "lucide-react";
 
 const calendarViews = [
   {
-    src: "/lovable-uploads/b7231719-c483-4e3b-a30c-4242b4b6db3e.png",
+    src: "/lovable-uploads/a5037169-b68e-4d70-b8e0-4dd0a79d91ac.png",
     alt: "Day View",
     title: "Day View"
   },
   {
-    src: "/lovable-uploads/63f13d75-043b-402f-b44a-35623b159ab4.png",
+    src: "/lovable-uploads/d9831d98-508f-469d-8d7f-090c0207a457.png",
     alt: "Week View",
     title: "Week View"
   },
   {
-    src: "/lovable-uploads/707283fa-2b49-4f39-809e-6201fa8c5ccd.png",
+    src: "/lovable-uploads/4e4173c2-e0d8-494f-a48f-c9a013724c95.png",
     alt: "Month View",
     title: "Month View"
   },
