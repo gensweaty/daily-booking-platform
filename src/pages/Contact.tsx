@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { ArrowLeft } from "lucide-react";
 
 const Contact = () => {
   const { toast } = useToast();
@@ -48,9 +49,19 @@ const Contact = () => {
     <div className="min-h-screen bg-background">
       <header className="container mx-auto px-4 py-8">
         <nav className="flex justify-between items-center mb-16">
-          <Link to="/">
-            <h1 className="text-2xl font-bold text-primary">Taskify Minder</h1>
-          </Link>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => window.history.back()}
+              className="hover:bg-accent"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <Link to="/" className="text-2xl font-bold text-primary hover:text-primary/90">
+              Taskify Minder
+            </Link>
+          </div>
           <div className="flex items-center space-x-4">
             <ThemeToggle />
             <Link to="/login">

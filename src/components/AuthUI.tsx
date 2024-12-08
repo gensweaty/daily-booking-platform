@@ -3,7 +3,7 @@ import { SignIn } from "@/components/SignIn";
 import { SignUp } from "@/components/SignUp";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useEffect, useState } from "react";
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +14,7 @@ interface AuthUIProps {
 export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (location.pathname === "/signup") {
@@ -31,7 +32,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
             <Button 
               variant="ghost" 
               size="icon"
-              onClick={() => window.history.back()}
+              onClick={() => navigate("/")}
               className="hover:bg-accent"
             >
               <ArrowLeft className="h-5 w-5" />
