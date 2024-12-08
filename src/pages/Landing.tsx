@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Calendar, ChartBar, ListTodo, StickyNote, Users } from "lucide-react";
+import { Calendar, ChartBar, ListTodo, StickyNote, CheckCircle } from "lucide-react";
 
 export const Landing = () => {
   return (
@@ -22,77 +22,154 @@ export const Landing = () => {
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
             <h2 className="text-4xl md:text-5xl font-bold leading-tight">
-              Complete Agile Productivity Suite for Your Business
+              Your All-in-One Productivity Suite
             </h2>
             <p className="text-lg text-muted-foreground">
-              Manage tasks, take notes, schedule meetings, and track performance all in one place.
-              Built for modern teams and individuals.
+              Streamline your workflow with our integrated task management, calendar scheduling, note-taking, and analytics platform.
             </p>
             <Link to="/signup">
               <Button size="lg" className="bg-primary hover:bg-primary/90">
-                Get Started - It's Free
+                Start Your Free Journey
               </Button>
             </Link>
           </div>
           <div className="rounded-lg overflow-hidden shadow-xl">
             <img 
-              src="/lovable-uploads/2fa9d0c5-8ae1-4a7f-9232-2fb4995649ef.png" 
-              alt="Platform Preview" 
-              className="w-full"
+              src="/dashboard-preview.png" 
+              alt="Dashboard Preview" 
+              className="w-full border border-border rounded-lg shadow-lg"
             />
           </div>
         </div>
       </header>
 
-      {/* Features Section */}
+      {/* Features Section with Screenshots */}
       <section className="py-20 bg-muted/30">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">Everything You Need in One Place</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <FeatureCard
-              icon={<ListTodo className="w-10 h-10 text-primary" />}
-              title="Task Management"
-              description="Create, organize, and track tasks with our intuitive Kanban board system."
-            />
-            <FeatureCard
-              icon={<Calendar className="w-10 h-10 text-primary" />}
-              title="Smart Calendar"
-              description="Schedule meetings and manage your time with our flexible calendar view."
-            />
-            <FeatureCard
-              icon={<StickyNote className="w-10 h-10 text-primary" />}
-              title="Note Taking"
-              description="Capture ideas and information with our rich text note-taking system."
-            />
-            <FeatureCard
-              icon={<ChartBar className="w-10 h-10 text-primary" />}
-              title="Analytics"
-              description="Track productivity and monitor progress with detailed statistics."
-            />
+          <h2 className="text-3xl font-bold text-center mb-16">Powerful Features for Modern Teams</h2>
+          
+          {/* Task Management */}
+          <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
+            <div className="space-y-6">
+              <div className="inline-block p-2 bg-primary/10 rounded-lg mb-4">
+                <ListTodo className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-2xl font-bold">Intuitive Task Management</h3>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-primary mt-1" />
+                  <span>Kanban board view for visual task organization</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-primary mt-1" />
+                  <span>File attachments and rich text descriptions</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-primary mt-1" />
+                  <span>Task status tracking and progress monitoring</span>
+                </li>
+              </ul>
+            </div>
+            <div className="rounded-lg overflow-hidden shadow-xl">
+              <img 
+                src="/tasks-preview.png" 
+                alt="Task Management Interface" 
+                className="w-full border border-border rounded-lg shadow-lg"
+              />
+            </div>
           </div>
-        </div>
-      </section>
 
-      {/* Social Proof Section */}
-      <section className="py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-12">Trusted by Growing Teams</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <TestimonialCard
-              quote="Perfect for managing our team's daily tasks and meetings."
-              author="Sarah Johnson"
-              role="Project Manager"
-            />
-            <TestimonialCard
-              quote="The calendar integration is a game-changer for our scheduling."
-              author="Michael Chen"
-              role="Team Lead"
-            />
-            <TestimonialCard
-              quote="Finally, a tool that combines everything we need!"
-              author="Emma Davis"
-              role="Product Owner"
-            />
+          {/* Calendar */}
+          <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
+            <div className="order-2 md:order-1 rounded-lg overflow-hidden shadow-xl">
+              <img 
+                src="/calendar-preview.png" 
+                alt="Calendar Interface" 
+                className="w-full border border-border rounded-lg shadow-lg"
+              />
+            </div>
+            <div className="order-1 md:order-2 space-y-6">
+              <div className="inline-block p-2 bg-primary/10 rounded-lg mb-4">
+                <Calendar className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-2xl font-bold">Smart Calendar Management</h3>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-primary mt-1" />
+                  <span>Multiple calendar views (month, week, day)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-primary mt-1" />
+                  <span>Event scheduling with customizable reminders</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-primary mt-1" />
+                  <span>Client booking management with payment tracking</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
+            <div className="space-y-6">
+              <div className="inline-block p-2 bg-primary/10 rounded-lg mb-4">
+                <StickyNote className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-2xl font-bold">Rich Note-Taking System</h3>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-primary mt-1" />
+                  <span>Rich text editor with formatting options</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-primary mt-1" />
+                  <span>File and image attachments support</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-primary mt-1" />
+                  <span>Color-coded organization system</span>
+                </li>
+              </ul>
+            </div>
+            <div className="rounded-lg overflow-hidden shadow-xl">
+              <img 
+                src="/notes-preview.png" 
+                alt="Notes Interface" 
+                className="w-full border border-border rounded-lg shadow-lg"
+              />
+            </div>
+          </div>
+
+          {/* Analytics */}
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="order-2 md:order-1 rounded-lg overflow-hidden shadow-xl">
+              <img 
+                src="/analytics-preview.png" 
+                alt="Analytics Dashboard" 
+                className="w-full border border-border rounded-lg shadow-lg"
+              />
+            </div>
+            <div className="order-1 md:order-2 space-y-6">
+              <div className="inline-block p-2 bg-primary/10 rounded-lg mb-4">
+                <ChartBar className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-2xl font-bold">Comprehensive Analytics</h3>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-primary mt-1" />
+                  <span>Task completion and productivity metrics</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-primary mt-1" />
+                  <span>Booking and revenue analytics</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-primary mt-1" />
+                  <span>Custom date range filtering</span>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </section>
@@ -100,13 +177,13 @@ export const Landing = () => {
       {/* CTA Section */}
       <section className="py-20 bg-primary text-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-6">Ready to Get Started?</h2>
+          <h2 className="text-3xl font-bold mb-6">Ready to Boost Your Productivity?</h2>
           <p className="text-lg mb-8 opacity-90">
-            Join thousands of teams already using Taskify Minder Note
+            Join thousands of professionals already using Taskify Minder Note
           </p>
           <Link to="/signup">
             <Button size="lg" variant="secondary">
-              Start Your Free Trial
+              Get Started for Free
             </Button>
           </Link>
         </div>
@@ -133,29 +210,5 @@ export const Landing = () => {
     </div>
   );
 };
-
-const FeatureCard = ({ icon, title, description }: { 
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) => (
-  <div className="p-6 rounded-lg bg-background shadow-lg">
-    <div className="mb-4">{icon}</div>
-    <h3 className="text-xl font-semibold mb-2">{title}</h3>
-    <p className="text-muted-foreground">{description}</p>
-  </div>
-);
-
-const TestimonialCard = ({ quote, author, role }: {
-  quote: string;
-  author: string;
-  role: string;
-}) => (
-  <div className="p-6 rounded-lg bg-muted/30">
-    <p className="text-lg mb-4">"{quote}"</p>
-    <p className="font-semibold">{author}</p>
-    <p className="text-sm text-muted-foreground">{role}</p>
-  </div>
-);
 
 export default Landing;
