@@ -22,7 +22,8 @@ export const FeatureSection = () => {
         "Booking and revenue analytics",
         "Custom date range filtering",
         "Income comparison across months"
-      ]
+      ],
+      reverse: true
     },
     {
       icon: ListTodo,
@@ -44,9 +45,9 @@ export const FeatureSection = () => {
         
         {features.map((feature, index) => (
           <div key={index} className={`grid md:grid-cols-2 gap-12 items-center mb-20 ${
-            index % 2 === 1 ? 'md:flex-row-reverse' : ''
+            feature.reverse ? 'md:flex-row-reverse' : ''
           }`}>
-            <div className="space-y-6">
+            <div className={`space-y-6 ${feature.reverse ? 'order-2 md:order-1' : ''}`}>
               <div className="inline-block p-2 bg-primary/10 rounded-lg mb-4">
                 <feature.icon className="w-6 h-6 text-primary" />
               </div>
@@ -62,7 +63,7 @@ export const FeatureSection = () => {
               </ul>
             </div>
             <div className={`rounded-lg overflow-hidden shadow-xl ${
-              index % 2 === 1 ? 'order-first md:order-last' : ''
+              feature.reverse ? 'order-1 md:order-2' : ''
             }`}>
               <img 
                 src={feature.image} 
