@@ -23,7 +23,7 @@ export const ImageCarousel = ({ images, className, showArrows = true }: ImageCar
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     loop: true,
-    draggable: true,
+    dragFree: false // Changed from draggable to dragFree which is a valid Embla option
   });
 
   useEffect(() => {
