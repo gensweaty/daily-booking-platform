@@ -48,7 +48,7 @@ export const FeatureCard = ({
         reverse ? 'order-1 md:order-2' : ''
       }`}>
         {carousel ? (
-          <ImageCarousel images={carousel} showArrows={true} />
+          <ImageCarousel images={carousel} />
         ) : (
           <img 
             src={image} 

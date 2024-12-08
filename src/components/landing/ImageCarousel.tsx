@@ -6,6 +6,8 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
+import { useEffect } from "react";
+import useEmblaCarousel from "embla-carousel-react";
 
 interface ImageCarouselProps {
   images: {
@@ -17,7 +19,22 @@ interface ImageCarouselProps {
   showArrows?: boolean;
 }
 
-export const ImageCarousel = ({ images, className, showArrows = false }: ImageCarouselProps) => {
+export const ImageCarousel = ({ images, className, showArrows = true }: ImageCarouselProps) => {
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    align: "start",
+    loop: true,
+  });
+
+  useEffect(() => {
+    if (emblaApi) {
+      const intervalId = setInterval(() => {
+        emblaApi.scrollNext();
+      }, 5000);
+
+      return () => clearInterval(intervalId);
+    }
+  }, [emblaApi]);
+
   return (
     <div className={cn("w-full relative", className)}>
       <Carousel
@@ -27,7 +44,7 @@ export const ImageCarousel = ({ images, className, showArrows = false }: ImageCa
         }}
         className="w-full"
       >
-        <CarouselContent>
+        <CarouselContent ref={emblaRef}>
           {images.map((image, index) => (
             <CarouselItem key={index} className="md:basis-1/1">
               <div className="p-1">
