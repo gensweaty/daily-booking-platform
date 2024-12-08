@@ -54,13 +54,13 @@ export const ImageCarousel = ({
             <CarouselItem key={index} className="md:basis-1/1">
               <div className="p-1">
                 <div className={cn(
-                  "rounded-xl overflow-hidden transition-all",
+                  "rounded-xl overflow-hidden transition-all h-[400px]",
                   "hover:shadow-lg"
                 )}>
                   <img
                     src={image.src}
                     alt={image.alt}
-                    className="w-full h-full object-cover aspect-[16/9]"
+                    className="w-full h-full object-contain bg-white"
                   />
                   {showTitles && image.title && (
                     <div className="p-4 bg-white">

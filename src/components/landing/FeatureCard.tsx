@@ -56,7 +56,7 @@ export const FeatureCard = ({
             <img 
               src={image} 
               alt={title} 
-              className="w-full h-auto rounded-lg border border-gray-100"
+              className="w-full h-[400px] object-contain p-4"
             />
           )}
         </div>
