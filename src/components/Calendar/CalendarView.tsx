@@ -24,6 +24,16 @@ export const CalendarView = ({
     </div>
   );
 
+  // Function to convert display hour to actual hour
+  const displayHourToActualHour = (displayIndex: number) => {
+    return (displayIndex + 6) % 24;
+  };
+
+  // Function to convert actual hour to display position
+  const actualHourToDisplayPosition = (actualHour: number) => {
+    return ((actualHour - 6 + 24) % 24) * 80; // 80px is the height of each hour slot
+  };
+
   if (view === "month") {
     return (
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
@@ -65,7 +75,7 @@ export const CalendarView = ({
     );
   }
 
-  // Week/Day view with time slots
+  // Week/Day view with time slots starting from 6 AM
   return (
     <div className="flex-1 grid bg-background rounded-lg overflow-y-auto" 
          style={{ gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` }}>
@@ -87,15 +97,16 @@ export const CalendarView = ({
             key={day.toISOString()} 
             className="relative bg-background border-r border-l border-border"
           >
-            {Array.from({ length: 24 }).map((_, hour) => {
+            {Array.from({ length: 24 }).map((_, index) => {
+              const actualHour = displayHourToActualHour(index);
               const hourDate = new Date(day);
-              hourDate.setHours(hour, 0, 0, 0);
+              hourDate.setHours(actualHour, 0, 0, 0);
               
               return (
                 <div
-                  key={hour}
+                  key={actualHour}
                   className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
-                  onClick={() => onDayClick(hourDate, hour)}
+                  onClick={() => onDayClick(hourDate, actualHour)}
                 />
               );
             })}
@@ -105,7 +116,8 @@ export const CalendarView = ({
               .map((event) => {
                 const start = new Date(event.start_date);
                 const end = new Date(event.end_date);
-                const top = start.getHours() * 80 + (start.getMinutes() / 60) * 80;
+                const top = actualHourToDisplayPosition(start.getHours()) + 
+                          (start.getMinutes() / 60) * 80;
                 const height = (end.getHours() - start.getHours() + 
                               (end.getMinutes() - start.getMinutes()) / 60) * 80;
                 
