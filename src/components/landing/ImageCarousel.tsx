@@ -18,7 +18,7 @@ interface ImageCarouselProps {
 
 export const ImageCarousel = ({ images, className }: ImageCarouselProps) => {
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("w-full relative", className)}>
       <Carousel
         opts={{
           align: "start",
@@ -49,8 +49,8 @@ export const ImageCarousel = ({ images, className }: ImageCarouselProps) => {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="hidden md:flex" />
-        <CarouselNext className="hidden md:flex" />
+        <CarouselPrevious className="hidden md:flex -left-12" />
+        <CarouselNext className="hidden md:flex -right-12" />
       </Carousel>
     </div>
   );
