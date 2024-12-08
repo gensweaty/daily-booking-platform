@@ -1,9 +1,8 @@
 import { Calendar, ChartBar, ListTodo } from "lucide-react";
-import { FeatureCard } from "./FeatureCard";
 
 const calendarViews = [
   {
-    src: "/lovable-uploads/9f1f6052-0c6d-4870-9923-39313c1ab24d.png",
+    src: "/lovable-uploads/a5037169-b68e-4d70-b8e0-4dd0a79d91ac.png",
     alt: "Day View",
     title: "Day View"
   },
@@ -18,6 +17,8 @@ const calendarViews = [
     title: "Month View"
   },
 ];
+
+import { FeatureCard } from "./FeatureCard";
 
 export const FeatureSection = () => {
   const features = [
