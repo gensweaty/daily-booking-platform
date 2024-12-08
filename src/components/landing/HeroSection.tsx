@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const productImages = [
   {
@@ -22,7 +23,8 @@ export const HeroSection = () => {
     <header className="container mx-auto px-4 py-8">
       <nav className="flex justify-between items-center mb-16">
         <h1 className="text-2xl font-bold text-primary">Taskify Minder</h1>
-        <div className="space-x-4">
+        <div className="flex items-center space-x-4">
+          <ThemeToggle />
           <Link to="/login">
             <Button variant="outline">Sign In</Button>
           </Link>
