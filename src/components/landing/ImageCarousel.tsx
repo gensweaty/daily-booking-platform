@@ -16,9 +16,16 @@ interface ImageCarouselProps {
     title?: string;
   }[];
   className?: string;
+  showTitles?: boolean;
+  permanentArrows?: boolean;
 }
 
-export const ImageCarousel = ({ images, className }: ImageCarouselProps) => {
+export const ImageCarousel = ({ 
+  images, 
+  className,
+  showTitles = false,
+  permanentArrows = false
+}: ImageCarouselProps) => {
   const [api, setApi] = useState<CarouselApi>();
 
   useEffect(() => {
@@ -55,7 +62,7 @@ export const ImageCarousel = ({ images, className }: ImageCarouselProps) => {
                     alt={image.alt}
                     className="w-full h-auto object-cover aspect-video"
                   />
-                  {image.title && (
+                  {showTitles && image.title && (
                     <div className="p-4 bg-white">
                       <h3 className="text-lg font-semibold text-center">{image.title}</h3>
                     </div>
@@ -67,7 +74,8 @@ export const ImageCarousel = ({ images, className }: ImageCarouselProps) => {
         </CarouselContent>
         <CarouselPrevious 
           className={cn(
-            "opacity-0 group-hover:opacity-100 transition-opacity duration-300",
+            permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+            "transition-opacity duration-300",
             "absolute left-2 md:-left-12 bg-white/80 hover:bg-white",
             "border-none shadow-lg hover:shadow-xl",
             "w-10 h-10 rounded-full"
@@ -75,7 +83,8 @@ export const ImageCarousel = ({ images, className }: ImageCarouselProps) => {
         />
         <CarouselNext 
           className={cn(
-            "opacity-0 group-hover:opacity-100 transition-opacity duration-300",
+            permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+            "transition-opacity duration-300",
             "absolute right-2 md:-right-12 bg-white/80 hover:bg-white",
             "border-none shadow-lg hover:shadow-xl",
             "w-10 h-10 rounded-full"

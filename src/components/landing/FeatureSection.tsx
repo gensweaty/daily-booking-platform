@@ -4,17 +4,14 @@ const calendarViews = [
   {
     src: "/lovable-uploads/a5037169-b68e-4d70-b8e0-4dd0a79d91ac.png",
     alt: "Day View",
-    title: "Day View"
   },
   {
     src: "/lovable-uploads/d9831d98-508f-469d-8d7f-090c0207a457.png",
     alt: "Week View",
-    title: "Week View"
   },
   {
     src: "/lovable-uploads/4e4173c2-e0d8-494f-a48f-c9a013724c95.png",
     alt: "Month View",
-    title: "Month View"
   },
 ];
 

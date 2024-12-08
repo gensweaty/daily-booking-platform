@@ -54,7 +54,7 @@ export const HeroSection = () => {
           </div>
         </div>
         <div>
-          <ImageCarousel images={productImages} />
+          <ImageCarousel images={productImages} permanentArrows={true} />
         </div>
       </div>
     </header>
