@@ -6,7 +6,7 @@ export const FeatureSection = () => {
       icon: Calendar,
       title: "Smart Booking Calendar",
       description: "Efficiently manage your appointments and events",
-      image: "/calendar-preview.png",
+      image: "/lovable-uploads/7c1cf779-ae3c-44e7-bb09-416636a68b72.png",
       benefits: [
         "Multiple calendar views (month, week, day)",
         "Event scheduling with customizable time slots",
@@ -17,7 +17,7 @@ export const FeatureSection = () => {
       icon: ChartBar,
       title: "Comprehensive Analytics",
       description: "Track your performance and growth",
-      image: "/analytics-preview.png",
+      image: "/lovable-uploads/6ed3a140-619e-4555-8c77-60246cfb2077.png",
       benefits: [
         "Booking and revenue analytics",
         "Custom date range filtering",
@@ -29,11 +29,11 @@ export const FeatureSection = () => {
       icon: ListTodo,
       title: "Task Management",
       description: "Stay organized and productive",
-      image: "/tasks-preview.png",
+      image: "/lovable-uploads/9abedd44-1226-45b3-ab8e-cf31550ffddd.png",
       benefits: [
         "Kanban board for visual task organization",
         "Task status tracking and progress monitoring",
-        "File attachments support"
+        "Efficient task prioritization"
       ]
     }
   ];
@@ -62,13 +62,13 @@ export const FeatureSection = () => {
                 ))}
               </ul>
             </div>
-            <div className={`rounded-lg overflow-hidden shadow-xl ${
+            <div className={`rounded-xl overflow-hidden shadow-xl bg-white p-4 ${
               feature.reverse ? 'order-1 md:order-2' : ''
             }`}>
               <img 
                 src={feature.image} 
                 alt={feature.title} 
-                className="w-full border border-border rounded-lg shadow-lg"
+                className="w-full h-auto rounded-lg border border-gray-100"
               />
             </div>
           </div>
