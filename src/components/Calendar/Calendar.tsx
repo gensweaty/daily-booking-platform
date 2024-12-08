@@ -21,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { TimeIndicator } from "./TimeIndicator";
 import { useEventDialog } from "./hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CalendarCarousel } from "./CalendarCarousel";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -127,6 +128,8 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
           setIsNewEventDialogOpen(true);
         }}
       />
+
+      <CalendarCarousel />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
         {view !== 'month' && <TimeIndicator />}
