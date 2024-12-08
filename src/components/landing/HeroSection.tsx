@@ -1,5 +1,21 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { ImageCarousel } from "./ImageCarousel";
+
+const productImages = [
+  {
+    src: "/lovable-uploads/7c1cf779-ae3c-44e7-bb09-416636a68b72.png",
+    alt: "Calendar Preview",
+  },
+  {
+    src: "/lovable-uploads/6ed3a140-619e-4555-8c77-60246cfb2077.png",
+    alt: "Analytics Preview",
+  },
+  {
+    src: "/lovable-uploads/9abedd44-1226-45b3-ab8e-cf31550ffddd.png",
+    alt: "Tasks Preview",
+  },
+];
 
 export const HeroSection = () => {
   return (
@@ -30,22 +46,8 @@ export const HeroSection = () => {
             </Button>
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <img 
-            src="/lovable-uploads/7c1cf779-ae3c-44e7-bb09-416636a68b72.png" 
-            alt="Calendar Preview" 
-            className="rounded-lg shadow-lg col-span-2"
-          />
-          <img 
-            src="/lovable-uploads/6ed3a140-619e-4555-8c77-60246cfb2077.png" 
-            alt="Analytics Preview" 
-            className="rounded-lg shadow-lg"
-          />
-          <img 
-            src="/lovable-uploads/9abedd44-1226-45b3-ab8e-cf31550ffddd.png" 
-            alt="Tasks Preview" 
-            className="rounded-lg shadow-lg"
-          />
+        <div>
+          <ImageCarousel images={productImages} />
         </div>
       </div>
     </header>

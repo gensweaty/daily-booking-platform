@@ -1,4 +1,23 @@
 import { CheckCircle, Calendar, ChartBar, ListTodo } from "lucide-react";
+import { ImageCarousel } from "./ImageCarousel";
+
+const calendarViews = [
+  {
+    src: "/lovable-uploads/ed4a8c41-3ec8-4e80-8ccb-50c9ef495e30.png",
+    alt: "Day View",
+    title: "Day View"
+  },
+  {
+    src: "/lovable-uploads/ce56f4f7-3f30-4f42-9b25-ff1d4d78be83.png",
+    alt: "Week View",
+    title: "Week View"
+  },
+  {
+    src: "/lovable-uploads/16d738e7-9c5f-4ea4-b618-4c251886ef66.png",
+    alt: "Month View",
+    title: "Month View"
+  },
+];
 
 export const FeatureSection = () => {
   const features = [
@@ -6,7 +25,7 @@ export const FeatureSection = () => {
       icon: Calendar,
       title: "Smart Booking Calendar",
       description: "Efficiently manage your appointments and events",
-      image: "/lovable-uploads/7c1cf779-ae3c-44e7-bb09-416636a68b72.png",
+      carousel: calendarViews,
       benefits: [
         "Multiple calendar views (month, week, day)",
         "Event scheduling with customizable time slots",
@@ -65,11 +84,15 @@ export const FeatureSection = () => {
             <div className={`rounded-xl overflow-hidden shadow-xl bg-white p-4 ${
               feature.reverse ? 'order-1 md:order-2' : ''
             }`}>
-              <img 
-                src={feature.image} 
-                alt={feature.title} 
-                className="w-full h-auto rounded-lg border border-gray-100"
-              />
+              {feature.carousel ? (
+                <ImageCarousel images={feature.carousel} />
+              ) : (
+                <img 
+                  src={feature.image} 
+                  alt={feature.title} 
+                  className="w-full h-auto rounded-lg border border-gray-100"
+                />
+              )}
             </div>
           </div>
         ))}
