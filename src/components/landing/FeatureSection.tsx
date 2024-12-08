@@ -31,7 +31,8 @@ export const FeatureSection = () => {
         "Multiple calendar views (month, week, day)",
         "Event scheduling with customizable time slots",
         "Client booking management with payment tracking"
-      ]
+      ],
+      showArrows: true
     },
     {
       icon: ChartBar,

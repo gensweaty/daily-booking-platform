@@ -23,18 +23,13 @@ export const ImageCarousel = ({ images, className, showArrows = true }: ImageCar
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     loop: true,
-    dragFree: false // Changed from draggable to dragFree which is a valid Embla option
   });
 
   useEffect(() => {
     if (emblaApi) {
       console.log("Setting up auto-scroll");
       const intervalId = setInterval(() => {
-        if (emblaApi.canScrollNext()) {
-          emblaApi.scrollNext();
-        } else {
-          emblaApi.scrollTo(0);
-        }
+        emblaApi.scrollNext();
       }, 5000);
 
       return () => {
