@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
+import Landing from "./pages/Landing";
 import { AuthUI } from "./components/AuthUI";
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
@@ -34,9 +35,8 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
     return <div>Loading...</div>;
   }
   
-  // Allow access to reset-password route even if user is logged in
   if (user && window.location.pathname !== '/reset-password') {
-    return <Navigate to="/" />;
+    return <Navigate to="/dashboard" />;
   }
   
   return <>{children}</>;
@@ -45,6 +45,14 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => {
   return (
     <Routes>
+      <Route 
+        path="/" 
+        element={
+          <PublicRoute>
+            <Landing />
+          </PublicRoute>
+        } 
+      />
       <Route 
         path="/login" 
         element={
@@ -78,7 +86,7 @@ const AppRoutes = () => {
         } 
       />
       <Route
-        path="/"
+        path="/dashboard"
         element={
           <ProtectedRoute>
             <Index />
