@@ -6,6 +6,8 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { useCarousel } from "@/components/ui/carousel";
 
 interface ImageCarouselProps {
   images: {
@@ -17,13 +19,27 @@ interface ImageCarouselProps {
 }
 
 export const ImageCarousel = ({ images, className }: ImageCarouselProps) => {
+  const [api, setApi] = useState<ReturnType<typeof useCarousel>["api"]>();
+
+  useEffect(() => {
+    if (!api) return;
+
+    // Set up auto-sliding interval
+    const interval = setInterval(() => {
+      api.scrollNext();
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(interval);
+  }, [api]);
+
   return (
-    <div className={cn("w-full relative", className)}>
+    <div className={cn("w-full relative group", className)}>
       <Carousel
         opts={{
           align: "start",
           loop: true,
         }}
+        setApi={setApi}
         className="w-full"
       >
         <CarouselContent>
@@ -49,8 +65,22 @@ export const ImageCarousel = ({ images, className }: ImageCarouselProps) => {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="hidden md:flex -left-12" />
-        <CarouselNext className="hidden md:flex -right-12" />
+        <CarouselPrevious 
+          className={cn(
+            "opacity-0 group-hover:opacity-100 transition-opacity duration-300",
+            "absolute left-2 md:-left-12 bg-white/80 hover:bg-white",
+            "border-none shadow-lg hover:shadow-xl",
+            "w-10 h-10 rounded-full"
+          )}
+        />
+        <CarouselNext 
+          className={cn(
+            "opacity-0 group-hover:opacity-100 transition-opacity duration-300",
+            "absolute right-2 md:-right-12 bg-white/80 hover:bg-white",
+            "border-none shadow-lg hover:shadow-xl",
+            "w-10 h-10 rounded-full"
+          )}
+        />
       </Carousel>
     </div>
   );
