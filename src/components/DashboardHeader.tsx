@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Link } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 
 interface DashboardHeaderProps {
   username: string;
@@ -31,6 +31,28 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       toast({
         title: "Error",
         description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleChangePassword = async () => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user?.email || '', {
+        redirectTo: 'https://daily-booking-platform.lovable.app/reset-password',
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password Reset Email Sent",
+        description: "Please check your email for the password reset link.",
+      });
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send password reset email. Please try again.",
         variant: "destructive",
       });
     }
@@ -74,17 +96,13 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   <p className="text-sm text-muted-foreground">Free Plan</p>
                 </div>
                 <div className="pt-4">
-                  <Link 
-                    to="/forgot-password"
+                  <Button 
+                    variant="outline" 
                     className="w-full"
+                    onClick={handleChangePassword}
                   >
-                    <Button 
-                      variant="outline" 
-                      className="w-full"
-                    >
-                      Change Password
-                    </Button>
-                  </Link>
+                    Change Password
+                  </Button>
                 </div>
               </div>
             </DialogContent>
