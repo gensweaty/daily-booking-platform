@@ -23,10 +23,12 @@ export const ImageCarousel = ({ images, className, showArrows = true }: ImageCar
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     loop: true,
+    draggable: true,
   });
 
   useEffect(() => {
     if (emblaApi) {
+      console.log("Setting up auto-scroll");
       const intervalId = setInterval(() => {
         if (emblaApi.canScrollNext()) {
           emblaApi.scrollNext();
@@ -35,7 +37,10 @@ export const ImageCarousel = ({ images, className, showArrows = true }: ImageCar
         }
       }, 5000);
 
-      return () => clearInterval(intervalId);
+      return () => {
+        console.log("Cleaning up auto-scroll");
+        clearInterval(intervalId);
+      };
     }
   }, [emblaApi]);
 
@@ -73,8 +78,8 @@ export const ImageCarousel = ({ images, className, showArrows = true }: ImageCar
         </CarouselContent>
         {showArrows && (
           <>
-            <CarouselPrevious />
-            <CarouselNext />
+            <CarouselPrevious className="absolute left-2 md:-left-12" />
+            <CarouselNext className="absolute right-2 md:-right-12" />
           </>
         )}
       </Carousel>
