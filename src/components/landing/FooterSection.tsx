@@ -15,6 +15,9 @@ export const FooterSection = () => {
             <Link to="/signup" className="text-sm text-muted-foreground hover:text-foreground">
               Sign Up
             </Link>
+            <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground">
+              Contact
+            </Link>
           </div>
         </div>
       </div>

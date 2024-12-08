@@ -31,6 +31,9 @@ export const HeroSection = () => {
           <Link to="/signup">
             <Button className="bg-primary hover:bg-primary/90">Sign Up Free</Button>
           </Link>
+          <Link to="/contact">
+            <Button variant="outline">Contact</Button>
+          </Link>
         </div>
       </nav>
 

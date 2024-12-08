@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
 import Landing from "./pages/Landing";
+import Contact from "./pages/Contact";
 import { AuthUI } from "./components/AuthUI";
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
@@ -50,6 +51,14 @@ const AppRoutes = () => {
         element={
           <PublicRoute>
             <Landing />
+          </PublicRoute>
+        } 
+      />
+      <Route 
+        path="/contact" 
+        element={
+          <PublicRoute>
+            <Contact />
           </PublicRoute>
         } 
       />
