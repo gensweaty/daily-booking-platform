@@ -15,15 +15,20 @@ interface ContactRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log("Received request to send-contact-email function");
+
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   if (!RESEND_API_KEY) {
-    console.error("RESEND_API_KEY is not set");
+    console.error("RESEND_API_KEY is not set in environment variables");
     return new Response(
-      JSON.stringify({ error: "Server configuration error" }),
+      JSON.stringify({ 
+        error: "Server configuration error", 
+        details: "Missing RESEND_API_KEY environment variable" 
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -33,7 +38,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const contactRequest: ContactRequest = await req.json();
-    console.log("Received contact request:", contactRequest);
+    console.log("Processing contact request:", contactRequest);
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -58,25 +63,38 @@ const handler = async (req: Request): Promise<Response> => {
     const data = await res.json();
     console.log("Resend API response:", data);
 
-    if (res.ok) {
-      return new Response(JSON.stringify(data), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    } else {
+    if (!res.ok) {
       console.error("Error from Resend API:", data);
       return new Response(
-        JSON.stringify({ error: "Failed to send email", details: data }),
+        JSON.stringify({ 
+          error: "Failed to send email", 
+          details: data 
+        }),
         {
           status: res.status,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
+
+    return new Response(
+      JSON.stringify({ 
+        message: "Email sent successfully", 
+        data 
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+
   } catch (error: any) {
     console.error("Error in send-contact-email function:", error);
     return new Response(
-      JSON.stringify({ error: "Internal server error", details: error.message }),
+      JSON.stringify({ 
+        error: "Internal server error", 
+        details: error.message 
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
