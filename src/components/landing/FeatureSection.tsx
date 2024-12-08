@@ -3,17 +3,17 @@ import { ImageCarousel } from "./ImageCarousel";
 
 const calendarViews = [
   {
-    src: "/lovable-uploads/ed4a8c41-3ec8-4e80-8ccb-50c9ef495e30.png",
+    src: "/lovable-uploads/b7231719-c483-4e3b-a30c-4242b4b6db3e.png",
     alt: "Day View",
     title: "Day View"
   },
   {
-    src: "/lovable-uploads/ce56f4f7-3f30-4f42-9b25-ff1d4d78be83.png",
+    src: "/lovable-uploads/63f13d75-043b-402f-b44a-35623b159ab4.png",
     alt: "Week View",
     title: "Week View"
   },
   {
-    src: "/lovable-uploads/16d738e7-9c5f-4ea4-b618-4c251886ef66.png",
+    src: "/lovable-uploads/707283fa-2b49-4f39-809e-6201fa8c5ccd.png",
     alt: "Month View",
     title: "Month View"
   },

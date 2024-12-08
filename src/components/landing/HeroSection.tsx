@@ -34,17 +34,19 @@ export const HeroSection = () => {
 
       <div className="grid md:grid-cols-2 gap-12 items-center">
         <div className="space-y-8">
-          <h2 className="text-4xl md:text-5xl font-bold leading-tight">
+          <h2 className="text-5xl md:text-6xl font-bold leading-tight">
             Your Professional Booking & Task Management Solution
           </h2>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-xl text-muted-foreground">
             Streamline your workflow with our integrated booking calendar, task management, and analytics platform.
           </p>
-          <Link to="/signup">
-            <Button size="lg" className="bg-primary hover:bg-primary/90">
-              Start Your Free Journey
-            </Button>
-          </Link>
+          <div className="pt-4">
+            <Link to="/signup">
+              <Button size="lg" className="bg-primary hover:bg-primary/90">
+                Start Your Free Journey
+              </Button>
+            </Link>
+          </div>
         </div>
         <div>
           <ImageCarousel images={productImages} />
