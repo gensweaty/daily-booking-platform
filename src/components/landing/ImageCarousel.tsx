@@ -4,10 +4,10 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
+  type CarouselApi
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
-import { useCarousel } from "@/components/ui/carousel";
 
 interface ImageCarouselProps {
   images: {
@@ -19,7 +19,7 @@ interface ImageCarouselProps {
 }
 
 export const ImageCarousel = ({ images, className }: ImageCarouselProps) => {
-  const [api, setApi] = useState<ReturnType<typeof useCarousel>["api"]>();
+  const [api, setApi] = useState<CarouselApi>();
 
   useEffect(() => {
     if (!api) return;
