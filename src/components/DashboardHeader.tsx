@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, ArrowLeft } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/components/ui/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface DashboardHeaderProps {
@@ -28,14 +28,30 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
   };
 
+  const handleBack = () => {
+    navigate(-1);
+  };
+
   return (
     <header className="mb-8">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div className="text-center sm:text-left">
-          <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">Welcome to Taskify Minder Note</h1>
-          <p className="text-foreground">
-            {username ? `Hello ${username}!` : 'Welcome!'} Complete Agile productivity - tasks notes calendar all in one
-          </p>
+        <div className="flex items-center gap-4 w-full">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={handleBack}
+            className="hover:bg-accent"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="text-center sm:text-left">
+            <Link to="/" className="hover:opacity-80 transition-opacity">
+              <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">Taskify Minder Note</h1>
+            </Link>
+            <p className="text-foreground">
+              {username ? `Hello ${username}!` : 'Welcome!'} Complete Agile productivity - tasks notes calendar all in one
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
