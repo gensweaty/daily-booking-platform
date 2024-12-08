@@ -1,33 +1,24 @@
 import { Calendar, ChartBar, ListTodo } from "lucide-react";
-import { FeatureCard } from "./FeatureCard";
 
 const calendarViews = [
   {
-    src: "/lovable-uploads/5fa665bc-9bd3-4ebd-9294-77abf03f5a1f.png",
-    alt: "Tasks View",
-    title: "Tasks View"
+    src: "/lovable-uploads/a5037169-b68e-4d70-b8e0-4dd0a79d91ac.png",
+    alt: "Day View",
+    title: "Day View"
   },
   {
-    src: "/lovable-uploads/bca9780e-763a-4a39-9044-9626c2f0b034.png",
-    alt: "Statistics View",
-    title: "Statistics View"
+    src: "/lovable-uploads/d9831d98-508f-469d-8d7f-090c0207a457.png",
+    alt: "Week View",
+    title: "Week View"
   },
   {
-    src: "/lovable-uploads/311ac3d0-45e4-4761-8109-f7b3994ca369.png",
-    alt: "Day Calendar View",
-    title: "Day Calendar View"
+    src: "/lovable-uploads/4e4173c2-e0d8-494f-a48f-c9a013724c95.png",
+    alt: "Month View",
+    title: "Month View"
   },
-  {
-    src: "/lovable-uploads/9cece89a-6b45-4cc5-a881-f505d89bd836.png",
-    alt: "Week Calendar View",
-    title: "Week Calendar View"
-  },
-  {
-    src: "/lovable-uploads/b2d09117-fc50-44b7-a09e-9d0c29d73c09.png",
-    alt: "Month Calendar View",
-    title: "Month Calendar View"
-  }
 ];
+
+import { FeatureCard } from "./FeatureCard";
 
 export const FeatureSection = () => {
   const features = [

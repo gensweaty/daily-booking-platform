@@ -27,18 +27,20 @@ export const ImageCarousel = ({ images, className, showArrows = true }: ImageCar
 
   useEffect(() => {
     if (emblaApi) {
+      console.log("Setting up auto-scroll");
       const intervalId = setInterval(() => {
         emblaApi.scrollNext();
       }, 5000);
 
       return () => {
+        console.log("Cleaning up auto-scroll");
         clearInterval(intervalId);
       };
     }
   }, [emblaApi]);
 
   return (
-    <div className={cn("w-full relative group", className)}>
+    <div className={cn("w-full relative", className)}>
       <Carousel
         opts={{
           align: "start",
@@ -60,7 +62,7 @@ export const ImageCarousel = ({ images, className, showArrows = true }: ImageCar
                     className="w-full h-auto object-cover aspect-video"
                   />
                   {image.title && (
-                    <div className="p-4 bg-background">
+                    <div className="p-4 bg-white">
                       <h3 className="text-lg font-semibold text-center">{image.title}</h3>
                     </div>
                   )}
@@ -71,8 +73,8 @@ export const ImageCarousel = ({ images, className, showArrows = true }: ImageCar
         </CarouselContent>
         {showArrows && (
           <>
-            <CarouselPrevious className="opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <CarouselNext className="opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CarouselPrevious className="absolute left-2 md:-left-12" />
+            <CarouselNext className="absolute right-2 md:-right-12" />
           </>
         )}
       </Carousel>
