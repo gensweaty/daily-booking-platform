@@ -61,7 +61,7 @@ export type Database = {
           social_network_link: string | null
           start_date: string
           title: string
-          type: string
+          type: string | null
           user_id: string | null
           user_number: string | null
           user_surname: string | null
@@ -76,7 +76,7 @@ export type Database = {
           social_network_link?: string | null
           start_date: string
           title: string
-          type: string
+          type?: string | null
           user_id?: string | null
           user_number?: string | null
           user_surname?: string | null
@@ -91,7 +91,7 @@ export type Database = {
           social_network_link?: string | null
           start_date?: string
           title?: string
-          type?: string
+          type?: string | null
           user_id?: string | null
           user_number?: string | null
           user_surname?: string | null
