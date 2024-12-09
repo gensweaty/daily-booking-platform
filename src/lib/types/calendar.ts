@@ -13,4 +13,5 @@ export interface CalendarEventType {
   payment_amount?: number;
   created_at: string;
   user_id?: string;
+  type?: string; // Made optional
 }
