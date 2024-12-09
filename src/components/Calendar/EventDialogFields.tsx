@@ -77,7 +77,7 @@ export const EventDialogFields = ({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="title">First Name and Last Name (required)</Label>
+        <Label htmlFor="title">Name and Surname (required)</Label>
         <Input
           id="title"
           value={title}
@@ -131,7 +131,7 @@ export const EventDialogFields = ({
       <div className="space-y-2">
         <Label>Payment Status</Label>
         <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-          <SelectTrigger>
+          <SelectTrigger className="bg-background">
             <SelectValue placeholder="Select payment status" />
           </SelectTrigger>
           <SelectContent>
@@ -167,13 +167,13 @@ export const EventDialogFields = ({
       )}
 
       <div className="space-y-2">
-        <Label>Attachment (optional)</Label>
+        <Label>Attachment</Label>
         <FileUploadField 
           onFileChange={setSelectedFile}
           fileError={fileError}
           setFileError={setFileError}
         />
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground mt-1">
           Max: Images 2MB, Docs 1MB • Formats: Images (jpg, png, webp), Docs (pdf, docx, xlsx, pptx)
         </p>
       </div>
