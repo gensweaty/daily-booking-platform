@@ -77,21 +77,12 @@ export const EventDialogFields = ({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="title">Full Name (required)</Label>
+        <Label htmlFor="title">First Name and Last Name (required)</Label>
         <Input
           id="title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="userSurname">Surname</Label>
-        <Input
-          id="userSurname"
-          value={userSurname}
-          onChange={(e) => setUserSurname(e.target.value)}
         />
       </div>
 
@@ -166,7 +157,7 @@ export const EventDialogFields = ({
 
       {existingFiles && existingFiles.length > 0 && (
         <div className="space-y-2">
-          <Label>Invoice</Label>
+          <Label>Attachments</Label>
           <FileDisplay 
             files={existingFiles} 
             bucketName="event_attachments"
@@ -175,11 +166,17 @@ export const EventDialogFields = ({
         </div>
       )}
 
-      <FileUploadField 
-        onFileChange={setSelectedFile}
-        fileError={fileError}
-        setFileError={setFileError}
-      />
+      <div className="space-y-2">
+        <Label>Attachment (optional)</Label>
+        <FileUploadField 
+          onFileChange={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+        />
+        <p className="text-xs text-muted-foreground">
+          Max: Images 2MB, Docs 1MB • Formats: Images (jpg, png, webp), Docs (pdf, docx, xlsx, pptx)
+        </p>
+      </div>
 
       <div className="space-y-2">
         <Label htmlFor="eventNotes">Event Notes</Label>
