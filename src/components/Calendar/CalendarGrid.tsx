@@ -17,17 +17,17 @@ export const CalendarGrid = ({
   onEventClick,
 }: CalendarGridProps) => {
   return (
-    <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
+    <div className="grid grid-cols-7 h-full">
       {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-        <div key={day} className="bg-white p-4 text-center font-semibold">
+        <div key={day} className="bg-background p-4 text-center font-semibold border-b border-r border-border">
           {day}
         </div>
       ))}
-      {days.map((day) => (
+      {days.map((day, index) => (
         <div
           key={day.toISOString()}
-          className={`bg-white p-4 min-h-[120px] cursor-pointer hover:bg-gray-50 ${
-            !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
+          className={`bg-background p-4 min-h-[120px] cursor-pointer hover:bg-muted border-b border-r border-border overflow-y-auto ${
+            !isSameMonth(day, selectedDate) ? "text-muted-foreground" : ""
           }`}
           onClick={() => onDayClick(day)}
         >
@@ -39,8 +39,8 @@ export const CalendarGrid = ({
                 <div
                   key={event.id}
                   className={`text-sm p-1 rounded ${
-                    event.type === "birthday" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
-                  } cursor-pointer truncate`}
+                    event.type === "birthday" ? "bg-primary/20 text-primary" : "bg-secondary/20 text-secondary"
+                  } cursor-pointer truncate hover:opacity-80 transition-opacity`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onEventClick(event);

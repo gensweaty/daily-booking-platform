@@ -128,9 +128,9 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
         }}
       />
 
-      <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
+      <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''} border border-border rounded-lg bg-background`}>
         {view !== 'month' && <TimeIndicator />}
-        <div className="flex-1 h-full">
+        <div className="flex-1 h-full max-h-[calc(100vh-16rem)] overflow-auto">
           <CalendarView
             days={getDaysForView()}
             events={events || []}

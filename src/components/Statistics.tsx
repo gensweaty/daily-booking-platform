@@ -140,7 +140,7 @@ export const Statistics = () => {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 h-full">
       <DateRangeSelect 
         selectedDate={dateRange}
         onDateChange={(start, end) => setDateRange({ start, end: end || start })}
@@ -152,7 +152,7 @@ export const Statistics = () => {
         ))}
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 h-[calc(100vh-26rem)]">
+      <div className="grid gap-3 md:grid-cols-2 h-[calc(100vh-32rem)] min-h-[300px]">
         <BookingChart data={eventStats?.dailyStats || []} />
         <IncomeChart data={eventStats?.monthlyIncome || []} />
       </div>

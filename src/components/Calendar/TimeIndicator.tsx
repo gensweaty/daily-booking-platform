@@ -1,10 +1,6 @@
 import { format } from "date-fns";
 
-// Reorder hours to start from 6 AM
-const HOURS = [
-  ...Array.from({ length: 18 }, (_, i) => i + 6), // 6 AM to 23 PM
-  ...Array.from({ length: 6 }, (_, i) => i) // 0 AM to 5 AM
-];
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 export const TimeIndicator = () => {
   return (
