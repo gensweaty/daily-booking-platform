@@ -167,7 +167,7 @@ export const EventDialogFields = ({
       )}
 
       <div className="space-y-2">
-        <Label>Attachment</Label>
+        <Label>Attachment (optional)</Label>
         <FileUploadField 
           onFileChange={setSelectedFile}
           fileError={fileError}
