@@ -19,14 +19,14 @@ export const CalendarView = ({
   onEventClick,
 }: CalendarViewProps) => {
   const renderDayHeader = (day: string) => (
-    <div key={day} className="bg-background p-2 sm:p-4 text-center font-semibold text-foreground border-b border-border">
+    <div key={day} className="bg-background p-2 text-center font-semibold text-foreground border-b border-border">
       {day}
     </div>
   );
 
   if (view === "month") {
     return (
-      <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
+      <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(renderDayHeader)}
         {days.map((day) => {
           const dayEvents = events.filter((event) => 
@@ -36,15 +36,15 @@ export const CalendarView = ({
           return (
             <div
               key={day.toISOString()}
-              className="bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted border border-border"
+              className="bg-background p-2 min-h-[90px] cursor-pointer hover:bg-muted border border-border"
               onClick={() => onDayClick(day)}
             >
               <div className="font-medium text-foreground">{format(day, "d")}</div>
-              <div className="mt-1 sm:mt-2 space-y-1">
+              <div className="mt-1 space-y-1 max-h-[60px] overflow-y-auto">
                 {dayEvents.map((event) => (
                   <div
                     key={event.id}
-                    className={`text-xs sm:text-sm p-1 rounded ${
+                    className={`text-xs p-1 rounded ${
                       event.type === "birthday"
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground"
@@ -73,7 +73,7 @@ export const CalendarView = ({
         {days.map((day) => (
           <div 
             key={day.toISOString()} 
-            className="bg-background p-2 sm:p-4 text-center border-b border-border h-20"
+            className="bg-background p-2 text-center border-b border-border h-16"
           >
             <div className="font-semibold text-sm text-foreground">{format(day, "EEE")}</div>
             <div className="text-xs text-muted-foreground">{format(day, "MMM d")}</div>
@@ -94,13 +94,9 @@ export const CalendarView = ({
               return (
                 <div
                   key={index}
-                  className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
+                  className="h-16 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
                   onClick={() => onDayClick(hourDate, index)}
-                >
-                  <div className="absolute -top-2.5 left-1 text-xs text-muted-foreground">
-                    {format(hourDate, 'h:mm a')}
-                  </div>
-                </div>
+                />
               );
             })}
             
@@ -109,9 +105,9 @@ export const CalendarView = ({
               .map((event) => {
                 const start = new Date(event.start_date);
                 const end = new Date(event.end_date);
-                const top = start.getHours() * 80 + (start.getMinutes() / 60) * 80;
+                const top = start.getHours() * 64 + (start.getMinutes() / 60) * 64;
                 const height = (end.getHours() - start.getHours() + 
-                              (end.getMinutes() - start.getMinutes()) / 60) * 80;
+                              (end.getMinutes() - start.getMinutes()) / 60) * 64;
                 
                 return (
                   <div
