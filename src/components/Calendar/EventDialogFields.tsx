@@ -1,11 +1,12 @@
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUploadField } from "../shared/FileUploadField";
 import { FileDisplay } from "../shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { CalendarEventType } from "@/lib/types/calendar";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -60,12 +61,17 @@ export const EventDialogFields = ({
     queryKey: ['eventFiles', eventId],
     queryFn: async () => {
       if (!eventId) return [];
+      console.log('Fetching files for event:', eventId);
       const { data, error } = await supabase
         .from('event_files')
         .select('*')
         .eq('event_id', eventId);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching event files:', error);
+        throw error;
+      }
+      console.log('Retrieved files:', data);
       return data || [];
     },
     enabled: !!eventId,
@@ -77,31 +83,30 @@ export const EventDialogFields = ({
         <Label htmlFor="title">Name and Surname (required)</Label>
         <Input
           id="title"
-          placeholder="Name and Surname"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          placeholder="Name and Surname"
           required
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="number">Phone Number</Label>
+        <Label htmlFor="phone">Phone Number</Label>
         <Input
-          id="number"
-          type="tel"
-          placeholder="Phone number"
+          id="phone"
           value={userNumber}
           onChange={(e) => setUserNumber(e.target.value)}
+          placeholder="Phone number"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="socialNetwork">Social Link or Email</Label>
+        <Label htmlFor="social">Social Link or Email</Label>
         <Input
-          id="socialNetwork"
-          placeholder="Social link or email"
+          id="social"
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
+          placeholder="Social link or email"
         />
       </div>
 
@@ -111,27 +116,25 @@ export const EventDialogFields = ({
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
           required
-          className="bg-background border-input"
         />
         <Input
           type="datetime-local"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
           required
-          className="bg-background border-input"
         />
       </div>
 
       <div className="space-y-2">
         <Label>Payment Status</Label>
         <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-          <SelectTrigger className="w-full bg-background border-input">
+          <SelectTrigger>
             <SelectValue placeholder="Select payment status" />
           </SelectTrigger>
-          <SelectContent className="bg-background border-input shadow-md">
-            <SelectItem value="not_paid" className="hover:bg-muted">Not paid</SelectItem>
-            <SelectItem value="partly" className="hover:bg-muted">Paid Partly</SelectItem>
-            <SelectItem value="fully" className="hover:bg-muted">Paid Fully</SelectItem>
+          <SelectContent>
+            <SelectItem value="not_paid">Not paid</SelectItem>
+            <SelectItem value="partly">Paid Partly</SelectItem>
+            <SelectItem value="fully">Paid Fully</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -143,11 +146,10 @@ export const EventDialogFields = ({
             id="amount"
             type="number"
             step="0.01"
-            placeholder="Enter amount"
             value={paymentAmount}
             onChange={(e) => setPaymentAmount(e.target.value)}
+            placeholder="Enter amount"
             required
-            className="bg-background border-input"
           />
         </div>
       )}
@@ -156,15 +158,15 @@ export const EventDialogFields = ({
         <Label htmlFor="notes">Event Notes</Label>
         <Textarea
           id="notes"
-          placeholder="Add notes about the event"
           value={eventNotes}
           onChange={(e) => setEventNotes(e.target.value)}
-          className="bg-background border-input"
+          placeholder="Add notes about the event"
         />
       </div>
 
       {existingFiles && existingFiles.length > 0 && (
         <div className="space-y-2">
+          <Label>Uploaded Files</Label>
           <FileDisplay 
             files={existingFiles} 
             bucketName="event_attachments"
