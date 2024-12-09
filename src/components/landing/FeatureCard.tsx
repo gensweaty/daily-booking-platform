@@ -36,7 +36,7 @@ export const FeatureCard = ({
         reverse ? 'md:flex-row-reverse' : ''
       }`}
     >
-      <div className={`space-y-6 ${reverse ? 'order-2 md:order-1' : ''}`}>
+      <div className={`space-y-6 ${reverse ? 'md:order-2' : ''} order-1`}>
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 rounded-lg bg-primary/10">
             <Icon className="w-6 h-6 text-primary animate-pulse" />
@@ -67,7 +67,7 @@ export const FeatureCard = ({
         whileInView={{ opacity: 1, x: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.5 }}
-        className={`relative ${reverse ? 'order-1 md:order-2' : 'order-2'}`}
+        className={`relative ${reverse ? 'md:order-1' : ''} order-2`}
       >
         <div className="rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300 bg-white">
           {carousel ? (
