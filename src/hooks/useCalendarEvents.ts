@@ -17,7 +17,7 @@ export const useCalendarEvents = () => {
     return data;
   };
 
-  const createEvent = async (event: Partial<CalendarEventType>) => {
+  const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to create events");
     
     const { data, error } = await supabase
@@ -30,7 +30,7 @@ export const useCalendarEvents = () => {
     return data;
   };
 
-  const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }) => {
+  const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
     
     const { data, error } = await supabase
