@@ -36,7 +36,7 @@ export const TaskList = () => {
       return acc;
     },
     { todo: [], "in-progress": [], done: [] } as Record<TaskStatus, typeof tasks>
-  );
+  ) || { todo: [], "in-progress": [], done: [] };
 
   const handleDragEnd = async (result: any) => {
     if (!result.destination || !tasks) return;
