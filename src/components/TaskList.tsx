@@ -35,7 +35,7 @@ export const TaskList = () => {
       acc[task.status].push(task);
       return acc;
     },
-    { todo: [], "in-progress": [], done: [] } as Record<TaskStatus, typeof tasks>
+    { todo: [], "in-progress": [], done: [] } as Record<TaskStatus, Task[]>
   ) || { todo: [], "in-progress": [], done: [] };
 
   const handleDragEnd = async (result: any) => {
@@ -76,7 +76,10 @@ export const TaskList = () => {
             <TaskColumn
               key={status}
               status={status as TaskStatus}
-              tasks={statusTasks || []}
+              tasks={statusTasks}
+              onEdit={() => {}}
+              onView={() => {}}
+              onDelete={() => {}}
             />
           ))}
         </div>
