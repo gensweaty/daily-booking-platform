@@ -1,26 +1,22 @@
 import { useState } from "react";
-import { CalendarEvent } from "@/lib/types";
+import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { CalendarViewType } from "@/lib/types/calendar";
+import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 
-export const useEventDialog = (
-  createEvent: (data: Partial<CalendarEvent>) => Promise<void>,
-  updateEvent: (params: { id: string; updates: Partial<CalendarEvent> }) => Promise<void>,
-  deleteEvent: (id: string) => Promise<void>
-) => {
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+export const useEventDialog = () => {
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ date: Date } | null>(null);
   const { toast } = useToast();
+  const { createEvent, updateEvent, deleteEvent } = useCalendarEvents();
 
   const handleDayClick = (date: Date, hour?: number, view?: CalendarViewType) => {
     const clickedDate = new Date(date);
     
     if (hour !== undefined) {
-      // Use the exact clicked hour for week/day view
       clickedDate.setHours(hour, 0, 0, 0);
     } else if (view === "month") {
-      // For month view, set a default time (9 AM)
       clickedDate.setHours(9, 0, 0, 0);
     }
     
@@ -29,7 +25,7 @@ export const useEventDialog = (
     setIsNewEventDialogOpen(true);
   };
 
-  const handleCreateEvent = async (data: Partial<CalendarEvent>) => {
+  const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
       await createEvent(data);
       setIsNewEventDialogOpen(false);
@@ -46,14 +42,11 @@ export const useEventDialog = (
     }
   };
 
-  const handleUpdateEvent = async (updates: Partial<CalendarEvent>) => {
+  const handleUpdateEvent = async (updates: Partial<CalendarEventType>) => {
     if (!selectedEvent) return;
     
     try {
-      await updateEvent({
-        id: selectedEvent.id,
-        updates,
-      });
+      await updateEvent({ id: selectedEvent.id, updates });
       setSelectedEvent(null);
       toast({
         title: "Success",
