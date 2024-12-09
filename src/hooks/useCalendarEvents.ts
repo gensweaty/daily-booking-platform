@@ -23,10 +23,12 @@ export const useCalendarEvents = () => {
     const { data, error } = await supabase
       .from('events')
       .insert([{ ...event, user_id: user.id }])
-      .select()
+      .select('*')
       .single();
 
     if (error) throw error;
+    if (!data) throw new Error("Failed to create event");
+    
     return data;
   };
 
@@ -38,10 +40,12 @@ export const useCalendarEvents = () => {
       .update(updates)
       .eq('id', id)
       .eq('user_id', user.id)
-      .select()
+      .select('*')
       .single();
 
     if (error) throw error;
+    if (!data) throw new Error("Failed to update event");
+    
     return data;
   };
 
