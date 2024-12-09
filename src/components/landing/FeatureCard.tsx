@@ -67,7 +67,7 @@ export const FeatureCard = ({
         whileInView={{ opacity: 1, x: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.5 }}
-        className={`relative ${reverse ? 'order-1 md:order-2' : ''}`}
+        className={`relative ${reverse ? 'order-1 md:order-2' : 'order-2'}`}
       >
         <div className="rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300 bg-white">
           {carousel ? (
