@@ -9,9 +9,9 @@ export interface CalendarEventType {
   event_notes?: string;
   start_date: string;
   end_date: string;
+  type: 'birthday' | 'private_party';
   payment_status?: string;
   payment_amount?: number;
   created_at: string;
   user_id?: string;
-  type?: string; // Made optional
 }
