@@ -19,14 +19,24 @@ export const CalendarView = ({
   onEventClick,
 }: CalendarViewProps) => {
   const renderDayHeader = (day: string) => (
-    <div key={day} className="bg-background p-2 text-center font-semibold text-foreground border-b border-border">
+    <div key={day} className="bg-background p-2 sm:p-4 text-center font-semibold text-foreground border-b border-border">
       {day}
     </div>
   );
 
+  // Function to convert display hour to actual hour
+  const displayHourToActualHour = (displayIndex: number) => {
+    return (displayIndex + 6) % 24;
+  };
+
+  // Function to convert actual hour to display position
+  const actualHourToDisplayPosition = (actualHour: number) => {
+    return ((actualHour - 6 + 24) % 24) * 80; // 80px is the height of each hour slot
+  };
+
   if (view === "month") {
     return (
-      <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm h-full">
+      <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(renderDayHeader)}
         {days.map((day) => {
           const dayEvents = events.filter((event) => 
@@ -36,15 +46,15 @@ export const CalendarView = ({
           return (
             <div
               key={day.toISOString()}
-              className="bg-background p-2 min-h-[120px] h-[calc((100vh-24rem)/6)] cursor-pointer hover:bg-muted border border-border"
+              className="bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted border border-border"
               onClick={() => onDayClick(day)}
             >
               <div className="font-medium text-foreground">{format(day, "d")}</div>
-              <div className="mt-1 space-y-1 max-h-[calc(100%-2rem)] overflow-y-auto">
+              <div className="mt-1 sm:mt-2 space-y-1">
                 {dayEvents.map((event) => (
                   <div
                     key={event.id}
-                    className={`text-xs p-1 rounded ${
+                    className={`text-xs sm:text-sm p-1 rounded ${
                       event.type === "birthday"
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground"
@@ -65,7 +75,7 @@ export const CalendarView = ({
     );
   }
 
-  // Week/Day view with all 24 hours
+  // Week/Day view with time slots starting from 6 AM
   return (
     <div className="flex-1 grid bg-background rounded-lg overflow-y-auto" 
          style={{ gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` }}>
@@ -73,7 +83,7 @@ export const CalendarView = ({
         {days.map((day) => (
           <div 
             key={day.toISOString()} 
-            className="bg-background p-2 text-center border-b border-border h-16"
+            className="bg-background p-2 sm:p-4 text-center border-b border-border h-20"
           >
             <div className="font-semibold text-sm text-foreground">{format(day, "EEE")}</div>
             <div className="text-xs text-muted-foreground">{format(day, "MMM d")}</div>
@@ -88,14 +98,15 @@ export const CalendarView = ({
             className="relative bg-background border-r border-l border-border"
           >
             {Array.from({ length: 24 }).map((_, index) => {
+              const actualHour = displayHourToActualHour(index);
               const hourDate = new Date(day);
-              hourDate.setHours(index, 0, 0, 0);
+              hourDate.setHours(actualHour, 0, 0, 0);
               
               return (
                 <div
-                  key={index}
-                  className="h-16 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
-                  onClick={() => onDayClick(hourDate, index)}
+                  key={actualHour}
+                  className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
+                  onClick={() => onDayClick(hourDate, actualHour)}
                 />
               );
             })}
@@ -105,9 +116,10 @@ export const CalendarView = ({
               .map((event) => {
                 const start = new Date(event.start_date);
                 const end = new Date(event.end_date);
-                const top = start.getHours() * 64 + (start.getMinutes() / 60) * 64;
+                const top = actualHourToDisplayPosition(start.getHours()) + 
+                          (start.getMinutes() / 60) * 80;
                 const height = (end.getHours() - start.getHours() + 
-                              (end.getMinutes() - start.getMinutes()) / 60) * 64;
+                              (end.getMinutes() - start.getMinutes()) / 60) * 80;
                 
                 return (
                   <div

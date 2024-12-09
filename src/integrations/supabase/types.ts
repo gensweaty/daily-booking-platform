@@ -189,7 +189,6 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
-          position: number | null
           status: string
           title: string
           user_id: string | null
@@ -198,7 +197,6 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
-          position?: number | null
           status?: string
           title: string
           user_id?: string | null
@@ -207,7 +205,6 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
-          position?: number | null
           status?: string
           title?: string
           user_id?: string | null

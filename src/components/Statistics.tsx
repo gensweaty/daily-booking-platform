@@ -140,19 +140,19 @@ export const Statistics = () => {
   ];
 
   return (
-    <div className="space-y-4 h-full">
+    <div className="space-y-6">
       <DateRangeSelect 
         selectedDate={dateRange}
         onDateChange={(start, end) => setDateRange({ start, end: end || start })}
       />
       
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, index) => (
           <StatCard key={index} {...stat} />
         ))}
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 h-[calc(100vh-32rem)] min-h-[300px]">
+      <div className="grid gap-4 md:grid-cols-2">
         <BookingChart data={eventStats?.dailyStats || []} />
         <IncomeChart data={eventStats?.monthlyIncome || []} />
       </div>

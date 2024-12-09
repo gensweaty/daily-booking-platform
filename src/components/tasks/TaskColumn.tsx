@@ -1,14 +1,16 @@
 import { Task } from "@/lib/types";
+import { Droppable } from "@hello-pangea/dnd";
 import { TaskCard } from "./TaskCard";
 
 interface TaskColumnProps {
   status: string;
   tasks: Task[];
   onEdit: (task: Task) => void;
+  onView: (task: Task) => void;
   onDelete: (id: string) => void;
 }
 
-export const TaskColumn = ({ status, tasks, onEdit, onDelete }: TaskColumnProps) => {
+export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColumnProps) => {
   const getColumnStyle = (status: string) => {
     switch (status) {
       case 'in-progress':
@@ -21,23 +23,30 @@ export const TaskColumn = ({ status, tasks, onEdit, onDelete }: TaskColumnProps)
   };
 
   return (
-    <div
-      className={`p-4 rounded-lg min-h-[200px] border ${getColumnStyle(status)}`}
-    >
-      <h3 className="font-semibold mb-4 capitalize text-foreground">
-        {status.replace('-', ' ')}
-      </h3>
-      <div className="space-y-4">
-        {tasks.map((task: Task, index: number) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            index={index}
-            onEdit={onEdit}
-            onDelete={onDelete}
-          />
-        ))}
-      </div>
-    </div>
+    <Droppable droppableId={status}>
+      {(provided) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.droppableProps}
+          className={`p-4 rounded-lg min-h-[200px] border ${getColumnStyle(status)}`}
+        >
+          <h3 className="font-semibold mb-4 capitalize text-foreground">
+            {status.replace('-', ' ')}
+          </h3>
+          <div className="space-y-4">
+            {tasks.map((task: Task, index: number) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                index={index}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
+            ))}
+            {provided.placeholder}
+          </div>
+        </div>
+      )}
+    </Droppable>
   );
 };
