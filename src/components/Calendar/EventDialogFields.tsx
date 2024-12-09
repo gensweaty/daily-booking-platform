@@ -163,26 +163,21 @@ export const EventDialogFields = ({
         />
       </div>
 
-      <div className="space-y-2">
-        <Label>Invoice</Label>
-        {existingFiles && existingFiles.length > 0 && (
-          <div className="mb-4">
-            <FileDisplay 
-              files={existingFiles} 
-              bucketName="event_attachments"
-              allowDelete
-            />
-          </div>
-        )}
-        <FileUploadField 
-          onFileChange={setSelectedFile}
-          fileError={fileError}
-          setFileError={setFileError}
-        />
-        <p className="text-xs text-muted-foreground mt-1">
-          Max: Images 2MB, Docs 1MB • Formats: Images (jpg, png, webp), Docs (pdf, docx, xlsx, pptx)
-        </p>
-      </div>
+      {existingFiles && existingFiles.length > 0 && (
+        <div className="space-y-2">
+          <FileDisplay 
+            files={existingFiles} 
+            bucketName="event_attachments"
+            allowDelete
+          />
+        </div>
+      )}
+      
+      <FileUploadField 
+        onFileChange={setSelectedFile}
+        fileError={fileError}
+        setFileError={setFileError}
+      />
     </div>
   );
 };
