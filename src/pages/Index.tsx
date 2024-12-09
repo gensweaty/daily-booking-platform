@@ -70,7 +70,7 @@ const Index = () => {
     <div className="min-h-screen bg-background p-4">
       <DashboardHeader username={username} />
 
-      <Tabs defaultValue="calendar" className="w-full max-w-4xl mx-auto">
+      <Tabs defaultValue="calendar" className="w-full max-w-[1600px] mx-auto">
         <TabsList className="grid w-full grid-cols-3 mb-8">
           <TabsTrigger value="calendar" className="flex items-center gap-2 text-sm sm:text-base text-foreground">
             <CalendarIcon className="w-4 h-4" />
@@ -87,15 +87,15 @@ const Index = () => {
         </TabsList>
 
         <TabsContent value="calendar">
-          <Card>
-            <CardContent className="pt-6 overflow-x-auto">
+          <Card className="h-[calc(100vh-12rem)]">
+            <CardContent className="p-0 sm:p-6">
               <Calendar defaultView="month" />
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="statistics">
-          <Card>
+          <Card className="h-[calc(100vh-12rem)]">
             <CardHeader>
               <CardTitle className="text-foreground">Statistics</CardTitle>
             </CardHeader>
@@ -106,7 +106,7 @@ const Index = () => {
         </TabsContent>
 
         <TabsContent value="tasks">
-          <Card>
+          <Card className="h-[calc(100vh-12rem)]">
             <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
               <CardTitle className="text-foreground">My Tasks</CardTitle>
               <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>

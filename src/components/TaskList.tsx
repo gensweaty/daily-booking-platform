@@ -75,7 +75,7 @@ export const TaskList = () => {
   return (
     <>
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[calc(100vh-20rem)] overflow-auto">
           {Object.entries(columns).map(([status, statusTasks]) => (
             <TaskColumn
               key={status}

@@ -140,7 +140,7 @@ export const Statistics = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-[calc(100vh-20rem)] overflow-auto">
       <DateRangeSelect 
         selectedDate={dateRange}
         onDateChange={(start, end) => setDateRange({ start, end: end || start })}
