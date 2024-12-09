@@ -77,6 +77,21 @@ export const EventDialogFields = ({
     enabled: !!eventId,
   });
 
+  const handleFileClick = async (filePath: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('event_attachments')
+        .createSignedUrl(filePath, 60);
+
+      if (error) throw error;
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank');
+      }
+    } catch (error) {
+      console.error('Error opening file:', error);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -164,26 +179,40 @@ export const EventDialogFields = ({
         />
       </div>
 
-      {existingFiles && existingFiles.length > 0 && (
-        <div className="space-y-2">
-          <Label>Uploaded Files</Label>
-          <FileDisplay 
-            files={existingFiles} 
-            bucketName="event_attachments"
-            allowDelete
-          />
-        </div>
-      )}
-      
-      <div className="flex items-center gap-2">
-        <Label htmlFor="file">Invoice</Label>
-        <span className="text-sm text-muted-foreground">(Attachment optional)</span>
+      <div className="space-y-2">
+        {existingFiles && existingFiles.length > 0 ? (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Label>Invoice</Label>
+              <span className="text-sm text-muted-foreground">(Current file: 
+                <button 
+                  onClick={() => handleFileClick(existingFiles[0].file_path)}
+                  className="text-primary hover:underline ml-1"
+                >
+                  {existingFiles[0].filename}
+                </button>)
+              </span>
+            </div>
+            <FileUploadField 
+              onFileChange={setSelectedFile}
+              fileError={fileError}
+              setFileError={setFileError}
+            />
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Label htmlFor="file">Invoice</Label>
+              <span className="text-sm text-muted-foreground">(Attachment optional)</span>
+            </div>
+            <FileUploadField 
+              onFileChange={setSelectedFile}
+              fileError={fileError}
+              setFileError={setFileError}
+            />
+          </div>
+        )}
       </div>
-      <FileUploadField 
-        onFileChange={setSelectedFile}
-        fileError={fileError}
-        setFileError={setFileError}
-      />
     </div>
   );
 };
