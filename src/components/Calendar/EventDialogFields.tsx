@@ -128,10 +128,10 @@ export const EventDialogFields = ({
       <div className="space-y-2">
         <Label>Payment Status</Label>
         <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-          <SelectTrigger>
+          <SelectTrigger className="bg-background">
             <SelectValue placeholder="Select payment status" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-background">
             <SelectItem value="not_paid">Not paid</SelectItem>
             <SelectItem value="partly">Paid Partly</SelectItem>
             <SelectItem value="fully">Paid Fully</SelectItem>
@@ -175,6 +175,10 @@ export const EventDialogFields = ({
         </div>
       )}
       
+      <div className="flex items-center gap-2">
+        <Label htmlFor="file">Invoice</Label>
+        <span className="text-sm text-muted-foreground">(Attachment optional)</span>
+      </div>
       <FileUploadField 
         onFileChange={setSelectedFile}
         fileError={fileError}
