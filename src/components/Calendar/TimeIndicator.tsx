@@ -4,7 +4,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 export const TimeIndicator = () => {
   return (
-    <div className="w-12 flex-shrink-0 border-r border-border bg-background">
+    <div className="w-16 flex-shrink-0 border-r border-border bg-background">
       <div className="h-20 border-b border-border" /> {/* Empty cell for header alignment */}
       {HOURS.map((hour) => {
         const date = new Date();
@@ -15,8 +15,8 @@ export const TimeIndicator = () => {
             key={hour}
             className="h-20 border-b border-border text-xs text-muted-foreground relative"
           >
-            <span className="absolute top-[-10px] left-0">
-              {format(date, 'h a')}
+            <span className="absolute -top-2.5 left-1">
+              {format(date, 'h:mm a')}
             </span>
           </div>
         );

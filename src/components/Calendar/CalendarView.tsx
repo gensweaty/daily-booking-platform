@@ -96,7 +96,11 @@ export const CalendarView = ({
                   key={index}
                   className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
                   onClick={() => onDayClick(hourDate, index)}
-                />
+                >
+                  <div className="absolute -top-2.5 left-1 text-xs text-muted-foreground">
+                    {format(hourDate, 'h:mm a')}
+                  </div>
+                </div>
               );
             })}
             
