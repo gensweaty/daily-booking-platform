@@ -26,7 +26,7 @@ export const CalendarView = ({
 
   if (view === "month") {
     return (
-      <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm">
+      <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm h-full">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(renderDayHeader)}
         {days.map((day) => {
           const dayEvents = events.filter((event) => 
@@ -36,11 +36,11 @@ export const CalendarView = ({
           return (
             <div
               key={day.toISOString()}
-              className="bg-background p-2 min-h-[90px] cursor-pointer hover:bg-muted border border-border"
+              className="bg-background p-2 min-h-[120px] h-[calc((100vh-24rem)/6)] cursor-pointer hover:bg-muted border border-border"
               onClick={() => onDayClick(day)}
             >
               <div className="font-medium text-foreground">{format(day, "d")}</div>
-              <div className="mt-1 space-y-1 max-h-[60px] overflow-y-auto">
+              <div className="mt-1 space-y-1 max-h-[calc(100%-2rem)] overflow-y-auto">
                 {dayEvents.map((event) => (
                   <div
                     key={event.id}

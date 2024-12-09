@@ -60,14 +60,14 @@ export const TaskList = () => {
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[calc(100vh-16rem)] overflow-hidden">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-h-[calc(100vh-16rem)] overflow-y-auto">
         {COLUMNS.map((status) => (
           <Droppable key={status} droppableId={status}>
             {(provided) => (
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="bg-muted/30 rounded-lg p-4 h-full flex flex-col"
+                className="bg-muted/30 rounded-lg p-4 min-h-[200px] flex flex-col"
               >
                 <TaskColumn
                   status={status}
