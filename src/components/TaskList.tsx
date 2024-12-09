@@ -22,17 +22,17 @@ export const TaskList = () => {
         .order("position");
 
       if (error) throw error;
-      return data || [];
+      return data as Task[] || [];
     },
     enabled: !!user,
   });
 
-  const columns = tasks?.reduce(
+  const columns: Record<TaskStatus, Task[]> = tasks?.reduce(
     (acc, task) => {
-      if (!acc[task.status]) {
-        acc[task.status] = [];
+      if (!acc[task.status as TaskStatus]) {
+        acc[task.status as TaskStatus] = [];
       }
-      acc[task.status].push(task);
+      acc[task.status as TaskStatus].push(task);
       return acc;
     },
     { todo: [], "in-progress": [], done: [] } as Record<TaskStatus, Task[]>
