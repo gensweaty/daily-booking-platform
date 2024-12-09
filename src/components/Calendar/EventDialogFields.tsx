@@ -3,6 +3,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUploadField } from "@/components/shared/FileUploadField";
+import { FileDisplay } from "@/components/shared/FileDisplay";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { CalendarEventType } from "@/lib/types/calendar";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -27,6 +31,7 @@ interface EventDialogFieldsProps {
   setSelectedFile: (file: File | null) => void;
   fileError: string;
   setFileError: (error: string) => void;
+  event?: CalendarEventType;
 }
 
 export const EventDialogFields = ({
@@ -52,7 +57,23 @@ export const EventDialogFields = ({
   setSelectedFile,
   fileError,
   setFileError,
+  event,
 }: EventDialogFieldsProps) => {
+  const { data: existingFiles } = useQuery({
+    queryKey: ['eventFiles', event?.id],
+    queryFn: async () => {
+      if (!event?.id) return [];
+      const { data, error } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', event.id);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!event?.id,
+  });
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -143,7 +164,18 @@ export const EventDialogFields = ({
         </div>
       )}
 
-      <FileUploadField
+      {existingFiles && existingFiles.length > 0 && (
+        <div className="space-y-2">
+          <Label>Invoice</Label>
+          <FileDisplay 
+            files={existingFiles} 
+            bucketName="event_attachments"
+            allowDelete
+          />
+        </div>
+      )}
+
+      <FileUploadField 
         onFileChange={setSelectedFile}
         fileError={fileError}
         setFileError={setFileError}
