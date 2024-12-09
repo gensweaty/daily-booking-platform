@@ -12,7 +12,7 @@ interface EventDialogProps {
   onOpenChange: (open: boolean) => void;
   selectedDate: Date | null;
   defaultEndDate?: Date | null;
-  onSubmit: (data: Partial<CalendarEventType>) => void;
+  onSubmit: (data: Partial<CalendarEventType>) => Promise<CalendarEventType | undefined>;
   onDelete?: () => void;
   event?: CalendarEventType;
 }
@@ -73,7 +73,7 @@ export const EventDialog = ({
 
     const result = await onSubmit(eventData);
 
-    if (selectedFile && result) {
+    if (selectedFile && result?.id) {
       const fileExt = selectedFile.name.split('.').pop();
       const filePath = `${crypto.randomUUID()}.${fileExt}`;
       

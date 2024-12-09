@@ -74,10 +74,10 @@ export const EventDialogFields = ({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="title">Full Name (required)</Label>
+        <Label htmlFor="title">Name and Surname (required)</Label>
         <Input
           id="title"
-          placeholder="Full name"
+          placeholder="Name and Surname"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
