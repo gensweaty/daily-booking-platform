@@ -2,10 +2,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileUploadField } from "../shared/FileUploadField";
+import { FileDisplay } from "../shared/FileDisplay";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 interface EventDialogFieldsProps {
   title: string;
-  setTitle: (value: string) => void;
+  setTitle: (title: string) => void;
   userSurname: string;
   setUserSurname: (value: string) => void;
   userNumber: string;
@@ -14,8 +18,6 @@ interface EventDialogFieldsProps {
   setSocialNetworkLink: (value: string) => void;
   eventNotes: string;
   setEventNotes: (value: string) => void;
-  type: "birthday" | "private_party";
-  setType: (value: "birthday" | "private_party") => void;
   startDate: string;
   setStartDate: (value: string) => void;
   endDate: string;
@@ -24,21 +26,22 @@ interface EventDialogFieldsProps {
   setPaymentStatus: (value: string) => void;
   paymentAmount: string;
   setPaymentAmount: (value: string) => void;
+  selectedFile: File | null;
+  setSelectedFile: (file: File | null) => void;
+  fileError: string;
+  setFileError: (error: string) => void;
+  eventId?: string;
 }
 
 export const EventDialogFields = ({
   title,
   setTitle,
-  userSurname,
-  setUserSurname,
   userNumber,
   setUserNumber,
   socialNetworkLink,
   setSocialNetworkLink,
   eventNotes,
   setEventNotes,
-  type,
-  setType,
   startDate,
   setStartDate,
   endDate,
@@ -47,7 +50,27 @@ export const EventDialogFields = ({
   setPaymentStatus,
   paymentAmount,
   setPaymentAmount,
+  selectedFile,
+  setSelectedFile,
+  fileError,
+  setFileError,
+  eventId,
 }: EventDialogFieldsProps) => {
+  const { data: existingFiles } = useQuery({
+    queryKey: ['eventFiles', eventId],
+    queryFn: async () => {
+      if (!eventId) return [];
+      const { data, error } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', eventId);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!eventId,
+  });
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -73,27 +96,13 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="socialNetwork">Social Network Link</Label>
+        <Label htmlFor="socialNetwork">Social Link or Email</Label>
         <Input
           id="socialNetwork"
-          type="url"
-          placeholder="Social network profile link"
+          placeholder="Social link or email"
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
         />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Event Type</Label>
-        <Select value={type} onValueChange={(value) => setType(value as "birthday" | "private_party")}>
-          <SelectTrigger className="w-full bg-background border-input">
-            <SelectValue placeholder="Select type" />
-          </SelectTrigger>
-          <SelectContent className="bg-background border-input shadow-md">
-            <SelectItem value="birthday" className="hover:bg-muted">Birthday</SelectItem>
-            <SelectItem value="private_party" className="hover:bg-muted">Private Party</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -152,6 +161,27 @@ export const EventDialogFields = ({
           onChange={(e) => setEventNotes(e.target.value)}
           className="bg-background border-input"
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Invoice</Label>
+        {existingFiles && existingFiles.length > 0 && (
+          <div className="mb-4">
+            <FileDisplay 
+              files={existingFiles} 
+              bucketName="event_attachments"
+              allowDelete
+            />
+          </div>
+        )}
+        <FileUploadField 
+          onFileChange={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Max: Images 2MB, Docs 1MB • Formats: Images (jpg, png, webp), Docs (pdf, docx, xlsx, pptx)
+        </p>
       </div>
     </div>
   );

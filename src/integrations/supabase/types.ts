@@ -9,6 +9,47 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      event_files: {
+        Row: {
+          content_type: string | null
+          created_at: string | null
+          event_id: string | null
+          file_path: string
+          filename: string
+          id: string
+          size: number | null
+          user_id: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string | null
+          event_id?: string | null
+          file_path: string
+          filename: string
+          id?: string
+          size?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string | null
+          event_id?: string | null
+          file_path?: string
+          filename?: string
+          id?: string
+          size?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_files_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           created_at: string | null
@@ -20,7 +61,7 @@ export type Database = {
           social_network_link: string | null
           start_date: string
           title: string
-          type: string
+          type: string | null
           user_id: string | null
           user_number: string | null
           user_surname: string | null
@@ -35,7 +76,7 @@ export type Database = {
           social_network_link?: string | null
           start_date: string
           title: string
-          type: string
+          type?: string | null
           user_id?: string | null
           user_number?: string | null
           user_surname?: string | null
@@ -50,7 +91,7 @@ export type Database = {
           social_network_link?: string | null
           start_date?: string
           title?: string
-          type?: string
+          type?: string | null
           user_id?: string | null
           user_number?: string | null
           user_surname?: string | null
