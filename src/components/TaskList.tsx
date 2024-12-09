@@ -2,9 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { DragDropContext } from "@hello-pangea/dnd";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { TaskColumn } from "./TaskList/TaskColumn";
-import { TaskStatus } from "@/lib/types";
+import { TaskColumn } from "@/components/tasks/TaskColumn";
+import { Task } from "@/lib/types";
 import { useToast } from "@/components/ui/use-toast";
+
+type TaskStatus = 'todo' | 'in-progress' | 'done';
 
 export const TaskList = () => {
   const { user } = useAuth();
@@ -74,7 +76,7 @@ export const TaskList = () => {
             <TaskColumn
               key={status}
               status={status as TaskStatus}
-              tasks={statusTasks}
+              tasks={statusTasks || []}
             />
           ))}
         </div>
