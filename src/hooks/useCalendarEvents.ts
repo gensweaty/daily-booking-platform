@@ -2,19 +2,21 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
 
 export const useCalendarEvents = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { toast } = useToast();
 
-  const getEvents = async () => {
+  const getEvents = async (): Promise<CalendarEventType[]> => {
     const { data, error } = await supabase
       .from('events')
       .select('*')
       .order('start_date', { ascending: true });
 
     if (error) throw error;
-    return data;
+    return data || [];
   };
 
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
@@ -71,6 +73,17 @@ export const useCalendarEvents = () => {
     mutationFn: createEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      toast({
+        title: "Success",
+        description: "Event created successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -78,6 +91,17 @@ export const useCalendarEvents = () => {
     mutationFn: updateEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      toast({
+        title: "Success",
+        description: "Event updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -85,6 +109,17 @@ export const useCalendarEvents = () => {
     mutationFn: deleteEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      toast({
+        title: "Success",
+        description: "Event deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
