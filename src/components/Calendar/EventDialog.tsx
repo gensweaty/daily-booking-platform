@@ -5,6 +5,7 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
+import { supabase } from "@/lib/supabase";
 
 interface EventDialogProps {
   open: boolean;
@@ -29,11 +30,12 @@ export const EventDialog = ({
   const [userNumber, setUserNumber] = useState(event?.user_number || "");
   const [socialNetworkLink, setSocialNetworkLink] = useState(event?.social_network_link || "");
   const [eventNotes, setEventNotes] = useState(event?.event_notes || "");
-  const [type, setType] = useState<"birthday" | "private_party">(event?.type || "birthday");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [paymentStatus, setPaymentStatus] = useState(event?.payment_status || "");
   const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
 
   useEffect(() => {
     if (event) {
@@ -51,13 +53,13 @@ export const EventDialog = ({
     }
   }, [selectedDate, event]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const startDateTime = new Date(startDate);
     const endDateTime = new Date(endDate);
     
-    onSubmit({
+    const eventData = {
       title,
       user_surname: userSurname,
       user_number: userNumber,
@@ -65,10 +67,41 @@ export const EventDialog = ({
       event_notes: eventNotes,
       start_date: startDateTime.toISOString(),
       end_date: endDateTime.toISOString(),
-      type,
       payment_status: paymentStatus || null,
       payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-    });
+    };
+
+    await onSubmit(eventData);
+
+    if (selectedFile) {
+      const fileExt = selectedFile.name.split('.').pop();
+      const filePath = `${crypto.randomUUID()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('event_attachments')
+        .upload(filePath, selectedFile);
+
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
+        return;
+      }
+
+      const { error: fileRecordError } = await supabase
+        .from('event_files')
+        .insert({
+          event_id: event?.id,
+          filename: selectedFile.name,
+          file_path: filePath,
+          content_type: selectedFile.type,
+          size: selectedFile.size,
+        });
+
+      if (fileRecordError) {
+        console.error('Error saving file record:', fileRecordError);
+      }
+    }
+
+    onOpenChange(false);
   };
 
   return (
@@ -87,8 +120,6 @@ export const EventDialog = ({
             setSocialNetworkLink={setSocialNetworkLink}
             eventNotes={eventNotes}
             setEventNotes={setEventNotes}
-            type={type}
-            setType={setType}
             startDate={startDate}
             setStartDate={setStartDate}
             endDate={endDate}
@@ -97,6 +128,10 @@ export const EventDialog = ({
             setPaymentStatus={setPaymentStatus}
             paymentAmount={paymentAmount}
             setPaymentAmount={setPaymentAmount}
+            selectedFile={selectedFile}
+            setSelectedFile={setSelectedFile}
+            fileError={fileError}
+            setFileError={setFileError}
           />
           
           <div className="flex justify-between gap-4">
