@@ -71,7 +71,7 @@ const Index = () => {
       <DashboardHeader username={username} />
 
       <Tabs defaultValue="calendar" className="w-full max-w-[1600px] mx-auto">
-        <TabsList className="grid w-full grid-cols-3 mb-8">
+        <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="calendar" className="flex items-center gap-2 text-sm sm:text-base text-foreground">
             <CalendarIcon className="w-4 h-4" />
             <span className="hidden sm:inline">Booking Calendar</span>
@@ -87,15 +87,15 @@ const Index = () => {
         </TabsList>
 
         <TabsContent value="calendar">
-          <Card className="h-[calc(100vh-12rem)]">
-            <CardContent className="p-0 sm:p-6">
+          <Card className="h-[calc(100vh-10rem)]">
+            <CardContent className="p-4 h-full">
               <Calendar defaultView="month" />
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="statistics">
-          <Card className="h-[calc(100vh-12rem)]">
+          <Card className="h-[calc(100vh-10rem)]">
             <CardHeader>
               <CardTitle className="text-foreground">Statistics</CardTitle>
             </CardHeader>
@@ -106,7 +106,7 @@ const Index = () => {
         </TabsContent>
 
         <TabsContent value="tasks">
-          <Card className="h-[calc(100vh-12rem)]">
+          <Card className="h-[calc(100vh-10rem)]">
             <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
               <CardTitle className="text-foreground">My Tasks</CardTitle>
               <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>

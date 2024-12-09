@@ -114,7 +114,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   }
 
   return (
-    <div className="h-full flex flex-col gap-4">
+    <div className="h-full flex flex-col gap-2">
       <CalendarHeader
         selectedDate={selectedDate}
         view={view}
@@ -130,7 +130,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
         {view !== 'month' && <TimeIndicator />}
-        <div className="flex-1">
+        <div className="flex-1 h-full">
           <CalendarView
             days={getDaysForView()}
             events={events || []}

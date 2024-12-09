@@ -1,110 +1,84 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getTasks, updateTask, deleteTask } from "@/lib/api";
-import { Task } from "@/lib/types";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { Pencil, Trash2, Maximize2, Paperclip } from "lucide-react";
-import { Button } from "./ui/button";
-import { useState } from "react";
-import { Dialog, DialogContent } from "./ui/dialog";
-import { useToast } from "./ui/use-toast";
-import { AddTaskForm } from "./AddTaskForm";
-import { TaskFullView } from "./tasks/TaskFullView";
+import { useQuery } from "@tanstack/react-query";
+import { DragDropContext } from "@hello-pangea/dnd";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { TaskColumn } from "./tasks/TaskColumn";
-import { TaskCard } from "./tasks/TaskCard";
+import { TaskColumn } from "./TaskList/TaskColumn";
+import { TaskStatus } from "@/lib/types";
+import { useToast } from "@/components/ui/use-toast";
 
 export const TaskList = () => {
-  const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { toast } = useToast();
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [viewingTask, setViewingTask] = useState<Task | null>(null);
 
-  const deleteTaskMutation = useMutation({
-    mutationFn: (id: string) => deleteTask(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      toast({
-        title: "Success",
-        description: "Task deleted successfully",
-      });
-    },
-  });
-
-  const updateTaskMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) =>
-      updateTask(id, updates),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      toast({
-        title: "Success",
-        description: "Task updated successfully",
-      });
-    },
-  });
-
-  const handleDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
-
-    const taskId = result.draggableId;
-    const newStatus = result.destination.droppableId as 'todo' | 'in-progress' | 'done';
-
-    updateTaskMutation.mutate({
-      id: taskId,
-      updates: { status: newStatus },
-    });
-  };
-
-  const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ['tasks'],
+  const { data: tasks, refetch } = useQuery({
+    queryKey: ["tasks", user?.id],
     queryFn: async () => {
-      console.log('Fetching tasks in TaskList component');
-      const tasks = await getTasks();
-      console.log('Tasks received in TaskList:', tasks);
-      return tasks;
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("user_id", user?.id)
+        .order("position");
+
+      if (error) throw error;
+      return data || [];
     },
+    enabled: !!user,
   });
 
-  if (isLoading) return <div className="text-foreground">Loading tasks...</div>;
+  const columns = tasks?.reduce(
+    (acc, task) => {
+      if (!acc[task.status]) {
+        acc[task.status] = [];
+      }
+      acc[task.status].push(task);
+      return acc;
+    },
+    { todo: [], "in-progress": [], done: [] } as Record<TaskStatus, typeof tasks>
+  );
 
-  const columns = {
-    todo: tasks.filter((task: Task) => task.status === 'todo'),
-    'in-progress': tasks.filter((task: Task) => task.status === 'in-progress'),
-    done: tasks.filter((task: Task) => task.status === 'done'),
+  const handleDragEnd = async (result: any) => {
+    if (!result.destination || !tasks) return;
+
+    const { source, destination } = result;
+
+    // Get the moved task
+    const sourceColumn = columns[source.droppableId as TaskStatus];
+    const [movedTask] = sourceColumn.splice(source.index, 1);
+    const destColumn = columns[destination.droppableId as TaskStatus];
+    destColumn.splice(destination.index, 0, movedTask);
+
+    // Update positions in the destination column
+    const updates = destColumn.map((task, index) => ({
+      id: task.id,
+      position: index,
+      status: destination.droppableId,
+    }));
+
+    try {
+      await supabase.from("tasks").upsert(updates);
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Error updating task position",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
     <>
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[calc(100vh-20rem)] overflow-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 h-[calc(100vh-18rem)]">
           {Object.entries(columns).map(([status, statusTasks]) => (
             <TaskColumn
               key={status}
-              status={status}
+              status={status as TaskStatus}
               tasks={statusTasks}
-              onEdit={setEditingTask}
-              onView={setViewingTask}
-              onDelete={(id) => deleteTaskMutation.mutate(id)}
             />
           ))}
         </div>
       </DragDropContext>
-
-      <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-        <DialogContent className="bg-background border-border">
-          <AddTaskForm 
-            onClose={() => setEditingTask(null)} 
-            editingTask={editingTask}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {viewingTask && (
-        <TaskFullView
-          task={viewingTask}
-          isOpen={!!viewingTask}
-          onClose={() => setViewingTask(null)}
-        />
-      )}
     </>
   );
 };
