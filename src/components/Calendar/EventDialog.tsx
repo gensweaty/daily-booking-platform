@@ -13,7 +13,7 @@ interface EventDialogProps {
   onOpenChange: (open: boolean) => void;
   selectedDate: Date | null;
   defaultEndDate?: Date | null;
-  onSubmit: (data: Partial<CalendarEventType>) => void;
+  onSubmit: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   onDelete?: () => void;
   event?: CalendarEventType;
 }
@@ -73,30 +73,35 @@ export const EventDialog = ({
       payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
     };
 
-    const result = await onSubmit(eventData);
+    try {
+      const createdEvent = await onSubmit(eventData);
 
-    if (selectedFile && result && result.id && user) {
-      const fileExt = selectedFile.name.split('.').pop();
-      const filePath = `${crypto.randomUUID()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('event_attachments')
-        .upload(filePath, selectedFile);
+      if (selectedFile && createdEvent?.id && user) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('event_attachments')
+          .upload(filePath, selectedFile);
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-      const { error: fileRecordError } = await supabase
-        .from('event_files')
-        .insert({
-          event_id: result.id,
-          filename: selectedFile.name,
-          file_path: filePath,
-          content_type: selectedFile.type,
-          size: selectedFile.size,
-          user_id: user.id
-        });
+        const { error: fileRecordError } = await supabase
+          .from('event_files')
+          .insert({
+            event_id: createdEvent.id,
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user.id
+          });
 
-      if (fileRecordError) throw fileRecordError;
+        if (fileRecordError) throw fileRecordError;
+      }
+    } catch (error) {
+      console.error('Error handling event submission:', error);
+      throw error;
     }
   };
 
