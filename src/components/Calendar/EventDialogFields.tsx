@@ -1,10 +1,9 @@
 import { FileUploadField } from "../shared/FileUploadField";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EventFileDisplay } from "./EventFileDisplay";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -53,42 +52,6 @@ export const EventDialogFields = ({
   setFileError,
   eventId,
 }: EventDialogFieldsProps) => {
-  const { data: existingFiles } = useQuery({
-    queryKey: ['eventFiles', eventId],
-    queryFn: async () => {
-      if (!eventId) return [];
-      console.log('Fetching files for event:', eventId);
-      const { data, error } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', eventId);
-      
-      if (error) {
-        console.error('Error fetching event files:', error);
-        throw error;
-      }
-      console.log('Retrieved files:', data);
-      return data || [];
-    },
-    enabled: !!eventId,
-  });
-
-  const handleFileClick = async (filePath: string) => {
-    try {
-      console.log('Opening file:', filePath);
-      const { data, error } = await supabase.storage
-        .from('event_attachments')
-        .createSignedUrl(filePath, 60);
-
-      if (error) throw error;
-      if (data?.signedUrl) {
-        window.open(data.signedUrl, '_blank');
-      }
-    } catch (error) {
-      console.error('Error opening file:', error);
-    }
-  };
-
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -177,19 +140,8 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="file">Invoice</Label>
-        {existingFiles && existingFiles.length > 0 ? (
-          <div className="mb-2">
-            <button 
-              onClick={() => handleFileClick(existingFiles[0].file_path)}
-              className="text-primary hover:underline"
-            >
-              {existingFiles[0].filename}
-            </button>
-          </div>
-        ) : (
-          <span className="text-sm text-muted-foreground">(Attachment optional)</span>
-        )}
+        <Label>Invoice</Label>
+        {eventId && <EventFileDisplay eventId={eventId} />}
         <FileUploadField 
           onFileChange={setSelectedFile}
           fileError={fileError}

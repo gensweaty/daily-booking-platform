@@ -104,6 +104,10 @@ export const EventDialog = ({
         }
 
         console.log('File uploaded successfully');
+        toast({
+          title: "Success",
+          description: "Event and file saved successfully",
+        });
       }
 
       onOpenChange(false);
