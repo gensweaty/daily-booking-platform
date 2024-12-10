@@ -57,7 +57,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
 
       if (storageError) throw storageError;
 
-      // Delete from database
+      // Delete from database based on bucket type
       const tableName = bucketName === 'event_attachments' ? 'event_files' : 
                        bucketName === 'note_attachments' ? 'note_files' : 'files';
                        
@@ -68,12 +68,11 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
 
       if (dbError) throw dbError;
 
-      // Invalidate queries
+      // Invalidate relevant queries
       await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       await queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
 
-      // Notify parent component
       if (onFileDeleted) {
         onFileDeleted(file.id);
       }
@@ -96,8 +95,10 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
 
   const isImage = (contentType: string) => contentType.startsWith('image/');
 
-  const getPublicUrl = (filePath: string) => {
-    const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+  const getFileUrl = async (filePath: string) => {
+    const { data } = await supabase.storage
+      .from(bucketName)
+      .getPublicUrl(filePath);
     return data.publicUrl;
   };
 
@@ -122,7 +123,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
           <div className="w-full aspect-square flex items-center justify-center bg-muted rounded-md overflow-hidden">
             {isImage(file.content_type) ? (
               <img
-                src={getPublicUrl(file.file_path)}
+                src={`${supabase.storage.from(bucketName).getPublicUrl(file.file_path).data.publicUrl}`}
                 alt={file.filename}
                 className="w-full h-full object-contain"
               />
