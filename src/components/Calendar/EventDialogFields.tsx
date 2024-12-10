@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileUploadField } from "../shared/FileUploadField";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -14,8 +14,6 @@ interface EventDialogFieldsProps {
   setSocialNetworkLink: (value: string) => void;
   eventNotes: string;
   setEventNotes: (value: string) => void;
-  type: "birthday" | "private_party";
-  setType: (value: "birthday" | "private_party") => void;
   startDate: string;
   setStartDate: (value: string) => void;
   endDate: string;
@@ -24,6 +22,10 @@ interface EventDialogFieldsProps {
   setPaymentStatus: (value: string) => void;
   paymentAmount: string;
   setPaymentAmount: (value: string) => void;
+  selectedFile: File | null;
+  setSelectedFile: (file: File | null) => void;
+  fileError: string;
+  setFileError: (error: string) => void;
 }
 
 export const EventDialogFields = ({
@@ -37,8 +39,6 @@ export const EventDialogFields = ({
   setSocialNetworkLink,
   eventNotes,
   setEventNotes,
-  type,
-  setType,
   startDate,
   setStartDate,
   endDate,
@@ -47,6 +47,10 @@ export const EventDialogFields = ({
   setPaymentStatus,
   paymentAmount,
   setPaymentAmount,
+  selectedFile,
+  setSelectedFile,
+  fileError,
+  setFileError,
 }: EventDialogFieldsProps) => {
   return (
     <div className="space-y-4">
@@ -73,27 +77,14 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="socialNetwork">Social Network Link</Label>
+        <Label htmlFor="socialNetwork">Social Link or Email</Label>
         <Input
           id="socialNetwork"
-          type="url"
-          placeholder="Social network profile link"
+          type="text"
+          placeholder="Social media profile or email"
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
         />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Event Type</Label>
-        <Select value={type} onValueChange={(value) => setType(value as "birthday" | "private_party")}>
-          <SelectTrigger className="w-full bg-background border-input">
-            <SelectValue placeholder="Select type" />
-          </SelectTrigger>
-          <SelectContent className="bg-background border-input shadow-md">
-            <SelectItem value="birthday" className="hover:bg-muted">Birthday</SelectItem>
-            <SelectItem value="private_party" className="hover:bg-muted">Private Party</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -115,16 +106,16 @@ export const EventDialogFields = ({
 
       <div className="space-y-2">
         <Label>Payment Status</Label>
-        <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-          <SelectTrigger className="w-full bg-background border-input">
-            <SelectValue placeholder="Select payment status" />
-          </SelectTrigger>
-          <SelectContent className="bg-background border-input shadow-md">
-            <SelectItem value="not_paid" className="hover:bg-muted">Not paid</SelectItem>
-            <SelectItem value="partly" className="hover:bg-muted">Paid Partly</SelectItem>
-            <SelectItem value="fully" className="hover:bg-muted">Paid Fully</SelectItem>
-          </SelectContent>
-        </Select>
+        <select 
+          value={paymentStatus} 
+          onChange={(e) => setPaymentStatus(e.target.value)}
+          className="w-full bg-background border-input rounded-md p-2"
+        >
+          <option value="">Select payment status</option>
+          <option value="not_paid">Not paid</option>
+          <option value="partly">Paid Partly</option>
+          <option value="fully">Paid Fully</option>
+        </select>
       </div>
 
       {paymentStatus && paymentStatus !== 'not_paid' && (
@@ -153,6 +144,12 @@ export const EventDialogFields = ({
           className="bg-background border-input"
         />
       </div>
+
+      <FileUploadField
+        onFileChange={setSelectedFile}
+        fileError={fileError}
+        setFileError={setFileError}
+      />
     </div>
   );
 };
