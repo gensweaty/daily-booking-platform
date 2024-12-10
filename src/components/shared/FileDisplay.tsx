@@ -96,6 +96,11 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
 
   const isImage = (contentType: string) => contentType.startsWith('image/');
 
+  const getPublicUrl = (filePath: string) => {
+    const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       {files.map((file) => (
@@ -114,12 +119,12 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
               <XIcon className="h-4 w-4" />
             </Button>
           )}
-          <div className="w-full aspect-square flex items-center justify-center overflow-hidden rounded-md bg-muted">
+          <div className="w-full aspect-square flex items-center justify-center bg-muted rounded-md overflow-hidden">
             {isImage(file.content_type) ? (
               <img
-                src={`${supabase.storage.from(bucketName).getPublicUrl(file.file_path).data.publicUrl}`}
+                src={getPublicUrl(file.file_path)}
                 alt={file.filename}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             ) : (
               <FileIcon className="w-12 h-12 text-muted-foreground" />
