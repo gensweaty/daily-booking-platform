@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
 import { supabase } from "@/lib/supabase";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileDisplay } from "../shared/FileDisplay";
 import { useToast } from "../ui/use-toast";
 
@@ -40,8 +40,9 @@ export const EventDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const { data: files } = useQuery({
+  const { data: files, refetch: refetchFiles } = useQuery({
     queryKey: ['eventFiles', event?.id],
     queryFn: async () => {
       if (!event?.id) return [];
@@ -114,6 +115,15 @@ export const EventDialog = ({
           });
 
         if (fileRecordError) throw fileRecordError;
+
+        // Invalidate both the event files query and the events query
+        await queryClient.invalidateQueries({ queryKey: ['eventFiles', savedEvent.id] });
+        await queryClient.invalidateQueries({ queryKey: ['events'] });
+        
+        // Refetch the files for this event
+        if (event?.id) {
+          await refetchFiles();
+        }
 
         toast({
           title: "Success",
