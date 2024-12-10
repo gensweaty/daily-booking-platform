@@ -26,7 +26,6 @@ export const EventDialog = ({
   event,
 }: EventDialogProps) => {
   const [title, setTitle] = useState(event?.title || "");
-  const [userSurname, setUserSurname] = useState(event?.user_surname || "");
   const [userNumber, setUserNumber] = useState(event?.user_number || "");
   const [socialNetworkLink, setSocialNetworkLink] = useState(event?.social_network_link || "");
   const [eventNotes, setEventNotes] = useState(event?.event_notes || "");
@@ -61,7 +60,6 @@ export const EventDialog = ({
     
     const eventData = {
       title,
-      user_surname: userSurname,
       user_number: userNumber,
       social_network_link: socialNetworkLink,
       event_notes: eventNotes,
@@ -105,8 +103,6 @@ export const EventDialog = ({
           <EventDialogFields
             title={title}
             setTitle={setTitle}
-            userSurname={userSurname}
-            setUserSurname={setUserSurname}
             userNumber={userNumber}
             setUserNumber={setUserNumber}
             socialNetworkLink={socialNetworkLink}
