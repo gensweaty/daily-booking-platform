@@ -62,7 +62,7 @@ export const FileUploadField = ({ onFileChange, fileError, setFileError }: FileU
       {fileError && (
         <p className="text-sm text-red-500 mt-1">{fileError}</p>
       )}
-      <p className="text-[0.33rem] text-muted-foreground mt-1">
+      <p className="text-sm text-muted-foreground mt-1">
         Max size: Images - 2MB, Documents - 1MB
         <br />
         Supported formats: Images (jpg, jpeg, png, webp), Documents (pdf, docx, xlsx, pptx)
