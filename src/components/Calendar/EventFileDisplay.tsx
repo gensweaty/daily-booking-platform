@@ -1,7 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { FileIcon } from "lucide-react";
+import { FileIcon, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface EventFileDisplayProps {
@@ -10,6 +10,8 @@ interface EventFileDisplayProps {
 
 export const EventFileDisplay = ({ eventId }: EventFileDisplayProps) => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
   const { data: files, isLoading, error } = useQuery({
     queryKey: ['eventFiles', eventId],
     queryFn: async () => {
@@ -40,7 +42,7 @@ export const EventFileDisplay = ({ eventId }: EventFileDisplayProps) => {
         console.error('Error creating signed URL:', error);
         toast({
           title: "Error",
-          description: "Failed to open file",
+          description: "Failed to open file. Please try again.",
           variant: "destructive",
         });
         throw error;
@@ -53,14 +55,30 @@ export const EventFileDisplay = ({ eventId }: EventFileDisplayProps) => {
       console.error('Error opening file:', error);
       toast({
         title: "Error",
-        description: "Failed to open file",
+        description: "Failed to open file. Please try again.",
         variant: "destructive",
       });
     }
   };
 
+  const handleRetry = () => {
+    queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId] });
+  };
+
   if (error) {
-    return <div className="text-sm text-red-500">Error loading files</div>;
+    return (
+      <div className="flex items-center gap-2 text-sm text-red-500">
+        <span>Error loading files</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleRetry}
+          className="h-8 px-2"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      </div>
+    );
   }
 
   if (isLoading) {

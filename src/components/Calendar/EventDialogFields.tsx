@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EventFileDisplay } from "./EventFileDisplay";
 import { format } from "date-fns";
+import { useToast } from "@/components/ui/use-toast";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -53,6 +54,33 @@ export const EventDialogFields = ({
   setFileError,
   eventId,
 }: EventDialogFieldsProps) => {
+  const { toast } = useToast();
+
+  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newStart = new Date(e.target.value);
+    setStartDate(e.target.value);
+
+    // If end date is before new start date, update it
+    if (new Date(endDate) < newStart) {
+      const newEnd = new Date(newStart);
+      newEnd.setHours(newEnd.getHours() + 1);
+      setEndDate(format(newEnd, "yyyy-MM-dd'T'HH:mm"));
+    }
+  };
+
+  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEnd = new Date(e.target.value);
+    if (newEnd < new Date(startDate)) {
+      toast({
+        title: "Invalid Date",
+        description: "End date must be after start date",
+        variant: "destructive",
+      });
+      return;
+    }
+    setEndDate(e.target.value);
+  };
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -93,15 +121,7 @@ export const EventDialogFields = ({
             id="startDate"
             type="datetime-local"
             value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              // If end date is before new start date, update it
-              if (new Date(e.target.value) > new Date(endDate)) {
-                const newEndDate = new Date(e.target.value);
-                newEndDate.setHours(newEndDate.getHours() + 1);
-                setEndDate(format(newEndDate, "yyyy-MM-dd'T'HH:mm"));
-              }
-            }}
+            onChange={handleStartDateChange}
             required
           />
         </div>
@@ -112,7 +132,7 @@ export const EventDialogFields = ({
             type="datetime-local"
             value={endDate}
             min={startDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            onChange={handleEndDateChange}
             required
           />
         </div>
@@ -158,7 +178,7 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label>Invoice (Attachment optional)</Label>
+        <Label>Invoice</Label>
         {eventId && <EventFileDisplay eventId={eventId} />}
         <FileUploadField 
           onFileChange={setSelectedFile}
