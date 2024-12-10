@@ -114,12 +114,12 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
               <XIcon className="h-4 w-4" />
             </Button>
           )}
-          <div className="w-full aspect-square flex items-center justify-center overflow-hidden rounded-md">
+          <div className="w-full aspect-square flex items-center justify-center overflow-hidden rounded-md bg-muted">
             {isImage(file.content_type) ? (
               <img
                 src={`${supabase.storage.from(bucketName).getPublicUrl(file.file_path).data.publicUrl}`}
                 alt={file.filename}
-                className="w-full h-full object-cover rounded-md"
+                className="w-full h-full object-cover"
               />
             ) : (
               <FileIcon className="w-12 h-12 text-muted-foreground" />
