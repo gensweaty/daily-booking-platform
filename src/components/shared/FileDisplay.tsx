@@ -101,7 +101,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
       {files.map((file) => (
         <div
           key={file.id}
-          className="relative border rounded-lg p-4 flex flex-col items-center space-y-2 bg-background group"
+          className="relative flex flex-col items-center space-y-2 p-4 border rounded-lg bg-background group"
         >
           {allowDelete && (
             <Button
@@ -114,17 +114,17 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
               <XIcon className="h-4 w-4" />
             </Button>
           )}
-          {isImage(file.content_type) ? (
-            <div className="relative w-full aspect-square">
+          <div className="w-full aspect-square flex items-center justify-center overflow-hidden rounded-md">
+            {isImage(file.content_type) ? (
               <img
                 src={`${supabase.storage.from(bucketName).getPublicUrl(file.file_path).data.publicUrl}`}
                 alt={file.filename}
-                className="rounded-md object-cover w-full h-full"
+                className="w-full h-full object-cover rounded-md"
               />
-            </div>
-          ) : (
-            <FileIcon className="w-12 h-12 text-muted-foreground" />
-          )}
+            ) : (
+              <FileIcon className="w-12 h-12 text-muted-foreground" />
+            )}
+          </div>
           <p className="text-sm text-center text-foreground truncate w-full">
             {file.filename}
           </p>
