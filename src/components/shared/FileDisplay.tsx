@@ -93,6 +93,13 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
     }
   };
 
+  const getImageUrl = (file: { file_path: string }) => {
+    return supabase.storage
+      .from(bucketName)
+      .getPublicUrl(file.file_path)
+      .data.publicUrl;
+  };
+
   const isImage = (contentType: string) => contentType.startsWith('image/');
 
   return (
@@ -116,7 +123,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
           <div className="w-full aspect-square flex items-center justify-center bg-muted rounded-md overflow-hidden">
             {isImage(file.content_type) ? (
               <img
-                src={supabase.storage.from(bucketName).getPublicUrl(file.file_path).data.publicUrl}
+                src={getImageUrl(file)}
                 alt={file.filename}
                 className="w-full h-full object-contain"
                 onError={(e) => {
