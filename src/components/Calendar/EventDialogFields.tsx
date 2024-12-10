@@ -73,27 +73,14 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="socialNetwork">Social Network Link</Label>
+        <Label htmlFor="socialNetwork">Social Link or Email</Label>
         <Input
           id="socialNetwork"
           type="url"
-          placeholder="Social network profile link"
+          placeholder="Social link or email"
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
         />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Event Type</Label>
-        <Select value={type} onValueChange={(value) => setType(value as "birthday" | "private_party")}>
-          <SelectTrigger className="w-full bg-background border-input">
-            <SelectValue placeholder="Select type" />
-          </SelectTrigger>
-          <SelectContent className="bg-background border-input shadow-md">
-            <SelectItem value="birthday" className="hover:bg-muted">Birthday</SelectItem>
-            <SelectItem value="private_party" className="hover:bg-muted">Private Party</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
