@@ -5,6 +5,9 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/ui/use-toast";
 
 interface EventDialogProps {
   open: boolean;
@@ -34,6 +37,10 @@ export const EventDialog = ({
   const [endDate, setEndDate] = useState("");
   const [paymentStatus, setPaymentStatus] = useState(event?.payment_status || "");
   const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
+  const { user } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (event) {
@@ -51,24 +58,66 @@ export const EventDialog = ({
     }
   }, [selectedDate, event]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const startDateTime = new Date(startDate);
     const endDateTime = new Date(endDate);
     
-    onSubmit({
-      title,
-      user_surname: userSurname,
-      user_number: userNumber,
-      social_network_link: socialNetworkLink,
-      event_notes: eventNotes,
-      start_date: startDateTime.toISOString(),
-      end_date: endDateTime.toISOString(),
-      type,
-      payment_status: paymentStatus || null,
-      payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-    });
+    try {
+      const eventData = {
+        title,
+        user_surname: userSurname,
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        start_date: startDateTime.toISOString(),
+        end_date: endDateTime.toISOString(),
+        type,
+        payment_status: paymentStatus || null,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+      };
+
+      await onSubmit(eventData);
+
+      if (selectedFile && event?.id) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('event_attachments')
+          .upload(filePath, selectedFile);
+
+        if (uploadError) throw uploadError;
+
+        const { error: fileRecordError } = await supabase
+          .from('event_files')
+          .insert({
+            event_id: event.id,
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user?.id
+          });
+
+        if (fileRecordError) throw fileRecordError;
+
+        toast({
+          title: "Success",
+          description: "File uploaded successfully",
+        });
+      }
+
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Event operation error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save event",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -97,6 +146,11 @@ export const EventDialog = ({
             setPaymentStatus={setPaymentStatus}
             paymentAmount={paymentAmount}
             setPaymentAmount={setPaymentAmount}
+            selectedFile={selectedFile}
+            setSelectedFile={setSelectedFile}
+            fileError={fileError}
+            setFileError={setFileError}
+            eventId={event?.id}
           />
           
           <div className="flex justify-between gap-4">
