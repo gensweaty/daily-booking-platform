@@ -34,7 +34,11 @@ export const EventFileDisplay = ({ eventId }: EventFileDisplayProps) => {
         .from('event_attachments')
         .createSignedUrl(filePath, 60);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating signed URL:', error);
+        throw error;
+      }
+      
       if (data?.signedUrl) {
         window.open(data.signedUrl, '_blank');
       }
@@ -59,7 +63,9 @@ export const EventFileDisplay = ({ eventId }: EventFileDisplayProps) => {
             {file.filename}
           </Button>
         ))
-      ) : null}
+      ) : (
+        <div className="text-sm text-muted-foreground">No files uploaded</div>
+      )}
     </div>
   );
 };

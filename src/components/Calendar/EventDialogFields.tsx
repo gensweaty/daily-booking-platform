@@ -140,7 +140,7 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label>Invoice</Label>
+        <Label>Invoice (Attachment optional)</Label>
         {eventId && <EventFileDisplay eventId={eventId} />}
         <FileUploadField 
           onFileChange={setSelectedFile}

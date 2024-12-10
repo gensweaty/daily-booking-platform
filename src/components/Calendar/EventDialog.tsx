@@ -83,7 +83,10 @@ export const EventDialog = ({
         console.log('Uploading file to storage:', filePath);
         const { error: uploadError } = await supabase.storage
           .from('event_attachments')
-          .upload(filePath, selectedFile);
+          .upload(filePath, selectedFile, {
+            cacheControl: '3600',
+            upsert: false
+          });
 
         if (uploadError) {
           console.error('File upload error:', uploadError);
@@ -107,18 +110,18 @@ export const EventDialog = ({
         }
 
         console.log('File record created successfully');
-        toast({
-          title: "Success",
-          description: "Event and file saved successfully",
-        });
       }
 
+      toast({
+        title: "Success",
+        description: "Event and file saved successfully",
+      });
       onOpenChange(false);
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       toast({
         title: "Error",
-        description: "Failed to save event",
+        description: error.message || "Failed to save event",
         variant: "destructive",
       });
     }
