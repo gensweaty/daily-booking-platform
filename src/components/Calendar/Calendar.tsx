@@ -50,7 +50,11 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
       return result;
     },
     updateEvent: async (data) => {
-      const result = await updateEvent(data);
+      if (!selectedEvent) throw new Error("No event selected");
+      const result = await updateEvent({
+        id: selectedEvent.id,
+        updates: data,
+      });
       return result;
     },
     deleteEvent: async (id) => {
