@@ -62,10 +62,12 @@ export const EventDialogFields = ({
 }: EventDialogFieldsProps) => {
   const queryClient = useQueryClient();
   
-  const { data: existingFiles } = useQuery({
+  // Only fetch files if we have an eventId (editing mode)
+  const { data: existingFiles = [] } = useQuery({
     queryKey: ['eventFiles', eventId],
     queryFn: async () => {
       if (!eventId) return [];
+      
       const { data, error } = await supabase
         .from('event_files')
         .select('*')
@@ -74,7 +76,7 @@ export const EventDialogFields = ({
       if (error) throw error;
       return data || [];
     },
-    enabled: !!eventId,
+    enabled: !!eventId, // Only run query if eventId exists
   });
 
   const handleFileDeleted = async (fileId: string) => {
@@ -177,7 +179,7 @@ export const EventDialogFields = ({
         />
       </div>
 
-      {existingFiles && existingFiles.length > 0 && (
+      {eventId && existingFiles && existingFiles.length > 0 && (
         <div className="space-y-2">
           <FileDisplay 
             files={existingFiles} 
