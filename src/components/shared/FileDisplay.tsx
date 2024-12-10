@@ -94,10 +94,12 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   };
 
   const getImageUrl = (file: { file_path: string }) => {
-    return supabase.storage
+    console.log('Getting image URL for bucket:', bucketName, 'file path:', file.file_path);
+    const { data } = supabase.storage
       .from(bucketName)
-      .getPublicUrl(file.file_path)
-      .data.publicUrl;
+      .getPublicUrl(file.file_path);
+    console.log('Generated public URL:', data.publicUrl);
+    return data.publicUrl;
   };
 
   const isImage = (contentType: string) => contentType.startsWith('image/');
