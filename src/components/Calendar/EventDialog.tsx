@@ -15,7 +15,7 @@ interface EventDialogProps {
   onOpenChange: (open: boolean) => void;
   selectedDate: Date | null;
   defaultEndDate?: Date | null;
-  onSubmit: (data: Partial<CalendarEventType>) => void;
+  onSubmit: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   onDelete?: () => void;
   event?: CalendarEventType;
 }
@@ -164,7 +164,7 @@ export const EventDialog = ({
           {files && files.length > 0 && (
             <div className="mt-4">
               <h3 className="text-sm font-medium mb-2">Attachments</h3>
-              <FileDisplay files={files} bucketName="event_attachments" />
+              <FileDisplay files={files} bucketName="event_attachments" allowDelete />
             </div>
           )}
           
