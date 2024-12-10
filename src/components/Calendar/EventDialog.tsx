@@ -36,6 +36,8 @@ export const EventDialog = ({
   const [endDate, setEndDate] = useState("");
   const [paymentStatus, setPaymentStatus] = useState(event?.payment_status || "");
   const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
   const { toast } = useToast();
 
   // Initialize dates when the dialog opens or event changes
@@ -116,6 +118,10 @@ export const EventDialog = ({
             setPaymentStatus={setPaymentStatus}
             paymentAmount={paymentAmount}
             setPaymentAmount={setPaymentAmount}
+            selectedFile={selectedFile}
+            setSelectedFile={setSelectedFile}
+            fileError={fileError}
+            setFileError={setFileError}
           />
           
           {event?.id && (
