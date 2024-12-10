@@ -1,12 +1,7 @@
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileUploadField } from "@/components/shared/FileUploadField";
-import { FileDisplay } from "@/components/shared/FileDisplay";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { CalendarEventType } from "@/lib/types/calendar";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -19,6 +14,8 @@ interface EventDialogFieldsProps {
   setSocialNetworkLink: (value: string) => void;
   eventNotes: string;
   setEventNotes: (value: string) => void;
+  type: "birthday" | "private_party";
+  setType: (value: "birthday" | "private_party") => void;
   startDate: string;
   setStartDate: (value: string) => void;
   endDate: string;
@@ -27,11 +24,6 @@ interface EventDialogFieldsProps {
   setPaymentStatus: (value: string) => void;
   paymentAmount: string;
   setPaymentAmount: (value: string) => void;
-  selectedFile: File | null;
-  setSelectedFile: (file: File | null) => void;
-  fileError: string;
-  setFileError: (error: string) => void;
-  event?: CalendarEventType;
 }
 
 export const EventDialogFields = ({
@@ -45,6 +37,8 @@ export const EventDialogFields = ({
   setSocialNetworkLink,
   eventNotes,
   setEventNotes,
+  type,
+  setType,
   startDate,
   setStartDate,
   endDate,
@@ -53,33 +47,14 @@ export const EventDialogFields = ({
   setPaymentStatus,
   paymentAmount,
   setPaymentAmount,
-  selectedFile,
-  setSelectedFile,
-  fileError,
-  setFileError,
-  event,
 }: EventDialogFieldsProps) => {
-  const { data: existingFiles } = useQuery({
-    queryKey: ['eventFiles', event?.id],
-    queryFn: async () => {
-      if (!event?.id) return [];
-      const { data, error } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', event.id);
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!event?.id,
-  });
-
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="title">Name and Surname (required)</Label>
+        <Label htmlFor="title">Full Name (required)</Label>
         <Input
           id="title"
+          placeholder="Full name"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
@@ -87,104 +62,95 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="userNumber">Phone Number</Label>
+        <Label htmlFor="number">Phone Number</Label>
         <Input
-          id="userNumber"
+          id="number"
+          type="tel"
+          placeholder="Phone number"
           value={userNumber}
           onChange={(e) => setUserNumber(e.target.value)}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="socialNetworkLink">Social Link or Email</Label>
+        <Label htmlFor="socialNetwork">Social Network Link</Label>
         <Input
-          id="socialNetworkLink"
+          id="socialNetwork"
+          type="url"
+          placeholder="Social network profile link"
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="startDate">Start Date</Label>
-          <Input
-            id="startDate"
-            type="datetime-local"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            required
-          />
-        </div>
+      <div className="space-y-2">
+        <Label>Event Type</Label>
+        <Select value={type} onValueChange={(value) => setType(value as "birthday" | "private_party")}>
+          <SelectTrigger className="w-full bg-background border-input">
+            <SelectValue placeholder="Select type" />
+          </SelectTrigger>
+          <SelectContent className="bg-background border-input shadow-md">
+            <SelectItem value="birthday" className="hover:bg-muted">Birthday</SelectItem>
+            <SelectItem value="private_party" className="hover:bg-muted">Private Party</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="endDate">End Date</Label>
-          <Input
-            id="endDate"
-            type="datetime-local"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            required
-          />
-        </div>
+      <div className="grid grid-cols-2 gap-4">
+        <Input
+          type="datetime-local"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          required
+          className="bg-background border-input"
+        />
+        <Input
+          type="datetime-local"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          required
+          className="bg-background border-input"
+        />
       </div>
 
       <div className="space-y-2">
         <Label>Payment Status</Label>
         <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-          <SelectTrigger className="bg-background">
+          <SelectTrigger className="w-full bg-background border-input">
             <SelectValue placeholder="Select payment status" />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="not_paid">Not paid</SelectItem>
-            <SelectItem value="partly">Paid Partly</SelectItem>
-            <SelectItem value="fully">Paid Fully</SelectItem>
+          <SelectContent className="bg-background border-input shadow-md">
+            <SelectItem value="not_paid" className="hover:bg-muted">Not paid</SelectItem>
+            <SelectItem value="partly" className="hover:bg-muted">Paid Partly</SelectItem>
+            <SelectItem value="fully" className="hover:bg-muted">Paid Fully</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {paymentStatus && paymentStatus !== 'not_paid' && (
         <div className="space-y-2">
-          <Label htmlFor="paymentAmount">Payment Amount</Label>
+          <Label htmlFor="amount">Payment Amount</Label>
           <Input
-            id="paymentAmount"
+            id="amount"
             type="number"
             step="0.01"
+            placeholder="Enter amount"
             value={paymentAmount}
             onChange={(e) => setPaymentAmount(e.target.value)}
-          />
-        </div>
-      )}
-
-      {existingFiles && existingFiles.length > 0 && (
-        <div className="space-y-2">
-          <Label>Attachments</Label>
-          <FileDisplay 
-            files={existingFiles} 
-            bucketName="event_attachments"
-            allowDelete
+            required
+            className="bg-background border-input"
           />
         </div>
       )}
 
       <div className="space-y-2">
-        <Label>Attachment (optional)</Label>
-        <FileUploadField 
-          onFileChange={setSelectedFile}
-          fileError={fileError}
-          setFileError={setFileError}
-        />
-        <p className="text-xs text-muted-foreground mt-1">
-          Max: Images 2MB, Docs 1MB • Formats: Images (jpg, png, webp), Docs (pdf, docx, xlsx, pptx)
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="eventNotes">Event Notes</Label>
+        <Label htmlFor="notes">Event Notes</Label>
         <Textarea
-          id="eventNotes"
+          id="notes"
+          placeholder="Add notes about the event"
           value={eventNotes}
           onChange={(e) => setEventNotes(e.target.value)}
-          className="min-h-[100px]"
+          className="bg-background border-input"
         />
       </div>
     </div>
