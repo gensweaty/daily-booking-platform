@@ -6,7 +6,6 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
 import { EventFiles } from "./EventFiles";
-import { EventFileUpload } from "./EventFileUpload";
 import { useToast } from "../ui/use-toast";
 
 interface EventDialogProps {
@@ -125,10 +124,7 @@ export const EventDialog = ({
           />
           
           {event?.id && (
-            <>
-              <EventFiles eventId={event.id} />
-              <EventFileUpload eventId={event.id} />
-            </>
+            <EventFiles eventId={event.id} />
           )}
           
           <div className="flex justify-between gap-4">

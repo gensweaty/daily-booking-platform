@@ -2,7 +2,6 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "../ui/button";
 import { FileIcon, ImageIcon, ExternalLinkIcon, XIcon } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../ui/use-toast";
 
 interface FileDisplayProps {
@@ -14,12 +13,12 @@ interface FileDisplayProps {
   }[];
   bucketName: "task_attachments" | "note_attachments" | "event_attachments";
   allowDelete?: boolean;
+  onDelete?: (fileId: string, filePath: string) => Promise<void>;
 }
 
-export const FileDisplay = ({ files, bucketName, allowDelete = false }: FileDisplayProps) => {
+export const FileDisplay = ({ files, bucketName, allowDelete = false, onDelete }: FileDisplayProps) => {
   const [loadingFile, setLoadingFile] = useState<string | null>(null);
   const [deletingFile, setDeletingFile] = useState<string | null>(null);
-  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const handleFileClick = async (file: { file_path: string; filename: string }) => {
@@ -46,40 +45,11 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false }: FileDisp
   };
 
   const handleDeleteFile = async (file: { id: string; file_path: string }) => {
+    if (!onDelete) return;
+    
     try {
       setDeletingFile(file.id);
-      
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from(bucketName)
-        .remove([file.file_path]);
-
-      if (storageError) throw storageError;
-
-      // Delete from database
-      const tableName = bucketName === 'task_attachments' ? 'files' : 'note_files';
-      const { error: dbError } = await supabase
-        .from(tableName)
-        .delete()
-        .eq('id', file.id);
-
-      if (dbError) throw dbError;
-
-      // Invalidate queries
-      await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
-      await queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
-
-      toast({
-        title: "Success",
-        description: "File deleted successfully",
-      });
-    } catch (error) {
-      console.error('Error deleting file:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete file",
-        variant: "destructive",
-      });
+      await onDelete(file.id, file.file_path);
     } finally {
       setDeletingFile(null);
     }
@@ -94,7 +64,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false }: FileDisp
           key={file.id}
           className="relative border rounded-lg p-4 flex flex-col items-center space-y-2 bg-background group"
         >
-          {allowDelete && (
+          {allowDelete && onDelete && (
             <Button
               variant="ghost"
               size="icon"

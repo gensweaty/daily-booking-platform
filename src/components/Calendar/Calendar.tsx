@@ -10,6 +10,7 @@ import {
   subMonths,
   addHours,
   setHours,
+  setMinutes,
 } from "date-fns";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
@@ -96,6 +97,19 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     }
   };
 
+  const handleSlotSelect = (date: Date, hour?: number) => {
+    const newDate = new Date(date);
+    if (hour !== undefined) {
+      newDate.setHours(hour, 0, 0, 0);
+    } else {
+      // For month view or when hour is not specified, default to 9 AM
+      newDate.setHours(9, 0, 0, 0);
+    }
+    setSelectedSlot({ date: newDate });
+    setSelectedEvent(null);
+    setIsNewEventDialogOpen(true);
+  };
+
   if (error) {
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
@@ -122,7 +136,8 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
         onPrevious={handlePrevious}
         onNext={handleNext}
         onAddEvent={() => {
-          setSelectedSlot({ date: setHours(new Date(), 12) });
+          const now = new Date();
+          setSelectedSlot({ date: setHours(now, 9) });
           setSelectedEvent(null);
           setIsNewEventDialogOpen(true);
         }}
@@ -136,7 +151,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
             events={events || []}
             selectedDate={selectedDate}
             view={view}
-            onDayClick={(date: Date, hour?: number) => handleDayClick(date, hour, view)}
+            onDayClick={handleSlotSelect}
             onEventClick={setSelectedEvent}
           />
         </div>
