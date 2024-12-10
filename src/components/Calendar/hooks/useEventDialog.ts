@@ -1,23 +1,26 @@
 import { useState } from "react";
-import { CalendarEventType } from "@/lib/types/calendar";
+import { CalendarEvent } from "@/lib/types";
 import { useToast } from "@/components/ui/use-toast";
+import { CalendarViewType } from "@/lib/types/calendar";
 
 export const useEventDialog = (
-  createEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>,
-  updateEvent: (params: { id: string; updates: Partial<CalendarEventType> }) => Promise<CalendarEventType>,
+  createEvent: (data: Partial<CalendarEvent>) => Promise<void>,
+  updateEvent: (params: { id: string; updates: Partial<CalendarEvent> }) => Promise<void>,
   deleteEvent: (id: string) => Promise<void>
 ) => {
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ date: Date } | null>(null);
   const { toast } = useToast();
 
-  const handleDayClick = (date: Date, hour?: number, view?: "month" | "week" | "day") => {
+  const handleDayClick = (date: Date, hour?: number, view?: CalendarViewType) => {
     const clickedDate = new Date(date);
     
     if (hour !== undefined) {
+      // Use the exact clicked hour for week/day view
       clickedDate.setHours(hour, 0, 0, 0);
     } else if (view === "month") {
+      // For month view, set a default time (9 AM)
       clickedDate.setHours(9, 0, 0, 0);
     }
     
@@ -26,30 +29,28 @@ export const useEventDialog = (
     setIsNewEventDialogOpen(true);
   };
 
-  const handleCreateEvent = async (data: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+  const handleCreateEvent = async (data: Partial<CalendarEvent>) => {
     try {
-      const newEvent = await createEvent(data);
+      await createEvent(data);
       setIsNewEventDialogOpen(false);
       toast({
         title: "Success",
         description: "Event created successfully",
       });
-      return newEvent;
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       });
-      throw error;
     }
   };
 
-  const handleUpdateEvent = async (updates: Partial<CalendarEventType>): Promise<CalendarEventType> => {
-    if (!selectedEvent) throw new Error("No event selected");
+  const handleUpdateEvent = async (updates: Partial<CalendarEvent>) => {
+    if (!selectedEvent) return;
     
     try {
-      const updatedEvent = await updateEvent({
+      await updateEvent({
         id: selectedEvent.id,
         updates,
       });
@@ -58,14 +59,12 @@ export const useEventDialog = (
         title: "Success",
         description: "Event updated successfully",
       });
-      return updatedEvent;
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       });
-      throw error;
     }
   };
 
