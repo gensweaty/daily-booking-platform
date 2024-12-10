@@ -2,10 +2,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileUploadField } from "@/components/shared/FileUploadField";
-import { FileDisplay } from "@/components/shared/FileDisplay";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -28,11 +24,6 @@ interface EventDialogFieldsProps {
   setPaymentStatus: (value: string) => void;
   paymentAmount: string;
   setPaymentAmount: (value: string) => void;
-  selectedFile: File | null;
-  setSelectedFile: (file: File | null) => void;
-  fileError: string;
-  setFileError: (error: string) => void;
-  eventId?: string;
 }
 
 export const EventDialogFields = ({
@@ -56,27 +47,7 @@ export const EventDialogFields = ({
   setPaymentStatus,
   paymentAmount,
   setPaymentAmount,
-  selectedFile,
-  setSelectedFile,
-  fileError,
-  setFileError,
-  eventId,
 }: EventDialogFieldsProps) => {
-  const { data: existingFiles } = useQuery({
-    queryKey: ['eventFiles', eventId],
-    queryFn: async () => {
-      if (!eventId) return [];
-      const { data, error } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', eventId);
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!eventId,
-  });
-
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -169,23 +140,6 @@ export const EventDialogFields = ({
           className="bg-background border-input"
         />
       </div>
-
-      {existingFiles && existingFiles.length > 0 && (
-        <div className="space-y-2">
-          <Label>Current Attachments</Label>
-          <FileDisplay 
-            files={existingFiles} 
-            bucketName="event_attachments"
-            allowDelete
-          />
-        </div>
-      )}
-
-      <FileUploadField
-        onFileChange={setSelectedFile}
-        fileError={fileError}
-        setFileError={setFileError}
-      />
     </div>
   );
 };
