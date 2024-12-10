@@ -42,16 +42,23 @@ export const EventDialog = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  console.log("EventDialog - Event ID:", event?.id);
+
   const { data: files, refetch: refetchFiles } = useQuery({
     queryKey: ['eventFiles', event?.id],
     queryFn: async () => {
       if (!event?.id) return [];
+      console.log("Fetching files for event:", event.id);
       const { data, error } = await supabase
         .from('event_files')
         .select('*')
         .eq('event_id', event.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching files:", error);
+        throw error;
+      }
+      console.log("Fetched files:", data);
       return data || [];
     },
     enabled: !!event?.id,
@@ -80,6 +87,7 @@ export const EventDialog = ({
     const endDateTime = new Date(endDate);
 
     try {
+      console.log("Submitting event data...");
       const eventData = {
         title,
         user_surname: userSurname,
@@ -93,8 +101,10 @@ export const EventDialog = ({
       };
 
       const savedEvent = await onSubmit(eventData);
+      console.log("Event saved:", savedEvent);
 
       if (selectedFile && savedEvent) {
+        console.log("Uploading file for event:", savedEvent.id);
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
@@ -104,6 +114,7 @@ export const EventDialog = ({
 
         if (uploadError) throw uploadError;
 
+        console.log("File uploaded successfully, creating database record...");
         const { error: fileRecordError } = await supabase
           .from('event_files')
           .insert({
@@ -116,23 +127,27 @@ export const EventDialog = ({
 
         if (fileRecordError) throw fileRecordError;
 
-        // Invalidate both the event files query and the events query
-        await queryClient.invalidateQueries({ queryKey: ['eventFiles', savedEvent.id] });
+        console.log("File record created successfully");
+        
+        // Invalidate queries
+        await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
         await queryClient.invalidateQueries({ queryKey: ['events'] });
         
-        // Refetch the files for this event
-        if (event?.id) {
+        // Force refetch files
+        if (savedEvent.id) {
+          console.log("Refetching files for event:", savedEvent.id);
           await refetchFiles();
         }
-
-        toast({
-          title: "Success",
-          description: "Event and file saved successfully",
-        });
       }
 
+      toast({
+        title: "Success",
+        description: event ? "Event updated successfully" : "Event created successfully",
+      });
+      
       onOpenChange(false);
     } catch (error: any) {
+      console.error("Error in handleSubmit:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to save event",
@@ -140,6 +155,8 @@ export const EventDialog = ({
       });
     }
   };
+
+  console.log("Current files:", files);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
