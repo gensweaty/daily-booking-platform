@@ -29,7 +29,7 @@ export const TaskFormFields = ({
   setFileError,
   editingTask,
 }: TaskFormFieldsProps) => {
-  const { data: existingFiles } = useQuery({
+  const { data: existingFiles = [] } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
     queryFn: async () => {
       if (!editingTask?.id) return [];
@@ -46,13 +46,14 @@ export const TaskFormFields = ({
 
   console.log("TaskFormFields - Current description:", description);
   console.log("TaskFormFields - Editing task:", editingTask);
+  console.log("TaskFormFields - Existing files:", existingFiles);
 
   return (
     <div className="space-y-4">
       <TaskFormTitle title={title} setTitle={setTitle} />
       <TaskFormDescription description={description} setDescription={setDescription} />
       
-      {existingFiles && existingFiles.length > 0 && (
+      {editingTask?.id && existingFiles && existingFiles.length > 0 && (
         <div className="space-y-2">
           <FileDisplay 
             files={existingFiles} 
