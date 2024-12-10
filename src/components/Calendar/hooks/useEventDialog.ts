@@ -23,10 +23,8 @@ export const useEventDialog = ({
     const clickedDate = new Date(date);
     
     if (hour !== undefined) {
-      // Use the exact clicked hour for week/day view
       clickedDate.setHours(hour, 0, 0, 0);
     } else if (view === "month") {
-      // For month view, set a default time (9 AM)
       clickedDate.setHours(9, 0, 0, 0);
     }
     
@@ -47,12 +45,17 @@ export const useEventDialog = ({
       const eventStart = parseISO(event.start_date);
       const eventEnd = parseISO(event.end_date);
 
+      // Allow events to start exactly when another ends or end exactly when another starts
+      if (startDate.getTime() === eventEnd.getTime() || endDate.getTime() === eventStart.getTime()) {
+        return false;
+      }
+
       // Check if either the start or end time of the new event falls within an existing event
       const startOverlaps = isWithinInterval(startDate, { start: eventStart, end: eventEnd });
       const endOverlaps = isWithinInterval(endDate, { start: eventStart, end: eventEnd });
       
       // Check if the new event completely encompasses an existing event
-      const encompassesEvent = startDate <= eventStart && endDate >= eventEnd;
+      const encompassesEvent = startDate < eventStart && endDate > eventEnd;
 
       return startOverlaps || endOverlaps || encompassesEvent;
     });
