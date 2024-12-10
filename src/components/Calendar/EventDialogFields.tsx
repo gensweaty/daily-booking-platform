@@ -75,6 +75,7 @@ export const EventDialogFields = ({
 
   const handleFileClick = async (filePath: string) => {
     try {
+      console.log('Opening file:', filePath);
       const { data, error } = await supabase.storage
         .from('event_attachments')
         .createSignedUrl(filePath, 60);
@@ -142,7 +143,7 @@ export const EventDialogFields = ({
           <SelectTrigger className="bg-background">
             <SelectValue placeholder="Select payment status" />
           </SelectTrigger>
-          <SelectContent className="bg-background">
+          <SelectContent>
             <SelectItem value="not_paid">Not paid</SelectItem>
             <SelectItem value="partly">Paid Partly</SelectItem>
             <SelectItem value="fully">Paid Fully</SelectItem>
@@ -176,22 +177,19 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center gap-2 mb-2">
-          <Label htmlFor="file">Invoice</Label>
-          {existingFiles && existingFiles.length > 0 ? (
-            <span className="text-sm text-muted-foreground">
-              (Current file: 
-              <button 
-                onClick={() => handleFileClick(existingFiles[0].file_path)}
-                className="text-primary hover:underline ml-1"
-              >
-                {existingFiles[0].filename}
-              </button>)
-            </span>
-          ) : (
-            <span className="text-sm text-muted-foreground">(Attachment optional)</span>
-          )}
-        </div>
+        <Label htmlFor="file">Invoice</Label>
+        {existingFiles && existingFiles.length > 0 ? (
+          <div className="mb-2">
+            <button 
+              onClick={() => handleFileClick(existingFiles[0].file_path)}
+              className="text-primary hover:underline"
+            >
+              {existingFiles[0].filename}
+            </button>
+          </div>
+        ) : (
+          <span className="text-sm text-muted-foreground">(Attachment optional)</span>
+        )}
         <FileUploadField 
           onFileChange={setSelectedFile}
           fileError={fileError}

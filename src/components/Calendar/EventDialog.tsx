@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/ui/use-toast";
 
 interface EventDialogProps {
   open: boolean;
@@ -35,6 +36,7 @@ export const EventDialog = ({
   const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  const { toast } = useToast();
 
   useEffect(() => {
     if (event) {
@@ -55,43 +57,63 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const startDateTime = new Date(startDate);
-    const endDateTime = new Date(endDate);
-    
-    const eventData = {
-      title,
-      user_number: userNumber,
-      social_network_link: socialNetworkLink,
-      event_notes: eventNotes,
-      start_date: startDateTime.toISOString(),
-      end_date: endDateTime.toISOString(),
-      payment_status: paymentStatus || null,
-      payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-    };
-
-    const result = await onSubmit(eventData);
-
-    if (selectedFile && result?.id) {
-      const fileExt = selectedFile.name.split('.').pop();
-      const filePath = `${crypto.randomUUID()}.${fileExt}`;
+    try {
+      const startDateTime = new Date(startDate);
+      const endDateTime = new Date(endDate);
       
-      const { error: uploadError } = await supabase.storage
-        .from('event_attachments')
-        .upload(filePath, selectedFile);
+      const eventData = {
+        title,
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        start_date: startDateTime.toISOString(),
+        end_date: endDateTime.toISOString(),
+        payment_status: paymentStatus || null,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+      };
 
-      if (uploadError) throw uploadError;
+      const result = await onSubmit(eventData);
 
-      const { error: fileRecordError } = await supabase
-        .from('event_files')
-        .insert({
-          event_id: result.id,
-          filename: selectedFile.name,
-          file_path: filePath,
-          content_type: selectedFile.type,
-          size: selectedFile.size,
-        });
+      if (selectedFile && result?.id) {
+        console.log('Uploading file for event:', result.id);
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('event_attachments')
+          .upload(filePath, selectedFile);
 
-      if (fileRecordError) throw fileRecordError;
+        if (uploadError) {
+          console.error('File upload error:', uploadError);
+          throw uploadError;
+        }
+
+        const { error: fileRecordError } = await supabase
+          .from('event_files')
+          .insert({
+            event_id: result.id,
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+          });
+
+        if (fileRecordError) {
+          console.error('File record error:', fileRecordError);
+          throw fileRecordError;
+        }
+
+        console.log('File uploaded successfully');
+      }
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save event",
+        variant: "destructive",
+      });
     }
   };
 
