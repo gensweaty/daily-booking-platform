@@ -7,6 +7,7 @@ import { Trash2 } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface EventDialogProps {
   open: boolean;
@@ -37,6 +38,7 @@ export const EventDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (event) {
@@ -46,7 +48,7 @@ export const EventDialog = ({
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     } else if (selectedDate) {
       const start = new Date(selectedDate);
-      const end = new Date(start);
+      const end = new Date(selectedDate);
       end.setHours(start.getHours() + 1);
       
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
@@ -56,6 +58,7 @@ export const EventDialog = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    let uploadedFilePath: string | null = null;
     
     try {
       const startDateTime = new Date(startDate);
@@ -79,6 +82,7 @@ export const EventDialog = ({
         console.log('Starting file upload for event:', result.id);
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        uploadedFilePath = filePath;
         
         console.log('Uploading file to storage:', filePath);
         const { error: uploadError } = await supabase.storage
@@ -90,7 +94,7 @@ export const EventDialog = ({
 
         if (uploadError) {
           console.error('File upload error:', uploadError);
-          throw uploadError;
+          throw new Error(`File upload failed: ${uploadError.message}`);
         }
 
         console.log('File uploaded successfully, creating database record');
@@ -105,10 +109,18 @@ export const EventDialog = ({
           });
 
         if (fileRecordError) {
+          // If database insert fails, try to clean up the uploaded file
+          if (uploadedFilePath) {
+            await supabase.storage
+              .from('event_attachments')
+              .remove([uploadedFilePath]);
+          }
           console.error('File record error:', fileRecordError);
-          throw fileRecordError;
+          throw new Error(`Failed to save file record: ${fileRecordError.message}`);
         }
 
+        // Invalidate the files query to trigger a refresh
+        await queryClient.invalidateQueries({ queryKey: ['eventFiles', result.id] });
         console.log('File record created successfully');
       }
 
@@ -117,8 +129,19 @@ export const EventDialog = ({
         description: "Event and file saved successfully",
       });
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in handleSubmit:', error);
+      // If there was an error and we uploaded a file, try to clean it up
+      if (uploadedFilePath) {
+        try {
+          await supabase.storage
+            .from('event_attachments')
+            .remove([uploadedFilePath]);
+        } catch (cleanupError) {
+          console.error('Failed to clean up uploaded file:', cleanupError);
+        }
+      }
+      
       toast({
         title: "Error",
         description: error.message || "Failed to save event",

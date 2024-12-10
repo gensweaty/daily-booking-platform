@@ -2,13 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { FileIcon } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 interface EventFileDisplayProps {
   eventId: string;
 }
 
 export const EventFileDisplay = ({ eventId }: EventFileDisplayProps) => {
-  const { data: files, isLoading } = useQuery({
+  const { toast } = useToast();
+  const { data: files, isLoading, error } = useQuery({
     queryKey: ['eventFiles', eventId],
     queryFn: async () => {
       console.log('Fetching files for event:', eventId);
@@ -36,6 +38,11 @@ export const EventFileDisplay = ({ eventId }: EventFileDisplayProps) => {
 
       if (error) {
         console.error('Error creating signed URL:', error);
+        toast({
+          title: "Error",
+          description: "Failed to open file",
+          variant: "destructive",
+        });
         throw error;
       }
       
@@ -44,10 +51,21 @@ export const EventFileDisplay = ({ eventId }: EventFileDisplayProps) => {
       }
     } catch (error) {
       console.error('Error opening file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to open file",
+        variant: "destructive",
+      });
     }
   };
 
-  if (isLoading) return <div>Loading files...</div>;
+  if (error) {
+    return <div className="text-sm text-red-500">Error loading files</div>;
+  }
+
+  if (isLoading) {
+    return <div className="text-sm text-muted-foreground">Loading files...</div>;
+  }
 
   return (
     <div className="space-y-2">

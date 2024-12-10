@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EventFileDisplay } from "./EventFileDisplay";
+import { format } from "date-fns";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -86,18 +87,35 @@ export const EventDialogFields = ({
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <Input
-          type="datetime-local"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          required
-        />
-        <Input
-          type="datetime-local"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          required
-        />
+        <div className="space-y-2">
+          <Label htmlFor="startDate">Start Date</Label>
+          <Input
+            id="startDate"
+            type="datetime-local"
+            value={startDate}
+            onChange={(e) => {
+              setStartDate(e.target.value);
+              // If end date is before new start date, update it
+              if (new Date(e.target.value) > new Date(endDate)) {
+                const newEndDate = new Date(e.target.value);
+                newEndDate.setHours(newEndDate.getHours() + 1);
+                setEndDate(format(newEndDate, "yyyy-MM-dd'T'HH:mm"));
+              }
+            }}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="endDate">End Date</Label>
+          <Input
+            id="endDate"
+            type="datetime-local"
+            value={endDate}
+            min={startDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            required
+          />
+        </div>
       </div>
 
       <div className="space-y-2">
