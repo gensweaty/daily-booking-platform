@@ -1,8 +1,6 @@
 import { FileUploadField } from "../shared/FileUploadField";
-import { FileDisplay } from "../shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { CalendarEventType } from "@/lib/types/calendar";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,8 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 interface EventDialogFieldsProps {
   title: string;
   setTitle: (title: string) => void;
-  userSurname: string;
-  setUserSurname: (value: string) => void;
   userNumber: string;
   setUserNumber: (value: string) => void;
   socialNetworkLink: string;
@@ -180,38 +176,27 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        {existingFiles && existingFiles.length > 0 ? (
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Label>Invoice</Label>
-              <span className="text-sm text-muted-foreground">(Current file: 
-                <button 
-                  onClick={() => handleFileClick(existingFiles[0].file_path)}
-                  className="text-primary hover:underline ml-1"
-                >
-                  {existingFiles[0].filename}
-                </button>)
-              </span>
-            </div>
-            <FileUploadField 
-              onFileChange={setSelectedFile}
-              fileError={fileError}
-              setFileError={setFileError}
-            />
-          </div>
-        ) : (
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Label htmlFor="file">Invoice</Label>
-              <span className="text-sm text-muted-foreground">(Attachment optional)</span>
-            </div>
-            <FileUploadField 
-              onFileChange={setSelectedFile}
-              fileError={fileError}
-              setFileError={setFileError}
-            />
-          </div>
-        )}
+        <div className="flex items-center gap-2 mb-2">
+          <Label htmlFor="file">Invoice</Label>
+          {existingFiles && existingFiles.length > 0 ? (
+            <span className="text-sm text-muted-foreground">
+              (Current file: 
+              <button 
+                onClick={() => handleFileClick(existingFiles[0].file_path)}
+                className="text-primary hover:underline ml-1"
+              >
+                {existingFiles[0].filename}
+              </button>)
+            </span>
+          ) : (
+            <span className="text-sm text-muted-foreground">(Attachment optional)</span>
+          )}
+        </div>
+        <FileUploadField 
+          onFileChange={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+        />
       </div>
     </div>
   );
