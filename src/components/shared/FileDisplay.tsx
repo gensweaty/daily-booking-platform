@@ -105,11 +105,11 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const isImage = (contentType: string) => contentType.startsWith('image/');
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4 max-h-[50vh] overflow-y-auto p-2">
       {files.map((file) => (
         <div
           key={file.id}
-          className="relative flex flex-col items-center space-y-2 p-4 border rounded-lg bg-background group"
+          className="relative flex flex-col items-center space-y-2 p-2 sm:p-4 border rounded-lg bg-background group"
         >
           {allowDelete && (
             <Button
@@ -127,23 +127,23 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
               <img
                 src={getImageUrl(file)}
                 alt={file.filename}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain max-h-[200px] sm:max-h-[300px]"
                 onError={(e) => {
                   console.error('Image load error:', e);
                   e.currentTarget.src = '/placeholder.svg';
                 }}
               />
             ) : (
-              <FileIcon className="w-12 h-12 text-muted-foreground" />
+              <FileIcon className="w-8 h-8 sm:w-12 sm:h-12 text-muted-foreground" />
             )}
           </div>
-          <p className="text-sm text-center text-foreground truncate w-full">
+          <p className="text-xs sm:text-sm text-center text-foreground truncate w-full">
             {file.filename}
           </p>
           <Button
             variant="outline"
             size="sm"
-            className="w-full"
+            className="w-full text-xs sm:text-sm py-1 px-2 h-auto"
             onClick={() => handleFileClick(file)}
             disabled={loadingFile === file.file_path}
           >
@@ -151,7 +151,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
               "Loading..."
             ) : (
               <>
-                <ExternalLinkIcon className="w-4 h-4 mr-2" />
+                <ExternalLinkIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                 Open
               </>
             )}
