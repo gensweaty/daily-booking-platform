@@ -72,13 +72,15 @@ export const EventDialog = ({
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
       };
 
+      console.log('Submitting event with data:', eventData);
       const result = await onSubmit(eventData);
 
       if (selectedFile && result?.id) {
-        console.log('Uploading file for event:', result.id);
+        console.log('Starting file upload for event:', result.id);
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
+        console.log('Uploading file to storage:', filePath);
         const { error: uploadError } = await supabase.storage
           .from('event_attachments')
           .upload(filePath, selectedFile);
@@ -88,6 +90,7 @@ export const EventDialog = ({
           throw uploadError;
         }
 
+        console.log('File uploaded successfully, creating database record');
         const { error: fileRecordError } = await supabase
           .from('event_files')
           .insert({
@@ -103,7 +106,7 @@ export const EventDialog = ({
           throw fileRecordError;
         }
 
-        console.log('File uploaded successfully');
+        console.log('File record created successfully');
         toast({
           title: "Success",
           description: "Event and file saved successfully",
