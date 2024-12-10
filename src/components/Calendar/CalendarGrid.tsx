@@ -38,7 +38,7 @@ export const CalendarGrid = ({
               .map((event) => (
                 <div
                   key={event.id}
-                  className="text-sm p-1 rounded bg-purple-100 text-purple-700 cursor-pointer truncate"
+                  className="text-sm p-1 rounded bg-secondary text-secondary-foreground cursor-pointer truncate hover:opacity-80 transition-opacity"
                   onClick={(e) => {
                     e.stopPropagation();
                     onEventClick(event);

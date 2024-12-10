@@ -1,15 +1,18 @@
-import { FileUploadField } from "../shared/FileUploadField";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { EventFileDisplay } from "./EventFileDisplay";
-import { format } from "date-fns";
-import { useToast } from "@/components/ui/use-toast";
+import { FileUploadField } from "@/components/shared/FileUploadField";
+import { FileDisplay } from "@/components/shared/FileDisplay";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { CalendarEventType } from "@/lib/types/calendar";
 
 interface EventDialogFieldsProps {
   title: string;
-  setTitle: (title: string) => void;
+  setTitle: (value: string) => void;
+  userSurname: string;
+  setUserSurname: (value: string) => void;
   userNumber: string;
   setUserNumber: (value: string) => void;
   socialNetworkLink: string;
@@ -28,12 +31,14 @@ interface EventDialogFieldsProps {
   setSelectedFile: (file: File | null) => void;
   fileError: string;
   setFileError: (error: string) => void;
-  eventId?: string;
+  event?: CalendarEventType;
 }
 
 export const EventDialogFields = ({
   title,
   setTitle,
+  userSurname,
+  setUserSurname,
   userNumber,
   setUserNumber,
   socialNetworkLink,
@@ -52,34 +57,22 @@ export const EventDialogFields = ({
   setSelectedFile,
   fileError,
   setFileError,
-  eventId,
+  event,
 }: EventDialogFieldsProps) => {
-  const { toast } = useToast();
-
-  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newStart = new Date(e.target.value);
-    setStartDate(e.target.value);
-
-    // If end date is before new start date, update it
-    if (new Date(endDate) < newStart) {
-      const newEnd = new Date(newStart);
-      newEnd.setHours(newEnd.getHours() + 1);
-      setEndDate(format(newEnd, "yyyy-MM-dd'T'HH:mm"));
-    }
-  };
-
-  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newEnd = new Date(e.target.value);
-    if (newEnd < new Date(startDate)) {
-      toast({
-        title: "Invalid Date",
-        description: "End date must be after start date",
-        variant: "destructive",
-      });
-      return;
-    }
-    setEndDate(e.target.value);
-  };
+  const { data: existingFiles } = useQuery({
+    queryKey: ['eventFiles', event?.id],
+    queryFn: async () => {
+      if (!event?.id) return [];
+      const { data, error } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', event.id);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!event?.id,
+  });
 
   return (
     <div className="space-y-4">
@@ -89,28 +82,25 @@ export const EventDialogFields = ({
           id="title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Name and Surname"
           required
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="phone">Phone Number</Label>
+        <Label htmlFor="userNumber">Phone Number</Label>
         <Input
-          id="phone"
+          id="userNumber"
           value={userNumber}
           onChange={(e) => setUserNumber(e.target.value)}
-          placeholder="Phone number"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="social">Social Link or Email</Label>
+        <Label htmlFor="socialNetworkLink">Social Link or Email</Label>
         <Input
-          id="social"
+          id="socialNetworkLink"
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
-          placeholder="Social link or email"
         />
       </div>
 
@@ -121,18 +111,18 @@ export const EventDialogFields = ({
             id="startDate"
             type="datetime-local"
             value={startDate}
-            onChange={handleStartDateChange}
+            onChange={(e) => setStartDate(e.target.value)}
             required
           />
         </div>
+
         <div className="space-y-2">
           <Label htmlFor="endDate">End Date</Label>
           <Input
             id="endDate"
             type="datetime-local"
             value={endDate}
-            min={startDate}
-            onChange={handleEndDateChange}
+            onChange={(e) => setEndDate(e.target.value)}
             required
           />
         </div>
@@ -154,36 +144,47 @@ export const EventDialogFields = ({
 
       {paymentStatus && paymentStatus !== 'not_paid' && (
         <div className="space-y-2">
-          <Label htmlFor="amount">Payment Amount</Label>
+          <Label htmlFor="paymentAmount">Payment Amount</Label>
           <Input
-            id="amount"
+            id="paymentAmount"
             type="number"
             step="0.01"
             value={paymentAmount}
             onChange={(e) => setPaymentAmount(e.target.value)}
-            placeholder="Enter amount"
-            required
+          />
+        </div>
+      )}
+
+      {existingFiles && existingFiles.length > 0 && (
+        <div className="space-y-2">
+          <Label>Attachments</Label>
+          <FileDisplay 
+            files={existingFiles} 
+            bucketName="event_attachments"
+            allowDelete
           />
         </div>
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="notes">Event Notes</Label>
-        <Textarea
-          id="notes"
-          value={eventNotes}
-          onChange={(e) => setEventNotes(e.target.value)}
-          placeholder="Add notes about the event"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Invoice</Label>
-        {eventId && <EventFileDisplay eventId={eventId} />}
+        <Label>Attachment (optional)</Label>
         <FileUploadField 
           onFileChange={setSelectedFile}
           fileError={fileError}
           setFileError={setFileError}
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Max: Images 2MB, Docs 1MB • Formats: Images (jpg, png, webp), Docs (pdf, docx, xlsx, pptx)
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="eventNotes">Event Notes</Label>
+        <Textarea
+          id="eventNotes"
+          value={eventNotes}
+          onChange={(e) => setEventNotes(e.target.value)}
+          className="min-h-[100px]"
         />
       </div>
     </div>

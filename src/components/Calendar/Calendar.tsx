@@ -44,7 +44,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
-  } = useEventDialog();
+  } = useEventDialog(createEvent, updateEvent, deleteEvent);
 
   if (!user) {
     navigate("/signin");

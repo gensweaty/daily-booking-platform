@@ -51,10 +51,7 @@ export const FileUploadField = ({ onFileChange, fileError, setFileError }: FileU
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Label htmlFor="file" className="text-foreground font-medium">Invoice</Label>
-        <span className="text-sm text-muted-foreground">(Attachment optional)</span>
-      </div>
+      <Label htmlFor="file" className="text-foreground">Attachment (optional)</Label>
       <Input
         id="file"
         type="file"
@@ -65,6 +62,11 @@ export const FileUploadField = ({ onFileChange, fileError, setFileError }: FileU
       {fileError && (
         <p className="text-sm text-red-500 mt-1">{fileError}</p>
       )}
+      <p className="text-sm text-muted-foreground mt-1">
+        Max size: Images - 2MB, Documents - 1MB
+        <br />
+        Supported formats: Images (jpg, jpeg, png, webp), Documents (pdf, docx, xlsx, pptx)
+      </p>
     </div>
   );
 };

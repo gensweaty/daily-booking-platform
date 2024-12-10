@@ -2,39 +2,35 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/components/ui/use-toast";
 
 export const useCalendarEvents = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { toast } = useToast();
 
-  const getEvents = async (): Promise<CalendarEventType[]> => {
+  const getEvents = async () => {
     const { data, error } = await supabase
       .from('events')
       .select('*')
       .order('start_date', { ascending: true });
 
     if (error) throw error;
-    return data || [];
+    return data;
   };
 
-  const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+  const createEvent = async (event: Partial<CalendarEventType>) => {
     if (!user) throw new Error("User must be authenticated to create events");
     
     const { data, error } = await supabase
       .from('events')
       .insert([{ ...event, user_id: user.id }])
-      .select('*')
+      .select()
       .single();
 
     if (error) throw error;
-    if (!data) throw new Error("Failed to create event");
-    
     return data;
   };
 
-  const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
+  const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }) => {
     if (!user) throw new Error("User must be authenticated to update events");
     
     const { data, error } = await supabase
@@ -42,12 +38,10 @@ export const useCalendarEvents = () => {
       .update(updates)
       .eq('id', id)
       .eq('user_id', user.id)
-      .select('*')
+      .select()
       .single();
 
     if (error) throw error;
-    if (!data) throw new Error("Failed to update event");
-    
     return data;
   };
 
@@ -73,17 +67,6 @@ export const useCalendarEvents = () => {
     mutationFn: createEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      toast({
-        title: "Success",
-        description: "Event created successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
     },
   });
 
@@ -91,17 +74,6 @@ export const useCalendarEvents = () => {
     mutationFn: updateEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      toast({
-        title: "Success",
-        description: "Event updated successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
     },
   });
 
@@ -109,17 +81,6 @@ export const useCalendarEvents = () => {
     mutationFn: deleteEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      toast({
-        title: "Success",
-        description: "Event deleted successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
     },
   });
 

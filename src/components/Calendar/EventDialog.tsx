@@ -1,19 +1,18 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
-import { useEventFormHandler } from "./EventFormHandler";
-import { format, isValid, parseISO } from "date-fns";
-import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabase";
 
 interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate: Date | null;
   defaultEndDate?: Date | null;
-  onSubmit: (data: Partial<CalendarEventType>) => Promise<CalendarEventType | undefined>;
+  onSubmit: (data: Partial<CalendarEventType>) => void;
   onDelete?: () => void;
   event?: CalendarEventType;
 }
@@ -27,6 +26,7 @@ export const EventDialog = ({
   event,
 }: EventDialogProps) => {
   const [title, setTitle] = useState(event?.title || "");
+  const [userSurname, setUserSurname] = useState(event?.user_surname || "");
   const [userNumber, setUserNumber] = useState(event?.user_number || "");
   const [socialNetworkLink, setSocialNetworkLink] = useState(event?.social_network_link || "");
   const [eventNotes, setEventNotes] = useState(event?.event_notes || "");
@@ -36,109 +36,73 @@ export const EventDialog = ({
   const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
-  const { toast } = useToast();
 
   useEffect(() => {
     if (event) {
-      try {
-        const start = new Date(event.start_date);
-        const end = new Date(event.end_date);
-        
-        if (!isValid(start) || !isValid(end)) {
-          throw new Error("Invalid date in event");
-        }
-        
-        setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-        setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-      } catch (error) {
-        console.error("Error parsing event dates:", error);
-        toast({
-          title: "Error",
-          description: "Invalid date format in event",
-          variant: "destructive",
-        });
-      }
+      const start = new Date(event.start_date);
+      const end = new Date(event.end_date);
+      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     } else if (selectedDate) {
-      try {
-        const start = new Date(selectedDate);
-        const end = new Date(selectedDate);
-        end.setHours(start.getHours() + 1);
-        
-        if (!isValid(start) || !isValid(end)) {
-          throw new Error("Invalid selected date");
-        }
-        
-        setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-        setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-      } catch (error) {
-        console.error("Error setting initial dates:", error);
-        toast({
-          title: "Error",
-          description: "Invalid date format",
-          variant: "destructive",
-        });
-      }
+      const start = new Date(selectedDate);
+      const end = new Date(start);
+      end.setHours(start.getHours() + 1);
+      
+      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     }
-  }, [selectedDate, event, toast]);
+  }, [selectedDate, event]);
 
-  const validateDates = () => {
-    try {
-      const start = parseISO(startDate);
-      const end = parseISO(endDate);
-      
-      if (!isValid(start) || !isValid(end)) {
-        toast({
-          title: "Error",
-          description: "Please enter valid dates",
-          variant: "destructive",
-        });
-        return false;
-      }
-      
-      if (end < start) {
-        toast({
-          title: "Error",
-          description: "End date must be after start date",
-          variant: "destructive",
-        });
-        return false;
-      }
-      
-      return true;
-    } catch (error) {
-      console.error("Date validation error:", error);
-      toast({
-        title: "Error",
-        description: "Invalid date format",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const startDateTime = new Date(startDate);
+    const endDateTime = new Date(endDate);
+    
+    const eventData = {
+      title,
+      user_surname: userSurname,
+      user_number: userNumber,
+      social_network_link: socialNetworkLink,
+      event_notes: eventNotes,
+      start_date: startDateTime.toISOString(),
+      end_date: endDateTime.toISOString(),
+      payment_status: paymentStatus || null,
+      payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+    };
 
-  const eventData = {
-    title,
-    user_number: userNumber,
-    social_network_link: socialNetworkLink,
-    event_notes: eventNotes,
-    start_date: startDate ? new Date(startDate).toISOString() : undefined,
-    end_date: endDate ? new Date(endDate).toISOString() : undefined,
-    payment_status: paymentStatus || null,
-    payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-  };
+    await onSubmit(eventData);
 
-  const { handleSubmit, isSubmitting } = useEventFormHandler({
-    onSubmit: async (data) => {
-      if (!validateDates()) {
+    if (selectedFile) {
+      const fileExt = selectedFile.name.split('.').pop();
+      const filePath = `${crypto.randomUUID()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('event_attachments')
+        .upload(filePath, selectedFile);
+
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
         return;
       }
-      return onSubmit(data);
-    },
-    onSuccess: () => onOpenChange(false),
-    selectedFile,
-    setFileError,
-    eventData,
-  });
+
+      const { error: fileRecordError } = await supabase
+        .from('event_files')
+        .insert({
+          event_id: event?.id,
+          filename: selectedFile.name,
+          file_path: filePath,
+          content_type: selectedFile.type,
+          size: selectedFile.size,
+        });
+
+      if (fileRecordError) {
+        console.error('Error saving file record:', fileRecordError);
+      }
+    }
+
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -148,6 +112,8 @@ export const EventDialog = ({
           <EventDialogFields
             title={title}
             setTitle={setTitle}
+            userSurname={userSurname}
+            setUserSurname={setUserSurname}
             userNumber={userNumber}
             setUserNumber={setUserNumber}
             socialNetworkLink={socialNetworkLink}
@@ -166,11 +132,10 @@ export const EventDialog = ({
             setSelectedFile={setSelectedFile}
             fileError={fileError}
             setFileError={setFileError}
-            eventId={event?.id}
           />
           
           <div className="flex justify-between gap-4">
-            <Button type="submit" className="flex-1" disabled={isSubmitting}>
+            <Button type="submit" className="flex-1">
               {event ? "Update Event" : "Create Event"}
             </Button>
             {event && onDelete && (

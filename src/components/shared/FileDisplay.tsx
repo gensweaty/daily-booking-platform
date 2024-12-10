@@ -57,10 +57,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false }: FileDisp
       if (storageError) throw storageError;
 
       // Delete from database
-      const tableName = bucketName === 'task_attachments' ? 'files' : 
-                       bucketName === 'note_attachments' ? 'note_files' : 
-                       'event_files';
-      
+      const tableName = bucketName === 'task_attachments' ? 'files' : 'note_files';
       const { error: dbError } = await supabase
         .from(tableName)
         .delete()
@@ -71,7 +68,6 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false }: FileDisp
       // Invalidate queries
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
       await queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
-      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
 
       toast({
         title: "Success",
