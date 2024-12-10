@@ -33,6 +33,11 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Make events available globally for the useEventDialog hook
+  if (typeof window !== 'undefined') {
+    (window as any).__CALENDAR_EVENTS__ = events;
+  }
+
   const {
     selectedEvent,
     setSelectedEvent,
