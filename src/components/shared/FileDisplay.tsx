@@ -95,13 +95,6 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
 
   const isImage = (contentType: string) => contentType.startsWith('image/');
 
-  const getFileUrl = async (filePath: string) => {
-    const { data } = await supabase.storage
-      .from(bucketName)
-      .getPublicUrl(filePath);
-    return data.publicUrl;
-  };
-
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       {files.map((file) => (
@@ -123,9 +116,13 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
           <div className="w-full aspect-square flex items-center justify-center bg-muted rounded-md overflow-hidden">
             {isImage(file.content_type) ? (
               <img
-                src={`${supabase.storage.from(bucketName).getPublicUrl(file.file_path).data.publicUrl}`}
+                src={supabase.storage.from(bucketName).getPublicUrl(file.file_path).data.publicUrl}
                 alt={file.filename}
                 className="w-full h-full object-contain"
+                onError={(e) => {
+                  console.error('Image load error:', e);
+                  e.currentTarget.src = '/placeholder.svg';
+                }}
               />
             ) : (
               <FileIcon className="w-12 h-12 text-muted-foreground" />
