@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "../ui/button";
-import { FileIcon, ImageIcon, ExternalLinkIcon, XIcon } from "lucide-react";
+import { FileIcon, ExternalLinkIcon, XIcon } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../ui/use-toast";
 
@@ -14,9 +14,10 @@ interface FileDisplayProps {
   }[];
   bucketName: "task_attachments" | "note_attachments" | "event_attachments";
   allowDelete?: boolean;
+  onFileDeleted?: (fileId: string) => void;
 }
 
-export const FileDisplay = ({ files, bucketName, allowDelete = false }: FileDisplayProps) => {
+export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDeleted }: FileDisplayProps) => {
   const [loadingFile, setLoadingFile] = useState<string | null>(null);
   const [deletingFile, setDeletingFile] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -57,7 +58,9 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false }: FileDisp
       if (storageError) throw storageError;
 
       // Delete from database
-      const tableName = bucketName === 'task_attachments' ? 'files' : 'note_files';
+      const tableName = bucketName === 'event_attachments' ? 'event_files' : 
+                       bucketName === 'note_attachments' ? 'note_files' : 'files';
+                       
       const { error: dbError } = await supabase
         .from(tableName)
         .delete()
@@ -66,8 +69,14 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false }: FileDisp
       if (dbError) throw dbError;
 
       // Invalidate queries
-      await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
+      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       await queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
+      await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
+
+      // Notify parent component
+      if (onFileDeleted) {
+        onFileDeleted(file.id);
+      }
 
       toast({
         title: "Success",

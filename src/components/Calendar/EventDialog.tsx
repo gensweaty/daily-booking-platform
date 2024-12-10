@@ -37,6 +37,7 @@ export const EventDialog = ({
   const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -105,6 +106,10 @@ export const EventDialog = ({
     }
   };
 
+  const handleFileDeleted = (fileId: string) => {
+    setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -134,6 +139,7 @@ export const EventDialog = ({
             fileError={fileError}
             setFileError={setFileError}
             eventId={event?.id}
+            onFileDeleted={handleFileDeleted}
           />
           
           <div className="flex justify-between gap-4">

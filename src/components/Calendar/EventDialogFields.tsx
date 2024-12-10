@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { FileDisplay } from "@/components/shared/FileDisplay";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 interface EventDialogFieldsProps {
@@ -31,6 +31,7 @@ interface EventDialogFieldsProps {
   fileError: string;
   setFileError: (error: string) => void;
   eventId?: string;
+  onFileDeleted?: (fileId: string) => void;
 }
 
 export const EventDialogFields = ({
@@ -57,7 +58,10 @@ export const EventDialogFields = ({
   fileError,
   setFileError,
   eventId,
+  onFileDeleted,
 }: EventDialogFieldsProps) => {
+  const queryClient = useQueryClient();
+  
   const { data: existingFiles } = useQuery({
     queryKey: ['eventFiles', eventId],
     queryFn: async () => {
@@ -72,6 +76,13 @@ export const EventDialogFields = ({
     },
     enabled: !!eventId,
   });
+
+  const handleFileDeleted = async (fileId: string) => {
+    if (onFileDeleted) {
+      onFileDeleted(fileId);
+    }
+    await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId] });
+  };
 
   return (
     <div className="space-y-4">
@@ -172,6 +183,7 @@ export const EventDialogFields = ({
             files={existingFiles} 
             bucketName="event_attachments"
             allowDelete
+            onFileDeleted={handleFileDeleted}
           />
         </div>
       )}
