@@ -44,7 +44,19 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
-  } = useEventDialog(createEvent, updateEvent, deleteEvent);
+  } = useEventDialog({
+    createEvent: async (data) => {
+      const result = await createEvent(data);
+      return result;
+    },
+    updateEvent: async (data) => {
+      const result = await updateEvent(data);
+      return result;
+    },
+    deleteEvent: async (id) => {
+      await deleteEvent(id);
+    }
+  });
 
   if (!user) {
     navigate("/signin");
