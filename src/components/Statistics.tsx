@@ -46,6 +46,10 @@ export const Statistics = () => {
         .gte('start_date', dateRange.start.toISOString())
         .lte('start_date', dateRange.end.toISOString());
 
+      // Get payment status counts
+      const partlyPaid = events?.filter(e => e.payment_status === 'partly').length || 0;
+      const fullyPaid = events?.filter(e => e.payment_status === 'fully').length || 0;
+
       // Get all days in the selected month for daily bookings
       const daysInRange = eachDayOfInterval({
         start: dateRange.start,
@@ -103,7 +107,8 @@ export const Statistics = () => {
       return {
         total: events?.length || 0,
         meetings: events?.filter(e => e.type === 'meeting').length || 0,
-        reminders: events?.filter(e => e.type === 'reminder').length || 0,
+        partlyPaid,
+        fullyPaid,
         dailyStats: dailyBookings,
         monthlyIncome,
         totalIncome,
@@ -129,7 +134,7 @@ export const Statistics = () => {
       title: "Total Events",
       value: eventStats?.total || 0,
       icon: CalendarIcon,
-      description: `${eventStats?.meetings || 0} meetings`,
+      description: `${eventStats?.partlyPaid || 0} partly paid, ${eventStats?.fullyPaid || 0} fully paid`,
     },
     {
       title: "Total Income",
