@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 import { memo, useEffect, useMemo, useRef } from 'react';
+import debounce from 'lodash/debounce';
 
 interface RichTextEditorProps {
   content: string;
@@ -20,8 +21,16 @@ interface RichTextEditorProps {
 
 const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur }: RichTextEditorProps) {
   const prevContentRef = useRef(content);
-  const shouldUpdateRef = useRef(false);
-  const selectionRef = useRef<{ from: number; to: number } | null>(null);
+  const isUserEditingRef = useRef(false);
+
+  const debouncedOnChange = useMemo(
+    () => debounce((html: string) => {
+      if (isUserEditingRef.current) {
+        onChange(html);
+      }
+    }, 300),
+    [onChange]
+  );
 
   const extensions = useMemo(() => [
     StarterKit,
@@ -47,13 +56,9 @@ const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur 
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       if (html !== prevContentRef.current) {
-        shouldUpdateRef.current = true;
-        selectionRef.current = {
-          from: editor.state.selection.from,
-          to: editor.state.selection.to
-        };
+        isUserEditingRef.current = true;
         prevContentRef.current = html;
-        onChange(html);
+        debouncedOnChange(html);
       }
     },
     onBlur,
@@ -65,28 +70,24 @@ const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur 
   });
 
   useEffect(() => {
-    if (editor && content !== prevContentRef.current && !shouldUpdateRef.current) {
-      const isFocused = editor.isFocused;
-      const currentSelection = selectionRef.current || editor.state.selection;
-      
+    if (editor && content !== prevContentRef.current && !isUserEditingRef.current) {
+      const selection = editor.state.selection;
       editor.commands.setContent(content, false);
       prevContentRef.current = content;
       
-      if (isFocused) {
-        editor.commands.focus();
-        if (currentSelection) {
-          editor.commands.setTextSelection(currentSelection);
-        }
+      if (editor.isFocused) {
+        editor.commands.setTextSelection(selection);
       }
     }
-    shouldUpdateRef.current = false;
+    isUserEditingRef.current = false;
   }, [content, editor]);
 
   useEffect(() => {
     return () => {
       editor?.destroy();
+      debouncedOnChange.cancel();
     };
-  }, [editor]);
+  }, [editor, debouncedOnChange]);
 
   if (!editor) {
     return null;
