@@ -11,9 +11,11 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
   const [localDescription, setLocalDescription] = useState(description);
 
   useEffect(() => {
-    console.log("Parent description changed:", description);
-    setLocalDescription(description);
-  }, [description]);
+    if (description !== localDescription) {
+      console.log("Parent description changed:", description);
+      setLocalDescription(description);
+    }
+  }, [description, localDescription]);
 
   const handleBlur = () => {
     console.log("Editor blur - updating parent with:", localDescription);
