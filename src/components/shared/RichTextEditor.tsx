@@ -10,7 +10,7 @@ import { Bold, Underline as UnderlineIcon, List, Type, Smile } from 'lucide-reac
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
-import { memo, useCallback, useMemo, useEffect } from 'react';
+import { memo, useEffect, useMemo, useCallback } from 'react';
 
 interface RichTextEditorProps {
   content: string;
@@ -37,14 +37,16 @@ export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEdito
     Underline,
   ], []);
 
+  const handleUpdate = useCallback(({ editor }: { editor: any }) => {
+    const html = editor.getHTML();
+    console.log('Editor content updated:', html);
+    onChange(html);
+  }, [onChange]);
+
   const editor = useEditor({
     extensions,
     content,
-    onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      console.log('Editor content updated:', html);
-      onChange(html);
-    },
+    onUpdate: handleUpdate,
     onBlur: () => {
       console.log('Editor blur event');
       onBlur?.();
