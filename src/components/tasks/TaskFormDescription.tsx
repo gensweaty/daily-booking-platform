@@ -7,12 +7,17 @@ interface TaskFormDescriptionProps {
 }
 
 export const TaskFormDescription = ({ description, setDescription }: TaskFormDescriptionProps) => {
+  console.log("TaskFormDescription - Current description value:", description);
+  
   return (
     <div className="space-y-2">
       <Label htmlFor="description">Description</Label>
       <RichTextEditor
         content={description}
-        onChange={setDescription}
+        onChange={(value) => {
+          console.log("Editor content:", value);
+          setDescription(value);
+        }}
       />
     </div>
   );

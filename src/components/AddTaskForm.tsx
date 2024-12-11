@@ -27,8 +27,10 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     if (editingTask) {
       console.log("Setting form with editingTask:", editingTask);
       setTitle(editingTask.title);
-      setDescription(editingTask.description || "");
-      console.log("Description set to:", editingTask.description);
+      // Initialize description with the actual content from editingTask
+      const initialDescription = editingTask.description || "";
+      console.log("Initializing description with:", initialDescription);
+      setDescription(initialDescription);
     }
   }, [editingTask]);
 
@@ -46,7 +48,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     try {
       const taskData = {
         title,
-        description,
+        description: description.trim() === "" ? null : description,
         status: editingTask ? editingTask.status : ('todo' as const),
         user_id: user.id
       };
