@@ -10,7 +10,7 @@ import { Bold, Underline as UnderlineIcon, List, Type, Smile } from 'lucide-reac
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useState, useRef } from 'react';
 
 interface RichTextEditorProps {
   content: string;
@@ -19,8 +19,9 @@ interface RichTextEditorProps {
 }
 
 const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur }: RichTextEditorProps) {
+  const [editorState, setEditorState] = useState(content);
   const prevContentRef = useRef(content);
-  const shouldUpdateRef = useRef(false);
+  const prevSelectionRef = useRef<{ from: number; to: number } | null>(null);
 
   const extensions = useMemo(() => [
     StarterKit,
@@ -42,12 +43,16 @@ const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur 
 
   const editor = useEditor({
     extensions,
-    content,
+    content: editorState,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       if (html !== prevContentRef.current) {
-        shouldUpdateRef.current = true;
+        setEditorState(html);
         prevContentRef.current = html;
+        prevSelectionRef.current = {
+          from: editor.state.selection.from,
+          to: editor.state.selection.to
+        };
         onChange(html);
       }
     },
@@ -60,19 +65,19 @@ const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur 
   });
 
   useEffect(() => {
-    if (editor && content !== prevContentRef.current && !shouldUpdateRef.current) {
+    if (editor && content !== prevContentRef.current) {
+      const selection = prevSelectionRef.current || { from: 0, to: 0 };
       const isFocused = editor.isFocused;
-      const { from, to } = editor.state.selection;
       
       editor.commands.setContent(content, false);
-      prevContentRef.current = content;
       
       if (isFocused) {
         editor.commands.focus();
-        editor.commands.setTextSelection({ from, to });
+        editor.commands.setTextSelection(selection);
       }
+      
+      prevContentRef.current = content;
     }
-    shouldUpdateRef.current = false;
   }, [content, editor]);
 
   useEffect(() => {
