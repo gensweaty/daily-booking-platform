@@ -18,7 +18,7 @@ interface RichTextEditorProps {
   onBlur?: () => void;
 }
 
-const RichTextEditorComponent = ({ content, onChange, onBlur }: RichTextEditorProps) => {
+const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur }: RichTextEditorProps) {
   const prevContentRef = useRef(content);
 
   const extensions = useMemo(() => [
@@ -60,7 +60,7 @@ const RichTextEditorComponent = ({ content, onChange, onBlur }: RichTextEditorPr
       editor.commands.setContent(content, false);
       prevContentRef.current = content;
     }
-  }, [editor, content]);
+  }, [content, editor]);
 
   useEffect(() => {
     return () => {
@@ -165,7 +165,6 @@ const RichTextEditorComponent = ({ content, onChange, onBlur }: RichTextEditorPr
       <EditorContent editor={editor} className="prose dark:prose-invert max-w-none p-4" />
     </div>
   );
-};
+});
 
-export const RichTextEditor = memo(RichTextEditorComponent);
-RichTextEditor.displayName = 'RichTextEditor';
+export { RichTextEditor };
