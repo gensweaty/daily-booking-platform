@@ -10,7 +10,7 @@ import { Bold, Underline as UnderlineIcon, List, Type, Smile } from 'lucide-reac
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
-import { memo, useEffect, useMemo, useCallback } from 'react';
+import { memo, useEffect, useMemo, useState, useCallback, useRef } from 'react';
 
 interface RichTextEditorProps {
   content: string;
@@ -19,6 +19,9 @@ interface RichTextEditorProps {
 }
 
 export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEditorProps) => {
+  const [internalContent, setInternalContent] = useState(content);
+  const updateTimeoutRef = useRef<NodeJS.Timeout>();
+
   const extensions = useMemo(() => [
     StarterKit,
     TaskList.configure({
@@ -39,13 +42,23 @@ export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEdito
 
   const handleUpdate = useCallback(({ editor }: { editor: any }) => {
     const html = editor.getHTML();
-    console.log('Editor content updated:', html);
-    onChange(html);
+    setInternalContent(html);
+    
+    // Clear any existing timeout
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+
+    // Set a new timeout for the update
+    updateTimeoutRef.current = setTimeout(() => {
+      console.log('Editor content updated:', html);
+      onChange(html);
+    }, 300); // 300ms delay
   }, [onChange]);
 
   const editor = useEditor({
     extensions,
-    content,
+    content: internalContent,
     onUpdate: handleUpdate,
     onBlur: () => {
       console.log('Editor blur event');
@@ -56,19 +69,26 @@ export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEdito
         class: 'prose dark:prose-invert max-w-none focus:outline-none min-h-[100px]',
       },
     },
-  }, []);  // Remove content from dependency array to prevent editor recreation
+  });
 
-  // Update content when prop changes and differs from current content
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      console.log('Updating editor content:', content);
-      editor.commands.setContent(content, false);
-    }
-  }, [content, editor]);
+    if (editor && internalContent !== content) {
+      const timeoutId = setTimeout(() => {
+        console.log('Updating editor content:', content);
+        editor.commands.setContent(content, false);
+        setInternalContent(content);
+      }, 300);
 
-  // Cleanup editor on unmount
+      return () => clearTimeout(timeoutId);
+    }
+  }, [content, editor, internalContent]);
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
       editor?.destroy();
     };
   }, [editor]);
