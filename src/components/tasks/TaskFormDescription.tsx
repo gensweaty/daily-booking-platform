@@ -16,7 +16,8 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
     <div className="space-y-2">
       <Label htmlFor="description">Description</Label>
       <RichTextEditor
-        content={description || ""}
+        key="task-description-editor"
+        content={description}
         onChange={setDescription}
       />
     </div>
