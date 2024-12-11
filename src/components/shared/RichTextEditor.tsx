@@ -10,13 +10,15 @@ import { Bold, Underline as UnderlineIcon, List, Type, Smile } from 'lucide-reac
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
+import { memo } from 'react';
 
 interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
+  onBlur?: () => void;
 }
 
-export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
+export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEditorProps) => {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -38,6 +40,9 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
     content,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
+    },
+    onBlur: ({ editor }) => {
+      onBlur?.();
     },
     editorProps: {
       attributes: {
@@ -143,4 +148,6 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
       <EditorContent editor={editor} className="prose dark:prose-invert max-w-none p-4" />
     </div>
   );
-};
+});
+
+RichTextEditor.displayName = 'RichTextEditor';

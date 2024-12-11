@@ -1,5 +1,6 @@
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "../shared/RichTextEditor";
+import { useState, useEffect } from "react";
 
 interface TaskFormDescriptionProps {
   description: string;
@@ -7,15 +8,30 @@ interface TaskFormDescriptionProps {
 }
 
 export const TaskFormDescription = ({ description, setDescription }: TaskFormDescriptionProps) => {
-  console.log("TaskFormDescription - Current description value:", description);
-  
+  const [localDescription, setLocalDescription] = useState(description);
+
+  useEffect(() => {
+    console.log("Parent description changed:", description);
+    setLocalDescription(description);
+  }, [description]);
+
+  const handleBlur = () => {
+    console.log("Editor blur - updating parent with:", localDescription);
+    setDescription(localDescription);
+  };
+
+  const handleChange = (value: string) => {
+    console.log("Local description update:", value);
+    setLocalDescription(value);
+  };
+
   return (
     <div className="space-y-2">
       <Label htmlFor="description">Description</Label>
       <RichTextEditor
-        key={description} // Add key to force re-render when description changes
-        content={description}
-        onChange={setDescription}
+        content={localDescription}
+        onChange={handleChange}
+        onBlur={handleBlur}
       />
     </div>
   );
