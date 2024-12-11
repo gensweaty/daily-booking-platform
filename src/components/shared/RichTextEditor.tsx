@@ -10,62 +10,34 @@ import { Bold, Underline as UnderlineIcon, List, Type, Smile } from 'lucide-reac
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
-import { memo, useEffect, useMemo, useState, useCallback, useRef } from 'react';
 
 interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
-  onBlur?: () => void;
 }
 
-export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEditorProps) => {
-  const [internalContent, setInternalContent] = useState(content);
-  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const prevContentRef = useRef(content);
-
-  const extensions = useMemo(() => [
-    StarterKit,
-    TaskList.configure({
-      HTMLAttributes: {
-        class: 'not-prose pl-2',
-      },
-    }),
-    TaskItem.configure({
-      nested: true,
-      HTMLAttributes: {
-        class: 'flex items-start gap-2 my-2',
-      },
-    }),
-    TextStyle,
-    Color,
-    Underline,
-  ], []);
-
-  const handleUpdate = useCallback(({ editor }: { editor: any }) => {
-    const html = editor.getHTML();
-
-    if (html !== prevContentRef.current) {
-      setInternalContent(html);
-      prevContentRef.current = html;
-
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
-      }
-
-      updateTimeoutRef.current = setTimeout(() => {
-        console.log('Editor content updated:', html);
-        onChange(html);
-      }, 300);
-    }
-  }, [onChange]);
-
+export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
   const editor = useEditor({
-    extensions,
-    content: internalContent,
-    onUpdate: handleUpdate,
-    onBlur: () => {
-      console.log('Editor blur event');
-      onBlur?.();
+    extensions: [
+      StarterKit,
+      TaskList.configure({
+        HTMLAttributes: {
+          class: 'not-prose pl-2',
+        },
+      }),
+      TaskItem.configure({
+        nested: true,
+        HTMLAttributes: {
+          class: 'flex items-start gap-2 my-2',
+        },
+      }),
+      TextStyle,
+      Color,
+      Underline,
+    ],
+    content,
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML());
     },
     editorProps: {
       attributes: {
@@ -73,24 +45,6 @@ export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEdito
       },
     },
   });
-
-  useEffect(() => {
-    if (editor && content !== prevContentRef.current) {
-      console.log('Content prop changed:', content);
-      editor.commands.setContent(content, false);
-      setInternalContent(content);
-      prevContentRef.current = content;
-    }
-  }, [content, editor]);
-
-  useEffect(() => {
-    return () => {
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
-      }
-      editor?.destroy();
-    };
-  }, [editor]);
 
   if (!editor) {
     return null;
@@ -189,6 +143,4 @@ export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEdito
       <EditorContent editor={editor} className="prose dark:prose-invert max-w-none p-4" />
     </div>
   );
-});
-
-RichTextEditor.displayName = 'RichTextEditor';
+};
