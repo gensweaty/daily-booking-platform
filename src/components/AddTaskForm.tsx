@@ -8,6 +8,7 @@ import { Task } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { TaskFormHeader } from "./tasks/TaskFormHeader";
 import { TaskFormFields } from "./tasks/TaskFormFields";
+import { validateFile, sanitizeDescription } from "@/utils/taskHelpers";
 
 interface AddTaskFormProps {
   onClose: () => void;
@@ -26,11 +27,13 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   useEffect(() => {
     if (editingTask) {
       console.log("Setting form with editingTask:", editingTask);
-      setTitle(editingTask.title);
-      // Initialize description with the actual content from editingTask
-      const initialDescription = editingTask.description || "";
-      console.log("Initializing description with:", initialDescription);
-      setDescription(initialDescription);
+      setTitle(editingTask.title || "");
+      const sanitizedDescription = sanitizeDescription(editingTask.description);
+      setDescription(sanitizedDescription);
+      console.log("Description initialized to:", sanitizedDescription);
+    } else {
+      setTitle("");
+      setDescription("");
     }
   }, [editingTask]);
 
@@ -45,10 +48,17 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       return;
     }
 
+    // Validate file before proceeding
+    const fileValidationError = validateFile(selectedFile);
+    if (fileValidationError) {
+      setFileError(fileValidationError);
+      return;
+    }
+
     try {
       const taskData = {
-        title,
-        description,
+        title: title.trim(),
+        description: description.trim() || "", // Always store as string
         status: editingTask ? editingTask.status : ('todo' as const),
         user_id: user.id
       };
@@ -70,7 +80,14 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           .from('task_attachments')
           .upload(filePath, selectedFile);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          toast({
+            title: "Error",
+            description: `Failed to upload file: ${uploadError.message}`,
+            variant: "destructive",
+          });
+          return;
+        }
 
         const { error: fileRecordError } = await supabase
           .from('files')
@@ -83,7 +100,15 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
             user_id: user.id
           });
 
-        if (fileRecordError) throw fileRecordError;
+        if (fileRecordError) {
+          console.error("Error saving file record:", fileRecordError);
+          toast({
+            title: "Error",
+            description: "Failed to save file information",
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
       await queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -98,7 +123,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       console.error('Task operation error:', error);
       toast({
         title: "Error",
-        description: error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`,
+        description: error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Check logs for details.`,
         variant: "destructive",
       });
     }
