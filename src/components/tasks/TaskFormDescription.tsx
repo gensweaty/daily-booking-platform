@@ -13,7 +13,6 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
     <div className="space-y-2">
       <Label htmlFor="description">Description</Label>
       <RichTextEditor
-        key={description} // Add key to force re-render when description changes
         content={description}
         onChange={setDescription}
       />
