@@ -20,6 +20,7 @@ interface RichTextEditorProps {
 
 const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur }: RichTextEditorProps) {
   const prevContentRef = useRef(content);
+  const shouldUpdateRef = useRef(false);
 
   const extensions = useMemo(() => [
     StarterKit,
@@ -44,8 +45,11 @@ const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur 
     content,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
-      prevContentRef.current = html;
-      onChange(html);
+      if (html !== prevContentRef.current) {
+        shouldUpdateRef.current = true;
+        prevContentRef.current = html;
+        onChange(html);
+      }
     },
     onBlur,
     editorProps: {
@@ -56,10 +60,19 @@ const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur 
   });
 
   useEffect(() => {
-    if (editor && content !== prevContentRef.current) {
+    if (editor && content !== prevContentRef.current && !shouldUpdateRef.current) {
+      const isFocused = editor.isFocused;
+      const { from, to } = editor.state.selection;
+      
       editor.commands.setContent(content, false);
       prevContentRef.current = content;
+      
+      if (isFocused) {
+        editor.commands.focus();
+        editor.commands.setTextSelection({ from, to });
+      }
     }
+    shouldUpdateRef.current = false;
   }, [content, editor]);
 
   useEffect(() => {
