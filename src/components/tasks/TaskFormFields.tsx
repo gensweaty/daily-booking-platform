@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { Task } from "@/lib/types";
 import { TaskFormTitle } from "./TaskFormTitle";
 import { TaskFormDescription } from "./TaskFormDescription";
+import { useEffect } from "react";
 
 interface TaskFormFieldsProps {
   title: string;
@@ -44,14 +45,18 @@ export const TaskFormFields = ({
     enabled: !!editingTask?.id,
   });
 
-  console.log("TaskFormFields - Current description:", description);
-  console.log("TaskFormFields - Editing task:", editingTask);
-  console.log("TaskFormFields - Existing files:", existingFiles);
+  useEffect(() => {
+    console.log("TaskFormFields - Current description:", description);
+    console.log("TaskFormFields - Editing task:", editingTask);
+  }, [description, editingTask]);
 
   return (
     <div className="space-y-4">
       <TaskFormTitle title={title} setTitle={setTitle} />
-      <TaskFormDescription description={description} setDescription={setDescription} />
+      <TaskFormDescription 
+        description={description} 
+        setDescription={setDescription} 
+      />
       
       {editingTask?.id && existingFiles && existingFiles.length > 0 && (
         <div className="space-y-2">
