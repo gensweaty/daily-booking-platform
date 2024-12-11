@@ -10,41 +10,64 @@ import { Bold, Underline as UnderlineIcon, List, Type, Smile } from 'lucide-reac
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 
 interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
+  onBlur?: () => void;
 }
 
-export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
+export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEditorProps) => {
+  const prevContentRef = useRef(content);
+
+  const extensions = useMemo(() => [
+    StarterKit,
+    TaskList.configure({
+      HTMLAttributes: {
+        class: 'not-prose pl-2',
+      },
+    }),
+    TaskItem.configure({
+      nested: true,
+      HTMLAttributes: {
+        class: 'flex items-start gap-2 my-2',
+      },
+    }),
+    TextStyle,
+    Color,
+    Underline,
+  ], []);
+
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      TaskList.configure({
-        HTMLAttributes: {
-          class: 'not-prose pl-2',
-        },
-      }),
-      TaskItem.configure({
-        nested: true,
-        HTMLAttributes: {
-          class: 'flex items-start gap-2 my-2',
-        },
-      }),
-      TextStyle,
-      Color,
-      Underline,
-    ],
+    extensions,
     content,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+      prevContentRef.current = html;
+      onChange(html);
     },
+    onBlur,
     editorProps: {
       attributes: {
         class: 'prose dark:prose-invert max-w-none focus:outline-none min-h-[100px]',
       },
     },
   });
+
+  // Only update content from props if it's different from our last known content
+  useEffect(() => {
+    if (editor && content !== prevContentRef.current) {
+      editor.commands.setContent(content, false);
+      prevContentRef.current = content;
+    }
+  }, [editor, content]);
+
+  useEffect(() => {
+    return () => {
+      editor?.destroy();
+    };
+  }, [editor]);
 
   if (!editor) {
     return null;
@@ -143,4 +166,6 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
       <EditorContent editor={editor} className="prose dark:prose-invert max-w-none p-4" />
     </div>
   );
-};
+});
+
+RichTextEditor.displayName = 'RichTextEditor';
