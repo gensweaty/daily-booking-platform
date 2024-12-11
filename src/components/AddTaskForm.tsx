@@ -8,6 +8,7 @@ import { Task } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { TaskFormHeader } from "./tasks/TaskFormHeader";
 import { TaskFormFields } from "./tasks/TaskFormFields";
+import { validateFile, sanitizeDescription } from "@/utils/taskHelpers";
 
 interface AddTaskFormProps {
   onClose: () => void;
@@ -27,8 +28,9 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     if (editingTask) {
       console.log("Setting form with editingTask:", editingTask);
       setTitle(editingTask.title || "");
-      setDescription(editingTask.description || "");
-      console.log("Description initialized to:", editingTask.description || "");
+      const sanitizedDescription = sanitizeDescription(editingTask.description);
+      setDescription(sanitizedDescription);
+      console.log("Description initialized to:", sanitizedDescription);
     } else {
       setTitle("");
       setDescription("");
@@ -43,6 +45,13 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         description: "You must be logged in to create tasks",
         variant: "destructive",
       });
+      return;
+    }
+
+    // Validate file before proceeding
+    const fileValidationError = validateFile(selectedFile);
+    if (fileValidationError) {
+      setFileError(fileValidationError);
       return;
     }
 
@@ -64,11 +73,6 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       }
 
       if (selectedFile && taskResponse) {
-        if (selectedFile.size > 5 * 1024 * 1024) { // 5MB limit
-          setFileError("File size exceeds 5MB limit.");
-          return;
-        }
-
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
@@ -119,7 +123,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       console.error('Task operation error:', error);
       toast({
         title: "Error",
-        description: error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`,
+        description: error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Check logs for details.`,
         variant: "destructive",
       });
     }
