@@ -54,11 +54,11 @@ export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEdito
         class: 'prose dark:prose-invert max-w-none focus:outline-none min-h-[100px]',
       },
     },
-  });
+  }, []);  // Remove content from dependency array to prevent editor recreation
 
-  // Update content when prop changes without full re-initialization
+  // Update content when prop changes and differs from current content
   useEffect(() => {
-    if (editor && editor.getHTML() !== content) {
+    if (editor && content !== editor.getHTML()) {
       console.log('Updating editor content:', content);
       editor.commands.setContent(content, false);
     }
