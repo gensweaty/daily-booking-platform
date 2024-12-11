@@ -18,7 +18,7 @@ interface RichTextEditorProps {
   onBlur?: () => void;
 }
 
-export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEditorProps) => {
+const RichTextEditorComponent = ({ content, onChange, onBlur }: RichTextEditorProps) => {
   const prevContentRef = useRef(content);
 
   const extensions = useMemo(() => [
@@ -55,7 +55,6 @@ export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEdito
     },
   });
 
-  // Only update content from props if it's different from our last known content
   useEffect(() => {
     if (editor && content !== prevContentRef.current) {
       editor.commands.setContent(content, false);
@@ -166,6 +165,7 @@ export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEdito
       <EditorContent editor={editor} className="prose dark:prose-invert max-w-none p-4" />
     </div>
   );
-});
+};
 
+export const RichTextEditor = memo(RichTextEditorComponent);
 RichTextEditor.displayName = 'RichTextEditor';
