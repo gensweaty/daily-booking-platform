@@ -38,7 +38,6 @@ export const Statistics = () => {
   const { data: eventStats } = useQuery({
     queryKey: ['eventStats', user?.id, dateRange.start, dateRange.end],
     queryFn: async () => {
-      // Get events for the selected date range
       const { data: events } = await supabase
         .from('events')
         .select('*')
@@ -68,7 +67,7 @@ export const Statistics = () => {
         };
       });
 
-      // Get three months for income comparison (previous, current, next)
+      // Get three months for income comparison
       const threeMonths = [
         subMonths(startOfMonth(currentDate), 1),
         startOfMonth(currentDate),
@@ -106,7 +105,6 @@ export const Statistics = () => {
 
       return {
         total: events?.length || 0,
-        meetings: events?.filter(e => e.type === 'meeting').length || 0,
         partlyPaid,
         fullyPaid,
         dailyStats: dailyBookings,
