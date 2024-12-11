@@ -10,7 +10,7 @@ import { Bold, Underline as UnderlineIcon, List, Type, Smile } from 'lucide-reac
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
-import { memo } from 'react';
+import { memo, useCallback, useMemo, useEffect } from 'react';
 
 interface RichTextEditorProps {
   content: string;
@@ -19,29 +19,34 @@ interface RichTextEditorProps {
 }
 
 export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEditorProps) => {
+  const extensions = useMemo(() => [
+    StarterKit,
+    TaskList.configure({
+      HTMLAttributes: {
+        class: 'not-prose pl-2',
+      },
+    }),
+    TaskItem.configure({
+      nested: true,
+      HTMLAttributes: {
+        class: 'flex items-start gap-2 my-2',
+      },
+    }),
+    TextStyle,
+    Color,
+    Underline,
+  ], []);
+
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      TaskList.configure({
-        HTMLAttributes: {
-          class: 'not-prose pl-2',
-        },
-      }),
-      TaskItem.configure({
-        nested: true,
-        HTMLAttributes: {
-          class: 'flex items-start gap-2 my-2',
-        },
-      }),
-      TextStyle,
-      Color,
-      Underline,
-    ],
+    extensions,
     content,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+      console.log('Editor content updated:', html);
+      onChange(html);
     },
-    onBlur: ({ editor }) => {
+    onBlur: () => {
+      console.log('Editor blur event');
       onBlur?.();
     },
     editorProps: {
@@ -50,6 +55,21 @@ export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEdito
       },
     },
   });
+
+  // Update content when prop changes without full re-initialization
+  useEffect(() => {
+    if (editor && editor.getHTML() !== content) {
+      console.log('Updating editor content:', content);
+      editor.commands.setContent(content, false);
+    }
+  }, [content, editor]);
+
+  // Cleanup editor on unmount
+  useEffect(() => {
+    return () => {
+      editor?.destroy();
+    };
+  }, [editor]);
 
   if (!editor) {
     return null;
