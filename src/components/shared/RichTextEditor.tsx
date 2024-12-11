@@ -20,7 +20,8 @@ interface RichTextEditorProps {
 
 export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEditorProps) => {
   const [internalContent, setInternalContent] = useState(content);
-  const updateTimeoutRef = useRef<NodeJS.Timeout>();
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const prevContentRef = useRef(content);
 
   const extensions = useMemo(() => [
     StarterKit,
@@ -42,18 +43,20 @@ export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEdito
 
   const handleUpdate = useCallback(({ editor }: { editor: any }) => {
     const html = editor.getHTML();
-    setInternalContent(html);
-    
-    // Clear any existing timeout
-    if (updateTimeoutRef.current) {
-      clearTimeout(updateTimeoutRef.current);
-    }
 
-    // Set a new timeout for the update
-    updateTimeoutRef.current = setTimeout(() => {
-      console.log('Editor content updated:', html);
-      onChange(html);
-    }, 300); // 300ms delay
+    if (html !== prevContentRef.current) {
+      setInternalContent(html);
+      prevContentRef.current = html;
+
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+
+      updateTimeoutRef.current = setTimeout(() => {
+        console.log('Editor content updated:', html);
+        onChange(html);
+      }, 300);
+    }
   }, [onChange]);
 
   const editor = useEditor({
@@ -72,18 +75,14 @@ export const RichTextEditor = memo(({ content, onChange, onBlur }: RichTextEdito
   });
 
   useEffect(() => {
-    if (editor && internalContent !== content) {
-      const timeoutId = setTimeout(() => {
-        console.log('Updating editor content:', content);
-        editor.commands.setContent(content, false);
-        setInternalContent(content);
-      }, 300);
-
-      return () => clearTimeout(timeoutId);
+    if (editor && content !== prevContentRef.current) {
+      console.log('Content prop changed:', content);
+      editor.commands.setContent(content, false);
+      setInternalContent(content);
+      prevContentRef.current = content;
     }
-  }, [content, editor, internalContent]);
+  }, [content, editor]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (updateTimeoutRef.current) {
