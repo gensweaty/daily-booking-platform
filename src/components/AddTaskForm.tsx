@@ -27,10 +27,8 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     if (editingTask) {
       console.log("Setting form with editingTask:", editingTask);
       setTitle(editingTask.title);
-      // Initialize description with the actual content from editingTask
-      const initialDescription = editingTask.description || "";
-      console.log("Initializing description with:", initialDescription);
-      setDescription(initialDescription);
+      setDescription(editingTask.description || "");
+      console.log("Description set to:", editingTask.description);
     }
   }, [editingTask]);
 

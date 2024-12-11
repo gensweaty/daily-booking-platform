@@ -44,10 +44,6 @@ export const TaskFormFields = ({
     enabled: !!editingTask?.id,
   });
 
-  console.log("TaskFormFields - Current description:", description);
-  console.log("TaskFormFields - Editing task:", editingTask);
-  console.log("TaskFormFields - Existing files:", existingFiles);
-
   return (
     <div className="space-y-4">
       <TaskFormTitle title={title} setTitle={setTitle} />
