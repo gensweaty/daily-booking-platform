@@ -15,7 +15,7 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
       <RichTextEditor
         content={description}
         onChange={(value) => {
-          console.log("Editor content:", value);
+          console.log("Editor content updated:", value);
           setDescription(value);
         }}
       />
