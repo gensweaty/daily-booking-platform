@@ -16,7 +16,7 @@ export const SignIn = () => {
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
-      console.log("Initial session:", session);
+      console.log("Initial session check:", session);
       if (error) {
         console.error("Error fetching session:", error);
       } else if (session) {
@@ -44,7 +44,7 @@ export const SignIn = () => {
     if (isLoading) return;
     
     setIsLoading(true);
-    console.log("Attempting sign in with email:", email);
+    console.log("Starting sign in process for email:", email);
     
     try {
       const trimmedEmail = email.trim();
