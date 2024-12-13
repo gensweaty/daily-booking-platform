@@ -12,15 +12,41 @@ export const SignIn = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const validateInputs = () => {
     if (!email || !password) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
         variant: "destructive",
       });
+      return false;
+    }
+    
+    if (!email.includes('@')) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    if (password.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    return true;
+  };
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateInputs()) {
       return;
     }
     
