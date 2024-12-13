@@ -28,39 +28,23 @@ export const SignIn = () => {
     console.log("Starting sign in process for email:", email);
     
     try {
-      // Try to get the user first to check if they exist
-      const { data: existingUser, error: userCheckError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', email)
-        .maybeSingle();
-
-      if (userCheckError) {
-        console.error('Error checking user existence:', userCheckError);
-      }
-
-      // Proceed with sign in attempt
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
-      if (signInError) {
-        console.error('Sign in error details:', {
-          status: signInError.status,
-          message: signInError.message,
-          name: signInError.name
-        });
+      if (error) {
+        console.error('Sign in error:', error);
         
-        let errorMessage = "Unable to sign in at this time";
+        let errorMessage = "Unable to sign in";
         
-        if (signInError.message.includes("Email not confirmed")) {
+        if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please verify your email address before signing in";
-        } else if (signInError.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password combination";
-        } else if (signInError.status === 500) {
-          errorMessage = "Our servers are experiencing issues. Please try again in a few minutes";
-          console.error("Server error during sign in:", signInError);
+        } else if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password";
+        } else if (error.status === 500) {
+          errorMessage = "Server error. Please try again later";
+          console.error("Server error details:", error);
         }
         
         toast({
