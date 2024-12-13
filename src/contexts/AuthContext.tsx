@@ -35,18 +35,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       console.log("Auth state changed:", _event, newSession?.user?.id);
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setLoading(false);
 
       if (newSession?.user) {
-        toast({
-          title: "Welcome Back!",
-          description: "You've successfully signed in.",
-        });
-        navigate('/dashboard');
+        // Check if profile exists
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', newSession.user.id)
+          .single();
+
+        if (!profileError && profile) {
+          toast({
+            title: "Welcome Back!",
+            description: "You've successfully signed in.",
+          });
+          navigate('/dashboard');
+        } else {
+          console.error('Profile fetch error:', profileError);
+        }
       } else {
         // If user is logged out, redirect to login page
         navigate('/login');
