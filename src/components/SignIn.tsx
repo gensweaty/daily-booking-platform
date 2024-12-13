@@ -5,7 +5,6 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
 import { useNavigate, Link } from "react-router-dom";
-import { AuthError } from "@supabase/supabase-js";
 
 export const SignIn = () => {
   const [email, setEmail] = useState("");
@@ -49,7 +48,7 @@ export const SignIn = () => {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
       
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
@@ -57,7 +56,16 @@ export const SignIn = () => {
       if (signInError) {
         console.error("Sign in error:", signInError);
         
-        if (signInError.message.includes("Invalid login credentials")) {
+        // Check for database error
+        if (signInError.message.includes("Database error") || 
+            signInError.message.includes("unexpected_failure") ||
+            signInError.status === 500) {
+          toast({
+            title: "System Error",
+            description: "There was a problem with the authentication system. Please try again later.",
+            variant: "destructive",
+          });
+        } else if (signInError.message.includes("Invalid login credentials")) {
           toast({
             title: "Sign in failed",
             description: "Invalid email or password. Please try again.",
@@ -76,7 +84,7 @@ export const SignIn = () => {
             variant: "destructive",
           });
         }
-      } else {
+      } else if (data?.user) {
         toast({
           title: "Success",
           description: "Signed in successfully",
