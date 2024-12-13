@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
 import { useNavigate, Link } from "react-router-dom";
+import { AuthError } from "@supabase/supabase-js";
 
 export const SignIn = () => {
   const [email, setEmail] = useState("");
@@ -59,9 +60,8 @@ export const SignIn = () => {
         // Log detailed error information
         console.error("Error details:", {
           message: signInError.message,
-          body: signInError.error_description || signInError.message,
           status: signInError.status,
-          error_type: signInError.name
+          name: signInError.name
         });
         
         // Handle specific error cases
