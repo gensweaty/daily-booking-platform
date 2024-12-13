@@ -19,10 +19,14 @@ export const SignIn = () => {
     setIsLoading(true);
     
     try {
+      console.log("Attempting to sign in with:", { email });
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
+
+      console.log("Sign in response:", { data, error });
 
       if (error) {
         console.error("Sign in error:", error);
@@ -35,6 +39,7 @@ export const SignIn = () => {
       }
 
       if (data?.user) {
+        console.log("Successfully signed in user:", data.user);
         toast({
           title: "Welcome Back!",
           description: "You've successfully signed in.",
