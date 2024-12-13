@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
@@ -13,49 +13,39 @@ export const SignIn = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate("/dashboard");
-      }
-    };
-
-    checkSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        navigate("/dashboard");
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [navigate]);
-
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
     
     setIsLoading(true);
-    console.log("Starting sign in process...");
+    console.log("Starting authentication process...");
     
     try {
-      const trimmedEmail = email.trim();
-      const trimmedPassword = password.trim();
-
-      console.log("Attempting sign in...");
+      // Clear any existing session first
+      await supabase.auth.signOut();
+      
+      console.log("Attempting authentication with email:", email);
+      
+      // Try session-based authentication first
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionData?.session) {
+        console.log("Existing session found, navigating to dashboard");
+        navigate("/dashboard");
+        return;
+      }
+      
+      // Proceed with password-based authentication
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: trimmedEmail,
-        password: trimmedPassword,
+        email: email.trim(),
+        password: password.trim(),
       });
 
       if (error) {
-        console.error("Sign in error:", error);
+        console.error("Authentication error:", error);
         
-        let errorMessage = "An unexpected error occurred. Please try again.";
-        let errorTitle = "Sign In Failed";
+        let errorMessage = "Please check your credentials and try again.";
+        let errorTitle = "Authentication Failed";
 
         if (error.message.includes("Invalid login credentials")) {
           errorTitle = "Invalid Credentials";
@@ -64,14 +54,8 @@ export const SignIn = () => {
           errorTitle = "Email Not Verified";
           errorMessage = "Please check your email and verify your account.";
         } else if (error.status === 500) {
-          errorTitle = "Service Unavailable";
-          errorMessage = "We're experiencing technical difficulties. Please try again in a moment.";
-          
-          console.error("Database error details:", {
-            status: error.status,
-            message: error.message,
-            error: error
-          });
+          errorTitle = "Connection Error";
+          errorMessage = "Unable to connect to the authentication service. Please try again later.";
         }
 
         toast({
@@ -83,7 +67,7 @@ export const SignIn = () => {
       }
 
       if (data?.user) {
-        console.log("Sign in successful");
+        console.log("Authentication successful");
         toast({
           title: "Welcome Back!",
           description: "You've successfully signed in.",
@@ -91,9 +75,9 @@ export const SignIn = () => {
         navigate("/dashboard");
       }
     } catch (error: any) {
-      console.error("Unexpected error:", error);
+      console.error("Unexpected error during authentication:", error);
       toast({
-        title: "System Error",
+        title: "Authentication Error",
         description: "An unexpected error occurred. Please try again later.",
         variant: "destructive",
       });
