@@ -25,7 +25,22 @@ export const SignIn = () => {
       });
 
       if (error) {
-        console.error("Sign in error:", error);
+        console.error("Sign in error details:", {
+          message: error.message,
+          status: error.status,
+          name: error.name
+        });
+        
+        // Handle database error specifically
+        if (error.message.includes("Database error")) {
+          toast({
+            title: "System Error",
+            description: "There was a problem connecting to the service. Please try again in a few moments.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
         throw error;
       }
 
