@@ -86,7 +86,7 @@ export const SignIn = () => {
         } else {
           toast({
             title: "Sign in failed",
-            description: "An unexpected error occurred. Please try again.",
+            description: signInError.message || "An unexpected error occurred. Please try again.",
             variant: "destructive",
           });
         }
@@ -101,7 +101,7 @@ export const SignIn = () => {
         });
         navigate("/dashboard");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Unexpected error during sign in:", error);
       toast({
         title: "Error",
