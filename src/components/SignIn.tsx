@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
@@ -13,36 +13,28 @@ export const SignIn = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Monitor auth state changes
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        navigate("/dashboard");
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [navigate]);
-
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
     
     setIsLoading(true);
-    console.log("Starting authentication process...");
+    console.log("Starting authentication process with email:", email);
     
     try {
-      // Directly attempt password-based authentication
+      // Basic input validation
+      if (!email || !password) {
+        throw new Error("Please enter both email and password");
+      }
+
+      // Attempt to sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
+      console.log("Authentication response:", { data, error });
+
       if (error) {
-        console.error("Authentication error:", error);
-        
         let errorMessage = "Please check your credentials and try again.";
         let errorTitle = "Authentication Failed";
 
@@ -54,8 +46,8 @@ export const SignIn = () => {
           errorMessage = "Please check your email and verify your account.";
         } else if (error.status === 500) {
           errorTitle = "Server Error";
-          errorMessage = "A server error occurred. Please try again in a few moments.";
-          console.error("Server error details:", error);
+          errorMessage = "Please try signing in again in a few moments.";
+          console.error("Detailed server error:", error);
         }
 
         toast({
@@ -67,7 +59,7 @@ export const SignIn = () => {
       }
 
       if (data?.user) {
-        console.log("Authentication successful");
+        console.log("Authentication successful, user:", data.user);
         toast({
           title: "Welcome Back!",
           description: "You've successfully signed in.",
@@ -78,7 +70,7 @@ export const SignIn = () => {
       console.error("Unexpected error during authentication:", error);
       toast({
         title: "Authentication Error",
-        description: "An unexpected error occurred. Please try again later.",
+        description: error.message || "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
