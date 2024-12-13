@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
 export const SignUpForm = () => {
@@ -33,8 +33,19 @@ export const SignUpForm = () => {
         throw new Error("Username must be at least 3 characters long");
       }
 
+      // Check if user exists first
+      const { data: existingUsers } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username)
+        .single();
+
+      if (existingUsers) {
+        throw new Error("Username is already taken");
+      }
+
       // Proceed with signup
-      const { error } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -44,7 +55,12 @@ export const SignUpForm = () => {
         },
       });
       
-      if (error) throw error;
+      if (signUpError) {
+        if (signUpError.message.includes("User already registered")) {
+          throw new Error("An account with this email already exists. Please sign in instead.");
+        }
+        throw signUpError;
+      }
 
       toast({
         title: "Success",

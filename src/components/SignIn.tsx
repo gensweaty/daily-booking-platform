@@ -29,7 +29,7 @@ export const SignIn = () => {
     try {
       console.log('Attempting sign in with:', { email });
       
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
@@ -43,7 +43,7 @@ export const SignIn = () => {
         } else if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please confirm your email before signing in";
         } else if (error.status === 500) {
-          errorMessage = "Server error. Please try again later.";
+          errorMessage = "Server error. Please try again in a few minutes.";
         }
         
         toast({
@@ -53,11 +53,18 @@ export const SignIn = () => {
         });
         return;
       }
+
+      if (data.user) {
+        toast({
+          title: "Success",
+          description: "Successfully signed in!",
+        });
+      }
     } catch (error: any) {
       console.error("Authentication error:", error);
       toast({
         title: "Error",
-        description: "An error occurred while signing in. Please try again.",
+        description: "An error occurred while signing in. Please try again later.",
         variant: "destructive",
       });
     } finally {
