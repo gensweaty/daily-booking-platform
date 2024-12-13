@@ -34,7 +34,7 @@ export const SignUpForm = () => {
       }
 
       // Proceed with signup
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -46,21 +46,20 @@ export const SignUpForm = () => {
       
       if (error) throw error;
 
-      if (data?.user) {
-        toast({
-          title: "Success",
-          description: "Please check your email to confirm your account before signing in.",
-        });
-        
-        // Clear form
-        setEmail("");
-        setUsername("");
-        setPassword("");
-        setConfirmPassword("");
-        
-        // Redirect to login
-        navigate("/login");
-      }
+      toast({
+        title: "Success",
+        description: "Please check your email to confirm your account before signing in.",
+      });
+      
+      // Clear form
+      setEmail("");
+      setUsername("");
+      setPassword("");
+      setConfirmPassword("");
+      
+      // Redirect to login
+      navigate("/login");
+      
     } catch (error: any) {
       console.error('Signup error:', error);
       toast({

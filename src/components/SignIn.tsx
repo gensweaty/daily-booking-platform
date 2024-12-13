@@ -20,20 +20,18 @@ export const SignIn = () => {
     setIsLoading(true);
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
       if (error) throw error;
 
-      if (data.user) {
-        toast({
-          title: "Welcome Back!",
-          description: "You've successfully signed in.",
-        });
-        navigate("/dashboard");
-      }
+      // If no error, the sign in was successful and the auth state change will handle navigation
+      toast({
+        title: "Welcome Back!",
+        description: "You've successfully signed in.",
+      });
     } catch (error: any) {
       console.error("Authentication error:", error);
       toast({

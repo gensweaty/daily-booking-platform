@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/components/ui/use-toast";
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
@@ -24,12 +24,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      console.log('Initial session:', initialSession);
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
       setLoading(false);
@@ -37,7 +35,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      console.log('Auth state changed:', _event, newSession);
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setLoading(false);
