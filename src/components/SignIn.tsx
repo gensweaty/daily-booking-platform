@@ -37,7 +37,9 @@ export const SignIn = () => {
         let errorMessage = "Invalid email or password";
         
         if (error.status === 500) {
-          errorMessage = "Server error. Please try again in a few minutes.";
+          errorMessage = "A database error occurred. Please try again in a few minutes.";
+        } else if (error.message?.includes("Email not confirmed")) {
+          errorMessage = "Please confirm your email before signing in";
         }
         
         toast({
@@ -58,7 +60,7 @@ export const SignIn = () => {
       console.error("Authentication error:", error);
       toast({
         title: "Error",
-        description: "An error occurred while signing in. Please try again later.",
+        description: "An unexpected error occurred. Please try again later.",
         variant: "destructive",
       });
     } finally {
