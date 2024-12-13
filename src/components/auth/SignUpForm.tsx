@@ -33,6 +33,17 @@ export const SignUpForm = () => {
         throw new Error("Username must be at least 3 characters long");
       }
 
+      // Check if user exists first
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', username.trim())
+        .single();
+
+      if (existingUser) {
+        throw new Error("Username is already taken");
+      }
+
       // Proceed with signup
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
@@ -44,7 +55,15 @@ export const SignUpForm = () => {
         },
       });
       
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        console.error('Signup error:', signUpError);
+        
+        if (signUpError.message.includes("User already registered")) {
+          throw new Error("An account with this email already exists. Please sign in instead.");
+        }
+        
+        throw signUpError;
+      }
 
       toast({
         title: "Success",
