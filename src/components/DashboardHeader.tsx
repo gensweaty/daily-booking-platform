@@ -18,11 +18,9 @@ interface DashboardHeaderProps {
   username: string;
 }
 
-interface ProfileData {
+interface UserProfile {
   role: string | null;
-  admin: {
-    username: string;
-  } | null;
+  registered_by: string | null;
 }
 
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
@@ -35,30 +33,47 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   useEffect(() => {
     const fetchUserDetails = async () => {
       if (user) {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select(`
-            role,
-            admin:profiles!registered_by(username)
-          `)
-          .eq('id', user.id)
-          .single();
+        try {
+          // First get the user's profile
+          const { data: userProfile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role, registered_by')
+            .eq('id', user.id)
+            .single();
 
-        if (error) {
+          if (profileError) throw profileError;
+
+          if (userProfile) {
+            setUserRole(userProfile.role);
+
+            // If user was registered by someone, fetch admin's username
+            if (userProfile.registered_by) {
+              const { data: adminProfile, error: adminError } = await supabase
+                .from('profiles')
+                .select('username')
+                .eq('id', userProfile.registered_by)
+                .single();
+
+              if (adminError) throw adminError;
+              
+              if (adminProfile) {
+                setAdminName(adminProfile.username);
+              }
+            }
+          }
+        } catch (error) {
           console.error('Error fetching profile:', error);
-          return;
-        }
-
-        if (profile) {
-          const typedProfile = profile as ProfileData;
-          setUserRole(typedProfile.role);
-          setAdminName(typedProfile.admin?.username || null);
+          toast({
+            title: "Error",
+            description: "Failed to load user profile",
+            variant: "destructive",
+          });
         }
       }
     };
 
     fetchUserDetails();
-  }, [user]);
+  }, [user, toast]);
 
   const handleSignOut = async () => {
     try {
@@ -77,7 +92,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const handleChangePassword = async () => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(user?.email || '', {
-        redirectTo: 'https://daily-booking-platform.lovable.app/reset-password',
+        redirectTo: window.location.origin + '/reset-password',
       });
 
       if (error) throw error;
