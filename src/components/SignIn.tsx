@@ -39,47 +39,14 @@ export const SignIn = () => {
         console.error('Sign in error:', error);
         toast({
           title: "Sign in failed",
-          description: "Invalid email or password. Please try again.",
+          description: error.message || "Invalid email or password. Please try again.",
           variant: "destructive",
         });
         return;
       }
 
       if (data?.user) {
-        console.log("Sign in successful, checking profile");
-
-        // Check if profile exists
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-
-        if (profileError) {
-          console.log("Profile not found, creating new profile");
-          // Create profile if it doesn't exist
-          const { error: createError } = await supabase
-            .from('profiles')
-            .insert([
-              { 
-                id: data.user.id,
-                username: email.toLowerCase(),
-              }
-            ]);
-
-          if (createError) {
-            console.error('Profile creation error:', createError);
-            // Sign out the user if profile creation fails
-            await supabase.auth.signOut();
-            toast({
-              title: "Error",
-              description: "Failed to create user profile",
-              variant: "destructive",
-            });
-            return;
-          }
-        }
-
+        console.log("Sign in successful");
         toast({
           title: "Success",
           description: "Successfully signed in!",
