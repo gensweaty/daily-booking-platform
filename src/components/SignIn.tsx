@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
@@ -13,19 +13,6 @@ export const SignIn = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth state changed:", event, session);
-      if (session) {
-        navigate("/dashboard");
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [navigate]);
-
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
@@ -36,8 +23,6 @@ export const SignIn = () => {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
       
-      console.log("Attempting sign in with email:", trimmedEmail);
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
@@ -46,22 +31,10 @@ export const SignIn = () => {
       if (error) {
         console.error("Sign in error:", error);
         
-        if (error.message.includes("Database error")) {
-          toast({
-            title: "Service Temporarily Unavailable",
-            description: "We're experiencing some technical difficulties. Please try again in a few moments.",
-            variant: "destructive",
-          });
-        } else if (error.message.includes("Invalid login credentials")) {
+        if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Sign in failed",
-            description: "The email or password is incorrect. Please try again or sign up if you don't have an account.",
-            variant: "destructive",
-          });
-        } else if (error.message.includes("Email not confirmed")) {
-          toast({
-            title: "Email not verified",
-            description: "Please check your inbox and spam folder for the verification email.",
+            description: "The email or password is incorrect. Please try again.",
             variant: "destructive",
           });
         } else {
