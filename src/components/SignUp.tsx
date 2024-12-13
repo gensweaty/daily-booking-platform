@@ -28,6 +28,16 @@ export const SignUp = () => {
     setIsLoading(true);
     
     try {
+      // Basic validation
+      if (!email || !password || !username || !confirmPassword) {
+        toast({
+          title: "Error",
+          description: "All fields are required",
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (password !== confirmPassword) {
         toast({
           title: "Error",
@@ -56,6 +66,21 @@ export const SignUp = () => {
         return;
       }
 
+      // First check if email exists
+      const { data: existingUser, error: emailCheckError } = await supabase.auth.signInWithPassword({
+        email,
+        password: "dummy-password-for-check"
+      });
+
+      if (existingUser?.user) {
+        toast({
+          title: "Account Exists",
+          description: "An account with this email already exists. Please sign in instead.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Check if username already exists
       const { data: existingUsers, error: fetchError } = await supabase
         .from('profiles')
@@ -73,7 +98,7 @@ export const SignUp = () => {
         return;
       }
 
-      // Attempt to sign up
+      // Proceed with signup
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -87,8 +112,8 @@ export const SignUp = () => {
       if (error) {
         if (error.message.includes("User already registered")) {
           toast({
-            title: "Error",
-            description: "This email is already registered. Please sign in instead.",
+            title: "Account Exists",
+            description: "An account with this email already exists. Please sign in instead.",
             variant: "destructive",
           });
         } else {
