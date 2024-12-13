@@ -41,6 +41,7 @@ export const SignIn = () => {
     if (isLoading) return;
     
     setIsLoading(true);
+    console.log("Attempting sign in with email:", email);
     
     try {
       const trimmedEmail = email.trim();
@@ -52,6 +53,7 @@ export const SignIn = () => {
       });
 
       if (error) {
+        console.error("Sign in error:", error);
         let errorMessage = "An error occurred during sign in.";
         
         if (error.message.includes("Invalid login credentials")) {
@@ -72,17 +74,34 @@ export const SignIn = () => {
 
       if (data.user) {
         // Check if user is a super admin
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', data.user.id)
           .single();
 
-        // If user is one of the super admin emails, update their role
-        if (
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          // If profile doesn't exist, create it
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert([
+              { 
+                id: data.user.id,
+                username: data.user.email?.split('@')[0] || `user_${data.user.id.substring(0, 8)}`,
+                role: data.user.email === 'ananiadevsurashvili@gmail.com' || 
+                      data.user.email === 'gensweaty@gmail.com' ? 'super_admin' : 'admin'
+              }
+            ]);
+
+          if (insertError) {
+            console.error('Error creating profile:', insertError);
+          }
+        } else if (
           data.user.email === 'ananiadevsurashvili@gmail.com' || 
           data.user.email === 'gensweaty@gmail.com'
         ) {
+          // Update existing profile to super_admin if needed
           const { error: updateError } = await supabase
             .from('profiles')
             .update({ role: 'super_admin' })
