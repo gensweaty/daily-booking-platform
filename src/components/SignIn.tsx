@@ -29,21 +29,19 @@ export const SignIn = () => {
     try {
       console.log('Attempting sign in with:', { email });
       
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
-      if (signInError) {
-        console.error('Sign in error:', signInError);
+      if (error) {
+        console.error('Sign in error:', error);
         let errorMessage = "An error occurred while signing in";
         
-        if (signInError.message.includes("Invalid login credentials")) {
+        if (error.message.includes("Invalid login credentials")) {
           errorMessage = "Invalid email or password";
-        } else if (signInError.message.includes("Email not confirmed")) {
+        } else if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please confirm your email before signing in";
-        } else if (signInError.status === 500) {
-          errorMessage = "Server error. Please try again in a few minutes.";
         }
         
         toast({
