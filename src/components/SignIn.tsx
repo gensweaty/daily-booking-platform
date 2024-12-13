@@ -27,7 +27,7 @@ export const SignIn = () => {
         console.error('Sign in error:', error);
         toast({
           title: "Sign in failed",
-          description: "Please check your credentials and try again.",
+          description: error.message || "Please check your credentials and try again.",
           variant: "destructive",
         });
         return;

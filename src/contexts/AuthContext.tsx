@@ -26,12 +26,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Initial session check
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      console.log("Initial session check:", initialSession?.user?.id);
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
       setLoading(false);
     });
 
+    // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       console.log("Auth state changed:", _event, newSession?.user?.id);
       setSession(newSession);
@@ -44,6 +47,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           description: "You've successfully signed in.",
         });
         navigate('/dashboard');
+      } else {
+        // If user is logged out, redirect to login page
+        navigate('/login');
       }
     });
 

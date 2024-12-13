@@ -18,6 +18,7 @@ export const SignUpForm = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    console.log("Starting sign up process for email:", email);
     
     try {
       // Basic validation
