@@ -56,7 +56,7 @@ export const SignIn = () => {
         let errorMessage = "Unable to sign in";
         
         if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password";
+          errorMessage = "Invalid email or password. Please check your credentials and try again.";
         } else if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please verify your email address before signing in";
         } else if (error.status === 500) {
