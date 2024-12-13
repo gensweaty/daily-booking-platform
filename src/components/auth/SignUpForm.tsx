@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
+import { useNavigate } from "react-router-dom";
 
 export const SignUpForm = () => {
   const [email, setEmail] = useState("");
@@ -12,6 +13,7 @@ export const SignUpForm = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,30 +22,15 @@ export const SignUpForm = () => {
     try {
       // Basic validation
       if (!email || !password || !username || !confirmPassword) {
-        toast({
-          title: "Error",
-          description: "All fields are required",
-          variant: "destructive",
-        });
-        return;
+        throw new Error("All fields are required");
       }
 
       if (password !== confirmPassword) {
-        toast({
-          title: "Error",
-          description: "Passwords do not match",
-          variant: "destructive",
-        });
-        return;
+        throw new Error("Passwords do not match");
       }
 
       if (username.length < 3) {
-        toast({
-          title: "Error",
-          description: "Username must be at least 3 characters long",
-          variant: "destructive",
-        });
-        return;
+        throw new Error("Username must be at least 3 characters long");
       }
 
       // Proceed with signup
@@ -57,7 +44,12 @@ export const SignUpForm = () => {
         },
       });
       
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("User already registered")) {
+          throw new Error("This email is already registered. Please sign in instead.");
+        }
+        throw error;
+      }
 
       if (data?.user) {
         toast({
@@ -70,6 +62,9 @@ export const SignUpForm = () => {
         setUsername("");
         setPassword("");
         setConfirmPassword("");
+        
+        // Redirect to login
+        navigate("/login");
       }
     } catch (error: any) {
       console.error('Signup error:', error);
@@ -117,7 +112,7 @@ export const SignUpForm = () => {
         <Input
           id="password"
           type="password"
-          placeholder="Password (min. 6 characters, include numbers)"
+          placeholder="Password (min. 6 characters)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required

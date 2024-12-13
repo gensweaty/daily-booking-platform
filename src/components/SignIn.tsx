@@ -15,10 +15,7 @@ export const SignIn = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading) return;
-    
     setIsLoading(true);
-    console.log("Starting authentication process with email:", email);
     
     try {
       // Basic input validation
@@ -32,12 +29,14 @@ export const SignIn = () => {
         password: password.trim(),
       });
 
-      console.log("Authentication response:", { data, error });
-
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          throw new Error("Invalid email or password");
+        }
+        throw error;
+      }
 
       if (data?.user) {
-        console.log("Authentication successful, user:", data.user);
         toast({
           title: "Welcome Back!",
           description: "You've successfully signed in.",
@@ -47,8 +46,8 @@ export const SignIn = () => {
     } catch (error: any) {
       console.error("Authentication error:", error);
       toast({
-        title: "Authentication Error",
-        description: "Invalid email or password. Please try again.",
+        title: "Error",
+        description: error.message || "An error occurred during sign in",
         variant: "destructive",
       });
     } finally {
