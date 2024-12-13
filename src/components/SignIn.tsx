@@ -52,6 +52,12 @@ export const SignIn = () => {
       
       console.log("Attempting sign in with email:", trimmedEmail);
       
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        console.log("Existing session found, signing out first");
+        await supabase.auth.signOut();
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
@@ -73,12 +79,12 @@ export const SignIn = () => {
             variant: "destructive",
           });
         } else if (error.message.includes("Database error")) {
+          console.error("Database error during sign in:", error);
           toast({
             title: "System error",
             description: "There was an issue with the authentication system. Please try again in a few minutes.",
             variant: "destructive",
           });
-          console.error("Database error during sign in:", error);
         } else {
           toast({
             title: "Error",
