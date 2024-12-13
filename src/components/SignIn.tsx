@@ -14,6 +14,7 @@ export const SignIn = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!email || !password) {
       toast({
         title: "Error",
@@ -32,7 +33,6 @@ export const SignIn = () => {
       });
 
       if (error) {
-        console.error("Sign in error:", error);
         let errorMessage = "An error occurred while signing in";
         
         if (error.message.includes("Invalid login credentials")) {
@@ -41,13 +41,18 @@ export const SignIn = () => {
           errorMessage = "Please confirm your email before signing in";
         }
         
-        throw new Error(errorMessage);
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        return;
       }
     } catch (error: any) {
       console.error("Authentication error:", error);
       toast({
         title: "Error",
-        description: error.message || "An error occurred while signing in",
+        description: "An error occurred while signing in",
         variant: "destructive",
       });
     } finally {

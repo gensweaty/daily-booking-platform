@@ -30,25 +30,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
       setLoading(false);
-      
-      if (initialSession?.user) {
-        navigate('/dashboard');
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      console.log("Auth state changed:", _event, newSession?.user?.id);
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      setLoading(false);
+
+      if (newSession?.user) {
         toast({
           title: "Welcome Back!",
           description: "You've successfully signed in.",
         });
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-      setLoading(false);
-      
-      if (newSession?.user) {
         navigate('/dashboard');
-      } else {
-        navigate('/login');
       }
     });
 
