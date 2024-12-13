@@ -25,30 +25,46 @@ export const SignIn = () => {
     }
     
     setIsLoading(true);
-    console.log("Attempting to sign in with email:", email);
+    console.log("Starting sign in process for email:", email);
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Try to get the user first to check if they exist
+      const { data: existingUser, error: userCheckError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', email)
+        .maybeSingle();
+
+      if (userCheckError) {
+        console.error('Error checking user existence:', userCheckError);
+      }
+
+      // Proceed with sign in attempt
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
-      if (error) {
-        console.error('Sign in error:', error);
+      if (signInError) {
+        console.error('Sign in error details:', {
+          status: signInError.status,
+          message: signInError.message,
+          name: signInError.name
+        });
         
-        let errorMessage = "Invalid email or password";
+        let errorMessage = "Unable to sign in at this time";
         
-        if (error.message.includes("Email not confirmed")) {
-          errorMessage = "Please confirm your email before signing in";
-        } else if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password";
-        } else if (error.status === 500) {
-          errorMessage = "A server error occurred. Please try again in a few minutes";
-          console.error("Server error during sign in:", error);
+        if (signInError.message.includes("Email not confirmed")) {
+          errorMessage = "Please verify your email address before signing in";
+        } else if (signInError.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password combination";
+        } else if (signInError.status === 500) {
+          errorMessage = "Our servers are experiencing issues. Please try again in a few minutes";
+          console.error("Server error during sign in:", signInError);
         }
         
         toast({
-          title: "Error",
+          title: "Sign in failed",
           description: errorMessage,
           variant: "destructive",
         });
