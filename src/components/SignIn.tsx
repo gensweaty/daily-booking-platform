@@ -47,51 +47,64 @@ export const SignIn = () => {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
       
-      const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
+      // First, attempt to sign in
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
 
       if (signInError) {
         console.error("Sign in error:", signInError);
-        let errorMessage = "Invalid email or password. Please try again.";
         
-        if (signInError.message.includes("Email not confirmed")) {
-          errorMessage = "Please confirm your email before signing in.";
+        // Handle specific error cases
+        if (signInError.message.includes("Invalid login credentials")) {
+          toast({
+            title: "Sign in failed",
+            description: "Invalid email or password. Please try again.",
+            variant: "destructive",
+          });
+        } else if (signInError.message.includes("Email not confirmed")) {
+          toast({
+            title: "Email not confirmed",
+            description: "Please confirm your email before signing in.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Sign in failed",
+            description: "An unexpected error occurred. Please try again.",
+            variant: "destructive",
+          });
         }
-
-        toast({
-          title: "Sign in failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
         return;
       }
 
-      if (user) {
+      if (data?.user) {
         // Check if profile exists
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', user.id)
+          .eq('id', data.user.id)
           .single();
 
-        if (profileError && profileError.code === 'PGRST116') {
-          // Profile doesn't exist, create it
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .insert([
-              { 
-                id: user.id,
-                username: user.email?.split('@')[0] || `user_${user.id.substring(0, 8)}`,
-                role: user.email === 'ananiadevsurashvili@gmail.com' || 
-                      user.email === 'gensweaty@gmail.com' ? 'super_admin' : 'admin'
-              }
-            ]);
+        if (profileError) {
+          // Only create profile if it doesn't exist
+          if (profileError.code === 'PGRST116') {
+            const { error: insertError } = await supabase
+              .from('profiles')
+              .insert([
+                { 
+                  id: data.user.id,
+                  username: data.user.email?.split('@')[0] || `user_${data.user.id.substring(0, 8)}`,
+                  role: data.user.email === 'ananiadevsurashvili@gmail.com' || 
+                        data.user.email === 'gensweaty@gmail.com' ? 'super_admin' : 'admin'
+                }
+              ]);
 
-          if (insertError) {
-            console.error('Error creating profile:', insertError);
-            // Continue with sign in even if profile creation fails
+            if (insertError) {
+              console.error('Error creating profile:', insertError);
+              // Don't block sign in if profile creation fails
+            }
           }
         }
 
