@@ -28,31 +28,23 @@ export const SignIn = () => {
     console.log("Attempting to sign in with email:", email);
     
     try {
-      // First attempt to sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
       if (error) {
-        console.error('Detailed sign in error:', {
-          status: error.status,
-          message: error.message,
-          name: error.name,
-          details: error
-        });
+        console.error('Sign in error:', error);
         
         let errorMessage = "Invalid email or password";
         
-        if (error.status === 500) {
-          errorMessage = "A database error occurred. Please try again in a few minutes.";
-          console.error("Database error during sign in:", error);
-        } else if (error.status === 400) {
-          if (error.message.includes("Email not confirmed")) {
-            errorMessage = "Please confirm your email before signing in. Check your inbox for the confirmation link.";
-          } else {
-            errorMessage = "Invalid credentials. Please check your email and password.";
-          }
+        if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Please confirm your email before signing in";
+        } else if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password";
+        } else if (error.status === 500) {
+          errorMessage = "A server error occurred. Please try again in a few minutes";
+          console.error("Server error during sign in:", error);
         }
         
         toast({
@@ -71,10 +63,10 @@ export const SignIn = () => {
         });
       }
     } catch (error: any) {
-      console.error("Unexpected authentication error:", error);
+      console.error("Unexpected error during sign in:", error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again later.",
+        description: "An unexpected error occurred. Please try again later",
         variant: "destructive",
       });
     } finally {
