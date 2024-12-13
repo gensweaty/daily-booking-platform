@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Users } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
+import { useEffect, useState } from "react";
 
 interface DashboardHeaderProps {
   username: string;
@@ -21,6 +22,30 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [adminName, setAdminName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select(`
+            role,
+            admin:profiles!registered_by(username)
+          `)
+          .eq('id', user.id)
+          .single();
+
+        if (profile) {
+          setUserRole(profile.role);
+          setAdminName(profile.admin?.username);
+        }
+      }
+    };
+
+    fetchUserDetails();
+  }, [user]);
 
   const handleSignOut = async () => {
     try {
@@ -92,9 +117,31 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   <p className="text-sm text-muted-foreground">{username}</p>
                 </div>
                 <div className="space-y-2">
+                  <p className="text-sm font-medium">Role</p>
+                  <p className="text-sm text-muted-foreground">{userRole}</p>
+                </div>
+                {userRole === 'user' && adminName && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Admin</p>
+                    <p className="text-sm text-muted-foreground">{adminName}</p>
+                  </div>
+                )}
+                <div className="space-y-2">
                   <p className="text-sm font-medium">Package</p>
                   <p className="text-sm text-muted-foreground">Free Plan</p>
                 </div>
+                {(userRole === 'admin' || userRole === 'super_admin') && (
+                  <div className="pt-4">
+                    <Button 
+                      variant="outline" 
+                      className="w-full flex items-center gap-2"
+                      onClick={() => navigate('/users')}
+                    >
+                      <Users className="w-4 h-4" />
+                      Your Users
+                    </Button>
+                  </div>
+                )}
                 <div className="pt-4">
                   <Button 
                     variant="outline" 
