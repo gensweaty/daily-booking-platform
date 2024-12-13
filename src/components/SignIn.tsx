@@ -15,8 +15,12 @@ export const SignIn = () => {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      console.log("Initial session:", session);
+      if (error) {
+        console.error("Error fetching session:", error);
+      } else if (session) {
+        console.log("Valid session found, redirecting to dashboard");
         navigate("/dashboard");
       }
     };
@@ -24,6 +28,7 @@ export const SignIn = () => {
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event, session);
       if (session) {
         navigate("/dashboard");
       }
@@ -45,6 +50,7 @@ export const SignIn = () => {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
       
+      console.log("Making auth request to Supabase...");
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
@@ -52,6 +58,7 @@ export const SignIn = () => {
 
       if (error) {
         console.error("Sign in error:", error);
+        console.error("Full error details:", JSON.stringify(error, null, 2));
         
         let errorMessage = "An unexpected error occurred. Please try again later.";
 
@@ -69,7 +76,10 @@ export const SignIn = () => {
           variant: "destructive",
         });
       } else if (data.user) {
+        console.log("Sign in successful, user data:", data.user);
+        
         // Check if profile exists
+        console.log("Checking user profile...");
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("id")
@@ -78,6 +88,9 @@ export const SignIn = () => {
 
         if (profileError) {
           console.error("Error fetching profile:", profileError);
+          console.error("Full profile error:", JSON.stringify(profileError, null, 2));
+        } else {
+          console.log("Profile found:", profileData);
         }
 
         toast({
