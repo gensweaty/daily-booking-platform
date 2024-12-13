@@ -21,16 +21,6 @@ export const SignIn = () => {
       }
     };
     checkSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        navigate("/dashboard");
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -75,6 +65,16 @@ export const SignIn = () => {
       }
 
       if (data?.user) {
+        // Update the last active timestamp in profiles
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ last_active: new Date().toISOString() })
+          .eq('id', data.user.id);
+
+        if (updateError) {
+          console.error("Error updating last active:", updateError);
+        }
+
         console.log("Sign in successful:", data.user);
         toast({
           title: "Success",
