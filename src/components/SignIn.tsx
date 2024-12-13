@@ -15,6 +15,7 @@ export const SignIn = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    console.log("Starting sign in process for email:", email);
     
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -26,7 +27,7 @@ export const SignIn = () => {
         console.error('Sign in error:', error);
         toast({
           title: "Sign in failed",
-          description: "Invalid email or password. Please check your credentials and try again.",
+          description: "Please check your credentials and try again.",
           variant: "destructive",
         });
         return;
@@ -39,10 +40,10 @@ export const SignIn = () => {
         });
       }
     } catch (error: any) {
-      console.error("Unexpected error during sign in:", error);
+      console.error("Server error details:", error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again later",
+        description: "An unexpected error occurred. Please try again later.",
         variant: "destructive",
       });
     } finally {
