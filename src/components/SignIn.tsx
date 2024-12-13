@@ -39,7 +39,7 @@ export const SignIn = () => {
         console.error('Sign in error:', error);
         toast({
           title: "Sign in failed",
-          description: error.message || "Invalid email or password. Please try again.",
+          description: "Invalid email or password. Please try again.",
           variant: "destructive",
         });
         return;
