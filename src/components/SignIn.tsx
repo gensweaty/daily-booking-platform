@@ -45,7 +45,6 @@ export const SignIn = () => {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
 
-      // Attempt sign in directly without signing out first
       console.log("Attempting sign in...");
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
