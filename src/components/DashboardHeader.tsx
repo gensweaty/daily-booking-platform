@@ -18,6 +18,13 @@ interface DashboardHeaderProps {
   username: string;
 }
 
+interface ProfileData {
+  role: string | null;
+  admin: {
+    username: string;
+  } | null;
+}
+
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
@@ -43,9 +50,9 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         }
 
         if (profile) {
-          setUserRole(profile.role);
-          // Access the first admin's username if it exists
-          setAdminName(profile.admin?.username || null);
+          const typedProfile = profile as ProfileData;
+          setUserRole(typedProfile.role);
+          setAdminName(typedProfile.admin?.username || null);
         }
       }
     };
