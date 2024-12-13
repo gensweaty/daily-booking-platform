@@ -31,15 +31,6 @@ export const SignIn = () => {
       return false;
     }
     
-    if (password.length < 6) {
-      toast({
-        title: "Error",
-        description: "Password must be at least 6 characters long",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
     return true;
   };
 
