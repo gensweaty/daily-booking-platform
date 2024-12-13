@@ -29,41 +29,35 @@ export const SignIn = () => {
     try {
       console.log('Attempting sign in with:', { email });
       
-      const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
+      });
 
-      if (!existingUser) {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password: password.trim(),
-        });
-
-        if (signInError) {
-          console.error('Sign in error:', signInError);
-          let errorMessage = "An error occurred while signing in";
-          
-          if (signInError.message.includes("Invalid login credentials")) {
-            errorMessage = "Invalid email or password";
-          } else if (signInError.message.includes("Email not confirmed")) {
-            errorMessage = "Please confirm your email before signing in";
-          }
-          
-          toast({
-            title: "Error",
-            description: errorMessage,
-            variant: "destructive",
-          });
-          return;
+      if (signInError) {
+        console.error('Sign in error:', signInError);
+        let errorMessage = "An error occurred while signing in";
+        
+        if (signInError.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password";
+        } else if (signInError.message.includes("Email not confirmed")) {
+          errorMessage = "Please confirm your email before signing in";
+        } else if (signInError.status === 500) {
+          errorMessage = "Server error. Please try again in a few minutes.";
         }
-
+        
         toast({
-          title: "Success",
-          description: "Successfully signed in!",
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
         });
+        return;
       }
+
+      toast({
+        title: "Success",
+        description: "Successfully signed in!",
+      });
     } catch (error: any) {
       console.error("Authentication error:", error);
       toast({
