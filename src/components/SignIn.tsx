@@ -71,6 +71,28 @@ export const SignIn = () => {
       }
 
       if (data.user) {
+        // Check if user is a super admin
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+
+        // If user is one of the super admin emails, update their role
+        if (
+          data.user.email === 'ananiadevsurashvili@gmail.com' || 
+          data.user.email === 'gensweaty@gmail.com'
+        ) {
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ role: 'super_admin' })
+            .eq('id', data.user.id);
+
+          if (updateError) {
+            console.error('Error updating super admin role:', updateError);
+          }
+        }
+
         toast({
           title: "Success",
           description: "Signed in successfully",
