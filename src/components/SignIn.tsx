@@ -39,59 +39,71 @@ export const SignIn = () => {
     if (isLoading) return;
     
     setIsLoading(true);
-    console.log("Attempting sign in with email:", email);
+    console.log("Starting sign in process for email:", email);
     
     try {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
       
+      // Get the current session first to check if there are any existing sessions
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      console.log("Current session status:", currentSession ? "Active" : "None");
+
+      // Attempt to sign in
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
 
+      console.log("Sign in attempt completed", signInError ? "with error" : "successfully");
+
       if (signInError) {
-        console.error("Sign in error:", signInError);
+        console.error("Detailed sign in error:", {
+          message: signInError.message,
+          status: signInError.status,
+          name: signInError.name
+        });
         
-        // Check for specific error types
         if (signInError.message.includes("Database error") || 
             signInError.message.includes("unexpected_failure") ||
             signInError.status === 500) {
+          // This is likely a temporary database issue
           toast({
-            title: "System Error",
-            description: "There was a problem with the authentication system. Please try again later.",
+            title: "Service Temporarily Unavailable",
+            description: "We're experiencing some technical difficulties. Please try again in a few moments.",
             variant: "destructive",
           });
         } else if (signInError.message.includes("Invalid login credentials")) {
           toast({
-            title: "Sign in failed",
-            description: "Invalid email or password. Please try again.",
+            title: "Invalid Credentials",
+            description: "The email or password you entered is incorrect. Please try again.",
             variant: "destructive",
           });
         } else if (signInError.message.includes("Email not confirmed")) {
           toast({
-            title: "Email not confirmed",
-            description: "Please confirm your email before signing in.",
+            title: "Email Not Verified",
+            description: "Please check your email and verify your account before signing in.",
             variant: "destructive",
           });
         } else {
           toast({
-            title: "Sign in failed",
-            description: signInError.message || "An unexpected error occurred. Please try again.",
+            title: "Sign In Failed",
+            description: "An unexpected error occurred. Please try again.",
             variant: "destructive",
           });
         }
       } else if (data?.user) {
+        console.log("Sign in successful, user data received");
         toast({
-          title: "Success",
-          description: "Signed in successfully",
+          title: "Welcome Back!",
+          description: "You've successfully signed in.",
         });
         navigate("/dashboard");
       }
     } catch (error) {
       console.error("Unexpected error during sign in:", error);
       toast({
-        title: "Error",
+        title: "System Error",
         description: "An unexpected error occurred. Please try again later.",
         variant: "destructive",
       });
