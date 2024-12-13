@@ -45,14 +45,7 @@ export const SignIn = () => {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
 
-      // First, ensure we're starting with a clean slate
-      try {
-        await supabase.auth.signOut();
-      } catch (signOutError) {
-        console.log("Sign out before sign in failed:", signOutError);
-        // Continue with sign in attempt even if sign out fails
-      }
-      
+      // Attempt sign in directly without signing out first
       console.log("Attempting sign in...");
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
@@ -71,11 +64,10 @@ export const SignIn = () => {
         } else if (error.message.includes("Email not confirmed")) {
           errorTitle = "Email Not Verified";
           errorMessage = "Please check your email and verify your account.";
-        } else if (error.status === 500 || error.message.includes("Database error")) {
+        } else if (error.status === 500) {
           errorTitle = "Service Unavailable";
           errorMessage = "We're experiencing technical difficulties. Please try again in a moment.";
           
-          // Additional error logging for debugging
           console.error("Database error details:", {
             status: error.status,
             message: error.message,
