@@ -44,12 +44,7 @@ export const SignUpForm = () => {
         },
       });
       
-      if (error) {
-        if (error.message.includes("User already registered")) {
-          throw new Error("This email is already registered. Please sign in instead.");
-        }
-        throw error;
-      }
+      if (error) throw error;
 
       if (data?.user) {
         toast({
@@ -116,6 +111,7 @@ export const SignUpForm = () => {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          minLength={6}
           className="w-full"
           disabled={isLoading}
         />
