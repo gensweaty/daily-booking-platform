@@ -14,6 +14,15 @@ export const SignIn = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate("/dashboard");
+      }
+    };
+
+    checkSession();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         navigate("/dashboard");
@@ -30,6 +39,7 @@ export const SignIn = () => {
     if (isLoading) return;
     
     setIsLoading(true);
+    console.log("Attempting sign in with email:", email);
     
     try {
       const trimmedEmail = email.trim();
@@ -43,26 +53,33 @@ export const SignIn = () => {
       if (error) {
         console.error("Sign in error:", error);
         
+        let errorMessage = "An unexpected error occurred. Please try again later.";
+
         if (error.message.includes("Database error")) {
-          toast({
-            title: "Service Temporarily Unavailable",
-            description: "We're experiencing some technical difficulties. Please try again in a few moments.",
-            variant: "destructive",
-          });
+          errorMessage = "Service temporarily unavailable. Please try again in a few moments.";
         } else if (error.message.includes("Invalid login credentials")) {
-          toast({
-            title: "Sign in failed",
-            description: "The email or password is incorrect. Please try again.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: "An unexpected error occurred. Please try again.",
-            variant: "destructive",
-          });
+          errorMessage = "The email or password is incorrect. Please try again.";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Please confirm your email address before signing in.";
         }
+
+        toast({
+          title: "Sign in failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
       } else if (data.user) {
+        // Check if profile exists
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", data.user.id)
+          .single();
+
+        if (profileError) {
+          console.error("Error fetching profile:", profileError);
+        }
+
         toast({
           title: "Success",
           description: "Signed in successfully",
