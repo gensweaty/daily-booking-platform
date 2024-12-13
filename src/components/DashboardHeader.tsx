@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Users } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -12,68 +12,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
-import { useEffect, useState } from "react";
 
 interface DashboardHeaderProps {
   username: string;
-}
-
-interface UserProfile {
-  role: string | null;
-  registered_by: string | null;
 }
 
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [adminName, setAdminName] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchUserDetails = async () => {
-      if (user) {
-        try {
-          // First get the user's profile
-          const { data: userProfile, error: profileError } = await supabase
-            .from('profiles')
-            .select('role, registered_by')
-            .eq('id', user.id)
-            .single();
-
-          if (profileError) throw profileError;
-
-          if (userProfile) {
-            setUserRole(userProfile.role);
-
-            // If user was registered by someone, fetch admin's username
-            if (userProfile.registered_by) {
-              const { data: adminProfile, error: adminError } = await supabase
-                .from('profiles')
-                .select('username')
-                .eq('id', userProfile.registered_by)
-                .single();
-
-              if (adminError) throw adminError;
-              
-              if (adminProfile) {
-                setAdminName(adminProfile.username);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching profile:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load user profile",
-            variant: "destructive",
-          });
-        }
-      }
-    };
-
-    fetchUserDetails();
-  }, [user, toast]);
 
   const handleSignOut = async () => {
     try {
@@ -92,7 +39,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const handleChangePassword = async () => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(user?.email || '', {
-        redirectTo: window.location.origin + '/reset-password',
+        redirectTo: 'https://daily-booking-platform.lovable.app/reset-password',
       });
 
       if (error) throw error;
@@ -145,31 +92,9 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   <p className="text-sm text-muted-foreground">{username}</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Role</p>
-                  <p className="text-sm text-muted-foreground">{userRole}</p>
-                </div>
-                {userRole === 'user' && adminName && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Admin</p>
-                    <p className="text-sm text-muted-foreground">{adminName}</p>
-                  </div>
-                )}
-                <div className="space-y-2">
                   <p className="text-sm font-medium">Package</p>
                   <p className="text-sm text-muted-foreground">Free Plan</p>
                 </div>
-                {(userRole === 'admin' || userRole === 'super_admin') && (
-                  <div className="pt-4">
-                    <Button 
-                      variant="outline" 
-                      className="w-full flex items-center gap-2"
-                      onClick={() => navigate('/users')}
-                    >
-                      <Users className="w-4 h-4" />
-                      Your Users
-                    </Button>
-                  </div>
-                )}
                 <div className="pt-4">
                   <Button 
                     variant="outline" 

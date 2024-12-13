@@ -17,70 +17,66 @@ export const SignIn = () => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/dashboard");
+        navigate("/");
       }
     };
     checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        navigate("/");
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
-
-    const trimmedEmail = email.trim();
-    const trimmedPassword = password.trim();
-
-    if (!trimmedEmail || !trimmedPassword) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    
     setIsLoading(true);
-    console.log("Attempting to sign in with:", { email: trimmedEmail });
-
+    
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const trimmedEmail = email.trim();
+      const trimmedPassword = password.trim();
+      
+      console.log("Attempting sign in with email:", trimmedEmail);
+      
+      const { error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
 
       if (error) {
         console.error("Sign in error:", error);
-        let errorMessage = "Please check your email and password and try again.";
         
-        if (error.message.includes("Email not confirmed")) {
-          errorMessage = "Please verify your email address before signing in.";
+        if (error.message.includes("Invalid login credentials")) {
+          toast({
+            title: "Sign in failed",
+            description: "The email or password is incorrect. Please try again or sign up if you don't have an account.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes("Email not confirmed")) {
+          toast({
+            title: "Email not verified",
+            description: "Please check your inbox and spam folder for the verification email.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "An unexpected error occurred. Please try again.",
+            variant: "destructive",
+          });
         }
-        
-        toast({
-          title: "Sign in failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (data?.user) {
-        // Update the last active timestamp in profiles
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ last_active: new Date().toISOString() })
-          .eq('id', data.user.id);
-
-        if (updateError) {
-          console.error("Error updating last active:", updateError);
-        }
-
-        console.log("Sign in successful:", data.user);
+      } else {
         toast({
           title: "Success",
           description: "Signed in successfully",
         });
-        navigate("/dashboard");
       }
     } catch (error: any) {
       console.error("Unexpected error during sign in:", error);

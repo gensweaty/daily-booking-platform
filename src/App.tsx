@@ -11,7 +11,6 @@ import Contact from "./pages/Contact";
 import { AuthUI } from "./components/AuthUI";
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
-import { UserManagement } from "./pages/UserManagement";
 import { useAuth } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
@@ -100,14 +99,6 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <Index />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/users"
-        element={
-          <ProtectedRoute>
-            <UserManagement />
           </ProtectedRoute>
         }
       />
