@@ -40,12 +40,15 @@ export const SignIn = () => {
     setIsLoading(true);
     
     try {
+      // Clear any existing sessions first
+      await supabase.auth.signOut();
+      
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
       
       console.log("Attempting sign in with email:", trimmedEmail);
       
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
@@ -53,7 +56,13 @@ export const SignIn = () => {
       if (error) {
         console.error("Sign in error:", error);
         
-        if (error.message.includes("Invalid login credentials")) {
+        if (error.message.includes("Database error")) {
+          toast({
+            title: "Database Error",
+            description: "There was an issue with the authentication service. Please try again later.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Sign in failed",
             description: "The email or password is incorrect. Please try again or sign up if you don't have an account.",
@@ -72,17 +81,18 @@ export const SignIn = () => {
             variant: "destructive",
           });
         }
-      } else {
+      } else if (data.user) {
         toast({
           title: "Success",
           description: "Signed in successfully",
         });
+        navigate("/dashboard");
       }
     } catch (error: any) {
       console.error("Unexpected error during sign in:", error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: "An unexpected error occurred. Please try again later.",
         variant: "destructive",
       });
     } finally {
