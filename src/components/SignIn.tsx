@@ -21,25 +21,25 @@ export const SignIn = () => {
     try {
       console.log("Attempting to sign in with:", { email });
       
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data: { user }, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
-      console.log("Sign in response:", { data, error });
+      console.log("Sign in response:", { user, error });
 
       if (error) {
         console.error("Sign in error:", error);
         toast({
           title: "Error",
-          description: "Invalid email or password. Please try again.",
+          description: error.message || "Invalid email or password. Please try again.",
           variant: "destructive",
         });
         return;
       }
 
-      if (data?.user) {
-        console.log("Successfully signed in user:", data.user);
+      if (user) {
+        console.log("Successfully signed in user:", user);
         toast({
           title: "Welcome Back!",
           description: "You've successfully signed in.",
