@@ -15,18 +15,15 @@ export const SignIn = () => {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error("Error fetching session:", error);
-      } else if (session) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
         navigate("/dashboard");
       }
     };
 
     checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth state changed:", event, session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         navigate("/dashboard");
       }
@@ -56,7 +53,7 @@ export const SignIn = () => {
       if (signInError) {
         console.error("Sign in error:", signInError);
         
-        // Check for database error
+        // Check for specific error types
         if (signInError.message.includes("Database error") || 
             signInError.message.includes("unexpected_failure") ||
             signInError.status === 500) {
