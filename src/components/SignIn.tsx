@@ -21,56 +21,28 @@ export const SignIn = () => {
       }
     };
     checkSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        navigate("/dashboard");
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, [navigate]);
-
-  const validateInputs = () => {
-    const trimmedEmail = email.trim();
-    const trimmedPassword = password.trim();
-
-    if (!trimmedEmail) {
-      toast({
-        title: "Error",
-        description: "Please enter your email",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (!trimmedPassword) {
-      toast({
-        title: "Error",
-        description: "Please enter your password",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    return { trimmedEmail, trimmedPassword };
-  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
-    
-    const validatedInputs = validateInputs();
-    if (!validatedInputs) return;
-    
-    const { trimmedEmail, trimmedPassword } = validatedInputs;
+
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
+    console.log("Attempting to sign in with:", { email: trimmedEmail });
 
     try {
-      console.log("Attempting sign in with email:", trimmedEmail);
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
@@ -78,26 +50,11 @@ export const SignIn = () => {
 
       if (error) {
         console.error("Sign in error:", error);
-        
-        if (error.message.includes("Invalid login credentials")) {
-          toast({
-            title: "Sign in failed",
-            description: "The email or password is incorrect. Please try again.",
-            variant: "destructive",
-          });
-        } else if (error.message.includes("Email not confirmed")) {
-          toast({
-            title: "Email not verified",
-            description: "Please check your inbox and spam folder for the verification email.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: "An unexpected error occurred. Please try again.",
-            variant: "destructive",
-          });
-        }
+        toast({
+          title: "Sign in failed",
+          description: "Please check your email and password and try again.",
+          variant: "destructive",
+        });
         return;
       }
 
