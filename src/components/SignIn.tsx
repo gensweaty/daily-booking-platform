@@ -34,29 +34,7 @@ export const SignIn = () => {
 
       console.log("Authentication response:", { data, error });
 
-      if (error) {
-        let errorMessage = "Please check your credentials and try again.";
-        let errorTitle = "Authentication Failed";
-
-        if (error.message.includes("Invalid login credentials")) {
-          errorTitle = "Invalid Credentials";
-          errorMessage = "The email or password you entered is incorrect.";
-        } else if (error.message.includes("Email not confirmed")) {
-          errorTitle = "Email Not Verified";
-          errorMessage = "Please check your email and verify your account.";
-        } else if (error.status === 500) {
-          errorTitle = "Server Error";
-          errorMessage = "Please try signing in again in a few moments.";
-          console.error("Detailed server error:", error);
-        }
-
-        toast({
-          title: errorTitle,
-          description: errorMessage,
-          variant: "destructive",
-        });
-        return;
-      }
+      if (error) throw error;
 
       if (data?.user) {
         console.log("Authentication successful, user:", data.user);
@@ -67,10 +45,10 @@ export const SignIn = () => {
         navigate("/dashboard");
       }
     } catch (error: any) {
-      console.error("Unexpected error during authentication:", error);
+      console.error("Authentication error:", error);
       toast({
         title: "Authentication Error",
-        description: error.message || "An unexpected error occurred. Please try again.",
+        description: "Invalid email or password. Please try again.",
         variant: "destructive",
       });
     } finally {
