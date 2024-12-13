@@ -14,7 +14,8 @@ export const SignIn = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event, session);
       if (session) {
         navigate("/dashboard");
       }
@@ -47,8 +48,8 @@ export const SignIn = () => {
         
         if (error.message.includes("Database error")) {
           toast({
-            title: "Database Error",
-            description: "There was an issue with the authentication service. Please try again later.",
+            title: "Service Temporarily Unavailable",
+            description: "We're experiencing some technical difficulties. Please try again in a few moments.",
             variant: "destructive",
           });
         } else if (error.message.includes("Invalid login credentials")) {
