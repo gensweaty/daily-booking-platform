@@ -24,27 +24,15 @@ export const SignIn = () => {
 
       if (error) {
         console.error('Sign in error:', error);
-        
-        let errorMessage = "Unable to sign in";
-        
-        if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password. Please check your credentials and try again.";
-        } else if (error.message.includes("Email not confirmed")) {
-          errorMessage = "Please verify your email address before signing in";
-        } else {
-          errorMessage = "An error occurred during sign in. Please try again later.";
-        }
-        
         toast({
           title: "Sign in failed",
-          description: errorMessage,
+          description: "Invalid email or password. Please check your credentials and try again.",
           variant: "destructive",
         });
         return;
       }
 
       if (data?.user) {
-        console.log("Sign in successful for user:", data.user.id);
         toast({
           title: "Success",
           description: "Successfully signed in!",

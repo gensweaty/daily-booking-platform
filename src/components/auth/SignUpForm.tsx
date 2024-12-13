@@ -46,11 +46,6 @@ export const SignUpForm = () => {
       
       if (signUpError) {
         console.error('Signup error:', signUpError);
-        
-        if (signUpError.message.includes("User already registered")) {
-          throw new Error("An account with this email already exists. Please sign in instead.");
-        }
-        
         throw signUpError;
       }
 
