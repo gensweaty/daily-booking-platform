@@ -47,21 +47,17 @@ export const SignIn = () => {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
       
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
 
-      if (error) {
-        console.error("Sign in error:", error);
-        let errorMessage = "An error occurred during sign in.";
+      if (signInError) {
+        console.error("Sign in error:", signInError);
+        let errorMessage = "Invalid email or password. Please try again.";
         
-        if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password. Please try again.";
-        } else if (error.message.includes("Email not confirmed")) {
+        if (signInError.message.includes("Email not confirmed")) {
           errorMessage = "Please confirm your email before signing in.";
-        } else if (error.message.includes("Database error")) {
-          errorMessage = "A system error occurred. Please try again in a few moments.";
         }
 
         toast({
@@ -72,43 +68,30 @@ export const SignIn = () => {
         return;
       }
 
-      if (data.user) {
-        // Check if user is a super admin
+      if (user) {
+        // Check if profile exists
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
+          .select('*')
+          .eq('id', user.id)
           .single();
 
-        if (profileError) {
-          console.error('Error fetching profile:', profileError);
-          // If profile doesn't exist, create it
+        if (profileError && profileError.code === 'PGRST116') {
+          // Profile doesn't exist, create it
           const { error: insertError } = await supabase
             .from('profiles')
             .insert([
               { 
-                id: data.user.id,
-                username: data.user.email?.split('@')[0] || `user_${data.user.id.substring(0, 8)}`,
-                role: data.user.email === 'ananiadevsurashvili@gmail.com' || 
-                      data.user.email === 'gensweaty@gmail.com' ? 'super_admin' : 'admin'
+                id: user.id,
+                username: user.email?.split('@')[0] || `user_${user.id.substring(0, 8)}`,
+                role: user.email === 'ananiadevsurashvili@gmail.com' || 
+                      user.email === 'gensweaty@gmail.com' ? 'super_admin' : 'admin'
               }
             ]);
 
           if (insertError) {
             console.error('Error creating profile:', insertError);
-          }
-        } else if (
-          data.user.email === 'ananiadevsurashvili@gmail.com' || 
-          data.user.email === 'gensweaty@gmail.com'
-        ) {
-          // Update existing profile to super_admin if needed
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({ role: 'super_admin' })
-            .eq('id', data.user.id);
-
-          if (updateError) {
-            console.error('Error updating super admin role:', updateError);
+            // Continue with sign in even if profile creation fails
           }
         }
 
