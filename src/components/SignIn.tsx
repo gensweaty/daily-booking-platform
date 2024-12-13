@@ -22,7 +22,8 @@ export const SignIn = () => {
       return false;
     }
     
-    if (!email.includes('@')) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
       toast({
         title: "Error",
         description: "Please enter a valid email address",
