@@ -26,6 +26,7 @@ export const SignIn = () => {
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event, session);
       if (session) {
         navigate("/dashboard");
       }
@@ -58,9 +59,9 @@ export const SignIn = () => {
         // Log detailed error information
         console.error("Error details:", {
           message: signInError.message,
-          body: (signInError as any).body,
-          status: (signInError as any).status,
-          error_type: (signInError as any).error_type
+          body: signInError.error_description || signInError.message,
+          status: signInError.status,
+          error_type: signInError.name
         });
         
         // Handle specific error cases
@@ -93,6 +94,7 @@ export const SignIn = () => {
       }
 
       if (data?.user) {
+        console.log("Sign in successful:", data.user);
         toast({
           title: "Success",
           description: "Signed in successfully",
