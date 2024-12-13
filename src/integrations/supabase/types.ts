@@ -211,16 +211,28 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          last_active: string | null
+          logged_in_at: string | null
+          registered_by: string | null
+          role: string | null
           username: string
         }
         Insert: {
           created_at?: string | null
           id: string
+          last_active?: string | null
+          logged_in_at?: string | null
+          registered_by?: string | null
+          role?: string | null
           username: string
         }
         Update: {
           created_at?: string | null
           id?: string
+          last_active?: string | null
+          logged_in_at?: string | null
+          registered_by?: string | null
+          role?: string | null
           username?: string
         }
         Relationships: []
@@ -260,7 +272,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_user_role: {
+        Args: {
+          user_id: string
+        }
+        Returns: {
+          user_exists: boolean
+          email: string
+          is_super_admin: boolean
+          user_role: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
