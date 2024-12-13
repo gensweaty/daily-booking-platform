@@ -33,10 +33,16 @@ export const SignIn = () => {
 
       if (error) {
         console.error("Sign in error:", error);
-        throw error;
+        let errorMessage = "An error occurred while signing in";
+        
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Please confirm your email before signing in";
+        }
+        
+        throw new Error(errorMessage);
       }
-
-      // Success toast will be shown after navigation
     } catch (error: any) {
       console.error("Authentication error:", error);
       toast({
