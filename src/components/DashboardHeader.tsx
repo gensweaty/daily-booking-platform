@@ -35,7 +35,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             admin:profiles!registered_by(username)
           `)
           .eq('id', user.id)
-          .single();  // Add .single() to get a single record instead of an array
+          .single();
 
         if (error) {
           console.error('Error fetching profile:', error);
@@ -44,7 +44,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
 
         if (profile) {
           setUserRole(profile.role);
-          setAdminName(profile.admin?.username);
+          // Access the first admin's username if it exists
+          setAdminName(profile.admin?.username || null);
         }
       }
     };
