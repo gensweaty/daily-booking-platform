@@ -33,21 +33,6 @@ export const SignUpForm = () => {
         throw new Error("Username must be at least 3 characters long");
       }
 
-      // Check if username exists using single query
-      const { data: existingUsers, error: usernameError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('username', username.trim());
-
-      if (usernameError) {
-        console.error('Error checking username:', usernameError);
-        throw new Error("Error checking username availability");
-      }
-
-      if (existingUsers && existingUsers.length > 0) {
-        throw new Error("Username is already taken");
-      }
-
       // Proceed with signup
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),

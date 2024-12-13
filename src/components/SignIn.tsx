@@ -12,38 +12,9 @@ export const SignIn = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const validateInputs = () => {
-    if (!email || !password) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid email address",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    return true;
-  };
-
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateInputs()) {
-      return;
-    }
-    
     setIsLoading(true);
-    console.log("Starting sign in process for email:", email);
     
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -61,7 +32,7 @@ export const SignIn = () => {
         } else if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please verify your email address before signing in";
         } else {
-          errorMessage = "An error occurred during sign in. Please try again.";
+          errorMessage = "An error occurred during sign in. Please try again later.";
         }
         
         toast({
