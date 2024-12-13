@@ -28,17 +28,32 @@ export const SignIn = () => {
     }
 
     try {
+      // First, check if the user exists in auth.users
+      const { data: userExists, error: userCheckError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', email.toLowerCase())
+        .maybeSingle();
+
+      console.log("User check result:", { userExists, userCheckError });
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
       if (error) {
-        console.error('Sign in error:', error);
+        console.error('Sign in error details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name
+        });
+        
         let errorMessage = "Invalid email or password. Please try again.";
         
         if (error.message.includes("Database error")) {
-          errorMessage = "There was an issue with the authentication service. Please try again later.";
+          console.error('Database error during sign in:', error);
+          errorMessage = "There was an issue with the authentication service. Please try again in a few moments.";
         }
         
         toast({
@@ -50,21 +65,42 @@ export const SignIn = () => {
       }
 
       if (data?.user) {
-        // Fetch user profile to ensure it exists
-        const { data: profileData, error: profileError } = await supabase
+        console.log("Sign in successful, user data:", {
+          id: data.user.id,
+          email: data.user.email,
+          lastSignIn: data.user.last_sign_in_at
+        });
+
+        // Verify profile exists
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
           .single();
 
         if (profileError) {
-          console.error('Profile fetch error:', profileError);
-          toast({
-            title: "Error",
-            description: "Failed to load user profile. Please try again.",
-            variant: "destructive",
-          });
-          return;
+          console.error('Profile verification error:', profileError);
+          // Attempt to create profile if it doesn't exist
+          const { error: createProfileError } = await supabase
+            .from('profiles')
+            .insert([
+              { 
+                id: data.user.id,
+                username: email.toLowerCase()
+              }
+            ]);
+
+          if (createProfileError) {
+            console.error('Profile creation error:', createProfileError);
+            toast({
+              title: "Error",
+              description: "Failed to create user profile. Please contact support.",
+              variant: "destructive",
+            });
+            // Sign out the user since profile creation failed
+            await supabase.auth.signOut();
+            return;
+          }
         }
 
         toast({
@@ -73,7 +109,7 @@ export const SignIn = () => {
         });
       }
     } catch (error: any) {
-      console.error("Server error details:", error);
+      console.error("Unexpected error during sign in:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again later.",
