@@ -55,22 +55,7 @@ export const SignIn = () => {
       if (signInError) {
         console.error("Sign in error:", signInError);
         
-        // Log detailed error information
-        if (signInError.message) {
-          console.error("Error message:", signInError.message);
-        }
-        if ((signInError as any).body) {
-          console.error("Error body:", (signInError as any).body);
-        }
-        
-        // Handle specific error cases
-        if (signInError.message.includes("Database error")) {
-          toast({
-            title: "System Error",
-            description: "There was a problem with the authentication system. Please try again later.",
-            variant: "destructive",
-          });
-        } else if (signInError.message.includes("Invalid login credentials")) {
+        if (signInError.message.includes("Invalid login credentials")) {
           toast({
             title: "Sign in failed",
             description: "Invalid email or password. Please try again.",
