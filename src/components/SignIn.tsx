@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
@@ -12,6 +12,18 @@ export const SignIn = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        navigate("/dashboard");
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +43,13 @@ export const SignIn = () => {
       if (error) {
         console.error("Sign in error:", error);
         
-        if (error.message.includes("Invalid login credentials")) {
+        if (error.message.includes("Database error")) {
+          toast({
+            title: "Service Temporarily Unavailable",
+            description: "We're experiencing some technical difficulties. Please try again in a few moments.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Sign in failed",
             description: "The email or password is incorrect. Please try again.",
