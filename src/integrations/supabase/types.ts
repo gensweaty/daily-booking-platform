@@ -212,6 +212,7 @@ export type Database = {
           created_at: string | null
           id: string
           last_active: string | null
+          logged_in_at: string | null
           registered_by: string | null
           role: string | null
           username: string
@@ -220,6 +221,7 @@ export type Database = {
           created_at?: string | null
           id: string
           last_active?: string | null
+          logged_in_at?: string | null
           registered_by?: string | null
           role?: string | null
           username: string
@@ -228,6 +230,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           last_active?: string | null
+          logged_in_at?: string | null
           registered_by?: string | null
           role?: string | null
           username?: string
