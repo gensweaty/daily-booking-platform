@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
@@ -13,6 +13,19 @@ export const SignIn = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Monitor auth state changes
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        navigate("/dashboard");
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
@@ -21,21 +34,7 @@ export const SignIn = () => {
     console.log("Starting authentication process...");
     
     try {
-      // Clear any existing session first
-      await supabase.auth.signOut();
-      
-      console.log("Attempting authentication with email:", email);
-      
-      // Try session-based authentication first
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionData?.session) {
-        console.log("Existing session found, navigating to dashboard");
-        navigate("/dashboard");
-        return;
-      }
-      
-      // Proceed with password-based authentication
+      // Directly attempt password-based authentication
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
@@ -54,8 +53,9 @@ export const SignIn = () => {
           errorTitle = "Email Not Verified";
           errorMessage = "Please check your email and verify your account.";
         } else if (error.status === 500) {
-          errorTitle = "Connection Error";
-          errorMessage = "Unable to connect to the authentication service. Please try again later.";
+          errorTitle = "Server Error";
+          errorMessage = "A server error occurred. Please try again in a few moments.";
+          console.error("Server error details:", error);
         }
 
         toast({
