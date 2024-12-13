@@ -17,14 +17,14 @@ export const SignIn = () => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/");
+        navigate("/dashboard");
       }
     };
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
-        navigate("/");
+        navigate("/dashboard");
       }
     });
 
@@ -33,19 +33,45 @@ export const SignIn = () => {
     };
   }, [navigate]);
 
+  const validateInputs = () => {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail) {
+      toast({
+        title: "Error",
+        description: "Please enter your email",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (!trimmedPassword) {
+      toast({
+        title: "Error",
+        description: "Please enter your password",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return { trimmedEmail, trimmedPassword };
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
     
+    const validatedInputs = validateInputs();
+    if (!validatedInputs) return;
+    
+    const { trimmedEmail, trimmedPassword } = validatedInputs;
     setIsLoading(true);
     
     try {
-      const trimmedEmail = email.trim();
-      const trimmedPassword = password.trim();
-      
       console.log("Attempting sign in with email:", trimmedEmail);
       
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
@@ -56,7 +82,7 @@ export const SignIn = () => {
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Sign in failed",
-            description: "The email or password is incorrect. Please try again or sign up if you don't have an account.",
+            description: "The email or password is incorrect. Please try again.",
             variant: "destructive",
           });
         } else if (error.message.includes("Email not confirmed")) {
@@ -72,11 +98,15 @@ export const SignIn = () => {
             variant: "destructive",
           });
         }
-      } else {
+        return;
+      }
+
+      if (data?.user) {
         toast({
           title: "Success",
           description: "Signed in successfully",
         });
+        navigate("/dashboard");
       }
     } catch (error: any) {
       console.error("Unexpected error during sign in:", error);
