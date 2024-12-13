@@ -45,8 +45,13 @@ export const SignIn = () => {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
 
-      // Clear any existing sessions first
-      await supabase.auth.signOut();
+      // First, ensure we're starting with a clean slate
+      try {
+        await supabase.auth.signOut();
+      } catch (signOutError) {
+        console.log("Sign out before sign in failed:", signOutError);
+        // Continue with sign in attempt even if sign out fails
+      }
       
       console.log("Attempting sign in...");
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -57,14 +62,6 @@ export const SignIn = () => {
       if (error) {
         console.error("Sign in error:", error);
         
-        // Parse the error body if it exists
-        let errorBody;
-        try {
-          errorBody = JSON.parse(error.message);
-        } catch {
-          errorBody = null;
-        }
-
         let errorMessage = "An unexpected error occurred. Please try again.";
         let errorTitle = "Sign In Failed";
 
@@ -74,16 +71,15 @@ export const SignIn = () => {
         } else if (error.message.includes("Email not confirmed")) {
           errorTitle = "Email Not Verified";
           errorMessage = "Please check your email and verify your account.";
-        } else if (error.status === 500 || error.message.includes("Database error") || 
-                  (errorBody && errorBody.code === "unexpected_failure")) {
+        } else if (error.status === 500 || error.message.includes("Database error")) {
           errorTitle = "Service Unavailable";
           errorMessage = "We're experiencing technical difficulties. Please try again in a moment.";
           
-          // Log additional details for debugging
-          console.error("Detailed error:", {
+          // Additional error logging for debugging
+          console.error("Database error details:", {
             status: error.status,
             message: error.message,
-            errorBody,
+            error: error
           });
         }
 
