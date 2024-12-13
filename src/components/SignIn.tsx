@@ -29,32 +29,36 @@ export const SignIn = () => {
     try {
       console.log('Attempting sign in with:', { email });
       
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password.trim(),
-      });
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
 
-      if (error) {
-        console.error('Sign in error details:', error);
-        let errorMessage = "An error occurred while signing in";
-        
-        if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password";
-        } else if (error.message.includes("Email not confirmed")) {
-          errorMessage = "Please confirm your email before signing in";
-        } else if (error.status === 500) {
-          errorMessage = "Server error. Please try again in a few minutes.";
-        }
-        
-        toast({
-          title: "Error",
-          description: errorMessage,
-          variant: "destructive",
+      if (!existingUser) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password: password.trim(),
         });
-        return;
-      }
 
-      if (data.user) {
+        if (signInError) {
+          console.error('Sign in error:', signInError);
+          let errorMessage = "An error occurred while signing in";
+          
+          if (signInError.message.includes("Invalid login credentials")) {
+            errorMessage = "Invalid email or password";
+          } else if (signInError.message.includes("Email not confirmed")) {
+            errorMessage = "Please confirm your email before signing in";
+          }
+          
+          toast({
+            title: "Error",
+            description: errorMessage,
+            variant: "destructive",
+          });
+          return;
+        }
+
         toast({
           title: "Success",
           description: "Successfully signed in!",
