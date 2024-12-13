@@ -35,13 +35,10 @@ export const SignIn = () => {
 
       if (error) {
         console.error('Sign in error:', error);
-        let errorMessage = "Please check your credentials and try again.";
+        let errorMessage = "Invalid email or password. Please try again.";
         
-        // Handle specific error cases
         if (error.message.includes("Database error")) {
           errorMessage = "There was an issue with the authentication service. Please try again later.";
-        } else if (error.message.includes("Invalid login")) {
-          errorMessage = "Invalid email or password.";
         }
         
         toast({
@@ -53,6 +50,23 @@ export const SignIn = () => {
       }
 
       if (data?.user) {
+        // Fetch user profile to ensure it exists
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Profile fetch error:', profileError);
+          toast({
+            title: "Error",
+            description: "Failed to load user profile. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+
         toast({
           title: "Success",
           description: "Successfully signed in!",
