@@ -33,6 +33,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (initialSession?.user) {
         navigate('/dashboard');
+        toast({
+          title: "Welcome Back!",
+          description: "You've successfully signed in.",
+        });
       }
     });
 
@@ -51,7 +55,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const signOut = async () => {
     try {

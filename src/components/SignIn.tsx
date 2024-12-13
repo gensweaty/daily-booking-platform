@@ -14,7 +14,14 @@ export const SignIn = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading) return;
+    if (!email || !password) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setIsLoading(true);
     
@@ -29,15 +36,12 @@ export const SignIn = () => {
         throw error;
       }
 
-      toast({
-        title: "Success",
-        description: "Signed in successfully",
-      });
+      // Success toast will be shown after navigation
     } catch (error: any) {
       console.error("Authentication error:", error);
       toast({
         title: "Error",
-        description: error.message || "An error occurred while signing in.",
+        description: error.message || "An error occurred while signing in",
         variant: "destructive",
       });
     } finally {
