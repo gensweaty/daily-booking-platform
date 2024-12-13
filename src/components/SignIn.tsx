@@ -47,7 +47,6 @@ export const SignIn = () => {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
       
-      // First attempt to sign in
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
@@ -94,34 +93,6 @@ export const SignIn = () => {
       }
 
       if (data?.user) {
-        // Check if profile exists
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-
-        if (profileError) {
-          // Only create profile if it doesn't exist
-          if (profileError.code === 'PGRST116') {
-            const { error: insertError } = await supabase
-              .from('profiles')
-              .insert([
-                { 
-                  id: data.user.id,
-                  username: data.user.email?.split('@')[0] || `user_${data.user.id.substring(0, 8)}`,
-                  role: data.user.email === 'ananiadevsurashvili@gmail.com' || 
-                        data.user.email === 'gensweaty@gmail.com' ? 'super_admin' : 'admin'
-                }
-              ]);
-
-            if (insertError) {
-              console.error('Error creating profile:', insertError);
-              // Don't block sign in if profile creation fails
-            }
-          }
-        }
-
         toast({
           title: "Success",
           description: "Signed in successfully",
