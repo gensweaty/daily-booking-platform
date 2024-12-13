@@ -22,16 +22,6 @@ export const SignIn = () => {
     };
 
     checkSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        navigate("/dashboard");
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -63,15 +53,6 @@ export const SignIn = () => {
         } else if (error.message.includes("Email not confirmed")) {
           errorTitle = "Email Not Verified";
           errorMessage = "Please check your email and verify your account.";
-        } else if (error.status === 500) {
-          errorTitle = "Service Unavailable";
-          errorMessage = "We're experiencing technical difficulties. Please try again in a moment.";
-          
-          console.error("Database error details:", {
-            status: error.status,
-            message: error.message,
-            error: error
-          });
         }
 
         toast({
