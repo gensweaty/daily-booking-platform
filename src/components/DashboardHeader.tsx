@@ -28,14 +28,19 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   useEffect(() => {
     const fetchUserDetails = async () => {
       if (user) {
-        const { data: profile } = await supabase
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select(`
             role,
             admin:profiles!registered_by(username)
           `)
           .eq('id', user.id)
-          .single();
+          .single();  // Add .single() to get a single record instead of an array
+
+        if (error) {
+          console.error('Error fetching profile:', error);
+          return;
+        }
 
         if (profile) {
           setUserRole(profile.role);
