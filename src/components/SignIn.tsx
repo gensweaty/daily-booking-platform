@@ -15,24 +15,17 @@ export const SignIn = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setIsLoading(true);
     
     try {
-      // Basic input validation
-      if (!email || !password) {
-        throw new Error("Please enter both email and password");
-      }
-
-      // Attempt to sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
       if (error) {
-        if (error.message.includes("Invalid login credentials")) {
-          throw new Error("Invalid email or password");
-        }
+        console.error("Sign in error:", error);
         throw error;
       }
 
@@ -47,7 +40,7 @@ export const SignIn = () => {
       console.error("Authentication error:", error);
       toast({
         title: "Error",
-        description: error.message || "An error occurred during sign in",
+        description: "Invalid email or password. Please try again.",
         variant: "destructive",
       });
     } finally {
