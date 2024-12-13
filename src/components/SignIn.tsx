@@ -21,6 +21,16 @@ export const SignIn = () => {
       }
     };
     checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        navigate("/dashboard");
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -50,9 +60,15 @@ export const SignIn = () => {
 
       if (error) {
         console.error("Sign in error:", error);
+        let errorMessage = "Please check your email and password and try again.";
+        
+        if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Please verify your email address before signing in.";
+        }
+        
         toast({
           title: "Sign in failed",
-          description: "Please check your email and password and try again.",
+          description: errorMessage,
           variant: "destructive",
         });
         return;
