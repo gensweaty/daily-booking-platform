@@ -28,39 +28,7 @@ export const SignIn = () => {
     console.log("Attempting to sign in with email:", email);
     
     try {
-      // First check if the user exists and is confirmed
-      const { data: { users }, error: getUserError } = await supabase.auth.admin.listUsers({
-        filters: {
-          email: email.trim()
-        }
-      });
-
-      if (getUserError) {
-        console.error('Error checking user:', getUserError);
-        throw getUserError;
-      }
-
-      const user = users?.[0];
-      
-      if (!user) {
-        toast({
-          title: "Error",
-          description: "No account found with this email. Please sign up first.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!user.email_confirmed_at) {
-        toast({
-          title: "Error",
-          description: "Please confirm your email before signing in. Check your inbox for the confirmation link.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Proceed with sign in
+      // First attempt to sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
@@ -80,7 +48,11 @@ export const SignIn = () => {
           errorMessage = "A database error occurred. Please try again in a few minutes.";
           console.error("Database error during sign in:", error);
         } else if (error.status === 400) {
-          errorMessage = "Invalid credentials. Please check your email and password.";
+          if (error.message.includes("Email not confirmed")) {
+            errorMessage = "Please confirm your email before signing in. Check your inbox for the confirmation link.";
+          } else {
+            errorMessage = "Invalid credentials. Please check your email and password.";
+          }
         }
         
         toast({
