@@ -60,9 +60,11 @@ export const SignIn = () => {
           errorMessage = "Invalid email or password. Please check your credentials and try again.";
         } else if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please verify your email address before signing in";
-        } else if (error.status === 500) {
+        } else if (error.status === 500 || error.message.includes("Server error")) {
           errorMessage = "Server error. Please try again later";
           console.error("Server error details:", error);
+        } else if (error.message.includes("Database error")) {
+          errorMessage = "System error. Please try again later or contact support.";
         }
         
         toast({
