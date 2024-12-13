@@ -29,7 +29,7 @@ export const SignIn = () => {
     try {
       console.log('Attempting sign in with:', { email });
       
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
@@ -54,10 +54,12 @@ export const SignIn = () => {
         return;
       }
 
-      toast({
-        title: "Success",
-        description: "Successfully signed in!",
-      });
+      if (data?.user) {
+        toast({
+          title: "Success",
+          description: "Successfully signed in!",
+        });
+      }
     } catch (error: any) {
       console.error("Authentication error:", error);
       toast({
