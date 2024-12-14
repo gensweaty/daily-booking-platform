@@ -39,12 +39,21 @@ export const SignIn = () => {
         console.error('Sign in error details:', {
           message: error.message,
           status: error.status,
-          name: error.name
+          name: error.name,
+          body: error.message
         });
+        
+        let errorMessage = "An error occurred during sign in. Please try again.";
+        
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password. Please try again.";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Please confirm your email address before signing in.";
+        }
         
         toast({
           title: "Sign in failed",
-          description: error.message || "An error occurred during sign in. Please try again.",
+          description: errorMessage,
           variant: "destructive",
         });
         return;
