@@ -49,6 +49,9 @@ export const SignIn = () => {
           errorMessage = "Invalid email or password. Please try again.";
         } else if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please confirm your email address before signing in.";
+        } else if (error.message.includes("Database error")) {
+          errorMessage = "A system error occurred. Please try again later.";
+          console.error("Database error during sign in:", error);
         }
         
         toast({
