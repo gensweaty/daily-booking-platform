@@ -39,21 +39,21 @@ export const SignIn = () => {
         console.error('Sign in error:', error);
         toast({
           title: "Sign in failed",
-          description: "Invalid email or password. Please try again.",
+          description: error.message || "An error occurred during sign in. Please try again.",
           variant: "destructive",
         });
         return;
       }
 
       if (data?.user) {
-        console.log("Sign in successful");
+        console.log("Sign in successful:", data.user.id);
         toast({
           title: "Success",
           description: "Successfully signed in!",
         });
       }
     } catch (error: any) {
-      console.error("Unexpected error:", error);
+      console.error("Unexpected error during sign in:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again later.",
