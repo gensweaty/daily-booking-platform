@@ -36,7 +36,12 @@ export const SignIn = () => {
       });
 
       if (error) {
-        console.error('Sign in error:', error);
+        console.error('Sign in error details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name
+        });
+        
         toast({
           title: "Sign in failed",
           description: error.message || "An error occurred during sign in. Please try again.",
@@ -46,7 +51,7 @@ export const SignIn = () => {
       }
 
       if (data?.user) {
-        console.log("Sign in successful:", data.user.id);
+        console.log("Sign in successful for user:", data.user.id);
         toast({
           title: "Success",
           description: "Successfully signed in!",
