@@ -30,7 +30,6 @@ export const SignIn = () => {
     try {
       console.log("Attempting to sign in with email:", email);
       
-      // First authenticate the user
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
@@ -50,13 +49,6 @@ export const SignIn = () => {
           errorMessage = "Invalid email or password. Please try again.";
         } else if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please confirm your email address before signing in.";
-        } else if (error.message.includes("Database error") || error.status === 500) {
-          errorMessage = "Our authentication service is temporarily unavailable. Please try again in a few minutes.";
-          console.error("Database/server error during sign in:", {
-            error,
-            timestamp: new Date().toISOString(),
-            email
-          });
         }
         
         toast({
@@ -70,30 +62,6 @@ export const SignIn = () => {
 
       if (data?.user) {
         console.log("Sign in successful for user:", data.user.id);
-        
-        // After successful authentication, check if profile exists
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', data.user.id)
-          .single();
-
-        // If no profile exists, create one
-        if (!profileData && !profileError?.message.includes("Invalid input syntax")) {
-          const { error: createProfileError } = await supabase
-            .from('profiles')
-            .insert([
-              { 
-                id: data.user.id,
-                username: email.split('@')[0], // Use email prefix as username
-                role: 'user' // Default role
-              }
-            ]);
-
-          if (createProfileError) {
-            console.error('Error creating profile:', createProfileError);
-          }
-        }
         
         toast({
           title: "Success",
