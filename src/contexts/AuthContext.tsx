@@ -27,39 +27,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // Initial session check
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      console.log("Initial session check:", initialSession?.user?.id);
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      setLoading(false);
-    });
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        console.log("Initial session check:", initialSession?.user?.id);
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+      } catch (error) {
+        console.error("Error during initial session check:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
 
     // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      console.log("Auth state changed:", _event, newSession?.user?.id);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log("Auth state changed:", event, newSession?.user?.id);
+      
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setLoading(false);
 
-      if (newSession?.user) {
-        // Check if profile exists
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', newSession.user.id)
-          .single();
-
-        if (!profileError && profile) {
-          toast({
-            title: "Welcome Back!",
-            description: "You've successfully signed in.",
-          });
-          navigate('/dashboard');
-        } else {
-          console.error('Profile fetch error:', profileError);
-        }
-      } else {
-        // If user is logged out, redirect to login page
+      if (event === 'SIGNED_IN') {
+        toast({
+          title: "Welcome!",
+          description: "You've successfully signed in.",
+        });
+        navigate('/dashboard');
+      } else if (event === 'SIGNED_OUT') {
+        toast({
+          title: "Signed out",
+          description: "You've been signed out successfully.",
+        });
         navigate('/login');
       }
     });
