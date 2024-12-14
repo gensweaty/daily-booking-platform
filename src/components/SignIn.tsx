@@ -49,9 +49,13 @@ export const SignIn = () => {
           errorMessage = "Invalid email or password. Please try again.";
         } else if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please confirm your email address before signing in.";
-        } else if (error.message.includes("Database error")) {
-          errorMessage = "A system error occurred. Please try again later.";
-          console.error("Database error during sign in:", error);
+        } else if (error.message.includes("Database error") || error.status === 500) {
+          errorMessage = "Our authentication service is temporarily unavailable. Please try again in a few minutes.";
+          console.error("Database/server error during sign in:", {
+            error,
+            timestamp: new Date().toISOString(),
+            email: email // only logging email for debugging
+          });
         }
         
         toast({
