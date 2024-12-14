@@ -30,6 +30,19 @@ export const SignIn = () => {
     try {
       console.log("Attempting to sign in with email:", email);
       
+      // First check if the user exists in the profiles table
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      if (profileError && !profileError.message.includes('No rows found')) {
+        console.error('Profile check error:', profileError);
+        throw new Error('Failed to verify user profile');
+      }
+
+      // Proceed with sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
@@ -54,7 +67,7 @@ export const SignIn = () => {
           console.error("Database/server error during sign in:", {
             error,
             timestamp: new Date().toISOString(),
-            email: email // only logging email for debugging
+            email // only logging email for debugging
           });
         }
         
@@ -68,6 +81,24 @@ export const SignIn = () => {
 
       if (data?.user) {
         console.log("Sign in successful for user:", data.user.id);
+        
+        // If profile doesn't exist, create it
+        if (!profileData) {
+          const { error: createProfileError } = await supabase
+            .from('profiles')
+            .insert([
+              { 
+                id: data.user.id,
+                username: email.split('@')[0], // Use email prefix as username
+                role: 'user' // Default role
+              }
+            ]);
+
+          if (createProfileError) {
+            console.error('Error creating profile:', createProfileError);
+          }
+        }
+        
         toast({
           title: "Success",
           description: "Successfully signed in!",
