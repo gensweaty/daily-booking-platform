@@ -39,23 +39,15 @@ export const SignIn = () => {
     if (!validateInputs()) return;
     
     setIsLoading(true);
-    console.log("Starting sign in process for email:", email);
     
     try {
-      console.log("Attempting to sign in...");
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data: { session }, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
       if (error) {
         console.error('Authentication error:', error);
-        console.log('Error details:', {
-          status: error.status,
-          message: error.message,
-          name: error.name,
-          code: error.code
-        });
         
         let errorMessage = "Invalid email or password. Please check your credentials and try again.";
         
@@ -71,13 +63,7 @@ export const SignIn = () => {
         return;
       }
 
-      if (data?.user) {
-        console.log("Sign in successful for user:", data.user.id);
-        
-        // Verify the session was created
-        const session = await supabase.auth.getSession();
-        console.log("Session status:", session);
-        
+      if (session) {
         toast({
           title: "Success",
           description: "Successfully signed in!",
