@@ -41,31 +41,49 @@ export const SignIn = () => {
     setIsLoading(true);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
       if (error) {
         console.error('Sign in error:', error);
-        let errorMessage = "Invalid email or password. Please check your credentials and try again.";
         
-        if (error.message.includes("Email not confirmed")) {
-          errorMessage = "Please confirm your email address before signing in.";
+        // Handle different error scenarios
+        if (error.status === 500) {
+          toast({
+            title: "Server Error",
+            description: "We're experiencing technical difficulties. Please try again later.",
+            variant: "destructive",
+          });
+        } else if (error.status === 400) {
+          const errorMessage = error.message?.includes("Invalid login credentials")
+            ? "Invalid email or password. Please check your credentials and try again."
+            : error.message?.includes("Email not confirmed")
+            ? "Please confirm your email address before signing in."
+            : "An error occurred during sign in. Please try again.";
+            
+          toast({
+            title: "Sign in failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "An unexpected error occurred. Please try again.",
+            variant: "destructive",
+          });
         }
-        
-        toast({
-          title: "Sign in failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
         return;
       }
 
-      toast({
-        title: "Success",
-        description: "Successfully signed in!",
-      });
+      if (data.session) {
+        toast({
+          title: "Success",
+          description: "Successfully signed in!",
+        });
+      }
       
     } catch (error: any) {
       console.error("Unexpected error during sign in:", error);
