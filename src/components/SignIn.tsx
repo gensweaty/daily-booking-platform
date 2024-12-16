@@ -31,6 +31,15 @@ export const SignIn = () => {
       return false;
     }
     
+    if (password.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
     return true;
   };
 
@@ -42,6 +51,14 @@ export const SignIn = () => {
     console.log("Attempting sign in with:", { email });
     
     try {
+      // First check if the user exists
+      const { data: { user: existingUser }, error: getUserError } = await supabase.auth.getUser();
+      
+      if (getUserError) {
+        console.error('Error checking user:', getUserError);
+      }
+
+      // Attempt sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
@@ -55,6 +72,10 @@ export const SignIn = () => {
         
         if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please confirm your email address before signing in.";
+        } else if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password. Please try again.";
+        } else if (error.message.includes("Database error")) {
+          errorMessage = "There was an issue with the authentication. Please try signing up first.";
         }
         
         toast({
