@@ -39,32 +39,50 @@ export const SignIn = () => {
     if (!validateInputs()) return;
     
     setIsLoading(true);
-    console.log("Attempting sign in with email:", email);
+    console.log("Starting sign in process for email:", email);
     
     try {
+      // First, check if we have an existing session and clear it
+      const { error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.log("Error checking session:", sessionError);
+      }
+
+      console.log("Attempting sign in...");
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
-      console.log("Sign in response:", { data, error });
+      console.log("Sign in response received:", { data, error });
 
       if (error) {
-        console.error('Sign in error:', error);
+        console.error('Sign in error details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name
+        });
         
         toast({
           title: "Sign in failed",
-          description: error.message || "Invalid email or password",
+          description: "Invalid email or password. Please try again.",
           variant: "destructive",
         });
         return;
       }
 
-      if (data.session) {
-        console.log("Sign in successful");
+      if (data?.session) {
+        console.log("Sign in successful, session created");
         toast({
           title: "Success",
           description: "Successfully signed in!",
+        });
+      } else {
+        console.log("No session created after successful sign in");
+        toast({
+          title: "Error",
+          description: "Failed to create session. Please try again.",
+          variant: "destructive",
         });
       }
       
