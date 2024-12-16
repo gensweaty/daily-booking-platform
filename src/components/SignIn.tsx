@@ -39,11 +39,8 @@ export const SignIn = () => {
     if (!validateInputs()) return;
     
     setIsLoading(true);
-    console.log("Starting sign in process");
     
     try {
-      console.log("Attempting to sign in with email:", email);
-      
       const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
@@ -51,31 +48,10 @@ export const SignIn = () => {
 
       if (error) {
         console.error('Sign in error:', error);
+        let errorMessage = "Invalid email or password. Please check your credentials and try again.";
         
-        let errorMessage = "An error occurred during sign in. Please try again.";
-        
-        if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password. Please check your credentials and try again.";
-        } else if (error.message.includes("Email not confirmed")) {
+        if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please confirm your email address before signing in.";
-        } else if (error.status === 500) {
-          errorMessage = "Service temporarily unavailable. Please try again in a few moments.";
-        } else if (error.message.includes("body stream already read")) {
-          // Handle the stream error by retrying the sign in
-          const retryResponse = await supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password: password.trim(),
-          });
-          
-          if (retryResponse.error) {
-            throw retryResponse.error;
-          }
-          
-          toast({
-            title: "Success",
-            description: "Successfully signed in!",
-          });
-          return;
         }
         
         toast({
