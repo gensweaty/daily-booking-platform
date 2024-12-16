@@ -39,31 +39,29 @@ export const SignIn = () => {
     if (!validateInputs()) return;
     
     setIsLoading(true);
+    console.log("Attempting sign in with email:", email);
     
     try {
-      const { data: { session }, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
+      console.log("Sign in response:", { data, error });
+
       if (error) {
-        console.error('Authentication error:', error);
-        
-        let errorMessage = "Invalid email or password. Please check your credentials and try again.";
-        
-        if (error.message?.includes("Email not confirmed")) {
-          errorMessage = "Please confirm your email address before signing in.";
-        }
+        console.error('Sign in error:', error);
         
         toast({
           title: "Sign in failed",
-          description: errorMessage,
+          description: error.message || "Invalid email or password",
           variant: "destructive",
         });
         return;
       }
 
-      if (session) {
+      if (data.session) {
+        console.log("Sign in successful");
         toast({
           title: "Success",
           description: "Successfully signed in!",
