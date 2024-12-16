@@ -29,7 +29,7 @@ export const SignIn = () => {
 
       console.log("Attempting to sign in with email:", email);
       
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
@@ -45,6 +45,22 @@ export const SignIn = () => {
           errorMessage = "Please confirm your email address before signing in.";
         } else if (error.status === 500) {
           errorMessage = "Service temporarily unavailable. Please try again in a few moments.";
+        } else if (error.message.includes("body stream already read")) {
+          // Handle the stream error by retrying the sign in
+          const retryResponse = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password: password.trim(),
+          });
+          
+          if (retryResponse.error) {
+            throw retryResponse.error;
+          }
+          
+          toast({
+            title: "Success",
+            description: "Successfully signed in!",
+          });
+          return;
         }
         
         toast({
@@ -55,13 +71,11 @@ export const SignIn = () => {
         return;
       }
 
-      if (data?.user) {
-        console.log("Sign in successful for user:", data.user.id);
-        toast({
-          title: "Success",
-          description: "Successfully signed in!",
-        });
-      }
+      toast({
+        title: "Success",
+        description: "Successfully signed in!",
+      });
+      
     } catch (error: any) {
       console.error("Unexpected error during sign in:", error);
       toast({
