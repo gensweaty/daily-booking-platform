@@ -17,17 +17,16 @@ export const SignIn = () => {
     setIsLoading(true);
     console.log("Starting sign in process");
     
-    if (!email || !password) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
     try {
+      if (!email || !password) {
+        toast({
+          title: "Error",
+          description: "Please fill in all fields",
+          variant: "destructive",
+        });
+        return;
+      }
+
       console.log("Attempting to sign in with email:", email);
       
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -36,12 +35,7 @@ export const SignIn = () => {
       });
 
       if (error) {
-        console.error('Sign in error details:', {
-          message: error.message,
-          status: error.status,
-          name: error.name,
-          body: error.message
-        });
+        console.error('Sign in error:', error);
         
         let errorMessage = "An error occurred during sign in. Please try again.";
         
@@ -58,7 +52,6 @@ export const SignIn = () => {
           description: errorMessage,
           variant: "destructive",
         });
-        setIsLoading(false);
         return;
       }
 
