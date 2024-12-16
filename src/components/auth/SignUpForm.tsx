@@ -18,7 +18,6 @@ export const SignUpForm = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    console.log("Starting sign up process for email:", email);
     
     try {
       // Basic validation
@@ -35,7 +34,7 @@ export const SignUpForm = () => {
       }
 
       // Proceed with signup
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: email.trim(),
         password: password.trim(),
         options: {
@@ -45,9 +44,8 @@ export const SignUpForm = () => {
         },
       });
       
-      if (signUpError) {
-        console.error('Signup error:', signUpError);
-        throw signUpError;
+      if (error) {
+        throw error;
       }
 
       toast({
