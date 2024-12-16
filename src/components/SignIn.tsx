@@ -41,7 +41,7 @@ export const SignIn = () => {
     setIsLoading(true);
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
@@ -49,41 +49,28 @@ export const SignIn = () => {
       if (error) {
         console.error('Sign in error:', error);
         
-        // Handle different error scenarios
-        if (error.status === 500) {
-          toast({
-            title: "Server Error",
-            description: "We're experiencing technical difficulties. Please try again later.",
-            variant: "destructive",
-          });
-        } else if (error.status === 400) {
-          const errorMessage = error.message?.includes("Invalid login credentials")
-            ? "Invalid email or password. Please check your credentials and try again."
-            : error.message?.includes("Email not confirmed")
-            ? "Please confirm your email address before signing in."
-            : "An error occurred during sign in. Please try again.";
-            
-          toast({
-            title: "Sign in failed",
-            description: errorMessage,
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: "An unexpected error occurred. Please try again.",
-            variant: "destructive",
-          });
+        let errorMessage = "An error occurred during sign in. Please try again.";
+        
+        if (error.message?.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password. Please check your credentials and try again.";
+        } else if (error.message?.includes("Email not confirmed")) {
+          errorMessage = "Please confirm your email address before signing in.";
+        } else if (error.status === 500) {
+          errorMessage = "We're experiencing technical difficulties. Please try again later.";
         }
+        
+        toast({
+          title: "Sign in failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
         return;
       }
 
-      if (data.session) {
-        toast({
-          title: "Success",
-          description: "Successfully signed in!",
-        });
-      }
+      toast({
+        title: "Success",
+        description: "Successfully signed in!",
+      });
       
     } catch (error: any) {
       console.error("Unexpected error during sign in:", error);
