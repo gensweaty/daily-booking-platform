@@ -12,21 +12,36 @@ export const SignIn = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  const validateInputs = () => {
+    if (!email || !password) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    if (!email.includes('@')) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateInputs()) return;
+    
     setIsLoading(true);
     console.log("Starting sign in process");
     
     try {
-      if (!email || !password) {
-        toast({
-          title: "Error",
-          description: "Please fill in all fields",
-          variant: "destructive",
-        });
-        return;
-      }
-
       console.log("Attempting to sign in with email:", email);
       
       const { error } = await supabase.auth.signInWithPassword({
@@ -40,7 +55,7 @@ export const SignIn = () => {
         let errorMessage = "An error occurred during sign in. Please try again.";
         
         if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password. Please try again.";
+          errorMessage = "Invalid email or password. Please check your credentials and try again.";
         } else if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please confirm your email address before signing in.";
         } else if (error.status === 500) {
