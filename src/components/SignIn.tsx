@@ -42,6 +42,7 @@ export const SignIn = () => {
     
     try {
       console.log("Starting sign in process...");
+      console.log("Attempting to sign in with email:", email);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -53,6 +54,7 @@ export const SignIn = () => {
         let errorMessage = "Invalid email or password. Please try again.";
         
         if (error.message.includes("Database error")) {
+          console.error('Database error details:', error);
           errorMessage = "A system error occurred. Please try again in a few moments.";
         }
         
