@@ -51,11 +51,17 @@ export const SignIn = () => {
 
       if (error) {
         console.error('Authentication error:', error);
+        console.error('Error details:', error.message);
+        
         let errorMessage = "Invalid email or password. Please try again.";
         
         if (error.message.includes("Database error")) {
           console.error('Database error details:', error);
           errorMessage = "A system error occurred. Please try again in a few moments.";
+        } else if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password. Please check your credentials and try again.";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Please confirm your email address before signing in.";
         }
         
         toast({
