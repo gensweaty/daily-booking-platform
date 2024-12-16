@@ -42,9 +42,6 @@ export const SignIn = () => {
     console.log("Starting sign in process for email:", email);
     
     try {
-      // Clear any existing sessions first
-      await supabase.auth.signOut();
-      
       console.log("Attempting to sign in...");
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -60,11 +57,9 @@ export const SignIn = () => {
           code: error.code
         });
         
-        let errorMessage = "An error occurred during sign in. Please try again later.";
+        let errorMessage = "Invalid email or password. Please check your credentials and try again.";
         
-        if (error.message?.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password. Please check your credentials and try again.";
-        } else if (error.message?.includes("Email not confirmed")) {
+        if (error.message?.includes("Email not confirmed")) {
           errorMessage = "Please confirm your email address before signing in.";
         }
         
@@ -86,13 +81,6 @@ export const SignIn = () => {
         toast({
           title: "Success",
           description: "Successfully signed in!",
-        });
-      } else {
-        console.error("No user data returned after successful sign in");
-        toast({
-          title: "Error",
-          description: "An unexpected error occurred. Please try again.",
-          variant: "destructive",
         });
       }
       
