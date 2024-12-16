@@ -39,9 +39,13 @@ export const SignIn = () => {
     if (!validateInputs()) return;
     
     setIsLoading(true);
-    console.log("Attempting to sign in with email:", email);
+    console.log("Starting sign in process for email:", email);
     
     try {
+      // Clear any existing sessions first
+      await supabase.auth.signOut();
+      
+      console.log("Attempting to sign in...");
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
@@ -52,7 +56,8 @@ export const SignIn = () => {
         console.log('Error details:', {
           status: error.status,
           message: error.message,
-          name: error.name
+          name: error.name,
+          code: error.code
         });
         
         let errorMessage = "An error occurred during sign in. Please try again later.";
@@ -73,6 +78,11 @@ export const SignIn = () => {
 
       if (data?.user) {
         console.log("Sign in successful for user:", data.user.id);
+        
+        // Verify the session was created
+        const session = await supabase.auth.getSession();
+        console.log("Session status:", session);
+        
         toast({
           title: "Success",
           description: "Successfully signed in!",
