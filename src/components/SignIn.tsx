@@ -64,6 +64,10 @@ export const SignIn = () => {
         
         if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please confirm your email address before signing in.";
+        } else if (error.message.includes("500")) {
+          errorMessage = "Server error. Please try again in a few minutes.";
+        } else if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password. Please check your credentials and try again.";
         }
         
         toast({
