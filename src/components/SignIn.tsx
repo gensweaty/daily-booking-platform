@@ -40,9 +40,9 @@ export const SignIn = () => {
     e.preventDefault();
     if (isLoading) return;
     
-    setIsLoading(true);
-    
     try {
+      setIsLoading(true);
+      
       const trimmedEmail = email.trim().toLowerCase();
       const trimmedPassword = password.trim();
 
@@ -66,15 +66,11 @@ export const SignIn = () => {
         });
         return;
       }
-      
-      console.log("Attempting sign in with email:", trimmedEmail);
-      
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
-
-      console.log("Sign in response:", { data, error });
 
       if (error) {
         let errorMessage = "An error occurred during sign in.";
@@ -85,7 +81,6 @@ export const SignIn = () => {
           errorMessage = "Please verify your email address before signing in. Check your inbox for the confirmation link.";
         }
 
-        console.error("Sign in error:", error);
         toast({
           title: "Sign in failed",
           description: errorMessage,
@@ -95,7 +90,6 @@ export const SignIn = () => {
       }
 
       if (data.user) {
-        console.log("Sign in successful:", data.user);
         toast({
           title: "Success",
           description: "Signed in successfully",
