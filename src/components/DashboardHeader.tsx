@@ -89,7 +89,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Username</p>
-                  <p className="text-sm text-muted-foreground">{username}</p>
+                  <p className="text-sm text-muted-foreground">{username || 'Not set'}</p>
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Package</p>
