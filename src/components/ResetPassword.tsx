@@ -5,6 +5,8 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Link } from "react-router-dom";
 
 export const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -16,6 +18,7 @@ export const ResetPassword = () => {
   useEffect(() => {
     const checkRecoveryToken = async () => {
       try {
+        // First check if we already have a session
         const { data: { session } } = await supabase.auth.getSession();
         console.log("Current session:", session);
 
@@ -29,8 +32,13 @@ export const ResetPassword = () => {
           console.log("URL params:", { accessToken, refreshToken, type });
 
           if (!accessToken || type !== 'recovery') {
-            console.log("No recovery token found or wrong type, redirecting to login");
-            navigate("/login");
+            console.log("No recovery token found or wrong type");
+            toast({
+              title: "Error",
+              description: "Invalid or expired recovery link. Please request a new one.",
+              variant: "destructive",
+            });
+            navigate("/forgot-password");
             return;
           }
 
@@ -126,6 +134,15 @@ export const ResetPassword = () => {
 
   return (
     <div className="min-h-screen bg-background p-4">
+      <header className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <Link to="/" className="text-2xl font-bold text-primary hover:text-primary/90">
+            Taskify Minder
+          </Link>
+          <ThemeToggle />
+        </div>
+      </header>
+
       <div className="w-full max-w-md mx-auto p-4 sm:p-6">
         <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Set New Password</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
