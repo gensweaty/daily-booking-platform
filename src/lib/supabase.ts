@@ -7,25 +7,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-console.log('Initializing Supabase client with:', {
-  url: supabaseUrl,
-  hasAnonKey: !!supabaseAnonKey
-});
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-    flowType: 'implicit'
-  }
-});
-
-// Test the connection and auth configuration
-supabase.auth.getSession().then(({ data, error }) => {
-  if (error) {
-    console.error('Supabase connection error:', error);
-  } else {
-    console.log('Supabase connection successful:', data);
-  }
-});
+// Test connection immediately
+console.log('Testing Supabase connection...');
+supabase.from('profiles').select('count').single()
+  .then(response => {
+    if (response.error) {
+      console.error('Database connection test failed:', response.error);
+    } else {
+      console.log('Database connection test successful');
+    }
+  });

@@ -17,16 +17,13 @@ export const SignIn = () => {
     setIsLoading(true);
 
     try {
-      // Basic validation
-      if (!email.trim() || !password.trim()) {
-        throw new Error("Email and password are required");
+      if (!email || !password) {
+        throw new Error("Please enter both email and password");
       }
 
-      // Test connection before attempting sign in
-      const { error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        throw new Error("Unable to connect to authentication service");
-      }
+      // First verify the connection
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('Current session:', session, 'Session error:', sessionError);
 
       // Attempt sign in
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -35,11 +32,12 @@ export const SignIn = () => {
       });
 
       if (error) {
+        console.error('Sign in error:', error);
         throw error;
       }
 
-      if (!data.user || !data.session) {
-        throw new Error("Authentication failed");
+      if (!data.user) {
+        throw new Error("Sign in failed - no user data");
       }
 
       toast({
@@ -48,7 +46,7 @@ export const SignIn = () => {
       });
 
     } catch (error: any) {
-      console.error("Sign in error:", error);
+      console.error('Sign in error details:', error);
       
       let errorMessage = "An unexpected error occurred";
       
@@ -58,8 +56,6 @@ export const SignIn = () => {
         errorMessage = "Please confirm your email before signing in";
       } else if (error.message?.includes("Database error")) {
         errorMessage = "Service temporarily unavailable. Please try again later.";
-      } else if (error.message?.includes("Unable to connect")) {
-        errorMessage = "Connection error. Please check your internet connection.";
       }
 
       toast({
