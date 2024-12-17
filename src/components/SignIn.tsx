@@ -45,6 +45,16 @@ export const SignIn = () => {
     try {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
+
+      // Basic validation
+      if (!trimmedEmail || !trimmedPassword) {
+        toast({
+          title: "Error",
+          description: "Please fill in all fields",
+          variant: "destructive",
+        });
+        return;
+      }
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
@@ -55,11 +65,11 @@ export const SignIn = () => {
         let errorMessage = "An error occurred during sign in.";
         
         if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password. Please try again.";
+          errorMessage = "Invalid email or password. Please check your credentials and try again.";
         } else if (error.message.includes("Email not confirmed")) {
-          errorMessage = "Please confirm your email before signing in.";
-        } else if (error.message.includes("Database error")) {
-          errorMessage = "A system error occurred. Please try again in a few moments.";
+          errorMessage = "Please confirm your email before signing in. Check your inbox for the confirmation link.";
+        } else if (error.message.includes("Invalid email")) {
+          errorMessage = "Please enter a valid email address.";
         }
 
         toast({
