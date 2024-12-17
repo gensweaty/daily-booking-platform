@@ -12,43 +12,10 @@ export const SignIn = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const validateInputs = () => {
-    if (!email || !password) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    if (!email.includes('@')) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid email address",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    if (password.length < 6) {
-      toast({
-        title: "Error",
-        description: "Password must be at least 6 characters long",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    return true;
-  };
-
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateInputs()) return;
-    
     setIsLoading(true);
-    
+
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -56,19 +23,9 @@ export const SignIn = () => {
       });
 
       if (error) {
-        let errorMessage = "Invalid email or password. Please try again.";
-        
-        if (error.message.includes("Email not confirmed")) {
-          errorMessage = "Please confirm your email address before signing in.";
-        } else if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password. Please check your credentials and try again.";
-        } else if (error.message.includes("500")) {
-          errorMessage = "Server error. Please try again in a few minutes.";
-        }
-        
         toast({
-          title: "Sign in failed",
-          description: errorMessage,
+          title: "Error",
+          description: error.message,
           variant: "destructive",
         });
         return;
@@ -78,12 +35,10 @@ export const SignIn = () => {
         title: "Success",
         description: "Successfully signed in!",
       });
-      
     } catch (error: any) {
-      console.error("Unexpected error during sign in:", error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again later.",
+        description: "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
