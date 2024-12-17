@@ -17,28 +17,51 @@ export const SignIn = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("Attempting to sign in with:", { email });
+      
+      // Validate inputs
+      if (!email.trim() || !password.trim()) {
+        throw new Error("Email and password are required");
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
 
+      console.log("Sign in response:", { data, error });
+
       if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
+        console.error("Sign in error:", error);
+        throw error;
+      }
+
+      if (!data.user || !data.session) {
+        throw new Error("No user data received");
       }
 
       toast({
         title: "Success",
         description: "Successfully signed in!",
       });
+
     } catch (error: any) {
+      console.error("Full sign in error:", error);
+      
+      // Handle specific error cases
+      let errorMessage = "An unexpected error occurred";
+      
+      if (error.message?.includes("Invalid login credentials")) {
+        errorMessage = "Invalid email or password";
+      } else if (error.message?.includes("Email not confirmed")) {
+        errorMessage = "Please confirm your email before signing in";
+      } else if (error.message?.includes("Database error")) {
+        errorMessage = "Service temporarily unavailable. Please try again later.";
+      }
+
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -61,6 +84,7 @@ export const SignIn = () => {
             required
             className="w-full"
             disabled={isLoading}
+            autoComplete="email"
           />
         </div>
         <div className="space-y-2">
@@ -82,6 +106,7 @@ export const SignIn = () => {
             required
             className="w-full"
             disabled={isLoading}
+            autoComplete="current-password"
           />
         </div>
         <Button 
