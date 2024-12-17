@@ -43,6 +43,8 @@ export const SignIn = () => {
     setIsLoading(true);
     
     try {
+      console.log("Attempting sign in with email:", email);
+      
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
 
@@ -53,6 +55,7 @@ export const SignIn = () => {
           description: "Please fill in all fields",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
       
@@ -60,6 +63,8 @@ export const SignIn = () => {
         email: trimmedEmail,
         password: trimmedPassword,
       });
+
+      console.log("Sign in response:", { data, error });
 
       if (error) {
         let errorMessage = "An error occurred during sign in.";
@@ -72,6 +77,8 @@ export const SignIn = () => {
           errorMessage = "Please enter a valid email address.";
         }
 
+        console.error("Sign in error:", error);
+
         toast({
           title: "Sign in failed",
           description: errorMessage,
@@ -81,6 +88,7 @@ export const SignIn = () => {
       }
 
       if (data.user) {
+        console.log("Sign in successful:", data.user);
         toast({
           title: "Success",
           description: "Signed in successfully",
