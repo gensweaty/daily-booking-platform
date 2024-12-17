@@ -12,21 +12,32 @@ export const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkRecoveryToken = async () => {
       try {
+        // First check if we have a hash in the URL
+        if (!window.location.hash) {
+          console.log("No hash found in URL");
+          toast({
+            title: "Error",
+            description: "Invalid or expired recovery link. Please request a new one.",
+            variant: "destructive",
+          });
+          navigate("/forgot-password");
+          return;
+        }
+
         // Get the recovery token from the URL
         const fragment = new URLSearchParams(window.location.hash.substring(1));
-        const token = fragment.get('access_token');
+        const accessToken = fragment.get('access_token');
         const type = fragment.get('type');
 
-        console.log("URL params:", { token, type });
+        console.log("URL params:", { accessToken, type });
 
-        if (!token || type !== 'recovery') {
+        if (!accessToken || type !== 'recovery') {
           console.log("No recovery token found or wrong type");
           toast({
             title: "Error",
@@ -37,7 +48,24 @@ export const ResetPassword = () => {
           return;
         }
 
-        setAccessToken(token);
+        // Set the session with the recovery token
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: '',
+        });
+
+        if (error) {
+          console.error("Error setting session:", error);
+          toast({
+            title: "Error",
+            description: "Invalid or expired recovery link. Please request a new one.",
+            variant: "destructive",
+          });
+          navigate("/forgot-password");
+          return;
+        }
+
+        console.log("Recovery session set successfully");
       } catch (error) {
         console.error("Error in recovery flow:", error);
         toast({
@@ -78,21 +106,7 @@ export const ResetPassword = () => {
     }
 
     try {
-      if (!accessToken) {
-        throw new Error("No access token available");
-      }
-
-      // First set the session with the recovery token
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: '',
-      });
-
-      if (sessionError) {
-        throw sessionError;
-      }
-
-      // Then update the user's password
+      // Update the user's password
       const { error: updateError } = await supabase.auth.updateUser({
         password: password
       });
