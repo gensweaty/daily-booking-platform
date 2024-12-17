@@ -19,7 +19,7 @@ export const ForgotPassword = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: 'https://daily-booking-platform.lovable.app/reset-password',
       });
 
       if (error) {

@@ -15,19 +15,16 @@ export const SignIn = () => {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error("Error fetching session:", error);
-      } else if (session) {
-        navigate("/dashboard");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate("/");
       }
     };
-
     checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
-        navigate("/dashboard");
+        navigate("/");
       }
     });
 
@@ -40,67 +37,52 @@ export const SignIn = () => {
     e.preventDefault();
     if (isLoading) return;
     
+    setIsLoading(true);
+    
     try {
-      setIsLoading(true);
-      
-      const trimmedEmail = email.trim().toLowerCase();
+      const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
-
-      // Basic validation
-      if (!trimmedEmail || !trimmedPassword) {
-        toast({
-          title: "Error",
-          description: "Please fill in all fields",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Email format validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(trimmedEmail)) {
-        toast({
-          title: "Error",
-          description: "Please enter a valid email address",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { data, error } = await supabase.auth.signInWithPassword({
+      
+      console.log("Attempting sign in with email:", trimmedEmail);
+      
+      const { error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
 
       if (error) {
-        let errorMessage = "An error occurred during sign in.";
+        console.error("Sign in error:", error);
         
         if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "The email or password you entered is incorrect. Please try again.";
+          toast({
+            title: "Sign in failed",
+            description: "The email or password is incorrect. Please try again or sign up if you don't have an account.",
+            variant: "destructive",
+          });
         } else if (error.message.includes("Email not confirmed")) {
-          errorMessage = "Please verify your email address before signing in. Check your inbox for the confirmation link.";
+          toast({
+            title: "Email not verified",
+            description: "Please check your inbox and spam folder for the verification email.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "An unexpected error occurred. Please try again.",
+            variant: "destructive",
+          });
         }
-
-        toast({
-          title: "Sign in failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (data.user) {
+      } else {
         toast({
           title: "Success",
           description: "Signed in successfully",
         });
-        navigate("/dashboard");
       }
     } catch (error: any) {
       console.error("Unexpected error during sign in:", error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again later.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -117,7 +99,7 @@ export const SignIn = () => {
           <Input
             id="email"
             type="email"
-            placeholder="Enter your email"
+            placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -138,7 +120,7 @@ export const SignIn = () => {
           <Input
             id="password"
             type="password"
-            placeholder="Enter your password"
+            placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
