@@ -1,72 +1,87 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error("Error fetching session:", error);
+      } else if (session) {
+        navigate("/dashboard");
+      }
+    };
+
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        navigate("/dashboard");
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
+    
     setIsLoading(true);
-
+    
     try {
-      if (!email || !password) {
-        throw new Error("Please enter both email and password");
-      }
-
-      // First check if we can connect to Supabase
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const trimmedEmail = email.trim();
+      const trimmedPassword = password.trim();
       
-      if (sessionError) {
-        console.error('Session check error:', sessionError);
-        throw new Error('Unable to connect to authentication service');
-      }
-
-      console.log('Attempting sign in with:', { email });
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password.trim(),
+        email: trimmedEmail,
+        password: trimmedPassword,
       });
 
       if (error) {
-        console.error('Sign in error:', error);
-        throw error;
+        let errorMessage = "An error occurred during sign in.";
+        
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password. Please try again.";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Please confirm your email before signing in.";
+        } else if (error.message.includes("Database error")) {
+          errorMessage = "A system error occurred. Please try again in a few moments.";
+        }
+
+        toast({
+          title: "Sign in failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        return;
       }
 
-      if (!data.user) {
-        throw new Error("Sign in failed - no user data");
+      if (data.user) {
+        toast({
+          title: "Success",
+          description: "Signed in successfully",
+        });
+        navigate("/dashboard");
       }
-
-      toast({
-        title: "Success",
-        description: "Successfully signed in!",
-      });
-
     } catch (error: any) {
-      console.error('Sign in error details:', error);
-      
-      let errorMessage = "An unexpected error occurred";
-      
-      if (error.message?.includes("Invalid login credentials")) {
-        errorMessage = "Invalid email or password";
-      } else if (error.message?.includes("Email not confirmed")) {
-        errorMessage = "Please confirm your email before signing in";
-      } else if (error.message?.includes("Database error") || error.message?.includes("500")) {
-        errorMessage = "Authentication service is temporarily unavailable. Please try again in a few minutes.";
-      } else if (error.message?.includes("Unable to connect")) {
-        errorMessage = "Unable to connect to authentication service. Please check your internet connection.";
-      }
-
+      console.error("Unexpected error during sign in:", error);
       toast({
         title: "Error",
-        description: errorMessage,
+        description: "An unexpected error occurred. Please try again later.",
         variant: "destructive",
       });
     } finally {
@@ -89,7 +104,6 @@ export const SignIn = () => {
             required
             className="w-full"
             disabled={isLoading}
-            autoComplete="email"
           />
         </div>
         <div className="space-y-2">
@@ -111,7 +125,6 @@ export const SignIn = () => {
             required
             className="w-full"
             disabled={isLoading}
-            autoComplete="current-password"
           />
         </div>
         <Button 

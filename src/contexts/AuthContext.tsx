@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from 'react-router-dom';
+import { useToast } from "@/components/ui/use-toast";
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
@@ -24,10 +24,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      console.log('Initial session:', initialSession);
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
       setLoading(false);
@@ -35,6 +37,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      console.log('Auth state changed:', _event, newSession);
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setLoading(false);
@@ -47,13 +50,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      setUser(null);
+      setSession(null);
+      toast({
+        title: "Success",
+        description: "Signed out successfully",
+      });
       navigate('/login');
     } catch (error: any) {
       console.error('Sign out error:', error);
       toast({
         title: "Error",
-        description: "Failed to sign out",
+        description: error.message,
         variant: "destructive",
       });
     }
