@@ -21,11 +21,15 @@ export const SignIn = () => {
         throw new Error("Please enter both email and password");
       }
 
-      // First verify the connection
+      // First check if we can connect to Supabase
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      console.log('Current session:', session, 'Session error:', sessionError);
+      
+      if (sessionError) {
+        console.error('Session check error:', sessionError);
+        throw new Error('Unable to connect to authentication service');
+      }
 
-      // Attempt sign in
+      console.log('Attempting sign in with:', { email });
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
@@ -54,8 +58,10 @@ export const SignIn = () => {
         errorMessage = "Invalid email or password";
       } else if (error.message?.includes("Email not confirmed")) {
         errorMessage = "Please confirm your email before signing in";
-      } else if (error.message?.includes("Database error")) {
-        errorMessage = "Service temporarily unavailable. Please try again later.";
+      } else if (error.message?.includes("Database error") || error.message?.includes("500")) {
+        errorMessage = "Authentication service is temporarily unavailable. Please try again in a few minutes.";
+      } else if (error.message?.includes("Unable to connect")) {
+        errorMessage = "Unable to connect to authentication service. Please check your internet connection.";
       }
 
       toast({
