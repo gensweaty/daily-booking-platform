@@ -43,9 +43,7 @@ export const SignIn = () => {
     setIsLoading(true);
     
     try {
-      console.log("Attempting sign in with email:", email);
-      
-      const trimmedEmail = email.trim();
+      const trimmedEmail = email.trim().toLowerCase();
       const trimmedPassword = password.trim();
 
       // Basic validation
@@ -55,9 +53,21 @@ export const SignIn = () => {
           description: "Please fill in all fields",
           variant: "destructive",
         });
-        setIsLoading(false);
         return;
       }
+
+      // Email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedEmail)) {
+        toast({
+          title: "Error",
+          description: "Please enter a valid email address",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      console.log("Attempting sign in with email:", trimmedEmail);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
@@ -70,15 +80,12 @@ export const SignIn = () => {
         let errorMessage = "An error occurred during sign in.";
         
         if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password. Please check your credentials and try again.";
+          errorMessage = "The email or password you entered is incorrect. Please try again.";
         } else if (error.message.includes("Email not confirmed")) {
-          errorMessage = "Please confirm your email before signing in. Check your inbox for the confirmation link.";
-        } else if (error.message.includes("Invalid email")) {
-          errorMessage = "Please enter a valid email address.";
+          errorMessage = "Please verify your email address before signing in. Check your inbox for the confirmation link.";
         }
 
         console.error("Sign in error:", error);
-
         toast({
           title: "Sign in failed",
           description: errorMessage,
@@ -116,7 +123,7 @@ export const SignIn = () => {
           <Input
             id="email"
             type="email"
-            placeholder="Email"
+            placeholder="Enter your email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -137,7 +144,7 @@ export const SignIn = () => {
           <Input
             id="password"
             type="password"
-            placeholder="Password"
+            placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
