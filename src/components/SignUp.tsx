@@ -73,6 +73,23 @@ export const SignUp = () => {
         return;
       }
 
+      // First, check if the email already exists
+      const { data: { users }, error: getUserError } = await supabase.auth.admin.listUsers({
+        filters: {
+          email: email
+        }
+      });
+
+      if (users && users.length > 0) {
+        toast({
+          title: "Account Exists",
+          description: "An account with this email already exists. Please sign in instead.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       // Attempt to sign up
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -87,8 +104,8 @@ export const SignUp = () => {
       if (error) {
         if (error.message.includes("User already registered")) {
           toast({
-            title: "Error",
-            description: "This email is already registered. Please sign in instead.",
+            title: "Account Exists",
+            description: "An account with this email already exists. Please sign in instead.",
             variant: "destructive",
           });
         } else {
