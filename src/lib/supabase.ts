@@ -15,17 +15,28 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false
+    detectSessionInUrl: true,
+    flowType: 'pkce'
+  },
+  db: {
+    schema: 'public'
   }
 });
 
-// Test connection
+// Test connection and auth setup
 const testConnection = async () => {
   try {
+    const { data: authData } = await supabase.auth.getSession();
+    console.log("Auth session test:", authData);
+    
     const { data, error } = await supabase.from('profiles').select('*').limit(1);
     console.log("Supabase connection test:", { data, error });
+    
+    if (error) {
+      console.error("Database connection error:", error);
+    }
   } catch (err) {
-    console.error("Supabase connection error:", err);
+    console.error("Supabase connection/auth error:", err);
   }
 };
 
