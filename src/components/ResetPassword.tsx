@@ -14,96 +14,90 @@ export const ResetPassword = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkRecoveryToken = async () => {
+    const handleRecoveryToken = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log("Current session:", session);
+        // Get the hash fragment from the URL
+        const hashFragment = window.location.hash;
+        if (!hashFragment) {
+          console.log("No hash fragment found in URL");
+          navigate("/login");
+          return;
+        }
 
-        if (!session) {
-          // Get the recovery token from the URL
-          const fragment = new URLSearchParams(window.location.hash.substring(1));
-          const accessToken = fragment.get('access_token');
-          const refreshToken = fragment.get('refresh_token');
-          const type = fragment.get('type');
+        // Parse the hash fragment
+        const params = new URLSearchParams(hashFragment.substring(1));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        const type = params.get('type');
 
-          console.log("URL params:", { accessToken, refreshToken, type });
+        console.log("URL params:", { type, hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken });
 
-          if (!accessToken || type !== 'recovery') {
-            console.log("No recovery token found or wrong type, redirecting to login");
-            navigate("/login");
-            return;
-          }
-
-          // Set the session with the recovery token
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken || '',
+        if (!accessToken || type !== 'recovery') {
+          console.log("Invalid recovery parameters");
+          toast({
+            title: "Error",
+            description: "Invalid or expired recovery link. Please request a new one.",
+            variant: "destructive",
           });
+          navigate("/forgot-password");
+          return;
+        }
 
-          if (error) {
-            console.error("Error setting session:", error);
-            toast({
-              title: "Error",
-              description: "Invalid or expired recovery link. Please request a new one.",
-              variant: "destructive",
-            });
-            navigate("/forgot-password");
-            return;
-          }
+        // Set the session with the recovery token
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken || '',
+        });
+
+        if (sessionError) {
+          console.error("Session error:", sessionError);
+          throw sessionError;
         }
 
         console.log("Recovery session set successfully");
       } catch (error) {
-        console.error("Error in recovery flow:", error);
+        console.error("Recovery token handling error:", error);
         toast({
           title: "Error",
-          description: "An error occurred. Please try again.",
+          description: "An error occurred. Please try requesting a new password reset link.",
           variant: "destructive",
         });
         navigate("/forgot-password");
       }
     };
 
-    checkRecoveryToken();
+    handleRecoveryToken();
   }, [navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    console.log("Attempting to reset password");
-
-    if (password !== confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Passwords do not match",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    if (password.length < 6) {
-      toast({
-        title: "Error",
-        description: "Password must be at least 6 characters long",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
 
     try {
-      // Update the user's password
+      if (password !== confirmPassword) {
+        toast({
+          title: "Error",
+          description: "Passwords do not match",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (password.length < 6) {
+        toast({
+          title: "Error",
+          description: "Password must be at least 6 characters long",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error: updateError } = await supabase.auth.updateUser({
         password: password
       });
 
-      if (updateError) {
-        console.error("Password update error:", updateError);
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
-      console.log("Password updated successfully");
       toast({
         title: "Success",
         description: "Password updated successfully. Please sign in with your new password.",
@@ -113,10 +107,10 @@ export const ResetPassword = () => {
       await supabase.auth.signOut();
       navigate("/login");
     } catch (error: any) {
-      console.error("Password reset error:", error);
+      console.error("Password update error:", error);
       toast({
         title: "Error",
-        description: error.message || "An error occurred while resetting your password",
+        description: error.message || "Failed to update password. Please try again.",
         variant: "destructive",
       });
     } finally {
