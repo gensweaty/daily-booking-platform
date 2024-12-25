@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/components/ui/use-toast";
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
@@ -55,29 +55,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       setSession(null);
       
-      // Then attempt to sign out from Supabase
-      const { error } = await supabase.auth.signOut({
-        scope: 'local' // Use local scope instead of global to prevent 403 errors
-      });
-      
-      if (error) {
-        console.error('Sign out error:', error);
-        // Even with an error, we've already cleared the local state
+      try {
+        // Attempt to sign out from Supabase with local scope
+        await supabase.auth.signOut({
+          scope: 'local'
+        });
+      } catch (error: any) {
+        // Log the error but don't throw it - we still want to complete the sign out process
+        console.error('Supabase sign out error:', error);
       }
       
-      // Always navigate to login
+      // Always navigate to login and show success message
       navigate('/login');
-      
       toast({
         title: "Success",
         description: "Signed out successfully",
       });
     } catch (error: any) {
-      console.error('Sign out error:', error);
+      console.error('Sign out process error:', error);
+      // Even if there's an error, we want to clear the local state and redirect
+      navigate('/login');
       toast({
-        title: "Error",
-        description: "An error occurred during sign out, but you've been logged out locally",
-        variant: "destructive",
+        title: "Notice",
+        description: "You have been signed out",
       });
     } finally {
       setLoading(false);
