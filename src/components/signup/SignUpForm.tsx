@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 interface SignUpFormProps {
-  onSubmit: (data: { email: string; username: string; password: string }) => Promise<void>;
+  onSubmit: (data: { email: string; username: string; password: string; selectedPlan: string }) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -36,7 +36,7 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
     if (password !== confirmPassword) {
       return;
     }
-    await onSubmit({ email, username, password });
+    await onSubmit({ email, username, password, selectedPlan });
   };
 
   return (
