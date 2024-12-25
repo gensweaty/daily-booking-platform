@@ -28,9 +28,19 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     queryFn: async () => {
       if (!user?.id) return null;
       
+      console.log('Fetching subscription for user:', user.id);
+      
       const { data, error } = await supabase
         .from('subscriptions')
-        .select('*, subscription_plans(*)')
+        .select(`
+          *,
+          subscription_plans (
+            id,
+            name,
+            type,
+            price
+          )
+        `)
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -39,6 +49,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         throw error;
       }
       
+      console.log('Fetched subscription data:', data);
       return data;
     },
     enabled: !!user?.id,
@@ -58,11 +69,23 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   }, [isTrialExpired]);
 
   const getSubscriptionInfo = () => {
-    if (subscriptionError) return "Error loading subscription";
-    if (!subscription) return "Loading subscription...";
+    if (subscriptionError) {
+      console.error('Subscription error:', subscriptionError);
+      return "Error loading subscription";
+    }
+    
+    if (!subscription) {
+      console.log('No subscription data available');
+      return "Loading subscription...";
+    }
 
-    const planName = subscription.subscription_plans?.name;
-    if (!planName) return "Subscription plan not found";
+    console.log('Processing subscription info:', subscription);
+    
+    const plan = subscription.subscription_plans;
+    if (!plan || !plan.name) {
+      console.error('No plan information found in subscription:', subscription);
+      return "Subscription plan not found";
+    }
 
     if (subscription.status === 'trial' && subscription.trial_end_date) {
       const daysLeft = differenceInDays(
@@ -70,11 +93,13 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         new Date()
       );
       
+      console.log('Trial days left:', daysLeft);
+      
       if (daysLeft <= 0) {
         return "Trial expired";
       }
       
-      return `${planName} (${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} remaining in trial)`;
+      return `${plan.name} (${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} remaining in trial)`;
     }
 
     if (subscription.status === 'expired') {
@@ -82,7 +107,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
 
     if (subscription.status === 'active') {
-      return planName;
+      return plan.name;
     }
 
     return "No active subscription";
