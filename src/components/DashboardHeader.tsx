@@ -42,7 +42,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           )
         `)
         .eq('user_id', user.id)
-        .maybeSingle();
+        .single();
 
       if (error) {
         console.error('Subscription fetch error:', error);

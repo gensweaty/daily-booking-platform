@@ -32,7 +32,7 @@ export const SignUp = () => {
     setLastAttemptTime(now);
     
     try {
-      console.log("Starting signup process...");
+      console.log("Starting signup process with plan:", selectedPlan);
 
       // Check if username already exists
       const { data: existingUsers, error: fetchError } = await supabase
@@ -55,8 +55,6 @@ export const SignUp = () => {
         return;
       }
 
-      console.log("Username is available, proceeding with signup...");
-
       // Sign up the user
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -78,8 +76,6 @@ export const SignUp = () => {
         throw new Error("Failed to create user account");
       }
 
-      console.log("User signed up successfully, creating subscription...");
-
       // Get the plan_id for the selected plan type
       const { data: planData, error: planError } = await supabase
         .from('subscription_plans')
@@ -97,10 +93,12 @@ export const SignUp = () => {
         throw new Error("Selected plan not found");
       }
 
+      console.log("Creating subscription with plan:", planData);
+
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
 
-      // Create subscription with the authenticated user's ID
+      // Create subscription with trial period
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
         .insert({
@@ -115,6 +113,8 @@ export const SignUp = () => {
         console.error("Subscription creation error:", subscriptionError);
         throw subscriptionError;
       }
+
+      console.log("Subscription created successfully");
 
       toast({
         title: "Success",
