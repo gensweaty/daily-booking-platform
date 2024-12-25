@@ -21,9 +21,7 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     queryFn: async () => {
       if (!user?.id) return null;
       
-      console.log('Fetching subscription for user:', user.id);
-      
-      const { data, error } = await supabase
+      const { data: subscriptionData, error: subscriptionError } = await supabase
         .from('subscriptions')
         .select(`
           *,
@@ -37,13 +35,51 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (error) {
-        console.error('Subscription fetch error:', error);
-        throw error;
+      if (subscriptionError) {
+        console.error('Subscription fetch error:', subscriptionError);
+        throw subscriptionError;
       }
-      
-      console.log('Fetched subscription data:', data);
-      return data;
+
+      if (!subscriptionData) {
+        // If no subscription exists, create a trial subscription
+        const { data: plans } = await supabase
+          .from('subscription_plans')
+          .select('*')
+          .eq('type', 'free')
+          .single();
+
+        if (!plans) throw new Error('No free plan found');
+
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
+
+        const { data: newSubscription, error: createError } = await supabase
+          .from('subscriptions')
+          .insert([
+            {
+              user_id: user.id,
+              plan_id: plans.id,
+              status: 'trial',
+              plan_type: 'monthly',
+              trial_end_date: trialEndDate.toISOString(),
+            }
+          ])
+          .select(`
+            *,
+            subscription_plans (
+              id,
+              name,
+              type,
+              price
+            )
+          `)
+          .single();
+
+        if (createError) throw createError;
+        return newSubscription;
+      }
+
+      return subscriptionData;
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
@@ -51,10 +87,10 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
   });
 
   const getFormattedSubscriptionInfo = () => {
-    if (isLoading) return "Loading...";
+    if (isLoading) return "Loading subscription info...";
+    
     if (!subscription || !subscription.subscription_plans) {
-      console.error('No subscription data found:', subscription);
-      return "Error loading subscription";
+      return "No subscription found";
     }
 
     const plan = subscription.subscription_plans;
@@ -73,7 +109,11 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
       return `${plan.name} ${planType} - ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} remaining in trial`;
     }
 
-    return `${plan.name} ${planType}`;
+    if (subscription.status === 'active') {
+      return `${plan.name} ${planType} - Active`;
+    }
+
+    return `${plan.name} ${planType} - ${subscription.status}`;
   };
 
   const handleChangePassword = async () => {
