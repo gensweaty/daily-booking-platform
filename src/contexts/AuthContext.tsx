@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       setSession(null);
 
-      // Sign out from all devices
+      // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
       
       if (error) {
@@ -84,17 +84,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           description: "You have been signed out successfully",
         });
       }
+
+      // Force navigation to login page
+      navigate('/login', { replace: true });
     } catch (error) {
       console.error('Sign out error:', error);
       toast({
-        title: "Notice",
-        description: "You have been logged out locally.",
+        title: "Error",
+        description: "An error occurred during sign out. Please try again.",
+        variant: "destructive",
       });
-    } finally {
-      // Ensure navigation happens after state updates
-      setTimeout(() => {
-        navigate('/login', { replace: true });
-      }, 0);
     }
   };
 
