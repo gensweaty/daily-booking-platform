@@ -10,9 +10,10 @@ interface UserProfileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   username: string;
+  subscriptionInfo: string;
 }
 
-export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileDialogProps) => {
+export const UserProfileDialog = ({ open, onOpenChange, username, subscriptionInfo }: UserProfileDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -32,23 +33,6 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     },
     enabled: !!user?.id
   });
-
-  const getSubscriptionInfo = () => {
-    if (!subscription) return "Loading subscription...";
-
-    const planInfo = `${subscription.plan_type.charAt(0).toUpperCase() + subscription.plan_type.slice(1)} Plan`;
-    
-    if (subscription.status === 'trial' && subscription.trial_end_date) {
-      const daysLeft = differenceInDays(
-        new Date(subscription.trial_end_date),
-        new Date()
-      );
-      
-      return `${planInfo} (${daysLeft} days left in trial)`;
-    }
-
-    return planInfo;
-  };
 
   const handleChangePassword = async () => {
     try {
@@ -89,7 +73,7 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium">Subscription Status</p>
-            <p className="text-sm text-muted-foreground">{getSubscriptionInfo()}</p>
+            <p className="text-sm text-muted-foreground">{subscriptionInfo}</p>
           </div>
           <div className="pt-4">
             <Button 

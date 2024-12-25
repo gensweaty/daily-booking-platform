@@ -30,7 +30,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       
       const { data, error } = await supabase
         .from('subscriptions')
-        .select('*')
+        .select('*, subscription_plans!inner(*)')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -51,7 +51,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const isTrialExpired = subscription?.status === 'trial' && 
     differenceInDays(new Date(subscription.trial_end_date || ''), new Date()) <= 0;
 
-  // Show subscription dialog when trial expires
   useEffect(() => {
     if (isTrialExpired) {
       setShowSubscriptionDialog(true);
@@ -61,6 +60,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const getSubscriptionInfo = () => {
     if (subscriptionError) return "Error loading subscription";
     if (!subscription) return "Loading subscription...";
+
+    const planName = subscription.subscription_plans?.name || subscription.plan_type;
 
     if (subscription.status === 'trial' && subscription.trial_end_date) {
       const daysLeft = differenceInDays(
@@ -72,7 +73,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         return "Trial expired";
       }
       
-      return `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} remaining in trial`;
+      return `${planName} (${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} remaining in trial)`;
     }
 
     if (subscription.status === 'expired') {
@@ -80,7 +81,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
 
     if (subscription.status === 'active') {
-      return `${subscription.plan_type.charAt(0).toUpperCase() + subscription.plan_type.slice(1)} Plan`;
+      return planName;
     }
 
     return "No active subscription";
