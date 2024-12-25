@@ -74,38 +74,6 @@ export const SignUp = () => {
 
       console.log("User signed up successfully, waiting for session...");
 
-      // Wait for the session to be established with retry logic
-      let session = null;
-      let retryCount = 0;
-      const maxRetries = 3;
-
-      while (!session && retryCount < maxRetries) {
-        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error("Session error:", sessionError);
-          throw sessionError;
-        }
-
-        if (currentSession) {
-          session = currentSession;
-          break;
-        }
-
-        retryCount++;
-        if (retryCount < maxRetries) {
-          console.log(`Retrying session check... (${retryCount}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
-        }
-      }
-
-      if (!session) {
-        console.error("Failed to establish session after retries");
-        throw new Error('Failed to establish session after multiple attempts');
-      }
-
-      console.log("Session established, fetching plan data...");
-
       // Get the plan_id for the selected plan type
       const { data: planData, error: planError } = await supabase
         .from('subscription_plans')
@@ -125,14 +93,14 @@ export const SignUp = () => {
 
       console.log("Plan found, creating subscription...");
 
-      // Create trial subscription using the authenticated session
+      // Create trial subscription
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
 
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
         .insert([{
-          user_id: session.user.id,
+          user_id: authData.user.id,
           plan_id: planData.id,
           plan_type: selectedPlan,
           status: 'trial',
