@@ -37,6 +37,22 @@ export const SignUp = () => {
         return;
       }
 
+      // First, get the plan_id for the selected plan type
+      const { data: planData, error: planError } = await supabase
+        .from('subscription_plans')
+        .select('id')
+        .eq('type', selectedPlan)
+        .single();
+
+      if (planError) {
+        console.error('Error fetching plan:', planError);
+        throw planError;
+      }
+
+      if (!planData?.id) {
+        throw new Error('Selected plan not found');
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -69,6 +85,7 @@ export const SignUp = () => {
           .from('subscriptions')
           .insert([{
             user_id: data.user.id,
+            plan_id: planData.id,
             plan_type: selectedPlan,
             status: 'trial',
             trial_end_date: trialEndDate.toISOString(),
