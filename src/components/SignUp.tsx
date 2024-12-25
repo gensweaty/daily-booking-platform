@@ -55,7 +55,7 @@ export const SignUp = () => {
       console.log("Username is available, proceeding with signup...");
 
       // Sign up the user
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      const { data: { user, session }, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -67,21 +67,10 @@ export const SignUp = () => {
 
       if (signUpError) {
         console.error("Signup error:", signUpError);
-        
-        if (signUpError.message.includes("email rate limit exceeded")) {
-          toast({
-            title: "Rate Limit Reached",
-            description: "Too many signup attempts. Please wait a minute before trying again.",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
-        }
-        
         throw signUpError;
       }
 
-      if (!authData?.user) {
+      if (!user || !session) {
         throw new Error("Failed to create user account");
       }
 
@@ -96,14 +85,6 @@ export const SignUp = () => {
 
       if (planError) throw planError;
 
-      // Wait for the session to be established
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      
-      if (!session) {
-        throw new Error("No session available after signup");
-      }
-
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
 
@@ -111,7 +92,7 @@ export const SignUp = () => {
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
         .insert({
-          user_id: session.user.id,
+          user_id: user.id,
           plan_id: planData.id,
           plan_type: selectedPlan,
           status: 'trial',
