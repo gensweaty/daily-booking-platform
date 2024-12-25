@@ -76,6 +76,13 @@ export const SignUp = () => {
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14);
 
+      // Get the current session to ensure we're authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error("Failed to get session after signup");
+      }
+
       // Create subscription record with explicit user_id
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
@@ -87,7 +94,9 @@ export const SignUp = () => {
           trial_end_date: trialEndDate.toISOString(),
           current_period_start: new Date().toISOString(),
           current_period_end: trialEndDate.toISOString(),
-        }]);
+        }])
+        .select()
+        .single();
 
       if (subscriptionError) {
         console.error("Subscription error:", subscriptionError);
