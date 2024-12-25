@@ -42,7 +42,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           )
         `)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Subscription fetch error:', error);
@@ -75,8 +75,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
     
     if (!subscription) {
-      console.log('No subscription data available');
-      return "Loading subscription...";
+      console.log('No subscription data found for user');
+      return "No active subscription";
     }
 
     console.log('Processing subscription info:', subscription);
