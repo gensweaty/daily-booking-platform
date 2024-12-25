@@ -41,14 +41,21 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
       }
 
       if (!subscriptionData) {
-        // If no subscription exists, create a trial subscription
-        const { data: plans } = await supabase
+        // If no subscription exists, create a trial subscription with monthly plan
+        const { data: plans, error: plansError } = await supabase
           .from('subscription_plans')
           .select('*')
-          .eq('type', 'free')
-          .single();
+          .eq('type', 'monthly')
+          .maybeSingle();
 
-        if (!plans) throw new Error('No free plan found');
+        if (plansError) {
+          console.error('Error fetching plans:', plansError);
+          throw plansError;
+        }
+
+        if (!plans) {
+          throw new Error('No subscription plans found');
+        }
 
         const trialEndDate = new Date();
         trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
@@ -75,7 +82,11 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
           `)
           .single();
 
-        if (createError) throw createError;
+        if (createError) {
+          console.error('Error creating subscription:', createError);
+          throw createError;
+        }
+
         return newSubscription;
       }
 
