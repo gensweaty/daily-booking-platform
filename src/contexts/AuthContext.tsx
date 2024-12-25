@@ -49,20 +49,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
-      // First check if we have a valid session
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      
-      // Clear local state immediately for better UX
+      // Clear local state immediately
       setUser(null);
       setSession(null);
 
-      if (currentSession) {
-        // Only attempt server-side sign out if we have a session
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-          console.error('Server-side sign out error:', error);
-          // Continue with local sign out even if server-side fails
-        }
+      // Attempt server-side sign out with error handling
+      const { error } = await supabase.auth.signOut({
+        scope: 'local'  // Only clear local session
+      });
+      
+      if (error) {
+        console.error('Sign out error:', error);
+        // Continue with local sign out even if server-side fails
       }
 
       toast({
@@ -72,7 +70,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     } catch (error) {
       console.error('Sign out error:', error);
-      // Even if there's an error, we've already cleared local state
       toast({
         title: "Signed out",
         description: "You have been signed out locally",
