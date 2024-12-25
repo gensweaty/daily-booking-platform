@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
+import { useSearchParams } from "react-router-dom";
+import { addDays } from "date-fns";
 
 export const SignUp = () => {
   const [email, setEmail] = useState("");
@@ -12,6 +14,8 @@ export const SignUp = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const selectedPlan = searchParams.get('plan') || 'monthly';
 
   const validatePassword = (password: string) => {
     if (password.length < 6) {
@@ -103,6 +107,21 @@ export const SignUp = () => {
       }
 
       if (data?.user) {
+        // Create trial subscription
+        const trialEndDate = addDays(new Date(), 14);
+        const { error: subscriptionError } = await supabase
+          .from('subscriptions')
+          .insert([{
+            user_id: data.user.id,
+            plan_type: selectedPlan,
+            status: 'trial',
+            trial_end_date: trialEndDate.toISOString(),
+          }]);
+
+        if (subscriptionError) {
+          console.error('Error creating subscription:', subscriptionError);
+        }
+
         toast({
           title: "Success",
           description: "Please check your email (including spam folder) to confirm your account before signing in.",
@@ -188,7 +207,7 @@ export const SignUp = () => {
           className="w-full"
           disabled={isLoading}
         >
-          {isLoading ? "Signing up..." : "Sign Up"}
+          {isLoading ? "Signing up..." : "Start Free Trial"}
         </Button>
       </form>
     </div>
