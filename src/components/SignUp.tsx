@@ -37,7 +37,35 @@ export const SignUp = () => {
         return;
       }
 
-      // First, get the plan_id for the selected plan type
+      // Sign up the user first
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username: username,
+          }
+        },
+      });
+      
+      if (signUpError) {
+        if (signUpError.message.includes("User already registered")) {
+          toast({
+            title: "Error",
+            description: "This email is already registered. Please sign in instead.",
+            variant: "destructive",
+          });
+        } else {
+          throw signUpError;
+        }
+        return;
+      }
+
+      if (!authData.user) {
+        throw new Error('Failed to create user account');
+      }
+
+      // Get the plan_id for the selected plan type
       const { data: planData, error: planError } = await supabase
         .from('subscription_plans')
         .select('id')
@@ -53,59 +81,32 @@ export const SignUp = () => {
         throw new Error('Selected plan not found');
       }
 
-      // Sign up the user
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            username: username,
-          }
-        },
-      });
-      
-      if (error) {
-        if (error.message.includes("User already registered")) {
-          toast({
-            title: "Error",
-            description: "This email is already registered. Please sign in instead.",
-            variant: "destructive",
-          });
-        } else {
-          throw error;
-        }
-        return;
-      }
+      // Create trial subscription using the new session
+      const trialEndDate = new Date();
+      trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
 
-      if (data?.user) {
-        // Create trial subscription
-        const trialEndDate = new Date();
-        trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
+      const { error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .insert([{
+          user_id: authData.user.id,
+          plan_id: planData.id,
+          plan_type: selectedPlan,
+          status: 'trial',
+          trial_end_date: trialEndDate.toISOString(),
+        }]);
 
-        const { error: subscriptionError } = await supabase
-          .from('subscriptions')
-          .insert([{
-            user_id: data.user.id,
-            plan_id: planData.id,
-            plan_type: selectedPlan,
-            status: 'trial',
-            trial_end_date: trialEndDate.toISOString(),
-            created_at: new Date().toISOString(),
-          }]);
-
-        if (subscriptionError) {
-          console.error('Error creating subscription:', subscriptionError);
-          toast({
-            title: "Warning",
-            description: "Account created but there was an issue setting up your trial. Please contact support.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Success",
-            description: "Please check your email (including spam folder) to confirm your account before signing in.",
-          });
-        }
+      if (subscriptionError) {
+        console.error('Error creating subscription:', subscriptionError);
+        toast({
+          title: "Warning",
+          description: "Account created but there was an issue setting up your trial. Please contact support.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Please check your email (including spam folder) to confirm your account before signing in.",
+        });
       }
     } catch (error: any) {
       console.error('Signup error:', error);
