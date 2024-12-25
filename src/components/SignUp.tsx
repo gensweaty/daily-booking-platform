@@ -3,7 +3,6 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { useSearchParams } from "react-router-dom";
 import { SignUpForm } from "./signup/SignUpForm";
-import { createTrialSubscription } from "./signup/signupUtils";
 
 export const SignUp = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -66,17 +65,15 @@ export const SignUp = () => {
         const trialEndDate = new Date();
         trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
 
-        const subscriptionData = {
-          user_id: data.user.id,
-          plan_type: selectedPlan,
-          status: 'trial',
-          trial_end_date: trialEndDate.toISOString(),
-          created_at: new Date().toISOString(),
-        };
-
         const { error: subscriptionError } = await supabase
           .from('subscriptions')
-          .insert([subscriptionData]);
+          .insert([{
+            user_id: data.user.id,
+            plan_type: selectedPlan,
+            status: 'trial',
+            trial_end_date: trialEndDate.toISOString(),
+            created_at: new Date().toISOString(),
+          }]);
 
         if (subscriptionError) {
           console.error('Error creating subscription:', subscriptionError);
@@ -85,12 +82,12 @@ export const SignUp = () => {
             description: "Account created but there was an issue setting up your trial. Please contact support.",
             variant: "destructive",
           });
+        } else {
+          toast({
+            title: "Success",
+            description: "Please check your email (including spam folder) to confirm your account before signing in.",
+          });
         }
-
-        toast({
-          title: "Success",
-          description: "Please check your email (including spam folder) to confirm your account before signing in.",
-        });
       }
     } catch (error: any) {
       console.error('Signup error:', error);
