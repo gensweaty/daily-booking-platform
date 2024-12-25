@@ -72,7 +72,7 @@ export const SignUp = () => {
         throw new Error('Failed to create user account');
       }
 
-      console.log("User signed up successfully, waiting for session...");
+      console.log("User signed up successfully, creating subscription...");
 
       // Get the plan_id for the selected plan type
       const { data: planData, error: planError } = await supabase
