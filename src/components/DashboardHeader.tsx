@@ -30,7 +30,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       
       const { data, error } = await supabase
         .from('subscriptions')
-        .select('*, subscription_plans!inner(*)')
+        .select('*, subscription_plans(*)')
         .eq('user_id', user.id)
         .maybeSingle();
 

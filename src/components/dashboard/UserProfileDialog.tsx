@@ -3,8 +3,6 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
-import { useQuery } from "@tanstack/react-query";
-import { differenceInDays } from "date-fns";
 
 interface UserProfileDialogProps {
   open: boolean;
@@ -16,23 +14,6 @@ interface UserProfileDialogProps {
 export const UserProfileDialog = ({ open, onOpenChange, username, subscriptionInfo }: UserProfileDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-
-  const { data: subscription } = useQuery({
-    queryKey: ['subscription', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      
-      const { data, error } = await supabase
-        .from('subscriptions')
-        .select('*, subscription_plans(*)')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id
-  });
 
   const handleChangePassword = async () => {
     try {

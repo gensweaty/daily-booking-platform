@@ -258,6 +258,7 @@ export type Database = {
           current_period_end: string | null
           current_period_start: string | null
           id: string
+          plan_id: string
           plan_type: string
           status: string
           trial_end_date: string | null
@@ -269,6 +270,7 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string | null
           id?: string
+          plan_id: string
           plan_type: string
           status: string
           trial_end_date?: string | null
@@ -280,13 +282,22 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string | null
           id?: string
+          plan_id?: string
           plan_type?: string
           status?: string
           trial_end_date?: string | null
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
