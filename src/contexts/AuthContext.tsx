@@ -48,22 +48,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = async () => {
+    if (loading) return;
+    
+    setLoading(true);
     try {
-      setLoading(true);
+      // First attempt to sign out from Supabase
+      const { error } = await supabase.auth.signOut();
       
-      // First clear the local state
+      if (error) {
+        console.error('Supabase sign out error:', error);
+        // If there's an error, we'll still clear local state
+      }
+      
+      // Clear local state after Supabase sign out attempt
       setUser(null);
       setSession(null);
-      
-      try {
-        // Attempt to sign out from Supabase with local scope
-        await supabase.auth.signOut({
-          scope: 'local'
-        });
-      } catch (error: any) {
-        // Log the error but don't throw it - we still want to complete the sign out process
-        console.error('Supabase sign out error:', error);
-      }
       
       // Always navigate to login and show success message
       navigate('/login');
@@ -74,6 +73,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       console.error('Sign out process error:', error);
       // Even if there's an error, we want to clear the local state and redirect
+      setUser(null);
+      setSession(null);
       navigate('/login');
       toast({
         title: "Notice",
