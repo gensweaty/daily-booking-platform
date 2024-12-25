@@ -62,14 +62,29 @@ export const SignUp = () => {
       }
 
       if (data?.user) {
-        // Create trial subscription
-        const subscriptionData = await createTrialSubscription(data.user.id, selectedPlan);
+        // Create trial subscription with current timestamp
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
+
+        const subscriptionData = {
+          user_id: data.user.id,
+          plan_type: selectedPlan,
+          status: 'trial',
+          trial_end_date: trialEndDate.toISOString(),
+          created_at: new Date().toISOString(),
+        };
+
         const { error: subscriptionError } = await supabase
           .from('subscriptions')
           .insert([subscriptionData]);
 
         if (subscriptionError) {
           console.error('Error creating subscription:', subscriptionError);
+          toast({
+            title: "Warning",
+            description: "Account created but there was an issue setting up your trial. Please contact support.",
+            variant: "destructive",
+          });
         }
 
         toast({
