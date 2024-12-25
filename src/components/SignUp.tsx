@@ -20,6 +20,7 @@ export const SignUp = () => {
   }) => {
     if (isLoading) return;
     setIsLoading(true);
+    console.log("Starting signup process...");
 
     try {
       // Check if username already exists
@@ -60,8 +61,18 @@ export const SignUp = () => {
         throw new Error("User ID not available after signup");
       }
 
-      // Wait for the profile to be created via trigger
+      // Add a delay to allow the profile trigger to complete
       await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Get the current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error("Session error:", sessionError);
+        throw new Error("Failed to get session after signup");
+      }
+
+      console.log("Session established, creating subscription...");
 
       // Fetch the selected plan details
       const { data: planData, error: planError } = await supabase
@@ -70,24 +81,20 @@ export const SignUp = () => {
         .eq('type', selectedPlan)
         .single();
 
-      if (planError) throw planError;
+      if (planError) {
+        console.error("Plan fetch error:", planError);
+        throw planError;
+      }
 
       // Calculate trial end date (14 days from now)
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14);
 
-      // Get the current session to ensure we're authenticated
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        throw new Error("Failed to get session after signup");
-      }
-
-      // Create subscription record with explicit user_id
+      // Create subscription record
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
         .insert([{
-          user_id: authData.user.id,
+          user_id: session.user.id,
           plan_id: planData.id,
           plan_type: selectedPlan,
           status: 'trial',
@@ -99,9 +106,11 @@ export const SignUp = () => {
         .single();
 
       if (subscriptionError) {
-        console.error("Subscription error:", subscriptionError);
+        console.error("Subscription creation error:", subscriptionError);
         throw subscriptionError;
       }
+
+      console.log("Signup process completed successfully");
 
       toast({
         title: "Success",
