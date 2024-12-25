@@ -4,6 +4,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { differenceInDays } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +23,43 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const { data: subscription } = useQuery({
+    queryKey: ['subscription', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const getSubscriptionInfo = () => {
+    if (!subscription) return { plan: 'No active subscription', trialDays: null };
+
+    if (subscription.status === 'trial' && subscription.trial_end_date) {
+      const daysLeft = differenceInDays(
+        new Date(subscription.trial_end_date),
+        new Date()
+      );
+      return {
+        plan: 'Free Trial',
+        trialDays: daysLeft > 0 ? daysLeft : 0
+      };
+    }
+
+    return {
+      plan: `${subscription.plan_type.charAt(0).toUpperCase() + subscription.plan_type.slice(1)} Plan`,
+      trialDays: null
+    };
+  };
+
+  const { plan, trialDays } = getSubscriptionInfo();
 
   const handleSignOut = async () => {
     try {
@@ -92,8 +131,13 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   <p className="text-sm text-muted-foreground">{username}</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Package</p>
-                  <p className="text-sm text-muted-foreground">Free Plan</p>
+                  <p className="text-sm font-medium">Subscription</p>
+                  <p className="text-sm text-muted-foreground">{plan}</p>
+                  {trialDays !== null && (
+                    <p className="text-sm text-muted-foreground">
+                      {trialDays} days left in trial
+                    </p>
+                  )}
                 </div>
                 <div className="pt-4">
                   <Button 
