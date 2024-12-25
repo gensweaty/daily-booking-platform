@@ -22,12 +22,17 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
   const { data: plans, isLoading: plansLoading } = useQuery({
     queryKey: ['subscription-plans'],
     queryFn: async () => {
+      console.log('Fetching subscription plans...');
       const { data, error } = await supabase
         .from('subscription_plans')
         .select('*')
         .order('price', { ascending: true });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching plans:', error);
+        throw error;
+      }
+      console.log('Fetched plans:', data);
       return data;
     }
   });
@@ -121,7 +126,7 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
           onValueChange={setSelectedPlan}
           disabled={isLoading || plansLoading}
         >
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Select a plan" />
           </SelectTrigger>
           <SelectContent>
