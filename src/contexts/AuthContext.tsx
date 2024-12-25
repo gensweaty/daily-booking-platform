@@ -24,7 +24,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     // Get initial session
@@ -51,18 +50,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signOut();
+      
+      // First clear the local state
+      setUser(null);
+      setSession(null);
+      
+      // Then attempt to sign out from Supabase
+      const { error } = await supabase.auth.signOut({
+        scope: 'local' // Use local scope instead of global to prevent 403 errors
+      });
       
       if (error) {
         console.error('Sign out error:', error);
-        // Even if there's an error, we should still clear the local state
-        setUser(null);
-        setSession(null);
+        // Even with an error, we've already cleared the local state
       }
       
-      // Always clear the local state and redirect
-      setUser(null);
-      setSession(null);
+      // Always navigate to login
       navigate('/login');
       
       toast({
