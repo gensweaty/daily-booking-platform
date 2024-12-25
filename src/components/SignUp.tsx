@@ -56,7 +56,7 @@ export const SignUp = () => {
       }
 
       // Sign up the user
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -71,7 +71,7 @@ export const SignUp = () => {
         throw signUpError;
       }
 
-      if (!data?.user) {
+      if (!authData?.user) {
         console.error("No user data returned from signup");
         throw new Error("Failed to create user account");
       }
@@ -99,15 +99,21 @@ export const SignUp = () => {
       trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
 
       // Create subscription with trial period
-      const { error: subscriptionError } = await supabase
-        .from('subscriptions')
-        .insert({
-          user_id: data.user.id,
-          plan_id: planData.id,
-          plan_type: selectedPlan,
-          status: 'trial',
-          trial_end_date: trialEndDate.toISOString(),
-        });
+      const { error: subscriptionError } = await supabase.auth.getSession().then(async ({ data: { session } }) => {
+        if (!session) {
+          throw new Error("No session available");
+        }
+
+        return supabase
+          .from('subscriptions')
+          .insert({
+            user_id: authData.user.id,
+            plan_id: planData.id,
+            plan_type: selectedPlan,
+            status: 'trial',
+            trial_end_date: trialEndDate.toISOString(),
+          });
+      });
 
       if (subscriptionError) {
         console.error("Subscription creation error:", subscriptionError);
