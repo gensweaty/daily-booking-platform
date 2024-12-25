@@ -9,23 +9,27 @@ export const SignUp = () => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const selectedPlan = searchParams.get('plan') || 'monthly';
-  const [attemptCount, setAttemptCount] = useState(0);
+  const [lastAttemptTime, setLastAttemptTime] = useState<number | null>(null);
+  const COOLDOWN_PERIOD = 60000; // 1 minute cooldown
 
   const handleSignUp = async ({ email, username, password }: { 
     email: string; 
     username: string; 
     password: string 
   }) => {
-    if (attemptCount >= 3) {
+    const now = Date.now();
+    if (lastAttemptTime && (now - lastAttemptTime) < COOLDOWN_PERIOD) {
+      const remainingTime = Math.ceil((COOLDOWN_PERIOD - (now - lastAttemptTime)) / 1000);
       toast({
-        title: "Too Many Attempts",
-        description: "Please wait a few minutes before trying again.",
+        title: "Please Wait",
+        description: `Please wait ${remainingTime} seconds before trying again.`,
         variant: "destructive",
       });
       return;
     }
 
     setIsLoading(true);
+    setLastAttemptTime(now);
     
     try {
       console.log("Starting signup process...");
@@ -63,10 +67,9 @@ export const SignUp = () => {
         console.error("Signup error:", signUpError);
         
         if (signUpError.message.includes("email rate limit exceeded")) {
-          setAttemptCount((prev) => prev + 1);
           toast({
             title: "Rate Limit Reached",
-            description: "Too many requests. Please try again later.",
+            description: "Too many signup attempts. Please wait a minute before trying again.",
             variant: "destructive",
           });
           return;
