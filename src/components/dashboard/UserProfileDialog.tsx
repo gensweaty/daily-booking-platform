@@ -33,7 +33,7 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
           )
         `)
         .eq('user_id', user.id)
-        .maybeSingle();
+        .single();
 
       if (error) {
         console.error('Subscription fetch error:', error);
@@ -52,33 +52,24 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     if (isLoading) return "Loading subscription details...";
     
     if (!subscription) {
-      return "No subscription data available. Please contact support.";
+      console.log('No subscription found for user:', user?.id);
+      return "Loading subscription details...";
     }
 
     if (!subscription.subscription_plans) {
       console.log('No subscription plan found for subscription:', subscription);
-      return "Subscription plan details not available";
+      return "Loading subscription details...";
     }
 
     const plan = subscription.subscription_plans;
     const planType = subscription.plan_type === 'monthly' ? 'Monthly' : 'Yearly';
     
     if (subscription.status === 'trial') {
-      const trialEndDate = subscription.trial_end_date 
-        ? parseISO(subscription.trial_end_date)
-        : null;
+      const daysLeft = subscription.trial_end_date 
+        ? differenceInDays(parseISO(subscription.trial_end_date), new Date())
+        : 0;
       
-      if (!trialEndDate) {
-        return `${plan.name} (${planType}) - Trial period information unavailable`;
-      }
-
-      const daysLeft = differenceInDays(trialEndDate, new Date());
-      
-      if (daysLeft < 0) {
-        return `${plan.name} (${planType}) - Trial expired`;
-      }
-
-      return `${plan.name} (${planType}) - ${daysLeft} days remaining in trial`;
+      return `${plan.name} (${planType}) - ${Math.max(0, daysLeft)} days remaining in trial`;
     }
 
     if (subscription.status === 'active') {

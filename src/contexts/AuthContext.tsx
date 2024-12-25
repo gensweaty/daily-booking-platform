@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/components/ui/use-toast";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
@@ -24,6 +24,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // Get initial session
@@ -48,46 +49,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = async () => {
-    if (loading) return;
-
     try {
-      setLoading(true);
-      
-      // Attempt server-side sign out first, while we still have a valid session
       const { error } = await supabase.auth.signOut();
+      if (error) throw error;
       
-      if (error) {
-        console.error('Sign out error:', error);
-        // Show a generic message to the user
-        toast({
-          title: "Notice",
-          description: "You have been signed out",
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Signed out successfully",
-        });
-      }
-
-      // Clear local state after the sign-out attempt
       setUser(null);
       setSession(null);
-      
-      // Always navigate to login
-      navigate('/login');
-    } catch (error) {
-      console.error('Sign out process error:', error);
-      // Ensure user is redirected and state is cleared even if there's an error
-      setUser(null);
-      setSession(null);
-      navigate('/login');
       toast({
-        title: "Notice",
-        description: "You have been signed out",
+        title: "Success",
+        description: "Signed out successfully",
       });
-    } finally {
-      setLoading(false);
+      navigate('/login');
+    } catch (error: any) {
+      console.error('Sign out error:', error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
