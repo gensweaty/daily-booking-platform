@@ -52,7 +52,7 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     if (isLoading) return "Loading subscription info...";
     
     if (!subscription || !subscription.subscription_plans) {
-      return "No active subscription";
+      return "Loading subscription details...";
     }
 
     const plan = subscription.subscription_plans;
