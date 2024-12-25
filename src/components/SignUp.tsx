@@ -23,15 +23,13 @@ export const SignUp = () => {
 
     try {
       // Check if username already exists
-      const { data: existingUser, error: usernameError } = await supabase
+      const { data: existingUsers } = await supabase
         .from('profiles')
         .select('username')
         .eq('username', username)
         .single();
 
-      if (usernameError && usernameError.code !== 'PGRST116') throw usernameError;
-      
-      if (existingUser) {
+      if (existingUsers) {
         toast({
           title: "Username taken",
           description: "This username is already taken. Please choose another one.",
@@ -41,7 +39,7 @@ export const SignUp = () => {
       }
 
       // Sign up the user
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      const { data: { user }, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password: password.trim(),
         options: {
@@ -53,12 +51,9 @@ export const SignUp = () => {
 
       if (signUpError) throw signUpError;
 
-      if (!authData.user?.id) {
+      if (!user?.id) {
         throw new Error("User ID not available after signup");
       }
-
-      // Wait for the profile to be created via trigger
-      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Fetch the selected plan details
       const { data: planData, error: planError } = await supabase
@@ -78,7 +73,7 @@ export const SignUp = () => {
         .from('subscriptions')
         .insert([
           {
-            user_id: authData.user.id,
+            user_id: user.id,
             plan_id: planData.id,
             plan_type: selectedPlan,
             status: 'trial',
@@ -88,10 +83,7 @@ export const SignUp = () => {
           },
         ]);
 
-      if (subscriptionError) {
-        console.error("Subscription error:", subscriptionError);
-        throw subscriptionError;
-      }
+      if (subscriptionError) throw subscriptionError;
 
       toast({
         title: "Success",

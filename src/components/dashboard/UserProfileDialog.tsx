@@ -23,7 +23,7 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
       
       console.log('Fetching subscription for user:', user.id);
       
-      const { data, error } = await supabase
+      const { data: subscriptionData, error: subscriptionError } = await supabase
         .from('subscriptions')
         .select(`
           *,
@@ -37,54 +37,48 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (error) {
-        console.error('Subscription fetch error:', error);
-        throw error;
+      if (subscriptionError) {
+        console.error('Subscription fetch error:', subscriptionError);
+        throw subscriptionError;
       }
-      
-      console.log('Fetched subscription data:', data);
-      return data;
+
+      console.log('Fetched subscription data:', subscriptionData);
+      return subscriptionData;
     },
     enabled: !!user?.id,
-    retry: 1,
-    meta: {
-      errorMessage: "Failed to fetch subscription information"
-    },
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    refetchInterval: 1000 * 60 * 60 * 24, // Refetch every 24 hours to update trial days
+    retry: 2,
   });
 
   const getFormattedSubscriptionInfo = () => {
-    if (isLoading) return "Loading subscription details...";
+    if (isLoading) return "Loading subscription info...";
     
-    if (!subscription) {
-      console.log('No subscription found for user:', user?.id);
-      return "No active subscription";
-    }
-
-    if (!subscription.subscription_plans) {
-      console.log('No subscription plan found for subscription:', subscription);
-      return "Subscription plan details not available";
+    if (!subscription || !subscription.subscription_plans) {
+      return "No subscription found";
     }
 
     const plan = subscription.subscription_plans;
-    const planType = subscription.plan_type === 'monthly' ? 'Monthly' : 'Yearly';
+    const planType = subscription.plan_type === 'monthly' ? '(Monthly)' : '(Yearly)';
     
-    if (subscription.status === 'trial') {
-      const daysLeft = subscription.trial_end_date 
-        ? differenceInDays(parseISO(subscription.trial_end_date), new Date())
-        : 0;
+    if (subscription.status === 'trial' && subscription.trial_end_date) {
+      const daysLeft = differenceInDays(
+        parseISO(subscription.trial_end_date),
+        new Date()
+      );
       
-      return `${plan.name} (${planType}) - ${Math.max(0, daysLeft)} days remaining in trial`;
+      if (daysLeft <= 0) {
+        return `${plan.name} ${planType} - Trial expired`;
+      }
+      
+      return `${plan.name} ${planType} - ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} remaining in trial`;
     }
 
     if (subscription.status === 'active') {
-      return `${plan.name} (${planType}) - Active subscription`;
+      return `${plan.name} ${planType} - Active`;
     }
 
-    if (subscription.status === 'expired') {
-      return `${plan.name} (${planType}) - Trial expired`;
-    }
-
-    return `${plan.name} (${planType}) - ${subscription.status}`;
+    return `${plan.name} ${planType} - ${subscription.status}`;
   };
 
   const handleChangePassword = async () => {
