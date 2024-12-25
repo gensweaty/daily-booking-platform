@@ -81,13 +81,15 @@ export const SignUp = () => {
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14);
 
-      // Create subscription record with explicit WITH auth.uid()
+      const currentDate = new Date();
+
+      // Create subscription using RPC call
       const { error: subscriptionError } = await supabase.rpc('create_subscription', {
         p_user_id: authData.user.id,
         p_plan_id: planData.id,
         p_plan_type: selectedPlan,
         p_trial_end_date: trialEndDate.toISOString(),
-        p_current_period_start: new Date().toISOString(),
+        p_current_period_start: currentDate.toISOString(),
         p_current_period_end: trialEndDate.toISOString()
       });
 
