@@ -21,7 +21,7 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
   const [error, setError] = useState("");
   const { toast } = useToast();
 
-  const { data: plans, isLoading: plansLoading } = useQuery({
+  const { data: plans, isLoading: plansLoading, error: plansError } = useQuery({
     queryKey: ['subscription-plans'],
     queryFn: async () => {
       console.log('Fetching subscription plans...');
@@ -40,9 +40,21 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
         throw error;
       }
 
+      if (!data || data.length === 0) {
+        console.warn('No subscription plans found');
+        toast({
+          title: "No plans available",
+          description: "No subscription plans are currently available.",
+          variant: "destructive",
+        });
+        return [];
+      }
+
       console.log('Fetched plans:', data);
       return data;
     },
+    retry: 3,
+    retryDelay: 1000,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,12 +151,12 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
           onValueChange={setSelectedPlan}
           disabled={isLoading || plansLoading}
         >
-          <SelectTrigger className="w-full bg-background">
+          <SelectTrigger id="plan" className="w-full bg-background border border-input">
             <SelectValue placeholder="Select a plan" />
           </SelectTrigger>
           <SelectContent>
             {plans?.map((plan) => (
-              <SelectItem key={plan.id} value={plan.type}>
+              <SelectItem key={plan.id} value={plan.type} className="cursor-pointer">
                 {plan.name} - ${plan.price}/{plan.type}
               </SelectItem>
             ))}
@@ -153,6 +165,11 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
         {plansLoading && (
           <p className="text-sm text-muted-foreground mt-1">
             Loading plans...
+          </p>
+        )}
+        {plansError && (
+          <p className="text-sm text-destructive mt-1">
+            Error loading plans. Please try again.
           </p>
         )}
       </div>
