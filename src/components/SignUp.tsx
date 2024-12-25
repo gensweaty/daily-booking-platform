@@ -79,7 +79,7 @@ export const SignUp = () => {
             await new Promise(resolve => setTimeout(resolve, 1000));
             continue;
           }
-          throw new Error("Failed to get session after multiple attempts");
+          throw sessionError;
         }
 
         if (currentSession) {
@@ -93,11 +93,8 @@ export const SignUp = () => {
         }
       }
 
-      if (!session) {
-        throw new Error("Failed to get session after signup");
-      }
-
-      console.log("Session established, creating subscription...");
+      // Even if we don't get a session immediately, we can still proceed with subscription creation
+      // as the user has been created successfully
 
       // Fetch the selected plan details
       const { data: planData, error: planError } = await supabase
@@ -119,7 +116,7 @@ export const SignUp = () => {
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
         .insert([{
-          user_id: session.user.id,
+          user_id: authData.user.id,
           plan_id: planData.id,
           plan_type: selectedPlan,
           status: 'trial',
@@ -138,8 +135,8 @@ export const SignUp = () => {
       console.log("Signup process completed successfully");
 
       toast({
-        title: "Success",
-        description: "Please check your email to verify your account",
+        title: "Account Created Successfully",
+        description: "Please check your email (including spam folder) to verify your account. You'll be able to sign in after verification.",
       });
 
     } catch (error: any) {
