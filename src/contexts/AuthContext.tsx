@@ -34,39 +34,58 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       console.log('Initial session:', initialSession);
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
+      if (initialSession) {
+        setSession(initialSession);
+        setUser(initialSession.user);
+      }
       setLoading(false);
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       console.log('Auth state changed:', _event, newSession);
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
+      
+      if (_event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        navigate('/login', { replace: true });
+      } else if (newSession) {
+        setSession(newSession);
+        setUser(newSession.user);
+      }
+      
       setLoading(false);
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   const signOut = async () => {
     try {
-      // Clear local state first
-      setUser(null);
-      setSession(null);
+      // First try to get the current session
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      
+      if (!currentSession) {
+        // If no session exists, just clear local state and redirect
+        setUser(null);
+        setSession(null);
+        navigate('/login', { replace: true });
+        return;
+      }
 
       // Attempt to sign out from Supabase
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({
+        scope: 'local' // Use local scope to avoid server validation
+      });
       
       if (error) {
         console.error('Sign out error:', error);
-        // Even if server-side sign out fails, we've already cleared local state
         toast({
-          title: "Partial Sign Out",
-          description: "You have been signed out locally. Some server-side cleanup may have failed.",
+          title: "Warning",
+          description: "Sign out may not be complete. Please try again.",
+          variant: "destructive",
         });
       } else {
         toast({
@@ -76,13 +95,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error) {
       console.error('Sign out error:', error);
-      // Even if there's an error, we want to ensure the user is signed out locally
       toast({
-        title: "Partial Sign Out",
-        description: "You have been signed out locally. Some server-side cleanup may have failed.",
+        title: "Error",
+        description: "An error occurred during sign out.",
+        variant: "destructive",
       });
     } finally {
-      // Always navigate to login page and replace the current history entry
+      // Always ensure local state is cleared and user is redirected
+      setUser(null);
+      setSession(null);
       navigate('/login', { replace: true });
     }
   };
