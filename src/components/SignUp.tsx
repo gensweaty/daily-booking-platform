@@ -83,13 +83,18 @@ export const SignUp = () => {
       // Get the plan_id for the selected plan type
       const { data: planData, error: planError } = await supabase
         .from('subscription_plans')
-        .select('id')
+        .select('id, name')
         .eq('type', selectedPlan)
         .single();
 
       if (planError) {
         console.error("Error fetching plan:", planError);
         throw planError;
+      }
+
+      if (!planData) {
+        console.error("No plan found for type:", selectedPlan);
+        throw new Error("Selected plan not found");
       }
 
       const trialEndDate = new Date();

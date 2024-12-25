@@ -61,7 +61,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     if (subscriptionError) return "Error loading subscription";
     if (!subscription) return "Loading subscription...";
 
-    const planName = subscription.subscription_plans?.name || subscription.plan_type;
+    const planName = subscription.subscription_plans?.name;
+    if (!planName) return "Subscription plan not found";
 
     if (subscription.status === 'trial' && subscription.trial_end_date) {
       const daysLeft = differenceInDays(
