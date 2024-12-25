@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { differenceInDays } from "date-fns";
-import { DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useState, useEffect } from "react";
 import { UserProfileDialog } from "./dashboard/UserProfileDialog";
@@ -112,16 +112,17 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <DialogTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="icon"
-              className="text-foreground"
-              onClick={() => setShowUserProfile(true)}
-            >
-              <User className="w-4 h-4" />
-            </Button>
-          </DialogTrigger>
+          <Dialog open={showUserProfile} onOpenChange={setShowUserProfile}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="icon"
+                className="text-foreground"
+              >
+                <User className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+          </Dialog>
           <ThemeToggle />
           <Button 
             variant="outline" 
