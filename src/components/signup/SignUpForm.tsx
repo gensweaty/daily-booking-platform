@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/ui/use-toast";
 
 interface SignUpFormProps {
   onSubmit: (data: { email: string; username: string; password: string; selectedPlan: string }) => Promise<void>;
@@ -16,10 +17,11 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [selectedPlan, setSelectedPlan] = useState("monthly");
+  const [selectedPlan, setSelectedPlan] = useState("");
   const [error, setError] = useState("");
+  const { toast } = useToast();
 
-  const { data: plans, isLoading: plansLoading } = useQuery({
+  const { data: plans, isLoading: plansLoading, error: plansError } = useQuery({
     queryKey: ['subscription-plans'],
     queryFn: async () => {
       console.log('Fetching subscription plans...');
@@ -30,16 +32,38 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
       
       if (error) {
         console.error('Error fetching plans:', error);
+        toast({
+          title: "Error loading plans",
+          description: "Could not load subscription plans. Please try again.",
+          variant: "destructive",
+        });
         throw error;
       }
+
+      if (!data || data.length === 0) {
+        console.warn('No subscription plans found');
+        toast({
+          title: "No plans available",
+          description: "No subscription plans are currently available.",
+          variant: "destructive",
+        });
+        return [];
+      }
+
       console.log('Fetched plans:', data);
       return data;
-    }
+    },
+    retry: 2,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!selectedPlan) {
+      setError("Please select a subscription plan");
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -137,11 +161,16 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
             ))}
           </SelectContent>
         </Select>
+        {plansError && (
+          <p className="text-sm text-destructive mt-1">
+            Error loading plans. Please refresh the page.
+          </p>
+        )}
       </div>
       <Button 
         type="submit" 
         className="w-full"
-        disabled={isLoading}
+        disabled={isLoading || !selectedPlan}
       >
         {isLoading ? "Signing up..." : "Start Free Trial"}
       </Button>
