@@ -9,6 +9,7 @@ export const SignUp = () => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const selectedPlan = searchParams.get('plan') || 'monthly';
+  const [retryCount, setRetryCount] = useState(0);
 
   const handleSignUp = async ({ email, username, password }: { 
     email: string; 
@@ -42,47 +43,69 @@ export const SignUp = () => {
 
       console.log("Username is available, proceeding with signup...");
 
-      // Sign up the user
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            username: username,
+      // Sign up with retry logic
+      const attemptSignUp = async (attempt: number): Promise<any> => {
+        try {
+          const { data: authData, error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                username: username,
+              }
+            },
+          });
+          
+          if (signUpError) {
+            console.error("Signup error:", signUpError);
+            
+            // Handle email rate limit error with exponential backoff
+            if (signUpError.message.includes("email rate limit exceeded") || 
+                (typeof signUpError.message === 'string' && signUpError.message.toLowerCase().includes("rate limit"))) {
+              
+              if (attempt < 3) { // Max 3 retries
+                const delay = Math.min(1000 * Math.pow(2, attempt), 8000); // Max 8 second delay
+                toast({
+                  title: "Please Wait",
+                  description: `Retrying in ${delay/1000} seconds...`,
+                  duration: delay,
+                });
+                
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return attemptSignUp(attempt + 1);
+              } else {
+                toast({
+                  title: "Rate Limit Reached",
+                  description: "Please wait a few minutes before trying again.",
+                  variant: "destructive",
+                  duration: 5000,
+                });
+                return null;
+              }
+            }
+            
+            if (signUpError.message.includes("User already registered")) {
+              toast({
+                title: "Error",
+                description: "This email is already registered. Please sign in instead.",
+                variant: "destructive",
+              });
+              return null;
+            }
+            
+            throw signUpError;
           }
-        },
-      });
-      
-      if (signUpError) {
-        console.error("Signup error:", signUpError);
-        
-        // Handle email rate limit error
-        if (signUpError.message.includes("email rate limit exceeded") || 
-            (typeof signUpError.message === 'string' && signUpError.message.toLowerCase().includes("rate limit"))) {
-          toast({
-            title: "Please Wait",
-            description: "Too many signup attempts. Please wait a few minutes before trying again.",
-            variant: "destructive",
-            duration: 5000,
-          });
-          return;
-        }
-        
-        if (signUpError.message.includes("User already registered")) {
-          toast({
-            title: "Error",
-            description: "This email is already registered. Please sign in instead.",
-            variant: "destructive",
-          });
-        } else {
-          throw signUpError;
-        }
-        return;
-      }
 
-      if (!authData.user) {
-        console.error("No user data returned");
-        throw new Error('Failed to create user account');
+          return authData;
+        } catch (error) {
+          throw error;
+        }
+      };
+
+      const authData = await attemptSignUp(0);
+      
+      if (!authData || !authData.user) {
+        return;
       }
 
       console.log("User signed up successfully, creating subscription...");
