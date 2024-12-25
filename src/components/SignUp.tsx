@@ -116,7 +116,6 @@ export const SignUp = () => {
 
       console.log("Subscription created successfully");
 
-      // Show success message about email confirmation
       toast({
         title: "Sign Up Successful",
         description: "Please check your email to confirm your account. The confirmation email might be in your spam folder.",
