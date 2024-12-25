@@ -68,51 +68,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
   }, [isTrialExpired]);
 
-  const getSubscriptionInfo = () => {
-    if (subscriptionError) {
-      console.error('Subscription error:', subscriptionError);
-      return "Error loading subscription";
-    }
-    
-    if (!subscription) {
-      console.log('No subscription data found for user');
-      return "No active subscription";
-    }
-
-    console.log('Processing subscription info:', subscription);
-    
-    const plan = subscription.subscription_plans;
-    if (!plan || !plan.name) {
-      console.error('No plan information found in subscription:', subscription);
-      return "Subscription plan not found";
-    }
-
-    if (subscription.status === 'trial' && subscription.trial_end_date) {
-      const daysLeft = differenceInDays(
-        new Date(subscription.trial_end_date),
-        new Date()
-      );
-      
-      console.log('Trial days left:', daysLeft);
-      
-      if (daysLeft <= 0) {
-        return "Trial expired";
-      }
-      
-      return `${plan.name} (${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} remaining in trial)`;
-    }
-
-    if (subscription.status === 'expired') {
-      return "Trial expired";
-    }
-
-    if (subscription.status === 'active') {
-      return plan.name;
-    }
-
-    return "No active subscription";
-  };
-
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -166,7 +121,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         open={showUserProfile}
         onOpenChange={setShowUserProfile}
         username={username}
-        subscriptionInfo={getSubscriptionInfo()}
       />
 
       <SubscriptionDialog 
