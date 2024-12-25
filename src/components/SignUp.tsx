@@ -56,12 +56,14 @@ export const SignUp = () => {
       if (signUpError) {
         console.error("Signup error:", signUpError);
         
-        // Handle rate limit error specifically
-        if (signUpError.message.includes("rate limit exceeded")) {
+        // Handle email rate limit error
+        if (signUpError.message.includes("email rate limit exceeded") || 
+            (typeof signUpError.message === 'string' && signUpError.message.toLowerCase().includes("rate limit"))) {
           toast({
-            title: "Too Many Attempts",
-            description: "Please wait a few minutes before trying to sign up again.",
+            title: "Please Wait",
+            description: "Too many signup attempts. Please wait a few minutes before trying again.",
             variant: "destructive",
+            duration: 5000,
           });
           return;
         }
