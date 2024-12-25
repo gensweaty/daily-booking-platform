@@ -96,6 +96,14 @@ export const SignUp = () => {
 
       if (planError) throw planError;
 
+      // Wait for the session to be established
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      
+      if (!session) {
+        throw new Error("No session available after signup");
+      }
+
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
 
@@ -103,7 +111,7 @@ export const SignUp = () => {
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
         .insert({
-          user_id: authData.user.id,
+          user_id: session.user.id,
           plan_id: planData.id,
           plan_type: selectedPlan,
           status: 'trial',
