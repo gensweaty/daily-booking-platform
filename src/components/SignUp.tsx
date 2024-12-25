@@ -22,14 +22,14 @@ export const SignUp = () => {
     setIsLoading(true);
 
     try {
-      // Check if username already exists using maybeSingle()
+      // Check if username already exists
       const { data: existingUser, error: usernameError } = await supabase
         .from('profiles')
         .select('username')
         .eq('username', username)
-        .maybeSingle();
+        .single();
 
-      if (usernameError) throw usernameError;
+      if (usernameError && usernameError.code !== 'PGRST116') throw usernameError;
       
       if (existingUser) {
         toast({
@@ -40,7 +40,7 @@ export const SignUp = () => {
         return;
       }
 
-      // First, sign up the user and wait for completion
+      // Sign up the user
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password: password.trim(),
