@@ -21,6 +21,8 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     queryFn: async () => {
       if (!user?.id) return null;
       
+      console.log('Fetching subscription for user:', user.id);
+      
       const { data, error } = await supabase
         .from('subscriptions')
         .select(`
@@ -33,7 +35,7 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
           )
         `)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Subscription fetch error:', error);
@@ -44,8 +46,10 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
       return data;
     },
     enabled: !!user?.id,
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-    refetchInterval: 1000 * 60 * 60, // Refetch every hour
+    retry: 1,
+    meta: {
+      errorMessage: "Failed to fetch subscription information"
+    },
   });
 
   const getFormattedSubscriptionInfo = () => {
@@ -53,12 +57,12 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     
     if (!subscription) {
       console.log('No subscription found for user:', user?.id);
-      return "Loading subscription details...";
+      return "No active subscription";
     }
 
     if (!subscription.subscription_plans) {
       console.log('No subscription plan found for subscription:', subscription);
-      return "Loading subscription details...";
+      return "Subscription plan details not available";
     }
 
     const plan = subscription.subscription_plans;
