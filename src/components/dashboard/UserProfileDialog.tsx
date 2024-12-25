@@ -10,7 +10,6 @@ interface UserProfileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   username: string;
-  subscriptionInfo: string;
 }
 
 export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileDialogProps) => {
@@ -53,11 +52,14 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
 
   const getFormattedSubscriptionInfo = () => {
     if (isLoading) return "Loading...";
-    if (!subscription) return "No subscription found";
+    if (!subscription || !subscription.subscription_plans) {
+      console.error('No subscription data found:', subscription);
+      return "Error loading subscription";
+    }
 
     const plan = subscription.subscription_plans;
-    if (!plan) return "Subscription plan not found";
-
+    const planType = subscription.plan_type === 'monthly' ? '(Monthly)' : '(Yearly)';
+    
     if (subscription.status === 'trial' && subscription.trial_end_date) {
       const daysLeft = differenceInDays(
         new Date(subscription.trial_end_date),
@@ -65,13 +67,13 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
       );
       
       if (daysLeft <= 0) {
-        return `${plan.name} (Trial expired)`;
+        return `${plan.name} ${planType} - Trial expired`;
       }
       
-      return `${plan.name} (${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} remaining in trial)`;
+      return `${plan.name} ${planType} - ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} remaining in trial`;
     }
 
-    return `${plan.name} ${subscription.plan_type === 'monthly' ? '(Monthly)' : '(Yearly)'}`;
+    return `${plan.name} ${planType}`;
   };
 
   const handleChangePassword = async () => {
