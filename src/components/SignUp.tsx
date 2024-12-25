@@ -53,6 +53,7 @@ export const SignUp = () => {
         throw new Error('Selected plan not found');
       }
 
+      // Sign up the user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -77,7 +78,7 @@ export const SignUp = () => {
       }
 
       if (data?.user) {
-        // Create trial subscription with current timestamp
+        // Create trial subscription
         const trialEndDate = new Date();
         trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
 
