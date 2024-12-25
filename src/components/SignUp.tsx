@@ -76,20 +76,18 @@ export const SignUp = () => {
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14);
 
-      // Create subscription record
+      // Create subscription record with explicit user_id
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
-        .insert([
-          {
-            user_id: authData.user.id,
-            plan_id: planData.id,
-            plan_type: selectedPlan,
-            status: 'trial',
-            trial_end_date: trialEndDate.toISOString(),
-            current_period_start: new Date().toISOString(),
-            current_period_end: trialEndDate.toISOString(),
-          },
-        ]);
+        .insert([{
+          user_id: authData.user.id,
+          plan_id: planData.id,
+          plan_type: selectedPlan,
+          status: 'trial',
+          trial_end_date: trialEndDate.toISOString(),
+          current_period_start: new Date().toISOString(),
+          current_period_end: trialEndDate.toISOString(),
+        }]);
 
       if (subscriptionError) {
         console.error("Subscription error:", subscriptionError);
