@@ -93,7 +93,7 @@ export const SignUp = () => {
 
       console.log("Plan found, creating subscription...");
 
-      // Create trial subscription
+      // Create trial subscription with the authenticated user's ID
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
 
