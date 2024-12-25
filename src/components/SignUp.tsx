@@ -22,14 +22,16 @@ export const SignUp = () => {
     setIsLoading(true);
 
     try {
-      // Check if username already exists
-      const { data: existingUsers } = await supabase
+      // Check if username already exists using maybeSingle() instead of single()
+      const { data: existingUser, error: usernameError } = await supabase
         .from('profiles')
         .select('username')
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
-      if (existingUsers) {
+      if (usernameError) throw usernameError;
+      
+      if (existingUser) {
         toast({
           title: "Username taken",
           description: "This username is already taken. Please choose another one.",
@@ -60,15 +62,16 @@ export const SignUp = () => {
         .from('subscription_plans')
         .select('*')
         .eq('type', selectedPlan)
-        .single();
+        .maybeSingle();
 
       if (planError) throw planError;
+      if (!planData) throw new Error("Selected plan not found");
 
       // Calculate trial end date (14 days from now)
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14);
 
-      // Create subscription record
+      // Create subscription record with user_id explicitly set
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
         .insert([
@@ -83,7 +86,10 @@ export const SignUp = () => {
           },
         ]);
 
-      if (subscriptionError) throw subscriptionError;
+      if (subscriptionError) {
+        console.error("Subscription error:", subscriptionError);
+        throw subscriptionError;
+      }
 
       toast({
         title: "Success",
