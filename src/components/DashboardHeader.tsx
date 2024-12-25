@@ -44,13 +44,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     },
     enabled: !!user?.id,
     retry: 1,
-    onError: (error) => {
-      console.error('Subscription query error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch subscription information",
-        variant: "destructive",
-      });
+    meta: {
+      errorMessage: "Failed to fetch subscription information"
     },
   });
 
