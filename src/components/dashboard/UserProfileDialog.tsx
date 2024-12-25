@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { differenceInDays } from "date-fns";
+import { differenceInDays, parseISO } from "date-fns";
 
 interface UserProfileDialogProps {
   open: boolean;
@@ -20,6 +20,8 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     queryKey: ['subscription', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
+      
+      console.log('Fetching subscription for user:', user.id);
       
       const { data: subscriptionData, error: subscriptionError } = await supabase
         .from('subscriptions')
@@ -40,60 +42,12 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
         throw subscriptionError;
       }
 
-      if (!subscriptionData) {
-        // If no subscription exists, create a trial subscription with monthly plan
-        const { data: plans, error: plansError } = await supabase
-          .from('subscription_plans')
-          .select('*')
-          .eq('type', 'monthly')
-          .maybeSingle();
-
-        if (plansError) {
-          console.error('Error fetching plans:', plansError);
-          throw plansError;
-        }
-
-        if (!plans) {
-          throw new Error('No subscription plans found');
-        }
-
-        const trialEndDate = new Date();
-        trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
-
-        const { data: newSubscription, error: createError } = await supabase
-          .from('subscriptions')
-          .insert([
-            {
-              user_id: user.id,
-              plan_id: plans.id,
-              status: 'trial',
-              plan_type: 'monthly',
-              trial_end_date: trialEndDate.toISOString(),
-            }
-          ])
-          .select(`
-            *,
-            subscription_plans (
-              id,
-              name,
-              type,
-              price
-            )
-          `)
-          .single();
-
-        if (createError) {
-          console.error('Error creating subscription:', createError);
-          throw createError;
-        }
-
-        return newSubscription;
-      }
-
+      console.log('Fetched subscription data:', subscriptionData);
       return subscriptionData;
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    refetchInterval: 1000 * 60 * 60 * 24, // Refetch every 24 hours to update trial days
     retry: 2,
   });
 
@@ -109,7 +63,7 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     
     if (subscription.status === 'trial' && subscription.trial_end_date) {
       const daysLeft = differenceInDays(
-        new Date(subscription.trial_end_date),
+        parseISO(subscription.trial_end_date),
         new Date()
       );
       
