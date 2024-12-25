@@ -68,10 +68,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       setSession(null);
 
-      // Force clear any stored session data
-      await supabase.auth.clearSession();
-
-      // Attempt to sign out without scope parameter
+      // Sign out from all devices
       const { error } = await supabase.auth.signOut();
       
       if (error) {
