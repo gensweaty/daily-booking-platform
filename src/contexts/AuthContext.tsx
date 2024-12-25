@@ -64,27 +64,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
-      // First try to get the current session
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      
-      if (!currentSession) {
-        // If no session exists, just clear local state and redirect
-        setUser(null);
-        setSession(null);
-        navigate('/login', { replace: true });
-        return;
-      }
+      // Clear local state first
+      setUser(null);
+      setSession(null);
 
-      // Attempt to sign out from Supabase
-      const { error } = await supabase.auth.signOut({
-        scope: 'local' // Use local scope to avoid server validation
-      });
+      // Force clear any stored session data
+      await supabase.auth.clearSession();
+
+      // Attempt to sign out without scope parameter
+      const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Sign out error:', error);
         toast({
           title: "Warning",
-          description: "Sign out may not be complete. Please try again.",
+          description: "Sign out may not be complete, but you have been logged out locally.",
           variant: "destructive",
         });
       } else {
@@ -96,15 +90,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.error('Sign out error:', error);
       toast({
-        title: "Error",
-        description: "An error occurred during sign out.",
-        variant: "destructive",
+        title: "Notice",
+        description: "You have been logged out locally.",
       });
     } finally {
-      // Always ensure local state is cleared and user is redirected
-      setUser(null);
-      setSession(null);
-      navigate('/login', { replace: true });
+      // Ensure navigation happens after state updates
+      setTimeout(() => {
+        navigate('/login', { replace: true });
+      }, 0);
     }
   };
 
