@@ -14,6 +14,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
+import { SubscriptionPlans } from "./landing/SubscriptionPlans";
+import { AlertDialog, AlertDialogContent } from "./ui/alert-dialog";
+import { useState, useEffect } from "react";
 
 interface DashboardHeaderProps {
   username: string;
@@ -23,6 +26,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
 
   const { data: subscription, error: subscriptionError } = useQuery({
     queryKey: ['subscription', user?.id],
@@ -49,32 +53,45 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     },
   });
 
+  useEffect(() => {
+    if (subscription?.status === 'trial') {
+      const daysLeft = differenceInDays(
+        new Date(subscription.trial_end_date || ''),
+        new Date()
+      );
+      
+      if (daysLeft <= 0) {
+        setShowSubscriptionDialog(true);
+      }
+    }
+  }, [subscription]);
+
   const getSubscriptionInfo = () => {
-    if (subscriptionError) return { plan: 'Error loading subscription', trialDays: null };
-    if (!subscription) return { plan: 'Loading subscription...', trialDays: null };
+    if (subscriptionError) return "Error loading subscription";
+    if (!subscription) return "Loading subscription...";
 
     if (subscription.status === 'trial' && subscription.trial_end_date) {
       const daysLeft = differenceInDays(
         new Date(subscription.trial_end_date),
         new Date()
       );
-      return {
-        plan: 'Free Trial',
-        trialDays: daysLeft > 0 ? daysLeft : 0
-      };
+      
+      if (daysLeft <= 0) {
+        return "Trial expired";
+      }
+      
+      return `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} remaining in trial`;
     }
 
     if (subscription.status === 'expired') {
-      return {
-        plan: 'Trial Expired',
-        trialDays: null
-      };
+      return "Trial expired";
     }
 
-    return {
-      plan: `${subscription.plan_type.charAt(0).toUpperCase() + subscription.plan_type.slice(1)} Plan`,
-      trialDays: null
-    };
+    if (subscription.status === 'active') {
+      return `${subscription.plan_type.charAt(0).toUpperCase() + subscription.plan_type.slice(1)} Plan`;
+    }
+
+    return "No active subscription";
   };
 
   const handleSignOut = async () => {
@@ -114,74 +131,86 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   };
 
   return (
-    <header className="mb-8">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div className="text-center sm:text-left">
-          <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">Welcome to Taskify Minder Note</h1>
-          <p className="text-foreground">
-            {username ? `Hello ${username}!` : 'Welcome!'} Complete Agile productivity - tasks notes calendar all in one
-          </p>
+    <>
+      <header className="mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="text-center sm:text-left">
+            <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">Welcome to Taskify Minder Note</h1>
+            <p className="text-foreground">
+              {username ? `Hello ${username}!` : 'Welcome!'} Complete Agile productivity - tasks notes calendar all in one
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  className="text-foreground"
+                >
+                  <User className="w-4 h-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>User Profile</DialogTitle>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Email</p>
+                    <p className="text-sm text-muted-foreground">{user?.email}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Username</p>
+                    <p className="text-sm text-muted-foreground">{username}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Subscription Status</p>
+                    <p className="text-sm text-muted-foreground">{getSubscriptionInfo()}</p>
+                  </div>
+                  <div className="pt-4">
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={handleChangePassword}
+                    >
+                      Change Password
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <ThemeToggle />
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2 text-foreground"
+              onClick={handleSignOut}
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="icon"
-                className="text-foreground"
-              >
-                <User className="w-4 h-4" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>User Profile</DialogTitle>
-              </DialogHeader>
-              <div className="py-4 space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Email</p>
-                  <p className="text-sm text-muted-foreground">{user?.email}</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Username</p>
-                  <p className="text-sm text-muted-foreground">{username}</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Subscription Status</p>
-                  {subscription?.status === 'trial' ? (
-                    <div className="text-sm text-muted-foreground">
-                      <p>Free Trial Period</p>
-                      <p className="text-primary">
-                        {getSubscriptionInfo().trialDays} days remaining
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">{getSubscriptionInfo().plan}</p>
-                  )}
-                </div>
-                <div className="pt-4">
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={handleChangePassword}
-                  >
-                    Change Password
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-          <ThemeToggle />
-          <Button 
-            variant="outline" 
-            className="flex items-center gap-2 text-foreground"
-            onClick={handleSignOut}
-          >
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </Button>
-        </div>
-      </div>
-    </header>
+      </header>
+
+      <AlertDialog open={showSubscriptionDialog} onOpenChange={(open) => {
+        // Only allow closing if subscription is active
+        if (subscription?.status === 'active') {
+          setShowSubscriptionDialog(open);
+        }
+      }}>
+        <AlertDialogContent className="max-w-3xl">
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold mb-2">Your Trial Has Expired</h2>
+              <p className="text-muted-foreground">
+                Please choose a subscription plan to continue using Taskify Minder Note
+              </p>
+            </div>
+            <SubscriptionPlans />
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
