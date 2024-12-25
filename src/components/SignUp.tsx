@@ -48,11 +48,13 @@ export const SignUp = () => {
           description: "This username is already taken. Please choose another one.",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
       console.log("Username is available, proceeding with signup...");
 
+      // Sign up the user
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -72,6 +74,7 @@ export const SignUp = () => {
             description: "Too many signup attempts. Please wait a minute before trying again.",
             variant: "destructive",
           });
+          setIsLoading(false);
           return;
         }
         
@@ -96,17 +99,21 @@ export const SignUp = () => {
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
 
+      // Create subscription with the authenticated user's ID
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
-        .insert([{
+        .insert({
           user_id: authData.user.id,
           plan_id: planData.id,
           plan_type: selectedPlan,
           status: 'trial',
           trial_end_date: trialEndDate.toISOString(),
-        }]);
+        });
 
-      if (subscriptionError) throw subscriptionError;
+      if (subscriptionError) {
+        console.error("Subscription creation error:", subscriptionError);
+        throw subscriptionError;
+      }
 
       toast({
         title: "Success",
