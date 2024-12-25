@@ -13,14 +13,16 @@ interface UserProfileDialogProps {
   subscriptionInfo: string;
 }
 
-export const UserProfileDialog = ({ open, onOpenChange, username, subscriptionInfo }: UserProfileDialogProps) => {
+export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const { data: subscription } = useQuery({
+  const { data: subscription, isLoading } = useQuery({
     queryKey: ['subscription', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
+      
+      console.log('Fetching subscription for user:', user.id);
       
       const { data, error } = await supabase
         .from('subscriptions')
@@ -41,13 +43,17 @@ export const UserProfileDialog = ({ open, onOpenChange, username, subscriptionIn
         throw error;
       }
       
+      console.log('Fetched subscription data:', data);
       return data;
     },
     enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    retry: 2,
   });
 
   const getFormattedSubscriptionInfo = () => {
-    if (!subscription) return "Loading subscription...";
+    if (isLoading) return "Loading...";
+    if (!subscription) return "No subscription found";
 
     const plan = subscription.subscription_plans;
     if (!plan) return "Subscription plan not found";
@@ -58,10 +64,14 @@ export const UserProfileDialog = ({ open, onOpenChange, username, subscriptionIn
         new Date()
       );
       
+      if (daysLeft <= 0) {
+        return `${plan.name} (Trial expired)`;
+      }
+      
       return `${plan.name} (${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} remaining in trial)`;
     }
 
-    return plan.name;
+    return `${plan.name} ${subscription.plan_type === 'monthly' ? '(Monthly)' : '(Yearly)'}`;
   };
 
   const handleChangePassword = async () => {
