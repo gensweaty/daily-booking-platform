@@ -2,48 +2,40 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
-import { validatePassword } from "./signupUtils";
-import { SignUpFormProps } from "./types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+
+interface SignUpFormProps {
+  onSubmit: (data: { email: string; username: string; password: string }) => Promise<void>;
+  isLoading: boolean;
+}
 
 export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const { toast } = useToast();
+  const [selectedPlan, setSelectedPlan] = useState("monthly");
+
+  const { data: plans } = useQuery({
+    queryKey: ['subscription-plans'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .order('price', { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (password !== confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Passwords do not match",
-        variant: "destructive",
-      });
       return;
     }
-
-    const passwordError = validatePassword(password);
-    if (passwordError) {
-      toast({
-        title: "Invalid Password",
-        description: passwordError,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (username.length < 3) {
-      toast({
-        title: "Error",
-        description: "Username must be at least 3 characters long",
-        variant: "destructive",
-      });
-      return;
-    }
-
     await onSubmit({ email, username, password });
   };
 
@@ -81,7 +73,7 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
         <Input
           id="password"
           type="password"
-          placeholder="Password (min. 6 characters, include numbers)"
+          placeholder="Password (min. 6 characters)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -101,6 +93,21 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
           className="w-full"
           disabled={isLoading}
         />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="plan">Select Plan</Label>
+        <Select value={selectedPlan} onValueChange={setSelectedPlan}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select a plan" />
+          </SelectTrigger>
+          <SelectContent>
+            {plans?.map((plan) => (
+              <SelectItem key={plan.id} value={plan.type}>
+                {plan.name} - ${plan.price}/{plan.type}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <Button 
         type="submit" 
