@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { differenceInDays } from "date-fns";
 import { DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UserProfileDialog } from "./dashboard/UserProfileDialog";
 import { SubscriptionDialog } from "./dashboard/SubscriptionDialog";
 
@@ -52,7 +52,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     differenceInDays(new Date(subscription.trial_end_date || ''), new Date()) <= 0;
 
   // Show subscription dialog when trial expires
-  useState(() => {
+  useEffect(() => {
     if (isTrialExpired) {
       setShowSubscriptionDialog(true);
     }
