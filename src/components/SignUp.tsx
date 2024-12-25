@@ -40,7 +40,10 @@ export const SignUp = () => {
         .select('username')
         .eq('username', username);
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error("Error checking username:", fetchError);
+        throw fetchError;
+      }
 
       if (existingUsers?.length > 0) {
         toast({
@@ -55,7 +58,7 @@ export const SignUp = () => {
       console.log("Username is available, proceeding with signup...");
 
       // Sign up the user
-      const { data: { user, session }, error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -70,7 +73,8 @@ export const SignUp = () => {
         throw signUpError;
       }
 
-      if (!user || !session) {
+      if (!data?.user) {
+        console.error("No user data returned from signup");
         throw new Error("Failed to create user account");
       }
 
@@ -83,7 +87,10 @@ export const SignUp = () => {
         .eq('type', selectedPlan)
         .single();
 
-      if (planError) throw planError;
+      if (planError) {
+        console.error("Error fetching plan:", planError);
+        throw planError;
+      }
 
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
@@ -92,7 +99,7 @@ export const SignUp = () => {
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
         .insert({
-          user_id: user.id,
+          user_id: data.user.id,
           plan_id: planData.id,
           plan_type: selectedPlan,
           status: 'trial',
