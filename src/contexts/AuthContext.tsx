@@ -50,18 +50,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
-      // Attempt to sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-      
-      // Whether the server-side sign out succeeded or failed,
-      // we want to clear the local state and redirect the user
+      // Clear local state first to ensure UI updates immediately
       setUser(null);
       setSession(null);
-      navigate('/login');
+
+      // Attempt server-side sign out
+      const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Sign out error:', error);
-        // Still show success message since the user is effectively signed out locally
+        // Even with an error, the user is effectively signed out locally
         toast({
           title: "Signed out",
           description: "You have been signed out successfully",
@@ -75,13 +73,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       console.error('Unexpected error during sign out:', error);
       // Ensure user is still signed out locally even if there's an error
-      setUser(null);
-      setSession(null);
-      navigate('/login');
       toast({
         title: "Signed out",
         description: "You have been signed out successfully",
       });
+    } finally {
+      // Always navigate to login page after sign out attempt
+      navigate('/login');
     }
   };
 
