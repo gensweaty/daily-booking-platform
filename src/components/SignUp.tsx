@@ -65,33 +65,28 @@ export const SignUp = () => {
         .from('subscription_plans')
         .select('*')
         .eq('type', selectedPlan)
-        .maybeSingle();
+        .single();
 
       if (planError) throw planError;
-      if (!planData) throw new Error("Selected plan not found");
 
       // Calculate trial end date (14 days from now)
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14);
 
-      // Create subscription record with user_id explicitly set
-      const { error: subscriptionError } = await supabase.auth.getSession().then(async ({ data: { session } }) => {
-        if (!session) throw new Error("No session available");
-        
-        return supabase
-          .from('subscriptions')
-          .insert([
-            {
-              user_id: authData.user.id,
-              plan_id: planData.id,
-              plan_type: selectedPlan,
-              status: 'trial',
-              trial_end_date: trialEndDate.toISOString(),
-              current_period_start: new Date().toISOString(),
-              current_period_end: trialEndDate.toISOString(),
-            },
-          ]);
-      });
+      // Create subscription record
+      const { error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .insert([
+          {
+            user_id: authData.user.id,
+            plan_id: planData.id,
+            plan_type: selectedPlan,
+            status: 'trial',
+            trial_end_date: trialEndDate.toISOString(),
+            current_period_start: new Date().toISOString(),
+            current_period_end: trialEndDate.toISOString(),
+          },
+        ]);
 
       if (subscriptionError) {
         console.error("Subscription error:", subscriptionError);

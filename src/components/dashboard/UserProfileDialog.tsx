@@ -56,34 +56,34 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     
     if (!subscription) {
       console.log('No subscription found for user:', user?.id);
-      return "No subscription found. Please contact support.";
+      return "No active subscription found";
     }
 
     if (!subscription.subscription_plans) {
       console.log('No subscription plan found for subscription:', subscription);
-      return "Subscription plan details not found. Please contact support.";
+      return "Subscription plan details not available";
     }
 
     const plan = subscription.subscription_plans;
-    const planType = subscription.plan_type === 'monthly' ? '(Monthly)' : '(Yearly)';
+    const planType = subscription.plan_type === 'monthly' ? 'Monthly' : 'Yearly';
     
     if (subscription.status === 'trial') {
       const daysLeft = subscription.trial_end_date 
         ? differenceInDays(parseISO(subscription.trial_end_date), new Date())
         : 0;
       
-      return `${plan.name} ${planType} - ${Math.max(0, daysLeft)} days remaining in trial`;
+      return `${plan.name} (${planType}) - ${Math.max(0, daysLeft)} days remaining in trial`;
     }
 
     if (subscription.status === 'active') {
-      return `${plan.name} ${planType} - Active subscription`;
+      return `${plan.name} (${planType}) - Active subscription`;
     }
 
     if (subscription.status === 'expired') {
-      return `${plan.name} ${planType} - Trial expired`;
+      return `${plan.name} (${planType}) - Trial expired`;
     }
 
-    return `${plan.name} ${planType} - ${subscription.status}`;
+    return `${plan.name} (${planType}) - ${subscription.status}`;
   };
 
   const handleChangePassword = async () => {
