@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { differenceInDays } from "date-fns";
 
 interface UserProfileDialogProps {
   open: boolean;
@@ -14,6 +16,53 @@ interface UserProfileDialogProps {
 export const UserProfileDialog = ({ open, onOpenChange, username, subscriptionInfo }: UserProfileDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+
+  const { data: subscription } = useQuery({
+    queryKey: ['subscription', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select(`
+          *,
+          subscription_plans (
+            id,
+            name,
+            type,
+            price
+          )
+        `)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Subscription fetch error:', error);
+        throw error;
+      }
+      
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const getFormattedSubscriptionInfo = () => {
+    if (!subscription) return "Loading subscription...";
+
+    const plan = subscription.subscription_plans;
+    if (!plan) return "Subscription plan not found";
+
+    if (subscription.status === 'trial' && subscription.trial_end_date) {
+      const daysLeft = differenceInDays(
+        new Date(subscription.trial_end_date),
+        new Date()
+      );
+      
+      return `${plan.name} (${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} remaining in trial)`;
+    }
+
+    return plan.name;
+  };
 
   const handleChangePassword = async () => {
     try {
@@ -54,7 +103,7 @@ export const UserProfileDialog = ({ open, onOpenChange, username, subscriptionIn
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium">Subscription Status</p>
-            <p className="text-sm text-muted-foreground">{subscriptionInfo}</p>
+            <p className="text-sm text-muted-foreground">{getFormattedSubscriptionInfo()}</p>
           </div>
           <div className="pt-4">
             <Button 
