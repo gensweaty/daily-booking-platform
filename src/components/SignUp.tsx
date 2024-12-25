@@ -41,6 +41,7 @@ export const SignUp = () => {
           description: "This username is already taken. Please choose another one.",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
@@ -64,38 +65,6 @@ export const SignUp = () => {
       // Add a longer delay to ensure profile creation and session establishment
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Get the current session with retries
-      let session = null;
-      let retryCount = 0;
-      const maxRetries = 3;
-
-      while (!session && retryCount < maxRetries) {
-        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error(`Session error (attempt ${retryCount + 1}):`, sessionError);
-          retryCount++;
-          if (retryCount < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            continue;
-          }
-          throw sessionError;
-        }
-
-        if (currentSession) {
-          session = currentSession;
-          break;
-        }
-
-        retryCount++;
-        if (retryCount < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-
-      // Even if we don't get a session immediately, we can still proceed with subscription creation
-      // as the user has been created successfully
-
       // Fetch the selected plan details
       const { data: planData, error: planError } = await supabase
         .from('subscription_plans')
@@ -112,20 +81,15 @@ export const SignUp = () => {
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14);
 
-      // Create subscription record
-      const { error: subscriptionError } = await supabase
-        .from('subscriptions')
-        .insert([{
-          user_id: authData.user.id,
-          plan_id: planData.id,
-          plan_type: selectedPlan,
-          status: 'trial',
-          trial_end_date: trialEndDate.toISOString(),
-          current_period_start: new Date().toISOString(),
-          current_period_end: trialEndDate.toISOString(),
-        }])
-        .select()
-        .single();
+      // Create subscription record with explicit WITH auth.uid()
+      const { error: subscriptionError } = await supabase.rpc('create_subscription', {
+        p_user_id: authData.user.id,
+        p_plan_id: planData.id,
+        p_plan_type: selectedPlan,
+        p_trial_end_date: trialEndDate.toISOString(),
+        p_current_period_start: new Date().toISOString(),
+        p_current_period_end: trialEndDate.toISOString()
+      });
 
       if (subscriptionError) {
         console.error("Subscription creation error:", subscriptionError);
