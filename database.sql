@@ -35,7 +35,18 @@ $$;
 -- Add RLS policies for subscription_plans if not already present
 ALTER TABLE subscription_plans ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Enable read access for all users"
-ON subscription_plans FOR SELECT
-TO authenticated
-USING (true);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_policies
+        WHERE tablename = 'subscription_plans'
+        AND policyname = 'Enable read access for all users'
+    ) THEN
+        CREATE POLICY "Enable read access for all users"
+        ON subscription_plans FOR SELECT
+        TO authenticated
+        USING (true);
+    END IF;
+END
+$$;
