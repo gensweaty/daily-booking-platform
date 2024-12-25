@@ -61,14 +61,39 @@ export const SignUp = () => {
         throw new Error("User ID not available after signup");
       }
 
-      // Add a delay to allow the profile trigger to complete
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Add a longer delay to ensure profile creation and session establishment
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Get the current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        console.error("Session error:", sessionError);
+      // Get the current session with retries
+      let session = null;
+      let retryCount = 0;
+      const maxRetries = 3;
+
+      while (!session && retryCount < maxRetries) {
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error(`Session error (attempt ${retryCount + 1}):`, sessionError);
+          retryCount++;
+          if (retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+          }
+          throw new Error("Failed to get session after multiple attempts");
+        }
+
+        if (currentSession) {
+          session = currentSession;
+          break;
+        }
+
+        retryCount++;
+        if (retryCount < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      if (!session) {
         throw new Error("Failed to get session after signup");
       }
 
