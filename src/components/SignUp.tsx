@@ -65,6 +65,13 @@ export const SignUp = () => {
         throw new Error('Failed to create user account');
       }
 
+      // Wait for the session to be established
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('Failed to establish session');
+      }
+
       // Get the plan_id for the selected plan type
       const { data: planData, error: planError } = await supabase
         .from('subscription_plans')
@@ -81,14 +88,14 @@ export const SignUp = () => {
         throw new Error('Selected plan not found');
       }
 
-      // Create trial subscription using the new session
+      // Create trial subscription using the authenticated session
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
 
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
         .insert([{
-          user_id: authData.user.id,
+          user_id: session.user.id, // Use the session user ID
           plan_id: planData.id,
           plan_type: selectedPlan,
           status: 'trial',
