@@ -21,7 +21,9 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     queryFn: async () => {
       if (!user?.id) return null;
       
-      const { data: subscriptionData, error: subscriptionError } = await supabase
+      console.log('Fetching subscription for user:', user.id);
+      
+      const { data, error } = await supabase
         .from('subscriptions')
         .select(`
           *,
@@ -35,12 +37,13 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (subscriptionError) {
-        console.error('Subscription fetch error:', subscriptionError);
-        throw subscriptionError;
+      if (error) {
+        console.error('Subscription fetch error:', error);
+        throw error;
       }
-
-      return subscriptionData;
+      
+      console.log('Fetched subscription data:', data);
+      return data;
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
@@ -51,18 +54,23 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
   const getFormattedSubscriptionInfo = () => {
     if (isLoading) return "Loading subscription info...";
     
-    if (!subscription || !subscription.subscription_plans) {
-      return "Loading subscription details...";
+    if (!subscription) {
+      console.log('No subscription found for user:', user?.id);
+      return "No subscription found. Please contact support.";
+    }
+
+    if (!subscription.subscription_plans) {
+      console.log('No subscription plan found for subscription:', subscription);
+      return "Subscription plan details not found. Please contact support.";
     }
 
     const plan = subscription.subscription_plans;
     const planType = subscription.plan_type === 'monthly' ? '(Monthly)' : '(Yearly)';
     
-    if (subscription.status === 'trial' && subscription.trial_end_date) {
-      const daysLeft = differenceInDays(
-        parseISO(subscription.trial_end_date),
-        new Date()
-      );
+    if (subscription.status === 'trial') {
+      const daysLeft = subscription.trial_end_date 
+        ? differenceInDays(parseISO(subscription.trial_end_date), new Date())
+        : 0;
       
       return `${plan.name} ${planType} - ${Math.max(0, daysLeft)} days remaining in trial`;
     }
