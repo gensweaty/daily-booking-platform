@@ -40,56 +40,50 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       console.log('Auth state changed:', _event, newSession);
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setLoading(false);
-
-      if (_event === 'SIGNED_IN') {
-        // Verify the session is valid
-        const { data: { user: currentUser }, error } = await supabase.auth.getUser();
-        if (error || !currentUser) {
-          console.error('Session verification failed:', error);
-          setUser(null);
-          setSession(null);
-          navigate('/login');
-          return;
-        }
-      }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, []);
 
   const signOut = async () => {
     try {
+      // Clear local state first
+      setUser(null);
+      setSession(null);
+
+      // Attempt to sign out from Supabase
       const { error } = await supabase.auth.signOut();
+      
       if (error) {
         console.error('Sign out error:', error);
+        // Even if server-side sign out fails, we've already cleared local state
         toast({
-          title: "Error",
-          description: "Failed to sign out completely. Please try again.",
-          variant: "destructive",
+          title: "Partial Sign Out",
+          description: "You have been signed out locally. Some server-side cleanup may have failed.",
         });
       } else {
-        setUser(null);
-        setSession(null);
         toast({
           title: "Success",
           description: "You have been signed out successfully",
         });
-        navigate('/login', { replace: true });
       }
     } catch (error) {
       console.error('Sign out error:', error);
+      // Even if there's an error, we want to ensure the user is signed out locally
       toast({
-        title: "Error",
-        description: "An unexpected error occurred during sign out.",
-        variant: "destructive",
+        title: "Partial Sign Out",
+        description: "You have been signed out locally. Some server-side cleanup may have failed.",
       });
+    } finally {
+      // Always navigate to login page and replace the current history entry
+      navigate('/login', { replace: true });
     }
   };
 
