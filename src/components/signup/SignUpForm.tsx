@@ -17,8 +17,9 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("monthly");
+  const [error, setError] = useState("");
 
-  const { data: plans } = useQuery({
+  const { data: plans, isLoading: plansLoading } = useQuery({
     queryKey: ['subscription-plans'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -33,14 +34,32 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+
     if (password !== confirmPassword) {
+      setError("Passwords do not match");
       return;
     }
-    await onSubmit({ email, username, password, selectedPlan });
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long");
+      return;
+    }
+
+    try {
+      await onSubmit({ email, username, password, selectedPlan });
+    } catch (err: any) {
+      setError(err.message || "An error occurred during signup");
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
+          {error}
+        </div>
+      )}
       <div className="space-y-2">
         <Label htmlFor="username">Username</Label>
         <Input
@@ -77,6 +96,7 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          minLength={6}
           className="w-full"
           disabled={isLoading}
         />
@@ -96,7 +116,11 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
       </div>
       <div className="space-y-2">
         <Label htmlFor="plan">Select Plan</Label>
-        <Select value={selectedPlan} onValueChange={setSelectedPlan}>
+        <Select 
+          value={selectedPlan} 
+          onValueChange={setSelectedPlan}
+          disabled={isLoading || plansLoading}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Select a plan" />
           </SelectTrigger>

@@ -7,7 +7,12 @@ export const SignUp = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSignUp = async ({ email, username, password, selectedPlan }: { 
+  const handleSignUp = async ({ 
+    email, 
+    username, 
+    password, 
+    selectedPlan 
+  }: { 
     email: string; 
     username: string; 
     password: string;
