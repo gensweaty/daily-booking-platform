@@ -22,7 +22,7 @@ export const SignUp = () => {
     setIsLoading(true);
 
     try {
-      // Check if username already exists using maybeSingle() instead of single()
+      // Check if username already exists using maybeSingle()
       const { data: existingUser, error: usernameError } = await supabase
         .from('profiles')
         .select('username')
@@ -40,8 +40,8 @@ export const SignUp = () => {
         return;
       }
 
-      // Sign up the user
-      const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+      // First, sign up the user and wait for completion
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password: password.trim(),
         options: {
@@ -53,9 +53,12 @@ export const SignUp = () => {
 
       if (signUpError) throw signUpError;
 
-      if (!user?.id) {
+      if (!authData.user?.id) {
         throw new Error("User ID not available after signup");
       }
+
+      // Wait for the profile to be created via trigger
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Fetch the selected plan details
       const { data: planData, error: planError } = await supabase
@@ -72,19 +75,23 @@ export const SignUp = () => {
       trialEndDate.setDate(trialEndDate.getDate() + 14);
 
       // Create subscription record with user_id explicitly set
-      const { error: subscriptionError } = await supabase
-        .from('subscriptions')
-        .insert([
-          {
-            user_id: user.id,
-            plan_id: planData.id,
-            plan_type: selectedPlan,
-            status: 'trial',
-            trial_end_date: trialEndDate.toISOString(),
-            current_period_start: new Date().toISOString(),
-            current_period_end: trialEndDate.toISOString(),
-          },
-        ]);
+      const { error: subscriptionError } = await supabase.auth.getSession().then(async ({ data: { session } }) => {
+        if (!session) throw new Error("No session available");
+        
+        return supabase
+          .from('subscriptions')
+          .insert([
+            {
+              user_id: authData.user.id,
+              plan_id: planData.id,
+              plan_type: selectedPlan,
+              status: 'trial',
+              trial_end_date: trialEndDate.toISOString(),
+              current_period_start: new Date().toISOString(),
+              current_period_end: trialEndDate.toISOString(),
+            },
+          ]);
+      });
 
       if (subscriptionError) {
         console.error("Subscription error:", subscriptionError);
