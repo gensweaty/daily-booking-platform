@@ -18,6 +18,8 @@ export const SignUp = () => {
     setIsLoading(true);
     
     try {
+      console.log("Starting signup process...");
+
       // Check if username already exists
       const { data: existingUsers, error: fetchError } = await supabase
         .from('profiles')
@@ -25,6 +27,7 @@ export const SignUp = () => {
         .eq('username', username);
 
       if (fetchError) {
+        console.error("Error checking username:", fetchError);
         throw fetchError;
       }
 
@@ -37,7 +40,9 @@ export const SignUp = () => {
         return;
       }
 
-      // Sign up the user first
+      console.log("Username is available, proceeding with signup...");
+
+      // Sign up the user
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -49,6 +54,7 @@ export const SignUp = () => {
       });
       
       if (signUpError) {
+        console.error("Signup error:", signUpError);
         if (signUpError.message.includes("User already registered")) {
           toast({
             title: "Error",
@@ -62,15 +68,43 @@ export const SignUp = () => {
       }
 
       if (!authData.user) {
+        console.error("No user data returned");
         throw new Error('Failed to create user account');
       }
 
-      // Wait for the session to be established
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        throw new Error('Failed to establish session');
+      console.log("User signed up successfully, waiting for session...");
+
+      // Wait for the session to be established with retry logic
+      let session = null;
+      let retryCount = 0;
+      const maxRetries = 3;
+
+      while (!session && retryCount < maxRetries) {
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error("Session error:", sessionError);
+          throw sessionError;
+        }
+
+        if (currentSession) {
+          session = currentSession;
+          break;
+        }
+
+        retryCount++;
+        if (retryCount < maxRetries) {
+          console.log(`Retrying session check... (${retryCount}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+        }
       }
+
+      if (!session) {
+        console.error("Failed to establish session after retries");
+        throw new Error('Failed to establish session after multiple attempts');
+      }
+
+      console.log("Session established, fetching plan data...");
 
       // Get the plan_id for the selected plan type
       const { data: planData, error: planError } = await supabase
@@ -80,13 +114,16 @@ export const SignUp = () => {
         .single();
 
       if (planError) {
-        console.error('Error fetching plan:', planError);
+        console.error("Error fetching plan:", planError);
         throw planError;
       }
 
       if (!planData?.id) {
+        console.error("No plan found for type:", selectedPlan);
         throw new Error('Selected plan not found');
       }
+
+      console.log("Plan found, creating subscription...");
 
       // Create trial subscription using the authenticated session
       const trialEndDate = new Date();
@@ -95,7 +132,7 @@ export const SignUp = () => {
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
         .insert([{
-          user_id: session.user.id, // Use the session user ID
+          user_id: session.user.id,
           plan_id: planData.id,
           plan_type: selectedPlan,
           status: 'trial',
@@ -103,13 +140,14 @@ export const SignUp = () => {
         }]);
 
       if (subscriptionError) {
-        console.error('Error creating subscription:', subscriptionError);
+        console.error("Error creating subscription:", subscriptionError);
         toast({
           title: "Warning",
           description: "Account created but there was an issue setting up your trial. Please contact support.",
           variant: "destructive",
         });
       } else {
+        console.log("Subscription created successfully");
         toast({
           title: "Success",
           description: "Please check your email (including spam folder) to confirm your account before signing in.",
