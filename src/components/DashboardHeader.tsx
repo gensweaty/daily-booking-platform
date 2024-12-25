@@ -22,6 +22,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const navigate = useNavigate();
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const { data: subscription, error: subscriptionError } = useQuery({
     queryKey: ['subscription', user?.id],
@@ -69,16 +70,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   }, [isTrialExpired]);
 
   const handleSignOut = async () => {
+    if (isSigningOut) return;
+    
+    setIsSigningOut(true);
     try {
       await signOut();
-      navigate('/login');
     } catch (error) {
       console.error('Sign out error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to sign out. Please try again.",
-        variant: "destructive",
-      });
+      // No need to show a toast here as it's handled in the AuthContext
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
@@ -110,9 +111,10 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             variant="outline" 
             className="flex items-center gap-2 text-foreground"
             onClick={handleSignOut}
+            disabled={isSigningOut}
           >
             <LogOut className="w-4 h-4" />
-            Sign Out
+            {isSigningOut ? "Signing out..." : "Sign Out"}
           </Button>
         </div>
       </div>
