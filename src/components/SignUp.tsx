@@ -27,9 +27,12 @@ export const SignUp = () => {
         .from('profiles')
         .select('username')
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
-      if (usernameError && usernameError.code !== 'PGRST116') throw usernameError;
+      if (usernameError) {
+        console.error('Username check error:', usernameError);
+        throw usernameError;
+      }
       
       if (existingUser) {
         toast({
