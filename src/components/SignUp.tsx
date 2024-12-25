@@ -55,6 +55,17 @@ export const SignUp = () => {
       
       if (signUpError) {
         console.error("Signup error:", signUpError);
+        
+        // Handle rate limit error specifically
+        if (signUpError.message.includes("rate limit exceeded")) {
+          toast({
+            title: "Too Many Attempts",
+            description: "Please wait a few minutes before trying to sign up again.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
         if (signUpError.message.includes("User already registered")) {
           toast({
             title: "Error",
