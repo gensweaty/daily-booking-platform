@@ -33,7 +33,7 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
           )
         `)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Subscription fetch error:', error);
@@ -52,13 +52,12 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     if (isLoading) return "Loading subscription details...";
     
     if (!subscription) {
-      console.log('No subscription found for user:', user?.id);
-      return "Loading subscription details...";
+      return "No active subscription found";
     }
 
     if (!subscription.subscription_plans) {
       console.log('No subscription plan found for subscription:', subscription);
-      return "Loading subscription details...";
+      return "Subscription plan details not available";
     }
 
     const plan = subscription.subscription_plans;
