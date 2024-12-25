@@ -99,21 +99,15 @@ export const SignUp = () => {
       trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
 
       // Create subscription with trial period
-      const { error: subscriptionError } = await supabase.auth.getSession().then(async ({ data: { session } }) => {
-        if (!session) {
-          throw new Error("No session available");
-        }
-
-        return supabase
-          .from('subscriptions')
-          .insert({
-            user_id: authData.user.id,
-            plan_id: planData.id,
-            plan_type: selectedPlan,
-            status: 'trial',
-            trial_end_date: trialEndDate.toISOString(),
-          });
-      });
+      const { error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .insert({
+          user_id: authData.user.id,
+          plan_id: planData.id,
+          plan_type: selectedPlan,
+          status: 'trial',
+          trial_end_date: trialEndDate.toISOString(),
+        });
 
       if (subscriptionError) {
         console.error("Subscription creation error:", subscriptionError);
@@ -122,10 +116,12 @@ export const SignUp = () => {
 
       console.log("Subscription created successfully");
 
+      // Show success message about email confirmation
       toast({
-        title: "Success",
-        description: "Check your email to confirm your account.",
+        title: "Sign Up Successful",
+        description: "Please check your email to confirm your account. The confirmation email might be in your spam folder.",
       });
+      
     } catch (error: any) {
       console.error("Signup error:", error);
       toast({
