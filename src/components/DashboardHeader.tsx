@@ -51,7 +51,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
 
   const getSubscriptionInfo = () => {
     if (subscriptionError) return { plan: 'Error loading subscription', trialDays: null };
-    if (!subscription) return { plan: 'No active subscription', trialDays: null };
+    if (!subscription) return { plan: 'Loading subscription...', trialDays: null };
 
     if (subscription.status === 'trial' && subscription.trial_end_date) {
       const daysLeft = differenceInDays(
@@ -64,13 +64,18 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       };
     }
 
+    if (subscription.status === 'expired') {
+      return {
+        plan: 'Trial Expired',
+        trialDays: null
+      };
+    }
+
     return {
       plan: `${subscription.plan_type.charAt(0).toUpperCase() + subscription.plan_type.slice(1)} Plan`,
       trialDays: null
     };
   };
-
-  const { plan, trialDays } = getSubscriptionInfo();
 
   const handleSignOut = async () => {
     try {
@@ -142,12 +147,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   <p className="text-sm text-muted-foreground">{username}</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Subscription</p>
-                  <p className="text-sm text-muted-foreground">{plan}</p>
-                  {trialDays !== null && (
-                    <p className="text-sm text-muted-foreground">
-                      {trialDays} days left in trial
-                    </p>
+                  <p className="text-sm font-medium">Subscription Status</p>
+                  {subscription?.status === 'trial' ? (
+                    <div className="text-sm text-muted-foreground">
+                      <p>Free Trial Period</p>
+                      <p className="text-primary">
+                        {getSubscriptionInfo().trialDays} days remaining
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{getSubscriptionInfo().plan}</p>
                   )}
                 </div>
                 <div className="pt-4">
