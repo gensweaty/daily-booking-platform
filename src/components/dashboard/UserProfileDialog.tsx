@@ -21,8 +21,6 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     queryFn: async () => {
       if (!user?.id) return null;
       
-      console.log('Fetching subscription for user:', user.id);
-      
       const { data: subscriptionData, error: subscriptionError } = await supabase
         .from('subscriptions')
         .select(`
@@ -42,7 +40,6 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
         throw subscriptionError;
       }
 
-      console.log('Fetched subscription data:', subscriptionData);
       return subscriptionData;
     },
     enabled: !!user?.id,
@@ -55,7 +52,7 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     if (isLoading) return "Loading subscription info...";
     
     if (!subscription || !subscription.subscription_plans) {
-      return "No subscription found";
+      return "No active subscription";
     }
 
     const plan = subscription.subscription_plans;
@@ -67,15 +64,15 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
         new Date()
       );
       
-      if (daysLeft <= 0) {
-        return `${plan.name} ${planType} - Trial expired`;
-      }
-      
-      return `${plan.name} ${planType} - ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} remaining in trial`;
+      return `${plan.name} ${planType} - ${Math.max(0, daysLeft)} days remaining in trial`;
     }
 
     if (subscription.status === 'active') {
-      return `${plan.name} ${planType} - Active`;
+      return `${plan.name} ${planType} - Active subscription`;
+    }
+
+    if (subscription.status === 'expired') {
+      return `${plan.name} ${planType} - Trial expired`;
     }
 
     return `${plan.name} ${planType} - ${subscription.status}`;
