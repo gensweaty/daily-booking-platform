@@ -52,7 +52,7 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     if (isLoading) return "Loading subscription details...";
     
     if (!subscription) {
-      return "No active subscription found";
+      return "No subscription data available. Please contact support.";
     }
 
     if (!subscription.subscription_plans) {
@@ -64,11 +64,21 @@ export const UserProfileDialog = ({ open, onOpenChange, username }: UserProfileD
     const planType = subscription.plan_type === 'monthly' ? 'Monthly' : 'Yearly';
     
     if (subscription.status === 'trial') {
-      const daysLeft = subscription.trial_end_date 
-        ? differenceInDays(parseISO(subscription.trial_end_date), new Date())
-        : 0;
+      const trialEndDate = subscription.trial_end_date 
+        ? parseISO(subscription.trial_end_date)
+        : null;
       
-      return `${plan.name} (${planType}) - ${Math.max(0, daysLeft)} days remaining in trial`;
+      if (!trialEndDate) {
+        return `${plan.name} (${planType}) - Trial period information unavailable`;
+      }
+
+      const daysLeft = differenceInDays(trialEndDate, new Date());
+      
+      if (daysLeft < 0) {
+        return `${plan.name} (${planType}) - Trial expired`;
+      }
+
+      return `${plan.name} (${planType}) - ${daysLeft} days remaining in trial`;
     }
 
     if (subscription.status === 'active') {
