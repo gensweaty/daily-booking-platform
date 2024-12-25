@@ -29,7 +29,10 @@ export const SignUp = () => {
         .eq('username', username)
         .single();
 
-      if (usernameError && usernameError.code !== 'PGRST116') throw usernameError;
+      if (usernameError && usernameError.code !== 'PGRST116') {
+        console.error("Username check error:", usernameError);
+        throw usernameError;
+      }
       
       if (existingUser) {
         toast({
@@ -37,6 +40,7 @@ export const SignUp = () => {
           description: "This username is already taken. Please choose another one.",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
@@ -51,14 +55,14 @@ export const SignUp = () => {
         },
       });
 
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        console.error("Sign up error:", signUpError);
+        throw signUpError;
+      }
 
       if (!authData.user?.id) {
         throw new Error("User ID not available after signup");
       }
-
-      // Wait for the profile to be created via trigger
-      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Fetch the selected plan details
       const { data: planData, error: planError } = await supabase
@@ -67,7 +71,10 @@ export const SignUp = () => {
         .eq('type', selectedPlan)
         .single();
 
-      if (planError) throw planError;
+      if (planError) {
+        console.error("Plan fetch error:", planError);
+        throw planError;
+      }
 
       // Calculate trial end date (14 days from now)
       const trialEndDate = new Date();
@@ -89,7 +96,7 @@ export const SignUp = () => {
         ]);
 
       if (subscriptionError) {
-        console.error("Subscription error:", subscriptionError);
+        console.error("Subscription creation error:", subscriptionError);
         throw subscriptionError;
       }
 
@@ -99,7 +106,7 @@ export const SignUp = () => {
       });
 
     } catch (error: any) {
-      console.error("Signup error:", error);
+      console.error("Signup process error:", error);
       toast({
         title: "Error",
         description: error.message || "An unexpected error occurred",
