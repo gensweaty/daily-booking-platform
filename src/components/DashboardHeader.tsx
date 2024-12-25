@@ -24,22 +24,38 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const { data: subscription } = useQuery({
+  const { data: subscription, error: subscriptionError } = useQuery({
     queryKey: ['subscription', user?.id],
     queryFn: async () => {
+      if (!user?.id) return null;
+      
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Subscription fetch error:', error);
+        throw error;
+      }
+      
       return data;
     },
-    enabled: !!user,
+    enabled: !!user?.id,
+    retry: 1,
+    onError: (error) => {
+      console.error('Subscription query error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch subscription information",
+        variant: "destructive",
+      });
+    },
   });
 
   const getSubscriptionInfo = () => {
+    if (subscriptionError) return { plan: 'Error loading subscription', trialDays: null };
     if (!subscription) return { plan: 'No active subscription', trialDays: null };
 
     if (subscription.status === 'trial' && subscription.trial_end_date) {
