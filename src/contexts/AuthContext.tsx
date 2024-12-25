@@ -27,7 +27,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+    supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
+      if (error) {
+        console.error('Initial session error:', error);
+        setLoading(false);
+        return;
+      }
       console.log('Initial session:', initialSession);
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
@@ -35,48 +40,56 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       console.log('Auth state changed:', _event, newSession);
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setLoading(false);
+
+      if (_event === 'SIGNED_IN') {
+        // Verify the session is valid
+        const { data: { user: currentUser }, error } = await supabase.auth.getUser();
+        if (error || !currentUser) {
+          console.error('Session verification failed:', error);
+          setUser(null);
+          setSession(null);
+          navigate('/login');
+          return;
+        }
+      }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   const signOut = async () => {
     try {
-      // Clear local state immediately
-      setUser(null);
-      setSession(null);
-
-      // Attempt server-side sign out with error handling
-      const { error } = await supabase.auth.signOut({
-        scope: 'local'  // Only clear local session
-      });
-      
+      const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('Sign out error:', error);
-        // Continue with local sign out even if server-side fails
+        toast({
+          title: "Error",
+          description: "Failed to sign out completely. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        setUser(null);
+        setSession(null);
+        toast({
+          title: "Success",
+          description: "You have been signed out successfully",
+        });
+        navigate('/login', { replace: true });
       }
-
-      toast({
-        title: "Success",
-        description: "You have been signed out successfully",
-      });
-
     } catch (error) {
       console.error('Sign out error:', error);
       toast({
-        title: "Signed out",
-        description: "You have been signed out locally",
+        title: "Error",
+        description: "An unexpected error occurred during sign out.",
+        variant: "destructive",
       });
-    } finally {
-      // Always navigate to login page and replace the current history entry
-      navigate('/login', { replace: true });
     }
   };
 
