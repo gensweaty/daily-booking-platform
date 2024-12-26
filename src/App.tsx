@@ -36,12 +36,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
     return <div>Loading...</div>;
   }
   
-  // Only redirect to dashboard if user is authenticated and trying to access auth-related pages
-  const isAuthPage = window.location.pathname === '/login' || 
-                    window.location.pathname === '/signup' || 
-                    window.location.pathname === '/forgot-password';
-  
-  if (user && isAuthPage) {
+  if (user && window.location.pathname !== '/reset-password') {
     return <Navigate to="/dashboard" />;
   }
   

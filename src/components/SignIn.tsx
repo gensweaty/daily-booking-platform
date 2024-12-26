@@ -15,16 +15,22 @@ export const SignIn = () => {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('Session check error:', error);
-        return;
-      }
-      if (session?.user) {
-        navigate("/dashboard");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate("/");
       }
     };
     checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        navigate("/");
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -39,7 +45,7 @@ export const SignIn = () => {
       
       console.log("Attempting sign in with email:", trimmedEmail);
       
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
       });
@@ -66,12 +72,11 @@ export const SignIn = () => {
             variant: "destructive",
           });
         }
-      } else if (data.session) {
+      } else {
         toast({
           title: "Success",
           description: "Signed in successfully",
         });
-        navigate("/dashboard");
       }
     } catch (error: any) {
       console.error("Unexpected error during sign in:", error);

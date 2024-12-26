@@ -4,13 +4,14 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { differenceInDays } from "date-fns";
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
-import { useState, useEffect } from "react";
-import { UserProfileDialog } from "./dashboard/UserProfileDialog";
-import { SubscriptionDialog } from "./dashboard/SubscriptionDialog";
 
 interface DashboardHeaderProps {
   username: string;
@@ -20,53 +21,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [showUserProfile, setShowUserProfile] = useState(false);
-  const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
-
-  const { data: subscription, error: subscriptionError } = useQuery({
-    queryKey: ['subscription', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      
-      console.log('Fetching subscription for user:', user.id);
-      
-      const { data, error } = await supabase
-        .from('subscriptions')
-        .select(`
-          *,
-          subscription_plans (
-            id,
-            name,
-            type,
-            price
-          )
-        `)
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Subscription fetch error:', error);
-        throw error;
-      }
-      
-      console.log('Fetched subscription data:', data);
-      return data;
-    },
-    enabled: !!user?.id,
-    retry: 1,
-    meta: {
-      errorMessage: "Failed to fetch subscription information"
-    },
-  });
-
-  const isTrialExpired = subscription?.status === 'trial' && 
-    differenceInDays(new Date(subscription.trial_end_date || ''), new Date()) <= 0;
-
-  useEffect(() => {
-    if (isTrialExpired) {
-      setShowSubscriptionDialog(true);
-    }
-  }, [isTrialExpired]);
 
   const handleSignOut = async () => {
     try {
@@ -82,19 +36,39 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
   };
 
+  const handleChangePassword = async () => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user?.email || '', {
+        redirectTo: 'https://daily-booking-platform.lovable.app/reset-password',
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password Reset Email Sent",
+        description: "Please check your email for the password reset link.",
+      });
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send password reset email. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <header className="mb-8">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <div className="text-center sm:text-left">
-          <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">
-            Welcome to Taskify Minder Note
-          </h1>
+          <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">Welcome to Taskify Minder Note</h1>
           <p className="text-foreground">
             {username ? `Hello ${username}!` : 'Welcome!'} Complete Agile productivity - tasks notes calendar all in one
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Dialog open={showUserProfile} onOpenChange={setShowUserProfile}>
+          <Dialog>
             <DialogTrigger asChild>
               <Button 
                 variant="outline" 
@@ -104,6 +78,34 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 <User className="w-4 h-4" />
               </Button>
             </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>User Profile</DialogTitle>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Email</p>
+                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Username</p>
+                  <p className="text-sm text-muted-foreground">{username}</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Package</p>
+                  <p className="text-sm text-muted-foreground">Free Plan</p>
+                </div>
+                <div className="pt-4">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={handleChangePassword}
+                  >
+                    Change Password
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
           </Dialog>
           <ThemeToggle />
           <Button 
@@ -116,18 +118,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           </Button>
         </div>
       </div>
-
-      <UserProfileDialog 
-        open={showUserProfile}
-        onOpenChange={setShowUserProfile}
-        username={username}
-      />
-
-      <SubscriptionDialog 
-        open={showSubscriptionDialog}
-        onOpenChange={setShowSubscriptionDialog}
-        isTrialExpired={isTrialExpired}
-      />
     </header>
   );
 };

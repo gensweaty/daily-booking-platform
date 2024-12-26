@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/components/ui/use-toast";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
@@ -24,74 +24,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
-      if (error) {
-        console.error('Initial session error:', error);
-        setLoading(false);
-        return;
-      }
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       console.log('Initial session:', initialSession);
-      if (initialSession) {
-        setSession(initialSession);
-        setUser(initialSession.user);
-      }
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
       setLoading(false);
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       console.log('Auth state changed:', _event, newSession);
-      
-      if (_event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
-        navigate('/login', { replace: true });
-      } else if (newSession) {
-        setSession(newSession);
-        setUser(newSession.user);
-      }
-      
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
       setLoading(false);
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, []);
 
   const signOut = async () => {
     try {
-      // Clear local state first
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
       setUser(null);
       setSession(null);
-
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('Sign out error:', error);
-        toast({
-          title: "Warning",
-          description: "Sign out may not be complete, but you have been logged out locally.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "You have been signed out successfully",
-        });
-      }
-
-      // Force navigation to login page
-      navigate('/login', { replace: true });
-    } catch (error) {
+      toast({
+        title: "Success",
+        description: "Signed out successfully",
+      });
+      navigate('/login');
+    } catch (error: any) {
       console.error('Sign out error:', error);
       toast({
         title: "Error",
-        description: "An error occurred during sign out. Please try again.",
+        description: error.message,
         variant: "destructive",
       });
     }

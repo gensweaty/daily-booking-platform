@@ -1,52 +1,39 @@
--- Create a function to handle subscription creation with proper authentication
-CREATE OR REPLACE FUNCTION create_subscription(
-  p_user_id UUID,
-  p_plan_id UUID,
-  p_plan_type VARCHAR,
-  p_trial_end_date TIMESTAMPTZ,
-  p_current_period_start TIMESTAMPTZ,
-  p_current_period_end TIMESTAMPTZ
-) RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  INSERT INTO subscriptions (
-    user_id,
-    plan_id,
-    plan_type,
-    status,
-    trial_end_date,
-    current_period_start,
-    current_period_end
-  ) VALUES (
-    p_user_id,
-    p_plan_id,
-    p_plan_type,
-    'trial',
-    p_trial_end_date,
-    p_current_period_start,
-    p_current_period_end
-  );
-END;
-$$;
+-- Add color column to notes table
+ALTER TABLE notes ADD COLUMN IF NOT EXISTS color VARCHAR(255);
 
--- Add RLS policies for subscription_plans if not already present
-ALTER TABLE subscription_plans ENABLE ROW LEVEL SECURITY;
+-- Create events table
+CREATE TABLE IF NOT EXISTS events (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    start_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    location VARCHAR(255),
+    type VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    user_id UUID REFERENCES auth.users(id)
+);
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_policies
-        WHERE tablename = 'subscription_plans'
-        AND policyname = 'Enable read access for all users'
-    ) THEN
-        CREATE POLICY "Enable read access for all users"
-        ON subscription_plans FOR SELECT
-        TO authenticated
-        USING (true);
-    END IF;
-END
-$$;
+-- Add RLS policies for events table
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Enable read access for authenticated users" ON events
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Enable insert access for authenticated users" ON events
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Enable update access for users based on user_id" ON events
+    FOR UPDATE
+    TO authenticated
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Enable delete access for users based on user_id" ON events
+    FOR DELETE
+    TO authenticated
+    USING (auth.uid() = user_id);
