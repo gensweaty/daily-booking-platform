@@ -4,11 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { subscriptionService } from "@/services/subscriptionService";
 import { useToast } from "@/components/ui/use-toast";
 
 interface SignUpFormProps {
-  onSubmit: (data: { email: string; username: string; password: string; selectedPlan: string }) => Promise<void>;
+  onSubmit: (data: { 
+    email: string; 
+    username: string; 
+    password: string; 
+    selectedPlan: string 
+  }) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -23,36 +28,7 @@ export const SignUpForm = ({ onSubmit, isLoading }: SignUpFormProps) => {
 
   const { data: plans, isLoading: plansLoading, error: plansError } = useQuery({
     queryKey: ['subscription-plans'],
-    queryFn: async () => {
-      console.log('Fetching subscription plans...');
-      const { data, error } = await supabase
-        .from('subscription_plans')
-        .select('*')
-        .order('price', { ascending: true });
-      
-      if (error) {
-        console.error('Error fetching plans:', error);
-        toast({
-          title: "Error loading plans",
-          description: "Could not load subscription plans. Please try again.",
-          variant: "destructive",
-        });
-        throw error;
-      }
-
-      if (!data || data.length === 0) {
-        console.warn('No subscription plans found');
-        toast({
-          title: "No plans available",
-          description: "No subscription plans are currently available.",
-          variant: "destructive",
-        });
-        return [];
-      }
-
-      console.log('Fetched plans:', data);
-      return data;
-    },
+    queryFn: subscriptionService.getPlans,
     retry: 3,
     retryDelay: 1000,
   });

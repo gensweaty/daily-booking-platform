@@ -2,30 +2,19 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
-
-interface Plan {
-  id: string;
-  name: string;
-  type: string;
-  price: number;
-  description: string;
-}
+import { subscriptionService } from "@/services/subscriptionService";
+import { SubscriptionPlan } from "@/types/subscription";
 
 export const SubscriptionPlans = () => {
   const navigate = useNavigate();
 
-  const { data: plans, isLoading } = useQuery({
+  const { data: plans, isLoading, error } = useQuery({
     queryKey: ['subscription-plans'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('subscription_plans')
-        .select('*')
-        .order('price', { ascending: true });
-      
-      if (error) throw error;
-      return data as Plan[];
+    queryFn: subscriptionService.getPlans,
+    retry: 2,
+    meta: {
+      errorMessage: "Failed to load subscription plans"
     }
   });
 
@@ -49,6 +38,14 @@ export const SubscriptionPlans = () => {
     );
   }
 
+  if (error || !plans) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-destructive">Unable to load subscription plans. Please try again later.</p>
+      </div>
+    );
+  }
+
   return (
     <section className="py-20 bg-muted/30">
       <div className="container mx-auto px-4">
@@ -60,7 +57,7 @@ export const SubscriptionPlans = () => {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          {plans?.map((plan) => (
+          {plans.map((plan: SubscriptionPlan) => (
             <Card key={plan.id} className="relative overflow-hidden">
               {plan.type === 'yearly' && (
                 <div className="absolute top-4 right-4">
