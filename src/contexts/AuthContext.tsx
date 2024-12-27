@@ -27,7 +27,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
 
   useEffect(() => {
-    // Initialize session
+    let mounted = true;
+
     const initSession = async () => {
       try {
         console.log('Initializing session...');
@@ -38,48 +39,65 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           throw error;
         }
 
-        console.log('Initial session:', initialSession);
-        setSession(initialSession);
-        setUser(initialSession?.user ?? null);
+        if (mounted) {
+          console.log('Initial session:', initialSession);
+          if (initialSession) {
+            setSession(initialSession);
+            setUser(initialSession.user);
+            if (location.pathname === '/login' || location.pathname === '/signup') {
+              navigate('/dashboard');
+            }
+          } else if (location.pathname !== '/login' && location.pathname !== '/signup' && location.pathname !== '/') {
+            navigate('/login');
+          }
+        }
       } catch (error: any) {
         console.error('Session initialization error:', error);
-        toast({
-          title: "Error",
-          description: "Failed to initialize session",
-          variant: "destructive",
-        });
+        if (mounted) {
+          toast({
+            title: "Error",
+            description: "Failed to initialize session",
+            variant: "destructive",
+          });
+          if (location.pathname !== '/login' && location.pathname !== '/signup' && location.pathname !== '/') {
+            navigate('/login');
+          }
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     initSession();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event, newSession);
       
-      if (event === 'SIGNED_IN') {
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        navigate('/dashboard');
-      } else if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
-        navigate('/login');
-      } else if (event === 'TOKEN_REFRESHED') {
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
+      if (mounted) {
+        if (event === 'SIGNED_IN') {
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
+          navigate('/dashboard');
+        } else if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
+          navigate('/login');
+        } else if (event === 'TOKEN_REFRESHED') {
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
+        }
+        
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
-    // Cleanup subscription
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, toast]);
+  }, [navigate, toast, location.pathname]);
 
   const signOut = async () => {
     try {
