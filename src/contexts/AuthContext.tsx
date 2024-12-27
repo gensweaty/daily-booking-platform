@@ -27,26 +27,59 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      console.log('Initial session:', initialSession);
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      setLoading(false);
-    });
+    // Initialize session
+    const initSession = async () => {
+      try {
+        console.log('Initializing session...');
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session initialization error:', error);
+          throw error;
+        }
+
+        console.log('Initial session:', initialSession);
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+      } catch (error: any) {
+        console.error('Session initialization error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to initialize session",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initSession();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      console.log('Auth state changed:', _event, newSession);
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log('Auth state changed:', event, newSession);
+      
+      if (event === 'SIGNED_IN') {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        navigate('/dashboard');
+      } else if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        navigate('/login');
+      } else if (event === 'TOKEN_REFRESHED') {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+      }
+      
       setLoading(false);
     });
 
+    // Cleanup subscription
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate, toast]);
 
   const signOut = async () => {
     try {
