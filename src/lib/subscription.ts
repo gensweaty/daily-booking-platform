@@ -7,19 +7,19 @@ export const getSubscriptionPlan = async (planType: 'monthly' | 'yearly'): Promi
     .from('subscription_plans')
     .select('*')
     .eq('type', planType)
-    .limit(1);
+    .maybeSingle();
 
   if (error) {
     console.error('Error fetching subscription plan:', error);
     throw new Error(`Database error: ${error.message}`);
   }
 
-  if (!plans || plans.length === 0) {
+  if (!plans) {
     console.error('No subscription plan found for type:', planType);
     throw new Error(`No subscription plan found for type: ${planType}`);
   }
 
-  return plans[0] as SubscriptionPlan;
+  return plans as SubscriptionPlan;
 };
 
 export const createSubscription = async (userId: string, planType: 'monthly' | 'yearly') => {
@@ -44,7 +44,7 @@ export const createSubscription = async (userId: string, planType: 'monthly' | '
 
     if (error) {
       console.error('Error creating subscription:', error);
-      throw error;
+      throw new Error(error.message);
     }
 
     return { success: true };
