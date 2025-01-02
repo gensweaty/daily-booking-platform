@@ -67,11 +67,24 @@ export const useSignup = () => {
       });
 
       if (signUpError) {
-        // Check if it's a rate limit error
+        // Handle rate limit error specifically
         if (signUpError.status === 429) {
+          let errorMessage = "Please wait 60 seconds before trying to sign up again.";
+          
+          // Try to parse the error body for more specific message
+          try {
+            const errorBody = JSON.parse(signUpError.message);
+            if (errorBody?.message === "email rate limit exceeded") {
+              errorMessage = "Too many signup attempts. Please wait 60 seconds before trying again.";
+            }
+          } catch (e) {
+            // If parsing fails, use default message
+            console.error("Error parsing rate limit message:", e);
+          }
+
           toast({
-            title: "Too Many Attempts",
-            description: "Please wait 60 seconds before trying to sign up again.",
+            title: "Rate Limit Exceeded",
+            description: errorMessage,
             variant: "destructive",
             duration: 8000,
           });
