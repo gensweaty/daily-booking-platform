@@ -67,13 +67,8 @@ export const useSignup = () => {
       });
 
       if (signUpError) {
-        // Check for rate limit error in both the error message and body
-        const errorBody = JSON.parse(signUpError.message);
-        if (
-          signUpError.status === 429 || 
-          errorBody?.code === "over_email_send_rate_limit" ||
-          signUpError.message.includes("rate limit")
-        ) {
+        // Handle rate limit error
+        if (signUpError.status === 429 || signUpError.message.includes("rate limit")) {
           toast({
             title: "Too Many Attempts",
             description: "Please wait 60 seconds before trying to sign up again.",
