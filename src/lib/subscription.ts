@@ -1,35 +1,54 @@
 import { supabase } from "@/lib/supabase";
 import { addDays } from "date-fns";
+import { SubscriptionPlan } from "@/types/subscription";
 
-export const createSubscription = async (userId: string, planType: string) => {
+export const getSubscriptionPlan = async (planType: 'monthly' | 'yearly'): Promise<SubscriptionPlan> => {
+  const { data: plan, error } = await supabase
+    .from('subscription_plans')
+    .select('*')
+    .eq('type', planType)
+    .single();
+
+  if (error) {
+    console.error('Error fetching subscription plan:', error);
+    throw new Error(`Failed to fetch subscription plan: ${error.message}`);
+  }
+
+  if (!plan) {
+    throw new Error(`No subscription plan found for type: ${planType}`);
+  }
+
+  return plan;
+};
+
+export const createSubscription = async (userId: string, planType: 'monthly' | 'yearly') => {
   try {
-    // Get the subscription plan ID
-    const { data: plans, error: planError } = await supabase
-      .from('subscription_plans')
-      .select('id')
-      .eq('type', planType)
-      .maybeSingle();
-
-    if (planError) throw planError;
-    if (!plans) throw new Error(`No subscription plan found for type: ${planType}`);
-
+    // First, fetch the subscription plan
+    const plan = await getSubscriptionPlan(planType);
+    
+    // Calculate dates
     const trialEndDate = addDays(new Date(), 14); // 14-day trial
     const currentPeriodStart = new Date();
     const currentPeriodEnd = addDays(currentPeriodStart, planType === 'monthly' ? 30 : 365);
 
-    // Call the create_subscription function
+    // Create the subscription using the database function
     const { error } = await supabase.rpc('create_subscription', {
       p_user_id: userId,
-      p_plan_id: plans.id,
+      p_plan_id: plan.id,
       p_plan_type: planType,
       p_trial_end_date: trialEndDate.toISOString(),
       p_current_period_start: currentPeriodStart.toISOString(),
       p_current_period_end: currentPeriodEnd.toISOString()
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error creating subscription:', error);
+      throw error;
+    }
+
+    return { success: true };
   } catch (error: any) {
     console.error('Error creating subscription:', error);
-    throw error;
+    throw new Error(error.message || 'Failed to create subscription');
   }
 };

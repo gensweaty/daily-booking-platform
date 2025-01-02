@@ -2,8 +2,8 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface SubscriptionPlanSelectProps {
-  selectedPlan: string;
-  setSelectedPlan: (plan: string) => void;
+  selectedPlan: 'monthly' | 'yearly';
+  setSelectedPlan: (plan: 'monthly' | 'yearly') => void;
   isLoading: boolean;
 }
 
@@ -17,7 +17,7 @@ export const SubscriptionPlanSelect = ({
       <Label>Subscription Plan</Label>
       <RadioGroup
         value={selectedPlan}
-        onValueChange={setSelectedPlan}
+        onValueChange={(value: 'monthly' | 'yearly') => setSelectedPlan(value)}
         className="grid grid-cols-1 gap-4 mt-2"
       >
         <div className="flex items-center space-x-2 border rounded-lg p-4">

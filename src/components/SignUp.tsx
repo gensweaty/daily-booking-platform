@@ -12,7 +12,7 @@ export const SignUp = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState("monthly");
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
   const { toast } = useToast();
 
   const validatePassword = (password: string) => {
@@ -27,50 +27,48 @@ export const SignUp = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading) return; // Prevent multiple submissions
+    if (isLoading) return;
     setIsLoading(true);
     
-    if (password !== confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Passwords do not match",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    const passwordError = validatePassword(password);
-    if (passwordError) {
-      toast({
-        title: "Invalid Password",
-        description: passwordError,
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    if (username.length < 3) {
-      toast({
-        title: "Error",
-        description: "Username must be at least 3 characters long",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      // Check if username already exists
+      // Validate passwords match
+      if (password !== confirmPassword) {
+        toast({
+          title: "Error",
+          description: "Passwords do not match",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate password requirements
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        toast({
+          title: "Invalid Password",
+          description: passwordError,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate username length
+      if (username.length < 3) {
+        toast({
+          title: "Error",
+          description: "Username must be at least 3 characters long",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if username exists
       const { data: existingUsers, error: fetchError } = await supabase
         .from('profiles')
         .select('username')
         .eq('username', username);
 
-      if (fetchError) {
-        throw fetchError;
-      }
+      if (fetchError) throw fetchError;
 
       if (existingUsers && existingUsers.length > 0) {
         toast({
@@ -78,10 +76,10 @@ export const SignUp = () => {
           description: "This username is already taken. Please choose another one.",
           variant: "destructive",
         });
-        setIsLoading(false);
         return;
       }
 
+      // Create user account
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
