@@ -68,7 +68,7 @@ export const useSignup = () => {
 
       if (signUpError) {
         // Handle rate limit error
-        if (signUpError.status === 429 || signUpError.message.includes("rate limit")) {
+        if (signUpError.status === 429) {
           toast({
             title: "Too Many Attempts",
             description: "Please wait 60 seconds before trying to sign up again.",
