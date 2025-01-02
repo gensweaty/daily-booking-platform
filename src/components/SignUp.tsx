@@ -27,6 +27,7 @@ export const SignUp = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return; // Prevent multiple submissions
     setIsLoading(true);
     
     if (password !== confirmPassword) {
@@ -92,7 +93,13 @@ export const SignUp = () => {
       });
       
       if (error) {
-        if (error.message.includes("User already registered")) {
+        if (error.message.includes("over_email_send_rate_limit")) {
+          toast({
+            title: "Please wait",
+            description: "For security purposes, please wait 49 seconds before trying again.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes("User already registered")) {
           toast({
             title: "Error",
             description: "This email is already registered. Please sign in instead.",
