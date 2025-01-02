@@ -93,9 +93,10 @@ export const SignUp = () => {
       if (error) {
         if (error.message.includes("over_email_send_rate_limit")) {
           toast({
-            title: "Please wait",
-            description: "For security purposes, please wait 49 seconds before trying again.",
+            title: "Rate Limit Exceeded",
+            description: "For security purposes, please wait 60 seconds before trying again.",
             variant: "destructive",
+            duration: 6000,
           });
         } else if (error.message.includes("User already registered")) {
           toast({
@@ -134,6 +135,7 @@ export const SignUp = () => {
           toast({
             title: "Success",
             description: "Please check your email (including spam folder) to confirm your account before signing in.",
+            duration: 6000,
           });
           
           // Clear form
@@ -147,6 +149,7 @@ export const SignUp = () => {
             title: "Account Created",
             description: "Your account was created but there was an issue with the subscription setup. Please contact support or try signing in to resolve this.",
             variant: "destructive",
+            duration: 6000,
           });
         }
       }
