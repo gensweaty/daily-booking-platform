@@ -1,7 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { addDays } from "date-fns";
 import { SubscriptionPlan } from "@/types/subscription-types";
-import { PostgrestError } from "@supabase/supabase-js";
 
 export const getSubscriptionPlan = async (planType: 'monthly' | 'yearly'): Promise<SubscriptionPlan> => {
   const { data: plans, error } = await supabase
@@ -51,9 +50,6 @@ export const createSubscription = async (userId: string, planType: 'monthly' | '
     return { success: true };
   } catch (error: any) {
     console.error('Error creating subscription:', error);
-    if (error instanceof PostgrestError) {
-      throw new Error(`Database error: ${error.message}`);
-    }
-    throw error;
+    throw new Error(error.message || 'Failed to create subscription');
   }
 };
