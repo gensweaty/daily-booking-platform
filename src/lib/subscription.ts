@@ -24,17 +24,28 @@ export const getSubscriptionPlan = async (planType: 'monthly' | 'yearly'): Promi
 
 export const createSubscription = async (userId: string, planType: 'monthly' | 'yearly') => {
   try {
+    console.log('Creating subscription for user:', userId, 'with plan type:', planType);
+    
     // First, fetch the subscription plan
     const plan = await getSubscriptionPlan(planType);
     
     if (!plan || !plan.id) {
+      console.error('Invalid subscription plan:', plan);
       throw new Error('Invalid subscription plan');
     }
+    
+    console.log('Found plan:', plan);
     
     // Calculate dates
     const trialEndDate = addDays(new Date(), 14); // 14-day trial
     const currentPeriodStart = new Date();
     const currentPeriodEnd = addDays(currentPeriodStart, planType === 'monthly' ? 30 : 365);
+
+    console.log('Creating subscription with dates:', {
+      trialEndDate,
+      currentPeriodStart,
+      currentPeriodEnd
+    });
 
     // Create the subscription using the database function
     const { error } = await supabase.rpc('create_subscription', {
