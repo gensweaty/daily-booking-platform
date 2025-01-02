@@ -12,15 +12,44 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
+import { useEffect, useState } from "react";
 
 interface DashboardHeaderProps {
   username: string;
+}
+
+interface Subscription {
+  plan_type: string;
+  status: string;
+  trial_end_date: string | null;
 }
 
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      if (user) {
+        const { data, error } = await supabase
+          .from('subscriptions')
+          .select('plan_type, status, trial_end_date')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching subscription:', error);
+          return;
+        }
+
+        setSubscription(data);
+      }
+    };
+
+    fetchSubscription();
+  }, [user]);
 
   const handleSignOut = async () => {
     try {
@@ -58,6 +87,14 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
   };
 
+  const formatPlanType = (planType: string) => {
+    return planType.charAt(0).toUpperCase() + planType.slice(1) + ' Plan';
+  };
+
+  const formatPrice = (planType: string) => {
+    return planType === 'monthly' ? '$9.95/month' : '$89.95/year';
+  };
+
   return (
     <header className="mb-8">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -92,8 +129,20 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   <p className="text-sm text-muted-foreground">{username}</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Package</p>
-                  <p className="text-sm text-muted-foreground">Free Plan</p>
+                  <p className="text-sm font-medium">Subscription</p>
+                  {subscription && (
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">
+                        {formatPlanType(subscription.plan_type)} - {formatPrice(subscription.plan_type)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Status: {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
+                        {subscription.trial_end_date && subscription.status === 'trial' && (
+                          ` (Trial ends: ${new Date(subscription.trial_end_date).toLocaleDateString()})`
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div className="pt-4">
                   <Button 

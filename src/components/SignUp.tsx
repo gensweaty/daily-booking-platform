@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { addDays } from "date-fns";
 
 export const SignUp = () => {
   const [email, setEmail] = useState("");
@@ -11,6 +13,7 @@ export const SignUp = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState("monthly");
   const { toast } = useToast();
 
   const validatePassword = (password: string) => {
@@ -21,6 +24,38 @@ export const SignUp = () => {
       return "Password must contain at least one number";
     }
     return null;
+  };
+
+  const createSubscription = async (userId: string) => {
+    try {
+      // Get the subscription plan ID
+      const { data: plans, error: planError } = await supabase
+        .from('subscription_plans')
+        .select('id')
+        .eq('type', selectedPlan)
+        .single();
+
+      if (planError) throw planError;
+
+      const trialEndDate = addDays(new Date(), 14); // 14-day trial
+      const currentPeriodStart = new Date();
+      const currentPeriodEnd = addDays(currentPeriodStart, selectedPlan === 'monthly' ? 30 : 365);
+
+      // Call the create_subscription function
+      const { error } = await supabase.rpc('create_subscription', {
+        p_user_id: userId,
+        p_plan_id: plans.id,
+        p_plan_type: selectedPlan,
+        p_trial_end_date: trialEndDate.toISOString(),
+        p_current_period_start: currentPeriodStart.toISOString(),
+        p_current_period_end: currentPeriodEnd.toISOString()
+      });
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error creating subscription:', error);
+      throw error;
+    }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -103,6 +138,9 @@ export const SignUp = () => {
       }
 
       if (data?.user) {
+        // Create subscription for the new user
+        await createSubscription(data.user.id);
+
         toast({
           title: "Success",
           description: "Please check your email (including spam folder) to confirm your account before signing in.",
@@ -182,6 +220,34 @@ export const SignUp = () => {
             className="w-full"
             disabled={isLoading}
           />
+        </div>
+        <div className="space-y-2">
+          <Label>Subscription Plan</Label>
+          <RadioGroup
+            value={selectedPlan}
+            onValueChange={setSelectedPlan}
+            className="grid grid-cols-1 gap-4 mt-2"
+          >
+            <div className="flex items-center space-x-2 border rounded-lg p-4">
+              <RadioGroupItem value="monthly" id="monthly" />
+              <Label htmlFor="monthly" className="flex-1">
+                <div className="flex justify-between items-center">
+                  <span>Monthly Plan</span>
+                  <span className="font-semibold">$9.95/month</span>
+                </div>
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2 border rounded-lg p-4">
+              <RadioGroupItem value="yearly" id="yearly" />
+              <Label htmlFor="yearly" className="flex-1">
+                <div className="flex justify-between items-center">
+                  <span>Yearly Plan</span>
+                  <span className="font-semibold">$89.95/year</span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">Save over 24% compared to monthly</p>
+              </Label>
+            </div>
+          </RadioGroup>
         </div>
         <Button 
           type="submit" 
