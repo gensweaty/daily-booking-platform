@@ -45,7 +45,7 @@ export const TrialExpiredDialog = () => {
 
   return (
     <Dialog open={true}>
-      <DialogContent className="sm:max-w-[425px]" onClose={() => {}}>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold">
             Trial Period Expired
