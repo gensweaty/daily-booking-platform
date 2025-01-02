@@ -67,7 +67,7 @@ export const useSignup = () => {
       });
 
       if (signUpError) {
-        // Handle rate limit error
+        // Check if it's a rate limit error
         if (signUpError.status === 429) {
           toast({
             title: "Too Many Attempts",
@@ -75,12 +75,11 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 8000,
           });
-          console.log("Rate limit error:", signUpError);
           return;
         }
         
         // Handle user already registered error
-        if (signUpError.message.includes("User already registered")) {
+        if (signUpError.message?.includes("User already registered")) {
           toast({
             title: "Error",
             description: "This email is already registered. Please sign in instead.",
@@ -90,29 +89,11 @@ export const useSignup = () => {
           return;
         }
 
-        // Handle other errors
         throw signUpError;
       }
 
       if (data?.user) {
         try {
-          // Get subscription plan details
-          const { data: plan, error: planError } = await supabase
-            .from('subscription_plans')
-            .select('*')
-            .eq('type', selectedPlan)
-            .maybeSingle();
-
-          if (planError) {
-            console.error('Plan fetch error:', planError);
-            throw new Error('Failed to fetch subscription plan details');
-          }
-
-          if (!plan) {
-            console.error('No plan found for type:', selectedPlan);
-            throw new Error(`No subscription plan found for type: ${selectedPlan}`);
-          }
-
           // Create subscription
           await createSubscription(data.user.id, selectedPlan);
 
