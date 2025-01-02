@@ -14,14 +14,39 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { AuthUI } from "@/components/AuthUI";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { Statistics } from "@/components/Statistics";
+import { TrialExpiredDialog } from "@/components/TrialExpiredDialog";
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [username, setUsername] = useState("");
+  const [showTrialExpired, setShowTrialExpired] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkSubscriptionStatus = async () => {
+      if (user) {
+        const { data: subscription, error } = await supabase
+          .from('subscriptions')
+          .select('status')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error checking subscription:', error);
+          return;
+        }
+
+        if (subscription?.status === 'expired') {
+          setShowTrialExpired(true);
+        }
+      }
+    };
+
+    checkSubscriptionStatus();
+  }, [user]);
 
   useEffect(() => {
     const confirmationStatus = searchParams.get("email_confirmed");
@@ -68,6 +93,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background p-4">
+      {showTrialExpired && <TrialExpiredDialog />}
       <DashboardHeader username={username} />
 
       <Tabs defaultValue="calendar" className="w-full max-w-[90%] xl:max-w-[85%] 2xl:max-w-[80%] mx-auto">
