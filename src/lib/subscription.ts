@@ -1,24 +1,26 @@
 import { supabase } from "@/lib/supabase";
 import { addDays } from "date-fns";
-import { SubscriptionPlan } from "@/types/subscription";
+import { SubscriptionPlan } from "@/types/subscription-types";
+import { PostgrestError } from "@supabase/supabase-js";
 
 export const getSubscriptionPlan = async (planType: 'monthly' | 'yearly'): Promise<SubscriptionPlan> => {
-  const { data: plan, error } = await supabase
+  const { data: plans, error } = await supabase
     .from('subscription_plans')
     .select('*')
     .eq('type', planType)
-    .single();
+    .limit(1);
 
   if (error) {
     console.error('Error fetching subscription plan:', error);
-    throw new Error(`Failed to fetch subscription plan: ${error.message}`);
+    throw new Error(`Database error: ${error.message}`);
   }
 
-  if (!plan) {
+  if (!plans || plans.length === 0) {
+    console.error('No subscription plan found for type:', planType);
     throw new Error(`No subscription plan found for type: ${planType}`);
   }
 
-  return plan;
+  return plans[0] as SubscriptionPlan;
 };
 
 export const createSubscription = async (userId: string, planType: 'monthly' | 'yearly') => {
@@ -49,6 +51,9 @@ export const createSubscription = async (userId: string, planType: 'monthly' | '
     return { success: true };
   } catch (error: any) {
     console.error('Error creating subscription:', error);
-    throw new Error(error.message || 'Failed to create subscription');
+    if (error instanceof PostgrestError) {
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw error;
   }
 };

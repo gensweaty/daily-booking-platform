@@ -110,19 +110,28 @@ export const SignUp = () => {
       }
 
       if (data?.user) {
-        // Create subscription for the new user
-        await createSubscription(data.user.id, selectedPlan);
+        try {
+          // Create subscription for the new user
+          await createSubscription(data.user.id, selectedPlan);
 
-        toast({
-          title: "Success",
-          description: "Please check your email (including spam folder) to confirm your account before signing in.",
-        });
-        
-        // Clear form
-        setEmail("");
-        setUsername("");
-        setPassword("");
-        setConfirmPassword("");
+          toast({
+            title: "Success",
+            description: "Please check your email (including spam folder) to confirm your account before signing in.",
+          });
+          
+          // Clear form
+          setEmail("");
+          setUsername("");
+          setPassword("");
+          setConfirmPassword("");
+        } catch (subscriptionError: any) {
+          console.error('Subscription creation error:', subscriptionError);
+          toast({
+            title: "Warning",
+            description: "Account created but there was an issue setting up your subscription. Please contact support.",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error: any) {
       console.error('Signup error:', error);
