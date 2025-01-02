@@ -11,7 +11,7 @@ export const getSubscriptionPlan = async (planType: 'monthly' | 'yearly'): Promi
 
   if (error) {
     console.error('Error fetching subscription plan:', error);
-    throw new Error(`Database error: ${error.message}`);
+    throw new Error(`Failed to fetch subscription plan: ${error.message}`);
   }
 
   if (!plans) {
@@ -26,6 +26,10 @@ export const createSubscription = async (userId: string, planType: 'monthly' | '
   try {
     // First, fetch the subscription plan
     const plan = await getSubscriptionPlan(planType);
+    
+    if (!plan || !plan.id) {
+      throw new Error('Invalid subscription plan');
+    }
     
     // Calculate dates
     const trialEndDate = addDays(new Date(), 14); // 14-day trial
@@ -44,12 +48,12 @@ export const createSubscription = async (userId: string, planType: 'monthly' | '
 
     if (error) {
       console.error('Error creating subscription:', error);
-      throw new Error(error.message);
+      throw new Error(`Failed to create subscription: ${error.message}`);
     }
 
     return { success: true };
   } catch (error: any) {
-    console.error('Error creating subscription:', error);
+    console.error('Error in createSubscription:', error);
     throw new Error(error.message || 'Failed to create subscription');
   }
 };

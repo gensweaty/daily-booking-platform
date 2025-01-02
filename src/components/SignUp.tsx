@@ -111,6 +111,21 @@ export const SignUp = () => {
 
       if (data?.user) {
         try {
+          // First, get the subscription plan details
+          const { data: plans, error: planError } = await supabase
+            .from('subscription_plans')
+            .select('*')
+            .eq('type', selectedPlan)
+            .single();
+
+          if (planError) {
+            throw new Error('Failed to fetch subscription plan details');
+          }
+
+          if (!plans) {
+            throw new Error('Subscription plan not found');
+          }
+
           // Create subscription for the new user
           await createSubscription(data.user.id, selectedPlan);
 
@@ -127,8 +142,8 @@ export const SignUp = () => {
         } catch (subscriptionError: any) {
           console.error('Subscription creation error:', subscriptionError);
           toast({
-            title: "Warning",
-            description: "Account created but there was an issue setting up your subscription. Please contact support.",
+            title: "Account Created",
+            description: "Your account was created but there was an issue with the subscription setup. Please contact support or try signing in to resolve this.",
             variant: "destructive",
           });
         }
