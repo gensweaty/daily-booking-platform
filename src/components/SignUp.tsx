@@ -112,18 +112,20 @@ export const SignUp = () => {
       if (data?.user) {
         try {
           // First, get the subscription plan details
-          const { data: plans, error: planError } = await supabase
+          const { data: plan, error: planError } = await supabase
             .from('subscription_plans')
             .select('*')
             .eq('type', selectedPlan)
-            .single();
+            .maybeSingle();
 
           if (planError) {
+            console.error('Plan fetch error:', planError);
             throw new Error('Failed to fetch subscription plan details');
           }
 
-          if (!plans) {
-            throw new Error('Subscription plan not found');
+          if (!plan) {
+            console.error('No plan found for type:', selectedPlan);
+            throw new Error(`No subscription plan found for type: ${selectedPlan}`);
           }
 
           // Create subscription for the new user
