@@ -2,7 +2,6 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { validatePassword, validateUsername } from "@/utils/signupValidation";
-import { createSubscription } from "@/lib/subscription";
 
 export const useSignup = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -55,6 +54,24 @@ export const useSignup = () => {
         return;
       }
 
+      // Fetch subscription plan ID
+      const { data: plan, error: planError } = await supabase
+        .from('subscription_plans')
+        .select('id')
+        .eq('type', selectedPlan)
+        .single();
+
+      if (planError) {
+        console.error('Error fetching subscription plan:', planError);
+        toast({
+          title: "Error",
+          description: "Failed to fetch subscription plan",
+          variant: "destructive",
+          duration: 4000,
+        });
+        return;
+      }
+
       // Create user account
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -78,7 +95,6 @@ export const useSignup = () => {
               errorMessage = "Too many signup attempts. Please wait 60 seconds before trying again.";
             }
           } catch (e) {
-            // If parsing fails, use default message
             console.error("Error parsing rate limit message:", e);
           }
 
@@ -107,8 +123,24 @@ export const useSignup = () => {
 
       if (data?.user) {
         try {
-          // Create subscription
-          await createSubscription(data.user.id, selectedPlan);
+          // Calculate trial end date (14 days from now)
+          const trialEndDate = new Date();
+          trialEndDate.setDate(trialEndDate.getDate() + 14);
+
+          // Create subscription using the database function
+          const { error: subscriptionError } = await supabase.rpc('create_subscription', {
+            p_user_id: data.user.id,
+            p_plan_id: plan.id,
+            p_plan_type: selectedPlan,
+            p_trial_end_date: trialEndDate.toISOString(),
+            p_current_period_start: new Date().toISOString(),
+            p_current_period_end: new Date(trialEndDate.getTime() + (24 * 60 * 60 * 1000)).toISOString()
+          });
+
+          if (subscriptionError) {
+            console.error('Subscription creation error:', subscriptionError);
+            throw subscriptionError;
+          }
 
           toast({
             title: "Success",
