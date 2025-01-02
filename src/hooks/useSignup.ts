@@ -67,16 +67,20 @@ export const useSignup = () => {
       });
 
       if (error) {
-        if (error.message.includes("over_email_send_rate_limit")) {
+        // Handle rate limit error specifically
+        if (error.message.includes("rate limit") || error.status === 429) {
           toast({
-            title: "Rate Limit Exceeded",
-            description: "For security purposes, please wait 60 seconds before trying again.",
+            title: "Too Many Attempts",
+            description: "Please wait 60 seconds before trying to sign up again.",
             variant: "destructive",
             duration: 8000,
           });
           console.log("Rate limit error:", error);
           return;
-        } else if (error.message.includes("User already registered")) {
+        }
+        
+        // Handle other specific errors
+        if (error.message.includes("User already registered")) {
           toast({
             title: "Error",
             description: "This email is already registered. Please sign in instead.",
