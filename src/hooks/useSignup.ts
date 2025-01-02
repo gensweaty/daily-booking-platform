@@ -56,7 +56,7 @@ export const useSignup = () => {
       }
 
       // Create user account
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -66,31 +66,37 @@ export const useSignup = () => {
         },
       });
 
-      if (error) {
-        // Handle rate limit error specifically
-        if (error.message.includes("rate limit") || error.status === 429) {
+      if (signUpError) {
+        // Check for rate limit error in both the error message and body
+        const errorBody = JSON.parse(signUpError.message);
+        if (
+          signUpError.status === 429 || 
+          errorBody?.code === "over_email_send_rate_limit" ||
+          signUpError.message.includes("rate limit")
+        ) {
           toast({
             title: "Too Many Attempts",
             description: "Please wait 60 seconds before trying to sign up again.",
             variant: "destructive",
             duration: 8000,
           });
-          console.log("Rate limit error:", error);
+          console.log("Rate limit error:", signUpError);
           return;
         }
         
-        // Handle other specific errors
-        if (error.message.includes("User already registered")) {
+        // Handle user already registered error
+        if (signUpError.message.includes("User already registered")) {
           toast({
             title: "Error",
             description: "This email is already registered. Please sign in instead.",
             variant: "destructive",
             duration: 4000,
           });
-        } else {
-          throw error;
+          return;
         }
-        return;
+
+        // Handle other errors
+        throw signUpError;
       }
 
       if (data?.user) {
