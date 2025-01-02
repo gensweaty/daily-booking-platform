@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { addDays } from "date-fns";
+import { SignUpFields } from "./signup/SignUpFields";
+import { SubscriptionPlanSelect } from "./signup/SubscriptionPlanSelect";
+import { createSubscription } from "@/lib/subscription";
 
 export const SignUp = () => {
   const [email, setEmail] = useState("");
@@ -24,38 +23,6 @@ export const SignUp = () => {
       return "Password must contain at least one number";
     }
     return null;
-  };
-
-  const createSubscription = async (userId: string) => {
-    try {
-      // Get the subscription plan ID
-      const { data: plans, error: planError } = await supabase
-        .from('subscription_plans')
-        .select('id')
-        .eq('type', selectedPlan)
-        .single();
-
-      if (planError) throw planError;
-
-      const trialEndDate = addDays(new Date(), 14); // 14-day trial
-      const currentPeriodStart = new Date();
-      const currentPeriodEnd = addDays(currentPeriodStart, selectedPlan === 'monthly' ? 30 : 365);
-
-      // Call the create_subscription function
-      const { error } = await supabase.rpc('create_subscription', {
-        p_user_id: userId,
-        p_plan_id: plans.id,
-        p_plan_type: selectedPlan,
-        p_trial_end_date: trialEndDate.toISOString(),
-        p_current_period_start: currentPeriodStart.toISOString(),
-        p_current_period_end: currentPeriodEnd.toISOString()
-      });
-
-      if (error) throw error;
-    } catch (error: any) {
-      console.error('Error creating subscription:', error);
-      throw error;
-    }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -139,7 +106,7 @@ export const SignUp = () => {
 
       if (data?.user) {
         // Create subscription for the new user
-        await createSubscription(data.user.id);
+        await createSubscription(data.user.id, selectedPlan);
 
         toast({
           title: "Success",
@@ -168,87 +135,22 @@ export const SignUp = () => {
     <div className="w-full max-w-md mx-auto p-4 sm:p-6">
       <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Sign Up</h2>
       <form onSubmit={handleSignUp} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="username">Username</Label>
-          <Input
-            id="username"
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            minLength={3}
-            className="w-full"
-            disabled={isLoading}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full"
-            disabled={isLoading}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            placeholder="Password (min. 6 characters, include numbers)"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full"
-            disabled={isLoading}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirm Password</Label>
-          <Input
-            id="confirmPassword"
-            type="password"
-            placeholder="Confirm Password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            className="w-full"
-            disabled={isLoading}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Subscription Plan</Label>
-          <RadioGroup
-            value={selectedPlan}
-            onValueChange={setSelectedPlan}
-            className="grid grid-cols-1 gap-4 mt-2"
-          >
-            <div className="flex items-center space-x-2 border rounded-lg p-4">
-              <RadioGroupItem value="monthly" id="monthly" />
-              <Label htmlFor="monthly" className="flex-1">
-                <div className="flex justify-between items-center">
-                  <span>Monthly Plan</span>
-                  <span className="font-semibold">$9.95/month</span>
-                </div>
-              </Label>
-            </div>
-            <div className="flex items-center space-x-2 border rounded-lg p-4">
-              <RadioGroupItem value="yearly" id="yearly" />
-              <Label htmlFor="yearly" className="flex-1">
-                <div className="flex justify-between items-center">
-                  <span>Yearly Plan</span>
-                  <span className="font-semibold">$89.95/year</span>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">Save over 24% compared to monthly</p>
-              </Label>
-            </div>
-          </RadioGroup>
-        </div>
+        <SignUpFields
+          email={email}
+          setEmail={setEmail}
+          username={username}
+          setUsername={setUsername}
+          password={password}
+          setPassword={setPassword}
+          confirmPassword={confirmPassword}
+          setConfirmPassword={setConfirmPassword}
+          isLoading={isLoading}
+        />
+        <SubscriptionPlanSelect
+          selectedPlan={selectedPlan}
+          setSelectedPlan={setSelectedPlan}
+          isLoading={isLoading}
+        />
         <Button 
           type="submit" 
           className="w-full"
