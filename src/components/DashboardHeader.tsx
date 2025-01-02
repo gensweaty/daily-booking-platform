@@ -21,7 +21,7 @@ interface DashboardHeaderProps {
 interface Subscription {
   plan_type: string;
   status: string;
-  trial_end_date: string | null;
+  current_period_end: string | null;
 }
 
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
@@ -35,7 +35,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       if (user) {
         const { data, error } = await supabase
           .from('subscriptions')
-          .select('plan_type, status, trial_end_date')
+          .select('plan_type, status, current_period_end')
           .eq('user_id', user.id)
           .single();
 
@@ -91,8 +91,11 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     return planType.charAt(0).toUpperCase() + planType.slice(1) + ' Plan';
   };
 
-  const formatPrice = (planType: string) => {
-    return planType === 'monthly' ? '$9.95/month' : '$89.95/year';
+  const formatTimeLeft = (endDate: string) => {
+    const end = new Date(endDate);
+    const now = new Date();
+    const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return `${daysLeft} days until next charge`;
   };
 
   return (
@@ -130,17 +133,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Subscription</p>
-                  {subscription && (
+                  {subscription && subscription.status === 'active' && (
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">
-                        {formatPlanType(subscription.plan_type)} - {formatPrice(subscription.plan_type)}
+                        {formatPlanType(subscription.plan_type)}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        Status: {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
-                        {subscription.trial_end_date && subscription.status === 'trial' && (
-                          ` (Trial ends: ${new Date(subscription.trial_end_date).toLocaleDateString()})`
-                        )}
-                      </p>
+                      {subscription.current_period_end && (
+                        <p className="text-xs text-muted-foreground">
+                          {formatTimeLeft(subscription.current_period_end)}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

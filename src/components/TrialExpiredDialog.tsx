@@ -12,6 +12,7 @@ import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
+  const [isOpen, setIsOpen] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -20,11 +21,12 @@ export const TrialExpiredDialog = () => {
       title: "Success",
       description: `Successfully subscribed with ID: ${subscriptionId}`,
     });
+    setIsOpen(false);
     navigate("/dashboard");
   };
 
   return (
-    <Dialog open={true}>
+    <Dialog open={isOpen}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold">
