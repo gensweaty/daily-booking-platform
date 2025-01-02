@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { CheckSquare, Clock, BanknoteIcon, CalendarIcon } from "lucide-react";
-import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, endOfDay } from 'date-fns';
 import { StatCard } from "./Statistics/StatCard";
 import { BookingChart } from "./Statistics/BookingChart";
 import { IncomeChart } from "./Statistics/IncomeChart";
@@ -43,7 +43,7 @@ export const Statistics = () => {
         .select('*')
         .eq('user_id', user?.id)
         .gte('start_date', dateRange.start.toISOString())
-        .lte('start_date', dateRange.end.toISOString());
+        .lte('start_date', endOfDay(dateRange.end).toISOString()); // Use endOfDay to include the entire last day
 
       // Get payment status counts
       const partlyPaid = events?.filter(e => e.payment_status === 'partly').length || 0;
@@ -63,7 +63,7 @@ export const Statistics = () => {
 
         return {
           day: format(day, 'dd'),
-          date: day, // Pass the actual date
+          date: day,
           bookings: dayEvents?.length || 0,
         };
       });
@@ -84,7 +84,7 @@ export const Statistics = () => {
           .select('*')
           .eq('user_id', user?.id)
           .gte('start_date', monthStart.toISOString())
-          .lte('start_date', monthEnd.toISOString());
+          .lte('start_date', endOfDay(monthEnd).toISOString()); // Use endOfDay here as well for consistency
 
         return {
           month: format(month, 'MMM yyyy'),
