@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,41 +6,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SubscriptionPlanSelect } from "./signup/SubscriptionPlanSelect";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
+import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleUpgrade = async () => {
-    setIsLoading(true);
-    try {
-      // Here you would integrate with your payment processor
-      // For now, we'll just show a toast
-      toast({
-        title: "Redirecting to payment",
-        description: `Processing upgrade to ${selectedPlan} plan`,
-      });
-      
-      // Simulate payment process
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 2000);
-    } catch (error) {
-      console.error("Error upgrading plan:", error);
-      toast({
-        title: "Error",
-        description: "Failed to process upgrade. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleSubscriptionSuccess = (subscriptionId: string) => {
+    toast({
+      title: "Success",
+      description: `Successfully subscribed with ID: ${subscriptionId}`,
+    });
+    navigate("/dashboard");
   };
 
   return (
@@ -58,15 +38,12 @@ export const TrialExpiredDialog = () => {
           <SubscriptionPlanSelect
             selectedPlan={selectedPlan}
             setSelectedPlan={setSelectedPlan}
-            isLoading={isLoading}
+            isLoading={false}
           />
-          <Button
-            className="w-full"
-            onClick={handleUpgrade}
-            disabled={isLoading}
-          >
-            {isLoading ? "Processing..." : "Upgrade Now"}
-          </Button>
+          <PayPalSubscribeButton 
+            planType={selectedPlan}
+            onSuccess={handleSubscriptionSuccess}
+          />
         </div>
       </DialogContent>
     </Dialog>
