@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
 
 declare global {
@@ -23,11 +23,17 @@ export const PayPalSubscribeButton = ({ planType, onSuccess }: PayPalSubscribeBu
     : 'P-8RY93575NH0589519M53L6YA';
 
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = "https://www.paypal.com/sdk/js?client-id=ATm58Iv3bVdLcUIVllc-on6VZRaRJeedpxso0KgGVu_kSELKrKOqaE63a8CNu-jIQ4ulE2j9WUkLASlY&vault=true&intent=subscription";
-    script.async = true;
-    
-    script.onload = () => {
+    let paypalScript: HTMLScriptElement | null = null;
+
+    const initializePayPal = () => {
+      if (!window.paypal) return;
+
+      // Clear any existing buttons
+      const container = document.getElementById(buttonContainerId);
+      if (container) {
+        container.innerHTML = '';
+      }
+
       window.paypal.Buttons({
         style: {
           shape: 'rect',
@@ -83,10 +89,30 @@ export const PayPalSubscribeButton = ({ planType, onSuccess }: PayPalSubscribeBu
       }).render(`#${buttonContainerId}`);
     };
 
-    document.body.appendChild(script);
+    const loadPayPalScript = () => {
+      paypalScript = document.createElement('script');
+      paypalScript.src = "https://www.paypal.com/sdk/js?client-id=ATm58Iv3bVdLcUIVllc-on6VZRaRJeedpxso0KgGVu_kSELKrKOqaE63a8CNu-jIQ4ulE2j9WUkLASlY&vault=true&intent=subscription";
+      paypalScript.async = true;
+      paypalScript.onload = initializePayPal;
+      document.body.appendChild(paypalScript);
+    };
+
+    // Load PayPal script if it's not already loaded
+    if (!document.querySelector(`script[src*="paypal.com/sdk/js"]`)) {
+      loadPayPalScript();
+    } else {
+      initializePayPal();
+    }
 
     return () => {
-      document.body.removeChild(script);
+      // Cleanup
+      if (paypalScript && document.body.contains(paypalScript)) {
+        document.body.removeChild(paypalScript);
+      }
+      const container = document.getElementById(buttonContainerId);
+      if (container) {
+        container.innerHTML = '';
+      }
     };
   }, [buttonContainerId, planId, planType, onSuccess, toast]);
 
