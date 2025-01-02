@@ -37,7 +37,9 @@ export const SignUp = () => {
           title: "Error",
           description: "Passwords do not match",
           variant: "destructive",
+          duration: 4000,
         });
+        setIsLoading(false);
         return;
       }
 
@@ -48,7 +50,9 @@ export const SignUp = () => {
           title: "Invalid Password",
           description: passwordError,
           variant: "destructive",
+          duration: 4000,
         });
+        setIsLoading(false);
         return;
       }
 
@@ -58,7 +62,9 @@ export const SignUp = () => {
           title: "Error",
           description: "Username must be at least 3 characters long",
           variant: "destructive",
+          duration: 4000,
         });
+        setIsLoading(false);
         return;
       }
 
@@ -75,7 +81,9 @@ export const SignUp = () => {
           title: "Error",
           description: "This username is already taken. Please choose another one.",
           variant: "destructive",
+          duration: 4000,
         });
+        setIsLoading(false);
         return;
       }
 
@@ -96,13 +104,16 @@ export const SignUp = () => {
             title: "Rate Limit Exceeded",
             description: "For security purposes, please wait 60 seconds before trying again.",
             variant: "destructive",
-            duration: 6000,
+            duration: 8000,
           });
+          console.log("Rate limit error:", error);
+          return;
         } else if (error.message.includes("User already registered")) {
           toast({
             title: "Error",
             description: "This email is already registered. Please sign in instead.",
             variant: "destructive",
+            duration: 4000,
           });
         } else {
           throw error;
@@ -135,7 +146,7 @@ export const SignUp = () => {
           toast({
             title: "Success",
             description: "Please check your email (including spam folder) to confirm your account before signing in.",
-            duration: 6000,
+            duration: 8000,
           });
           
           // Clear form
@@ -149,7 +160,7 @@ export const SignUp = () => {
             title: "Account Created",
             description: "Your account was created but there was an issue with the subscription setup. Please contact support or try signing in to resolve this.",
             variant: "destructive",
-            duration: 6000,
+            duration: 8000,
           });
         }
       }
@@ -159,6 +170,7 @@ export const SignUp = () => {
         title: "Error",
         description: error.message || "An error occurred during sign up",
         variant: "destructive",
+        duration: 4000,
       });
     } finally {
       setIsLoading(false);
