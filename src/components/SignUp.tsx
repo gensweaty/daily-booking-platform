@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { SignUpFields } from "./signup/SignUpFields";
 import { SubscriptionPlanSelect } from "./signup/SubscriptionPlanSelect";
 import { useSignup } from "@/hooks/useSignup";
+import { useToast } from "@/hooks/use-toast";
 
 export const SignUp = () => {
   const [email, setEmail] = useState("");
@@ -12,6 +13,7 @@ export const SignUp = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
   
   const { handleSignup, isLoading } = useSignup();
+  const { toast } = useToast();
 
   const clearForm = () => {
     setEmail("");
@@ -22,6 +24,26 @@ export const SignUp = () => {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Basic validation
+    if (password !== confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
     await handleSignup(email, username, password, confirmPassword, selectedPlan, clearForm);
   };
 
