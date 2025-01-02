@@ -16,6 +16,7 @@ interface BookingChartProps {
   data: Array<{
     day: string;
     bookings: number;
+    date: Date; // Add date to the interface
   }>;
 }
 
@@ -27,8 +28,8 @@ export const BookingChart = ({ data }: BookingChartProps) => {
     
     // Only add points when there's an actual increase in bookings
     if (currentTotal > previousTotal) {
-      // Format the date as "DD MMM" (e.g., "15 Jan")
-      const formattedDate = `${parseInt(item.day)} ${format(new Date(), 'MMM')}`;
+      // Format the date using the actual date from the data
+      const formattedDate = `${parseInt(item.day)} ${format(item.date, 'MMM')}`;
       acc.push({
         date: formattedDate,
         total: currentTotal,

@@ -63,6 +63,7 @@ export const Statistics = () => {
 
         return {
           day: format(day, 'dd'),
+          date: day, // Pass the actual date
           bookings: dayEvents?.length || 0,
         };
       });
