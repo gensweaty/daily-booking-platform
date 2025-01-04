@@ -17,20 +17,21 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const planDuration = planType === 'monthly' ? 'Monthly' : 'Yearly';
 
   useEffect(() => {
-    let initTimeout: NodeJS.Timeout;
     let mounted = true;
 
     const initializePayPalButtons = async () => {
       if (!window.paypal || !mounted) return;
 
       try {
-        // Safely clean up the container
+        // Safely clean up any existing buttons
         const container = document.getElementById(containerId);
         if (container) {
-          container.innerHTML = '';
+          while (container.firstChild) {
+            container.removeChild(container.firstChild);
+          }
         }
 
-        window.paypal.Buttons({
+        await window.paypal.Buttons({
           style: {
             shape: 'rect',
             color: 'blue',
@@ -94,18 +95,9 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     const initialize = async () => {
       try {
         await loadScript();
-        // Give PayPal time to initialize
-        initTimeout = setTimeout(() => {
-          if (window.paypal && mounted) {
-            initializePayPalButtons();
-          } else if (mounted) {
-            toast({
-              title: "Error",
-              description: "Failed to initialize payment system. Please refresh the page.",
-              variant: "destructive",
-            });
-          }
-        }, 1000);
+        if (window.paypal && mounted) {
+          await initializePayPalButtons();
+        }
       } catch (error) {
         console.error('Failed to load PayPal script:', error);
       }
@@ -115,8 +107,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
     return () => {
       mounted = false;
-      clearTimeout(initTimeout);
-      // Safely clean up the container on unmount
+      // Clean up the container on unmount
       const container = document.getElementById(containerId);
       if (container) {
         container.innerHTML = '';

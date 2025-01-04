@@ -10,7 +10,7 @@ interface PayPalNamespace {
     onApprove: (data: any, actions: any) => Promise<void>;
     onError: (err: any) => void;
   }) => {
-    render: (containerId: string) => void;
+    render: (containerId: string) => Promise<void>;
   };
 }
 
