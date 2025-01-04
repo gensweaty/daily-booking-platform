@@ -40,7 +40,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           createOrder: (data: any, actions: any) => {
             return actions.order.create({
               purchase_units: [{
-                description: `${planDuration} Plan Subscription`,
+                description: `${planDuration} Plan Payment`,
                 amount: {
                   currency_code: 'USD',
                   value: amount
