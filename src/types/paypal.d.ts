@@ -1,8 +1,15 @@
 declare interface Window {
   paypal: {
-    HostedButtons: (config: {
-      hostedButtonId: string;
-      onApprove?: (data: { orderID: string }) => void;
+    Buttons: (config: {
+      style?: {
+        layout?: 'vertical' | 'horizontal';
+        color?: 'gold' | 'blue' | 'silver' | 'white' | 'black';
+        shape?: 'rect' | 'pill';
+        label?: 'paypal' | 'checkout' | 'buynow' | 'pay';
+      };
+      createOrder: (data: any, actions: any) => Promise<string>;
+      onApprove: (data: any, actions: any) => void;
+      onError?: (err: any) => void;
     }) => {
       render: (containerId: string) => Promise<any>;
     };

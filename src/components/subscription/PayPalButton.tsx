@@ -31,14 +31,8 @@ const loadPayPalScript = () => {
 
   isScriptLoading = true;
   scriptLoadPromise = new Promise<void>((resolve, reject) => {
-    const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
-    if (existingScript) {
-      existingScript.remove();
-      delete (window as any).paypal;
-    }
-
     const script = document.createElement('script');
-    script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=buttons&currency=USD`;
     script.async = true;
 
     script.onload = () => {
@@ -60,7 +54,7 @@ const loadPayPalScript = () => {
 
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
-  const buttonId = planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L';
+  const amount = planType === 'monthly' ? '9.99' : '99.99';
 
   useEffect(() => {
     let mounted = true;
@@ -71,15 +65,42 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
         if (!mounted) return;
 
-        if (window.paypal) {
+        if (window.paypal?.Buttons) {
           try {
-            await window.paypal.HostedButtons({
-              hostedButtonId: buttonId,
-              onApprove: (data) => {
-                console.log('Payment approved:', data);
-                handlePaymentSuccess(data.orderID);
+            const button = window.paypal.Buttons({
+              style: {
+                layout: 'vertical',
+                color: 'blue',
+                shape: 'rect',
+                label: 'pay'
               },
-            }).render(`#${containerId}`);
+              createOrder: (data: any, actions: any) => {
+                return actions.order.create({
+                  purchase_units: [{
+                    amount: {
+                      value: amount,
+                      currency_code: 'USD'
+                    },
+                    description: `${planType} subscription`
+                  }]
+                });
+              },
+              onApprove: async (data: any, actions: any) => {
+                const order = await actions.order.capture();
+                console.log('Payment successful:', order);
+                handlePaymentSuccess(order.id);
+              },
+              onError: (err: any) => {
+                console.error('PayPal error:', err);
+                toast({
+                  title: "Error",
+                  description: "There was a problem processing your payment. Please try again.",
+                  variant: "destructive",
+                });
+              }
+            });
+
+            await button.render(`#${containerId}`);
           } catch (error) {
             console.error('PayPal button render error:', error);
             toast({
@@ -106,7 +127,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     return () => {
       mounted = false;
     };
-  }, [buttonId, containerId, toast]);
+  }, [amount, containerId, toast]);
 
   const handlePaymentSuccess = async (orderId: string) => {
     try {
@@ -154,12 +175,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         title: "Success",
         description: "Your subscription has been activated successfully!",
       });
-
-      // Close any open PayPal windows
-      const paypalWindows = window.opener || window.parent;
-      if (paypalWindows !== window) {
-        window.close();
-      }
     } catch (error) {
       console.error('Payment processing error:', error);
       toast({
