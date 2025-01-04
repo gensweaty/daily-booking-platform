@@ -12,22 +12,25 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
+  const buttonInstance = useRef<any>(null);
   
   const amount = planType === 'monthly' ? '9.95' : '89.95';
   const planDuration = planType === 'monthly' ? 'Monthly' : 'Yearly';
 
   const loadPayPalScript = () => {
-    return new Promise<void>((resolve, reject) => {
-      // Remove any existing PayPal script
-      if (scriptRef.current) {
-        document.body.removeChild(scriptRef.current);
-        scriptRef.current = null;
-      }
+    if (scriptRef.current) {
+      document.body.removeChild(scriptRef.current);
+    }
 
+    return new Promise<void>((resolve, reject) => {
       const script = document.createElement('script');
       script.src = "https://www.paypal.com/sdk/js?client-id=ATm58Iv3bVdLcUIVllc-on6VZRaRJeedpxso0KgGVu_kSELKrKOqaE63a8CNu-jIQ4ulE2j9WUkLASlY&vault=true&intent=subscription";
       script.async = true;
-      script.onload = () => resolve();
+      
+      script.onload = () => {
+        // Add a small delay to ensure PayPal is fully initialized
+        setTimeout(resolve, 100);
+      };
       script.onerror = () => reject(new Error('Failed to load PayPal SDK'));
       
       document.body.appendChild(script);
@@ -39,20 +42,27 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     if (!window.paypal || !containerRef.current) return;
 
     try {
-      // Clear the container
-      containerRef.current.innerHTML = '';
+      // Clear any existing buttons
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
 
-      await window.paypal.Buttons({
+      // Clean up previous instance if it exists
+      if (buttonInstance.current) {
+        buttonInstance.current.close();
+      }
+
+      buttonInstance.current = await window.paypal.Buttons({
         style: {
           shape: 'rect',
           color: 'blue',
           layout: 'vertical',
-          label: 'pay'
+          label: 'subscribe'
         },
         createOrder: (data: any, actions: any) => {
           return actions.order.create({
             purchase_units: [{
-              description: `${planDuration} Plan Payment`,
+              description: `${planDuration} Plan Subscription`,
               amount: {
                 currency_code: 'USD',
                 value: amount
@@ -66,11 +76,11 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
             await updateSubscriptionStatus(planType, onSuccess, order.id);
             
             toast({
-              title: "Payment Successful",
-              description: "Thank you for your payment! Your account has been activated.",
+              title: "Success",
+              description: "Thank you for your subscription! Your account has been activated.",
             });
           } catch (error) {
-            console.error('Error processing payment:', error);
+            console.error('Payment processing error:', error);
             toast({
               title: "Error",
               description: "There was an error processing your payment. Please try again.",
@@ -82,16 +92,18 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           console.error('PayPal button error:', err);
           toast({
             title: "Error",
-            description: "There was an error processing your payment. Please try again.",
+            description: "There was an error with PayPal. Please try again.",
             variant: "destructive",
           });
         }
-      }).render(`#${containerId}`);
+      });
+
+      await buttonInstance.current.render(`#${containerId}`);
     } catch (error) {
       console.error('PayPal initialization error:', error);
       toast({
         title: "Error",
-        description: "Failed to initialize payment system. Please refresh the page.",
+        description: "Failed to initialize payment system. Please refresh and try again.",
         variant: "destructive",
       });
     }
@@ -132,6 +144,13 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
     return () => {
       isComponentMounted = false;
+      if (buttonInstance.current) {
+        try {
+          buttonInstance.current.close();
+        } catch (error) {
+          console.error('Error closing PayPal button:', error);
+        }
+      }
       if (scriptRef.current) {
         document.body.removeChild(scriptRef.current);
       }
