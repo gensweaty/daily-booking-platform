@@ -81,33 +81,26 @@ export const usePayPalSubscription = ({ buttonId, containerId, onSuccess }: UseP
     let mounted = true;
     let checkInterval: ReturnType<typeof setInterval>;
 
-    const initializePayPal = async () => {
+    const loadPayPalButton = async () => {
       try {
         if (!mounted) return;
 
         if (window.paypal) {
-          await window.paypal.HostedButtons({
-            hostedButtonId: buttonId,
-            onApprove: (data) => {
-              console.log('Payment approved:', data);
-              handlePaymentSuccess(data.orderID);
-              if (paymentWindow) {
-                paymentWindow.close();
-              }
+          await window.paypal.Buttons({
+            style: {
+              layout: 'vertical',
+              color: 'gold',
+              shape: 'rect',
+              label: 'subscribe'
             },
-            createOrder: () => {
-              const paymentUrl = `https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=${buttonId}`;
-              const newWindow = window.open(paymentUrl, '_blank');
-              setPaymentWindow(newWindow);
-              
-              if (newWindow) {
-                checkInterval = setInterval(() => {
-                  if (newWindow.closed) {
-                    clearInterval(checkInterval);
-                    checkSubscriptionStatus();
-                  }
-                }, 1000);
-              }
+            createSubscription: (data: any, actions: any) => {
+              return actions.subscription.create({
+                'plan_id': buttonId
+              });
+            },
+            onApprove: (data: any) => {
+              console.log('Payment approved:', data);
+              handlePaymentSuccess(data.subscriptionID);
             }
           }).render(`#${containerId}`);
         }
@@ -121,13 +114,20 @@ export const usePayPalSubscription = ({ buttonId, containerId, onSuccess }: UseP
       }
     };
 
-    initializePayPal();
+    const script = document.createElement('script');
+    script.src = `https://www.paypal.com/sdk/js?client-id=test&vault=true&intent=subscription`;
+    script.async = true;
+    script.onload = () => {
+      loadPayPalButton();
+    };
+    document.body.appendChild(script);
 
     return () => {
       mounted = false;
       if (checkInterval) {
         clearInterval(checkInterval);
       }
+      document.body.removeChild(script);
     };
   }, [buttonId, containerId, toast, onSuccess, paymentWindow]);
 };

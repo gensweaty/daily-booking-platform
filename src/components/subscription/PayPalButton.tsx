@@ -15,5 +15,5 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     onSuccess,
   });
 
-  return <div id={containerId} className="w-full h-[45px] min-h-[45px]" />;
+  return <div id={containerId} className="w-full h-[45px] min-h-[45px] bg-white" />;
 };
