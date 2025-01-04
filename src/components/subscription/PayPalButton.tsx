@@ -131,7 +131,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           try {
             await window.paypal.HostedButtons({
               hostedButtonId: buttonId,
-              onApprove: (data: any) => {
+              onApprove: (data) => {
                 console.log('Payment approved:', data);
                 handlePaymentSuccess(data.orderID);
               },
