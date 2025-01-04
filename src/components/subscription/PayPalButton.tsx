@@ -11,6 +11,7 @@ interface PayPalButtonProps {
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
   const [isScriptError, setIsScriptError] = useState(false);
+  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const mountedRef = useRef(true);
   
   const planId = planType === 'monthly' 
@@ -28,11 +29,13 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     let initTimeout: NodeJS.Timeout;
 
     const loadPayPalScript = () => {
+      // Clean up any existing PayPal script
       const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
       if (existingScript) {
         existingScript.remove();
       }
 
+      // Clean up the container
       const container = document.getElementById(containerId);
       if (container) {
         container.innerHTML = '';
@@ -44,7 +47,9 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       
       scriptElement.onload = () => {
         if (!mountedRef.current) return;
+        setIsScriptLoaded(true);
         
+        // Give PayPal time to initialize
         initTimeout = setTimeout(() => {
           if (window.paypal) {
             initializePayPalButtons();
@@ -149,6 +154,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       } catch (error) {
         console.error('PayPal initialization error:', error);
         if (mountedRef.current) {
+          setIsScriptError(true);
           toast({
             title: "Error",
             description: "Failed to initialize payment system. Please refresh the page.",
@@ -181,5 +187,16 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     );
   }
 
-  return <div id={containerId} className="min-h-[150px]" />;
+  return (
+    <div 
+      id={containerId} 
+      className="min-h-[150px] flex items-center justify-center"
+    >
+      {!isScriptLoaded && (
+        <div className="text-center text-muted-foreground">
+          Loading payment options...
+        </div>
+      )}
+    </div>
+  );
 };
