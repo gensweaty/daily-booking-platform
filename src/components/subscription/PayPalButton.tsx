@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { updateSubscriptionStatus } from './utils/paypalUtils';
 
 interface PayPalButtonProps {
   planType: 'monthly' | 'yearly';
@@ -12,7 +11,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
-  const buttonInstance = useRef<any>(null);
+  const buttonInstance = useRef<PayPalHostedButtonsComponent | null>(null);
 
   const loadPayPalScript = () => {
     return new Promise<void>((resolve, reject) => {
@@ -65,7 +64,9 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
       buttonInstance.current = await window.paypal.HostedButtons({
         hostedButtonId: hostedButtonId
-      }).render(`#${containerId}`);
+      });
+      
+      await buttonInstance.current.render(`#${containerId}`);
 
     } catch (error) {
       console.error('PayPal initialization error:', error);
@@ -79,6 +80,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
   useEffect(() => {
     let isComponentMounted = true;
+    let checkPayPalInterval: number;
 
     const initialize = async () => {
       try {
@@ -87,16 +89,16 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         if (!isComponentMounted) return;
 
         // Wait for PayPal to be fully loaded
-        const checkPayPal = setInterval(() => {
+        checkPayPalInterval = window.setInterval(() => {
           if (window.paypal?.HostedButtons && isComponentMounted) {
-            clearInterval(checkPayPal);
+            window.clearInterval(checkPayPalInterval);
             initializePayPalButton();
           }
         }, 100);
 
         // Cleanup interval after 10 seconds if PayPal doesn't load
         setTimeout(() => {
-          clearInterval(checkPayPal);
+          window.clearInterval(checkPayPalInterval);
         }, 10000);
       } catch (error) {
         console.error('Failed to initialize PayPal:', error);
@@ -121,10 +123,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           console.error('Error closing PayPal button:', error);
         }
       }
-      // Clean up any intervals that might be running
-      const interval = setInterval(() => {}, 0);
-      for (let i = 1; i < interval; i++) {
-        clearInterval(i);
+      if (checkPayPalInterval) {
+        window.clearInterval(checkPayPalInterval);
       }
     };
   }, [containerId, planType, toast]);
@@ -141,14 +141,3 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     </div>
   );
 };
-
-// Add PayPal types
-declare global {
-  interface Window {
-    paypal?: {
-      HostedButtons: (config: { hostedButtonId: string }) => {
-        render: (containerId: string) => Promise<any>;
-      };
-    };
-  }
-}
