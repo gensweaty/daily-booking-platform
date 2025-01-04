@@ -18,20 +18,25 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const planDuration = planType === 'monthly' ? 'Monthly' : 'Yearly';
 
   const loadPayPalScript = () => {
-    if (scriptRef.current) {
-      document.body.removeChild(scriptRef.current);
-    }
-
     return new Promise<void>((resolve, reject) => {
+      // First remove any existing PayPal script
+      const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
+      if (existingScript) {
+        existingScript.remove();
+      }
+
       const script = document.createElement('script');
-      script.src = "https://www.paypal.com/sdk/js?client-id=ATm58Iv3bVdLcUIVllc-on6VZRaRJeedpxso0KgGVu_kSELKrKOqaE63a8CNu-jIQ4ulE2j9WUkLASlY&vault=true&intent=subscription";
+      script.src = "https://www.paypal.com/sdk/js?client-id=ATm58Iv3bVdLcUIVllc-on6VZRaRJeedpxso0KgGVu_kSELKrKOqaE63a8CNu-jIQ4ulE2j9WUkLASlY&vault=true&intent=subscription&components=buttons";
       script.async = true;
       
-      script.onload = () => {
-        // Add a small delay to ensure PayPal is fully initialized
-        setTimeout(resolve, 100);
-      };
-      script.onerror = () => reject(new Error('Failed to load PayPal SDK'));
+      script.addEventListener('load', () => {
+        // Add a longer delay to ensure PayPal is fully initialized
+        setTimeout(resolve, 1000);
+      });
+
+      script.addEventListener('error', () => {
+        reject(new Error('Failed to load PayPal SDK'));
+      });
       
       document.body.appendChild(script);
       scriptRef.current = script;
@@ -39,7 +44,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   };
 
   const initializePayPalButton = async () => {
-    if (!window.paypal || !containerRef.current) return;
+    if (!window.paypal?.Buttons || !containerRef.current) return;
 
     try {
       // Clear any existing buttons
@@ -49,41 +54,40 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
       // Clean up previous instance if it exists
       if (buttonInstance.current) {
-        buttonInstance.current.close();
+        try {
+          buttonInstance.current.close();
+        } catch (error) {
+          console.error('Error closing previous PayPal button:', error);
+        }
       }
 
-      buttonInstance.current = await window.paypal.Buttons({
+      buttonInstance.current = window.paypal.Buttons({
         style: {
           shape: 'rect',
           color: 'blue',
           layout: 'vertical',
           label: 'subscribe'
         },
-        createOrder: (data: any, actions: any) => {
-          return actions.order.create({
-            purchase_units: [{
-              description: `${planDuration} Plan Subscription`,
-              amount: {
-                currency_code: 'USD',
-                value: amount
-              }
-            }]
-          });
+        createSubscription: (data: any, actions: any) => {
+          return actions.subscription.create({
+            plan_id: planType === 'monthly' 
+              ? 'P-3PD505110Y2402710M53L6AA'  // Monthly plan ID
+              : 'P-8RY93575NH0589519M53L6YA',  // Yearly plan ID
+            });
         },
-        onApprove: async (data: any, actions: any) => {
+        onApprove: async (data: any) => {
           try {
-            const order = await actions.order.capture();
-            await updateSubscriptionStatus(planType, onSuccess, order.id);
+            await updateSubscriptionStatus(planType, onSuccess, data.subscriptionID);
             
             toast({
               title: "Success",
               description: "Thank you for your subscription! Your account has been activated.",
             });
           } catch (error) {
-            console.error('Payment processing error:', error);
+            console.error('Subscription processing error:', error);
             toast({
               title: "Error",
-              description: "There was an error processing your payment. Please try again.",
+              description: "There was an error processing your subscription. Please try again.",
               variant: "destructive",
             });
           }
@@ -116,9 +120,11 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       try {
         await loadPayPalScript();
         
+        if (!isComponentMounted) return;
+
         // Wait for PayPal to be fully loaded
         const checkPayPal = setInterval(() => {
-          if (window.paypal && isComponentMounted) {
+          if (window.paypal?.Buttons && isComponentMounted) {
             clearInterval(checkPayPal);
             initializePayPalButton();
           }
@@ -151,11 +157,10 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           console.error('Error closing PayPal button:', error);
         }
       }
-      if (scriptRef.current) {
-        document.body.removeChild(scriptRef.current);
-      }
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
+      // Clean up any intervals that might be running
+      const intervals = setInterval(() => {}, 0);
+      for (let i = 0; i < intervals; i++) {
+        clearInterval(i);
       }
     };
   }, [containerId, planType, amount, planDuration, toast]);
