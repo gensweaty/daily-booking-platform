@@ -13,9 +13,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const containerRef = useRef<HTMLDivElement>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
   const buttonInstance = useRef<any>(null);
-  
-  const amount = planType === 'monthly' ? '9.95' : '89.95';
-  const planDuration = planType === 'monthly' ? 'Monthly' : 'Yearly';
 
   const loadPayPalScript = () => {
     return new Promise<void>((resolve, reject) => {
@@ -26,11 +23,11 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       }
 
       const script = document.createElement('script');
-      script.src = "https://www.paypal.com/sdk/js?client-id=ATm58Iv3bVdLcUIVllc-on6VZRaRJeedpxso0KgGVu_kSELKrKOqaE63a8CNu-jIQ4ulE2j9WUkLASlY&vault=true&intent=subscription&components=buttons";
+      script.src = "https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD";
+      script.crossOrigin = "anonymous";
       script.async = true;
       
       script.addEventListener('load', () => {
-        // Add a longer delay to ensure PayPal is fully initialized
         setTimeout(resolve, 1000);
       });
 
@@ -44,7 +41,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   };
 
   const initializePayPalButton = async () => {
-    if (!window.paypal?.Buttons || !containerRef.current) return;
+    if (!window.paypal?.HostedButtons || !containerRef.current) return;
 
     try {
       // Clear any existing buttons
@@ -61,48 +58,15 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         }
       }
 
-      buttonInstance.current = window.paypal.Buttons({
-        style: {
-          shape: 'rect',
-          color: 'blue',
-          layout: 'vertical',
-          label: 'subscribe'
-        },
-        createSubscription: (data: any, actions: any) => {
-          return actions.subscription.create({
-            plan_id: planType === 'monthly' 
-              ? 'P-3PD505110Y2402710M53L6AA'  // Monthly plan ID
-              : 'P-8RY93575NH0589519M53L6YA',  // Yearly plan ID
-            });
-        },
-        onApprove: async (data: any) => {
-          try {
-            await updateSubscriptionStatus(planType, onSuccess, data.subscriptionID);
-            
-            toast({
-              title: "Success",
-              description: "Thank you for your subscription! Your account has been activated.",
-            });
-          } catch (error) {
-            console.error('Subscription processing error:', error);
-            toast({
-              title: "Error",
-              description: "There was an error processing your subscription. Please try again.",
-              variant: "destructive",
-            });
-          }
-        },
-        onError: (err: any) => {
-          console.error('PayPal button error:', err);
-          toast({
-            title: "Error",
-            description: "There was an error with PayPal. Please try again.",
-            variant: "destructive",
-          });
-        }
-      });
+      // Use the appropriate hosted button ID based on plan type
+      const hostedButtonId = planType === 'monthly' 
+        ? 'YDK5G6VR2EA8L'  // Monthly plan button ID
+        : 'YKXLC4MYQK4JY'; // Yearly plan button ID
 
-      await buttonInstance.current.render(`#${containerId}`);
+      buttonInstance.current = await window.paypal.HostedButtons({
+        hostedButtonId: hostedButtonId
+      }).render(`#${containerId}`);
+
     } catch (error) {
       console.error('PayPal initialization error:', error);
       toast({
@@ -124,7 +88,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
         // Wait for PayPal to be fully loaded
         const checkPayPal = setInterval(() => {
-          if (window.paypal?.Buttons && isComponentMounted) {
+          if (window.paypal?.HostedButtons && isComponentMounted) {
             clearInterval(checkPayPal);
             initializePayPalButton();
           }
@@ -158,12 +122,12 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         }
       }
       // Clean up any intervals that might be running
-      const intervals = setInterval(() => {}, 0);
-      for (let i = 0; i < intervals; i++) {
+      const interval = setInterval(() => {}, 0);
+      for (let i = 1; i < interval; i++) {
         clearInterval(i);
       }
     };
-  }, [containerId, planType, amount, planDuration, toast]);
+  }, [containerId, planType, toast]);
 
   return (
     <div 
@@ -177,3 +141,14 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     </div>
   );
 };
+
+// Add PayPal types
+declare global {
+  interface Window {
+    paypal?: {
+      HostedButtons: (config: { hostedButtonId: string }) => {
+        render: (containerId: string) => Promise<any>;
+      };
+    };
+  }
+}

@@ -13,8 +13,8 @@ export const PayPalSubscribeButton = ({ planType, onSuccess }: PayPalSubscribeBu
   const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'card'>('paypal');
   const { toast } = useToast();
   const buttonContainerId = planType === 'monthly' 
-    ? 'paypal-button-container-P-3PD505110Y2402710M53L6AA'
-    : 'paypal-button-container-P-8RY93575NH0589519M53L6YA';
+    ? 'paypal-container-YDK5G6VR2EA8L'  // Monthly hosted button container
+    : 'paypal-container-YKXLC4MYQK4JY';  // Yearly hosted button container
 
   const handleCardPayment = () => {
     toast({
