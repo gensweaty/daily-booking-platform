@@ -97,12 +97,10 @@ export const usePayPalSubscription = ({ buttonId, containerId, onSuccess }: UseP
                 }
               },
               createOrder: () => {
-                // Open payment in new tab
                 const paymentUrl = `https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=${buttonId}`;
                 const newWindow = window.open(paymentUrl, '_blank');
                 setPaymentWindow(newWindow);
                 
-                // Start checking for payment completion
                 if (newWindow) {
                   checkInterval = setInterval(() => {
                     if (newWindow.closed) {
