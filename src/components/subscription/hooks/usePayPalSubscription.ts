@@ -42,7 +42,7 @@ export const usePayPalSubscription = ({ buttonId, containerId, onSuccess }: UseP
       const currentDate = new Date();
       const nextPeriodEnd = new Date(currentDate);
       
-      if (buttonId === 'ST9DUFXHJCGWJ') { // monthly plan
+      if (buttonId === 'ST9DUFXHJCGWJ') {
         nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1);
       } else {
         nextPeriodEnd.setFullYear(nextPeriodEnd.getFullYear() + 1);
@@ -86,49 +86,38 @@ export const usePayPalSubscription = ({ buttonId, containerId, onSuccess }: UseP
         if (!mounted) return;
 
         if (window.paypal) {
-          try {
-            await window.paypal.HostedButtons({
-              hostedButtonId: buttonId,
-              onApprove: (data) => {
-                console.log('Payment approved:', data);
-                handlePaymentSuccess(data.orderID);
-                if (paymentWindow) {
-                  paymentWindow.close();
-                }
-              },
-              createOrder: () => {
-                const paymentUrl = `https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=${buttonId}`;
-                const newWindow = window.open(paymentUrl, '_blank');
-                setPaymentWindow(newWindow);
-                
-                if (newWindow) {
-                  checkInterval = setInterval(() => {
-                    if (newWindow.closed) {
-                      clearInterval(checkInterval);
-                      checkSubscriptionStatus();
-                    }
-                  }, 1000);
-                }
+          await window.paypal.HostedButtons({
+            hostedButtonId: buttonId,
+            onApprove: (data) => {
+              console.log('Payment approved:', data);
+              handlePaymentSuccess(data.orderID);
+              if (paymentWindow) {
+                paymentWindow.close();
               }
-            }).render(`#${containerId}`);
-          } catch (error) {
-            console.error('PayPal button render error:', error);
-            toast({
-              title: "Error",
-              description: "Failed to load PayPal button. Please try again.",
-              variant: "destructive",
-            });
-          }
+            },
+            createOrder: () => {
+              const paymentUrl = `https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=${buttonId}`;
+              const newWindow = window.open(paymentUrl, '_blank');
+              setPaymentWindow(newWindow);
+              
+              if (newWindow) {
+                checkInterval = setInterval(() => {
+                  if (newWindow.closed) {
+                    clearInterval(checkInterval);
+                    checkSubscriptionStatus();
+                  }
+                }, 1000);
+              }
+            }
+          }).render(`#${containerId}`);
         }
       } catch (error) {
-        console.error('PayPal initialization error:', error);
-        if (mounted) {
-          toast({
-            title: "Error",
-            description: "Failed to initialize PayPal. Please refresh the page.",
-            variant: "destructive",
-          });
-        }
+        console.error('PayPal button render error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load PayPal button. Please try again.",
+          variant: "destructive",
+        });
       }
     };
 
