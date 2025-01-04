@@ -23,12 +23,10 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       if (!window.paypal || !mounted) return;
 
       try {
-        // Safely clean up any existing buttons
+        // Clean up existing buttons by removing the container's content
         const container = document.getElementById(containerId);
         if (container) {
-          while (container.firstChild) {
-            container.removeChild(container.firstChild);
-          }
+          container.innerHTML = '';
         }
 
         await window.paypal.Buttons({
@@ -95,8 +93,13 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     const initialize = async () => {
       try {
         await loadScript();
-        if (window.paypal && mounted) {
-          await initializePayPalButtons();
+        // Wait for a small delay to ensure PayPal is fully initialized
+        if (mounted) {
+          setTimeout(async () => {
+            if (window.paypal && mounted) {
+              await initializePayPalButtons();
+            }
+          }, 500);
         }
       } catch (error) {
         console.error('Failed to load PayPal script:', error);
@@ -107,7 +110,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
     return () => {
       mounted = false;
-      // Clean up the container on unmount
+      // Clean up by emptying the container
       const container = document.getElementById(containerId);
       if (container) {
         container.innerHTML = '';
