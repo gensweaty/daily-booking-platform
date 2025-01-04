@@ -8,9 +8,11 @@ import {
 import { SubscriptionPlanSelect } from "./signup/SubscriptionPlanSelect";
 import { useToast } from "@/hooks/use-toast";
 import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
+import { PaymentOptions } from "./subscription/PaymentOptions";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'paypal' | 'card'>('paypal');
   const [isOpen, setIsOpen] = useState(true);
   const { toast } = useToast();
 
@@ -39,10 +41,18 @@ export const TrialExpiredDialog = () => {
             setSelectedPlan={setSelectedPlan}
             isLoading={false}
           />
-          <PayPalSubscribeButton 
+          <PaymentOptions
+            selectedMethod={selectedPaymentMethod}
+            onMethodChange={setSelectedPaymentMethod}
             planType={selectedPlan}
             onSuccess={handleSubscriptionSuccess}
           />
+          {selectedPaymentMethod === 'paypal' && (
+            <PayPalSubscribeButton 
+              planType={selectedPlan}
+              onSuccess={handleSubscriptionSuccess}
+            />
+          )}
         </div>
       </DialogContent>
     </Dialog>
