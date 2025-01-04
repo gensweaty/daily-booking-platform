@@ -8,59 +8,30 @@ interface PayPalButtonProps {
   containerId: string;
 }
 
-let isScriptLoading = false;
-let scriptLoadPromise: Promise<void> | null = null;
-
-const loadPayPalScript = () => {
-  if (scriptLoadPromise) {
-    return scriptLoadPromise;
-  }
-
-  if (isScriptLoading) {
-    return new Promise<void>((resolve) => {
-      const checkScript = () => {
-        if (window.paypal) {
-          resolve();
-        } else {
-          setTimeout(checkScript, 100);
-        }
-      };
-      checkScript();
-    });
-  }
-
-  isScriptLoading = true;
-  scriptLoadPromise = new Promise<void>((resolve, reject) => {
-    const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
-    if (existingScript) {
-      existingScript.remove();
-      delete (window as any).paypal;
-    }
-
-    const script = document.createElement('script');
-    script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
-    script.async = true;
-
-    script.onload = () => {
-      isScriptLoading = false;
-      resolve();
-    };
-
-    script.onerror = () => {
-      isScriptLoading = false;
-      scriptLoadPromise = null;
-      reject(new Error('Failed to load PayPal script'));
-    };
-
-    document.body.appendChild(script);
-  });
-
-  return scriptLoadPromise;
-};
-
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
   const buttonId = planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L';
+
+  useEffect(() => {
+    // Create a channel to listen for payment success events
+    const channel = supabase
+      .channel('payment_status')
+      .on(
+        'broadcast',
+        { event: 'payment_success' },
+        (payload) => {
+          console.log('Payment success received:', payload);
+          if (payload.payload.orderId) {
+            handlePaymentSuccess(payload.payload.orderId);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const handlePaymentSuccess = async (orderId: string) => {
     try {
@@ -119,50 +90,30 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   };
 
   useEffect(() => {
-    let mounted = true;
-
-    const initializePayPal = async () => {
-      try {
-        await loadPayPalScript();
-
-        if (!mounted) return;
-
-        if (window.paypal) {
-          try {
-            await window.paypal.HostedButtons({
-              hostedButtonId: buttonId,
-              onApprove: (data) => {
-                console.log('Payment approved:', data);
-                handlePaymentSuccess(data.orderID);
-              },
-            }).render(`#${containerId}`);
-          } catch (error) {
-            console.error('PayPal button render error:', error);
-            toast({
-              title: "Error",
-              description: "Failed to load PayPal button. Please try again.",
-              variant: "destructive",
-            });
-          }
-        }
-      } catch (error) {
-        console.error('PayPal initialization error:', error);
-        if (mounted) {
-          toast({
-            title: "Error",
-            description: "Failed to initialize PayPal. Please refresh the page.",
-            variant: "destructive",
-          });
-        }
-      }
+    // Open PayPal payment in new tab
+    const paypalUrl = planType === 'monthly' 
+      ? 'https://www.paypal.com/buttons/smart-payment-buttons?token=ST9DUFXHJCGWJ'
+      : 'https://www.paypal.com/buttons/smart-payment-buttons?token=YDK5G6VR2EA8L';
+    
+    const button = document.createElement('button');
+    button.className = 'w-full bg-[#FFC439] text-black px-4 py-2 rounded hover:bg-[#F2BA36] transition-colors';
+    button.textContent = 'Pay with PayPal';
+    button.onclick = () => {
+      window.open(paypalUrl, '_blank');
     };
 
-    initializePayPal();
+    const container = document.getElementById(containerId);
+    if (container) {
+      container.innerHTML = '';
+      container.appendChild(button);
+    }
 
     return () => {
-      mounted = false;
+      if (container) {
+        container.innerHTML = '';
+      }
     };
-  }, [buttonId, containerId, toast]);
+  }, [containerId, planType]);
 
-  return <div id={containerId} className="w-full" />;
+  return <div id={containerId} className="w-full h-[40px]" />;
 };
