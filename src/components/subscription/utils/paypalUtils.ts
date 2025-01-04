@@ -2,8 +2,8 @@ import { supabase } from "@/lib/supabase";
 
 export const updateSubscriptionStatus = async (
   planType: 'monthly' | 'yearly',
-  onSuccess?: (subscriptionId: string) => void,
-  subscriptionId?: string
+  onSuccess?: (orderId: string) => void,
+  orderId?: string
 ) => {
   const currentDate = new Date();
   const nextChargeDate = new Date(currentDate);
@@ -20,13 +20,14 @@ export const updateSubscriptionStatus = async (
       status: 'active',
       current_period_start: currentDate.toISOString(),
       current_period_end: nextChargeDate.toISOString(),
-      plan_type: planType
+      plan_type: planType,
+      last_payment_id: orderId
     })
     .eq('status', 'expired');
 
   if (error) throw error;
 
-  if (onSuccess && subscriptionId) {
-    onSuccess(subscriptionId);
+  if (onSuccess && orderId) {
+    onSuccess(orderId);
   }
 };

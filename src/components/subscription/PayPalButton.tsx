@@ -5,7 +5,7 @@ import { updateSubscriptionStatus } from './utils/paypalUtils';
 
 interface PayPalButtonProps {
   planType: 'monthly' | 'yearly';
-  onSuccess?: (subscriptionId: string) => void;
+  onSuccess?: (orderId: string) => void;
   containerId: string;
 }
 
@@ -13,9 +13,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const { toast } = useToast();
   const { isScriptLoaded, isScriptError, loadScript } = usePayPalScript(containerId);
   
-  const planId = planType === 'monthly' 
-    ? 'P-3PD505110Y2402710M53L6AA'
-    : 'P-8RY93575NH0589519M53L6YA';
+  const amount = planType === 'monthly' ? '9.95' : '89.95';
+  const planDuration = planType === 'monthly' ? 'Monthly' : 'Yearly';
 
   useEffect(() => {
     let initTimeout: NodeJS.Timeout;
@@ -36,28 +35,35 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
             shape: 'rect',
             color: 'blue',
             layout: 'vertical',
-            label: 'subscribe'
+            label: 'pay'
           },
-          createSubscription: (data: any, actions: any) => {
-            return actions.subscription.create({
-              plan_id: planId
+          createOrder: (data: any, actions: any) => {
+            return actions.order.create({
+              purchase_units: [{
+                description: `${planDuration} Plan Subscription`,
+                amount: {
+                  currency_code: 'USD',
+                  value: amount
+                }
+              }]
             });
           },
-          onApprove: async (data: any) => {
+          onApprove: async (data: any, actions: any) => {
             if (!mounted) return;
             
             try {
-              await updateSubscriptionStatus(planType, onSuccess, data.subscriptionID);
+              const order = await actions.order.capture();
+              await updateSubscriptionStatus(planType, onSuccess, order.id);
               
               toast({
-                title: "Subscription Activated",
-                description: "Thank you for subscribing! Your account has been activated.",
+                title: "Payment Successful",
+                description: "Thank you for your payment! Your account has been activated.",
               });
             } catch (error) {
-              console.error('Error updating subscription:', error);
+              console.error('Error processing payment:', error);
               toast({
                 title: "Error",
-                description: "There was an error activating your subscription. Please contact support.",
+                description: "There was an error processing your payment. Please try again.",
                 variant: "destructive",
               });
             }
@@ -116,7 +122,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         container.innerHTML = '';
       }
     };
-  }, [containerId, planId, planType, onSuccess, toast, loadScript]);
+  }, [containerId, planType, amount, planDuration, onSuccess, toast, loadScript]);
 
   if (isScriptError) {
     return (
