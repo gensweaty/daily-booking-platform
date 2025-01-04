@@ -6,8 +6,8 @@ interface PayPalNamespace {
       layout: string;
       label: string;
     };
-    createSubscription: (data: any, actions: any) => Promise<string>;
-    onApprove: (data: any) => void;
+    createOrder: (data: any, actions: any) => Promise<string>;
+    onApprove: (data: any, actions: any) => Promise<void>;
     onError: (err: any) => void;
   }) => {
     render: (containerId: string) => void;
