@@ -62,6 +62,52 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const { toast } = useToast();
   const buttonId = planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L';
 
+  useEffect(() => {
+    let mounted = true;
+
+    const initializePayPal = async () => {
+      try {
+        await loadPayPalScript();
+
+        if (!mounted) return;
+
+        if (window.paypal) {
+          try {
+            await window.paypal.HostedButtons({
+              hostedButtonId: buttonId,
+              onApprove: (data) => {
+                console.log('Payment approved:', data);
+                handlePaymentSuccess(data.orderID);
+              },
+            }).render(`#${containerId}`);
+          } catch (error) {
+            console.error('PayPal button render error:', error);
+            toast({
+              title: "Error",
+              description: "Failed to load PayPal button. Please try again.",
+              variant: "destructive",
+            });
+          }
+        }
+      } catch (error) {
+        console.error('PayPal initialization error:', error);
+        if (mounted) {
+          toast({
+            title: "Error",
+            description: "Failed to initialize PayPal. Please refresh the page.",
+            variant: "destructive",
+          });
+        }
+      }
+    };
+
+    initializePayPal();
+
+    return () => {
+      mounted = false;
+    };
+  }, [buttonId, containerId, toast]);
+
   const handlePaymentSuccess = async (orderId: string) => {
     try {
       const { data: subscription, error: fetchError } = await supabase
@@ -108,6 +154,12 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         title: "Success",
         description: "Your subscription has been activated successfully!",
       });
+
+      // Close any open PayPal windows
+      const paypalWindows = window.opener || window.parent;
+      if (paypalWindows !== window) {
+        window.close();
+      }
     } catch (error) {
       console.error('Payment processing error:', error);
       toast({
@@ -117,52 +169,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       });
     }
   };
-
-  useEffect(() => {
-    let mounted = true;
-
-    const initializePayPal = async () => {
-      try {
-        await loadPayPalScript();
-
-        if (!mounted) return;
-
-        if (window.paypal) {
-          try {
-            await window.paypal.HostedButtons({
-              hostedButtonId: buttonId,
-              onApprove: (data) => {
-                console.log('Payment approved:', data);
-                handlePaymentSuccess(data.orderID);
-              },
-            }).render(`#${containerId}`);
-          } catch (error) {
-            console.error('PayPal button render error:', error);
-            toast({
-              title: "Error",
-              description: "Failed to load PayPal button. Please try again.",
-              variant: "destructive",
-            });
-          }
-        }
-      } catch (error) {
-        console.error('PayPal initialization error:', error);
-        if (mounted) {
-          toast({
-            title: "Error",
-            description: "Failed to initialize PayPal. Please refresh the page.",
-            variant: "destructive",
-          });
-        }
-      }
-    };
-
-    initializePayPal();
-
-    return () => {
-      mounted = false;
-    };
-  }, [buttonId, containerId, toast]);
 
   return <div id={containerId} className="w-full" />;
 };

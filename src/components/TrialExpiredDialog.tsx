@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,12 +9,21 @@ import { SubscriptionPlanSelect } from "./signup/SubscriptionPlanSelect";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
   const [isOpen, setIsOpen] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { status } = useSubscriptionStatus();
+
+  // Close dialog if subscription becomes active
+  useEffect(() => {
+    if (status.isActive) {
+      setIsOpen(false);
+    }
+  }, [status.isActive]);
 
   const handleSubscriptionSuccess = (subscriptionId: string) => {
     toast({
@@ -24,6 +33,11 @@ export const TrialExpiredDialog = () => {
     setIsOpen(false);
     navigate("/dashboard");
   };
+
+  // Don't show dialog if subscription is active
+  if (status.isActive) {
+    return null;
+  }
 
   return (
     <Dialog open={isOpen}>
