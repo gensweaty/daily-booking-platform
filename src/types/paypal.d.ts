@@ -1,6 +1,5 @@
 interface PayPalHostedButtonsComponent {
   render: (containerId: string) => Promise<any>;
-  close: () => void;
 }
 
 interface PayPalHostedButtonsConfig {
