@@ -103,11 +103,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       if (onSuccess) {
         onSuccess(orderId);
       }
-
-      toast({
-        title: "Success",
-        description: "Your subscription has been activated successfully!",
-      });
     } catch (error) {
       console.error('Payment processing error:', error);
       toast({

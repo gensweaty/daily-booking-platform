@@ -7,22 +7,19 @@ import {
 } from "@/components/ui/dialog";
 import { SubscriptionPlanSelect } from "./signup/SubscriptionPlanSelect";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
 import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
   const [isOpen, setIsOpen] = useState(true);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   const handleSubscriptionSuccess = (subscriptionId: string) => {
     toast({
       title: "Success",
-      description: `Successfully subscribed with ID: ${subscriptionId}`,
+      description: "Your subscription has been activated successfully!",
     });
     setIsOpen(false);
-    navigate("/dashboard");
   };
 
   return (
