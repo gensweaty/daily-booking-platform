@@ -19,11 +19,13 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
   useEffect(() => {
     let initTimeout: NodeJS.Timeout;
+    let mounted = true;
 
     const initializePayPalButtons = async () => {
-      if (!window.paypal) return;
+      if (!window.paypal || !mounted) return;
 
       try {
+        // Safely clean up the container
         const container = document.getElementById(containerId);
         if (container) {
           container.innerHTML = '';
@@ -42,6 +44,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
             });
           },
           onApprove: async (data: any) => {
+            if (!mounted) return;
+            
             try {
               await updateSubscriptionStatus(planType, onSuccess, data.subscriptionID);
               
@@ -59,6 +63,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
             }
           },
           onError: (err: any) => {
+            if (!mounted) return;
+            
             console.error('PayPal button error:', err);
             toast({
               title: "Error",
@@ -68,6 +74,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           }
         }).render(`#${containerId}`);
       } catch (error) {
+        if (!mounted) return;
+        
         console.error('PayPal initialization error:', error);
         toast({
           title: "Error",
@@ -82,9 +90,9 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         await loadScript();
         // Give PayPal time to initialize
         initTimeout = setTimeout(() => {
-          if (window.paypal) {
+          if (window.paypal && mounted) {
             initializePayPalButtons();
-          } else {
+          } else if (mounted) {
             toast({
               title: "Error",
               description: "Failed to initialize payment system. Please refresh the page.",
@@ -100,7 +108,9 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     initialize();
 
     return () => {
+      mounted = false;
       clearTimeout(initTimeout);
+      // Safely clean up the container on unmount
       const container = document.getElementById(containerId);
       if (container) {
         container.innerHTML = '';
