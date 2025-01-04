@@ -7,83 +7,47 @@ interface PayPalButtonProps {
   containerId: string;
 }
 
-export const PayPalButton = ({ planType, containerId }: PayPalButtonProps) => {
+export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
-  const containerRef = useRef<HTMLDivElement>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
+  const buttonId = planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L';
 
   useEffect(() => {
     const loadPayPalScript = () => {
-      // Remove any existing PayPal script
-      const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
-      if (existingScript) {
-        existingScript.remove();
-      }
-
-      // Create new script element
       const script = document.createElement('script');
       script.src = "https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD";
-      script.crossOrigin = "anonymous";
       script.async = true;
-      
-      // Add script to document
-      document.body.appendChild(script);
+      script.crossOrigin = "anonymous";
       scriptRef.current = script;
 
-      // Initialize PayPal button when script loads
       script.onload = () => {
-        const hostedButtonId = planType === 'monthly' 
-          ? 'ST9DUFXHJCGWJ'  // Monthly plan button ID
-          : 'YDK5G6VR2EA8L'; // Yearly plan button ID
-
-        try {
-          window.paypal?.HostedButtons({
-            hostedButtonId: hostedButtonId
+        if (window.paypal) {
+          window.paypal.HostedButtons({
+            hostedButtonId: buttonId
           })
-          .render(`#${containerId}`);
-        } catch (error) {
-          console.error('PayPal initialization error:', error);
-          toast({
-            title: "Error",
-            description: "Failed to initialize payment system. Please refresh and try again.",
-            variant: "destructive",
+          .render(`#${containerId}`)
+          .catch((error: any) => {
+            console.error('PayPal button render error:', error);
+            toast({
+              title: "Error",
+              description: "Failed to load PayPal button. Please try again.",
+              variant: "destructive",
+            });
           });
         }
       };
 
-      script.onerror = () => {
-        console.error('Failed to load PayPal SDK');
-        toast({
-          title: "Error",
-          description: "Failed to load payment system. Please refresh the page.",
-          variant: "destructive",
-        });
-      };
+      document.body.appendChild(script);
     };
 
     loadPayPalScript();
 
-    // Cleanup function
     return () => {
       if (scriptRef.current) {
-        scriptRef.current.remove();
-      }
-      // Clear the container
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
+        document.body.removeChild(scriptRef.current);
       }
     };
-  }, [containerId, planType, toast]);
+  }, [buttonId, containerId, toast]);
 
-  return (
-    <div 
-      id={containerId}
-      ref={containerRef}
-      className="min-h-[150px] flex items-center justify-center"
-    >
-      <div className="text-center text-muted-foreground">
-        Loading payment options...
-      </div>
-    </div>
-  );
+  return <div id={containerId} className="w-full" />;
 };
