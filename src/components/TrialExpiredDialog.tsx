@@ -27,14 +27,14 @@ export const TrialExpiredDialog = () => {
 
   return (
     <Dialog open={isOpen}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="w-[90vw] max-w-[475px] p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="text-center text-2xl font-bold">
+          <DialogTitle className="text-center text-xl sm:text-2xl font-bold">
             Trial Period Expired
           </DialogTitle>
         </DialogHeader>
-        <div className="mt-4 space-y-6">
-          <p className="text-center text-muted-foreground">
+        <div className="mt-4 space-y-6 px-2 sm:px-4">
+          <p className="text-center text-sm sm:text-base text-muted-foreground">
             Your 14-day trial has expired. Please select a plan to continue using our services.
           </p>
           <SubscriptionPlanSelect
