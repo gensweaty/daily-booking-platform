@@ -115,6 +115,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
   useEffect(() => {
     let mounted = true;
+    let paymentWindow: Window | null = null;
+    let checkInterval: number;
 
     const initializePayPal = async () => {
       try {
@@ -129,7 +131,26 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
               onApprove: (data) => {
                 console.log('Payment approved:', data);
                 handlePaymentSuccess(data.orderID);
+                if (paymentWindow) {
+                  paymentWindow.close();
+                }
               },
+              createOrder: () => {
+                // Open payment in new tab
+                const paymentUrl = `https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=${buttonId}`;
+                paymentWindow = window.open(paymentUrl, '_blank');
+                
+                // Start checking for payment completion
+                if (paymentWindow) {
+                  checkInterval = setInterval(() => {
+                    if (paymentWindow?.closed) {
+                      clearInterval(checkInterval);
+                      // Check subscription status
+                      checkSubscriptionStatus();
+                    }
+                  }, 1000);
+                }
+              }
             }).render(`#${containerId}`);
           } catch (error) {
             console.error('PayPal button render error:', error);
@@ -152,12 +173,29 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       }
     };
 
+    const checkSubscriptionStatus = async () => {
+      const { data: subscription, error } = await supabase
+        .from('subscriptions')
+        .select('status')
+        .eq('status', 'active')
+        .single();
+
+      if (subscription?.status === 'active') {
+        if (onSuccess) {
+          onSuccess('subscription_activated');
+        }
+      }
+    };
+
     initializePayPal();
 
     return () => {
       mounted = false;
+      if (checkInterval) {
+        clearInterval(checkInterval);
+      }
     };
-  }, [buttonId, containerId, toast]);
+  }, [buttonId, containerId, toast, onSuccess]);
 
   return <div id={containerId} className="w-full" />;
 };
