@@ -30,22 +30,47 @@ const Index = () => {
       if (user) {
         const { data: subscription, error } = await supabase
           .from('subscriptions')
-          .select('status')
+          .select('status, current_period_end')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.error('Error checking subscription:', error);
           return;
         }
 
-        if (subscription?.status === 'expired') {
+        if (subscription?.status === 'expired' || 
+            (subscription?.current_period_end && new Date(subscription.current_period_end) < new Date())) {
           setShowTrialExpired(true);
+        } else {
+          setShowTrialExpired(false);
         }
       }
     };
 
     checkSubscriptionStatus();
+    
+    // Set up real-time subscription updates
+    const channel = supabase
+      .channel('subscription-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'subscriptions',
+          filter: `user_id=eq.${user?.id}`
+        },
+        (payload) => {
+          console.log('Subscription updated:', payload);
+          checkSubscriptionStatus();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   useEffect(() => {
