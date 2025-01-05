@@ -16,7 +16,7 @@ export const PAYPAL_BUTTON_CONFIGS: Record<string, PayPalButtonConfig> = {
 };
 
 export const PAYPAL_SDK_OPTIONS = {
-  'client-id': 'BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q',
+  'client-id': 'ATm58Iv3bVdLcUIVllc-on6VZRaRJeedpxso0KgGVu_kSELKrKOqaE63a8CNu-jIQ4ulE2j9WUkLASlY',
   'components': 'hosted-buttons',
   'disable-funding': 'venmo',
   'currency': 'USD',
