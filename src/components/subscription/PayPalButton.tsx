@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { checkExistingSubscription } from '@/utils/subscriptionUtils';
+import { usePayPalInitialization } from '@/hooks/usePayPalInitialization';
 
 interface PayPalButtonProps {
   planType: 'monthly' | 'yearly';
@@ -8,134 +10,24 @@ interface PayPalButtonProps {
   containerId: string;
 }
 
-let isScriptLoading = false;
-let scriptLoadPromise: Promise<void> | null = null;
-
-const loadPayPalScript = () => {
-  if (scriptLoadPromise) {
-    return scriptLoadPromise;
-  }
-
-  if (isScriptLoading) {
-    return new Promise<void>((resolve) => {
-      const checkScript = () => {
-        if (window.paypal) {
-          resolve();
-        } else {
-          setTimeout(checkScript, 100);
-        }
-      };
-      checkScript();
-    });
-  }
-
-  isScriptLoading = true;
-  scriptLoadPromise = new Promise<void>((resolve, reject) => {
-    const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
-    if (existingScript) {
-      existingScript.remove();
-      delete (window as any).paypal;
-    }
-
-    const script = document.createElement('script');
-    script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
-    script.async = true;
-
-    script.onload = () => {
-      isScriptLoading = false;
-      resolve();
-    };
-
-    script.onerror = () => {
-      isScriptLoading = false;
-      scriptLoadPromise = null;
-      reject(new Error('Failed to load PayPal script'));
-    };
-
-    document.body.appendChild(script);
-  });
-
-  return scriptLoadPromise;
-};
-
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
   const buttonId = planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L';
   const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
-    const checkExistingSubscription = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      // Check if user email matches the one from PayPal and subscription is not expired
-      if (subscription && 
-          user.email === 'anania.devsurashvili885@law.tsu.edu.ge' && 
-          subscription.status !== 'expired') {
+    const checkSubscription = async () => {
+      const result = await checkExistingSubscription();
+      if (result?.isSubscribed) {
         setIsSubscribed(true);
         if (onSuccess) {
           onSuccess('existing-subscription');
         }
-        return;
       }
     };
 
-    checkExistingSubscription();
+    checkSubscription();
   }, [onSuccess]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const initializePayPal = async () => {
-      if (isSubscribed) return; // Don't initialize PayPal if already subscribed
-
-      try {
-        await loadPayPalScript();
-
-        if (!mounted) return;
-
-        if (window.paypal) {
-          try {
-            await window.paypal.HostedButtons({
-              hostedButtonId: buttonId,
-              onApprove: (data) => {
-                console.log('Payment approved:', data);
-                handlePaymentSuccess(data.orderID);
-              },
-            }).render(`#${containerId}`);
-          } catch (error) {
-            console.error('PayPal button render error:', error);
-            toast({
-              title: "Error",
-              description: "Failed to load PayPal button. Please try again.",
-              variant: "destructive",
-            });
-          }
-        }
-      } catch (error) {
-        console.error('PayPal initialization error:', error);
-        if (mounted) {
-          toast({
-            title: "Error",
-            description: "Failed to initialize PayPal. Please refresh the page.",
-            variant: "destructive",
-          });
-        }
-      }
-    };
-
-    initializePayPal();
-
-    return () => {
-      mounted = false;
-    };
-  }, [buttonId, containerId, toast, isSubscribed]);
 
   const handlePaymentSuccess = async (orderId: string) => {
     try {
@@ -199,8 +91,10 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     }
   };
 
+  usePayPalInitialization(buttonId, containerId, handlePaymentSuccess, isSubscribed);
+
   if (isSubscribed) {
-    return null; // Don't render the button if already subscribed
+    return null;
   }
 
   return <div id={containerId} className="w-full" />;
