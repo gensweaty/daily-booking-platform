@@ -14,7 +14,7 @@ export const PayPalSubscribeButton = ({ planType, onSuccess }: PayPalSubscribeBu
       case 'yearly':
         return 'paypal-container-YDK5G6VR2EA8L';
       case 'test':
-        return 'paypal-container-test'; // You'll need to update this with the actual container ID
+        return 'paypal-container-SZHF9WLR5RQWU';
       default:
         return `paypal-container-${planType}`;
     }

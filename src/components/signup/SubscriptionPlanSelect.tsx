@@ -44,7 +44,7 @@ export const SubscriptionPlanSelect = ({
           <Label htmlFor="test" className="flex-1">
             <div className="flex justify-between items-center">
               <span>Test Plan</span>
-              <span className="font-semibold">$0.01</span>
+              <span className="font-semibold">$1.00</span>
             </div>
             <p className="text-sm text-muted-foreground mt-1">1-hour test subscription</p>
           </Label>

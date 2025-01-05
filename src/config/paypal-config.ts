@@ -11,7 +11,7 @@ export const PAYPAL_BUTTON_CONFIGS: Record<string, PayPalButtonConfig> = {
   },
   test: {
     planType: 'test',
-    hostedButtonId: '' // You'll need to add the hosted button ID from PayPal here
+    hostedButtonId: 'SZHF9WLR5RQWU'
   }
 };
 
