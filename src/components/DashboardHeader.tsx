@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/components/ui/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
@@ -28,6 +28,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
 
   useEffect(() => {
@@ -49,7 +50,21 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     };
 
     fetchSubscription();
-  }, [user]);
+
+    // Handle subscription parameter if present
+    const subscriptionType = searchParams.get('subscription');
+    if (subscriptionType && (subscriptionType === 'monthly' || subscriptionType === 'yearly')) {
+      // Clear the URL parameter
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+      
+      // Show success toast
+      toast({
+        title: "Subscription Activated",
+        description: `Your ${subscriptionType} subscription has been activated successfully!`,
+      });
+    }
+  }, [user, searchParams, toast]);
 
   const handleSignOut = async () => {
     try {

@@ -61,6 +61,9 @@ const loadPayPalScript = () => {
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
   const buttonId = planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L';
+  const returnUrl = planType === 'monthly' 
+    ? 'https://daily-booking-platform.lovable.app/dashboard?subscription=monthly'
+    : 'https://daily-booking-platform.lovable.app/dashboard?subscription=yearly';
 
   useEffect(() => {
     let mounted = true;
@@ -79,6 +82,22 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 console.log('Payment approved:', data);
                 handlePaymentSuccess(data.orderID);
               },
+              onCancel: () => {
+                console.log('Payment cancelled');
+                toast({
+                  title: "Payment Cancelled",
+                  description: "You cancelled the payment process.",
+                  variant: "destructive",
+                });
+              },
+              onError: (err) => {
+                console.error('PayPal error:', err);
+                toast({
+                  title: "Error",
+                  description: "There was an error processing your payment.",
+                  variant: "destructive",
+                });
+              }
             }).render(`#${containerId}`);
           } catch (error) {
             console.error('PayPal button render error:', error);
@@ -110,17 +129,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
   const handlePaymentSuccess = async (orderId: string) => {
     try {
-      const { data: subscription, error: fetchError } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('status', 'expired')
-        .single();
-
-      if (fetchError) {
-        console.error('Error fetching subscription:', fetchError);
-        return;
-      }
-
       const currentDate = new Date();
       const nextPeriodEnd = new Date(currentDate);
       
@@ -139,7 +147,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           plan_type: planType,
           last_payment_id: orderId
         })
-        .eq('id', subscription.id);
+        .eq('status', 'expired');
 
       if (updateError) {
         console.error('Error updating subscription:', updateError);
@@ -155,11 +163,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         description: "Your subscription has been activated successfully!",
       });
 
-      // Close any open PayPal windows
-      const paypalWindows = window.opener || window.parent;
-      if (paypalWindows !== window) {
-        window.close();
-      }
+      // Redirect to the return URL
+      window.location.href = returnUrl;
     } catch (error) {
       console.error('Payment processing error:', error);
       toast({
