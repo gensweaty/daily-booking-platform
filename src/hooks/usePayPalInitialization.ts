@@ -55,7 +55,9 @@ export const usePayPalInitialization = (
   buttonId: string,
   containerId: string,
   onSuccess: (orderId: string) => void,
-  isSubscribed: boolean
+  isSubscribed: boolean,
+  onError?: (error: any) => void,
+  onLoad?: () => void
 ) => {
   const { toast } = useToast();
 
@@ -79,8 +81,15 @@ export const usePayPalInitialization = (
                 onSuccess(data.orderID);
               },
             }).render(`#${containerId}`);
+            
+            if (onLoad) {
+              onLoad();
+            }
           } catch (error) {
             console.error('PayPal button render error:', error);
+            if (onError) {
+              onError(error);
+            }
             toast({
               title: "Error",
               description: "Failed to load PayPal button. Please try again.",
@@ -91,6 +100,9 @@ export const usePayPalInitialization = (
       } catch (error) {
         console.error('PayPal initialization error:', error);
         if (mounted) {
+          if (onError) {
+            onError(error);
+          }
           toast({
             title: "Error",
             description: "Failed to initialize PayPal. Please refresh the page.",
@@ -105,5 +117,5 @@ export const usePayPalInitialization = (
     return () => {
       mounted = false;
     };
-  }, [buttonId, containerId, toast, isSubscribed, onSuccess]);
+  }, [buttonId, containerId, toast, isSubscribed, onSuccess, onError, onLoad]);
 };

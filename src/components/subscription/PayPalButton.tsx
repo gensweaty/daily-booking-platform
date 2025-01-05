@@ -7,10 +7,12 @@ import { usePayPalInitialization } from '@/hooks/usePayPalInitialization';
 interface PayPalButtonProps {
   planType: 'monthly' | 'yearly';
   onSuccess?: (subscriptionId: string) => void;
+  onError?: (error: any) => void;
+  onLoad?: () => void;
   containerId: string;
 }
 
-export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
+export const PayPalButton = ({ planType, onSuccess, onError, onLoad, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
   const buttonId = planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L';
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -83,6 +85,9 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       }
     } catch (error) {
       console.error('Payment processing error:', error);
+      if (onError) {
+        onError(error);
+      }
       toast({
         title: "Error",
         description: "There was an error processing your payment. Please try again.",
@@ -91,7 +96,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     }
   };
 
-  usePayPalInitialization(buttonId, containerId, handlePaymentSuccess, isSubscribed);
+  usePayPalInitialization(buttonId, containerId, handlePaymentSuccess, isSubscribed, onError, onLoad);
 
   if (isSubscribed) {
     return null;
