@@ -101,11 +101,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      if (error) {
+        console.error('Sign out error:', error);
+        // Even if there's an error, we'll clear the local state
+        setUser(null);
+        setSession(null);
+        navigate('/login');
+        throw error;
+      }
       
+      // Clear local state
       setUser(null);
       setSession(null);
+      
       toast({
         title: "Success",
         description: "Signed out successfully",
@@ -114,10 +124,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       console.error('Sign out error:', error);
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Warning",
+        description: "Signed out with some errors, but session was cleared",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
