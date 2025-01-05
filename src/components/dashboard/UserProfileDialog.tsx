@@ -5,6 +5,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { Subscription } from "@/types/subscription";
+import { useEffect, useState } from "react";
 
 interface UserProfileDialogProps {
   user: SupabaseUser | null;
@@ -12,8 +13,52 @@ interface UserProfileDialogProps {
   subscription: Subscription | null;
 }
 
-export const UserProfileDialog = ({ user, username, subscription }: UserProfileDialogProps) => {
+export const UserProfileDialog = ({ user, username, subscription: initialSubscription }: UserProfileDialogProps) => {
   const { toast } = useToast();
+  const [subscription, setSubscription] = useState(initialSubscription);
+
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('plan_type, status, current_period_end')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching subscription:', error);
+        return;
+      }
+
+      setSubscription(data);
+    };
+
+    fetchSubscription();
+
+    // Set up real-time subscription updates
+    const channel = supabase
+      .channel('subscription-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'subscriptions',
+          filter: `user_id=eq.${user?.id}`
+        },
+        () => {
+          fetchSubscription();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const handleChangePassword = async () => {
     try {

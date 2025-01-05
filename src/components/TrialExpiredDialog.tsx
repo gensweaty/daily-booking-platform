@@ -27,7 +27,7 @@ export const TrialExpiredDialog = () => {
 
         const { data: subscription, error } = await supabase
           .from('subscriptions')
-          .select('status, current_period_end')
+          .select('status, current_period_end, plan_type')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -93,7 +93,7 @@ export const TrialExpiredDialog = () => {
     navigate("/dashboard");
   };
 
-  // Don't render if subscription is active
+  // Don't render if subscription is active or loading
   if (status.isActive || loading) {
     return null;
   }
