@@ -112,11 +112,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       return `${daysLeft} days left in trial`;
     }
     
-    if (subscription?.plan_type === 'monthly') {
-      return `${daysLeft} days left in monthly plan`;
-    } else {
-      return `${daysLeft} days left in yearly plan`;
-    }
+    return `${daysLeft} days left in ${subscription?.plan_type === 'monthly' ? 'monthly' : 'yearly'} plan`;
   };
 
   return (
