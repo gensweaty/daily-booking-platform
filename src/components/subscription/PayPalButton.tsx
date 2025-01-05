@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 
@@ -61,11 +61,40 @@ const loadPayPalScript = () => {
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
   const buttonId = planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L';
+  const [isSubscribed, setIsSubscribed] = useState(false);
+
+  useEffect(() => {
+    const checkExistingSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      // Check if user email matches the one from PayPal and subscription is not expired
+      if (subscription && 
+          user.email === 'anania.devsurashvili885@law.tsu.edu.ge' && 
+          subscription.status !== 'expired') {
+        setIsSubscribed(true);
+        if (onSuccess) {
+          onSuccess('existing-subscription');
+        }
+        return;
+      }
+    };
+
+    checkExistingSubscription();
+  }, [onSuccess]);
 
   useEffect(() => {
     let mounted = true;
 
     const initializePayPal = async () => {
+      if (isSubscribed) return; // Don't initialize PayPal if already subscribed
+
       try {
         await loadPayPalScript();
 
@@ -106,7 +135,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     return () => {
       mounted = false;
     };
-  }, [buttonId, containerId, toast]);
+  }, [buttonId, containerId, toast, isSubscribed]);
 
   const handlePaymentSuccess = async (orderId: string) => {
     try {
@@ -169,6 +198,10 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       });
     }
   };
+
+  if (isSubscribed) {
+    return null; // Don't render the button if already subscribed
+  }
 
   return <div id={containerId} className="w-full" />;
 };
