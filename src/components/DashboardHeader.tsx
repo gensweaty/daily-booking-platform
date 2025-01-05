@@ -4,6 +4,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +12,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 
 interface DashboardHeaderProps {
@@ -25,7 +25,7 @@ interface Subscription {
 }
 
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
