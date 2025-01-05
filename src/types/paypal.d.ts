@@ -1,7 +1,13 @@
 interface PayPalNamespace {
-  HostedButtons: (config: {
-    hostedButtonId: string;
-    onApprove?: (data: { orderID: string }) => void;
+  Buttons: (config: {
+    style: {
+      layout: 'vertical' | 'horizontal';
+      color: 'blue' | 'gold' | 'silver' | 'white' | 'black';
+      shape: 'rect' | 'pill';
+      label: 'subscribe';
+    };
+    createSubscription: () => Promise<string>;
+    onApprove: (data: { orderID: string; subscriptionID: string }) => Promise<void>;
     onCancel?: () => void;
     onError?: (err: any) => void;
   }) => {

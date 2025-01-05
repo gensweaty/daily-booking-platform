@@ -113,7 +113,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
             return subscription.id;
           },
-          onApprove: async (data: any) => {
+          onApprove: async (data) => {
             console.log('Payment approved:', data);
             await handlePaymentSuccess(data.orderID, data.subscriptionID);
           },
@@ -125,7 +125,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
               variant: "destructive",
             });
           },
-          onError: (err: any) => {
+          onError: (err) => {
             console.error('PayPal error:', err);
             toast({
               title: "Error",
