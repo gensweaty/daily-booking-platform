@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { usePayPalSubscription } from './hooks/usePayPalSubscription';
 import { supabase } from "@/lib/supabase";
@@ -14,6 +14,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const { toast } = useToast();
   const { user } = useAuth();
   const { handlePaymentSuccess, isProcessing } = usePayPalSubscription(planType, onSuccess);
+  const buttonInitialized = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -28,6 +29,11 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           description: "Please sign in to continue",
           variant: "destructive",
         });
+        return;
+      }
+
+      if (buttonInitialized.current) {
+        console.log('PayPal button already initialized');
         return;
       }
 
@@ -98,7 +104,19 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
         try {
           await loadPayPalScript();
+          if (!mounted) return;
+          
+          const container = document.getElementById(containerId);
+          if (!container) {
+            console.error('PayPal container not found');
+            return;
+          }
+          
+          // Clear any existing content
+          container.innerHTML = '';
+          
           await initializePayPalButton(plan.id);
+          buttonInitialized.current = true;
         } catch (error) {
           console.error('PayPal initialization error:', error);
           toast({
@@ -188,6 +206,10 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
     return () => {
       mounted = false;
+      const container = document.getElementById(containerId);
+      if (container) {
+        container.innerHTML = '';
+      }
     };
   }, [containerId, toast, handlePaymentSuccess, isProcessing, planType, user]);
 
