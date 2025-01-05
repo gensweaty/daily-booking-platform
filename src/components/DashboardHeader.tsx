@@ -34,18 +34,24 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   useEffect(() => {
     const fetchSubscription = async () => {
       if (user) {
-        const { data, error } = await supabase
-          .from('subscriptions')
-          .select('plan_type, status, current_period_end')
-          .eq('user_id', user.id)
-          .single();
+        try {
+          const { data, error } = await supabase
+            .from('subscriptions')
+            .select('plan_type, status, current_period_end')
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .maybeSingle();
 
-        if (error) {
-          console.error('Error fetching subscription:', error);
-          return;
+          if (error) {
+            console.error('Error fetching subscription:', error);
+            return;
+          }
+
+          setSubscription(data);
+        } catch (error) {
+          console.error('Error in subscription fetch:', error);
         }
-
-        setSubscription(data);
       }
     };
 
