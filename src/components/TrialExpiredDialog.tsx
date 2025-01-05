@@ -12,7 +12,7 @@ import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 
 export const TrialExpiredDialog = () => {
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly' | 'test'>('monthly');
   const [isOpen, setIsOpen] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
