@@ -62,9 +62,6 @@ const loadPayPalScript = () => {
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
   const buttonId = planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L';
-  const returnUrl = planType === 'monthly' 
-    ? 'https://daily-booking-platform.lovable.app/dashboard?subscription=monthly'
-    : 'https://daily-booking-platform.lovable.app/dashboard?subscription=yearly';
 
   useEffect(() => {
     let mounted = true;
@@ -82,6 +79,22 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
               onApprove: (data) => {
                 console.log('Payment approved:', data);
                 handlePaymentSuccess(data.orderID);
+              },
+              onCancel: () => {
+                console.log('Payment cancelled');
+                toast({
+                  title: "Payment Cancelled",
+                  description: "You cancelled the payment process.",
+                  variant: "destructive",
+                });
+              },
+              onError: (err) => {
+                console.error('PayPal error:', err);
+                toast({
+                  title: "Error",
+                  description: "There was an error processing your payment.",
+                  variant: "destructive",
+                });
               }
             }).render(`#${containerId}`);
           } catch (error) {
@@ -114,6 +127,12 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
   const handlePaymentSuccess = async (orderId: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('No authenticated user found');
+      }
+
       const currentDate = new Date();
       const nextPeriodEnd = new Date(currentDate);
       
@@ -123,20 +142,40 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         nextPeriodEnd.setFullYear(nextPeriodEnd.getFullYear() + 1);
       }
 
-      const { error: updateError } = await supabase
+      // First try to update existing subscription
+      const { data: existingSubscription, error: fetchError } = await supabase
         .from('subscriptions')
-        .update({
-          status: 'active',
-          current_period_start: currentDate.toISOString(),
-          current_period_end: nextPeriodEnd.toISOString(),
-          plan_type: planType,
-          last_payment_id: orderId
-        })
-        .eq('status', 'expired');
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
 
-      if (updateError) {
-        console.error('Error updating subscription:', updateError);
-        return;
+      if (existingSubscription) {
+        const { error: updateError } = await supabase
+          .from('subscriptions')
+          .update({
+            status: 'active',
+            current_period_start: currentDate.toISOString(),
+            current_period_end: nextPeriodEnd.toISOString(),
+            plan_type: planType,
+            last_payment_id: orderId
+          })
+          .eq('user_id', user.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // If no subscription exists, create a new one
+        const { error: insertError } = await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: user.id,
+            plan_type: planType,
+            status: 'active',
+            current_period_start: currentDate.toISOString(),
+            current_period_end: nextPeriodEnd.toISOString(),
+            last_payment_id: orderId
+          });
+
+        if (insertError) throw insertError;
       }
 
       if (onSuccess) {
@@ -148,8 +187,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         description: "Your subscription has been activated successfully!",
       });
 
-      // Redirect to the return URL
-      window.location.href = returnUrl;
+      // Redirect to the dashboard with subscription parameter
+      window.location.href = `/dashboard?subscription=${planType}`;
     } catch (error) {
       console.error('Payment processing error:', error);
       toast({
