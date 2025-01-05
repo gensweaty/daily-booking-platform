@@ -37,6 +37,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           .from('subscriptions')
           .select('plan_type, status, current_period_end')
           .eq('user_id', user.id)
+          .eq('status', 'active')
           .single();
 
         if (error) {
@@ -49,6 +50,27 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     };
 
     fetchSubscription();
+    
+    // Set up real-time subscription updates
+    const channel = supabase
+      .channel('subscription-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'subscriptions',
+          filter: `user_id=eq.${user?.id}`
+        },
+        () => {
+          fetchSubscription();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const handleSignOut = async () => {
@@ -133,7 +155,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Subscription</p>
-                  {subscription && subscription.status === 'active' && (
+                  {subscription && subscription.status === 'active' ? (
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">
                         {formatPlanType(subscription.plan_type)}
@@ -144,6 +166,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                         </p>
                       )}
                     </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No active subscription</p>
                   )}
                 </div>
                 <div className="pt-4">
