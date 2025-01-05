@@ -10,43 +10,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
-import { supabase } from "@/lib/supabase";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { status, loading } = useSubscriptionStatus();
-
-  useEffect(() => {
-    const checkSubscriptionStatus = async () => {
-      if (!loading) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data: subscription, error } = await supabase
-          .from('subscriptions')
-          .select('status, current_period_end, plan_type')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (error) {
-          console.error('Error checking subscription:', error);
-          return;
-        }
-
-        // Show dialog only if subscription is expired or doesn't exist
-        const shouldShowDialog = !subscription || 
-          subscription.status === 'expired' ||
-          (subscription.current_period_end && new Date(subscription.current_period_end) < new Date());
-
-        setIsOpen(shouldShowDialog);
-      }
-    };
-
-    checkSubscriptionStatus();
-  }, [loading]);
+  const { status } = useSubscriptionStatus();
 
   // Close dialog if subscription becomes active
   useEffect(() => {
@@ -55,51 +25,22 @@ export const TrialExpiredDialog = () => {
     }
   }, [status.isActive]);
 
-  const handleSubscriptionSuccess = async (subscriptionId: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Update subscription status
-    const currentDate = new Date();
-    const nextPeriodEnd = new Date(currentDate);
-    nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + (selectedPlan === 'monthly' ? 1 : 12));
-
-    const { error } = await supabase
-      .from('subscriptions')
-      .upsert({
-        user_id: user.id,
-        plan_type: selectedPlan,
-        status: 'active',
-        current_period_start: currentDate.toISOString(),
-        current_period_end: nextPeriodEnd.toISOString(),
-        last_payment_id: subscriptionId
-      });
-
-    if (error) {
-      console.error('Error updating subscription:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update subscription status.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleSubscriptionSuccess = (subscriptionId: string) => {
     toast({
       title: "Success",
-      description: `Successfully subscribed to ${selectedPlan} plan`,
+      description: `Successfully subscribed with ID: ${subscriptionId}`,
     });
     setIsOpen(false);
     navigate("/dashboard");
   };
 
-  // Don't render if subscription is active or loading
-  if (status.isActive || loading) {
+  // Don't show dialog if subscription is active
+  if (status.isActive) {
     return null;
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen}>
       <DialogContent className="w-[90vw] max-w-[475px] p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="text-center text-xl sm:text-2xl font-bold">

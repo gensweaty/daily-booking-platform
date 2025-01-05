@@ -1,16 +1,27 @@
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
-import { UserProfileDialog } from "./dashboard/UserProfileDialog";
-import { Subscription } from "@/types/subscription";
 
 interface DashboardHeaderProps {
   username: string;
+}
+
+interface Subscription {
+  plan_type: string;
+  status: string;
+  current_period_end: string | null;
 }
 
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
@@ -22,48 +33,22 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   useEffect(() => {
     const fetchSubscription = async () => {
       if (user) {
-        try {
-          const { data, error } = await supabase
-            .from('subscriptions')
-            .select('plan_type, status, current_period_end')
-            .eq('user_id', user.id)
-            .eq('status', 'active')
-            .maybeSingle();
+        const { data, error } = await supabase
+          .from('subscriptions')
+          .select('plan_type, status, current_period_end')
+          .eq('user_id', user.id)
+          .single();
 
-          if (error) {
-            console.error('Error fetching subscription:', error);
-            return;
-          }
-
-          setSubscription(data);
-        } catch (error) {
-          console.error('Error in subscription fetch:', error);
+        if (error) {
+          console.error('Error fetching subscription:', error);
+          return;
         }
+
+        setSubscription(data);
       }
     };
 
     fetchSubscription();
-    
-    // Set up real-time subscription updates
-    const channel = supabase
-      .channel('subscription-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'subscriptions',
-          filter: `user_id=eq.${user?.id}`
-        },
-        () => {
-          fetchSubscription();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [user]);
 
   const handleSignOut = async () => {
@@ -80,6 +65,39 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
   };
 
+  const handleChangePassword = async () => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user?.email || '', {
+        redirectTo: 'https://daily-booking-platform.lovable.app/reset-password',
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password Reset Email Sent",
+        description: "Please check your email for the password reset link.",
+      });
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send password reset email. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const formatPlanType = (planType: string) => {
+    return planType.charAt(0).toUpperCase() + planType.slice(1) + ' Plan';
+  };
+
+  const formatTimeLeft = (endDate: string) => {
+    const end = new Date(endDate);
+    const now = new Date();
+    const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return `${daysLeft} days until next charge`;
+  };
+
   return (
     <header className="mb-8">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -90,11 +108,56 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <UserProfileDialog 
-            user={user}
-            username={username}
-            subscription={subscription}
-          />
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="icon"
+                className="text-foreground"
+              >
+                <User className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>User Profile</DialogTitle>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Email</p>
+                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Username</p>
+                  <p className="text-sm text-muted-foreground">{username}</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Subscription</p>
+                  {subscription && subscription.status === 'active' && (
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">
+                        {formatPlanType(subscription.plan_type)}
+                      </p>
+                      {subscription.current_period_end && (
+                        <p className="text-xs text-muted-foreground">
+                          {formatTimeLeft(subscription.current_period_end)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="pt-4">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={handleChangePassword}
+                  >
+                    Change Password
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
           <ThemeToggle />
           <Button 
             variant="outline" 
