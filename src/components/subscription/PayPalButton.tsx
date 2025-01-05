@@ -62,12 +62,21 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         // Load PayPal script if not already loaded
         if (!window.paypal) {
           const script = document.createElement('script');
-          script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.VITE_PAYPAL_CLIENT_ID}&vault=true`;
+          script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&vault=true`;
           script.async = true;
           document.body.appendChild(script);
           
           script.onload = () => {
             initializePayPalButton(plan.id);
+          };
+
+          script.onerror = () => {
+            console.error('Failed to load PayPal script');
+            toast({
+              title: "Error",
+              description: "Failed to initialize PayPal. Please refresh the page.",
+              variant: "destructive",
+            });
           };
         } else {
           initializePayPalButton(plan.id);
@@ -86,6 +95,11 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
     const initializePayPalButton = async (planId: string) => {
       try {
+        if (!window.paypal?.Buttons) {
+          console.error('PayPal Buttons not available');
+          return;
+        }
+
         await window.paypal.Buttons({
           style: {
             layout: 'vertical',
