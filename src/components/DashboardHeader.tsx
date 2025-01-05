@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/components/ui/use-toast";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
@@ -11,60 +11,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { supabase } from "@/lib/supabase";
-import { useEffect, useState } from "react";
 
 interface DashboardHeaderProps {
   username: string;
-}
-
-interface Subscription {
-  plan_type: string;
-  status: string;
-  current_period_end: string | null;
 }
 
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
-
-  useEffect(() => {
-    const fetchSubscription = async () => {
-      if (user) {
-        const { data, error } = await supabase
-          .from('subscriptions')
-          .select('plan_type, status, current_period_end')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching subscription:', error);
-          return;
-        }
-
-        setSubscription(data);
-      }
-    };
-
-    fetchSubscription();
-
-    // Handle subscription parameter if present
-    const subscriptionType = searchParams.get('subscription');
-    if (subscriptionType && (subscriptionType === 'monthly' || subscriptionType === 'yearly')) {
-      // Clear the URL parameter
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
-      
-      // Show success toast
-      toast({
-        title: "Subscription Activated",
-        description: `Your ${subscriptionType} subscription has been activated successfully!`,
-      });
-    }
-  }, [user, searchParams, toast]);
 
   const handleSignOut = async () => {
     try {
@@ -102,17 +57,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
   };
 
-  const formatPlanType = (planType: string) => {
-    return planType.charAt(0).toUpperCase() + planType.slice(1) + ' Plan';
-  };
-
-  const formatTimeLeft = (endDate: string) => {
-    const end = new Date(endDate);
-    const now = new Date();
-    const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return `${daysLeft} days until next charge`;
-  };
-
   return (
     <header className="mb-8">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -145,21 +89,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Username</p>
                   <p className="text-sm text-muted-foreground">{username}</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Subscription</p>
-                  {subscription && subscription.status === 'active' && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">
-                        {formatPlanType(subscription.plan_type)}
-                      </p>
-                      {subscription.current_period_end && (
-                        <p className="text-xs text-muted-foreground">
-                          {formatTimeLeft(subscription.current_period_end)}
-                        </p>
-                      )}
-                    </div>
-                  )}
                 </div>
                 <div className="pt-4">
                   <Button 
