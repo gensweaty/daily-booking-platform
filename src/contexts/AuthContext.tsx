@@ -102,32 +102,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       setLoading(true);
+      
+      // First clear the local state
+      setUser(null);
+      setSession(null);
+      
+      // Then attempt to sign out from Supabase
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('Sign out error:', error);
-        // Even if there's an error, we'll clear the local state
-        setUser(null);
-        setSession(null);
-        navigate('/login');
         throw error;
       }
-      
-      // Clear local state
-      setUser(null);
-      setSession(null);
       
       toast({
         title: "Success",
         description: "Signed out successfully",
       });
+      
+      // Always navigate to login page
       navigate('/login');
     } catch (error: any) {
       console.error('Sign out error:', error);
+      // Even if there's an API error, we've already cleared the local state
       toast({
-        title: "Warning",
-        description: "Signed out with some errors, but session was cleared",
-        variant: "destructive",
+        title: "Notice",
+        description: "Session cleared locally",
+        variant: "default",
       });
+      navigate('/login');
     } finally {
       setLoading(false);
     }
