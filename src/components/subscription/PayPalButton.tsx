@@ -17,6 +17,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
   useEffect(() => {
     let mounted = true;
+    let paypalScriptAttempts = 0;
+    const maxAttempts = 3;
 
     const initializePayPal = async () => {
       if (!user) {
@@ -30,6 +32,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       }
 
       try {
+        console.log('Initializing PayPal...');
         // First, get the subscription plan ID
         const { data: plan, error: planError } = await supabase
           .from('subscription_plans')
@@ -59,27 +62,50 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
         if (!mounted || isProcessing) return;
 
-        // Load PayPal script if not already loaded
-        if (!window.paypal) {
-          const script = document.createElement('script');
-          script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&vault=true`;
-          script.async = true;
-          document.body.appendChild(script);
-          
-          script.onload = () => {
-            initializePayPalButton(plan.id);
-          };
+        const loadPayPalScript = () => {
+          return new Promise<void>((resolve, reject) => {
+            if (window.paypal) {
+              console.log('PayPal already loaded');
+              resolve();
+              return;
+            }
 
-          script.onerror = () => {
-            console.error('Failed to load PayPal script');
-            toast({
-              title: "Error",
-              description: "Failed to initialize PayPal. Please refresh the page.",
-              variant: "destructive",
-            });
-          };
-        } else {
-          initializePayPalButton(plan.id);
+            console.log('Loading PayPal script...');
+            const script = document.createElement('script');
+            script.src = "https://www.paypal.com/sdk/js?client-id=ATm58Iv3bVdLcUIVllc-on6VZRaRJeedpxso0KgGVu_kSELKrKOqaE63a8CNu-jIQ4ulE2j9WUkLASlY&vault=true&intent=subscription";
+            script.async = true;
+            
+            script.onload = () => {
+              console.log('PayPal script loaded successfully');
+              resolve();
+            };
+
+            script.onerror = () => {
+              console.error('Failed to load PayPal script');
+              paypalScriptAttempts++;
+              if (paypalScriptAttempts < maxAttempts) {
+                console.log(`Retrying PayPal script load (attempt ${paypalScriptAttempts + 1}/${maxAttempts})`);
+                document.body.removeChild(script);
+                loadPayPalScript();
+              } else {
+                reject(new Error('Failed to load PayPal after multiple attempts'));
+              }
+            };
+
+            document.body.appendChild(script);
+          });
+        };
+
+        try {
+          await loadPayPalScript();
+          await initializePayPalButton(plan.id);
+        } catch (error) {
+          console.error('PayPal initialization error:', error);
+          toast({
+            title: "Error",
+            description: "Failed to initialize PayPal. Please try again later.",
+            variant: "destructive",
+          });
         }
       } catch (error) {
         console.error('PayPal initialization error:', error);
