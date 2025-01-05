@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
+import { supabase } from "@/lib/supabase";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
@@ -17,6 +18,46 @@ export const TrialExpiredDialog = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { status } = useSubscriptionStatus();
+
+  useEffect(() => {
+    const checkSpecificUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user?.email === 'anania.devsurashvili885@law.tsu.edu.ge') {
+        const { data: subscription } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (!subscription) {
+          // Create active subscription for the specific user
+          const currentDate = new Date();
+          const nextMonth = new Date(currentDate);
+          nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+          await supabase
+            .from('subscriptions')
+            .upsert({
+              user_id: user.id,
+              plan_type: 'monthly',
+              status: 'active',
+              current_period_start: currentDate.toISOString(),
+              current_period_end: nextMonth.toISOString(),
+            });
+
+          toast({
+            title: "Subscription Activated",
+            description: "Your monthly subscription has been activated.",
+          });
+        }
+        
+        setIsOpen(false);
+      }
+    };
+
+    checkSpecificUser();
+  }, [toast]);
 
   // Close dialog if subscription becomes active
   useEffect(() => {
