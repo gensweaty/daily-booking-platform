@@ -25,7 +25,7 @@ interface Subscription {
 }
 
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -33,19 +33,23 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   useEffect(() => {
     const fetchSubscription = async () => {
       if (user) {
-        const { data, error } = await supabase
-          .from('subscriptions')
-          .select('plan_type, status, current_period_end')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .single();
+        try {
+          const { data, error } = await supabase
+            .from('subscriptions')
+            .select('plan_type, status, current_period_end')
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .maybeSingle();
 
-        if (error) {
-          console.error('Error fetching subscription:', error);
-          return;
+          if (error) {
+            console.error('Error fetching subscription:', error);
+            return;
+          }
+
+          setSubscription(data);
+        } catch (error) {
+          console.error('Error in subscription fetch:', error);
         }
-
-        setSubscription(data);
       }
     };
 
@@ -155,7 +159,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Subscription</p>
-                  {subscription && subscription.status === 'active' ? (
+                  {subscription ? (
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">
                         {formatPlanType(subscription.plan_type)}
