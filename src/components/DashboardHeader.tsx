@@ -22,6 +22,7 @@ interface Subscription {
   plan_type: string;
   status: string;
   current_period_end: string | null;
+  trial_end_date: string | null;
 }
 
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
@@ -36,7 +37,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         try {
           const { data, error } = await supabase
             .from('subscriptions')
-            .select('plan_type, status, current_period_end')
+            .select('plan_type, status, current_period_end, trial_end_date')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -47,6 +48,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             return;
           }
 
+          console.log('Fetched subscription:', data);
           setSubscription(data);
         } catch (error) {
           console.error('Subscription fetch error:', error);
@@ -99,10 +101,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     return planType.charAt(0).toUpperCase() + planType.slice(1) + ' Plan';
   };
 
-  const formatTimeLeft = (endDate: string) => {
+  const formatTimeLeft = (endDate: string | null, isTrialPeriod: boolean = false) => {
+    if (!endDate) return '';
+    
     const end = new Date(endDate);
     const now = new Date();
     const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (isTrialPeriod) {
+      return `${daysLeft} days left in trial`;
+    }
     return `${daysLeft} days until next charge`;
   };
 
@@ -141,12 +149,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Subscription</p>
-                  {subscription && subscription.status === 'active' && (
+                  {subscription && (
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">
                         {formatPlanType(subscription.plan_type)}
                       </p>
-                      {subscription.current_period_end && (
+                      {subscription.status === 'trial' ? (
+                        <p className="text-xs text-muted-foreground">
+                          {formatTimeLeft(subscription.trial_end_date, true)}
+                        </p>
+                      ) : subscription.status === 'active' && (
                         <p className="text-xs text-muted-foreground">
                           {formatTimeLeft(subscription.current_period_end)}
                         </p>
