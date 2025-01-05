@@ -107,26 +107,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       setSession(null);
       
-      // Then try local sign out first
-      const { error: localSignOutError } = await supabase.auth.signOut();
-      if (localSignOutError) {
-        console.error('Local sign out failed:', localSignOutError);
-        // If local fails, try global
-        const { error: globalSignOutError } = await supabase.auth.signOut({ 
-          scope: 'global' 
-        });
-        if (globalSignOutError) {
-          console.error('Global sign out failed:', globalSignOutError);
-        }
-      }
+      // Try local sign out first
+      const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
       
+      if (!localError) {
+        // If local sign out succeeds, try global
+        try {
+          await supabase.auth.signOut({ scope: 'global' });
+        } catch (globalError) {
+          console.log('Global sign out failed, but local sign out succeeded:', globalError);
+        }
+      } else {
+        console.error('Local sign out failed:', localError);
+      }
+
       toast({
         title: "Success",
         description: "Signed out successfully",
       });
       
       navigate('/login');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Sign out error:', error);
       toast({
         title: "Notice",

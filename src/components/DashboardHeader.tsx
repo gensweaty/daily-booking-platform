@@ -49,9 +49,15 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             return;
           }
 
-          setSubscription(data);
+          // Only set subscription if we have data
+          if (data) {
+            setSubscription(data);
+          } else {
+            setSubscription(null);
+          }
         } catch (error) {
           console.error('Error in subscription fetch:', error);
+          setSubscription(null);
         }
       }
     };
