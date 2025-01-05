@@ -3,12 +3,12 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useNavigate } from 'react-router-dom';
 
-export const usePayPalSubscription = (planType: 'monthly' | 'yearly', onSuccess?: (subscriptionId: string) => void) => {
+export const usePayPalSubscription = (planType: 'monthly' | 'yearly' | 'test', onSuccess?: (subscriptionId: string) => void) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handlePaymentSuccess = async (orderId: string) => {
+  const handlePaymentSuccess = async (orderId: string, subscriptionId: string) => {
     if (isProcessing) return;
     
     setIsProcessing(true);
@@ -24,52 +24,28 @@ export const usePayPalSubscription = (planType: 'monthly' | 'yearly', onSuccess?
       
       if (planType === 'monthly') {
         nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1);
-      } else {
+      } else if (planType === 'yearly') {
         nextPeriodEnd.setFullYear(nextPeriodEnd.getFullYear() + 1);
-      }
-
-      // First try to update existing subscription
-      const { data: existingSubscription, error: fetchError } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-        throw fetchError;
-      }
-
-      if (existingSubscription) {
-        const { error: updateError } = await supabase
-          .from('subscriptions')
-          .update({
-            status: 'active',
-            current_period_start: currentDate.toISOString(),
-            current_period_end: nextPeriodEnd.toISOString(),
-            plan_type: planType,
-            last_payment_id: orderId
-          })
-          .eq('user_id', user.id);
-
-        if (updateError) throw updateError;
       } else {
-        // If no subscription exists, create a new one
-        const { error: insertError } = await supabase
-          .from('subscriptions')
-          .insert({
-            user_id: user.id,
-            plan_type: planType,
-            status: 'active',
-            current_period_start: currentDate.toISOString(),
-            current_period_end: nextPeriodEnd.toISOString(),
-            last_payment_id: orderId
-          });
-
-        if (insertError) throw insertError;
+        // Test plan - 1 hour
+        nextPeriodEnd.setHours(nextPeriodEnd.getHours() + 1);
       }
+
+      // Update subscription status
+      const { error: updateError } = await supabase
+        .from('subscriptions')
+        .update({
+          status: 'active',
+          current_period_start: currentDate.toISOString(),
+          current_period_end: nextPeriodEnd.toISOString(),
+          last_payment_id: orderId
+        })
+        .eq('id', subscriptionId);
+
+      if (updateError) throw updateError;
 
       if (onSuccess) {
-        onSuccess(orderId);
+        onSuccess(subscriptionId);
       }
 
       toast({

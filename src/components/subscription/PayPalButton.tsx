@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { usePayPalSubscription } from './hooks/usePayPalSubscription';
+import { supabase } from "@/lib/supabase";
 
 interface PayPalButtonProps {
-  planType: 'monthly' | 'yearly';
+  planType: 'monthly' | 'yearly' | 'test';
   onSuccess?: (subscriptionId: string) => void;
   containerId: string;
 }
@@ -62,7 +63,22 @@ const loadPayPalScript = () => {
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
   const { handlePaymentSuccess, isProcessing } = usePayPalSubscription(planType, onSuccess);
-  const buttonId = planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L';
+
+  // Get button ID based on plan type
+  const getButtonId = (type: string) => {
+    switch (type) {
+      case 'monthly':
+        return 'ST9DUFXHJCGWJ';
+      case 'yearly':
+        return 'YDK5G6VR2EA8L';
+      case 'test':
+        return 'TEST_BUTTON_ID'; // Replace with actual test button ID
+      default:
+        return '';
+    }
+  };
+
+  const buttonId = getButtonId(planType);
 
   useEffect(() => {
     let mounted = true;
@@ -74,12 +90,22 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         if (!mounted) return;
 
         if (window.paypal && !isProcessing) {
+          const { data: subscription } = await supabase
+            .from('subscriptions')
+            .insert({
+              plan_type: planType,
+              status: 'pending',
+              user_id: (await supabase.auth.getUser()).data.user?.id
+            })
+            .select()
+            .single();
+
           try {
             await window.paypal.HostedButtons({
               hostedButtonId: buttonId,
               onApprove: async (data: any) => {
                 console.log('Payment approved:', data);
-                await handlePaymentSuccess(data.orderID);
+                await handlePaymentSuccess(data.orderID, subscription?.id);
               },
               onCancel: () => {
                 console.log('Payment cancelled');
@@ -124,7 +150,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     return () => {
       mounted = false;
     };
-  }, [buttonId, containerId, toast, handlePaymentSuccess, isProcessing]);
+  }, [buttonId, containerId, toast, handlePaymentSuccess, isProcessing, planType]);
 
   return <div id={containerId} className="w-full" />;
 };
