@@ -2,8 +2,8 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface SubscriptionPlanSelectProps {
-  selectedPlan: 'monthly' | 'yearly' | 'test';
-  setSelectedPlan: (plan: 'monthly' | 'yearly' | 'test') => void;
+  selectedPlan: 'monthly' | 'yearly';
+  setSelectedPlan: (plan: 'monthly' | 'yearly') => void;
   isLoading: boolean;
 }
 
@@ -17,7 +17,7 @@ export const SubscriptionPlanSelect = ({
       <Label>Subscription Plan</Label>
       <RadioGroup
         value={selectedPlan}
-        onValueChange={(value: 'monthly' | 'yearly' | 'test') => setSelectedPlan(value)}
+        onValueChange={(value: 'monthly' | 'yearly') => setSelectedPlan(value)}
         className="grid grid-cols-1 gap-4 mt-2"
       >
         <div className="flex items-center space-x-2 border rounded-lg p-4">
@@ -37,16 +37,6 @@ export const SubscriptionPlanSelect = ({
               <span className="font-semibold">$89.95/year</span>
             </div>
             <p className="text-sm text-muted-foreground mt-1">Save over 24% compared to monthly</p>
-          </Label>
-        </div>
-        <div className="flex items-center space-x-2 border rounded-lg p-4 bg-muted/50">
-          <RadioGroupItem value="test" id="test" disabled={isLoading} />
-          <Label htmlFor="test" className="flex-1">
-            <div className="flex justify-between items-center">
-              <span>Test Plan</span>
-              <span className="font-semibold">$1.00</span>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">1-hour test subscription</p>
           </Label>
         </div>
       </RadioGroup>

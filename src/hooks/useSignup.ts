@@ -11,7 +11,7 @@ export const useSignup = () => {
     username: string,
     password: string,
     confirmPassword: string,
-    selectedPlan: 'monthly' | 'yearly' | 'test',
+    selectedPlan: 'monthly' | 'yearly',
     clearForm: () => void
   ) => {
     if (isLoading) return;

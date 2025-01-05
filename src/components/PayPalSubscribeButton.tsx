@@ -1,31 +1,19 @@
 import { PayPalButton } from './subscription/PayPalButton';
-import { PayPalPlanType } from '@/types/paypal-types';
 
 interface PayPalSubscribeButtonProps {
-  planType: PayPalPlanType;
+  planType: 'monthly' | 'yearly';
   onSuccess?: (subscriptionId: string) => void;
 }
 
 export const PayPalSubscribeButton = ({ planType, onSuccess }: PayPalSubscribeButtonProps) => {
-  const getContainerId = () => {
-    switch (planType) {
-      case 'monthly':
-        return 'paypal-container-ST9DUFXHJCGWJ';
-      case 'yearly':
-        return 'paypal-container-YDK5G6VR2EA8L';
-      case 'test':
-        return 'paypal-container-SZHF9WLR5RQWU';
-      default:
-        return `paypal-container-${planType}`;
-    }
-  };
+  const buttonContainerId = `paypal-container-${planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L'}`;
 
   return (
     <div className="w-full">
       <PayPalButton
         planType={planType}
         onSuccess={onSuccess}
-        containerId={getContainerId()}
+        containerId={buttonContainerId}
       />
     </div>
   );
