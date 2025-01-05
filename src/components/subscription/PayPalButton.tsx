@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
+import { usePayPalSubscription } from './hooks/usePayPalSubscription';
 
 interface PayPalButtonProps {
   planType: 'monthly' | 'yearly';
@@ -61,6 +61,7 @@ const loadPayPalScript = () => {
 
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
+  const { handlePaymentSuccess, isProcessing } = usePayPalSubscription(planType, onSuccess);
   const buttonId = planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L';
 
   useEffect(() => {
@@ -72,13 +73,13 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
         if (!mounted) return;
 
-        if (window.paypal) {
+        if (window.paypal && !isProcessing) {
           try {
             await window.paypal.HostedButtons({
               hostedButtonId: buttonId,
-              onApprove: (data) => {
+              onApprove: async (data: any) => {
                 console.log('Payment approved:', data);
-                handlePaymentSuccess(data.orderID);
+                await handlePaymentSuccess(data.orderID);
               },
               onCancel: () => {
                 console.log('Payment cancelled');
@@ -88,7 +89,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                   variant: "destructive",
                 });
               },
-              onError: (err) => {
+              onError: (err: any) => {
                 console.error('PayPal error:', err);
                 toast({
                   title: "Error",
@@ -123,81 +124,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     return () => {
       mounted = false;
     };
-  }, [buttonId, containerId, toast]);
-
-  const handlePaymentSuccess = async (orderId: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('No authenticated user found');
-      }
-
-      const currentDate = new Date();
-      const nextPeriodEnd = new Date(currentDate);
-      
-      if (planType === 'monthly') {
-        nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1);
-      } else {
-        nextPeriodEnd.setFullYear(nextPeriodEnd.getFullYear() + 1);
-      }
-
-      // First try to update existing subscription
-      const { data: existingSubscription, error: fetchError } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (existingSubscription) {
-        const { error: updateError } = await supabase
-          .from('subscriptions')
-          .update({
-            status: 'active',
-            current_period_start: currentDate.toISOString(),
-            current_period_end: nextPeriodEnd.toISOString(),
-            plan_type: planType,
-            last_payment_id: orderId
-          })
-          .eq('user_id', user.id);
-
-        if (updateError) throw updateError;
-      } else {
-        // If no subscription exists, create a new one
-        const { error: insertError } = await supabase
-          .from('subscriptions')
-          .insert({
-            user_id: user.id,
-            plan_type: planType,
-            status: 'active',
-            current_period_start: currentDate.toISOString(),
-            current_period_end: nextPeriodEnd.toISOString(),
-            last_payment_id: orderId
-          });
-
-        if (insertError) throw insertError;
-      }
-
-      if (onSuccess) {
-        onSuccess(orderId);
-      }
-
-      toast({
-        title: "Success",
-        description: "Your subscription has been activated successfully!",
-      });
-
-      // Redirect to the dashboard with subscription parameter
-      window.location.href = `/dashboard?subscription=${planType}`;
-    } catch (error) {
-      console.error('Payment processing error:', error);
-      toast({
-        title: "Error",
-        description: "There was an error processing your payment. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+  }, [buttonId, containerId, toast, handlePaymentSuccess, isProcessing]);
 
   return <div id={containerId} className="w-full" />;
 };
