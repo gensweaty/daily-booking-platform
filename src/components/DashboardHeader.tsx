@@ -41,7 +41,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             .eq('user_id', user.id)
             .eq('status', 'active')
             .order('created_at', { ascending: false })
-            .maybeSingle();
+            .limit(1)
+            .single();
 
           if (error) {
             console.error('Error fetching subscription:', error);
@@ -154,7 +155,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Subscription</p>
-                  {subscription && subscription.status === 'active' && (
+                  {subscription ? (
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">
                         {formatPlanType(subscription.plan_type)}
@@ -165,6 +166,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                         </p>
                       )}
                     </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No active subscription</p>
                   )}
                 </div>
                 <div className="pt-4">
