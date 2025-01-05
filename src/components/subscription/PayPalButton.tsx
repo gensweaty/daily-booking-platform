@@ -11,23 +11,18 @@ interface PayPalButtonProps {
   containerId: string;
 }
 
-let isScriptLoading = false;
 let scriptLoadPromise: Promise<void> | null = null;
 
 const loadPayPalScript = () => {
   if (scriptLoadPromise) return scriptLoadPromise;
-  if (isScriptLoading) {
-    return new Promise<void>((resolve) => {
-      const checkScript = () => {
-        if (window.paypal) resolve();
-        else setTimeout(checkScript, 100);
-      };
-      checkScript();
-    });
-  }
 
-  isScriptLoading = true;
   scriptLoadPromise = new Promise<void>((resolve, reject) => {
+    // Remove any existing PayPal script
+    const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
+    if (existingScript) {
+      existingScript.remove();
+    }
+
     const script = document.createElement('script');
     const params = new URLSearchParams(PAYPAL_SDK_OPTIONS);
     script.src = `https://www.paypal.com/sdk/js?${params.toString()}`;
@@ -35,12 +30,10 @@ const loadPayPalScript = () => {
     script.crossOrigin = "anonymous";
 
     script.onload = () => {
-      isScriptLoading = false;
       resolve();
     };
 
     script.onerror = () => {
-      isScriptLoading = false;
       scriptLoadPromise = null;
       reject(new Error('Failed to load PayPal script'));
     };
@@ -63,6 +56,12 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         await loadPayPalScript();
         if (!mounted) return;
 
+        // Clear the container
+        const container = document.getElementById(containerId);
+        if (container) {
+          container.innerHTML = '';
+        }
+
         if (window.paypal) {
           await window.paypal.HostedButtons({
             hostedButtonId: buttonConfig.hostedButtonId,
@@ -82,7 +81,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                   description: "Your subscription has been activated successfully!",
                 });
 
-                window.location.href = `/dashboard?subscription=${planType}`;
               } catch (error) {
                 console.error('Payment processing error:', error);
                 toast({

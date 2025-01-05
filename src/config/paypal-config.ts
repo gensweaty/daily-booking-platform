@@ -20,8 +20,5 @@ export const PAYPAL_SDK_OPTIONS = {
   'components': 'hosted-buttons',
   'disable-funding': 'venmo',
   'currency': 'USD',
-  'return': 'http://localhost:5173/dashboard?subscription=success' // Local development return URL
+  'return': window.location.origin + '/dashboard?subscription=success'
 };
-
-// For production, you should use your deployed URL:
-// 'return': 'https://your-domain.com/dashboard?subscription=success'
