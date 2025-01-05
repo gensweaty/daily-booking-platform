@@ -40,6 +40,7 @@ const loadPayPalScript = () => {
     const script = document.createElement('script');
     script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
     script.async = true;
+    script.crossOrigin = "anonymous";
 
     script.onload = () => {
       isScriptLoading = false;
@@ -81,22 +82,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
               onApprove: (data) => {
                 console.log('Payment approved:', data);
                 handlePaymentSuccess(data.orderID);
-              },
-              onCancel: () => {
-                console.log('Payment cancelled');
-                toast({
-                  title: "Payment Cancelled",
-                  description: "You cancelled the payment process.",
-                  variant: "destructive",
-                });
-              },
-              onError: (err) => {
-                console.error('PayPal error:', err);
-                toast({
-                  title: "Error",
-                  description: "There was an error processing your payment.",
-                  variant: "destructive",
-                });
               }
             }).render(`#${containerId}`);
           } catch (error) {
