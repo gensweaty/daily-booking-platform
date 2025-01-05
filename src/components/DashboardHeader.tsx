@@ -33,18 +33,24 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   useEffect(() => {
     const fetchSubscription = async () => {
       if (user) {
-        const { data, error } = await supabase
-          .from('subscriptions')
-          .select('plan_type, status, current_period_end')
-          .eq('user_id', user.id)
-          .single();
+        try {
+          const { data, error } = await supabase
+            .from('subscriptions')
+            .select('plan_type, status, current_period_end')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-        if (error) {
-          console.error('Error fetching subscription:', error);
-          return;
+          if (error) {
+            console.error('Error fetching subscription:', error);
+            return;
+          }
+
+          setSubscription(data);
+        } catch (error) {
+          console.error('Subscription fetch error:', error);
         }
-
-        setSubscription(data);
       }
     };
 
@@ -53,9 +59,11 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
       navigate('/login');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sign out error:', error);
       toast({
         title: "Error",
