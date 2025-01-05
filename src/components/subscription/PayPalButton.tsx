@@ -90,15 +90,54 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         if (!mounted) return;
 
         if (window.paypal && !isProcessing) {
-          const { data: subscription } = await supabase
+          // First, get the subscription plan ID
+          const { data: plan, error: planError } = await supabase
+            .from('subscription_plans')
+            .select('id')
+            .eq('type', planType)
+            .single();
+
+          if (planError) {
+            console.error('Error fetching plan:', planError);
+            toast({
+              title: "Error",
+              description: "Could not fetch subscription plan. Please try again.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          if (!plan?.id) {
+            console.error('No plan found for type:', planType);
+            toast({
+              title: "Error",
+              description: "Invalid subscription plan. Please try again.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          // Then create the subscription record
+          const { data: subscription, error: subscriptionError } = await supabase
             .from('subscriptions')
             .insert({
               plan_type: planType,
               status: 'pending',
+              plan_id: plan.id, // Add the plan_id here
               user_id: (await supabase.auth.getUser()).data.user?.id
             })
             .select()
             .single();
+
+          if (subscriptionError) {
+            console.error('Error creating subscription:', subscriptionError);
+            toast({
+              title: "Error",
+              description: "Could not create subscription. Please try again.",
+              variant: "destructive",
+            });
+            return;
+          }
 
           try {
             await window.paypal.HostedButtons({
