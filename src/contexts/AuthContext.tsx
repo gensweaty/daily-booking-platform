@@ -44,6 +44,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (initialSession) {
             setSession(initialSession);
             setUser(initialSession.user);
+            
+            // Only redirect if on auth pages
             if (location.pathname === '/login' || location.pathname === '/signup') {
               navigate('/dashboard');
             }
@@ -72,6 +74,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     initSession();
 
+    // Set up the auth state change subscription
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event, newSession);
       
@@ -93,6 +96,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
 
+    // Cleanup function
     return () => {
       mounted = false;
       subscription.unsubscribe();
