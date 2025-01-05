@@ -98,7 +98,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   };
 
   const formatPlanType = (planType: string) => {
-    return planType.charAt(0).toUpperCase() + planType.slice(1) + ' Plan';
+    return planType === 'monthly' ? 'Monthly Plan' : 'Yearly Plan';
   };
 
   const formatTimeLeft = (endDate: string | null, isTrialPeriod: boolean = false) => {
@@ -111,7 +111,12 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     if (isTrialPeriod) {
       return `${daysLeft} days left in trial`;
     }
-    return `${daysLeft} days until next charge`;
+    
+    if (subscription?.plan_type === 'monthly') {
+      return `${daysLeft} days left in monthly plan`;
+    } else {
+      return `${daysLeft} days left in yearly plan`;
+    }
   };
 
   return (
