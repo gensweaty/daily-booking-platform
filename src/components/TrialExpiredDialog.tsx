@@ -14,50 +14,39 @@ import { supabase } from "@/lib/supabase";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { status } = useSubscriptionStatus();
+  const { status, loading } = useSubscriptionStatus();
 
   useEffect(() => {
-    const checkSpecificUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user?.email === 'anania.devsurashvili885@law.tsu.edu.ge') {
-        const { data: subscription } = await supabase
+    const checkSubscriptionStatus = async () => {
+      if (!loading) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: subscription, error } = await supabase
           .from('subscriptions')
-          .select('*')
+          .select('status, current_period_end')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (!subscription) {
-          // Create active subscription for the specific user
-          const currentDate = new Date();
-          const nextMonth = new Date(currentDate);
-          nextMonth.setMonth(nextMonth.getMonth() + 1);
-
-          await supabase
-            .from('subscriptions')
-            .upsert({
-              user_id: user.id,
-              plan_type: 'monthly',
-              status: 'active',
-              current_period_start: currentDate.toISOString(),
-              current_period_end: nextMonth.toISOString(),
-            });
-
-          toast({
-            title: "Subscription Activated",
-            description: "Your monthly subscription has been activated.",
-          });
+        if (error) {
+          console.error('Error checking subscription:', error);
+          return;
         }
-        
-        setIsOpen(false);
+
+        // Show dialog only if subscription is expired or doesn't exist
+        const shouldShowDialog = !subscription || 
+          subscription.status === 'expired' ||
+          (subscription.current_period_end && new Date(subscription.current_period_end) < new Date());
+
+        setIsOpen(shouldShowDialog);
       }
     };
 
-    checkSpecificUser();
-  }, [toast]);
+    checkSubscriptionStatus();
+  }, [loading]);
 
   // Close dialog if subscription becomes active
   useEffect(() => {
@@ -66,22 +55,51 @@ export const TrialExpiredDialog = () => {
     }
   }, [status.isActive]);
 
-  const handleSubscriptionSuccess = (subscriptionId: string) => {
+  const handleSubscriptionSuccess = async (subscriptionId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Update subscription status
+    const currentDate = new Date();
+    const nextPeriodEnd = new Date(currentDate);
+    nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + (selectedPlan === 'monthly' ? 1 : 12));
+
+    const { error } = await supabase
+      .from('subscriptions')
+      .upsert({
+        user_id: user.id,
+        plan_type: selectedPlan,
+        status: 'active',
+        current_period_start: currentDate.toISOString(),
+        current_period_end: nextPeriodEnd.toISOString(),
+        last_payment_id: subscriptionId
+      });
+
+    if (error) {
+      console.error('Error updating subscription:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update subscription status.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     toast({
       title: "Success",
-      description: `Successfully subscribed with ID: ${subscriptionId}`,
+      description: `Successfully subscribed to ${selectedPlan} plan`,
     });
     setIsOpen(false);
     navigate("/dashboard");
   };
 
-  // Don't show dialog if subscription is active
-  if (status.isActive) {
+  // Don't render if subscription is active
+  if (status.isActive || loading) {
     return null;
   }
 
   return (
-    <Dialog open={isOpen}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="w-[90vw] max-w-[475px] p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="text-center text-xl sm:text-2xl font-bold">

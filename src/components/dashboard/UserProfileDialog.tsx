@@ -45,7 +45,7 @@ export const UserProfileDialog = ({ user, username, subscription }: UserProfileD
     const end = new Date(endDate);
     const now = new Date();
     const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return `${daysLeft} days until next charge`;
+    return `${daysLeft} days until next payment`;
   };
 
   return (
@@ -74,7 +74,7 @@ export const UserProfileDialog = ({ user, username, subscription }: UserProfileD
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium">Subscription</p>
-            {subscription ? (
+            {subscription && subscription.status === 'active' ? (
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">
                   {formatPlanType(subscription.plan_type)}
