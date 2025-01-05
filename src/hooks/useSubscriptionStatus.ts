@@ -31,9 +31,7 @@ export const useSubscriptionStatus = () => {
           .from('subscriptions')
           .select('*')
           .eq('user_id', user.id)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .maybeSingle();
+          .single();
 
         if (error) throw error;
 

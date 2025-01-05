@@ -1,129 +1,110 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { usePayPalSubscription } from './hooks/usePayPalSubscription';
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface PayPalButtonProps {
-  planType: 'monthly' | 'yearly' | 'test';
+  planType: 'monthly' | 'yearly';
   onSuccess?: (subscriptionId: string) => void;
   containerId: string;
 }
 
+let isScriptLoading = false;
+let scriptLoadPromise: Promise<void> | null = null;
+
+const loadPayPalScript = () => {
+  if (scriptLoadPromise) {
+    return scriptLoadPromise;
+  }
+
+  if (isScriptLoading) {
+    return new Promise<void>((resolve) => {
+      const checkScript = () => {
+        if (window.paypal) {
+          resolve();
+        } else {
+          setTimeout(checkScript, 100);
+        }
+      };
+      checkScript();
+    });
+  }
+
+  isScriptLoading = true;
+  scriptLoadPromise = new Promise<void>((resolve, reject) => {
+    const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
+    if (existingScript) {
+      existingScript.remove();
+      delete (window as any).paypal;
+    }
+
+    const script = document.createElement('script');
+    script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+    script.async = true;
+    script.crossOrigin = "anonymous";
+
+    script.onload = () => {
+      isScriptLoading = false;
+      resolve();
+    };
+
+    script.onerror = () => {
+      isScriptLoading = false;
+      scriptLoadPromise = null;
+      reject(new Error('Failed to load PayPal script'));
+    };
+
+    document.body.appendChild(script);
+  });
+
+  return scriptLoadPromise;
+};
+
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
-  const { user } = useAuth();
-  const { handlePaymentSuccess, isProcessing } = usePayPalSubscription(planType, onSuccess);
-  const buttonInitialized = useRef(false);
+  const buttonId = planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L';
 
   useEffect(() => {
     let mounted = true;
-    let paypalScriptAttempts = 0;
-    const maxAttempts = 3;
 
     const initializePayPal = async () => {
-      if (!user) {
-        console.error('No authenticated user found');
-        toast({
-          title: "Error",
-          description: "Please sign in to continue",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (buttonInitialized.current) {
-        console.log('PayPal button already initialized');
-        return;
-      }
-
       try {
-        console.log('Initializing PayPal...');
-        // First, get the subscription plan ID
-        const { data: plan, error: planError } = await supabase
-          .from('subscription_plans')
-          .select('id')
-          .eq('type', planType)
-          .single();
+        await loadPayPalScript();
 
-        if (planError) {
-          console.error('Error fetching plan:', planError);
-          toast({
-            title: "Error",
-            description: "Could not fetch subscription plan. Please try again.",
-            variant: "destructive",
-          });
-          return;
-        }
+        if (!mounted) return;
 
-        if (!plan?.id) {
-          console.error('No plan found for type:', planType);
-          toast({
-            title: "Error",
-            description: "Invalid subscription plan. Please try again.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (!mounted || isProcessing) return;
-
-        const loadPayPalScript = () => {
-          return new Promise<void>((resolve, reject) => {
-            if (window.paypal) {
-              console.log('PayPal already loaded');
-              resolve();
-              return;
-            }
-
-            console.log('Loading PayPal script...');
-            const script = document.createElement('script');
-            script.src = "https://www.paypal.com/sdk/js?client-id=ATm58Iv3bVdLcUIVllc-on6VZRaRJeedpxso0KgGVu_kSELKrKOqaE63a8CNu-jIQ4ulE2j9WUkLASlY&vault=true&intent=subscription";
-            script.async = true;
-            
-            script.onload = () => {
-              console.log('PayPal script loaded successfully');
-              resolve();
-            };
-
-            script.onerror = () => {
-              console.error('Failed to load PayPal script');
-              paypalScriptAttempts++;
-              if (paypalScriptAttempts < maxAttempts) {
-                console.log(`Retrying PayPal script load (attempt ${paypalScriptAttempts + 1}/${maxAttempts})`);
-                document.body.removeChild(script);
-                loadPayPalScript();
-              } else {
-                reject(new Error('Failed to load PayPal after multiple attempts'));
+        if (window.paypal) {
+          try {
+            await window.paypal.HostedButtons({
+              hostedButtonId: buttonId,
+              onApprove: (data) => {
+                console.log('Payment approved:', data);
+                handlePaymentSuccess(data.orderID);
+              },
+              onCancel: () => {
+                console.log('Payment cancelled');
+                toast({
+                  title: "Payment Cancelled",
+                  description: "You cancelled the payment process.",
+                  variant: "destructive",
+                });
+              },
+              onError: (err) => {
+                console.error('PayPal error:', err);
+                toast({
+                  title: "Error",
+                  description: "There was an error processing your payment.",
+                  variant: "destructive",
+                });
               }
-            };
-
-            document.body.appendChild(script);
-          });
-        };
-
-        try {
-          await loadPayPalScript();
-          if (!mounted) return;
-          
-          const container = document.getElementById(containerId);
-          if (!container) {
-            console.error('PayPal container not found');
-            return;
+            }).render(`#${containerId}`);
+          } catch (error) {
+            console.error('PayPal button render error:', error);
+            toast({
+              title: "Error",
+              description: "Failed to load PayPal button. Please try again.",
+              variant: "destructive",
+            });
           }
-          
-          // Clear any existing content
-          container.innerHTML = '';
-          
-          await initializePayPalButton(plan.id);
-          buttonInitialized.current = true;
-        } catch (error) {
-          console.error('PayPal initialization error:', error);
-          toast({
-            title: "Error",
-            description: "Failed to initialize PayPal. Please try again later.",
-            variant: "destructive",
-          });
         }
       } catch (error) {
         console.error('PayPal initialization error:', error);
@@ -137,81 +118,86 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       }
     };
 
-    const initializePayPalButton = async (planId: string) => {
-      try {
-        if (!window.paypal?.Buttons) {
-          console.error('PayPal Buttons not available');
-          return;
-        }
-
-        await window.paypal.Buttons({
-          style: {
-            layout: 'vertical',
-            color: 'blue',
-            shape: 'rect',
-            label: 'subscribe'
-          },
-          createSubscription: async () => {
-            // Create subscription record with pending status
-            const { data: subscription, error: subscriptionError } = await supabase
-              .from('subscriptions')
-              .insert({
-                plan_type: planType,
-                status: 'pending',
-                plan_id: planId,
-                user_id: user?.id
-              })
-              .select()
-              .single();
-
-            if (subscriptionError) {
-              console.error('Error creating subscription:', subscriptionError);
-              throw subscriptionError;
-            }
-
-            return subscription.id;
-          },
-          onApprove: async (data) => {
-            console.log('Payment approved:', data);
-            await handlePaymentSuccess(data.orderID, data.subscriptionID);
-          },
-          onCancel: () => {
-            console.log('Payment cancelled');
-            toast({
-              title: "Payment Cancelled",
-              description: "You cancelled the payment process.",
-              variant: "destructive",
-            });
-          },
-          onError: (err) => {
-            console.error('PayPal error:', err);
-            toast({
-              title: "Error",
-              description: "There was an error processing your payment.",
-              variant: "destructive",
-            });
-          }
-        }).render(`#${containerId}`);
-      } catch (error) {
-        console.error('PayPal button render error:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load PayPal button. Please try again.",
-          variant: "destructive",
-        });
-      }
-    };
-
     initializePayPal();
 
     return () => {
       mounted = false;
-      const container = document.getElementById(containerId);
-      if (container) {
-        container.innerHTML = '';
-      }
     };
-  }, [containerId, toast, handlePaymentSuccess, isProcessing, planType, user]);
+  }, [buttonId, containerId, toast]);
+
+  const handlePaymentSuccess = async (orderId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('No authenticated user found');
+      }
+
+      const currentDate = new Date();
+      const nextPeriodEnd = new Date(currentDate);
+      
+      if (planType === 'monthly') {
+        nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1);
+      } else {
+        nextPeriodEnd.setFullYear(nextPeriodEnd.getFullYear() + 1);
+      }
+
+      // First try to update existing subscription
+      const { data: existingSubscription, error: fetchError } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingSubscription) {
+        const { error: updateError } = await supabase
+          .from('subscriptions')
+          .update({
+            status: 'active',
+            current_period_start: currentDate.toISOString(),
+            current_period_end: nextPeriodEnd.toISOString(),
+            plan_type: planType,
+            last_payment_id: orderId
+          })
+          .eq('user_id', user.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // If no subscription exists, create a new one
+        const { error: insertError } = await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: user.id,
+            plan_type: planType,
+            status: 'active',
+            current_period_start: currentDate.toISOString(),
+            current_period_end: nextPeriodEnd.toISOString(),
+            last_payment_id: orderId
+          });
+
+        if (insertError) throw insertError;
+      }
+
+      if (onSuccess) {
+        onSuccess(orderId);
+      }
+
+      toast({
+        title: "Success",
+        description: "Your subscription has been activated successfully!",
+      });
+
+      // Redirect to the dashboard with subscription parameter
+      window.location.href = `/dashboard?subscription=${planType}`;
+    } catch (error) {
+      console.error('Payment processing error:', error);
+      toast({
+        title: "Error",
+        description: "There was an error processing your payment. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return <div id={containerId} className="w-full" />;
 };

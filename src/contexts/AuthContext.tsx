@@ -101,42 +101,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
-      setLoading(true);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
       
-      // First clear local state
       setUser(null);
       setSession(null);
-      
-      // Try local sign out first
-      const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
-      
-      if (!localError) {
-        // If local sign out succeeds, try global
-        try {
-          await supabase.auth.signOut({ scope: 'global' });
-        } catch (globalError) {
-          console.log('Global sign out failed, but local sign out succeeded:', globalError);
-        }
-      } else {
-        console.error('Local sign out failed:', localError);
-      }
-
       toast({
         title: "Success",
         description: "Signed out successfully",
       });
-      
       navigate('/login');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sign out error:', error);
       toast({
-        title: "Notice",
-        description: "Session cleared locally",
-        variant: "default",
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
       });
-      navigate('/login');
-    } finally {
-      setLoading(false);
     }
   };
 
