@@ -62,7 +62,8 @@ const loadPayPalScript = () => {
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
-  const webhookUrl = `${window.location.origin}/functions/handle-paypal-webhook?plan=${planType}`;
+  // Update the webhook URL to use the correct format
+  const webhookUrl = `${window.location.origin}/functions/v1/handle-paypal-webhook?plan=${planType}`;
   console.log('Webhook URL:', webhookUrl);
 
   useEffect(() => {
