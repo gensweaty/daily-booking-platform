@@ -6,6 +6,7 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -19,12 +20,16 @@ Deno.serve(async (req) => {
     const payload = await req.json()
     console.log('Received PayPal webhook:', payload)
 
-    // Verify the payment was completed
-    if (payload.event_type === 'PAYMENT.CAPTURE.COMPLETED') {
+    // Verify the payment was completed or subscription was activated
+    if (payload.event_type === 'PAYMENT.CAPTURE.COMPLETED' || 
+        payload.event_type === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+      
       const subscriptionId = payload.resource.custom_id // This should be set when creating the order
       const orderId = payload.resource.id
+      const subscriptionStatus = payload.resource.status // PayPal subscription status
 
       if (!subscriptionId) {
+        console.error('No subscription ID found in payload')
         throw new Error('No subscription ID found in payload')
       }
 
@@ -35,7 +40,10 @@ Deno.serve(async (req) => {
         .eq('id', subscriptionId)
         .single()
 
-      if (fetchError) throw fetchError
+      if (fetchError) {
+        console.error('Error fetching subscription:', fetchError)
+        throw fetchError
+      }
 
       // Calculate new period end date
       const currentDate = new Date()
@@ -57,7 +65,10 @@ Deno.serve(async (req) => {
         })
         .eq('id', subscriptionId)
 
-      if (updateError) throw updateError
+      if (updateError) {
+        console.error('Error updating subscription:', updateError)
+        throw updateError
+      }
 
       console.log(`Successfully updated subscription ${subscriptionId}`)
     }
