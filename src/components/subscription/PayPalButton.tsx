@@ -24,7 +24,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       return scriptLoadPromiseRef.current;
     }
 
-    // Remove any existing PayPal script and container content
     const cleanup = () => {
       const existingScript = document.getElementById(SCRIPT_ID);
       if (existingScript) {
@@ -32,7 +31,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         existingScript.remove();
       }
 
-      // Clear all existing PayPal button containers
       document.querySelectorAll(`.${BUTTON_CONTAINER_CLASS}`).forEach(container => {
         container.innerHTML = '';
       });
@@ -85,7 +83,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           return;
         }
 
-        // Clear the container and add the class
         containerRef.current.innerHTML = '';
         containerRef.current.className = `w-full ${BUTTON_CONTAINER_CLASS}`;
 
@@ -108,24 +105,25 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
               console.log('Processing payment for user:', user.email);
               
-              const { error: updateError } = await supabase
-                .from('subscriptions')
-                .update({
-                  status: 'active',
-                  current_period_start: new Date().toISOString(),
-                  current_period_end: new Date(
-                    new Date().setMonth(
-                      new Date().getMonth() + (planType === 'monthly' ? 1 : 12)
-                    )
-                  ).toISOString(),
-                  last_payment_id: data.orderID
-                })
-                .eq('user_id', user.id)
-                .eq('status', 'expired');
+              // Call the Supabase Edge Function to handle the subscription
+              const { data: subscriptionData, error: functionError } = await supabase.functions.invoke(
+                'handle-paypal-webhook',
+                {
+                  body: {
+                    resource: {
+                      id: data.orderID,
+                      payer: { email_address: user.email }
+                    },
+                    plan_type: planType
+                  }
+                }
+              );
 
-              if (updateError) {
-                throw new Error(updateError.message);
+              if (functionError) {
+                throw new Error(functionError.message);
               }
+
+              console.log('Subscription updated:', subscriptionData);
 
               if (onSuccess) {
                 onSuccess(data.orderID);
