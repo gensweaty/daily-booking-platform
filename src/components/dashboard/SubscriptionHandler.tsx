@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
-import { updateSubscriptionStatus } from "@/lib/subscription";
+import { updateSubscriptionStatus } from "@/components/subscription/utils/paypalUtils";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase";
 
 export const useSubscriptionHandler = (checkSubscriptionStatus: () => Promise<void>) => {
   const [searchParams] = useSearchParams();
@@ -14,22 +13,30 @@ export const useSubscriptionHandler = (checkSubscriptionStatus: () => Promise<vo
   useEffect(() => {
     const handleSubscriptionRedirect = async () => {
       const subscriptionType = searchParams.get("subscription");
+      
       if (subscriptionType && user && (subscriptionType === 'monthly' || subscriptionType === 'yearly')) {
         try {
           console.log('Processing subscription redirect for type:', subscriptionType);
-          await updateSubscriptionStatus(subscriptionType);
+          
+          // Update subscription status
+          await updateSubscriptionStatus(
+            subscriptionType,
+            (orderId) => {
+              console.log('Subscription updated successfully with order ID:', orderId);
+              toast({
+                title: "Subscription Activated",
+                description: `Your ${subscriptionType} subscription has been successfully activated.`,
+                duration: 5000,
+              });
+            }
+          );
           
           // Clear the subscription parameter from URL
           navigate('/dashboard', { replace: true });
           
-          toast({
-            title: "Subscription Activated",
-            description: `Your ${subscriptionType} subscription has been successfully activated.`,
-            duration: 5000,
-          });
-          
           // Refresh subscription status
           await checkSubscriptionStatus();
+          
         } catch (error) {
           console.error('Error processing subscription:', error);
           toast({

@@ -11,7 +11,7 @@ export const useSubscriptionStatus = (setShowTrialExpired: (show: boolean) => vo
         console.log('Checking subscription status for user:', user.id);
         const { data: subscription, error } = await supabase
           .from('subscriptions')
-          .select('status, current_period_end, trial_end_date')
+          .select('status, current_period_end, trial_end_date, plan_type')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(1)
@@ -24,15 +24,12 @@ export const useSubscriptionStatus = (setShowTrialExpired: (show: boolean) => vo
 
         console.log('Fetched subscription:', subscription);
 
-        if (!subscription || 
-            subscription.status === 'expired' || 
-            (subscription.current_period_end && new Date(subscription.current_period_end) < new Date())) {
-          console.log('Setting showTrialExpired to true');
-          setShowTrialExpired(true);
-        } else {
-          console.log('Setting showTrialExpired to false');
-          setShowTrialExpired(false);
-        }
+        const isExpired = !subscription || 
+          subscription.status === 'expired' || 
+          (subscription.current_period_end && new Date(subscription.current_period_end) < new Date());
+
+        console.log('Subscription expired?', isExpired);
+        setShowTrialExpired(isExpired);
       } catch (error) {
         console.error('Subscription check error:', error);
       }
