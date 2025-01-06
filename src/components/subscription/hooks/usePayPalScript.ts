@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 
-interface PayPalWindow extends Window {
-  paypal?: any;
+// Extend Window type without inheritance
+declare global {
+  interface Window {
+    paypal?: any;
+  }
 }
-
-declare const window: PayPalWindow;
 
 export const usePayPalScript = () => {
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
