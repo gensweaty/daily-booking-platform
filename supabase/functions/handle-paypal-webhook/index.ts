@@ -18,15 +18,26 @@ Deno.serve(async (req) => {
     )
 
     const payload = await req.json()
-    console.log('Received PayPal webhook:', payload)
+    console.log('Received PayPal webhook payload:', JSON.stringify(payload, null, 2))
 
     // Verify the payment was completed or subscription was activated
     if (payload.event_type === 'PAYMENT.CAPTURE.COMPLETED' || 
         payload.event_type === 'BILLING.SUBSCRIPTION.ACTIVATED') {
       
-      const subscriptionId = payload.resource.custom_id // This should be set when creating the order
+      console.log('Processing payment event:', payload.event_type)
+      
+      // Extract subscription details from the payload
+      const subscriptionId = payload.resource.custom_id
       const orderId = payload.resource.id
-      const subscriptionStatus = payload.resource.status // PayPal subscription status
+      const subscriptionStatus = payload.resource.status
+      const planType = new URL(req.url).searchParams.get('plan') || 'monthly'
+
+      console.log('Extracted details:', {
+        subscriptionId,
+        orderId,
+        subscriptionStatus,
+        planType
+      })
 
       if (!subscriptionId) {
         console.error('No subscription ID found in payload')
@@ -45,14 +56,22 @@ Deno.serve(async (req) => {
         throw fetchError
       }
 
+      console.log('Found subscription:', subscription)
+
       // Calculate new period end date
       const currentDate = new Date()
       const nextPeriodEnd = new Date(currentDate)
-      if (subscription.plan_type === 'monthly') {
+      
+      if (planType === 'monthly') {
         nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1)
       } else {
         nextPeriodEnd.setFullYear(nextPeriodEnd.getFullYear() + 1)
       }
+
+      console.log('Calculated dates:', {
+        currentDate: currentDate.toISOString(),
+        nextPeriodEnd: nextPeriodEnd.toISOString()
+      })
 
       // Update subscription status
       const { error: updateError } = await supabaseClient
@@ -61,6 +80,7 @@ Deno.serve(async (req) => {
           status: 'active',
           current_period_start: currentDate.toISOString(),
           current_period_end: nextPeriodEnd.toISOString(),
+          plan_type: planType,
           last_payment_id: orderId
         })
         .eq('id', subscriptionId)
@@ -71,6 +91,8 @@ Deno.serve(async (req) => {
       }
 
       console.log(`Successfully updated subscription ${subscriptionId}`)
+    } else {
+      console.log('Ignoring non-payment event:', payload.event_type)
     }
 
     return new Response(JSON.stringify({ success: true }), {
