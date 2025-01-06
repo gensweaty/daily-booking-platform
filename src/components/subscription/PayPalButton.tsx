@@ -17,21 +17,22 @@ const loadPayPalScript = () => {
 
   scriptLoadPromise = new Promise<void>((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || 'BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q'}&components=hosted-buttons&disable-funding=venmo&currency=USD`;
     script.async = true;
     script.crossOrigin = "anonymous";
     script.id = "paypal-script";
 
     script.onload = () => {
+      console.log('PayPal script loaded successfully');
       resolve();
     };
 
-    script.onerror = () => {
+    script.onerror = (error) => {
+      console.error('Failed to load PayPal script:', error);
       scriptLoadPromise = null;
       reject(new Error('Failed to load PayPal script'));
     };
 
-    // Remove any existing PayPal script
     const existingScript = document.getElementById('paypal-script');
     if (existingScript) {
       existingScript.remove();
@@ -46,7 +47,6 @@ const loadPayPalScript = () => {
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
-  const webhookUrl = `https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/handle-paypal-webhook?plan=${planType}`;
   const containerRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -58,33 +58,40 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
         if (!mounted || !containerRef.current) return;
 
-        // Clear the container before rendering
         containerRef.current.innerHTML = '';
 
         if (window.paypal) {
+          console.log('Initializing PayPal button with ID:', buttonId);
+          
           await window.paypal.HostedButtons({
             hostedButtonId: buttonId,
             onApprove: async (data) => {
               console.log('Payment approved:', data);
+              
               try {
-                const response = await fetch(webhookUrl, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer sbp_ab3461d452b584d8e80119216b4dc1a11190d702'
-                  },
-                  body: JSON.stringify({
+                const user = (await supabase.auth.getUser()).data.user;
+                if (!user?.email) {
+                  throw new Error('User email not found');
+                }
+
+                console.log('Sending webhook with user email:', user.email);
+                
+                const response = await supabase.functions.invoke('handle-paypal-webhook', {
+                  body: {
                     resource: {
                       id: data.orderID,
                       payer: {
-                        email_address: (await supabase.auth.getUser()).data.user?.email
+                        email_address: user.email
                       }
-                    }
-                  })
+                    },
+                    plan_type: planType
+                  }
                 });
 
-                if (!response.ok) {
-                  throw new Error('Failed to process subscription');
+                console.log('Webhook response:', response);
+
+                if (response.error) {
+                  throw new Error(response.error.message || 'Failed to process subscription');
                 }
 
                 if (onSuccess) {
@@ -108,6 +115,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
               }
             }
           }).render(`#${containerId}`);
+          
+          console.log('PayPal button rendered successfully');
         }
       } catch (error) {
         console.error('PayPal initialization error:', error);
@@ -125,12 +134,11 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
     return () => {
       mounted = false;
-      // Clean up the container when unmounting
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
     };
-  }, [buttonId, containerId, toast, webhookUrl, onSuccess, planType]);
+  }, [buttonId, containerId, toast, onSuccess, planType]);
 
   return <div id={containerId} ref={containerRef} className="w-full" />;
 };
