@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
 
 interface PayPalButtonProps {
   planType: 'monthly' | 'yearly';
@@ -40,6 +39,7 @@ const loadPayPalScript = () => {
     const script = document.createElement('script');
     script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
     script.async = true;
+    script.crossOrigin = "anonymous";
 
     script.onload = () => {
       isScriptLoading = false;
@@ -60,7 +60,7 @@ const loadPayPalScript = () => {
 
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
-  const buttonId = planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L';
+  const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
   const returnUrl = `${window.location.origin}/dashboard?subscription=${planType}`;
 
   useEffect(() => {
@@ -81,21 +81,21 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 if (onSuccess) {
                   onSuccess(data.orderID);
                 }
-              },
-              onInit: () => {
-                const buttons = document.querySelectorAll('.paypal-buttons');
-                buttons.forEach(button => {
-                  const form = button.shadowRoot?.querySelector('form');
-                  if (form) {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = 'return';
-                    input.value = returnUrl;
-                    form.appendChild(input);
-                  }
-                });
               }
             }).render(`#${containerId}`);
+
+            // Add return URL to form after render
+            const buttons = document.querySelectorAll('.paypal-buttons');
+            buttons.forEach(button => {
+              const form = button.shadowRoot?.querySelector('form');
+              if (form) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'return';
+                input.value = returnUrl;
+                form.appendChild(input);
+              }
+            });
           } catch (error) {
             console.error('PayPal button render error:', error);
             toast({

@@ -6,7 +6,7 @@ interface PayPalSubscribeButtonProps {
 }
 
 export const PayPalSubscribeButton = ({ planType, onSuccess }: PayPalSubscribeButtonProps) => {
-  const buttonContainerId = `paypal-container-${planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L'}`;
+  const buttonContainerId = `paypal-container-${planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L'}`;
 
   return (
     <div className="w-full">
