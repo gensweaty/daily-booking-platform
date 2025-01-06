@@ -24,7 +24,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
             label: 'subscribe'
           },
           createSubscription: async (data: any, actions: any) => {
-            const planId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
+            console.log('Creating PayPal subscription for plan:', planType);
+            const planId = planType === 'monthly' ? process.env.VITE_PAYPAL_MONTHLY_PLAN_ID : process.env.VITE_PAYPAL_YEARLY_PLAN_ID;
             return actions.subscription.create({
               'plan_id': planId
             });
@@ -33,7 +34,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
             console.log('PayPal subscription approved:', data);
             
             try {
-              // Update subscription status
               const { error: updateError } = await supabase
                 .from('subscriptions')
                 .update({

@@ -1,59 +1,49 @@
-import { useState, useEffect } from 'react';
-import { useToast } from "@/hooks/use-toast";
+import { useEffect, useState } from 'react';
+
+interface PayPalWindow extends Window {
+  paypal?: any;
+}
+
+declare const window: PayPalWindow;
 
 export const usePayPalScript = () => {
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const [isScriptError, setIsScriptError] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => {
     const loadScript = async () => {
       try {
-        // Clean up any existing PayPal script
-        const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
-        if (existingScript) {
-          existingScript.remove();
-        }
-
-        const scriptElement = document.createElement('script');
-        scriptElement.src = "https://www.paypal.com/sdk/js?client-id=ATm58Iv3bVdLcUIVllc-on6VZRaRJeedpxso0KgGVu_kSELKrKOqaE63a8CNu-jIQ4ulE2j9WUkLASlY&vault=true&intent=subscription";
-        scriptElement.async = true;
-        scriptElement.crossOrigin = "anonymous";
-        
-        scriptElement.onload = () => {
+        if (!window.paypal) {
+          const script = document.createElement('script');
+          script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&vault=true&intent=subscription`;
+          script.async = true;
+          
+          script.onload = () => {
+            console.log('PayPal script loaded successfully');
+            setIsScriptLoaded(true);
+          };
+          
+          script.onerror = () => {
+            console.error('Failed to load PayPal script');
+            setIsScriptError(true);
+          };
+          
+          document.body.appendChild(script);
+        } else {
           setIsScriptLoaded(true);
-        };
-
-        scriptElement.onerror = (error) => {
-          setIsScriptError(true);
-          toast({
-            title: "Error",
-            description: "Failed to load payment system. Please try again.",
-            variant: "destructive",
-          });
-          console.error('PayPal script loading error:', error);
-        };
-
-        document.body.appendChild(scriptElement);
+        }
       } catch (error) {
-        console.error('Error in loadScript:', error);
+        console.error('Error loading PayPal script:', error);
         setIsScriptError(true);
       }
     };
 
     loadScript();
-
-    return () => {
-      const script = document.querySelector('script[src*="paypal.com/sdk/js"]');
-      if (script) {
-        script.remove();
-      }
-    };
-  }, [toast]);
+  }, []);
 
   return {
+    paypal: window.paypal,
     isScriptLoaded,
-    isScriptError,
-    paypal: isScriptLoaded ? window.paypal : null,
+    isScriptError
   };
 };
