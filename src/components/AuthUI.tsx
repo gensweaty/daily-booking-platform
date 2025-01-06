@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface AuthUIProps {
   defaultTab?: "signin" | "signup";
@@ -16,14 +15,6 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
-
-  useEffect(() => {
-    // Redirect authenticated users to dashboard
-    if (user) {
-      navigate("/dashboard");
-    }
-  }, [user, navigate]);
 
   useEffect(() => {
     if (location.pathname === "/signup") {
