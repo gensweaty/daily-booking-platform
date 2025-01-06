@@ -5,10 +5,58 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+async function getPayPalAccessToken() {
+  const clientId = Deno.env.get('PAYPAL_CLIENT_ID');
+  const clientSecret = Deno.env.get('PAYPAL_SECRET_KEY');
+  
+  if (!clientId || !clientSecret) {
+    throw new Error('PayPal credentials not configured');
+  }
+
+  const auth = btoa(`${clientId}:${clientSecret}`);
+  
+  const response = await fetch('https://api.sandbox.paypal.com/v1/oauth2/token', {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials'
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to get PayPal access token');
+  }
+
+  const data = await response.json();
+  return data.access_token;
+}
+
+async function verifyPayPalWebhook(accessToken: string, webhookId: string, event: any) {
+  const response = await fetch('https://api.sandbox.paypal.com/v1/notifications/verify-webhook-signature', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      webhook_id: webhookId,
+      webhook_event: event,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to verify webhook signature');
+  }
+
+  const verification = await response.json();
+  return verification.verification_status === 'SUCCESS';
+}
+
 serve(async (req) => {
   console.log('Webhook received:', new Date().toISOString());
   
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('Handling CORS preflight request');
     return new Response('ok', { headers: corsHeaders })
@@ -21,7 +69,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Log the raw request body for debugging
     const rawBody = await req.text();
     console.log('Raw webhook payload:', rawBody);
     
@@ -37,6 +84,20 @@ serve(async (req) => {
     }
     
     console.log('Parsed webhook payload:', JSON.stringify(payload, null, 2));
+
+    // Get PayPal access token
+    const accessToken = await getPayPalAccessToken();
+    
+    // Verify webhook signature
+    const webhookId = Deno.env.get('PAYPAL_WEBHOOK_ID');
+    if (!webhookId) {
+      throw new Error('PayPal webhook ID not configured');
+    }
+    
+    const isValid = await verifyPayPalWebhook(accessToken, webhookId, payload);
+    if (!isValid) {
+      throw new Error('Invalid webhook signature');
+    }
 
     // Extract plan type from URL parameters
     const url = new URL(req.url);
@@ -55,7 +116,7 @@ serve(async (req) => {
     const payerEmail = payload.resource?.payer?.email_address || 
                       payload.resource?.sender?.email_address ||
                       payload.resource?.custom_id ||
-                      payload.email_address; // Add direct email field check
+                      payload.email_address;
                       
     console.log('Attempting to find payer email from payload:', payerEmail);
 
