@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { loadPayPalScript, renderPayPalButton } from '@/utils/paypal';
 
 interface PayPalButtonProps {
   planType: 'monthly' | 'yearly';
@@ -8,94 +9,43 @@ interface PayPalButtonProps {
   containerId: string;
 }
 
-const SCRIPT_ID = 'paypal-script';
-const BUTTON_CONTAINER_CLASS = 'paypal-button-container';
-
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
-  const containerRef = useRef<HTMLDivElement>(null);
   const isInitializedRef = useRef(false);
   const scriptLoadPromiseRef = useRef<Promise<void> | null>(null);
-  
-  const loadPayPalScript = () => {
-    if (scriptLoadPromiseRef.current) {
-      console.log('Using existing PayPal script promise');
-      return scriptLoadPromiseRef.current;
-    }
-
-    const cleanup = () => {
-      const existingScript = document.getElementById(SCRIPT_ID);
-      if (existingScript) {
-        console.log('Removing existing PayPal script');
-        existingScript.remove();
-      }
-
-      document.querySelectorAll(`.${BUTTON_CONTAINER_CLASS}`).forEach(container => {
-        container.innerHTML = '';
-      });
-
-      scriptLoadPromiseRef.current = null;
-      isInitializedRef.current = false;
-    };
-
-    cleanup();
-
-    console.log('Loading PayPal script...');
-    scriptLoadPromiseRef.current = new Promise<void>((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || 'BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q'}&components=hosted-buttons&disable-funding=venmo&currency=USD`;
-      script.async = true;
-      script.crossOrigin = "anonymous";
-      script.id = SCRIPT_ID;
-
-      script.onload = () => {
-        console.log('PayPal script loaded successfully');
-        resolve();
-      };
-
-      script.onerror = (error) => {
-        console.error('Failed to load PayPal script:', error);
-        cleanup();
-        reject(new Error('Failed to load PayPal script'));
-      };
-
-      document.body.appendChild(script);
-    });
-
-    return scriptLoadPromiseRef.current;
-  };
 
   useEffect(() => {
     let mounted = true;
 
     const initializePayPal = async () => {
       try {
-        if (!containerRef.current || isInitializedRef.current) {
+        if (isInitializedRef.current) {
+          console.log('PayPal already initialized');
           return;
         }
 
-        console.log('Starting PayPal initialization...');
-        await loadPayPalScript();
-
-        if (!mounted || !containerRef.current) {
-          console.log('Component unmounted or container not found, aborting initialization');
-          return;
-        }
-
-        containerRef.current.innerHTML = '';
-        containerRef.current.className = `w-full ${BUTTON_CONTAINER_CLASS}`;
-
-        if (!window.paypal) {
-          throw new Error('PayPal SDK not loaded properly');
-        }
-
-        console.log('Initializing PayPal button with ID:', buttonId);
+        console.log('Initializing PayPal...');
         
-        await window.paypal.HostedButtons({
-          hostedButtonId: buttonId,
-          onApprove: async (data: { orderID: string }) => {
-            console.log('Payment approved:', data);
+        // Load the PayPal script if not already loading
+        if (!scriptLoadPromiseRef.current) {
+          scriptLoadPromiseRef.current = loadPayPalScript(
+            import.meta.env.VITE_PAYPAL_CLIENT_ID || 'BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q'
+          );
+        }
+
+        await scriptLoadPromiseRef.current;
+
+        if (!mounted) {
+          console.log('Component unmounted, aborting initialization');
+          return;
+        }
+
+        await renderPayPalButton(
+          containerId,
+          buttonId,
+          async (data) => {
+            console.log('Processing payment:', data);
             
             try {
               const user = (await supabase.auth.getUser()).data.user;
@@ -105,7 +55,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
               console.log('Processing payment for user:', user.email);
               
-              // Call the Supabase Edge Function to handle the subscription
               const { data: subscriptionData, error: functionError } = await supabase.functions.invoke(
                 'handle-paypal-webhook',
                 {
@@ -146,10 +95,10 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
               });
             }
           }
-        }).render(`#${containerId}`);
+        );
         
         isInitializedRef.current = true;
-        console.log('PayPal button rendered successfully');
+        console.log('PayPal initialization complete');
       } catch (error) {
         console.error('PayPal initialization error:', error);
         if (mounted) {
@@ -167,12 +116,13 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
     return () => {
       mounted = false;
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
-      }
       isInitializedRef.current = false;
+      const container = document.getElementById(containerId);
+      if (container) {
+        container.innerHTML = '';
+      }
     };
   }, [buttonId, containerId, toast, onSuccess, planType]);
 
-  return <div id={containerId} ref={containerRef} className="w-full" />;
+  return <div id={containerId} className="w-full" />;
 };
