@@ -25,42 +25,63 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const checkSubscriptionStatus = async () => {
-      if (user) {
-        try {
-          console.log('Checking subscription status for user:', user.id);
-          const { data: subscription, error } = await supabase
-            .from('subscriptions')
-            .select('status, current_period_end, trial_end_date')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
+  const checkSubscriptionStatus = async () => {
+    if (user) {
+      try {
+        console.log('Checking subscription status for user:', user.id);
+        const { data: subscription, error } = await supabase
+          .from('subscriptions')
+          .select('status, current_period_end, trial_end_date, plan_type')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
 
-          if (error) {
-            console.error('Error checking subscription:', error);
+        if (error) {
+          console.error('Error checking subscription:', error);
+          return;
+        }
+
+        console.log('Fetched subscription:', subscription);
+
+        const subscriptionParam = searchParams.get('subscription');
+        if (subscriptionParam && ['monthly', 'yearly'].includes(subscriptionParam)) {
+          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/handle-subscription-redirect?subscription=${subscriptionParam}`, {
+            headers: {
+              Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+            },
+          });
+
+          if (response.ok) {
+            setShowTrialExpired(false);
+            toast({
+              title: "Success",
+              description: "Your subscription has been activated!",
+              duration: 5000,
+            });
+            // Remove subscription parameter from URL
+            navigate('/dashboard');
             return;
           }
-
-          console.log('Fetched subscription:', subscription);
-
-          // Show dialog for both expired trials and expired subscriptions
-          if (!subscription || 
-              subscription.status === 'expired' || 
-              (subscription.current_period_end && new Date(subscription.current_period_end) < new Date())) {
-            console.log('Setting showTrialExpired to true');
-            setShowTrialExpired(true);
-          } else {
-            console.log('Setting showTrialExpired to false');
-            setShowTrialExpired(false);
-          }
-        } catch (error) {
-          console.error('Subscription check error:', error);
         }
-      }
-    };
 
+        // Show dialog for both expired trials and expired subscriptions
+        if (!subscription || 
+            subscription.status === 'expired' || 
+            (subscription.current_period_end && new Date(subscription.current_period_end) < new Date())) {
+          console.log('Setting showTrialExpired to true');
+          setShowTrialExpired(true);
+        } else {
+          console.log('Setting showTrialExpired to false');
+          setShowTrialExpired(false);
+        }
+      } catch (error) {
+        console.error('Subscription check error:', error);
+      }
+    }
+  };
+
+  useEffect(() => {
     checkSubscriptionStatus();
     
     // Set up real-time subscription updates
@@ -84,19 +105,7 @@ const Index = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
-
-  useEffect(() => {
-    const confirmationStatus = searchParams.get("email_confirmed");
-    if (confirmationStatus === "true") {
-      toast({
-        title: "Email Confirmed",
-        description: "Thank you! Your email has been successfully confirmed.",
-        duration: 5000,
-      });
-      navigate("/login");
-    }
-  }, [searchParams, toast, navigate]);
+  }, [user, searchParams]);
 
   useEffect(() => {
     const getProfile = async () => {
