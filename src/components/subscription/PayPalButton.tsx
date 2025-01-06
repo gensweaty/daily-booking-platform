@@ -16,7 +16,6 @@ const loadPayPalScript = () => {
     return scriptLoadPromise;
   }
 
-  // Remove any existing PayPal script first
   const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
   if (existingScript) {
     console.log('Removing existing PayPal script');
@@ -34,7 +33,6 @@ const loadPayPalScript = () => {
 
     script.onload = () => {
       console.log('PayPal script loaded successfully');
-      console.log('PayPal object available:', !!window.paypal);
       resolve();
     };
 
@@ -81,7 +79,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         }
 
         console.log('Initializing PayPal button with ID:', buttonId);
-        console.log('Container ID:', containerId);
         
         await window.paypal.HostedButtons({
           hostedButtonId: buttonId,
@@ -96,26 +93,24 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
               console.log('Processing payment for user:', user.email);
               
-              const webhookPayload = {
-                resource: {
-                  id: data.orderID,
-                  payer: {
-                    email_address: user.email
-                  }
-                },
-                plan_type: planType
-              };
-              
-              console.log('Sending webhook payload:', webhookPayload);
-              
-              const response = await supabase.functions.invoke('handle-paypal-webhook', {
-                body: webhookPayload
-              });
+              // Instead of calling the webhook directly, we'll update the subscription status
+              const { error: updateError } = await supabase
+                .from('subscriptions')
+                .update({
+                  status: 'active',
+                  current_period_start: new Date().toISOString(),
+                  current_period_end: new Date(
+                    new Date().setMonth(
+                      new Date().getMonth() + (planType === 'monthly' ? 1 : 12)
+                    )
+                  ).toISOString(),
+                  last_payment_id: data.orderID
+                })
+                .eq('user_id', user.id)
+                .eq('status', 'expired');
 
-              console.log('Webhook response:', response);
-
-              if (response.error) {
-                throw new Error(response.error.message || 'Failed to process subscription');
+              if (updateError) {
+                throw new Error(updateError.message);
               }
 
               if (onSuccess) {
