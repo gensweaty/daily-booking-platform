@@ -62,8 +62,8 @@ const loadPayPalScript = () => {
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
-  // Update the webhook URL to use the correct format
-  const webhookUrl = `${window.location.origin}/functions/v1/handle-paypal-webhook?plan=${planType}`;
+  // Use the correct Supabase project URL for webhooks
+  const webhookUrl = `https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/handle-paypal-webhook?plan=${planType}`;
   console.log('Webhook URL:', webhookUrl);
 
   useEffect(() => {
@@ -87,6 +87,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json',
+                      'Authorization': 'Bearer sbp_ab3461d452b584d8e80119216b4dc1a11190d702'
                     },
                     body: JSON.stringify({
                       resource: {
