@@ -15,6 +15,13 @@ const loadPayPalScript = () => {
     return scriptLoadPromise;
   }
 
+  // Remove any existing PayPal script first
+  const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
+  if (existingScript) {
+    existingScript.remove();
+    scriptLoadPromise = null;
+  }
+
   scriptLoadPromise = new Promise<void>((resolve, reject) => {
     const script = document.createElement('script');
     script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || 'BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q'}&components=hosted-buttons&disable-funding=venmo&currency=USD`;
@@ -33,11 +40,6 @@ const loadPayPalScript = () => {
       reject(new Error('Failed to load PayPal script'));
     };
 
-    const existingScript = document.getElementById('paypal-script');
-    if (existingScript) {
-      existingScript.remove();
-    }
-
     document.body.appendChild(script);
   });
 
@@ -48,12 +50,17 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const { toast } = useToast();
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
   const containerRef = useRef<HTMLDivElement>(null);
+  const isInitializedRef = useRef(false);
   
   useEffect(() => {
     let mounted = true;
 
     const initializePayPal = async () => {
       try {
+        if (isInitializedRef.current) {
+          return;
+        }
+
         await loadPayPalScript();
 
         if (!mounted || !containerRef.current) return;
@@ -65,7 +72,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           
           await window.paypal.HostedButtons({
             hostedButtonId: buttonId,
-            onApprove: async (data, actions) => {
+            onApprove: async (data: { orderID: string }) => {
               console.log('Payment approved:', data);
               
               try {
@@ -118,6 +125,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
             }
           }).render(`#${containerId}`);
           
+          isInitializedRef.current = true;
           console.log('PayPal button rendered successfully');
         }
       } catch (error) {
@@ -140,6 +148,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
+      isInitializedRef.current = false;
     };
   }, [buttonId, containerId, toast, onSuccess, planType]);
 
