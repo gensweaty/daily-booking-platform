@@ -11,16 +11,11 @@ interface PayPalButtonProps {
 
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
+  const { paypal, isScriptLoaded, isScriptError } = usePayPalScript();
 
   useEffect(() => {
-    const loadPayPalButton = async () => {
+    if (isScriptLoaded && paypal && !isScriptError) {
       try {
-        const paypal = await usePayPalScript();
-        if (!paypal) {
-          console.error('PayPal script failed to load');
-          return;
-        }
-
         paypal.Buttons({
           style: {
             layout: 'vertical',
@@ -93,7 +88,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         }).render(`#${containerId}`);
 
       } catch (error) {
-        console.error('Error loading PayPal button:', error);
+        console.error('Error rendering PayPal button:', error);
         toast({
           title: "Error",
           description: "Failed to load payment options. Please try again.",
@@ -101,10 +96,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           duration: 5000,
         });
       }
-    };
-
-    loadPayPalButton();
-  }, [planType, onSuccess, containerId, toast]);
+    }
+  }, [isScriptLoaded, paypal, isScriptError, planType, onSuccess, containerId, toast]);
 
   return <div id={containerId} />;
 };
