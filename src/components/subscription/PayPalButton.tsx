@@ -27,7 +27,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
         console.log('Initializing PayPal...');
         
-        // Load the PayPal script if not already loading
         if (!scriptLoadPromiseRef.current) {
           scriptLoadPromiseRef.current = loadPayPalScript(
             import.meta.env.VITE_PAYPAL_CLIENT_ID || 'BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q'
@@ -74,16 +73,19 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
               console.log('Subscription updated:', subscriptionData);
 
-              if (onSuccess) {
-                onSuccess(data.orderID);
-              }
-
+              // Show success toast
               toast({
                 title: "Success",
                 description: "Your subscription has been activated!",
                 duration: 5000,
               });
 
+              // Call onSuccess callback if provided
+              if (onSuccess) {
+                onSuccess(data.orderID);
+              }
+
+              // Force reload to update subscription status
               window.location.reload();
             } catch (error: any) {
               console.error('Error activating subscription:', error);
