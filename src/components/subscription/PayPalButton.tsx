@@ -62,7 +62,8 @@ const loadPayPalScript = () => {
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
-  const returnUrl = `${window.location.origin}/dashboard?subscription=${planType}`;
+  const webhookUrl = `${window.location.origin}/functions/handle-paypal-webhook?plan=${planType}`;
+  console.log('Webhook URL:', webhookUrl);
 
   useEffect(() => {
     let mounted = true;
@@ -80,11 +81,25 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
               onApprove: async (data) => {
                 console.log('Payment approved:', data);
                 try {
-                  const { error } = await supabase.functions.invoke('handle-subscription-redirect', {
-                    body: { subscription: planType, orderId: data.orderID }
+                  // Call our webhook endpoint directly after PayPal approval
+                  const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      resource: {
+                        id: data.orderID,
+                        payer: {
+                          email_address: (await supabase.auth.getUser()).data.user?.email
+                        }
+                      }
+                    })
                   });
 
-                  if (error) throw error;
+                  if (!response.ok) {
+                    throw new Error('Failed to process subscription');
+                  }
 
                   if (onSuccess) {
                     onSuccess(data.orderID);
@@ -108,19 +123,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 }
               }
             }).render(`#${containerId}`);
-
-            // Add return URL to form after render
-            const buttons = document.querySelectorAll('.paypal-buttons');
-            buttons.forEach(button => {
-              const form = button.shadowRoot?.querySelector('form');
-              if (form) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'return';
-                input.value = returnUrl;
-                form.appendChild(input);
-              }
-            });
           } catch (error) {
             console.error('PayPal button render error:', error);
             toast({
@@ -147,7 +149,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     return () => {
       mounted = false;
     };
-  }, [buttonId, containerId, toast, returnUrl, planType, onSuccess]);
+  }, [buttonId, containerId, toast, webhookUrl, onSuccess, planType]);
 
   return <div id={containerId} className="w-full" />;
 };
