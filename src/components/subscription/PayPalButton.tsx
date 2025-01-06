@@ -73,14 +73,12 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
               console.log('Subscription updated:', subscriptionData);
 
-              // Show success toast
               toast({
                 title: "Success",
                 description: "Your subscription has been activated!",
                 duration: 5000,
               });
 
-              // Call onSuccess callback if provided
               if (onSuccess) {
                 onSuccess(data.orderID);
               }
@@ -126,5 +124,5 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     };
   }, [buttonId, containerId, toast, onSuccess, planType]);
 
-  return <div id={containerId} className="w-full" />;
+  return <div id={containerId} className="w-full min-h-[50px]" />;
 };
