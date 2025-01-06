@@ -1,12 +1,6 @@
 import { useEffect, useState } from 'react';
 
-// Extend Window type without inheritance
-declare global {
-  interface Window {
-    paypal?: any;
-  }
-}
-
+// Remove global declaration since it's already defined in paypal.d.ts
 export const usePayPalScript = () => {
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const [isScriptError, setIsScriptError] = useState(false);
