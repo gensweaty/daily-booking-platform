@@ -6,6 +6,7 @@ const corsHeaders = {
 }
 
 async function getPayPalAccessToken() {
+  console.log('Getting PayPal access token...');
   const clientId = Deno.env.get('PAYPAL_CLIENT_ID');
   const clientSecret = Deno.env.get('PAYPAL_SECRET_KEY');
   
@@ -26,14 +27,18 @@ async function getPayPalAccessToken() {
   });
 
   if (!response.ok) {
+    const error = await response.text();
+    console.error('Failed to get PayPal access token:', error);
     throw new Error('Failed to get PayPal access token');
   }
 
   const data = await response.json();
+  console.log('Successfully obtained PayPal access token');
   return data.access_token;
 }
 
 async function verifyPayPalWebhook(accessToken: string, webhookId: string, event: any) {
+  console.log('Verifying PayPal webhook signature...');
   const response = await fetch('https://api.sandbox.paypal.com/v1/notifications/verify-webhook-signature', {
     method: 'POST',
     headers: {
@@ -47,11 +52,44 @@ async function verifyPayPalWebhook(accessToken: string, webhookId: string, event
   });
 
   if (!response.ok) {
+    const error = await response.text();
+    console.error('Failed to verify webhook signature:', error);
     throw new Error('Failed to verify webhook signature');
   }
 
   const verification = await response.json();
+  console.log('Webhook verification status:', verification.verification_status);
   return verification.verification_status === 'SUCCESS';
+}
+
+async function updateSubscription(supabaseClient: any, userId: string, planType: string, orderId: string) {
+  console.log('Updating subscription for user:', userId);
+  const currentDate = new Date();
+  const nextPeriodEnd = new Date(currentDate);
+  
+  if (planType === 'monthly') {
+    nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1);
+  } else {
+    nextPeriodEnd.setFullYear(nextPeriodEnd.getFullYear() + 1);
+  }
+
+  const { error } = await supabaseClient
+    .from('subscriptions')
+    .update({
+      status: 'active',
+      current_period_start: currentDate.toISOString(),
+      current_period_end: nextPeriodEnd.toISOString(),
+      plan_type: planType,
+      last_payment_id: orderId
+    })
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error updating subscription:', error);
+    throw error;
+  }
+
+  console.log('Successfully updated subscription for user:', userId);
 }
 
 serve(async (req) => {
@@ -146,43 +184,15 @@ serve(async (req) => {
 
     console.log('Found user:', userData);
 
-    // Calculate new period end date
-    const currentDate = new Date();
-    const nextPeriodEnd = new Date(currentDate);
-    
-    if (planType === 'monthly') {
-      nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1);
-    } else {
-      nextPeriodEnd.setFullYear(nextPeriodEnd.getFullYear() + 1);
-    }
-
-    console.log('Calculated dates:', {
-      currentDate: currentDate.toISOString(),
-      nextPeriodEnd: nextPeriodEnd.toISOString()
-    });
-
     // Update subscription status
-    console.log('Updating subscription for user:', userData.id);
-    const { error: updateError } = await supabaseClient
-      .from('subscriptions')
-      .update({
-        status: 'active',
-        current_period_start: currentDate.toISOString(),
-        current_period_end: nextPeriodEnd.toISOString(),
-        plan_type: planType,
-        last_payment_id: payload.resource?.id || payload.id
-      })
-      .eq('user_id', userData.id)
+    await updateSubscription(
+      supabaseClient, 
+      userData.id, 
+      planType, 
+      payload.resource?.id || payload.id
+    );
 
-    if (updateError) {
-      console.error('Error updating subscription:', updateError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to update subscription' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    console.log('Successfully updated subscription for user:', userData.id);
+    console.log('Successfully processed webhook');
 
     return new Response(
       JSON.stringify({ success: true }),
