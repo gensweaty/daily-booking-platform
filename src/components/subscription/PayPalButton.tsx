@@ -65,7 +65,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           
           await window.paypal.HostedButtons({
             hostedButtonId: buttonId,
-            onApprove: async (data) => {
+            onApprove: async (data, actions) => {
               console.log('Payment approved:', data);
               
               try {
@@ -106,7 +106,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
                 // Force reload to update subscription status
                 window.location.reload();
-              } catch (error) {
+              } catch (error: any) {
                 console.error('Error activating subscription:', error);
                 toast({
                   title: "Error",
@@ -115,15 +115,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                   duration: 8000,
                 });
               }
-            },
-            onError: (error) => {
-              console.error('PayPal error:', error);
-              toast({
-                title: "Error",
-                description: "There was an error processing your payment. Please try again.",
-                variant: "destructive",
-                duration: 5000,
-              });
             }
           }).render(`#${containerId}`);
           
