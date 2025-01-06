@@ -35,8 +35,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Extract plan type from payload
+    // Extract plan type and user email from payload
     const planType = payload.plan_type;
+    const payerEmail = payload.resource?.payer?.email_address;
+    const orderId = payload.resource?.id;
+
+    console.log('Processing payment:', {
+      planType,
+      payerEmail,
+      orderId
+    });
+
     if (!planType || !['monthly', 'yearly'].includes(planType)) {
       console.error('Invalid or missing plan type:', planType);
       return new Response(
@@ -44,10 +53,6 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-
-    // Extract the payer email to identify the user
-    const payerEmail = payload.resource?.payer?.email_address;
-    console.log('Looking up user with email:', payerEmail);
 
     if (!payerEmail) {
       console.error('No payer email found in payload');
@@ -112,8 +117,8 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Update subscription
-    const { error: updateError } = await supabaseClient
+    // Update subscription with RETURNING * to get the updated record
+    const { data: subscriptionData, error: updateError } = await supabaseClient
       .from('subscriptions')
       .upsert({
         user_id: userData.id,
@@ -122,10 +127,13 @@ Deno.serve(async (req) => {
         plan_type: planType,
         current_period_start: currentDate.toISOString(),
         current_period_end: nextPeriodEnd.toISOString(),
-        last_payment_id: payload.resource?.id
+        last_payment_id: orderId,
+        trial_end_date: null // Clear trial end date when subscription is activated
       }, {
         onConflict: 'user_id'
-      });
+      })
+      .select()
+      .single();
 
     if (updateError) {
       console.error('Error updating subscription:', updateError);
@@ -135,17 +143,20 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log('Successfully processed webhook and updated subscription');
+    console.log('Successfully processed webhook and updated subscription:', subscriptionData);
 
     return new Response(
       JSON.stringify({ 
         success: true,
         message: 'Subscription updated successfully',
-        user: userData.id,
-        plan_type: planType,
-        current_period_end: nextPeriodEnd.toISOString()
+        subscription: subscriptionData
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
     )
   } catch (error) {
     console.error('Error processing webhook:', error);
