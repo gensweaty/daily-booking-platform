@@ -8,59 +8,72 @@ interface PayPalButtonProps {
   containerId: string;
 }
 
-let scriptLoadPromise: Promise<void> | null = null;
-
-const loadPayPalScript = () => {
-  if (scriptLoadPromise) {
-    console.log('Using existing PayPal script promise');
-    return scriptLoadPromise;
-  }
-
-  const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
-  if (existingScript) {
-    console.log('Removing existing PayPal script');
-    existingScript.remove();
-    scriptLoadPromise = null;
-  }
-
-  console.log('Loading PayPal script...');
-  scriptLoadPromise = new Promise<void>((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || 'BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q'}&components=hosted-buttons&disable-funding=venmo&currency=USD`;
-    script.async = true;
-    script.crossOrigin = "anonymous";
-    script.id = "paypal-script";
-
-    script.onload = () => {
-      console.log('PayPal script loaded successfully');
-      resolve();
-    };
-
-    script.onerror = (error) => {
-      console.error('Failed to load PayPal script:', error);
-      scriptLoadPromise = null;
-      reject(new Error('Failed to load PayPal script'));
-    };
-
-    document.body.appendChild(script);
-  });
-
-  return scriptLoadPromise;
-};
+const SCRIPT_ID = 'paypal-script';
+const BUTTON_CONTAINER_CLASS = 'paypal-button-container';
 
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
   const containerRef = useRef<HTMLDivElement>(null);
   const isInitializedRef = useRef(false);
+  const scriptLoadPromiseRef = useRef<Promise<void> | null>(null);
   
+  const loadPayPalScript = () => {
+    if (scriptLoadPromiseRef.current) {
+      console.log('Using existing PayPal script promise');
+      return scriptLoadPromiseRef.current;
+    }
+
+    // Remove any existing PayPal script and container content
+    const cleanup = () => {
+      const existingScript = document.getElementById(SCRIPT_ID);
+      if (existingScript) {
+        console.log('Removing existing PayPal script');
+        existingScript.remove();
+      }
+
+      // Clear all existing PayPal button containers
+      document.querySelectorAll(`.${BUTTON_CONTAINER_CLASS}`).forEach(container => {
+        container.innerHTML = '';
+      });
+
+      scriptLoadPromiseRef.current = null;
+      isInitializedRef.current = false;
+    };
+
+    cleanup();
+
+    console.log('Loading PayPal script...');
+    scriptLoadPromiseRef.current = new Promise<void>((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || 'BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q'}&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+      script.async = true;
+      script.crossOrigin = "anonymous";
+      script.id = SCRIPT_ID;
+
+      script.onload = () => {
+        console.log('PayPal script loaded successfully');
+        resolve();
+      };
+
+      script.onerror = (error) => {
+        console.error('Failed to load PayPal script:', error);
+        cleanup();
+        reject(new Error('Failed to load PayPal script'));
+      };
+
+      document.body.appendChild(script);
+    });
+
+    return scriptLoadPromiseRef.current;
+  };
+
   useEffect(() => {
     let mounted = true;
 
     const initializePayPal = async () => {
       try {
-        if (isInitializedRef.current) {
-          console.log('PayPal button already initialized');
+        if (!containerRef.current || isInitializedRef.current) {
           return;
         }
 
@@ -72,7 +85,9 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           return;
         }
 
+        // Clear the container and add the class
         containerRef.current.innerHTML = '';
+        containerRef.current.className = `w-full ${BUTTON_CONTAINER_CLASS}`;
 
         if (!window.paypal) {
           throw new Error('PayPal SDK not loaded properly');
@@ -93,7 +108,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
               console.log('Processing payment for user:', user.email);
               
-              // Instead of calling the webhook directly, we'll update the subscription status
               const { error: updateError } = await supabase
                 .from('subscriptions')
                 .update({
@@ -123,7 +137,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 duration: 5000,
               });
 
-              // Force reload to update subscription status
               window.location.reload();
             } catch (error: any) {
               console.error('Error activating subscription:', error);
