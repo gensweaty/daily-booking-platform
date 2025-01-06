@@ -36,6 +36,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (error) {
           console.error('Session initialization error:', error);
+          if (error.message.includes('refresh_token_not_found')) {
+            // Clear any stale session data
+            await supabase.auth.signOut();
+            if (location.pathname !== '/login' && location.pathname !== '/signup' && location.pathname !== '/') {
+              navigate('/login');
+            }
+          }
           throw error;
         }
 
@@ -56,11 +63,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } catch (error: any) {
         console.error('Session initialization error:', error);
         if (mounted) {
-          toast({
-            title: "Error",
-            description: "Failed to initialize session",
-            variant: "destructive",
-          });
+          // Only show toast for non-refresh token errors
+          if (!error.message.includes('refresh_token_not_found')) {
+            toast({
+              title: "Error",
+              description: "Failed to initialize session",
+              variant: "destructive",
+            });
+          }
           if (location.pathname !== '/login' && location.pathname !== '/signup' && location.pathname !== '/') {
             navigate('/login');
           }
@@ -88,6 +98,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(null);
           navigate('/login');
         } else if (event === 'TOKEN_REFRESHED') {
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
+        } else if (event === 'USER_UPDATED') {
           setSession(newSession);
           setUser(newSession?.user ?? null);
         }

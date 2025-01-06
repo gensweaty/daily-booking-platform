@@ -15,16 +15,24 @@ export const SignIn = () => {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error("Session check error:", error);
+        if (error.message.includes('refresh_token_not_found')) {
+          // Clear any stale session data
+          await supabase.auth.signOut();
+        }
+        return;
+      }
       if (session) {
-        navigate("/");
+        navigate("/dashboard");
       }
     };
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
-        navigate("/");
+        navigate("/dashboard");
       }
     });
 
