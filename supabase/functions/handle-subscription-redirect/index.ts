@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { serve } from "https://deno.fresh.dev/server"
 
 const corsHeaders = {
@@ -50,6 +50,12 @@ serve(async (req) => {
     } else {
       endDate.setMonth(endDate.getMonth() + 1)
     }
+
+    console.log('Updating subscription with dates:', {
+      currentDate: currentDate.toISOString(),
+      endDate: endDate.toISOString(),
+      subscription
+    })
 
     // Update subscription
     const { error: updateError } = await supabase
