@@ -33,90 +33,73 @@ serve(async (req) => {
       )
     }
 
-    // Verify the payment was completed or subscription was activated
-    if (payload.event_type === 'PAYMENT.CAPTURE.COMPLETED' || 
-        payload.event_type === 'BILLING.SUBSCRIPTION.ACTIVATED') {
-      
-      console.log('Processing payment event:', payload.event_type)
-      
-      // Extract subscription details from the payload
-      const subscriptionId = payload.resource.custom_id
-      const orderId = payload.resource.id
-      const subscriptionStatus = payload.resource.status
+    // Extract the payer email to identify the user
+    const payerEmail = payload.resource?.payer?.email_address || 
+                      payload.resource?.sender?.email_address ||
+                      payload.resource?.custom_id
+    console.log('Payer email:', payerEmail)
 
-      console.log('Extracted details:', {
-        subscriptionId,
-        orderId,
-        subscriptionStatus,
-        planType
-      })
-
-      if (!subscriptionId) {
-        console.error('No subscription ID found in payload')
-        return new Response(
-          JSON.stringify({ error: 'No subscription ID found' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-
-      // Fetch the subscription
-      const { data: subscription, error: fetchError } = await supabaseClient
-        .from('subscriptions')
-        .select('*')
-        .eq('id', subscriptionId)
-        .single()
-
-      if (fetchError) {
-        console.error('Error fetching subscription:', fetchError)
-        throw fetchError
-      }
-
-      if (!subscription) {
-        console.error('No subscription found with ID:', subscriptionId)
-        return new Response(
-          JSON.stringify({ error: 'Subscription not found' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-
-      console.log('Found subscription:', subscription)
-
-      // Calculate new period end date
-      const currentDate = new Date()
-      const nextPeriodEnd = new Date(currentDate)
-      
-      if (planType === 'monthly') {
-        nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1)
-      } else {
-        nextPeriodEnd.setFullYear(nextPeriodEnd.getFullYear() + 1)
-      }
-
-      console.log('Calculated dates:', {
-        currentDate: currentDate.toISOString(),
-        nextPeriodEnd: nextPeriodEnd.toISOString()
-      })
-
-      // Update subscription status
-      const { error: updateError } = await supabaseClient
-        .from('subscriptions')
-        .update({
-          status: 'active',
-          current_period_start: currentDate.toISOString(),
-          current_period_end: nextPeriodEnd.toISOString(),
-          plan_type: planType,
-          last_payment_id: orderId
-        })
-        .eq('id', subscriptionId)
-
-      if (updateError) {
-        console.error('Error updating subscription:', updateError)
-        throw updateError
-      }
-
-      console.log(`Successfully updated subscription ${subscriptionId}`)
-    } else {
-      console.log('Ignoring non-payment event:', payload.event_type)
+    if (!payerEmail) {
+      console.error('No payer email found in payload')
+      return new Response(
+        JSON.stringify({ error: 'No payer email found' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
+
+    // Get user by email
+    const { data: userData, error: userError } = await supabaseClient
+      .from('auth.users')
+      .select('id')
+      .eq('email', payerEmail)
+      .single()
+
+    if (userError || !userData) {
+      console.error('Error finding user:', userError)
+      return new Response(
+        JSON.stringify({ error: 'User not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    console.log('Found user:', userData)
+
+    // Calculate new period end date
+    const currentDate = new Date()
+    const nextPeriodEnd = new Date(currentDate)
+    
+    if (planType === 'monthly') {
+      nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1)
+    } else {
+      nextPeriodEnd.setFullYear(nextPeriodEnd.getFullYear() + 1)
+    }
+
+    console.log('Calculated dates:', {
+      currentDate: currentDate.toISOString(),
+      nextPeriodEnd: nextPeriodEnd.toISOString()
+    })
+
+    // Update subscription status
+    const { error: updateError } = await supabaseClient
+      .from('subscriptions')
+      .update({
+        status: 'active',
+        current_period_start: currentDate.toISOString(),
+        current_period_end: nextPeriodEnd.toISOString(),
+        plan_type: planType,
+        last_payment_id: payload.resource?.id || payload.id
+      })
+      .eq('user_id', userData.id)
+
+    if (updateError) {
+      console.error('Error updating subscription:', updateError)
+      return new Response(
+        JSON.stringify({ error: 'Failed to update subscription' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    console.log('Successfully updated subscription for user:', userData.id)
 
     return new Response(
       JSON.stringify({ success: true }),
