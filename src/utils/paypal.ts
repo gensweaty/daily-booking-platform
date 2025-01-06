@@ -30,7 +30,7 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
 export const renderPayPalButton = async (
   containerId: string,
   buttonId: string,
-  onSuccess: (data: any) => Promise<void>
+  onSuccess: (data: { orderID: string }) => Promise<void>
 ): Promise<void> => {
   console.log('Rendering PayPal button...', { containerId, buttonId });
   
@@ -49,13 +49,14 @@ export const renderPayPalButton = async (
   try {
     await window.paypal.HostedButtons({
       hostedButtonId: buttonId,
-      onApprove: async (data: any) => {
+      onApprove: async (data: { orderID: string }) => {
         console.log('Payment approved:', data);
-        await onSuccess(data);
-      },
-      onError: (err: any) => {
-        console.error('PayPal button error:', err);
-        throw err;
+        try {
+          await onSuccess(data);
+        } catch (error) {
+          console.error('Error in onSuccess callback:', error);
+          throw error;
+        }
       }
     }).render(`#${containerId}`);
     
