@@ -3,3 +3,4 @@ project_id = "mrueqpffzauvdxmuwhfa"
 [global.env]
 PAYPAL_CLIENT_ID = "env(PAYPAL_CLIENT_ID)"
 PAYPAL_SECRET_KEY = "env(PAYPAL_SECRET_KEY)"
+PAYPAL_WEBHOOK_ID = "env(PAYPAL_WEBHOOK_ID)"
