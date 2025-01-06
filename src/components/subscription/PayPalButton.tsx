@@ -74,7 +74,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                   throw new Error('User email not found');
                 }
 
-                console.log('Sending webhook with user email:', user.email);
+                console.log('Processing payment for user:', user.email);
                 
                 const response = await supabase.functions.invoke('handle-paypal-webhook', {
                   body: {
@@ -104,6 +104,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                   duration: 5000,
                 });
 
+                // Force reload to update subscription status
                 window.location.reload();
               } catch (error) {
                 console.error('Error activating subscription:', error);
@@ -111,8 +112,18 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                   title: "Error",
                   description: "Failed to activate subscription. Please contact support.",
                   variant: "destructive",
+                  duration: 8000,
                 });
               }
+            },
+            onError: (error) => {
+              console.error('PayPal error:', error);
+              toast({
+                title: "Error",
+                description: "There was an error processing your payment. Please try again.",
+                variant: "destructive",
+                duration: 5000,
+              });
             }
           }).render(`#${containerId}`);
           
@@ -125,6 +136,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
             title: "Error",
             description: "Failed to initialize PayPal. Please refresh the page.",
             variant: "destructive",
+            duration: 5000,
           });
         }
       }
