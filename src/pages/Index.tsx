@@ -15,8 +15,6 @@ import { AuthUI } from "@/components/AuthUI";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { Statistics } from "@/components/Statistics";
 import { TrialExpiredDialog } from "@/components/TrialExpiredDialog";
-import { useSubscriptionHandler } from "@/components/dashboard/SubscriptionHandler";
-import { useSubscriptionStatus } from "@/components/dashboard/SubscriptionStatus";
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
@@ -27,8 +25,66 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const { checkSubscriptionStatus } = useSubscriptionStatus(setShowTrialExpired);
-  useSubscriptionHandler(checkSubscriptionStatus);
+  useEffect(() => {
+    const checkSubscriptionStatus = async () => {
+      if (user) {
+        try {
+          console.log('Checking subscription status for user:', user.id);
+          const { data: subscription, error } = await supabase
+            .from('subscriptions')
+            .select('status, current_period_end, trial_end_date')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (error) {
+            console.error('Error checking subscription:', error);
+            return;
+          }
+
+          console.log('Fetched subscription:', subscription);
+
+          // Show dialog for both expired trials and expired subscriptions
+          if (!subscription || 
+              subscription.status === 'expired' || 
+              (subscription.current_period_end && new Date(subscription.current_period_end) < new Date())) {
+            console.log('Setting showTrialExpired to true');
+            setShowTrialExpired(true);
+          } else {
+            console.log('Setting showTrialExpired to false');
+            setShowTrialExpired(false);
+          }
+        } catch (error) {
+          console.error('Subscription check error:', error);
+        }
+      }
+    };
+
+    checkSubscriptionStatus();
+    
+    // Set up real-time subscription updates
+    const channel = supabase
+      .channel('subscription-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'subscriptions',
+          filter: `user_id=eq.${user?.id}`
+        },
+        (payload) => {
+          console.log('Subscription updated:', payload);
+          checkSubscriptionStatus();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   useEffect(() => {
     const confirmationStatus = searchParams.get("email_confirmed");

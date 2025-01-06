@@ -14,11 +14,6 @@ export const updateSubscriptionStatus = async (
     nextChargeDate.setFullYear(nextChargeDate.getFullYear() + 1);
   }
 
-  console.log('Updating subscription with dates:', {
-    currentDate: currentDate.toISOString(),
-    nextChargeDate: nextChargeDate.toISOString()
-  });
-
   const { error } = await supabase
     .from('subscriptions')
     .update({
@@ -30,12 +25,7 @@ export const updateSubscriptionStatus = async (
     })
     .eq('status', 'expired');
 
-  if (error) {
-    console.error('Error updating subscription:', error);
-    throw error;
-  }
-
-  console.log('Subscription updated successfully');
+  if (error) throw error;
 
   if (onSuccess && orderId) {
     onSuccess(orderId);

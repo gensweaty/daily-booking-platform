@@ -7,7 +7,6 @@ interface PayPalSubscribeButtonProps {
 
 export const PayPalSubscribeButton = ({ planType, onSuccess }: PayPalSubscribeButtonProps) => {
   const buttonContainerId = `paypal-container-${planType === 'monthly' ? 'ST9DUFXHJCGWJ' : 'YDK5G6VR2EA8L'}`;
-  const returnUrl = `${window.location.origin}/dashboard?subscription=${planType}`;
 
   return (
     <div className="w-full">
@@ -15,7 +14,6 @@ export const PayPalSubscribeButton = ({ planType, onSuccess }: PayPalSubscribeBu
         planType={planType}
         onSuccess={onSuccess}
         containerId={buttonContainerId}
-        returnUrl={returnUrl}
       />
     </div>
   );
