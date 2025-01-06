@@ -28,26 +28,35 @@ const Index = () => {
   useEffect(() => {
     const checkSubscriptionStatus = async () => {
       if (user) {
-        const { data: subscription, error } = await supabase
-          .from('subscriptions')
-          .select('status, current_period_end')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        try {
+          console.log('Checking subscription status for user:', user.id);
+          const { data: subscription, error } = await supabase
+            .from('subscriptions')
+            .select('status, current_period_end, trial_end_date')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
 
-        if (error) {
-          console.error('Error checking subscription:', error);
-          return;
-        }
+          if (error) {
+            console.error('Error checking subscription:', error);
+            return;
+          }
 
-        // Show dialog for both expired subscriptions and expired trials
-        if (!subscription || 
-            subscription?.status === 'expired' || 
-            (subscription?.current_period_end && new Date(subscription.current_period_end) < new Date())) {
-          console.log('Setting showTrialExpired to true');
-          setShowTrialExpired(true);
-        } else {
-          console.log('Setting showTrialExpired to false');
-          setShowTrialExpired(false);
+          console.log('Fetched subscription:', subscription);
+
+          // Show dialog for both expired trials and expired subscriptions
+          if (!subscription || 
+              subscription.status === 'expired' || 
+              (subscription.current_period_end && new Date(subscription.current_period_end) < new Date())) {
+            console.log('Setting showTrialExpired to true');
+            setShowTrialExpired(true);
+          } else {
+            console.log('Setting showTrialExpired to false');
+            setShowTrialExpired(false);
+          }
+        } catch (error) {
+          console.error('Subscription check error:', error);
         }
       }
     };

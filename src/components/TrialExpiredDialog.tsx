@@ -25,7 +25,10 @@ export const TrialExpiredDialog = () => {
 
   return (
     <Dialog open={true} onOpenChange={() => {}}>
-      <DialogContent className="w-[90vw] max-w-[475px] p-4 sm:p-6" hideCloseButton>
+      <DialogContent 
+        className="w-[90vw] max-w-[475px] p-4 sm:p-6" 
+        hideCloseButton={true}
+      >
         <DialogHeader>
           <DialogTitle className="text-center text-xl sm:text-2xl font-bold">
             Subscription Required
