@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 interface PayPalButtonProps {
   planType: 'monthly' | 'yearly';
@@ -76,10 +77,34 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           try {
             await window.paypal.HostedButtons({
               hostedButtonId: buttonId,
-              onApprove: (data) => {
+              onApprove: async (data) => {
                 console.log('Payment approved:', data);
-                if (onSuccess) {
-                  onSuccess(data.orderID);
+                try {
+                  const { error } = await supabase.functions.invoke('handle-subscription-redirect', {
+                    body: { subscription: planType, orderId: data.orderID }
+                  });
+
+                  if (error) throw error;
+
+                  if (onSuccess) {
+                    onSuccess(data.orderID);
+                  }
+
+                  toast({
+                    title: "Success",
+                    description: "Your subscription has been activated!",
+                    duration: 5000,
+                  });
+
+                  // Reload the page to update the subscription status
+                  window.location.reload();
+                } catch (error) {
+                  console.error('Error activating subscription:', error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to activate subscription. Please contact support.",
+                    variant: "destructive",
+                  });
                 }
               }
             }).render(`#${containerId}`);
@@ -122,7 +147,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     return () => {
       mounted = false;
     };
-  }, [buttonId, containerId, toast, returnUrl]);
+  }, [buttonId, containerId, toast, returnUrl, planType, onSuccess]);
 
   return <div id={containerId} className="w-full" />;
 };

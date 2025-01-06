@@ -12,8 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url)
-    const subscription = url.searchParams.get('subscription')
+    const { subscription, orderId } = await req.json()
     
     if (!subscription || !['monthly', 'yearly'].includes(subscription)) {
       console.error('Invalid subscription type:', subscription)
@@ -57,7 +56,8 @@ serve(async (req) => {
     console.log('Updating subscription with dates:', {
       currentDate: currentDate.toISOString(),
       endDate: endDate.toISOString(),
-      subscription
+      subscription,
+      orderId
     })
 
     // Update subscription
@@ -68,7 +68,8 @@ serve(async (req) => {
         plan_type: subscription,
         current_period_start: currentDate.toISOString(),
         current_period_end: endDate.toISOString(),
-        trial_end_date: null
+        trial_end_date: null,
+        last_payment_id: orderId
       })
       .eq('status', 'expired')
 
