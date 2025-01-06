@@ -15,6 +15,7 @@ import { AuthUI } from "@/components/AuthUI";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { Statistics } from "@/components/Statistics";
 import { TrialExpiredDialog } from "@/components/TrialExpiredDialog";
+import { updateSubscriptionStatus } from "@/lib/subscription";
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
@@ -24,6 +25,39 @@ const Index = () => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleSubscriptionRedirect = async () => {
+      const subscriptionType = searchParams.get("subscription");
+      if (subscriptionType && user) {
+        try {
+          console.log('Processing subscription redirect for type:', subscriptionType);
+          await updateSubscriptionStatus(subscriptionType);
+          
+          // Clear the subscription parameter from URL
+          navigate('/dashboard', { replace: true });
+          
+          toast({
+            title: "Subscription Activated",
+            description: `Your ${subscriptionType} subscription has been successfully activated.`,
+            duration: 5000,
+          });
+          
+          // Refresh subscription status
+          checkSubscriptionStatus();
+        } catch (error) {
+          console.error('Error processing subscription:', error);
+          toast({
+            title: "Subscription Error",
+            description: "There was an error activating your subscription. Please contact support.",
+            variant: "destructive",
+          });
+        }
+      }
+    };
+
+    handleSubscriptionRedirect();
+  }, [searchParams, user, navigate, toast]);
 
   useEffect(() => {
     const checkSubscriptionStatus = async () => {
