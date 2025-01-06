@@ -16,21 +16,24 @@ serve(async (req) => {
     const subscription = url.searchParams.get('subscription')
     
     if (!subscription || !['monthly', 'yearly'].includes(subscription)) {
+      console.error('Invalid subscription type:', subscription)
       return new Response(
         JSON.stringify({ error: 'Invalid subscription type' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Get user from auth header
+    // Get the authorization header
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.error('No authorization header')
       return new Response(
         JSON.stringify({ error: 'No authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    // Create Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -65,6 +68,7 @@ serve(async (req) => {
         plan_type: subscription,
         current_period_start: currentDate.toISOString(),
         current_period_end: endDate.toISOString(),
+        trial_end_date: null
       })
       .eq('status', 'expired')
 
@@ -81,7 +85,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error('Error:', error)
+    console.error('Error in handle-subscription-redirect:', error)
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -25,6 +25,43 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const activateSubscription = async (subscriptionType: string) => {
+    try {
+      console.log('Activating subscription:', subscriptionType);
+      
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) {
+        throw new Error('No access token available');
+      }
+
+      const response = await supabase.functions.invoke('handle-subscription-redirect', {
+        body: { subscription: subscriptionType }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to activate subscription');
+      }
+
+      setShowTrialExpired(false);
+      toast({
+        title: "Success",
+        description: "Your subscription has been activated!",
+        duration: 5000,
+      });
+      
+      // Remove subscription parameter from URL
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Subscription activation error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to activate subscription",
+        variant: "destructive",
+        duration: 5000,
+      });
+    }
+  };
+
   const checkSubscriptionStatus = async () => {
     if (user) {
       try {
@@ -46,26 +83,10 @@ const Index = () => {
 
         const subscriptionParam = searchParams.get('subscription');
         if (subscriptionParam && ['monthly', 'yearly'].includes(subscriptionParam)) {
-          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/handle-subscription-redirect?subscription=${subscriptionParam}`, {
-            headers: {
-              Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-            },
-          });
-
-          if (response.ok) {
-            setShowTrialExpired(false);
-            toast({
-              title: "Success",
-              description: "Your subscription has been activated!",
-              duration: 5000,
-            });
-            // Remove subscription parameter from URL
-            navigate('/dashboard');
-            return;
-          }
+          await activateSubscription(subscriptionParam);
+          return;
         }
 
-        // Show dialog for both expired trials and expired subscriptions
         if (!subscription || 
             subscription.status === 'expired' || 
             (subscription.current_period_end && new Date(subscription.current_period_end) < new Date())) {
