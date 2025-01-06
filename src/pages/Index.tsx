@@ -39,10 +39,14 @@ const Index = () => {
           return;
         }
 
-        if (subscription?.status === 'expired' || 
+        // Show dialog for both expired subscriptions and expired trials
+        if (!subscription || 
+            subscription?.status === 'expired' || 
             (subscription?.current_period_end && new Date(subscription.current_period_end) < new Date())) {
+          console.log('Setting showTrialExpired to true');
           setShowTrialExpired(true);
         } else {
+          console.log('Setting showTrialExpired to false');
           setShowTrialExpired(false);
         }
       }

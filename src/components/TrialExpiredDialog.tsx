@@ -12,7 +12,6 @@ import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
-  const [isOpen, setIsOpen] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -21,21 +20,20 @@ export const TrialExpiredDialog = () => {
       title: "Success",
       description: `Successfully subscribed with ID: ${subscriptionId}`,
     });
-    setIsOpen(false);
     navigate("/dashboard");
   };
 
   return (
-    <Dialog open={isOpen}>
-      <DialogContent className="w-[90vw] max-w-[475px] p-4 sm:p-6">
+    <Dialog open={true} onOpenChange={() => {}}>
+      <DialogContent className="w-[90vw] max-w-[475px] p-4 sm:p-6" hideCloseButton>
         <DialogHeader>
           <DialogTitle className="text-center text-xl sm:text-2xl font-bold">
-            Trial Period Expired
+            Subscription Required
           </DialogTitle>
         </DialogHeader>
         <div className="mt-4 space-y-6 px-2 sm:px-4">
           <p className="text-center text-sm sm:text-base text-muted-foreground">
-            Your 14-day trial has expired. Please select a plan to continue using our services.
+            Your subscription has expired. Please select a plan to continue using our services.
           </p>
           <SubscriptionPlanSelect
             selectedPlan={selectedPlan}
