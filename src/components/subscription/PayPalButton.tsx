@@ -27,9 +27,14 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
         console.log('Initializing PayPal...');
         
-        const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
-        if (!clientId) {
-          throw new Error('PayPal client ID is not configured');
+        // Fetch PayPal client ID from Supabase
+        const { data: { value: clientId }, error: secretError } = await supabase
+          .functions.invoke('get-secret', {
+            body: { secretName: 'PAYPAL_CLIENT_ID' }
+          });
+
+        if (secretError || !clientId) {
+          throw new Error('Failed to fetch PayPal client ID');
         }
         
         if (!scriptLoadPromiseRef.current) {
