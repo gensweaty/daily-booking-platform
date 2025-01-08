@@ -14,53 +14,37 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
   const isInitializedRef = useRef(false);
   const scriptLoadPromiseRef = useRef<Promise<void> | null>(null);
-  const mountedRef = useRef(true);
 
   useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
+    let mounted = true;
 
-  useEffect(() => {
     const initializePayPal = async () => {
-      if (!mountedRef.current) return;
-
       try {
         if (isInitializedRef.current) {
-          console.log('PayPal already initialized for:', containerId);
+          console.log('PayPal already initialized');
           return;
         }
 
-        console.log('Starting PayPal script load...');
+        console.log('Initializing PayPal...');
         
         if (!scriptLoadPromiseRef.current) {
           scriptLoadPromiseRef.current = loadPayPalScript(
-            import.meta.env.VITE_PAYPAL_CLIENT_ID || ''
+            import.meta.env.VITE_PAYPAL_CLIENT_ID || 'BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q'
           );
         }
 
         await scriptLoadPromiseRef.current;
-        
-        if (!mountedRef.current) return;
 
-        const container = document.getElementById(containerId);
-        if (!container) {
-          console.error('PayPal container not found:', containerId);
+        if (!mounted) {
+          console.log('Component unmounted, aborting initialization');
           return;
         }
-
-        // Clear container before rendering
-        container.innerHTML = '';
 
         await renderPayPalButton(
           containerId,
           buttonId,
           async (data) => {
-            if (!mountedRef.current) return;
-            
-            console.log('Payment success:', data);
+            console.log('Processing payment:', data);
             
             try {
               const user = (await supabase.auth.getUser()).data.user;
@@ -68,45 +52,61 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 throw new Error('User email not found');
               }
 
-              // Call activate_subscription function directly
-              const { error: activationError } = await supabase.rpc('activate_subscription', {
-                p_user_id: user.id,
-                p_subscription_type: planType
-              });
+              console.log('Processing payment for user:', user.email);
+              
+              const { data: subscriptionData, error: functionError } = await supabase.functions.invoke(
+                'handle-paypal-webhook',
+                {
+                  body: {
+                    resource: {
+                      id: data.orderID,
+                      payer: { email_address: user.email }
+                    },
+                    plan_type: planType
+                  }
+                }
+              );
 
-              if (activationError) throw activationError;
+              if (functionError) {
+                throw new Error(functionError.message);
+              }
+
+              console.log('Subscription updated:', subscriptionData);
 
               toast({
                 title: "Success",
                 description: "Your subscription has been activated!",
+                duration: 5000,
               });
 
               if (onSuccess) {
                 onSuccess(data.orderID);
               }
 
-              // Force reload to update subscription state
+              // Force reload to update subscription status
               window.location.reload();
             } catch (error: any) {
-              console.error('Subscription error:', error);
+              console.error('Error activating subscription:', error);
               toast({
                 title: "Error",
-                description: "Failed to activate subscription. Please try again.",
+                description: "Failed to activate subscription. Please contact support.",
                 variant: "destructive",
+                duration: 8000,
               });
             }
           }
         );
         
         isInitializedRef.current = true;
-        console.log('PayPal initialization complete for:', containerId);
+        console.log('PayPal initialization complete');
       } catch (error) {
         console.error('PayPal initialization error:', error);
-        if (mountedRef.current) {
+        if (mounted) {
           toast({
             title: "Error",
             description: "Failed to initialize PayPal. Please refresh the page.",
             variant: "destructive",
+            duration: 5000,
           });
         }
       }
@@ -115,7 +115,12 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     initializePayPal();
 
     return () => {
-      mountedRef.current = false;
+      mounted = false;
+      isInitializedRef.current = false;
+      const container = document.getElementById(containerId);
+      if (container) {
+        container.innerHTML = '';
+      }
     };
   }, [buttonId, containerId, toast, onSuccess, planType]);
 
