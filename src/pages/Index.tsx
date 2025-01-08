@@ -21,24 +21,7 @@ const Index = () => {
       try {
         console.log('Checking subscription status for user:', user.email);
         
-        // Get the most recent active subscription
-        const { data: subscription, error } = await supabase
-          .from('subscriptions')
-          .select('status, current_period_end, trial_end_date')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (error && !error.message.includes('Results contain 0 rows')) {
-          console.error('Error checking subscription:', error);
-          return;
-        }
-
-        // Log the subscription data for debugging
-        console.log('Fetched subscription:', subscription);
-
-        // Don't show trial expired dialog if there's a subscription parameter in the URL
+        // Don't show trial expired dialog if there's a subscription parameter
         const subscriptionParam = searchParams.get('subscription');
         if (subscriptionParam) {
           console.log('Subscription parameter found:', subscriptionParam);
@@ -46,14 +29,26 @@ const Index = () => {
           return;
         }
 
-        // Check subscription status
+        const { data: subscription, error } = await supabase
+          .from('subscriptions')
+          .select('status, current_period_end, trial_end_date')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle();
+
+        console.log('Fetched subscription:', subscription);
+
+        if (error && !error.message.includes('Results contain 0 rows')) {
+          console.error('Error checking subscription:', error);
+          return;
+        }
+
         if (!subscription || 
             subscription.status === 'expired' || 
             (subscription.current_period_end && new Date(subscription.current_period_end) < new Date())) {
           console.log('Subscription expired or not found');
           setShowTrialExpired(true);
         } else {
-          console.log('Active subscription found');
           setShowTrialExpired(false);
         }
       } catch (error) {
@@ -72,17 +67,11 @@ const Index = () => {
             .from('profiles')
             .select('username')
             .eq('id', user.id)
-            .maybeSingle();
+            .single();
           
-          if (error) {
-            console.error('Error fetching profile:', error);
-            return;
-          }
-          
-          if (data) {
-            setUsername(data.username);
-          }
-        } catch (error: any) {
+          if (error) throw error;
+          if (data) setUsername(data.username);
+        } catch (error) {
           console.error('Profile fetch error:', error);
         }
       }

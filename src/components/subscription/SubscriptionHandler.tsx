@@ -12,9 +12,8 @@ export const SubscriptionHandler = () => {
 
   useEffect(() => {
     const handleSubscription = async () => {
-      // Get subscription type from URL
       const subscriptionType = searchParams.get('subscription');
-      console.log('Checking subscription parameters:', { subscriptionType, user: user?.email });
+      console.log('Subscription activation check:', { subscriptionType, userId: user?.id });
       
       if (!user || !subscriptionType) {
         console.log('Missing required data:', { user: !!user, subscriptionType });
@@ -22,53 +21,44 @@ export const SubscriptionHandler = () => {
       }
 
       try {
-        // Get the most recent subscription for the user
+        // Check for existing active subscription
         const { data: existingSubscription, error: fetchError } = await supabase
           .from('subscriptions')
           .select('status, current_period_end')
           .eq('user_id', user.id)
           .eq('status', 'active')
-          .single();
+          .maybeSingle();
 
         if (fetchError && !fetchError.message.includes('Results contain 0 rows')) {
-          console.error('Error checking existing subscription:', fetchError);
-          toast({
-            title: "Error",
-            description: "Failed to check subscription status",
-            variant: "destructive",
-          });
-          return;
+          console.error('Error checking subscription:', fetchError);
+          throw fetchError;
         }
 
-        // Check if there's an active subscription
         if (existingSubscription?.status === 'active' && 
             existingSubscription.current_period_end && 
             new Date(existingSubscription.current_period_end) > new Date()) {
-          console.log('Subscription already active:', existingSubscription);
+          console.log('Active subscription found:', existingSubscription);
           toast({
-            title: "Info",
+            title: "Subscription Active",
             description: "Your subscription is already active",
           });
-          navigate('/dashboard', { replace: true });
+          navigate('/dashboard');
           return;
         }
 
-        console.log('Starting subscription activation for:', user.email);
-        console.log('Subscription type:', subscriptionType);
+        console.log('Activating subscription for:', user.email);
         
-        // Activate the subscription
         const { error: activationError } = await supabase.rpc('activate_subscription', {
           p_user_id: user.id,
           p_subscription_type: subscriptionType
         });
 
         if (activationError) {
-          console.error('Subscription activation error:', activationError);
+          console.error('Activation error:', activationError);
           throw activationError;
         }
 
         console.log('Subscription activated successfully');
-        
         toast({
           title: "Success",
           description: "Your subscription has been activated!",
@@ -77,7 +67,7 @@ export const SubscriptionHandler = () => {
         // Force reload to update subscription state
         window.location.reload();
       } catch (error: any) {
-        console.error('Subscription activation error:', error);
+        console.error('Subscription error:', error);
         toast({
           title: "Error",
           description: error.message || "Failed to activate subscription",
@@ -86,7 +76,6 @@ export const SubscriptionHandler = () => {
       }
     };
 
-    // Run immediately when component mounts or when URL parameters/user change
     handleSubscription();
   }, [user, searchParams, toast, navigate]);
 

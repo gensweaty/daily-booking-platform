@@ -14,29 +14,40 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
   const isInitializedRef = useRef(false);
   const scriptLoadPromiseRef = useRef<Promise<void> | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
+  useEffect(() => {
     const initializePayPal = async () => {
+      if (!mountedRef.current) return;
+
       try {
         if (isInitializedRef.current) {
           console.log('PayPal already initialized');
           return;
         }
 
-        console.log('Initializing PayPal...');
+        console.log('Initializing PayPal for container:', containerId);
         
         if (!scriptLoadPromiseRef.current) {
           scriptLoadPromiseRef.current = loadPayPalScript(
-            import.meta.env.VITE_PAYPAL_CLIENT_ID || 'BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q'
+            import.meta.env.VITE_PAYPAL_CLIENT_ID || ''
           );
         }
 
         await scriptLoadPromiseRef.current;
+        
+        if (!mountedRef.current) return;
 
-        if (!mounted) {
-          console.log('Component unmounted, aborting initialization');
+        const container = document.getElementById(containerId);
+        if (!container) {
+          console.error('PayPal container not found:', containerId);
           return;
         }
 
@@ -44,7 +55,9 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           containerId,
           buttonId,
           async (data) => {
-            console.log('Processing payment:', data);
+            if (!mountedRef.current) return;
+            
+            console.log('Payment success:', data);
             
             try {
               const user = (await supabase.auth.getUser()).data.user;
@@ -52,9 +65,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 throw new Error('User email not found');
               }
 
-              console.log('Processing payment for user:', user.email);
-              
-              const { data: subscriptionData, error: functionError } = await supabase.functions.invoke(
+              const { error: functionError } = await supabase.functions.invoke(
                 'handle-paypal-webhook',
                 {
                   body: {
@@ -67,31 +78,24 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 }
               );
 
-              if (functionError) {
-                throw new Error(functionError.message);
-              }
-
-              console.log('Subscription updated:', subscriptionData);
+              if (functionError) throw functionError;
 
               toast({
                 title: "Success",
                 description: "Your subscription has been activated!",
-                duration: 5000,
               });
 
               if (onSuccess) {
                 onSuccess(data.orderID);
               }
 
-              // Force reload to update subscription status
-              window.location.reload();
+              window.location.href = `/dashboard?subscription=${planType}`;
             } catch (error: any) {
-              console.error('Error activating subscription:', error);
+              console.error('Subscription error:', error);
               toast({
                 title: "Error",
-                description: "Failed to activate subscription. Please contact support.",
+                description: "Failed to activate subscription. Please try again.",
                 variant: "destructive",
-                duration: 8000,
               });
             }
           }
@@ -101,12 +105,11 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         console.log('PayPal initialization complete');
       } catch (error) {
         console.error('PayPal initialization error:', error);
-        if (mounted) {
+        if (mountedRef.current) {
           toast({
             title: "Error",
             description: "Failed to initialize PayPal. Please refresh the page.",
             variant: "destructive",
-            duration: 5000,
           });
         }
       }
@@ -115,12 +118,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     initializePayPal();
 
     return () => {
-      mounted = false;
-      isInitializedRef.current = false;
-      const container = document.getElementById(containerId);
-      if (container) {
-        container.innerHTML = '';
-      }
+      mountedRef.current = false;
     };
   }, [buttonId, containerId, toast, onSuccess, planType]);
 
