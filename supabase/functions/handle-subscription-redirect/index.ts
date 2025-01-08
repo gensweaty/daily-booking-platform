@@ -1,5 +1,5 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,86 +7,49 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { subscription, orderId } = await req.json()
+    const { subscription } = await req.json()
     
-    if (!subscription || !['monthly', 'yearly'].includes(subscription)) {
-      console.error('Invalid subscription type:', subscription)
+    if (!subscription) {
+      console.error('Missing subscription type')
       return new Response(
-        JSON.stringify({ error: 'Invalid subscription type' }),
+        JSON.stringify({ error: 'Missing subscription type' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Get the authorization header
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      console.error('No authorization header')
-      return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
     // Create Supabase client
-    const supabase = createClient(
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Calculate dates
-    const currentDate = new Date()
-    const endDate = new Date(currentDate)
-    
-    if (subscription === 'yearly') {
-      endDate.setFullYear(endDate.getFullYear() + 1)
-    } else {
-      endDate.setMonth(endDate.getMonth() + 1)
-    }
-
-    console.log('Updating subscription with dates:', {
-      currentDate: currentDate.toISOString(),
-      endDate: endDate.toISOString(),
-      subscription,
-      orderId
+    // Call the activate_subscription function
+    const { data, error } = await supabaseClient.rpc('activate_subscription', {
+      p_user_id: req.headers.get('x-user-id'),
+      p_subscription_type: subscription
     })
 
-    // Update subscription
-    const { error: updateError } = await supabase
-      .from('subscriptions')
-      .update({
-        status: 'active',
-        plan_type: subscription,
-        current_period_start: currentDate.toISOString(),
-        current_period_end: endDate.toISOString(),
-        trial_end_date: null,
-        last_payment_id: orderId
-      })
-      .eq('status', 'expired')
-
-    if (updateError) {
-      console.error('Error updating subscription:', updateError)
+    if (error) {
+      console.error('Error activating subscription:', error)
       return new Response(
-        JSON.stringify({ error: 'Failed to update subscription' }),
+        JSON.stringify({ error: 'Failed to activate subscription' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     return new Response(
-      JSON.stringify({ success: true }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ message: 'Subscription activated successfully' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
+
   } catch (error) {
-    console.error('Error in handle-subscription-redirect:', error)
+    console.error('Error processing request:', error)
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
