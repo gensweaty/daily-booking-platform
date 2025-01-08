@@ -13,6 +13,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const buttonRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const scriptLoadedRef = useRef(false);
 
   useEffect(() => {
     const loadPayPalScript = async () => {
@@ -24,23 +25,33 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           buttonRef.current.innerHTML = '';
         }
 
-        // @ts-ignore
-        if (!window.paypal) {
-          const script = document.createElement('script');
-          script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&vault=true&intent=subscription`;
-          script.async = true;
-          
-          await new Promise((resolve, reject) => {
-            script.onload = resolve;
-            script.onerror = reject;
-            document.body.appendChild(script);
-          });
+        // Remove any existing PayPal script
+        const existingScript = document.getElementById('paypal-script');
+        if (existingScript) {
+          existingScript.remove();
+          // @ts-ignore
+          delete window.paypal;
         }
 
+        // Create and load new script
+        const script = document.createElement('script');
+        script.id = 'paypal-script';
+        script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&vault=true&intent=subscription`;
+        script.async = true;
+        
+        const scriptPromise = new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = reject;
+        });
+
+        document.body.appendChild(script);
+        await scriptPromise;
+        
         console.log('PayPal script loaded successfully');
+        scriptLoadedRef.current = true;
 
         // @ts-ignore
-        window.paypal.Buttons({
+        window.paypal?.Buttons({
           style: {
             shape: 'rect',
             color: 'gold',
@@ -49,7 +60,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           },
           createSubscription: (data: any, actions: any) => {
             return actions.subscription.create({
-              'plan_id': planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L'
+              'plan_id': planType === 'monthly' ? 'P-5ML4271244454362WXNWU5NQ' : 'P-86V37366MN133974NXNWU5YI'
             });
           },
           onApprove: async (data: any) => {
@@ -79,9 +90,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 onSuccess(data.subscriptionID);
               }
 
-              // Reload the page to update subscription state
-              window.location.reload();
-
             } catch (error) {
               console.error('Subscription verification error:', error);
               toast({
@@ -101,8 +109,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           }
         }).render(`#${containerId}`);
 
-        console.log('PayPal button rendered successfully');
-
       } catch (error) {
         console.error('PayPal initialization error:', error);
         toast({
@@ -113,7 +119,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       }
     };
 
-    if (user) {
+    if (user && !scriptLoadedRef.current) {
       loadPayPalScript();
     }
 
@@ -123,7 +129,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         buttonRef.current.innerHTML = '';
       }
     };
-  }, [user, planType, onSuccess, containerId]);
+  }, [user, planType, onSuccess, containerId, toast]);
 
   return <div id={containerId} ref={buttonRef} />;
 };
