@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { loadPayPalScript, renderPayPalButton } from '@/utils/paypal';
-import { useNavigate } from 'react-router-dom';
 
 interface PayPalButtonProps {
   planType: 'monthly' | 'yearly';
@@ -12,7 +11,6 @@ interface PayPalButtonProps {
 
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
-  const navigate = useNavigate();
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
   const isInitializedRef = useRef(false);
   const scriptLoadPromiseRef = useRef<Promise<void> | null>(null);
@@ -31,7 +29,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         
         if (!scriptLoadPromiseRef.current) {
           scriptLoadPromiseRef.current = loadPayPalScript(
-            import.meta.env.VITE_PAYPAL_CLIENT_ID || ''
+            import.meta.env.VITE_PAYPAL_CLIENT_ID || 'BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q'
           );
         }
 
@@ -54,24 +52,44 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 throw new Error('User email not found');
               }
 
-              // After successful payment, redirect to dashboard with subscription parameters
-              const subscriptionParams = new URLSearchParams({
-                subscription: planType,
-                orderId: data.orderID
-              });
+              console.log('Processing payment for user:', user.email);
+              
+              const { data: subscriptionData, error: functionError } = await supabase.functions.invoke(
+                'handle-paypal-webhook',
+                {
+                  body: {
+                    resource: {
+                      id: data.orderID,
+                      payer: { email_address: user.email }
+                    },
+                    plan_type: planType
+                  }
+                }
+              );
 
-              // Redirect to dashboard with subscription parameters
-              navigate(`/dashboard?${subscriptionParams.toString()}`);
+              if (functionError) {
+                throw new Error(functionError.message);
+              }
+
+              console.log('Subscription updated:', subscriptionData);
+
+              toast({
+                title: "Success",
+                description: "Your subscription has been activated!",
+                duration: 5000,
+              });
 
               if (onSuccess) {
                 onSuccess(data.orderID);
               }
 
+              // Force reload to update subscription status
+              window.location.reload();
             } catch (error: any) {
-              console.error('Error processing subscription:', error);
+              console.error('Error activating subscription:', error);
               toast({
                 title: "Error",
-                description: "Failed to process subscription. Please contact support.",
+                description: "Failed to activate subscription. Please contact support.",
                 variant: "destructive",
                 duration: 8000,
               });
@@ -104,7 +122,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         container.innerHTML = '';
       }
     };
-  }, [buttonId, containerId, toast, onSuccess, planType, navigate]);
+  }, [buttonId, containerId, toast, onSuccess, planType]);
 
   return <div id={containerId} className="w-full min-h-[50px]" />;
 };
