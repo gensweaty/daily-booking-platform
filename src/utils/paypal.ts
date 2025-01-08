@@ -1,6 +1,11 @@
 export const loadPayPalScript = async (clientId: string): Promise<void> => {
   console.log('Starting PayPal script load...');
   
+  if (!clientId) {
+    console.error('PayPal client ID is required');
+    throw new Error('PayPal client ID is required');
+  }
+  
   return new Promise((resolve, reject) => {
     const existingScript = document.getElementById('paypal-script');
     if (existingScript) {

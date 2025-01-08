@@ -27,10 +27,13 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
         console.log('Initializing PayPal...');
         
+        const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
+        if (!clientId) {
+          throw new Error('PayPal client ID is not configured');
+        }
+        
         if (!scriptLoadPromiseRef.current) {
-          scriptLoadPromiseRef.current = loadPayPalScript(
-            import.meta.env.VITE_PAYPAL_CLIENT_ID || ''
-          );
+          scriptLoadPromiseRef.current = loadPayPalScript(clientId);
         }
 
         await scriptLoadPromiseRef.current;
@@ -39,6 +42,14 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           console.log('Component unmounted, aborting initialization');
           return;
         }
+
+        const container = document.getElementById(containerId);
+        if (!container) {
+          throw new Error(`Container ${containerId} not found`);
+        }
+
+        // Clear existing content
+        container.innerHTML = '';
 
         // @ts-ignore - PayPal types are not complete
         window.paypal.Buttons({
@@ -103,18 +114,19 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 variant: "destructive",
                 duration: 8000,
               });
+              throw error;
             }
           }
         }).render(`#${containerId}`);
         
         isInitializedRef.current = true;
         console.log('PayPal initialization complete');
-      } catch (error) {
+      } catch (error: any) {
         console.error('PayPal initialization error:', error);
         if (mounted) {
           toast({
             title: "Error",
-            description: "Failed to initialize PayPal. Please refresh the page.",
+            description: error.message || "Failed to initialize PayPal. Please refresh the page.",
             variant: "destructive",
             duration: 5000,
           });
