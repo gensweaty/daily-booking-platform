@@ -26,10 +26,11 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   useEffect(() => {
     const loadPayPalScript = async () => {
       try {
-        // Clean up any existing PayPal script
+        // Clean up any existing PayPal script and buttons
         const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
         if (existingScript) {
           existingScript.remove();
+          scriptLoadedRef.current = false;
         }
 
         // Clean up the container
@@ -38,13 +39,16 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           container.innerHTML = '';
         }
 
+        // Create and append the new script
         const script = document.createElement('script');
         script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&components=hosted-buttons&vault=true&intent=subscription`;
         script.async = true;
 
+        // Handle script load success
         script.onload = () => {
           if (!mountedRef.current) return;
           
+          const container = document.getElementById(containerId);
           if (window.paypal && container) {
             try {
               window.paypal.HostedButtons({
@@ -97,6 +101,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                   }
                 }
               }).render(`#${containerId}`);
+              
+              scriptLoadedRef.current = true;
             } catch (renderError) {
               console.error('PayPal button render error:', renderError);
               if (mountedRef.current) {
@@ -110,6 +116,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           }
         };
 
+        // Handle script load error
         script.onerror = (error) => {
           console.error('PayPal script loading error:', error);
           if (mountedRef.current) {
@@ -122,7 +129,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         };
 
         document.body.appendChild(script);
-        scriptLoadedRef.current = true;
       } catch (error) {
         console.error('Error initializing PayPal:', error);
         if (mountedRef.current) {
@@ -139,6 +145,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
       loadPayPalScript();
     }
 
+    // Cleanup function
     return () => {
       const container = document.getElementById(containerId);
       if (container) {
@@ -152,6 +159,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     <div 
       id={containerId} 
       className="w-full min-h-[50px] bg-white rounded-md shadow-sm p-2"
+      style={{ minHeight: '150px' }}
     />
   );
 };
