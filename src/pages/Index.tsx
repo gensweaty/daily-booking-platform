@@ -19,7 +19,7 @@ const Index = () => {
       if (!user) return;
 
       try {
-        console.log('Checking subscription status for user:', user.id);
+        console.log('Checking subscription status for user:', user.email);
         const { data: subscription, error } = await supabase
           .from('subscriptions')
           .select('status, current_period_end, trial_end_date')
@@ -36,6 +36,7 @@ const Index = () => {
         // Don't show trial expired dialog if there's a subscription parameter in the URL
         const subscriptionParam = searchParams.get('subscription');
         if (subscriptionParam) {
+          console.log('Subscription parameter found:', subscriptionParam);
           setShowTrialExpired(false);
           return;
         }
@@ -43,8 +44,10 @@ const Index = () => {
         if (!subscription || 
             subscription.status === 'expired' || 
             (subscription.current_period_end && new Date(subscription.current_period_end) < new Date())) {
+          console.log('Subscription expired or not found');
           setShowTrialExpired(true);
         } else {
+          console.log('Active subscription found');
           setShowTrialExpired(false);
         }
       } catch (error) {
