@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 import { loadPayPalScript, renderPayPalButton } from '@/utils/paypal';
+import { useNavigate } from 'react-router-dom';
 
 interface PayPalButtonProps {
   planType: 'monthly' | 'yearly';
@@ -10,6 +12,7 @@ interface PayPalButtonProps {
 
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
   const isInitializedRef = useRef(false);
   const scriptLoadPromiseRef = useRef<Promise<void> | null>(null);
@@ -39,14 +42,40 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           return;
         }
 
-        const returnUrl = `${window.location.origin}/dashboard?subscription=${planType}`;
-
         await renderPayPalButton(
           containerId,
           buttonId,
           async (data) => {
             console.log('Processing payment:', data);
-            window.location.href = `${returnUrl}&orderId=${data.orderID}`;
+            
+            try {
+              const user = (await supabase.auth.getUser()).data.user;
+              if (!user?.email) {
+                throw new Error('User email not found');
+              }
+
+              // After successful payment, redirect to dashboard with subscription parameters
+              const subscriptionParams = new URLSearchParams({
+                subscription: planType,
+                orderId: data.orderID
+              });
+
+              // Redirect to dashboard with subscription parameters
+              navigate(`/dashboard?${subscriptionParams.toString()}`);
+
+              if (onSuccess) {
+                onSuccess(data.orderID);
+              }
+
+            } catch (error: any) {
+              console.error('Error processing subscription:', error);
+              toast({
+                title: "Error",
+                description: "Failed to process subscription. Please contact support.",
+                variant: "destructive",
+                duration: 8000,
+              });
+            }
           }
         );
         
@@ -75,7 +104,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         container.innerHTML = '';
       }
     };
-  }, [buttonId, containerId, toast, onSuccess, planType]);
+  }, [buttonId, containerId, toast, onSuccess, planType, navigate]);
 
   return <div id={containerId} className="w-full min-h-[50px]" />;
 };
