@@ -116,8 +116,11 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       return `${Math.max(0, daysLeft)} days left in trial`;
     }
     
-    // Always show remaining days for active subscriptions
-    return `${Math.max(0, daysLeft)} days left in subscription`;
+    if (subscription?.status === 'active') {
+      return `${daysLeft} days left in subscription`;
+    }
+    
+    return '';
   };
 
   return (
