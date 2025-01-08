@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 
 interface PayPalButtonProps {
@@ -14,64 +14,56 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const { user } = useAuth();
   const { toast } = useToast();
   const scriptLoadedRef = useRef(false);
-  const renderAttemptedRef = useRef(false);
 
   useEffect(() => {
+    let scriptElement: HTMLScriptElement | null = null;
+
     const loadPayPalScript = async () => {
-      if (renderAttemptedRef.current) {
-        return; // Prevent multiple render attempts
-      }
-      renderAttemptedRef.current = true;
-
       try {
-        console.log('Starting PayPal script load...');
+        console.log('Starting PayPal script load...', containerId);
         
-        // Clean up any existing PayPal buttons
-        if (buttonRef.current) {
-          buttonRef.current.innerHTML = '';
-        }
-
-        // Remove any existing PayPal script
-        const existingScript = document.getElementById('paypal-script');
+        // Clean up any existing PayPal script and buttons
+        const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
         if (existingScript) {
           existingScript.remove();
           // @ts-ignore
           delete window.paypal;
         }
 
+        if (buttonRef.current) {
+          buttonRef.current.innerHTML = '';
+        }
+
         // Create and load new script
-        const script = document.createElement('script');
-        script.id = 'paypal-script';
-        script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&vault=true&intent=subscription`;
-        script.async = true;
-        
-        const scriptPromise = new Promise((resolve, reject) => {
-          script.onload = () => {
-            console.log('PayPal script loaded successfully');
-            resolve(null);
-          };
-          script.onerror = (error) => {
-            console.error('PayPal script load error:', error);
-            reject(error);
-          };
+        scriptElement = document.createElement('script');
+        scriptElement.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&vault=true&intent=subscription`;
+        scriptElement.async = true;
+
+        const loadPromise = new Promise<void>((resolve, reject) => {
+          if (scriptElement) {
+            scriptElement.onload = () => {
+              console.log('PayPal script loaded successfully for', containerId);
+              resolve();
+            };
+            scriptElement.onerror = (error) => {
+              console.error('PayPal script load error:', error);
+              reject(new Error('Failed to load PayPal script'));
+            };
+          }
         });
 
-        document.body.appendChild(script);
-        await scriptPromise;
-        
-        scriptLoadedRef.current = true;
+        document.body.appendChild(scriptElement);
+        await loadPromise;
 
-        // Wait a bit to ensure PayPal is fully initialized
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        console.log('Rendering PayPal button...');
-        console.log('Plan type:', planType);
-        console.log('Container ID:', containerId);
+        // Wait for PayPal to be fully initialized
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // @ts-ignore
         if (!window.paypal) {
-          throw new Error('PayPal SDK not loaded properly');
+          throw new Error('PayPal SDK not initialized properly');
         }
+
+        console.log('Initializing PayPal button for', containerId);
 
         // @ts-ignore
         window.paypal.Buttons({
@@ -82,7 +74,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
             label: 'subscribe'
           },
           createSubscription: (data: any, actions: any) => {
-            console.log('Creating subscription for plan type:', planType);
+            console.log('Creating subscription for plan:', planType);
             return actions.subscription.create({
               'plan_id': planType === 'monthly' ? 'P-5ML4271244454362WXNWU5NQ' : 'P-86V37366MN133974NXNWU5YI'
             });
@@ -133,7 +125,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           }
         }).render(`#${containerId}`);
 
-        console.log('PayPal button rendered successfully');
+        console.log('PayPal button rendered successfully for', containerId);
+        scriptLoadedRef.current = true;
 
       } catch (error) {
         console.error('PayPal initialization error:', error);
@@ -150,11 +143,14 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     }
 
     return () => {
-      // Clean up PayPal button container
+      // Cleanup on unmount
+      if (scriptElement) {
+        scriptElement.remove();
+      }
       if (buttonRef.current) {
         buttonRef.current.innerHTML = '';
       }
-      renderAttemptedRef.current = false;
+      scriptLoadedRef.current = false;
     };
   }, [user, planType, onSuccess, containerId, toast]);
 

@@ -6,7 +6,8 @@ interface PayPalSubscribeButtonProps {
 }
 
 export const PayPalSubscribeButton = ({ planType, onSuccess }: PayPalSubscribeButtonProps) => {
-  const buttonContainerId = `paypal-button-${planType}-${Math.random().toString(36).substring(7)}`;
+  // Generate a truly unique ID for each button instance
+  const buttonContainerId = `paypal-button-container-${planType}-${Date.now()}`;
 
   return (
     <div className="w-full min-h-[50px]">
