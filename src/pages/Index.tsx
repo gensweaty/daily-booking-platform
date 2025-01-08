@@ -1,36 +1,45 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
-import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { TaskList } from "@/components/TaskList"
-import { Calendar } from "@/components/Calendar/Calendar"
-import { AddTaskForm } from "@/components/AddTaskForm"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
-import { supabase } from "@/lib/supabase"
-import { useToast } from "@/components/ui/use-toast"
-import { useSearchParams, useNavigate } from "react-router-dom"
 import { AuthUI } from "@/components/AuthUI"
 import { DashboardHeader } from "@/components/DashboardHeader"
-import { Statistics } from "@/components/Statistics"
-import { TrialExpiredDialog } from "@/components/TrialExpiredDialog"
 import { DashboardContent } from "@/components/dashboard/DashboardContent"
-import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
+import { supabase } from "@/lib/supabase"
+import { TrialExpiredDialog } from "@/components/TrialExpiredDialog"
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false)
   const [username, setUsername] = useState("")
   const [showTrialExpired, setShowTrialExpired] = useState(false)
   const { user } = useAuth()
-  const { toast } = useToast()
-  const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
-  
-  // Handle subscription redirect
-  useSubscriptionRedirect()
 
   useEffect(() => {
+    const checkSubscription = async () => {
+      if (user) {
+        try {
+          const { data: subscription, error } = await supabase
+            .from('subscriptions')
+            .select('status, current_period_end')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (error) {
+            console.error('Error fetching subscription:', error);
+            return;
+          }
+
+          console.log('Subscription status:', subscription?.status);
+          console.log('Current period end:', subscription?.current_period_end);
+
+          // Show dialog if subscription is expired or doesn't exist
+          setShowTrialExpired(!subscription || subscription.status === 'expired');
+        } catch (error) {
+          console.error('Subscription check error:', error);
+        }
+      }
+    };
+
     const getProfile = async () => {
       if (user) {
         try {
@@ -55,6 +64,7 @@ const Index = () => {
     }
 
     getProfile()
+    checkSubscription()
   }, [user])
 
   if (!user) {
