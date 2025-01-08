@@ -15,7 +15,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
   const scriptLoadedRef = useRef(false);
   const mountedRef = useRef(true);
-  const loadingRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -26,16 +25,12 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
   useEffect(() => {
     const loadPayPalScript = async () => {
-      if (loadingRef.current) return;
-      loadingRef.current = true;
-
       try {
         // Remove any existing PayPal scripts
         const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
         existingScripts.forEach(script => script.remove());
-        scriptLoadedRef.current = false;
 
-        // Clear the container
+        // Clear the container and show loading state
         const container = document.getElementById(containerId);
         if (container) {
           container.innerHTML = '<div class="flex items-center justify-center h-[150px]"><p class="text-gray-500">Loading payment options...</p></div>';
@@ -46,9 +41,19 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&components=hosted-buttons&vault=true&intent=subscription`;
         script.async = true;
 
+        const loadPromise = new Promise<void>((resolve, reject) => {
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load PayPal script'));
+        });
+
+        document.body.appendChild(script);
+        await loadPromise;
+
+        if (!mountedRef.current) return;
+
+        // Render the button after script loads
         const renderButton = () => {
-          const container = document.getElementById(containerId);
-          if (!window.paypal || !container || !mountedRef.current) return;
+          if (!window.paypal || !mountedRef.current) return;
 
           try {
             window.paypal.HostedButtons({
@@ -101,40 +106,23 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 }
               }
             }).render(`#${containerId}`);
-            
-            scriptLoadedRef.current = true;
           } catch (renderError) {
             console.error('PayPal button render error:', renderError);
-            if (mountedRef.current) {
-              container.innerHTML = '<div class="flex items-center justify-center h-[150px]"><p class="text-red-500">Failed to load payment button. Please refresh the page.</p></div>';
-            }
-          }
-        };
-
-        script.onload = () => {
-          if (!mountedRef.current) return;
-          renderButton();
-        };
-
-        script.onerror = () => {
-          console.error('PayPal script loading error');
-          if (mountedRef.current) {
             const container = document.getElementById(containerId);
-            if (container) {
-              container.innerHTML = '<div class="flex items-center justify-center h-[150px]"><p class="text-red-500">Failed to load payment system. Please refresh the page.</p></div>';
+            if (container && mountedRef.current) {
+              container.innerHTML = '<div class="flex items-center justify-center h-[150px]"><p class="text-red-500">Failed to load payment button. Please try refreshing the page.</p></div>';
             }
           }
         };
 
-        document.body.appendChild(script);
+        renderButton();
+        scriptLoadedRef.current = true;
       } catch (error) {
-        console.error('Error initializing PayPal:', error);
+        console.error('Error loading PayPal:', error);
         const container = document.getElementById(containerId);
         if (container && mountedRef.current) {
-          container.innerHTML = '<div class="flex items-center justify-center h-[150px]"><p class="text-red-500">Failed to initialize payment system. Please refresh the page.</p></div>';
+          container.innerHTML = '<div class="flex items-center justify-center h-[150px]"><p class="text-red-500">Failed to load payment system. Please try refreshing the page.</p></div>';
         }
-      } finally {
-        loadingRef.current = false;
       }
     };
 
