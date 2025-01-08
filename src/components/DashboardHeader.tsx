@@ -113,10 +113,11 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
     
     if (isTrialPeriod) {
-      return `${daysLeft} days left in trial`;
+      return `${Math.max(0, daysLeft)} days left in trial`;
     }
     
-    return `${daysLeft} days left in subscription`;
+    // Always show remaining days for active subscriptions
+    return `${Math.max(0, daysLeft)} days left in subscription`;
   };
 
   return (
