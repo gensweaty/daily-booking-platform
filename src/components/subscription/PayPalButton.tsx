@@ -48,7 +48,9 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
             console.error(`Attempt ${retryCountRef.current + 1} failed:`, error);
             lastError = error;
             retryCountRef.current++;
-            await new Promise(resolve => setTimeout(resolve, 1000 * retryCountRef.current));
+            if (retryCountRef.current < MAX_RETRIES) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * retryCountRef.current));
+            }
           }
         }
 
@@ -76,7 +78,12 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         container.innerHTML = '';
 
         // @ts-ignore - PayPal types are not complete
-        window.paypal.Buttons({
+        if (!window.paypal?.Buttons) {
+          throw new Error('PayPal SDK not properly loaded');
+        }
+
+        // @ts-ignore - PayPal types are not complete
+        const button = window.paypal.Buttons({
           style: {
             layout: 'vertical',
             color: 'gold',
@@ -140,9 +147,23 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
               });
               throw error;
             }
+          },
+          onError: (err: any) => {
+            console.error('PayPal button error:', err);
+            toast({
+              title: "Error",
+              description: "There was a problem with PayPal. Please try again.",
+              variant: "destructive",
+              duration: 5000,
+            });
           }
-        }).render(`#${containerId}`);
-        
+        });
+
+        if (!button) {
+          throw new Error('Failed to create PayPal button');
+        }
+
+        await button.render(`#${containerId}`);
         isInitializedRef.current = true;
         console.log('PayPal initialization complete');
       } catch (error: any) {
