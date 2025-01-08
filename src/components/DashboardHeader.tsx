@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useEffect, useState } from "react";
+import { UserProfileContent } from "@/components/profile/UserProfileContent";
 
 interface DashboardHeaderProps {
   username: string;
@@ -98,36 +99,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
   };
 
-  const formatPlanType = (planType: string) => {
-    return planType === 'monthly' ? 'Monthly Plan' : 'Yearly Plan';
-  };
-
-  const formatTimeLeft = (endDate: string | null, startDate: string | null, isTrialPeriod: boolean = false) => {
-    if (!endDate || !startDate) return '';
-    
-    const end = new Date(endDate);
-    const start = new Date(startDate);
-    const now = new Date();
-
-    // For newly activated subscriptions, use the start date to calculate the full period
-    if (now < start) {
-      const daysTotal = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-      if (isTrialPeriod) {
-        return `${daysTotal} days trial period`;
-      }
-      return `${daysTotal} days subscription period`;
-    }
-
-    // For ongoing subscriptions, calculate remaining days
-    const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (isTrialPeriod) {
-      return daysLeft > 0 ? `${daysLeft} days left in trial` : 'Trial period ended';
-    }
-    
-    return daysLeft > 0 ? `${daysLeft} days left in subscription` : 'Subscription period ended';
-  };
-
   return (
     <header className="mb-8">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -152,40 +123,12 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
               <DialogHeader>
                 <DialogTitle>User Profile</DialogTitle>
               </DialogHeader>
-              <div className="py-4 space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Email</p>
-                  <p className="text-sm text-muted-foreground">{user?.email}</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Username</p>
-                  <p className="text-sm text-muted-foreground">{username}</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Subscription</p>
-                  {subscription && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">
-                        {formatPlanType(subscription.plan_type)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {subscription.status === 'trial' 
-                          ? formatTimeLeft(subscription.trial_end_date, subscription.current_period_start, true)
-                          : formatTimeLeft(subscription.current_period_end, subscription.current_period_start)}
-                      </p>
-                    </div>
-                  )}
-                </div>
-                <div className="pt-4">
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={handleChangePassword}
-                  >
-                    Change Password
-                  </Button>
-                </div>
-              </div>
+              <UserProfileContent 
+                user={user}
+                username={username}
+                subscription={subscription}
+                onChangePassword={handleChangePassword}
+              />
             </DialogContent>
           </Dialog>
           <ThemeToggle />
