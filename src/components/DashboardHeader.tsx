@@ -108,19 +108,11 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     const now = new Date();
     const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     
-    if (subscription?.status === 'expired') {
-      return 'Subscription expired';
-    }
-    
     if (isTrialPeriod) {
-      return `${Math.max(0, daysLeft)} days left in trial`;
+      return `${daysLeft} days left in trial`;
     }
     
-    if (subscription?.status === 'active') {
-      return `${daysLeft} days left in subscription`;
-    }
-    
-    return '';
+    return `${daysLeft} days left in subscription`;
   };
 
   return (
