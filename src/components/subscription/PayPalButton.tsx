@@ -33,7 +33,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           return;
         }
 
-        console.log('Starting PayPal initialization for:', containerId);
+        console.log('Starting PayPal script load...');
         
         if (!scriptLoadPromiseRef.current) {
           scriptLoadPromiseRef.current = loadPayPalScript(
@@ -68,20 +68,13 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 throw new Error('User email not found');
               }
 
-              const { error: functionError } = await supabase.functions.invoke(
-                'handle-paypal-webhook',
-                {
-                  body: {
-                    resource: {
-                      id: data.orderID,
-                      payer: { email_address: user.email }
-                    },
-                    plan_type: planType
-                  }
-                }
-              );
+              // Call activate_subscription function directly
+              const { error: activationError } = await supabase.rpc('activate_subscription', {
+                p_user_id: user.id,
+                p_subscription_type: planType
+              });
 
-              if (functionError) throw functionError;
+              if (activationError) throw activationError;
 
               toast({
                 title: "Success",
@@ -92,7 +85,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 onSuccess(data.orderID);
               }
 
-              window.location.href = `/dashboard?subscription=${planType}`;
+              // Force reload to update subscription state
+              window.location.reload();
             } catch (error: any) {
               console.error('Subscription error:', error);
               toast({
