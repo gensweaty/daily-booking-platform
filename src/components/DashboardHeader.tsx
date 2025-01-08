@@ -22,6 +22,7 @@ interface Subscription {
   plan_type: string;
   status: string;
   current_period_end: string | null;
+  current_period_start: string | null;
   trial_end_date: string | null;
 }
 
@@ -37,7 +38,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         try {
           const { data, error } = await supabase
             .from('subscriptions')
-            .select('plan_type, status, current_period_end, trial_end_date')
+            .select('plan_type, status, current_period_start, current_period_end, trial_end_date')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -101,18 +102,30 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     return planType === 'monthly' ? 'Monthly Plan' : 'Yearly Plan';
   };
 
-  const formatTimeLeft = (endDate: string | null, isTrialPeriod: boolean = false) => {
-    if (!endDate) return '';
+  const formatTimeLeft = (endDate: string | null, startDate: string | null, isTrialPeriod: boolean = false) => {
+    if (!endDate || !startDate) return '';
     
     const end = new Date(endDate);
+    const start = new Date(startDate);
     const now = new Date();
+
+    // For newly activated subscriptions, use the start date to calculate the full period
+    if (now < start) {
+      const daysTotal = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      if (isTrialPeriod) {
+        return `${daysTotal} days trial period`;
+      }
+      return `${daysTotal} days subscription period`;
+    }
+
+    // For ongoing subscriptions, calculate remaining days
     const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     
     if (isTrialPeriod) {
-      return `${daysLeft} days left in trial`;
+      return daysLeft > 0 ? `${daysLeft} days left in trial` : 'Trial period ended';
     }
     
-    return `${daysLeft} days left in subscription`;
+    return daysLeft > 0 ? `${daysLeft} days left in subscription` : 'Subscription period ended';
   };
 
   return (
@@ -157,8 +170,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {subscription.status === 'trial' 
-                          ? formatTimeLeft(subscription.trial_end_date, true)
-                          : formatTimeLeft(subscription.current_period_end)}
+                          ? formatTimeLeft(subscription.trial_end_date, subscription.current_period_start, true)
+                          : formatTimeLeft(subscription.current_period_end, subscription.current_period_start)}
                       </p>
                     </div>
                   )}
