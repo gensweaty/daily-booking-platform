@@ -14,6 +14,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
   const isInitializedRef = useRef(false);
   const scriptLoadPromiseRef = useRef<Promise<void> | null>(null);
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 3;
 
   useEffect(() => {
     let mounted = true;
@@ -27,14 +29,31 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
         console.log('Initializing PayPal...');
         
-        // Fetch PayPal client ID from Supabase
-        const { data: { value: clientId }, error: secretError } = await supabase
-          .functions.invoke('get-secret', {
-            body: { secretName: 'PAYPAL_CLIENT_ID' }
-          });
+        // Fetch PayPal client ID from Supabase with retry logic
+        let clientId: string | null = null;
+        let lastError: Error | null = null;
 
-        if (secretError || !clientId) {
-          throw new Error('Failed to fetch PayPal client ID');
+        while (retryCountRef.current < MAX_RETRIES && !clientId) {
+          try {
+            const { data, error } = await supabase.functions.invoke('get-secret', {
+              body: { secretName: 'PAYPAL_CLIENT_ID' }
+            });
+
+            if (error) throw error;
+            if (!data?.value) throw new Error('No client ID returned');
+            
+            clientId = data.value;
+            break;
+          } catch (error) {
+            console.error(`Attempt ${retryCountRef.current + 1} failed:`, error);
+            lastError = error;
+            retryCountRef.current++;
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCountRef.current));
+          }
+        }
+
+        if (!clientId) {
+          throw new Error(lastError?.message || 'Failed to fetch PayPal client ID after multiple attempts');
         }
         
         if (!scriptLoadPromiseRef.current) {
