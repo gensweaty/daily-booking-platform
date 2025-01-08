@@ -108,8 +108,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     const now = new Date();
     const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     
-    // Only show expired if status is actually expired
-    if (daysLeft <= 0 && subscription?.status === 'expired') {
+    if (subscription?.status === 'expired') {
       return 'Subscription expired';
     }
     
