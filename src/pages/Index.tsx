@@ -25,6 +25,47 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const handleSubscriptionReturn = async () => {
+      const subscriptionType = searchParams.get('subscription');
+      const returnedUserId = searchParams.get('user');
+      const orderId = searchParams.get('order');
+
+      if (subscriptionType && returnedUserId && orderId && user?.id === returnedUserId) {
+        try {
+          const { error } = await supabase.functions.invoke('handle-subscription-redirect', {
+            body: { 
+              subscription: subscriptionType,
+              orderId,
+              userId: returnedUserId
+            }
+          });
+
+          if (error) throw error;
+
+          toast({
+            title: "Success",
+            description: "Your subscription has been activated!",
+            duration: 5000,
+          });
+
+          // Clear URL parameters
+          navigate('/dashboard', { replace: true });
+        } catch (error: any) {
+          console.error('Subscription activation error:', error);
+          toast({
+            title: "Error",
+            description: error.message || "Failed to activate subscription",
+            variant: "destructive",
+            duration: 5000,
+          });
+        }
+      }
+    };
+
+    handleSubscriptionReturn();
+  }, [searchParams, user, toast, navigate]);
+
   const activateSubscription = async (subscriptionType: string) => {
     try {
       console.log('Activating subscription:', subscriptionType);

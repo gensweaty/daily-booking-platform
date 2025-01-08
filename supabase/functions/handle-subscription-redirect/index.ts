@@ -12,12 +12,12 @@ serve(async (req) => {
   }
 
   try {
-    const { subscription, orderId } = await req.json()
+    const { subscription, orderId, userId } = await req.json()
     
-    if (!subscription || !['monthly', 'yearly'].includes(subscription)) {
-      console.error('Invalid subscription type:', subscription)
+    if (!subscription || !['monthly', 'yearly'].includes(subscription) || !orderId || !userId) {
+      console.error('Invalid parameters:', { subscription, orderId, userId })
       return new Response(
-        JSON.stringify({ error: 'Invalid subscription type' }),
+        JSON.stringify({ error: 'Invalid parameters' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -57,7 +57,8 @@ serve(async (req) => {
       currentDate: currentDate.toISOString(),
       endDate: endDate.toISOString(),
       subscription,
-      orderId
+      orderId,
+      userId
     })
 
     // Update subscription
@@ -71,6 +72,7 @@ serve(async (req) => {
         trial_end_date: null,
         last_payment_id: orderId
       })
+      .eq('user_id', userId)
       .eq('status', 'expired')
 
     if (updateError) {

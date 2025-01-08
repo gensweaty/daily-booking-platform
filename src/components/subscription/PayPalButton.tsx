@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { loadPayPalScript, renderPayPalButton } from '@/utils/paypal';
+import { useAuth } from "@/contexts/AuthContext";
 
 interface PayPalButtonProps {
   planType: 'monthly' | 'yearly';
@@ -11,6 +12,7 @@ interface PayPalButtonProps {
 
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
   const isInitializedRef = useRef(false);
   const scriptLoadPromiseRef = useRef<Promise<void> | null>(null);
@@ -29,7 +31,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         
         if (!scriptLoadPromiseRef.current) {
           scriptLoadPromiseRef.current = loadPayPalScript(
-            import.meta.env.VITE_PAYPAL_CLIENT_ID || 'BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q'
+            import.meta.env.VITE_PAYPAL_CLIENT_ID || ''
           );
         }
 
@@ -47,7 +49,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
             console.log('Processing payment:', data);
             
             try {
-              const user = (await supabase.auth.getUser()).data.user;
               if (!user?.email) {
                 throw new Error('User email not found');
               }
@@ -62,7 +63,9 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                       id: data.orderID,
                       payer: { email_address: user.email }
                     },
-                    plan_type: planType
+                    plan_type: planType,
+                    user_id: user.id,
+                    return_url: `${window.location.origin}/dashboard?subscription=${planType}&user=${user.id}&order=${data.orderID}`
                   }
                 }
               );
@@ -122,7 +125,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         container.innerHTML = '';
       }
     };
-  }, [buttonId, containerId, toast, onSuccess, planType]);
+  }, [buttonId, containerId, toast, onSuccess, planType, user]);
 
   return <div id={containerId} className="w-full min-h-[50px]" />;
 };
