@@ -24,14 +24,15 @@ const Index = () => {
           .from('subscriptions')
           .select('status, current_period_end, trial_end_date')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.error('Error checking subscription:', error);
           return;
         }
+
+        // Log the subscription data for debugging
+        console.log('Fetched subscription:', subscription);
 
         // Don't show trial expired dialog if there's a subscription parameter in the URL
         const subscriptionParam = searchParams.get('subscription');
@@ -41,6 +42,7 @@ const Index = () => {
           return;
         }
 
+        // Check subscription status
         if (!subscription || 
             subscription.status === 'expired' || 
             (subscription.current_period_end && new Date(subscription.current_period_end) < new Date())) {
