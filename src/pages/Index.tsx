@@ -33,6 +33,7 @@ const Index = () => {
           return;
         }
 
+        // Don't show trial expired dialog if there's a subscription parameter in the URL
         const subscriptionParam = searchParams.get('subscription');
         if (subscriptionParam) {
           setShowTrialExpired(false);

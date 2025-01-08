@@ -19,6 +19,7 @@ export const SubscriptionHandler = () => {
       try {
         console.log('Activating subscription:', subscriptionType, 'for user:', user.id);
         
+        // Call the database function to activate the subscription
         const { error } = await supabase.rpc('activate_subscription', {
           p_user_id: user.id,
           p_subscription_type: subscriptionType
