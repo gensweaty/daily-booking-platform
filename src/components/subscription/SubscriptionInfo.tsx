@@ -1,4 +1,4 @@
-import { formatDistanceToNow, addMonths, addYears, isAfter } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 
 interface Subscription {
   plan_type: string;
@@ -17,26 +17,32 @@ const formatPlanType = (planType: string) => {
 };
 
 const formatTimeLeft = (endDate: string | null, startDate: string | null, isTrialPeriod: boolean = false) => {
-  if (!endDate || !startDate) return '';
+  if (!endDate) return 'No subscription end date';
   
   const end = new Date(endDate);
-  const start = new Date(startDate);
   const now = new Date();
 
-  // Calculate subscription length based on plan type
-  const subscriptionLength = isAfter(end, start) 
-    ? formatDistanceToNow(end, { addSuffix: true })
-    : 'Subscription ended';
+  // If the subscription has ended
+  if (now > end) {
+    return 'Subscription has expired';
+  }
 
+  // Calculate time remaining
+  const timeLeft = formatDistanceToNow(end, { addSuffix: false });
+  
   if (isTrialPeriod) {
-    return `Trial ${subscriptionLength}`;
+    return `Trial period: ${timeLeft} remaining`;
   }
   
-  return `Subscription expires ${subscriptionLength}`;
+  return `${timeLeft} remaining in subscription`;
 };
 
 export const SubscriptionInfo = ({ subscription }: SubscriptionInfoProps) => {
   if (!subscription) return null;
+
+  const isTrialPeriod = subscription.status === 'trial';
+  const endDate = isTrialPeriod ? subscription.trial_end_date : subscription.current_period_end;
+  const startDate = subscription.current_period_start;
 
   return (
     <div className="space-y-1">
@@ -44,9 +50,7 @@ export const SubscriptionInfo = ({ subscription }: SubscriptionInfoProps) => {
         {formatPlanType(subscription.plan_type)}
       </p>
       <p className="text-xs text-muted-foreground">
-        {subscription.status === 'trial' 
-          ? formatTimeLeft(subscription.trial_end_date, subscription.current_period_start, true)
-          : formatTimeLeft(subscription.current_period_end, subscription.current_period_start)}
+        {formatTimeLeft(endDate, startDate, isTrialPeriod)}
       </p>
     </div>
   );
