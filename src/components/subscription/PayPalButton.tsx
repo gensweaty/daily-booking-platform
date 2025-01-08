@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { loadPayPalScript } from '@/utils/paypal';
+import { loadPayPalScript, renderPayPalButton } from '@/utils/paypal';
 
 interface PayPalButtonProps {
   planType: 'monthly' | 'yearly';
@@ -14,8 +14,6 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
   const isInitializedRef = useRef(false);
   const scriptLoadPromiseRef = useRef<Promise<void> | null>(null);
-  const retryCountRef = useRef(0);
-  const MAX_RETRIES = 3;
 
   useEffect(() => {
     let mounted = true;
@@ -29,37 +27,10 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
         console.log('Initializing PayPal...');
         
-        // Fetch PayPal client ID from Supabase with retry logic
-        let clientId: string | null = null;
-        let lastError: Error | null = null;
-
-        while (retryCountRef.current < MAX_RETRIES && !clientId) {
-          try {
-            const { data, error } = await supabase.functions.invoke('get-secret', {
-              body: { secretName: 'PAYPAL_CLIENT_ID' }
-            });
-
-            if (error) throw error;
-            if (!data?.value) throw new Error('No client ID returned');
-            
-            clientId = data.value;
-            break;
-          } catch (error) {
-            console.error(`Attempt ${retryCountRef.current + 1} failed:`, error);
-            lastError = error;
-            retryCountRef.current++;
-            if (retryCountRef.current < MAX_RETRIES) {
-              await new Promise(resolve => setTimeout(resolve, 1000 * retryCountRef.current));
-            }
-          }
-        }
-
-        if (!clientId) {
-          throw new Error(lastError?.message || 'Failed to fetch PayPal client ID after multiple attempts');
-        }
-        
         if (!scriptLoadPromiseRef.current) {
-          scriptLoadPromiseRef.current = loadPayPalScript(clientId);
+          scriptLoadPromiseRef.current = loadPayPalScript(
+            import.meta.env.VITE_PAYPAL_CLIENT_ID || 'BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q'
+          );
         }
 
         await scriptLoadPromiseRef.current;
@@ -69,34 +40,11 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           return;
         }
 
-        const container = document.getElementById(containerId);
-        if (!container) {
-          throw new Error(`Container ${containerId} not found`);
-        }
-
-        // Clear existing content
-        container.innerHTML = '';
-
-        // @ts-ignore - PayPal types are not complete
-        if (!window.paypal?.Buttons) {
-          throw new Error('PayPal SDK not properly loaded');
-        }
-
-        // @ts-ignore - PayPal types are not complete
-        const button = window.paypal.Buttons({
-          style: {
-            layout: 'vertical',
-            color: 'gold',
-            shape: 'rect',
-            label: 'subscribe'
-          },
-          createSubscription: async (data: any, actions: any) => {
-            return actions.subscription.create({
-              'plan_id': buttonId
-            });
-          },
-          onApprove: async (data: { subscriptionID: string, orderID: string }) => {
-            console.log('Payment approved:', data);
+        await renderPayPalButton(
+          containerId,
+          buttonId,
+          async (data) => {
+            console.log('Processing payment:', data);
             
             try {
               const user = (await supabase.auth.getUser()).data.user;
@@ -111,7 +59,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 {
                   body: {
                     resource: {
-                      id: data.subscriptionID,
+                      id: data.orderID,
                       payer: { email_address: user.email }
                     },
                     plan_type: planType
@@ -132,7 +80,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
               });
 
               if (onSuccess) {
-                onSuccess(data.subscriptionID);
+                onSuccess(data.orderID);
               }
 
               // Force reload to update subscription status
@@ -145,33 +93,18 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 variant: "destructive",
                 duration: 8000,
               });
-              throw error;
             }
-          },
-          onError: (err: any) => {
-            console.error('PayPal button error:', err);
-            toast({
-              title: "Error",
-              description: "There was a problem with PayPal. Please try again.",
-              variant: "destructive",
-              duration: 5000,
-            });
           }
-        });
-
-        if (!button) {
-          throw new Error('Failed to create PayPal button');
-        }
-
-        await button.render(`#${containerId}`);
+        );
+        
         isInitializedRef.current = true;
         console.log('PayPal initialization complete');
-      } catch (error: any) {
+      } catch (error) {
         console.error('PayPal initialization error:', error);
         if (mounted) {
           toast({
             title: "Error",
-            description: error.message || "Failed to initialize PayPal. Please refresh the page.",
+            description: "Failed to initialize PayPal. Please refresh the page.",
             variant: "destructive",
             duration: 5000,
           });
