@@ -13,27 +13,29 @@ export const SubscriptionHandler = () => {
   useEffect(() => {
     const handleSubscription = async () => {
       const subscriptionType = searchParams.get('subscription');
-      console.log('Subscription activation check:', { subscriptionType, userId: user?.id });
+      console.log('Starting subscription activation check:', { subscriptionType, userId: user?.id });
       
       if (!user || !subscriptionType) {
-        console.log('Missing required data:', { user: !!user, subscriptionType });
+        console.log('Missing required data for subscription activation:', { user: !!user, subscriptionType });
         return;
       }
 
       try {
-        // Check for existing active subscription
+        // First check if there's already an active subscription
         const { data: existingSubscription, error: fetchError } = await supabase
           .from('subscriptions')
-          .select('status, current_period_end')
+          .select('status, current_period_end, plan_type')
           .eq('user_id', user.id)
-          .eq('status', 'active')
           .maybeSingle();
 
-        if (fetchError && !fetchError.message.includes('Results contain 0 rows')) {
+        console.log('Existing subscription check:', { existingSubscription, error: fetchError });
+
+        if (fetchError) {
           console.error('Error checking subscription:', fetchError);
           throw fetchError;
         }
 
+        // If subscription exists and is active, no need to proceed
         if (existingSubscription?.status === 'active' && 
             existingSubscription.current_period_end && 
             new Date(existingSubscription.current_period_end) > new Date()) {
@@ -46,8 +48,9 @@ export const SubscriptionHandler = () => {
           return;
         }
 
-        console.log('Activating subscription for:', user.email);
+        console.log('Proceeding with subscription activation for:', user.email);
         
+        // Activate the subscription using the database function
         const { error: activationError } = await supabase.rpc('activate_subscription', {
           p_user_id: user.id,
           p_subscription_type: subscriptionType
@@ -67,7 +70,7 @@ export const SubscriptionHandler = () => {
         // Force reload to update subscription state
         window.location.reload();
       } catch (error: any) {
-        console.error('Subscription error:', error);
+        console.error('Subscription activation error:', error);
         toast({
           title: "Error",
           description: error.message || "Failed to activate subscription",

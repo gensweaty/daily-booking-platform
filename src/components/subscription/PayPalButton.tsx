@@ -29,11 +29,11 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
       try {
         if (isInitializedRef.current) {
-          console.log('PayPal already initialized');
+          console.log('PayPal already initialized for:', containerId);
           return;
         }
 
-        console.log('Initializing PayPal for container:', containerId);
+        console.log('Starting PayPal initialization for:', containerId);
         
         if (!scriptLoadPromiseRef.current) {
           scriptLoadPromiseRef.current = loadPayPalScript(
@@ -50,6 +50,9 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           console.error('PayPal container not found:', containerId);
           return;
         }
+
+        // Clear container before rendering
+        container.innerHTML = '';
 
         await renderPayPalButton(
           containerId,
@@ -102,7 +105,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         );
         
         isInitializedRef.current = true;
-        console.log('PayPal initialization complete');
+        console.log('PayPal initialization complete for:', containerId);
       } catch (error) {
         console.error('PayPal initialization error:', error);
         if (mountedRef.current) {
