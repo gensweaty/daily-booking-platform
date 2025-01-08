@@ -108,11 +108,13 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     const now = new Date();
     const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     
+    if (daysLeft <= 0) return 'Subscription expired';
+    
     if (isTrialPeriod) {
       return `${daysLeft} days left in trial`;
     }
     
-    return `${daysLeft} days left in ${subscription?.plan_type === 'monthly' ? 'monthly' : 'yearly'} plan`;
+    return `${daysLeft} days left in subscription`;
   };
 
   return (
@@ -155,15 +157,11 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                       <p className="text-sm text-muted-foreground">
                         {formatPlanType(subscription.plan_type)}
                       </p>
-                      {subscription.status === 'trial' ? (
-                        <p className="text-xs text-muted-foreground">
-                          {formatTimeLeft(subscription.trial_end_date, true)}
-                        </p>
-                      ) : subscription.status === 'active' && (
-                        <p className="text-xs text-muted-foreground">
-                          {formatTimeLeft(subscription.current_period_end)}
-                        </p>
-                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {subscription.status === 'trial' 
+                          ? formatTimeLeft(subscription.trial_end_date, true)
+                          : formatTimeLeft(subscription.current_period_end)}
+                      </p>
                     </div>
                   )}
                 </div>
