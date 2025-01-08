@@ -329,6 +329,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_subscription: {
+        Args: {
+          p_user_id: string
+          p_subscription_type: string
+        }
+        Returns: undefined
+      }
       check_trial_status: {
         Args: Record<PropertyKey, never>
         Returns: undefined
