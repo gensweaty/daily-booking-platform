@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { loadPayPalScript, renderPayPalButton } from '@/utils/paypal';
+import { loadPayPalScript } from '@/utils/paypal';
 
 interface PayPalButtonProps {
   planType: 'monthly' | 'yearly';
@@ -29,7 +29,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         
         if (!scriptLoadPromiseRef.current) {
           scriptLoadPromiseRef.current = loadPayPalScript(
-            import.meta.env.VITE_PAYPAL_CLIENT_ID || 'BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q'
+            import.meta.env.VITE_PAYPAL_CLIENT_ID || ''
           );
         }
 
@@ -40,11 +40,21 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           return;
         }
 
-        await renderPayPalButton(
-          containerId,
-          buttonId,
-          async (data) => {
-            console.log('Processing payment:', data);
+        // @ts-ignore - PayPal types are not complete
+        window.paypal.Buttons({
+          style: {
+            layout: 'vertical',
+            color: 'gold',
+            shape: 'rect',
+            label: 'subscribe'
+          },
+          createSubscription: async (data: any, actions: any) => {
+            return actions.subscription.create({
+              'plan_id': buttonId
+            });
+          },
+          onApprove: async (data: { subscriptionID: string, orderID: string }) => {
+            console.log('Payment approved:', data);
             
             try {
               const user = (await supabase.auth.getUser()).data.user;
@@ -59,7 +69,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
                 {
                   body: {
                     resource: {
-                      id: data.orderID,
+                      id: data.subscriptionID,
                       payer: { email_address: user.email }
                     },
                     plan_type: planType
@@ -80,7 +90,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
               });
 
               if (onSuccess) {
-                onSuccess(data.orderID);
+                onSuccess(data.subscriptionID);
               }
 
               // Force reload to update subscription status
@@ -95,7 +105,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
               });
             }
           }
-        );
+        }).render(`#${containerId}`);
         
         isInitializedRef.current = true;
         console.log('PayPal initialization complete');
