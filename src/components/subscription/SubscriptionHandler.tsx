@@ -12,6 +12,7 @@ export const SubscriptionHandler = () => {
 
   useEffect(() => {
     const handleSubscription = async () => {
+      // Get subscription type from URL
       const subscriptionType = searchParams.get('subscription');
       console.log('Checking subscription parameters:', { subscriptionType, user: user?.email });
       
@@ -20,41 +21,42 @@ export const SubscriptionHandler = () => {
         return;
       }
 
-      // First check if user already has an active subscription
-      const { data: existingSubscription, error: fetchError } = await supabase
-        .from('subscriptions')
-        .select('status, current_period_end')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (fetchError) {
-        console.error('Error checking existing subscription:', fetchError);
-        toast({
-          title: "Error",
-          description: "Failed to check subscription status",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // If subscription is already active, no need to activate again
-      if (existingSubscription?.status === 'active' && 
-          existingSubscription.current_period_end && 
-          new Date(existingSubscription.current_period_end) > new Date()) {
-        console.log('Subscription already active:', existingSubscription);
-        toast({
-          title: "Info",
-          description: "Your subscription is already active",
-        });
-        navigate('/dashboard', { replace: true });
-        return;
-      }
-
       try {
+        // Get the most recent subscription for the user
+        const { data: existingSubscription, error: fetchError } = await supabase
+          .from('subscriptions')
+          .select('status, current_period_end')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .single();
+
+        if (fetchError && !fetchError.message.includes('Results contain 0 rows')) {
+          console.error('Error checking existing subscription:', fetchError);
+          toast({
+            title: "Error",
+            description: "Failed to check subscription status",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Check if there's an active subscription
+        if (existingSubscription?.status === 'active' && 
+            existingSubscription.current_period_end && 
+            new Date(existingSubscription.current_period_end) > new Date()) {
+          console.log('Subscription already active:', existingSubscription);
+          toast({
+            title: "Info",
+            description: "Your subscription is already active",
+          });
+          navigate('/dashboard', { replace: true });
+          return;
+        }
+
         console.log('Starting subscription activation for:', user.email);
         console.log('Subscription type:', subscriptionType);
         
-        // Call the database function to activate the subscription
+        // Activate the subscription
         const { error: activationError } = await supabase.rpc('activate_subscription', {
           p_user_id: user.id,
           p_subscription_type: subscriptionType
@@ -72,8 +74,7 @@ export const SubscriptionHandler = () => {
           description: "Your subscription has been activated!",
         });
 
-        // Remove subscription parameter and refresh the page
-        navigate('/dashboard', { replace: true });
+        // Force reload to update subscription state
         window.location.reload();
       } catch (error: any) {
         console.error('Subscription activation error:', error);

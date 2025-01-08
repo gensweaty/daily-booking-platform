@@ -20,13 +20,17 @@ const Index = () => {
 
       try {
         console.log('Checking subscription status for user:', user.email);
+        
+        // Get the most recent active subscription
         const { data: subscription, error } = await supabase
           .from('subscriptions')
           .select('status, current_period_end, trial_end_date')
           .eq('user_id', user.id)
-          .maybeSingle();
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
 
-        if (error) {
+        if (error && !error.message.includes('Results contain 0 rows')) {
           console.error('Error checking subscription:', error);
           return;
         }
