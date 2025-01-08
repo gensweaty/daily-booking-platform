@@ -14,10 +14,16 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const { user } = useAuth();
   const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
   const scriptLoadedRef = useRef(false);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
+  useEffect(() => {
     const loadPayPalScript = async () => {
       try {
         // Clean up any existing PayPal script
@@ -37,65 +43,76 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         script.async = true;
 
         script.onload = () => {
-          if (!mounted) return;
+          if (!mountedRef.current) return;
           
           if (window.paypal && container) {
-            window.paypal.HostedButtons({
-              hostedButtonId: buttonId,
-              onApprove: async (data: { orderID: string }) => {
-                console.log('Payment approved:', data);
-                try {
-                  if (!user?.email) {
-                    throw new Error('User email not found');
-                  }
-
-                  const { data: subscriptionData, error: functionError } = await supabase.functions.invoke(
-                    'handle-paypal-webhook',
-                    {
-                      body: {
-                        resource: {
-                          id: data.orderID,
-                          payer: { email_address: user.email }
-                        },
-                        plan_type: planType,
-                        user_id: user.id,
-                        return_url: `${window.location.origin}/dashboard?subscription=${planType}&user=${user.id}&order=${data.orderID}`
-                      }
+            try {
+              window.paypal.HostedButtons({
+                hostedButtonId: buttonId,
+                onApprove: async (data: { orderID: string }) => {
+                  console.log('Payment approved:', data);
+                  try {
+                    if (!user?.email) {
+                      throw new Error('User email not found');
                     }
-                  );
 
-                  if (functionError) {
-                    throw functionError;
+                    const { data: subscriptionData, error: functionError } = await supabase.functions.invoke(
+                      'handle-paypal-webhook',
+                      {
+                        body: {
+                          resource: {
+                            id: data.orderID,
+                            payer: { email_address: user.email }
+                          },
+                          plan_type: planType,
+                          user_id: user.id,
+                          return_url: `${window.location.origin}/dashboard?subscription=${planType}&user=${user.id}&order=${data.orderID}`
+                        }
+                      }
+                    );
+
+                    if (functionError) {
+                      throw functionError;
+                    }
+
+                    console.log('Subscription updated:', subscriptionData);
+                    
+                    toast({
+                      title: "Success",
+                      description: "Your subscription has been activated!",
+                    });
+
+                    if (onSuccess) {
+                      onSuccess(data.orderID);
+                    }
+
+                    window.location.reload();
+                  } catch (error: any) {
+                    console.error('Error processing payment:', error);
+                    toast({
+                      title: "Error",
+                      description: "Failed to process payment. Please try again.",
+                      variant: "destructive",
+                    });
                   }
-
-                  console.log('Subscription updated:', subscriptionData);
-                  
-                  toast({
-                    title: "Success",
-                    description: "Your subscription has been activated!",
-                  });
-
-                  if (onSuccess) {
-                    onSuccess(data.orderID);
-                  }
-
-                  window.location.reload();
-                } catch (error: any) {
-                  console.error('Error processing payment:', error);
-                  toast({
-                    title: "Error",
-                    description: "Failed to process payment. Please try again.",
-                    variant: "destructive",
-                  });
                 }
+              }).render(`#${containerId}`);
+            } catch (renderError) {
+              console.error('PayPal button render error:', renderError);
+              if (mountedRef.current) {
+                toast({
+                  title: "Error",
+                  description: "Failed to display payment button. Please refresh the page.",
+                  variant: "destructive",
+                });
               }
-            }).render(`#${containerId}`);
+            }
           }
         };
 
         script.onerror = (error) => {
           console.error('PayPal script loading error:', error);
-          if (mounted) {
+          if (mountedRef.current) {
             toast({
               title: "Error",
               description: "Failed to load payment system. Please refresh the page.",
@@ -108,7 +125,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         scriptLoadedRef.current = true;
       } catch (error) {
         console.error('Error initializing PayPal:', error);
-        if (mounted) {
+        if (mountedRef.current) {
           toast({
             title: "Error",
             description: "Failed to initialize payment system. Please refresh the page.",
@@ -123,15 +140,18 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
     }
 
     return () => {
-      mounted = false;
       const container = document.getElementById(containerId);
       if (container) {
         container.innerHTML = '';
       }
+      mountedRef.current = false;
     };
   }, [buttonId, containerId, toast, onSuccess, planType, user]);
 
   return (
-    <div id={containerId} className="w-full min-h-[50px] bg-white rounded-md shadow-sm" />
+    <div 
+      id={containerId} 
+      className="w-full min-h-[50px] bg-white rounded-md shadow-sm p-2"
+    />
   );
 };
