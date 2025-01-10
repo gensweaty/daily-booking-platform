@@ -127,6 +127,33 @@ export const CustomerList = () => {
     return `${format(start, 'hh:mma')}-${format(end, 'hh:mma')}`.toLowerCase();
   };
 
+  const formatPaymentStatus = (status: string, amount: number | null) => {
+    if (!status) return '-';
+    const displayStatus = status.replace('_', ' ');
+    
+    if ((status === 'partly' || status === 'fully') && amount) {
+      return (
+        <span className={`capitalize ${
+          status === 'fully' ? 'text-green-600' :
+          status === 'partly' ? 'text-yellow-600' :
+          'text-red-600'
+        }`}>
+          {displayStatus} (${amount})
+        </span>
+      );
+    }
+
+    return (
+      <span className={`capitalize ${
+        status === 'fully' ? 'text-green-600' :
+        status === 'partly' ? 'text-yellow-600' :
+        'text-red-600'
+      }`}>
+        {displayStatus}
+      </span>
+    );
+  };
+
   const openCreateDialog = () => {
     setSelectedCustomer(null);
     setIsDialogOpen(true);
@@ -202,15 +229,7 @@ export const CustomerList = () => {
                   </div>
                 </TableCell>
                 <TableCell className="py-2">
-                  {customer.payment_status ? (
-                    <span className={`capitalize ${
-                      customer.payment_status === 'fully' ? 'text-green-600' :
-                      customer.payment_status === 'partly' ? 'text-yellow-600' :
-                      'text-red-600'
-                    }`}>
-                      {customer.payment_status.replace('_', ' ')}
-                    </span>
-                  ) : '-'}
+                  {formatPaymentStatus(customer.payment_status, customer.payment_amount)}
                 </TableCell>
                 <TableCell className="py-2">
                   <div className="space-y-1 text-sm">
