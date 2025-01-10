@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import { CustomerDialogFields } from "./CustomerDialogFields";
 import { supabase } from "@/lib/supabase";
@@ -14,6 +14,7 @@ interface CustomerDialogProps {
   onSubmit: (data: any) => Promise<any>;
   onDelete?: () => void;
   customer?: any;
+  event?: any; // Add event prop to receive event data
 }
 
 export const CustomerDialog = ({
@@ -22,19 +23,42 @@ export const CustomerDialog = ({
   onSubmit,
   onDelete,
   customer,
+  event, // Add event to props
 }: CustomerDialogProps) => {
-  const [title, setTitle] = useState(customer?.title || "");
-  const [userSurname, setUserSurname] = useState(customer?.user_surname || "");
-  const [userNumber, setUserNumber] = useState(customer?.user_number || "");
-  const [socialNetworkLink, setSocialNetworkLink] = useState(customer?.social_network_link || "");
-  const [eventNotes, setEventNotes] = useState(customer?.event_notes || "");
-  const [paymentStatus, setPaymentStatus] = useState(customer?.payment_status || "");
-  const [paymentAmount, setPaymentAmount] = useState(customer?.payment_amount?.toString() || "");
+  // Initialize state with either customer data, event data, or empty values
+  const [title, setTitle] = useState(customer?.title || event?.title || "");
+  const [userSurname, setUserSurname] = useState(customer?.user_surname || event?.user_surname || "");
+  const [userNumber, setUserNumber] = useState(customer?.user_number || event?.user_number || "");
+  const [socialNetworkLink, setSocialNetworkLink] = useState(customer?.social_network_link || event?.social_network_link || "");
+  const [eventNotes, setEventNotes] = useState(customer?.event_notes || event?.event_notes || "");
+  const [paymentStatus, setPaymentStatus] = useState(customer?.payment_status || event?.payment_status || "");
+  const [paymentAmount, setPaymentAmount] = useState(customer?.payment_amount?.toString() || event?.payment_amount?.toString() || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Update state when event or customer data changes
+  useEffect(() => {
+    if (event) {
+      setTitle(event.title || "");
+      setUserSurname(event.user_surname || "");
+      setUserNumber(event.user_number || "");
+      setSocialNetworkLink(event.social_network_link || "");
+      setEventNotes(event.event_notes || "");
+      setPaymentStatus(event.payment_status || "");
+      setPaymentAmount(event.payment_amount?.toString() || "");
+    } else if (customer) {
+      setTitle(customer.title || "");
+      setUserSurname(customer.user_surname || "");
+      setUserNumber(customer.user_number || "");
+      setSocialNetworkLink(customer.social_network_link || "");
+      setEventNotes(customer.event_notes || "");
+      setPaymentStatus(customer.payment_status || "");
+      setPaymentAmount(customer.payment_amount?.toString() || "");
+    }
+  }, [event, customer]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
