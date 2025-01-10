@@ -20,6 +20,7 @@ interface FileDisplayProps {
 export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDeleted }: FileDisplayProps) => {
   const [loadingFile, setLoadingFile] = useState<string | null>(null);
   const [deletingFile, setDeletingFile] = useState<string | null>(null);
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -102,12 +103,26 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
     return filename.match(/\.(jpg|jpeg|png|gif|webp)$/i) !== null;
   };
 
-  const getImageUrl = async (file_path: string) => {
-    const { data } = await supabase.storage
-      .from(bucketName)
-      .createSignedUrl(file_path, 60);
-    
-    return data?.signedUrl;
+  const loadImageUrl = async (file_path: string) => {
+    if (!imageUrls[file_path]) {
+      try {
+        const { data, error } = await supabase.storage
+          .from(bucketName)
+          .createSignedUrl(file_path, 3600); // 1 hour expiry for images
+
+        if (error) throw error;
+        
+        if (data?.signedUrl) {
+          setImageUrls(prev => ({
+            ...prev,
+            [file_path]: data.signedUrl
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading image URL:', error);
+      }
+    }
+    return imageUrls[file_path] || '/placeholder.svg';
   };
 
   return (
@@ -134,12 +149,17 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
           >
             {isImage(file.filename) ? (
               <img
-                src={getImageUrl(file.file_path)}
+                src={imageUrls[file.file_path] || '/placeholder.svg'}
                 alt={file.filename}
                 className="w-full h-full object-contain max-h-[150px] sm:max-h-[200px] md:max-h-[300px]"
                 onError={(e) => {
                   console.error('Image load error:', e);
                   e.currentTarget.src = '/placeholder.svg';
+                }}
+                onLoad={() => {
+                  if (!imageUrls[file.file_path]) {
+                    loadImageUrl(file.file_path);
+                  }
                 }}
               />
             ) : (
