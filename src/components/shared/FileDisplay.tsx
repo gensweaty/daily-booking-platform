@@ -28,16 +28,18 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
       setLoadingFile(file.file_path);
       const { data } = await supabase.storage
         .from(bucketName)
-        .getPublicUrl(file.file_path);
+        .createSignedUrl(file.file_path, 60); // Create a signed URL valid for 60 seconds
 
-      if (data?.publicUrl) {
-        window.open(data.publicUrl, '_blank');
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank');
+      } else {
+        throw new Error('Could not generate signed URL');
       }
     } catch (error: any) {
       console.error('Error opening file:', error);
       toast({
         title: "Error",
-        description: "Failed to open file",
+        description: "Failed to open file. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -58,7 +60,8 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
 
       // Delete from database based on bucket type
       const tableName = bucketName === 'event_attachments' ? 'event_files' : 
-                       bucketName === 'note_attachments' ? 'note_files' : 'files';
+                       bucketName === 'note_attachments' ? 'note_files' : 
+                       bucketName === 'customer_attachments' ? 'customer_files' : 'files';
                        
       const { error: dbError } = await supabase
         .from(tableName)
@@ -97,6 +100,14 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
     return filename.match(/\.(jpg|jpeg|png|gif|webp)$/i) !== null;
   };
 
+  const getImageUrl = (file_path: string) => {
+    const { data } = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(file_path);
+    
+    return data.publicUrl;
+  };
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1 sm:gap-4 max-h-[35vh] sm:max-h-[50vh] overflow-y-auto p-1 sm:p-2">
       {files.map((file) => (
@@ -121,7 +132,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
           >
             {isImage(file.filename) ? (
               <img
-                src={`${supabase.storage.from(bucketName).getPublicUrl(file.file_path).data.publicUrl}`}
+                src={getImageUrl(file.file_path)}
                 alt={file.filename}
                 className="w-full h-full object-contain max-h-[150px] sm:max-h-[200px] md:max-h-[300px]"
                 onError={(e) => {
