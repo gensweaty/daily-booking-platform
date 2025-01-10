@@ -27,17 +27,32 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const handleFileClick = async (file: { file_path: string; filename: string }) => {
     try {
       setLoadingFile(file.file_path);
-      const { data, error } = await supabase.storage
-        .from(bucketName)
-        .createSignedUrl(file.file_path, 60);
-
-      if (error) throw error;
       
-      if (data?.signedUrl) {
-        window.open(data.signedUrl, '_blank');
-      } else {
-        throw new Error('Could not generate signed URL');
+      // Try both buckets if it's a customer file
+      const bucketsToTry = bucketName === 'customer_attachments' 
+        ? ['customer_attachments', 'event_attachments'] 
+        : [bucketName];
+      
+      let signedUrl = null;
+      let error = null;
+
+      for (const bucket of bucketsToTry) {
+        const { data, error: urlError } = await supabase.storage
+          .from(bucket)
+          .createSignedUrl(file.file_path, 3600);
+
+        if (!urlError && data?.signedUrl) {
+          signedUrl = data.signedUrl;
+          break;
+        }
+        error = urlError;
       }
+
+      if (!signedUrl) {
+        throw error || new Error('Could not generate signed URL');
+      }
+
+      window.open(signedUrl, '_blank');
     } catch (error: any) {
       console.error('Error opening file:', error);
       toast({
@@ -54,14 +69,27 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
     try {
       setDeletingFile(file.id);
       
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from(bucketName)
-        .remove([file.file_path]);
+      // Try both buckets if it's a customer file
+      const bucketsToTry = bucketName === 'customer_attachments' 
+        ? ['customer_attachments', 'event_attachments'] 
+        : [bucketName];
+      
+      let storageError = null;
+      
+      for (const bucket of bucketsToTry) {
+        const { error } = await supabase.storage
+          .from(bucket)
+          .remove([file.file_path]);
+          
+        if (!error) {
+          storageError = null;
+          break;
+        }
+        storageError = error;
+      }
 
       if (storageError) throw storageError;
 
-      // Delete from database based on bucket type
       const tableName = bucketName === 'event_attachments' ? 'event_files' : 
                        bucketName === 'note_attachments' ? 'note_files' : 
                        bucketName === 'customer_attachments' ? 'customer_files' : 'files';
@@ -73,7 +101,6 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
 
       if (dbError) throw dbError;
 
-      // Invalidate relevant queries
       await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       await queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
@@ -106,16 +133,28 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const loadImageUrl = async (file_path: string) => {
     if (!imageUrls[file_path]) {
       try {
-        const { data, error } = await supabase.storage
-          .from(bucketName)
-          .createSignedUrl(file_path, 3600); // 1 hour expiry for images
-
-        if (error) throw error;
+        // Try both buckets if it's a customer file
+        const bucketsToTry = bucketName === 'customer_attachments' 
+          ? ['customer_attachments', 'event_attachments'] 
+          : [bucketName];
         
-        if (data?.signedUrl) {
+        let signedUrl = null;
+        
+        for (const bucket of bucketsToTry) {
+          const { data, error } = await supabase.storage
+            .from(bucket)
+            .createSignedUrl(file_path, 3600);
+
+          if (!error && data?.signedUrl) {
+            signedUrl = data.signedUrl;
+            break;
+          }
+        }
+
+        if (signedUrl) {
           setImageUrls(prev => ({
             ...prev,
-            [file_path]: data.signedUrl
+            [file_path]: signedUrl
           }));
         }
       } catch (error) {
