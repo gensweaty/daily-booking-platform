@@ -26,14 +26,16 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const handleFileClick = async (file: { file_path: string; filename: string }) => {
     try {
       setLoadingFile(file.file_path);
-      const { data } = supabase.storage
+      const { data, error } = await supabase.storage
         .from(bucketName)
-        .getPublicUrl(file.file_path);
+        .createSignedUrl(file.file_path, 60);
 
-      if (data?.publicUrl) {
-        window.open(data.publicUrl, '_blank');
+      if (error) throw error;
+      
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank');
       } else {
-        throw new Error('Could not generate file URL');
+        throw new Error('Could not generate signed URL');
       }
     } catch (error: any) {
       console.error('Error opening file:', error);
@@ -100,12 +102,12 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
     return filename.match(/\.(jpg|jpeg|png|gif|webp)$/i) !== null;
   };
 
-  const getImageUrl = (file_path: string) => {
-    const { data } = supabase.storage
+  const getImageUrl = async (file_path: string) => {
+    const { data } = await supabase.storage
       .from(bucketName)
-      .getPublicUrl(file_path);
+      .createSignedUrl(file_path, 60);
     
-    return data.publicUrl;
+    return data?.signedUrl;
   };
 
   return (
