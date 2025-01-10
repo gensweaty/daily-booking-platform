@@ -6,6 +6,8 @@ import { PlusCircle, Pencil, Trash2, Copy } from "lucide-react";
 import { useState } from "react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
+import { format } from "date-fns";
+import { FileDisplay } from "@/components/shared/FileDisplay";
 import {
   Table,
   TableBody,
@@ -112,6 +114,11 @@ export const CustomerList = () => {
     }
   };
 
+  const formatDate = (date: string | null) => {
+    if (!date) return '-';
+    return format(new Date(date), 'MMM dd, yyyy');
+  };
+
   const openCreateDialog = () => {
     setSelectedCustomer(null);
     setIsDialogOpen(true);
@@ -147,20 +154,22 @@ export const CustomerList = () => {
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="hover:bg-transparent">
               <TableHead className="w-[200px]">Full Name</TableHead>
               <TableHead className="w-[150px]">Phone Number</TableHead>
               <TableHead className="w-[300px]">Social Link/Email</TableHead>
-              <TableHead>Payment Status</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead className="w-[120px]">Payment Status</TableHead>
+              <TableHead className="w-[200px]">Dates</TableHead>
+              <TableHead className="w-[200px]">Attachments</TableHead>
+              <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {customers.map((customer: any) => (
-              <TableRow key={customer.id}>
-                <TableCell>{customer.title}</TableCell>
-                <TableCell>{customer.user_number || '-'}</TableCell>
-                <TableCell>
+              <TableRow key={customer.id} className="h-16">
+                <TableCell className="py-2">{customer.title}</TableCell>
+                <TableCell className="py-2">{customer.user_number || '-'}</TableCell>
+                <TableCell className="py-2">
                   <div className="flex items-center gap-2">
                     <TooltipProvider>
                       <Tooltip>
@@ -184,7 +193,7 @@ export const CustomerList = () => {
                     )}
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-2">
                   {customer.payment_status ? (
                     <span className={`capitalize ${
                       customer.payment_status === 'fully' ? 'text-green-600' :
@@ -195,7 +204,24 @@ export const CustomerList = () => {
                     </span>
                   ) : '-'}
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-2">
+                  <div className="space-y-1 text-sm">
+                    <div>Start: {formatDate(customer.start_date)}</div>
+                    <div>End: {formatDate(customer.end_date)}</div>
+                  </div>
+                </TableCell>
+                <TableCell className="py-2">
+                  {customer.customer_files && customer.customer_files.length > 0 ? (
+                    <div className="max-w-[200px]">
+                      <FileDisplay 
+                        files={customer.customer_files}
+                        bucketName="customer_attachments"
+                        allowDelete={false}
+                      />
+                    </div>
+                  ) : '-'}
+                </TableCell>
+                <TableCell className="py-2">
                   <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
