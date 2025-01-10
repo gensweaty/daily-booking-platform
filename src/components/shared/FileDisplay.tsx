@@ -25,7 +25,6 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const { toast } = useToast();
 
   const getEffectiveBucket = (file_path: string) => {
-    // For customer files, we need to check both buckets
     if (bucketName === 'customer_attachments') {
       return { primary: 'customer_attachments', fallback: 'event_attachments' };
     }
@@ -37,31 +36,36 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
       setLoadingFile(file.file_path);
       const { primary, fallback } = getEffectiveBucket(file.file_path);
       
-      // Try primary bucket first
+      let signedUrl = null;
+      let error = null;
+
+      // Try primary bucket
       const { data: primaryData, error: primaryError } = await supabase.storage
         .from(primary)
         .createSignedUrl(file.file_path, 3600);
 
-      // If primary fails and we have a fallback, try that
-      if (primaryError?.message?.includes('not found') && fallback) {
-        console.log(`File not found in ${primary}, trying ${fallback}`);
+      if (!primaryError && primaryData?.signedUrl) {
+        signedUrl = primaryData.signedUrl;
+      } else if (primaryError?.message?.includes('not found') && fallback) {
+        // Try fallback bucket if primary fails
         const { data: fallbackData, error: fallbackError } = await supabase.storage
           .from(fallback)
           .createSignedUrl(file.file_path, 3600);
 
         if (!fallbackError && fallbackData?.signedUrl) {
-          window.open(fallbackData.signedUrl, '_blank');
-          return;
+          signedUrl = fallbackData.signedUrl;
+        } else {
+          error = fallbackError;
         }
+      } else {
+        error = primaryError;
       }
 
-      // If primary succeeded, use that URL
-      if (!primaryError && primaryData?.signedUrl) {
-        window.open(primaryData.signedUrl, '_blank');
-        return;
+      if (signedUrl) {
+        window.open(signedUrl, '_blank');
+      } else {
+        throw error || new Error('Could not generate signed URL');
       }
-
-      throw primaryError || new Error('Could not generate signed URL');
     } catch (error: any) {
       console.error('Error opening file:', error);
       toast({

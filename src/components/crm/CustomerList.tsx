@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -28,8 +28,9 @@ export const CustomerList = () => {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const queryClient = useQueryClient();
 
-  const { data: customers, isLoading } = useQuery({
+  const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -48,36 +49,79 @@ export const CustomerList = () => {
   });
 
   const handleCreateCustomer = async (customerData: any) => {
-    const { data, error } = await supabase
-      .from('events')
-      .insert([customerData])
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .insert([{ ...customerData, user_id: user?.id }])
+        .select()
+        .single();
 
-    if (error) throw error;
-    return data;
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
+
+      toast({
+        title: "Success",
+        description: "Customer created successfully",
+      });
+
+      return data;
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create customer",
+        variant: "destructive",
+      });
+      throw error;
+    }
   };
 
   const handleUpdateCustomer = async (customerData: any) => {
-    const { data, error } = await supabase
-      .from('events')
-      .update(customerData)
-      .eq('id', selectedCustomer.id)
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .update(customerData)
+        .eq('id', selectedCustomer.id)
+        .eq('user_id', user?.id)
+        .select()
+        .single();
 
-    if (error) throw error;
-    return data;
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
+
+      toast({
+        title: "Success",
+        description: "Customer updated successfully",
+      });
+
+      return data;
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update customer",
+        variant: "destructive",
+      });
+      throw error;
+    }
   };
 
   const handleDeleteCustomer = async () => {
+    if (!selectedCustomer?.id || !user?.id) return;
+
     try {
       const { error } = await supabase
         .from('events')
         .delete()
-        .eq('id', selectedCustomer.id);
+        .eq('id', selectedCustomer.id)
+        .eq('user_id', user.id);
 
       if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
 
       toast({
         title: "Success",
