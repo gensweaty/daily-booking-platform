@@ -143,17 +143,17 @@ export const CustomerList = () => {
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
   };
 
-  const handleCopyLink = async (text: string) => {
+  const handleCopyText = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
       toast({
         title: "Success",
-        description: "Link copied to clipboard",
+        description: "Text copied to clipboard",
       });
     } catch (err) {
       toast({
         title: "Error",
-        description: "Failed to copy link",
+        description: "Failed to copy text",
         variant: "destructive",
       });
     }
@@ -249,7 +249,21 @@ export const CustomerList = () => {
             {customers.map((customer: any) => (
               <TableRow key={customer.id} className="h-14">
                 <TableCell className="py-2">{customer.title}</TableCell>
-                <TableCell className="py-2">{customer.user_number || '-'}</TableCell>
+                <TableCell className="py-2">
+                  {customer.user_number ? (
+                    <div className="flex items-center gap-2">
+                      <span>{customer.user_number}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleCopyText(customer.user_number)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : '-'}
+                </TableCell>
                 <TableCell className="py-2">
                   <div className="flex items-center gap-2">
                     <TooltipProvider>
@@ -267,7 +281,7 @@ export const CustomerList = () => {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => handleCopyLink(customer.social_network_link)}
+                        onClick={() => handleCopyText(customer.social_network_link)}
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
@@ -284,18 +298,30 @@ export const CustomerList = () => {
                   </div>
                 </TableCell>
                 <TableCell className="py-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger className="text-left">
-                        {truncateText(customer.event_notes, 15)}
-                      </TooltipTrigger>
-                      {customer.event_notes && (
-                        <TooltipContent>
-                          <p className="max-w-xs whitespace-pre-wrap">{customer.event_notes}</p>
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  </TooltipProvider>
+                  <div className="flex items-center gap-2">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger className="text-left">
+                          {truncateText(customer.event_notes, 15)}
+                        </TooltipTrigger>
+                        {customer.event_notes && (
+                          <TooltipContent>
+                            <p className="max-w-xs whitespace-pre-wrap">{customer.event_notes}</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+                    {customer.event_notes && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleCopyText(customer.event_notes)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="py-2">
                   {(customer.customer_files?.length > 0 || customer.event_files?.length > 0) ? (
