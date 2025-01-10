@@ -52,7 +52,6 @@ export const CustomerDialog = ({
       setEventNotes(data?.event_notes || "");
       setPaymentStatus(data?.payment_status || "");
       setPaymentAmount(data?.payment_amount?.toString() || "");
-      setCreateEvent(!!data?.start_date);
     }
   }, [customer, event]);
 
@@ -82,19 +81,23 @@ export const CustomerDialog = ({
     e.preventDefault();
     
     try {
-      const customerData = {
+      const customerData: any = {
         title,
         user_surname: userSurname,
         user_number: userNumber,
         social_network_link: socialNetworkLink,
         event_notes: eventNotes,
-        start_date: createEvent ? new Date(startDate).toISOString() : null,
-        end_date: createEvent ? new Date(endDate).toISOString() : null,
         payment_status: paymentStatus || null,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         user_id: user?.id,
         type: 'customer'
       };
+
+      // Only include dates if createEvent is true
+      if (createEvent) {
+        customerData.start_date = new Date(startDate).toISOString();
+        customerData.end_date = new Date(endDate).toISOString();
+      }
 
       const createdCustomer = await onSubmit(customerData);
 
