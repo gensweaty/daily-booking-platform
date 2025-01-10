@@ -24,20 +24,29 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const getEffectiveBucket = (file_path: string) => {
+    // For customer files, we need to check both buckets
+    if (bucketName === 'customer_attachments') {
+      return { primary: 'customer_attachments', fallback: 'event_attachments' };
+    }
+    return { primary: bucketName, fallback: null };
+  };
+
   const handleFileClick = async (file: { file_path: string; filename: string }) => {
     try {
       setLoadingFile(file.file_path);
+      const { primary, fallback } = getEffectiveBucket(file.file_path);
       
-      // First try the specified bucket
+      // Try primary bucket first
       const { data: primaryData, error: primaryError } = await supabase.storage
-        .from(bucketName)
+        .from(primary)
         .createSignedUrl(file.file_path, 3600);
 
-      // If file not found in primary bucket and it's a customer file, try event_attachments
-      if (primaryError?.message?.includes('not found') && bucketName === 'customer_attachments') {
-        console.log('File not found in customer_attachments, trying event_attachments');
+      // If primary fails and we have a fallback, try that
+      if (primaryError?.message?.includes('not found') && fallback) {
+        console.log(`File not found in ${primary}, trying ${fallback}`);
         const { data: fallbackData, error: fallbackError } = await supabase.storage
-          .from('event_attachments')
+          .from(fallback)
           .createSignedUrl(file.file_path, 3600);
 
         if (!fallbackError && fallbackData?.signedUrl) {
@@ -46,7 +55,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
         }
       }
 
-      // If primary bucket succeeded, use that URL
+      // If primary succeeded, use that URL
       if (!primaryError && primaryData?.signedUrl) {
         window.open(primaryData.signedUrl, '_blank');
         return;
@@ -68,21 +77,21 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const handleDeleteFile = async (file: { id: string; file_path: string }) => {
     try {
       setDeletingFile(file.id);
+      const { primary, fallback } = getEffectiveBucket(file.file_path);
       
-      // First try to delete from the specified bucket
+      // Try to delete from primary bucket
       const { error: primaryError } = await supabase.storage
-        .from(bucketName)
+        .from(primary)
         .remove([file.file_path]);
 
-      // If file not found in primary bucket and it's a customer file, try event_attachments
-      if (primaryError?.message?.includes('not found') && bucketName === 'customer_attachments') {
-        console.log('File not found in customer_attachments for deletion, trying event_attachments');
+      // If file not found in primary and we have a fallback, try that
+      if (primaryError?.message?.includes('not found') && fallback) {
+        console.log(`File not found in ${primary} for deletion, trying ${fallback}`);
         const { error: fallbackError } = await supabase.storage
-          .from('event_attachments')
+          .from(fallback)
           .remove([file.file_path]);
 
         if (!fallbackError) {
-          // File was deleted from fallback bucket
           await handleDatabaseDelete(file.id);
           return;
         }
@@ -137,16 +146,18 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const loadImageUrl = async (file_path: string) => {
     if (!imageUrls[file_path]) {
       try {
-        // First try the specified bucket
+        const { primary, fallback } = getEffectiveBucket(file_path);
+        
+        // Try primary bucket first
         const { data: primaryData, error: primaryError } = await supabase.storage
-          .from(bucketName)
+          .from(primary)
           .createSignedUrl(file_path, 3600);
 
-        // If file not found in primary bucket and it's a customer file, try event_attachments
-        if (primaryError?.message?.includes('not found') && bucketName === 'customer_attachments') {
-          console.log('Image not found in customer_attachments, trying event_attachments');
+        // If primary fails and we have a fallback, try that
+        if (primaryError?.message?.includes('not found') && fallback) {
+          console.log(`Image not found in ${primary}, trying ${fallback}`);
           const { data: fallbackData, error: fallbackError } = await supabase.storage
-            .from('event_attachments')
+            .from(fallback)
             .createSignedUrl(file_path, 3600);
 
           if (!fallbackError && fallbackData?.signedUrl) {
@@ -158,7 +169,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
           }
         }
 
-        // If primary bucket succeeded, use that URL
+        // If primary succeeded, use that URL
         if (!primaryError && primaryData?.signedUrl) {
           setImageUrls(prev => ({
             ...prev,
