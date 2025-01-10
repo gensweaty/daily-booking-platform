@@ -82,6 +82,8 @@ export const CustomerDialog = ({
     e.preventDefault();
     
     try {
+      let createdCustomer = null;
+      
       // Only create an event if the checkbox is checked
       if (createEvent) {
         const eventData = {
@@ -97,8 +99,31 @@ export const CustomerDialog = ({
           user_id: user?.id,
           type: 'customer'
         };
-        const createdCustomer = await onSubmit(eventData);
+        
+        // If we're updating an existing customer
+        if (customer?.id) {
+          const { data, error } = await supabase
+            .from('events')
+            .update(eventData)
+            .eq('id', customer.id)
+            .select()
+            .single();
+            
+          if (error) throw error;
+          createdCustomer = data;
+        } else {
+          // Creating a new customer
+          const { data, error } = await supabase
+            .from('events')
+            .insert([eventData])
+            .select()
+            .single();
+            
+          if (error) throw error;
+          createdCustomer = data;
+        }
 
+        // Handle file upload if a file is selected
         if (selectedFile && createdCustomer?.id && user) {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -135,15 +160,39 @@ export const CustomerDialog = ({
           user_id: user?.id,
           type: 'customer'
         };
-        await onSubmit(customerData);
+        
+        // If we're updating an existing customer
+        if (customer?.id) {
+          const { data, error } = await supabase
+            .from('events')
+            .update(customerData)
+            .eq('id', customer.id)
+            .select()
+            .single();
+            
+          if (error) throw error;
+          createdCustomer = data;
+        } else {
+          // Creating a new customer
+          const { data, error } = await supabase
+            .from('events')
+            .insert([customerData])
+            .select()
+            .single();
+            
+          if (error) throw error;
+          createdCustomer = data;
+        }
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
+      
       toast({
         title: "Success",
         description: customer ? "Customer updated successfully" : "Customer created successfully",
       });
+      
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error handling customer submission:', error);
