@@ -26,7 +26,6 @@ export const CustomerDialog = ({
   customer,
   event,
 }: CustomerDialogProps) => {
-  // Initialize state with either customer or event data
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
   const [userNumber, setUserNumber] = useState("");
@@ -38,11 +37,11 @@ export const CustomerDialog = ({
   const [paymentAmount, setPaymentAmount] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  const [createEvent, setCreateEvent] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Update state when customer or event changes
   useEffect(() => {
     if (customer || event) {
       const data = customer || event;
@@ -53,6 +52,7 @@ export const CustomerDialog = ({
       setEventNotes(data?.event_notes || "");
       setPaymentStatus(data?.payment_status || "");
       setPaymentAmount(data?.payment_amount?.toString() || "");
+      setCreateEvent(!!data?.start_date);
     }
   }, [customer, event]);
 
@@ -62,10 +62,9 @@ export const CustomerDialog = ({
       const end = new Date(event.end_date);
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-    } else if (customer) {
-      const start = new Date(customer.start_date || new Date());
-      const end = new Date(customer.end_date || new Date());
-      end.setHours(start.getHours() + 1);
+    } else if (customer?.start_date) {
+      const start = new Date(customer.start_date);
+      const end = new Date(customer.end_date);
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     } else {
@@ -87,8 +86,8 @@ export const CustomerDialog = ({
         user_number: userNumber,
         social_network_link: socialNetworkLink,
         event_notes: eventNotes,
-        start_date: new Date(startDate).toISOString(),
-        end_date: new Date(endDate).toISOString(),
+        start_date: createEvent ? new Date(startDate).toISOString() : null,
+        end_date: createEvent ? new Date(endDate).toISOString() : null,
         payment_status: paymentStatus || null,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         user_id: user?.id,
@@ -166,6 +165,8 @@ export const CustomerDialog = ({
             fileError={fileError}
             setFileError={setFileError}
             customerId={customer?.id}
+            createEvent={createEvent}
+            setCreateEvent={setCreateEvent}
           />
           
           <div className="flex justify-between gap-4">

@@ -6,6 +6,7 @@ import { FileUploadField } from "@/components/shared/FileUploadField";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -31,6 +32,8 @@ interface CustomerDialogFieldsProps {
   fileError: string;
   setFileError: (error: string) => void;
   customerId?: string;
+  createEvent: boolean;
+  setCreateEvent: (value: boolean) => void;
 }
 
 export const CustomerDialogFields = ({
@@ -57,6 +60,8 @@ export const CustomerDialogFields = ({
   fileError,
   setFileError,
   customerId,
+  createEvent,
+  setCreateEvent,
 }: CustomerDialogFieldsProps) => {
   const { data: existingFiles } = useQuery({
     queryKey: ['customerFiles', customerId],
@@ -72,11 +77,6 @@ export const CustomerDialogFields = ({
     },
     enabled: !!customerId,
   });
-
-  const truncateText = (text: string) => {
-    if (!text) return '';
-    return text.length > 15 ? text.substring(0, 15) + '...' : text;
-  };
 
   return (
     <div className="space-y-2 sm:space-y-3">
@@ -118,30 +118,41 @@ export const CustomerDialogFields = ({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <Label htmlFor="startDate">Start Date</Label>
-          <Input
-            id="startDate"
-            type="datetime-local"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            required
-            className="w-full"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="endDate">End Date</Label>
-          <Input
-            id="endDate"
-            type="datetime-local"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            required
-            className="w-full"
-          />
-        </div>
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="createEvent"
+          checked={createEvent}
+          onCheckedChange={(checked) => setCreateEvent(checked as boolean)}
+        />
+        <Label htmlFor="createEvent">Create event for this customer</Label>
       </div>
+
+      {createEvent && (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <Label htmlFor="startDate">Start Date</Label>
+            <Input
+              id="startDate"
+              type="datetime-local"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required={createEvent}
+              className="w-full"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="endDate">End Date</Label>
+            <Input
+              id="endDate"
+              type="datetime-local"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              required={createEvent}
+              className="w-full"
+            />
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
         <div className="space-y-1">
