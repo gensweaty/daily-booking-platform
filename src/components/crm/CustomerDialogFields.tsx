@@ -22,6 +22,10 @@ interface CustomerDialogFieldsProps {
   setSocialNetworkLink: (value: string) => void;
   eventNotes: string;
   setEventNotes: (value: string) => void;
+  startDate: string;
+  setStartDate: (value: string) => void;
+  endDate: string;
+  setEndDate: (value: string) => void;
   paymentStatus: string;
   setPaymentStatus: (value: string) => void;
   paymentAmount: string;
@@ -44,6 +48,10 @@ export const CustomerDialogFields = ({
   setSocialNetworkLink,
   eventNotes,
   setEventNotes,
+  startDate,
+  setStartDate,
+  endDate,
+  setEndDate,
   paymentStatus,
   setPaymentStatus,
   paymentAmount,
@@ -154,6 +162,31 @@ export const CustomerDialogFields = ({
         <p className="text-sm text-muted-foreground">
           {truncateText(socialNetworkLink)}
         </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1">
+          <Label htmlFor="startDate">Start Date</Label>
+          <Input
+            id="startDate"
+            type="datetime-local"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            required
+            className="w-full"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="endDate">End Date</Label>
+          <Input
+            id="endDate"
+            type="datetime-local"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            required
+            className="w-full"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">

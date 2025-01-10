@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 
 interface CustomerDialogProps {
   open: boolean;
@@ -14,7 +15,7 @@ interface CustomerDialogProps {
   onSubmit: (data: any) => Promise<any>;
   onDelete?: () => void;
   customer?: any;
-  event?: any; // Add event prop to receive event data
+  event?: any;
 }
 
 export const CustomerDialog = ({
@@ -23,14 +24,15 @@ export const CustomerDialog = ({
   onSubmit,
   onDelete,
   customer,
-  event, // Add event to props
+  event,
 }: CustomerDialogProps) => {
-  // Initialize state with either customer data, event data, or empty values
   const [title, setTitle] = useState(customer?.title || event?.title || "");
   const [userSurname, setUserSurname] = useState(customer?.user_surname || event?.user_surname || "");
   const [userNumber, setUserNumber] = useState(customer?.user_number || event?.user_number || "");
   const [socialNetworkLink, setSocialNetworkLink] = useState(customer?.social_network_link || event?.social_network_link || "");
   const [eventNotes, setEventNotes] = useState(customer?.event_notes || event?.event_notes || "");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [paymentStatus, setPaymentStatus] = useState(customer?.payment_status || event?.payment_status || "");
   const [paymentAmount, setPaymentAmount] = useState(customer?.payment_amount?.toString() || event?.payment_amount?.toString() || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -39,24 +41,24 @@ export const CustomerDialog = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Update state when event or customer data changes
   useEffect(() => {
     if (event) {
-      setTitle(event.title || "");
-      setUserSurname(event.user_surname || "");
-      setUserNumber(event.user_number || "");
-      setSocialNetworkLink(event.social_network_link || "");
-      setEventNotes(event.event_notes || "");
-      setPaymentStatus(event.payment_status || "");
-      setPaymentAmount(event.payment_amount?.toString() || "");
+      const start = new Date(event.start_date);
+      const end = new Date(event.end_date);
+      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     } else if (customer) {
-      setTitle(customer.title || "");
-      setUserSurname(customer.user_surname || "");
-      setUserNumber(customer.user_number || "");
-      setSocialNetworkLink(customer.social_network_link || "");
-      setEventNotes(customer.event_notes || "");
-      setPaymentStatus(customer.payment_status || "");
-      setPaymentAmount(customer.payment_amount?.toString() || "");
+      const start = new Date(customer.start_date || new Date());
+      const end = new Date(customer.end_date || new Date());
+      end.setHours(start.getHours() + 1);
+      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
+    } else {
+      const start = new Date();
+      const end = new Date();
+      end.setHours(start.getHours() + 1);
+      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     }
   }, [event, customer]);
 
@@ -70,6 +72,8 @@ export const CustomerDialog = ({
         user_number: userNumber,
         social_network_link: socialNetworkLink,
         event_notes: eventNotes,
+        start_date: new Date(startDate).toISOString(),
+        end_date: new Date(endDate).toISOString(),
         payment_status: paymentStatus || null,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         user_id: user?.id,
@@ -102,6 +106,7 @@ export const CustomerDialog = ({
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
       toast({
         title: "Success",
         description: customer ? "Customer updated successfully" : "Customer created successfully",
@@ -133,6 +138,10 @@ export const CustomerDialog = ({
             setSocialNetworkLink={setSocialNetworkLink}
             eventNotes={eventNotes}
             setEventNotes={setEventNotes}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
             paymentStatus={paymentStatus}
             setPaymentStatus={setPaymentStatus}
             paymentAmount={paymentAmount}
