@@ -25,46 +25,52 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const { toast } = useToast();
 
   const getEffectiveBucket = (file_path: string) => {
+    // For customer-related files, try both buckets
     if (bucketName === 'customer_attachments') {
-      return { primary: 'customer_attachments', fallback: 'event_attachments' };
+      return ['customer_attachments', 'event_attachments'];
     }
-    return { primary: bucketName, fallback: null };
+    // For other files, just use the specified bucket
+    return [bucketName];
+  };
+
+  const tryGetSignedUrl = async (bucket: string, filePath: string) => {
+    try {
+      console.log(`Attempting to get signed URL from bucket: ${bucket} for file: ${filePath}`);
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(filePath, 3600);
+
+      if (error) {
+        console.error(`Error getting signed URL from ${bucket}:`, error);
+        return null;
+      }
+
+      return data.signedUrl;
+    } catch (error) {
+      console.error(`Exception getting signed URL from ${bucket}:`, error);
+      return null;
+    }
   };
 
   const handleFileClick = async (file: { file_path: string; filename: string }) => {
     try {
       setLoadingFile(file.file_path);
-      const { primary, fallback } = getEffectiveBucket(file.file_path);
-      
+      const buckets = getEffectiveBucket(file.file_path);
       let signedUrl = null;
-      let error = null;
 
-      // Try primary bucket
-      const { data: primaryData, error: primaryError } = await supabase.storage
-        .from(primary)
-        .createSignedUrl(file.file_path, 3600);
-
-      if (!primaryError && primaryData?.signedUrl) {
-        signedUrl = primaryData.signedUrl;
-      } else if (primaryError?.message?.includes('not found') && fallback) {
-        // Try fallback bucket if primary fails
-        const { data: fallbackData, error: fallbackError } = await supabase.storage
-          .from(fallback)
-          .createSignedUrl(file.file_path, 3600);
-
-        if (!fallbackError && fallbackData?.signedUrl) {
-          signedUrl = fallbackData.signedUrl;
-        } else {
-          error = fallbackError;
+      // Try each bucket in sequence until we get a valid URL
+      for (const bucket of buckets) {
+        signedUrl = await tryGetSignedUrl(bucket, file.file_path);
+        if (signedUrl) {
+          console.log(`Successfully found file in bucket: ${bucket}`);
+          break;
         }
-      } else {
-        error = primaryError;
       }
 
       if (signedUrl) {
         window.open(signedUrl, '_blank');
       } else {
-        throw error || new Error('Could not generate signed URL');
+        throw new Error('Could not generate signed URL from any bucket');
       }
     } catch (error: any) {
       console.error('Error opening file:', error);
@@ -81,33 +87,27 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const handleDeleteFile = async (file: { id: string; file_path: string }) => {
     try {
       setDeletingFile(file.id);
-      const { primary, fallback } = getEffectiveBucket(file.file_path);
-      
-      // Try to delete from primary bucket
-      const { error: primaryError } = await supabase.storage
-        .from(primary)
-        .remove([file.file_path]);
+      const buckets = getEffectiveBucket(file.file_path);
+      let deleteSuccess = false;
 
-      // If file not found in primary and we have a fallback, try that
-      if (primaryError?.message?.includes('not found') && fallback) {
-        console.log(`File not found in ${primary} for deletion, trying ${fallback}`);
-        const { error: fallbackError } = await supabase.storage
-          .from(fallback)
+      // Try to delete from each potential bucket
+      for (const bucket of buckets) {
+        const { error } = await supabase.storage
+          .from(bucket)
           .remove([file.file_path]);
 
-        if (!fallbackError) {
-          await handleDatabaseDelete(file.id);
-          return;
+        if (!error) {
+          deleteSuccess = true;
+          break;
         }
+        console.log(`Failed to delete from ${bucket}, trying next bucket if available`);
       }
 
-      // If primary deletion succeeded or failed for a reason other than not found
-      if (!primaryError || !primaryError.message?.includes('not found')) {
+      if (deleteSuccess) {
         await handleDatabaseDelete(file.id);
-        return;
+      } else {
+        throw new Error('Failed to delete file from any bucket');
       }
-
-      throw primaryError;
     } catch (error) {
       console.error('Error deleting file:', error);
       toast({
@@ -132,10 +132,13 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
 
     if (dbError) throw dbError;
 
+    // Invalidate all relevant queries
     await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
     await queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
     await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
     await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+    await queryClient.invalidateQueries({ queryKey: ['customers'] });
+    await queryClient.invalidateQueries({ queryKey: ['events'] });
 
     if (onFileDeleted) {
       onFileDeleted(fileId);
@@ -150,36 +153,24 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const loadImageUrl = async (file_path: string) => {
     if (!imageUrls[file_path]) {
       try {
-        const { primary, fallback } = getEffectiveBucket(file_path);
-        
-        // Try primary bucket first
-        const { data: primaryData, error: primaryError } = await supabase.storage
-          .from(primary)
-          .createSignedUrl(file_path, 3600);
+        const buckets = getEffectiveBucket(file_path);
+        let signedUrl = null;
 
-        // If primary fails and we have a fallback, try that
-        if (primaryError?.message?.includes('not found') && fallback) {
-          console.log(`Image not found in ${primary}, trying ${fallback}`);
-          const { data: fallbackData, error: fallbackError } = await supabase.storage
-            .from(fallback)
-            .createSignedUrl(file_path, 3600);
-
-          if (!fallbackError && fallbackData?.signedUrl) {
-            setImageUrls(prev => ({
-              ...prev,
-              [file_path]: fallbackData.signedUrl
-            }));
-            return fallbackData.signedUrl;
+        // Try each bucket until we get a valid URL
+        for (const bucket of buckets) {
+          const url = await tryGetSignedUrl(bucket, file_path);
+          if (url) {
+            signedUrl = url;
+            break;
           }
         }
 
-        // If primary succeeded, use that URL
-        if (!primaryError && primaryData?.signedUrl) {
+        if (signedUrl) {
           setImageUrls(prev => ({
             ...prev,
-            [file_path]: primaryData.signedUrl
+            [file_path]: signedUrl
           }));
-          return primaryData.signedUrl;
+          return signedUrl;
         }
       } catch (error) {
         console.error('Error loading image URL:', error);
