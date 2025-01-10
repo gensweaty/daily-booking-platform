@@ -24,10 +24,14 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const getEffectiveBucket = (file_path: string) => {
-    // For customer-related files, try both buckets
+  const getEffectiveBuckets = (file_path: string) => {
+    // For customer-related files, try both buckets in order
     if (bucketName === 'customer_attachments') {
       return ['customer_attachments', 'event_attachments'];
+    }
+    // For event-related files, try both buckets in reverse order
+    if (bucketName === 'event_attachments') {
+      return ['event_attachments', 'customer_attachments'];
     }
     // For other files, just use the specified bucket
     return [bucketName];
@@ -36,6 +40,19 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const tryGetSignedUrl = async (bucket: string, filePath: string) => {
     try {
       console.log(`Attempting to get signed URL from bucket: ${bucket} for file: ${filePath}`);
+      
+      // First check if the file exists
+      const { data: existsData, error: existsError } = await supabase.storage
+        .from(bucket)
+        .list('', {
+          search: filePath
+        });
+
+      if (existsError || !existsData?.length) {
+        console.log(`File not found in bucket ${bucket}`);
+        return null;
+      }
+
       const { data, error } = await supabase.storage
         .from(bucket)
         .createSignedUrl(filePath, 3600);
@@ -45,6 +62,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
         return null;
       }
 
+      console.log(`Successfully got signed URL from ${bucket}`);
       return data.signedUrl;
     } catch (error) {
       console.error(`Exception getting signed URL from ${bucket}:`, error);
@@ -55,28 +73,30 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const handleFileClick = async (file: { file_path: string; filename: string }) => {
     try {
       setLoadingFile(file.file_path);
-      const buckets = getEffectiveBucket(file.file_path);
+      const buckets = getEffectiveBuckets(file.file_path);
       let signedUrl = null;
+      let successBucket = null;
 
       // Try each bucket in sequence until we get a valid URL
       for (const bucket of buckets) {
         signedUrl = await tryGetSignedUrl(bucket, file.file_path);
         if (signedUrl) {
-          console.log(`Successfully found file in bucket: ${bucket}`);
+          successBucket = bucket;
           break;
         }
       }
 
       if (signedUrl) {
+        console.log(`Successfully found file in bucket: ${successBucket}`);
         window.open(signedUrl, '_blank');
       } else {
-        throw new Error('Could not generate signed URL from any bucket');
+        throw new Error('File not found in any bucket');
       }
     } catch (error: any) {
       console.error('Error opening file:', error);
       toast({
         title: "Error",
-        description: "Failed to open file. Please try again.",
+        description: "Failed to open file. The file might have been moved or deleted.",
         variant: "destructive",
       });
     } finally {
@@ -87,7 +107,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const handleDeleteFile = async (file: { id: string; file_path: string }) => {
     try {
       setDeletingFile(file.id);
-      const buckets = getEffectiveBucket(file.file_path);
+      const buckets = getEffectiveBuckets(file.file_path);
       let deleteSuccess = false;
 
       // Try to delete from each potential bucket
@@ -112,7 +132,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
       console.error('Error deleting file:', error);
       toast({
         title: "Error",
-        description: "Failed to delete file",
+        description: "Failed to delete file. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -153,7 +173,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const loadImageUrl = async (file_path: string) => {
     if (!imageUrls[file_path]) {
       try {
-        const buckets = getEffectiveBucket(file_path);
+        const buckets = getEffectiveBuckets(file_path);
         let signedUrl = null;
 
         // Try each bucket until we get a valid URL
