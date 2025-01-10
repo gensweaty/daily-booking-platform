@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Trash2 } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Copy } from "lucide-react";
 import { useState } from "react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
@@ -14,6 +14,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export const CustomerList = () => {
   const { user } = useAuth();
@@ -85,6 +91,27 @@ export const CustomerList = () => {
     }
   };
 
+  const truncateText = (text: string) => {
+    if (!text) return '-';
+    return text.length > 15 ? text.substring(0, 15) + '...' : text;
+  };
+
+  const handleCopyLink = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Success",
+        description: "Link copied to clipboard",
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to copy link",
+        variant: "destructive",
+      });
+    }
+  };
+
   const openCreateDialog = () => {
     setSelectedCustomer(null);
     setIsDialogOpen(true);
@@ -121,9 +148,9 @@ export const CustomerList = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Full Name</TableHead>
-              <TableHead>Phone Number</TableHead>
-              <TableHead>Social Link/Email</TableHead>
+              <TableHead className="w-[200px]">Full Name</TableHead>
+              <TableHead className="w-[150px]">Phone Number</TableHead>
+              <TableHead className="w-[300px]">Social Link/Email</TableHead>
               <TableHead>Payment Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -133,7 +160,30 @@ export const CustomerList = () => {
               <TableRow key={customer.id}>
                 <TableCell>{customer.title}</TableCell>
                 <TableCell>{customer.user_number || '-'}</TableCell>
-                <TableCell>{customer.social_network_link || '-'}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger className="text-left">
+                          {truncateText(customer.social_network_link)}
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{customer.social_network_link}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    {customer.social_network_link && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleCopyLink(customer.social_network_link)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>
                   {customer.payment_status ? (
                     <span className={`capitalize ${
