@@ -36,12 +36,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (error) {
           console.error('Session initialization error:', error);
-          if (error.message.includes('refresh_token_not_found')) {
-            await supabase.auth.signOut();
-            if (location.pathname !== '/login' && location.pathname !== '/signup' && location.pathname !== '/') {
-              navigate('/login');
-            }
-          }
           throw error;
         }
 
@@ -61,13 +55,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } catch (error: any) {
         console.error('Session initialization error:', error);
         if (mounted) {
-          if (!error.message.includes('refresh_token_not_found')) {
-            toast({
-              title: "Error",
-              description: "Failed to initialize session",
-              variant: "destructive",
-            });
-          }
+          toast({
+            title: "Error",
+            description: "Failed to initialize session",
+            variant: "destructive",
+          });
           if (location.pathname !== '/login' && location.pathname !== '/signup' && location.pathname !== '/') {
             navigate('/login');
           }
@@ -93,10 +85,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(null);
           setUser(null);
           navigate('/login');
-        } else if (event === 'TOKEN_REFRESHED') {
-          setSession(newSession);
-          setUser(newSession?.user ?? null);
-        } else if (event === 'USER_UPDATED') {
+        } else if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
           setSession(newSession);
           setUser(newSession?.user ?? null);
         }
@@ -114,21 +103,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       setLoading(true);
+      console.log('Signing out...');
+      
+      // First clear local storage
+      localStorage.clear();
+      
+      // Then sign out from Supabase
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
+      console.log('Successfully signed out');
       setUser(null);
       setSession(null);
+      
       toast({
         title: "Success",
         description: "Signed out successfully",
       });
+      
       navigate('/login');
     } catch (error: any) {
       console.error('Sign out error:', error);
       toast({
         title: "Error",
-        description: "Failed to sign out. Please try again.",
+        description: "Failed to sign out properly. Please try again.",
         variant: "destructive",
       });
     } finally {

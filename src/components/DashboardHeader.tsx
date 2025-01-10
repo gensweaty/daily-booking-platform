@@ -2,9 +2,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/components/ui/use-toast";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 interface DashboardHeaderProps {
   username: string;
@@ -26,9 +25,8 @@ interface Subscription {
 }
 
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
 
   useEffect(() => {
@@ -61,33 +59,14 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
 
   const handleSignOut = async () => {
     try {
-      // First clear any existing session data
-      localStorage.removeItem('supabase.auth.token');
-      
-      // Attempt to sign out
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        // If there's an AuthSessionMissingError, we can ignore it and proceed with navigation
-        if (error.message === 'Auth session missing!') {
-          navigate('/login');
-          return;
-        }
-        throw error;
-      }
-      
-      // Successfully signed out
-      navigate('/login');
-      
-    } catch (error: any) {
+      await signOut();
+    } catch (error) {
       console.error('Sign out error:', error);
-      // Show error toast but still redirect to login
       toast({
         title: "Error during sign out",
-        description: "You have been redirected to the login page.",
+        description: "Please try again.",
         variant: "destructive",
       });
-      navigate('/login');
     }
   };
 
