@@ -31,10 +31,26 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
         .createSignedUrl(file.file_path, 60);
 
       if (error) throw error;
+      
       if (data?.signedUrl) {
-        window.open(data.signedUrl, '_blank');
+        // For images, we'll open in a new tab
+        if (file.filename.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+          window.open(data.signedUrl, '_blank');
+        } else {
+          // For other files, we'll trigger a download
+          const response = await fetch(data.signedUrl);
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = file.filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error downloading file:', error);
       toast({
         title: "Error",
@@ -72,6 +88,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
       await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       await queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
 
       if (onFileDeleted) {
         onFileDeleted(file.id);
@@ -93,16 +110,16 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
     }
   };
 
-  const getImageUrl = (file: { file_path: string }) => {
-    console.log('Getting image URL for bucket:', bucketName, 'file path:', file.file_path);
-    const { data } = supabase.storage
+  const getSignedUrl = async (file: { file_path: string }) => {
+    const { data } = await supabase.storage
       .from(bucketName)
-      .getPublicUrl(file.file_path);
-    console.log('Generated public URL:', data.publicUrl);
-    return data.publicUrl;
+      .createSignedUrl(file.file_path, 3600); // 1 hour expiry
+    return data?.signedUrl;
   };
 
-  const isImage = (contentType: string) => contentType.startsWith('image/');
+  const isImage = (filename: string) => {
+    return filename.match(/\.(jpg|jpeg|png|gif|webp)$/i) !== null;
+  };
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1 sm:gap-4 max-h-[35vh] sm:max-h-[50vh] overflow-y-auto p-1 sm:p-2">
@@ -123,9 +140,9 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
             </Button>
           )}
           <div className="w-full aspect-square flex items-center justify-center bg-muted rounded-md overflow-hidden">
-            {isImage(file.content_type) ? (
+            {isImage(file.filename) ? (
               <img
-                src={getImageUrl(file)}
+                src={`${supabase.storage.from(bucketName).getPublicUrl(file.file_path).data.publicUrl}?t=${Date.now()}`}
                 alt={file.filename}
                 className="w-full h-full object-contain max-h-[150px] sm:max-h-[200px] md:max-h-[300px]"
                 onError={(e) => {
