@@ -143,7 +143,7 @@ export const CustomerDialogFields = ({
         <div className="space-y-2">
           <FileDisplay 
             files={existingFiles} 
-            bucketName="event_attachments"
+            bucketName="customer_attachments"
             allowDelete
           />
         </div>
