@@ -52,6 +52,7 @@ export const CustomerDialog = ({
       setEventNotes(data?.event_notes || "");
       setPaymentStatus(data?.payment_status || "");
       setPaymentAmount(data?.payment_amount?.toString() || "");
+      setCreateEvent(!!data?.start_date);
     }
   }, [customer, event]);
 
@@ -81,48 +82,60 @@ export const CustomerDialog = ({
     e.preventDefault();
     
     try {
-      const customerData: any = {
-        title,
-        user_surname: userSurname,
-        user_number: userNumber,
-        social_network_link: socialNetworkLink,
-        event_notes: eventNotes,
-        payment_status: paymentStatus || null,
-        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-        user_id: user?.id,
-        type: 'customer'
-      };
-
-      // Only include dates if createEvent is true
+      // Only create an event if the checkbox is checked
       if (createEvent) {
-        customerData.start_date = new Date(startDate).toISOString();
-        customerData.end_date = new Date(endDate).toISOString();
-      }
+        const eventData = {
+          title,
+          user_surname: userSurname,
+          user_number: userNumber,
+          social_network_link: socialNetworkLink,
+          event_notes: eventNotes,
+          start_date: new Date(startDate).toISOString(),
+          end_date: new Date(endDate).toISOString(),
+          payment_status: paymentStatus || null,
+          payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+          user_id: user?.id,
+          type: 'customer'
+        };
+        const createdCustomer = await onSubmit(eventData);
 
-      const createdCustomer = await onSubmit(customerData);
+        if (selectedFile && createdCustomer?.id && user) {
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `${crypto.randomUUID()}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('customer_attachments')
+            .upload(filePath, selectedFile);
 
-      if (selectedFile && createdCustomer?.id && user) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${crypto.randomUUID()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('customer_attachments')
-          .upload(filePath, selectedFile);
+          if (uploadError) throw uploadError;
 
-        if (uploadError) throw uploadError;
+          const { error: fileRecordError } = await supabase
+            .from('customer_files')
+            .insert({
+              customer_id: createdCustomer.id,
+              filename: selectedFile.name,
+              file_path: filePath,
+              content_type: selectedFile.type,
+              size: selectedFile.size,
+              user_id: user.id
+            });
 
-        const { error: fileRecordError } = await supabase
-          .from('customer_files')
-          .insert({
-            customer_id: createdCustomer.id,
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            user_id: user.id
-          });
-
-        if (fileRecordError) throw fileRecordError;
+          if (fileRecordError) throw fileRecordError;
+        }
+      } else {
+        // Create a customer without event data
+        const customerData = {
+          title,
+          user_surname: userSurname,
+          user_number: userNumber,
+          social_network_link: socialNetworkLink,
+          event_notes: eventNotes,
+          payment_status: paymentStatus || null,
+          payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+          user_id: user?.id,
+          type: 'customer'
+        };
+        await onSubmit(customerData);
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
