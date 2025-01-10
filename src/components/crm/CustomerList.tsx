@@ -93,7 +93,7 @@ export const CustomerList = () => {
 
   const truncateText = (text: string) => {
     if (!text) return '-';
-    return text.length > 15 ? text.substring(0, 15) + '...' : text;
+    return text.length > 30 ? text.substring(0, 30) + '...' : text;
   };
 
   const handleCopyLink = async (text: string) => {
