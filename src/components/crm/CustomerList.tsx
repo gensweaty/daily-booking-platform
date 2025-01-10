@@ -36,7 +36,8 @@ export const CustomerList = () => {
         .from('events')
         .select(`
           *,
-          customer_files(*)
+          customer_files(*),
+          event_files(*)
         `)
         .eq('user_id', user?.id);
       
@@ -238,10 +239,10 @@ export const CustomerList = () => {
                   </div>
                 </TableCell>
                 <TableCell className="py-2">
-                  {customer.customer_files && customer.customer_files.length > 0 ? (
+                  {(customer.customer_files?.length > 0 || customer.event_files?.length > 0) ? (
                     <div className="max-w-[200px]">
                       <FileDisplay 
-                        files={customer.customer_files}
+                        files={[...(customer.customer_files || []), ...(customer.event_files || [])]}
                         bucketName="customer_attachments"
                         allowDelete={false}
                       />
