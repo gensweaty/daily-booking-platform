@@ -37,7 +37,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (error) {
           console.error('Session initialization error:', error);
           if (error.message.includes('refresh_token_not_found')) {
-            // Clear any stale session data
             await supabase.auth.signOut();
             if (location.pathname !== '/login' && location.pathname !== '/signup' && location.pathname !== '/') {
               navigate('/login');
@@ -52,7 +51,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(initialSession);
             setUser(initialSession.user);
             
-            // Only redirect if on auth pages
             if (location.pathname === '/login' || location.pathname === '/signup') {
               navigate('/dashboard');
             }
@@ -63,7 +61,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } catch (error: any) {
         console.error('Session initialization error:', error);
         if (mounted) {
-          // Only show toast for non-refresh token errors
           if (!error.message.includes('refresh_token_not_found')) {
             toast({
               title: "Error",
@@ -84,7 +81,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     initSession();
 
-    // Set up the auth state change subscription
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event, newSession);
       
@@ -109,7 +105,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
 
-    // Cleanup function
     return () => {
       mounted = false;
       subscription.unsubscribe();
@@ -118,6 +113,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
@@ -132,9 +128,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.error('Sign out error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "Failed to sign out. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
