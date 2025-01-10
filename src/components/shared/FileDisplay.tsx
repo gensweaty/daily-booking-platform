@@ -28,7 +28,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
       setLoadingFile(file.file_path);
       const { data, error } = await supabase.storage
         .from(bucketName)
-        .createSignedUrl(file.file_path, 60);
+        .createSignedUrl(file.file_path, 3600); // 1 hour expiry
 
       if (error) throw error;
       
