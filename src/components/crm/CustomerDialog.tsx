@@ -62,11 +62,13 @@ export const CustomerDialog = ({
       const end = new Date(event.end_date);
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
+      setCreateEvent(true);
     } else if (customer?.start_date) {
       const start = new Date(customer.start_date);
       const end = new Date(customer.end_date);
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
+      setCreateEvent(true);
     } else {
       const start = new Date();
       const end = new Date();
@@ -91,6 +93,7 @@ export const CustomerDialog = ({
         payment_status: paymentStatus || null,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         user_id: user?.id,
+        type: 'customer'
       };
 
       const createdCustomer = await onSubmit(customerData);
