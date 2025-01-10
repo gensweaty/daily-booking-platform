@@ -6,8 +6,10 @@ import { FileUploadField } from "@/components/shared/FileUploadField";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Tooltip } from "@/components/ui/tooltip";
-import { TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Copy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -52,6 +54,8 @@ export const CustomerDialogFields = ({
   setFileError,
   customerId,
 }: CustomerDialogFieldsProps) => {
+  const { toast } = useToast();
+  
   const { data: existingFiles } = useQuery({
     queryKey: ['customerFiles', customerId],
     queryFn: async () => {
@@ -67,15 +71,31 @@ export const CustomerDialogFields = ({
     enabled: !!customerId,
   });
 
-  const truncateText = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
+  const truncateText = (text: string) => {
+    if (!text) return '';
+    return text.length > 15 ? text.substring(0, 15) + '...' : text;
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(socialNetworkLink);
+      toast({
+        title: "Copied!",
+        description: "Link copied to clipboard",
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to copy link",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
-    <div className="space-y-3 sm:space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <div className="space-y-1.5">
+    <div className="space-y-2 sm:space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+        <div className="space-y-1">
           <Label htmlFor="title">Full Name (required)</Label>
           <Input
             id="title"
@@ -87,7 +107,7 @@ export const CustomerDialogFields = ({
           />
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <Label htmlFor="number">Phone Number</Label>
           <Input
             id="number"
@@ -100,29 +120,44 @@ export const CustomerDialogFields = ({
         </div>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <Label htmlFor="socialNetwork">Social Link or Email</Label>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Input
-                id="socialNetwork"
-                type="text"
-                placeholder="Social link or email"
-                value={socialNetworkLink}
-                onChange={(e) => setSocialNetworkLink(e.target.value)}
-                className="w-full"
-              />
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{socialNetworkLink}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Input
+                  id="socialNetwork"
+                  type="text"
+                  placeholder="Social link or email"
+                  value={socialNetworkLink}
+                  onChange={(e) => setSocialNetworkLink(e.target.value)}
+                  className="w-full"
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{socialNetworkLink}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          {socialNetworkLink && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handleCopyLink}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {truncateText(socialNetworkLink)}
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <div className="space-y-1.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+        <div className="space-y-1">
           <Label>Payment Status</Label>
           <Select value={paymentStatus} onValueChange={setPaymentStatus}>
             <SelectTrigger>
@@ -137,7 +172,7 @@ export const CustomerDialogFields = ({
         </div>
 
         {paymentStatus && paymentStatus !== 'not_paid' && (
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <Label htmlFor="amount">Payment Amount</Label>
             <Input
               id="amount"
@@ -153,20 +188,20 @@ export const CustomerDialogFields = ({
         )}
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <Label htmlFor="notes">Notes</Label>
         <Textarea
           id="notes"
           placeholder="Add notes about the customer"
           value={eventNotes}
           onChange={(e) => setEventNotes(e.target.value)}
-          className="min-h-[100px]"
+          className="min-h-[80px]"
         />
       </div>
 
       {customerId && existingFiles && existingFiles.length > 0 && (
-        <div className="space-y-1.5">
-          <Label>Existing Attachments</Label>
+        <div className="space-y-1">
+          <Label>Attachments</Label>
           <FileDisplay 
             files={existingFiles} 
             bucketName="customer_attachments"

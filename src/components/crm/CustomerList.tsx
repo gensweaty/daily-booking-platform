@@ -26,7 +26,10 @@ export const CustomerList = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('events')
-        .select('*')
+        .select(`
+          *,
+          customer_files(*)
+        `)
         .eq('user_id', user?.id);
       
       if (error) throw error;
@@ -88,7 +91,15 @@ export const CustomerList = () => {
   };
 
   const openEditDialog = (customer: any) => {
-    setSelectedCustomer(customer);
+    setSelectedCustomer({
+      ...customer,
+      title: customer.title || '',
+      user_number: customer.user_number || '',
+      social_network_link: customer.social_network_link || '',
+      event_notes: customer.event_notes || '',
+      payment_status: customer.payment_status || '',
+      payment_amount: customer.payment_amount?.toString() || '',
+    });
     setIsDialogOpen(true);
   };
 
