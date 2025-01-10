@@ -33,28 +33,13 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
       if (error) throw error;
       
       if (data?.signedUrl) {
-        // For images, we'll open in a new tab
-        if (file.filename.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-          window.open(data.signedUrl, '_blank');
-        } else {
-          // For other files, we'll trigger a download
-          const response = await fetch(data.signedUrl);
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = file.filename;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-        }
+        window.open(data.signedUrl, '_blank');
       }
     } catch (error: any) {
-      console.error('Error downloading file:', error);
+      console.error('Error opening file:', error);
       toast({
         title: "Error",
-        description: "Failed to download file",
+        description: "Failed to open file",
         variant: "destructive",
       });
     } finally {
@@ -110,13 +95,6 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
     }
   };
 
-  const getSignedUrl = async (file: { file_path: string }) => {
-    const { data } = await supabase.storage
-      .from(bucketName)
-      .createSignedUrl(file.file_path, 3600); // 1 hour expiry
-    return data?.signedUrl;
-  };
-
   const isImage = (filename: string) => {
     return filename.match(/\.(jpg|jpeg|png|gif|webp)$/i) !== null;
   };
@@ -139,7 +117,10 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
               <XIcon className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
           )}
-          <div className="w-full aspect-square flex items-center justify-center bg-muted rounded-md overflow-hidden">
+          <div 
+            className="w-full aspect-square flex items-center justify-center bg-muted rounded-md overflow-hidden cursor-pointer"
+            onClick={() => handleFileClick(file)}
+          >
             {isImage(file.filename) ? (
               <img
                 src={`${supabase.storage.from(bucketName).getPublicUrl(file.file_path).data.publicUrl}?t=${Date.now()}`}
