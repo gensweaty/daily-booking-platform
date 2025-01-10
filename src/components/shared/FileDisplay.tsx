@@ -26,36 +26,20 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const handleFileClick = async (file: { file_path: string; filename: string }) => {
     try {
       setLoadingFile(file.file_path);
-      
-      // First check if the file exists
-      const { data: existsData, error: existsError } = await supabase.storage
+      const { data } = supabase.storage
         .from(bucketName)
-        .list('', {
-          search: file.file_path
-        });
+        .getPublicUrl(file.file_path);
 
-      if (existsError || !existsData || existsData.length === 0) {
-        throw new Error('File not found in storage');
-      }
-
-      const { data, error } = await supabase.storage
-        .from(bucketName)
-        .createSignedUrl(file.file_path, 60);
-
-      if (error) throw error;
-      
-      if (data?.signedUrl) {
-        window.open(data.signedUrl, '_blank');
+      if (data?.publicUrl) {
+        window.open(data.publicUrl, '_blank');
       } else {
-        throw new Error('Could not generate signed URL');
+        throw new Error('Could not generate file URL');
       }
     } catch (error: any) {
       console.error('Error opening file:', error);
       toast({
         title: "Error",
-        description: error.message === 'File not found in storage' 
-          ? "The file could not be found in storage. It may have been deleted."
-          : "Failed to open file. Please try again.",
+        description: "Failed to open file. Please try again.",
         variant: "destructive",
       });
     } finally {
