@@ -28,31 +28,30 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
     try {
       setLoadingFile(file.file_path);
       
-      // Try both buckets if it's a customer file
-      const bucketsToTry = bucketName === 'customer_attachments' 
-        ? ['customer_attachments', 'event_attachments'] 
-        : [bucketName];
-      
-      let signedUrl = null;
-      let error = null;
+      // First try the specified bucket
+      const { data: primaryData, error: primaryError } = await supabase.storage
+        .from(bucketName)
+        .createSignedUrl(file.file_path, 3600);
 
-      for (const bucket of bucketsToTry) {
-        const { data, error: urlError } = await supabase.storage
-          .from(bucket)
+      // If file not found in primary bucket and it's a customer file, try event_attachments
+      if (primaryError?.message?.includes('not found') && bucketName === 'customer_attachments') {
+        const { data: fallbackData, error: fallbackError } = await supabase.storage
+          .from('event_attachments')
           .createSignedUrl(file.file_path, 3600);
 
-        if (!urlError && data?.signedUrl) {
-          signedUrl = data.signedUrl;
-          break;
+        if (!fallbackError && fallbackData?.signedUrl) {
+          window.open(fallbackData.signedUrl, '_blank');
+          return;
         }
-        error = urlError;
       }
 
-      if (!signedUrl) {
-        throw error || new Error('Could not generate signed URL');
+      // If primary bucket succeeded, use that URL
+      if (!primaryError && primaryData?.signedUrl) {
+        window.open(primaryData.signedUrl, '_blank');
+        return;
       }
 
-      window.open(signedUrl, '_blank');
+      throw primaryError || new Error('Could not generate signed URL');
     } catch (error: any) {
       console.error('Error opening file:', error);
       toast({
@@ -69,51 +68,31 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
     try {
       setDeletingFile(file.id);
       
-      // Try both buckets if it's a customer file
-      const bucketsToTry = bucketName === 'customer_attachments' 
-        ? ['customer_attachments', 'event_attachments'] 
-        : [bucketName];
-      
-      let storageError = null;
-      
-      for (const bucket of bucketsToTry) {
-        const { error } = await supabase.storage
-          .from(bucket)
+      // First try to delete from the specified bucket
+      const { error: primaryError } = await supabase.storage
+        .from(bucketName)
+        .remove([file.file_path]);
+
+      // If file not found in primary bucket and it's a customer file, try event_attachments
+      if (primaryError?.message?.includes('not found') && bucketName === 'customer_attachments') {
+        const { error: fallbackError } = await supabase.storage
+          .from('event_attachments')
           .remove([file.file_path]);
-          
-        if (!error) {
-          storageError = null;
-          break;
+
+        if (!fallbackError) {
+          // File was deleted from fallback bucket
+          await handleDatabaseDelete(file.id);
+          return;
         }
-        storageError = error;
       }
 
-      if (storageError) throw storageError;
-
-      const tableName = bucketName === 'event_attachments' ? 'event_files' : 
-                       bucketName === 'note_attachments' ? 'note_files' : 
-                       bucketName === 'customer_attachments' ? 'customer_files' : 'files';
-                       
-      const { error: dbError } = await supabase
-        .from(tableName)
-        .delete()
-        .eq('id', file.id);
-
-      if (dbError) throw dbError;
-
-      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      await queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
-      await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
-      await queryClient.invalidateQueries({ queryKey: ['customers'] });
-
-      if (onFileDeleted) {
-        onFileDeleted(file.id);
+      // If primary deletion succeeded or failed for a reason other than not found
+      if (!primaryError || !primaryError.message?.includes('not found')) {
+        await handleDatabaseDelete(file.id);
+        return;
       }
 
-      toast({
-        title: "Success",
-        description: "File deleted successfully",
-      });
+      throw primaryError;
     } catch (error) {
       console.error('Error deleting file:', error);
       toast({
@@ -126,35 +105,61 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
     }
   };
 
-  const isImage = (filename: string) => {
-    return filename.match(/\.(jpg|jpeg|png|gif|webp)$/i) !== null;
+  const handleDatabaseDelete = async (fileId: string) => {
+    const tableName = bucketName === 'event_attachments' ? 'event_files' : 
+                     bucketName === 'note_attachments' ? 'note_files' : 
+                     bucketName === 'customer_attachments' ? 'customer_files' : 'files';
+                     
+    const { error: dbError } = await supabase
+      .from(tableName)
+      .delete()
+      .eq('id', fileId);
+
+    if (dbError) throw dbError;
+
+    await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+    await queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
+    await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
+    await queryClient.invalidateQueries({ queryKey: ['customers'] });
+
+    if (onFileDeleted) {
+      onFileDeleted(fileId);
+    }
+
+    toast({
+      title: "Success",
+      description: "File deleted successfully",
+    });
   };
 
   const loadImageUrl = async (file_path: string) => {
     if (!imageUrls[file_path]) {
       try {
-        // Try both buckets if it's a customer file
-        const bucketsToTry = bucketName === 'customer_attachments' 
-          ? ['customer_attachments', 'event_attachments'] 
-          : [bucketName];
-        
-        let signedUrl = null;
-        
-        for (const bucket of bucketsToTry) {
-          const { data, error } = await supabase.storage
-            .from(bucket)
+        // First try the specified bucket
+        const { data: primaryData, error: primaryError } = await supabase.storage
+          .from(bucketName)
+          .createSignedUrl(file_path, 3600);
+
+        // If file not found in primary bucket and it's a customer file, try event_attachments
+        if (primaryError?.message?.includes('not found') && bucketName === 'customer_attachments') {
+          const { data: fallbackData, error: fallbackError } = await supabase.storage
+            .from('event_attachments')
             .createSignedUrl(file_path, 3600);
 
-          if (!error && data?.signedUrl) {
-            signedUrl = data.signedUrl;
-            break;
+          if (!fallbackError && fallbackData?.signedUrl) {
+            setImageUrls(prev => ({
+              ...prev,
+              [file_path]: fallbackData.signedUrl
+            }));
+            return;
           }
         }
 
-        if (signedUrl) {
+        // If primary bucket succeeded, use that URL
+        if (!primaryError && primaryData?.signedUrl) {
           setImageUrls(prev => ({
             ...prev,
-            [file_path]: signedUrl
+            [file_path]: primaryData.signedUrl
           }));
         }
       } catch (error) {
@@ -162,6 +167,10 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
       }
     }
     return imageUrls[file_path] || '/placeholder.svg';
+  };
+
+  const isImage = (filename: string) => {
+    return filename.match(/\.(jpg|jpeg|png|gif|webp)$/i) !== null;
   };
 
   return (
