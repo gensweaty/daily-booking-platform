@@ -35,6 +35,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
 
       // If file not found in primary bucket and it's a customer file, try event_attachments
       if (primaryError?.message?.includes('not found') && bucketName === 'customer_attachments') {
+        console.log('File not found in customer_attachments, trying event_attachments');
         const { data: fallbackData, error: fallbackError } = await supabase.storage
           .from('event_attachments')
           .createSignedUrl(file.file_path, 3600);
@@ -75,6 +76,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
 
       // If file not found in primary bucket and it's a customer file, try event_attachments
       if (primaryError?.message?.includes('not found') && bucketName === 'customer_attachments') {
+        console.log('File not found in customer_attachments for deletion, trying event_attachments');
         const { error: fallbackError } = await supabase.storage
           .from('event_attachments')
           .remove([file.file_path]);
@@ -120,7 +122,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
     await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
     await queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
     await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
-    await queryClient.invalidateQueries({ queryKey: ['customers'] });
+    await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
 
     if (onFileDeleted) {
       onFileDeleted(fileId);
@@ -142,6 +144,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
 
         // If file not found in primary bucket and it's a customer file, try event_attachments
         if (primaryError?.message?.includes('not found') && bucketName === 'customer_attachments') {
+          console.log('Image not found in customer_attachments, trying event_attachments');
           const { data: fallbackData, error: fallbackError } = await supabase.storage
             .from('event_attachments')
             .createSignedUrl(file_path, 3600);
@@ -151,7 +154,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
               ...prev,
               [file_path]: fallbackData.signedUrl
             }));
-            return;
+            return fallbackData.signedUrl;
           }
         }
 
@@ -161,6 +164,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
             ...prev,
             [file_path]: primaryData.signedUrl
           }));
+          return primaryData.signedUrl;
         }
       } catch (error) {
         console.error('Error loading image URL:', error);
@@ -204,9 +208,9 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
                   console.error('Image load error:', e);
                   e.currentTarget.src = '/placeholder.svg';
                 }}
-                onLoad={() => {
+                onLoad={async () => {
                   if (!imageUrls[file.file_path]) {
-                    loadImageUrl(file.file_path);
+                    await loadImageUrl(file.file_path);
                   }
                 }}
               />
