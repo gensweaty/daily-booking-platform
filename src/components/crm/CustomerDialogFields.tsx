@@ -180,7 +180,7 @@ export const CustomerDialogFields = ({
         <Textarea
           id="notes"
           placeholder="Add a comment about the customer"
-          value={eventNotes}
+          value={eventNotes || ''}
           onChange={(e) => setEventNotes(e.target.value)}
           className="min-h-[80px]"
         />
