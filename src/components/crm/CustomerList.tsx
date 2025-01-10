@@ -116,7 +116,15 @@ export const CustomerList = () => {
 
   const formatDate = (date: string | null) => {
     if (!date) return '-';
-    return format(new Date(date), 'MMM dd, yyyy');
+    const dateObj = new Date(date);
+    return format(dateObj, 'dd.MM.yyyy');
+  };
+
+  const formatTimeRange = (startDate: string | null, endDate: string | null) => {
+    if (!startDate || !endDate) return '-';
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return `${format(start, 'hh:mma')}-${format(end, 'hh:mma')}`.toLowerCase();
   };
 
   const openCreateDialog = () => {
@@ -206,8 +214,8 @@ export const CustomerList = () => {
                 </TableCell>
                 <TableCell className="py-2">
                   <div className="space-y-1 text-sm">
-                    <div>Start: {formatDate(customer.start_date)}</div>
-                    <div>End: {formatDate(customer.end_date)}</div>
+                    <div>{formatDate(customer.start_date)}</div>
+                    <div className="text-gray-500">{formatTimeRange(customer.start_date, customer.end_date)}</div>
                   </div>
                 </TableCell>
                 <TableCell className="py-2">
