@@ -61,17 +61,33 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
 
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // First clear any existing session data
+      localStorage.removeItem('supabase.auth.token');
       
+      // Attempt to sign out
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        // If there's an AuthSessionMissingError, we can ignore it and proceed with navigation
+        if (error.message === 'Auth session missing!') {
+          navigate('/login');
+          return;
+        }
+        throw error;
+      }
+      
+      // Successfully signed out
       navigate('/login');
+      
     } catch (error: any) {
       console.error('Sign out error:', error);
+      // Show error toast but still redirect to login
       toast({
-        title: "Error",
-        description: "Failed to sign out. Please try again.",
+        title: "Error during sign out",
+        description: "You have been redirected to the login page.",
         variant: "destructive",
       });
+      navigate('/login');
     }
   };
 
