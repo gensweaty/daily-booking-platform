@@ -83,106 +83,69 @@ export const CustomerDialog = ({
     
     try {
       let createdCustomer = null;
+      const currentDate = new Date();
+      const nextHour = new Date(currentDate);
+      nextHour.setHours(currentDate.getHours() + 1);
       
-      // Only create an event if the checkbox is checked
-      if (createEvent) {
-        const eventData = {
-          title,
-          user_surname: userSurname,
-          user_number: userNumber,
-          social_network_link: socialNetworkLink,
-          event_notes: eventNotes,
-          start_date: new Date(startDate).toISOString(),
-          end_date: new Date(endDate).toISOString(),
-          payment_status: paymentStatus || null,
-          payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-          user_id: user?.id,
-          type: 'customer'
-        };
-        
-        // If we're updating an existing customer
-        if (customer?.id) {
-          const { data, error } = await supabase
-            .from('events')
-            .update(eventData)
-            .eq('id', customer.id)
-            .select()
-            .single();
-            
-          if (error) throw error;
-          createdCustomer = data;
-        } else {
-          // Creating a new customer
-          const { data, error } = await supabase
-            .from('events')
-            .insert([eventData])
-            .select()
-            .single();
-            
-          if (error) throw error;
-          createdCustomer = data;
-        }
-
-        // Handle file upload if a file is selected
-        if (selectedFile && createdCustomer?.id && user) {
-          const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${crypto.randomUUID()}.${fileExt}`;
+      const baseData = {
+        title,
+        user_surname: userSurname,
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        payment_status: paymentStatus || null,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+        user_id: user?.id,
+        type: 'customer',
+        // Always include start_date and end_date
+        start_date: createEvent ? new Date(startDate).toISOString() : currentDate.toISOString(),
+        end_date: createEvent ? new Date(endDate).toISOString() : nextHour.toISOString()
+      };
+      
+      if (customer?.id) {
+        const { data, error } = await supabase
+          .from('events')
+          .update(baseData)
+          .eq('id', customer.id)
+          .select()
+          .single();
           
-          const { error: uploadError } = await supabase.storage
-            .from('customer_attachments')
-            .upload(filePath, selectedFile);
-
-          if (uploadError) throw uploadError;
-
-          const { error: fileRecordError } = await supabase
-            .from('customer_files')
-            .insert({
-              customer_id: createdCustomer.id,
-              filename: selectedFile.name,
-              file_path: filePath,
-              content_type: selectedFile.type,
-              size: selectedFile.size,
-              user_id: user.id
-            });
-
-          if (fileRecordError) throw fileRecordError;
-        }
+        if (error) throw error;
+        createdCustomer = data;
       } else {
-        // Create a customer without event data
-        const customerData = {
-          title,
-          user_surname: userSurname,
-          user_number: userNumber,
-          social_network_link: socialNetworkLink,
-          event_notes: eventNotes,
-          payment_status: paymentStatus || null,
-          payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-          user_id: user?.id,
-          type: 'customer'
-        };
+        const { data, error } = await supabase
+          .from('events')
+          .insert([baseData])
+          .select()
+          .single();
+          
+        if (error) throw error;
+        createdCustomer = data;
+      }
+
+      // Handle file upload if a file is selected
+      if (selectedFile && createdCustomer?.id && user) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
-        // If we're updating an existing customer
-        if (customer?.id) {
-          const { data, error } = await supabase
-            .from('events')
-            .update(customerData)
-            .eq('id', customer.id)
-            .select()
-            .single();
-            
-          if (error) throw error;
-          createdCustomer = data;
-        } else {
-          // Creating a new customer
-          const { data, error } = await supabase
-            .from('events')
-            .insert([customerData])
-            .select()
-            .single();
-            
-          if (error) throw error;
-          createdCustomer = data;
-        }
+        const { error: uploadError } = await supabase.storage
+          .from('customer_attachments')
+          .upload(filePath, selectedFile);
+
+        if (uploadError) throw uploadError;
+
+        const { error: fileRecordError } = await supabase
+          .from('customer_files')
+          .insert({
+            customer_id: createdCustomer.id,
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user.id
+          });
+
+        if (fileRecordError) throw fileRecordError;
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
