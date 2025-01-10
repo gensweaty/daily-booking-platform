@@ -138,9 +138,9 @@ export const CustomerList = () => {
     }
   };
 
-  const truncateText = (text: string) => {
+  const truncateText = (text: string, maxLength: number = 30) => {
     if (!text) return '-';
-    return text.length > 30 ? text.substring(0, 30) + '...' : text;
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
   };
 
   const handleCopyLink = async (text: string) => {
@@ -235,18 +235,19 @@ export const CustomerList = () => {
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="w-[200px]">Full Name</TableHead>
-              <TableHead className="w-[150px]">Phone Number</TableHead>
-              <TableHead className="w-[300px]">Social Link/Email</TableHead>
+              <TableHead className="w-[180px]">Full Name</TableHead>
+              <TableHead className="w-[130px]">Phone Number</TableHead>
+              <TableHead className="w-[250px]">Social Link/Email</TableHead>
               <TableHead className="w-[120px]">Payment Status</TableHead>
-              <TableHead className="w-[200px]">Dates</TableHead>
-              <TableHead className="w-[200px]">Attachments</TableHead>
+              <TableHead className="w-[180px]">Dates</TableHead>
+              <TableHead className="w-[120px]">Comment</TableHead>
+              <TableHead className="w-[180px]">Attachments</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {customers.map((customer: any) => (
-              <TableRow key={customer.id} className="h-16">
+              <TableRow key={customer.id} className="h-14">
                 <TableCell className="py-2">{customer.title}</TableCell>
                 <TableCell className="py-2">{customer.user_number || '-'}</TableCell>
                 <TableCell className="py-2">
@@ -283,8 +284,22 @@ export const CustomerList = () => {
                   </div>
                 </TableCell>
                 <TableCell className="py-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger className="text-left">
+                        {truncateText(customer.event_notes, 15)}
+                      </TooltipTrigger>
+                      {customer.event_notes && (
+                        <TooltipContent>
+                          <p className="max-w-xs whitespace-pre-wrap">{customer.event_notes}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
+                </TableCell>
+                <TableCell className="py-2">
                   {(customer.customer_files?.length > 0 || customer.event_files?.length > 0) ? (
-                    <div className="max-w-[200px]">
+                    <div className="max-w-[180px]">
                       <FileDisplay 
                         files={[...(customer.customer_files || []), ...(customer.event_files || [])]}
                         bucketName="customer_attachments"

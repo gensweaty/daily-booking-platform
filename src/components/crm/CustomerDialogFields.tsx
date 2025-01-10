@@ -6,10 +6,6 @@ import { FileUploadField } from "@/components/shared/FileUploadField";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Copy } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -62,8 +58,6 @@ export const CustomerDialogFields = ({
   setFileError,
   customerId,
 }: CustomerDialogFieldsProps) => {
-  const { toast } = useToast();
-  
   const { data: existingFiles } = useQuery({
     queryKey: ['customerFiles', customerId],
     queryFn: async () => {
@@ -82,22 +76,6 @@ export const CustomerDialogFields = ({
   const truncateText = (text: string) => {
     if (!text) return '';
     return text.length > 15 ? text.substring(0, 15) + '...' : text;
-  };
-
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(socialNetworkLink);
-      toast({
-        title: "Copied!",
-        description: "Link copied to clipboard",
-      });
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to copy link",
-        variant: "destructive",
-      });
-    }
   };
 
   return (
@@ -130,38 +108,14 @@ export const CustomerDialogFields = ({
 
       <div className="space-y-1">
         <Label htmlFor="socialNetwork">Social Link or Email</Label>
-        <div className="flex items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Input
-                  id="socialNetwork"
-                  type="text"
-                  placeholder="Social link or email"
-                  value={socialNetworkLink}
-                  onChange={(e) => setSocialNetworkLink(e.target.value)}
-                  className="w-full"
-                />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{socialNetworkLink}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          {socialNetworkLink && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={handleCopyLink}
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {truncateText(socialNetworkLink)}
-        </p>
+        <Input
+          id="socialNetwork"
+          type="text"
+          placeholder="Social link or email"
+          value={socialNetworkLink}
+          onChange={(e) => setSocialNetworkLink(e.target.value)}
+          className="w-full"
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -222,10 +176,10 @@ export const CustomerDialogFields = ({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="notes">Notes</Label>
+        <Label htmlFor="notes">Comment</Label>
         <Textarea
           id="notes"
-          placeholder="Add notes about the customer"
+          placeholder="Add a comment about the customer"
           value={eventNotes}
           onChange={(e) => setEventNotes(e.target.value)}
           className="min-h-[80px]"
