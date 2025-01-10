@@ -9,6 +9,47 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      customer_files: {
+        Row: {
+          content_type: string | null
+          created_at: string | null
+          customer_id: string | null
+          file_path: string
+          filename: string
+          id: string
+          size: number | null
+          user_id: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          file_path: string
+          filename: string
+          id?: string
+          size?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          file_path?: string
+          filename?: string
+          id?: string
+          size?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_files_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_files: {
         Row: {
           content_type: string | null

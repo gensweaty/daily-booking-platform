@@ -12,7 +12,7 @@ interface FileDisplayProps {
     file_path: string;
     content_type: string;
   }[];
-  bucketName: "task_attachments" | "note_attachments" | "event_attachments";
+  bucketName: "task_attachments" | "note_attachments" | "event_attachments" | "customer_attachments";
   allowDelete?: boolean;
   onFileDeleted?: (fileId: string) => void;
 }
