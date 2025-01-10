@@ -26,14 +26,12 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   const handleFileClick = async (file: { file_path: string; filename: string }) => {
     try {
       setLoadingFile(file.file_path);
-      const { data, error } = await supabase.storage
+      const { data } = await supabase.storage
         .from(bucketName)
-        .createSignedUrl(file.file_path, 3600); // 1 hour expiry
+        .getPublicUrl(file.file_path);
 
-      if (error) throw error;
-      
-      if (data?.signedUrl) {
-        window.open(data.signedUrl, '_blank');
+      if (data?.publicUrl) {
+        window.open(data.publicUrl, '_blank');
       }
     } catch (error: any) {
       console.error('Error opening file:', error);
@@ -123,7 +121,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
           >
             {isImage(file.filename) ? (
               <img
-                src={`${supabase.storage.from(bucketName).getPublicUrl(file.file_path).data.publicUrl}?t=${Date.now()}`}
+                src={`${supabase.storage.from(bucketName).getPublicUrl(file.file_path).data.publicUrl}`}
                 alt={file.filename}
                 className="w-full h-full object-contain max-h-[150px] sm:max-h-[200px] md:max-h-[300px]"
                 onError={(e) => {
