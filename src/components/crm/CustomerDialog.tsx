@@ -26,20 +26,35 @@ export const CustomerDialog = ({
   customer,
   event,
 }: CustomerDialogProps) => {
-  const [title, setTitle] = useState(customer?.title || event?.title || "");
-  const [userSurname, setUserSurname] = useState(customer?.user_surname || event?.user_surname || "");
-  const [userNumber, setUserNumber] = useState(customer?.user_number || event?.user_number || "");
-  const [socialNetworkLink, setSocialNetworkLink] = useState(customer?.social_network_link || event?.social_network_link || "");
-  const [eventNotes, setEventNotes] = useState(customer?.event_notes || event?.event_notes || "");
+  // Initialize state with either customer or event data
+  const [title, setTitle] = useState("");
+  const [userSurname, setUserSurname] = useState("");
+  const [userNumber, setUserNumber] = useState("");
+  const [socialNetworkLink, setSocialNetworkLink] = useState("");
+  const [eventNotes, setEventNotes] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState(customer?.payment_status || event?.payment_status || "");
-  const [paymentAmount, setPaymentAmount] = useState(customer?.payment_amount?.toString() || event?.payment_amount?.toString() || "");
+  const [paymentStatus, setPaymentStatus] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Update state when customer or event changes
+  useEffect(() => {
+    if (customer || event) {
+      const data = customer || event;
+      setTitle(data?.title || "");
+      setUserSurname(data?.user_surname || "");
+      setUserNumber(data?.user_number || "");
+      setSocialNetworkLink(data?.social_network_link || "");
+      setEventNotes(data?.event_notes || "");
+      setPaymentStatus(data?.payment_status || "");
+      setPaymentAmount(data?.payment_amount?.toString() || "");
+    }
+  }, [customer, event]);
 
   useEffect(() => {
     if (event) {
