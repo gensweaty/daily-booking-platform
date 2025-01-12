@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, Pencil, Trash2, Copy } from "lucide-react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
-import { format } from "date-fns";
+import { format, parseISO, startOfMonth, endOfMonth, endOfDay } from "date-fns";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { SearchCommand } from "./SearchCommand";
+import { DateRangeSelect } from "@/components/Statistics/DateRangeSelect";
 import {
   Table,
   TableBody,
@@ -40,9 +41,14 @@ export const CustomerList = () => {
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const queryClient = useQueryClient();
+  const currentDate = new Date();
+  const [dateRange, setDateRange] = useState({ 
+    start: startOfMonth(currentDate),
+    end: endOfMonth(currentDate)
+  });
 
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
-    queryKey: ['customers'],
+    queryKey: ['customers', dateRange],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('customers')
@@ -50,7 +56,10 @@ export const CustomerList = () => {
           *,
           customer_files_new(*)
         `)
-        .eq('user_id', user?.id);
+        .eq('user_id', user?.id)
+        .gte('created_at', dateRange.start.toISOString())
+        .lte('created_at', endOfDay(dateRange.end).toISOString())
+        .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data || [];
@@ -59,7 +68,7 @@ export const CustomerList = () => {
   });
 
   const { data: events = [], isLoading: isLoadingEvents } = useQuery({
-    queryKey: ['events'],
+    queryKey: ['events', dateRange],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('events')
@@ -67,7 +76,10 @@ export const CustomerList = () => {
           *,
           event_files(*)
         `)
-        .eq('user_id', user?.id);
+        .eq('user_id', user?.id)
+        .gte('created_at', dateRange.start.toISOString())
+        .lte('created_at', endOfDay(dateRange.end).toISOString())
+        .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data || [];
@@ -75,7 +87,6 @@ export const CustomerList = () => {
     enabled: !!user,
   });
 
-  // Move combinedData calculation into useMemo
   const combinedData = React.useMemo(() => {
     if (isLoadingCustomers || isLoadingEvents) return [];
     
@@ -99,14 +110,12 @@ export const CustomerList = () => {
     return combined;
   }, [customers, events, isLoadingCustomers, isLoadingEvents]);
 
-  // Move paginatedData calculation into useMemo
   const paginatedData = React.useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     return filteredData.slice(startIndex, endIndex);
   }, [filteredData, currentPage, pageSize]);
 
-  // Initialize filteredData with combinedData when it changes
   React.useEffect(() => {
     setFilteredData(combinedData);
   }, [combinedData]);
@@ -311,6 +320,11 @@ export const CustomerList = () => {
           </Button>
         </div>
       </div>
+
+      <DateRangeSelect 
+        selectedDate={dateRange}
+        onDateChange={(start, end) => setDateRange({ start, end: end || start })}
+      />
 
       <div className="rounded-md border">
         <Table>
