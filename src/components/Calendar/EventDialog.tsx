@@ -7,6 +7,8 @@ import { Trash2 } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/components/ui/use-toast";
 
 interface EventDialogProps {
   open: boolean;
@@ -39,6 +41,8 @@ export const EventDialog = ({
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (event) {
@@ -77,6 +81,25 @@ export const EventDialog = ({
     try {
       const createdEvent = await onSubmit(eventData);
 
+      // Create corresponding customer record
+      if (!event) { // Only create customer for new events
+        const { error: customerError } = await supabase
+          .from('customers')
+          .insert([{
+            title,
+            user_surname: userSurname,
+            user_number: userNumber,
+            social_network_link: socialNetworkLink,
+            event_notes: eventNotes,
+            payment_status: paymentStatus || null,
+            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+            type: 'customer',
+            user_id: user?.id
+          }]);
+
+        if (customerError) throw customerError;
+      }
+
       if (selectedFile && createdEvent?.id && user) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -100,8 +123,22 @@ export const EventDialog = ({
 
         if (fileRecordError) throw fileRecordError;
       }
+
+      // Invalidate both events and customers queries
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+
+      toast({
+        title: "Success",
+        description: event ? "Event updated successfully" : "Event and customer created successfully",
+      });
     } catch (error) {
       console.error('Error handling event submission:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save event",
+        variant: "destructive",
+      });
       throw error;
     }
   };
