@@ -33,6 +33,8 @@ interface CustomerDialogFieldsProps {
   setStartDate: (value: string) => void;
   endDate: string;
   setEndDate: (value: string) => void;
+  createEvent: boolean;
+  setCreateEvent: (value: boolean) => void;
 }
 
 export const CustomerDialogFields = ({
@@ -59,6 +61,8 @@ export const CustomerDialogFields = ({
   setStartDate,
   endDate,
   setEndDate,
+  createEvent,
+  setCreateEvent,
 }: CustomerDialogFieldsProps) => {
   const [createEventChecked, setCreateEventChecked] = useState(false);
   const [eventStartDate, setEventStartDate] = useState("");
@@ -166,24 +170,21 @@ export const CustomerDialogFields = ({
       <div className="flex items-center space-x-2">
         <Checkbox
           id="createEvent"
-          checked={createEventChecked}
-          onCheckedChange={(checked) => setCreateEventChecked(checked as boolean)}
+          checked={createEvent}
+          onCheckedChange={(checked) => setCreateEvent(checked as boolean)}
         />
         <Label htmlFor="createEvent">Create Event</Label>
       </div>
 
-      {createEventChecked && (
+      {createEvent && (
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="startDate">Start Date</Label>
             <Input
               id="startDate"
               type="datetime-local"
-              value={eventStartDate}
-              onChange={(e) => {
-                setEventStartDate(e.target.value);
-                setStartDate(e.target.value);
-              }}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
             />
           </div>
           <div className="space-y-2">
@@ -191,11 +192,8 @@ export const CustomerDialogFields = ({
             <Input
               id="endDate"
               type="datetime-local"
-              value={eventEndDate}
-              onChange={(e) => {
-                setEventEndDate(e.target.value);
-                setEndDate(e.target.value);
-              }}
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
             />
           </div>
         </div>
