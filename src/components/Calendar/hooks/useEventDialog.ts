@@ -45,19 +45,14 @@ export const useEventDialog = ({
       const eventStart = parseISO(event.start_date);
       const eventEnd = parseISO(event.end_date);
 
-      // Allow events to start exactly when another ends or end exactly when another starts
-      if (startDate.getTime() === eventEnd.getTime() || endDate.getTime() === eventStart.getTime()) {
-        return false;
-      }
+      // Check if the new event overlaps with an existing event
+      const hasOverlap = (
+        (startDate >= eventStart && startDate < eventEnd) || // New event starts during existing event
+        (endDate > eventStart && endDate <= eventEnd) || // New event ends during existing event
+        (startDate <= eventStart && endDate >= eventEnd) // New event completely encompasses existing event
+      );
 
-      // Check if either the start or end time of the new event falls within an existing event
-      const startOverlaps = isWithinInterval(startDate, { start: eventStart, end: eventEnd });
-      const endOverlaps = isWithinInterval(endDate, { start: eventStart, end: eventEnd });
-      
-      // Check if the new event completely encompasses an existing event
-      const encompassesEvent = startDate < eventStart && endDate > eventEnd;
-
-      return startOverlaps || endOverlaps || encompassesEvent;
+      return hasOverlap;
     });
 
     return {
@@ -83,10 +78,10 @@ export const useEventDialog = ({
       if (!available && conflictingEvent) {
         toast({
           title: "Time Slot Unavailable",
-          description: `This time slot conflicts with "${conflictingEvent.title}"`,
+          description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
           variant: "destructive",
         });
-        return;
+        throw new Error("Time slot conflict");
       }
 
       const result = await createEvent(data);
@@ -97,11 +92,13 @@ export const useEventDialog = ({
       });
       return result;
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error.message !== "Time slot conflict") {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
       throw error;
     }
   };
@@ -126,10 +123,10 @@ export const useEventDialog = ({
       if (!available && conflictingEvent) {
         toast({
           title: "Time Slot Unavailable",
-          description: `This time slot conflicts with "${conflictingEvent.title}"`,
+          description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
           variant: "destructive",
         });
-        return;
+        throw new Error("Time slot conflict");
       }
 
       const result = await updateEvent(updates);
@@ -140,11 +137,13 @@ export const useEventDialog = ({
       });
       return result;
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error.message !== "Time slot conflict") {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
       throw error;
     }
   };
