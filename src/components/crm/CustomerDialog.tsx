@@ -98,11 +98,9 @@ export const CustomerDialog = ({
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         user_id: user?.id,
         type: 'customer',
-        // Only include start_date and end_date if createEvent is true
-        ...(createEvent && {
-          start_date: new Date(startDate).toISOString(),
-          end_date: new Date(endDate).toISOString()
-        })
+        // Always include start_date and end_date, but only use selected dates if createEvent is true
+        start_date: createEvent ? new Date(startDate).toISOString() : currentDate.toISOString(),
+        end_date: createEvent ? new Date(endDate).toISOString() : nextHour.toISOString()
       };
       
       if (customer?.id) {
