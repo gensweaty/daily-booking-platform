@@ -80,7 +80,7 @@ export const CustomerDialog = ({
       };
 
       // Add start_date and end_date only if createEvent is true
-      const dataToSubmit = createEvent ? {
+      const customerData = createEvent ? {
         ...baseData,
         start_date: new Date(startDate).toISOString(),
         end_date: new Date(endDate).toISOString()
@@ -91,22 +91,54 @@ export const CustomerDialog = ({
       if (customer?.id) {
         const { data, error } = await supabase
           .from('customers')
-          .update(dataToSubmit)
+          .update(customerData)
           .eq('id', customer.id)
           .select()
           .single();
           
         if (error) throw error;
         createdCustomer = data;
+
+        // Update corresponding event if it exists
+        if (createEvent) {
+          const eventData = {
+            ...baseData,
+            start_date: new Date(startDate).toISOString(),
+            end_date: new Date(endDate).toISOString(),
+            type: 'private_party'
+          };
+
+          const { error: eventError } = await supabase
+            .from('events')
+            .upsert([{ ...eventData, user_id: user?.id }]);
+
+          if (eventError) throw eventError;
+        }
       } else {
         const { data, error } = await supabase
           .from('customers')
-          .insert([dataToSubmit])
+          .insert([customerData])
           .select()
           .single();
           
         if (error) throw error;
         createdCustomer = data;
+
+        // Create corresponding event if checkbox is checked
+        if (createEvent) {
+          const eventData = {
+            ...baseData,
+            start_date: new Date(startDate).toISOString(),
+            end_date: new Date(endDate).toISOString(),
+            type: 'private_party'
+          };
+
+          const { error: eventError } = await supabase
+            .from('events')
+            .insert([{ ...eventData, user_id: user?.id }]);
+
+          if (eventError) throw eventError;
+        }
       }
 
       if (selectedFile && createdCustomer?.id && user) {
@@ -134,6 +166,7 @@ export const CustomerDialog = ({
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
       
       toast({
         title: "Success",
