@@ -76,26 +76,22 @@ export const EventDialogFields = ({
       
       if (eventFilesError) throw eventFilesError;
 
-      // Then get customer files
-      const { data: event } = await supabase
-        .from('events')
-        .select('title')
-        .eq('id', eventId)
-        .single();
+      // Then get customer files by checking customers with matching title
+      const { data: customers, error: customersError } = await supabase
+        .from('customers')
+        .select(`
+          id,
+          customer_files_new (*)
+        `)
+        .eq('title', title);
 
-      if (event?.title) {
-        const { data: customerFiles, error: customerFilesError } = await supabase
-          .from('customer_files_new')
-          .select('*')
-          .eq('customer_id', eventId);
-
-        if (customerFilesError) throw customerFilesError;
-        
-        // Combine both sets of files
-        return [...(eventFiles || []), ...(customerFiles || [])];
-      }
+      if (customersError) throw customersError;
       
-      return eventFiles || [];
+      // Extract customer files from matching customers
+      const customerFiles = customers?.flatMap(customer => customer.customer_files_new || []) || [];
+      
+      // Combine both sets of files
+      return [...(eventFiles || []), ...customerFiles];
     },
     enabled: !!eventId,
   });
