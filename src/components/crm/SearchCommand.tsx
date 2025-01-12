@@ -38,7 +38,6 @@ export function SearchCommand({ data, onSelect, setFilteredData }: SearchCommand
           placeholder="Search..."
           className="h-9 border-0 focus:ring-0 px-0"
           onValueChange={handleSearch}
-          showIcon={false}
         />
       </div>
     </Command>
