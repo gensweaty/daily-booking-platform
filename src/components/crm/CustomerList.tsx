@@ -30,7 +30,8 @@ export const CustomerList = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const queryClient = useQueryClient();
 
-  const { data: customers = [], isLoading } = useQuery({
+  // Fetch both customers and events
+  const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -45,6 +46,44 @@ export const CustomerList = () => {
       return data || [];
     },
     enabled: !!user,
+  });
+
+  const { data: events = [], isLoading: isLoadingEvents } = useQuery({
+    queryKey: ['events'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('events')
+        .select(`
+          *,
+          event_files(*)
+        `)
+        .eq('user_id', user?.id);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  // Combine and deduplicate customers and events
+  const combinedData = [...customers];
+  events.forEach(event => {
+    // Check if there's already a customer with matching details
+    const existingCustomer = customers.find(
+      customer => 
+        customer.title === event.title &&
+        customer.start_date === event.start_date &&
+        customer.end_date === event.end_date
+    );
+    
+    if (!existingCustomer) {
+      // Add the event as a customer entry
+      combinedData.push({
+        ...event,
+        id: `event-${event.id}`, // Prefix to distinguish from customer IDs
+        customer_files_new: event.event_files // Map event files to customer files format
+      });
+    }
   });
 
   const handleCreateCustomer = async (customerData: any) => {
@@ -201,19 +240,24 @@ export const CustomerList = () => {
   };
 
   const openEditDialog = (customer: any) => {
+    // If it's an event converted to customer format, remove the prefix
+    const originalData = customer.id.startsWith('event-') 
+      ? events.find(e => `event-${e.id}` === customer.id)
+      : customer;
+
     setSelectedCustomer({
-      ...customer,
-      title: customer.title || '',
-      user_number: customer.user_number || '',
-      social_network_link: customer.social_network_link || '',
-      event_notes: customer.event_notes || '',
-      payment_status: customer.payment_status || '',
-      payment_amount: customer.payment_amount?.toString() || '',
+      ...originalData,
+      title: originalData.title || '',
+      user_number: originalData.user_number || '',
+      social_network_link: originalData.social_network_link || '',
+      event_notes: originalData.event_notes || '',
+      payment_status: originalData.payment_status || '',
+      payment_amount: originalData.payment_amount?.toString() || '',
     });
     setIsDialogOpen(true);
   };
 
-  if (isLoading) {
+  if (isLoadingCustomers || isLoadingEvents) {
     return <div>Loading...</div>;
   }
 
@@ -242,7 +286,7 @@ export const CustomerList = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {customers.map((customer: any) => (
+            {combinedData.map((customer: any) => (
               <TableRow key={customer.id} className="h-14">
                 <TableCell className="py-2">{customer.title}</TableCell>
                 <TableCell className="py-2">
@@ -320,11 +364,11 @@ export const CustomerList = () => {
                   </div>
                 </TableCell>
                 <TableCell className="py-2">
-                  {customer.customer_files_new?.length > 0 ? (
+                  {(customer.customer_files_new?.length > 0 || customer.event_files?.length > 0) ? (
                     <div className="max-w-[180px]">
                       <FileDisplay 
-                        files={customer.customer_files_new}
-                        bucketName="customer_attachments"
+                        files={customer.customer_files_new || customer.event_files}
+                        bucketName={customer.id.startsWith('event-') ? "event_attachments" : "customer_attachments"}
                         allowDelete={false}
                       />
                     </div>
