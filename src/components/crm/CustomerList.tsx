@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -314,12 +314,14 @@ export const CustomerList = () => {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <div className="flex-1 flex items-center justify-center gap-8">
+        <div className="flex-1 flex items-center gap-8">
           <h2 className="text-2xl font-bold flex-1">Customers</h2>
-          <DateRangeSelect 
-            selectedDate={dateRange}
-            onDateChange={(start, end) => setDateRange({ start, end: end || start })}
-          />
+          <div className="flex items-center justify-center">
+            <DateRangeSelect 
+              selectedDate={dateRange}
+              onDateChange={(start, end) => setDateRange({ start, end: end || start })}
+            />
+          </div>
           <div className="flex-1 flex justify-end">
             <SearchCommand
               data={combinedData}
