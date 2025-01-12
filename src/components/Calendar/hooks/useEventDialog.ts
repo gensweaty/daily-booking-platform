@@ -39,20 +39,25 @@ export const useEventDialog = ({
     existingEvents: CalendarEventType[],
     excludeEventId?: string
   ): { available: boolean; conflictingEvent?: CalendarEventType } => {
+    const startTime = startDate.getTime();
+    const endTime = endDate.getTime();
+
     const conflictingEvent = existingEvents.find((event) => {
       if (excludeEventId && event.id === excludeEventId) return false;
       
-      const eventStart = parseISO(event.start_date);
-      const eventEnd = parseISO(event.end_date);
+      const eventStart = parseISO(event.start_date).getTime();
+      const eventEnd = parseISO(event.end_date).getTime();
 
-      // Check if the new event overlaps with an existing event
-      const hasOverlap = (
-        (startDate >= eventStart && startDate < eventEnd) || // New event starts during existing event
-        (endDate > eventStart && endDate <= eventEnd) || // New event ends during existing event
-        (startDate <= eventStart && endDate >= eventEnd) // New event completely encompasses existing event
+      // Allow events to start exactly when another ends
+      if (startTime === eventEnd || endTime === eventStart) {
+        return false;
+      }
+
+      // Check for any overlap
+      return (
+        (startTime < eventEnd && endTime > eventStart) ||
+        (startTime === eventStart && endTime === eventEnd)
       );
-
-      return hasOverlap;
     });
 
     return {
