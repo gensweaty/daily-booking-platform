@@ -94,11 +94,13 @@ export type Database = {
       customers: {
         Row: {
           created_at: string | null
+          end_date: string | null
           event_notes: string | null
           id: string
           payment_amount: number | null
           payment_status: string | null
           social_network_link: string | null
+          start_date: string | null
           title: string
           type: string | null
           user_id: string | null
@@ -107,11 +109,13 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          end_date?: string | null
           event_notes?: string | null
           id?: string
           payment_amount?: number | null
           payment_status?: string | null
           social_network_link?: string | null
+          start_date?: string | null
           title: string
           type?: string | null
           user_id?: string | null
@@ -120,11 +124,13 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          end_date?: string | null
           event_notes?: string | null
           id?: string
           payment_amount?: number | null
           payment_status?: string | null
           social_network_link?: string | null
+          start_date?: string | null
           title?: string
           type?: string | null
           user_id?: string | null

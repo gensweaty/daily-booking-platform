@@ -1,14 +1,13 @@
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useEffect } from "react";
-import { format } from "date-fns";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -21,10 +20,6 @@ interface CustomerDialogFieldsProps {
   setSocialNetworkLink: (value: string) => void;
   eventNotes: string;
   setEventNotes: (value: string) => void;
-  startDate: string;
-  setStartDate: (value: string) => void;
-  endDate: string;
-  setEndDate: (value: string) => void;
   paymentStatus: string;
   setPaymentStatus: (value: string) => void;
   paymentAmount: string;
@@ -34,8 +29,10 @@ interface CustomerDialogFieldsProps {
   fileError: string;
   setFileError: (error: string) => void;
   customerId?: string;
-  createEvent: boolean;
-  setCreateEvent: (value: boolean) => void;
+  startDate: string;
+  setStartDate: (value: string) => void;
+  endDate: string;
+  setEndDate: (value: string) => void;
 }
 
 export const CustomerDialogFields = ({
@@ -49,10 +46,6 @@ export const CustomerDialogFields = ({
   setSocialNetworkLink,
   eventNotes,
   setEventNotes,
-  startDate,
-  setStartDate,
-  endDate,
-  setEndDate,
   paymentStatus,
   setPaymentStatus,
   paymentAmount,
@@ -62,171 +55,158 @@ export const CustomerDialogFields = ({
   fileError,
   setFileError,
   customerId,
-  createEvent,
-  setCreateEvent,
+  startDate,
+  setStartDate,
+  endDate,
+  setEndDate,
 }: CustomerDialogFieldsProps) => {
-  const { data: existingFiles } = useQuery({
-    queryKey: ['customerFiles', customerId],
-    queryFn: async () => {
-      if (!customerId) return [];
-      const { data, error } = await supabase
-        .from('customer_files_new')
-        .select('*')
-        .eq('customer_id', customerId);
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!customerId,
-  });
+  const [createEventChecked, setCreateEventChecked] = useState(false);
+  const [eventStartDate, setEventStartDate] = useState("");
+  const [eventEndDate, setEventEndDate] = useState("");
 
   // Check if this customer was created from an event and sync event times
   useEffect(() => {
     const checkEventSource = async () => {
       if (title) {
-        const { data: existingEvent } = await supabase
+        const { data: event } = await supabase
           .from('events')
           .select('*')
           .eq('title', title)
           .maybeSingle();
 
-        if (existingEvent) {
-          setCreateEvent(true);
-          setStartDate(format(new Date(existingEvent.start_date), "yyyy-MM-dd'T'HH:mm"));
-          setEndDate(format(new Date(existingEvent.end_date), "yyyy-MM-dd'T'HH:mm"));
+        if (event) {
+          setCreateEventChecked(true);
+          setEventStartDate(event.start_date);
+          setEventEndDate(event.end_date);
+          setStartDate(event.start_date);
+          setEndDate(event.end_date);
         }
       }
     };
 
     checkEventSource();
-  }, [title, setCreateEvent, setStartDate, setEndDate]);
+  }, [title]);
 
   return (
-    <div className="space-y-2 sm:space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-        <div className="space-y-1">
-          <Label htmlFor="title">Full Name (required)</Label>
-          <Input
-            id="title"
-            placeholder="Full name"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            className="w-full"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <Label htmlFor="number">Phone Number</Label>
-          <Input
-            id="number"
-            type="tel"
-            placeholder="Phone number"
-            value={userNumber}
-            onChange={(e) => setUserNumber(e.target.value)}
-            className="w-full"
-          />
-        </div>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="title">Full Name (required)</Label>
+        <Input
+          id="title"
+          placeholder="Full name"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+        />
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-2">
+        <Label htmlFor="number">Phone Number</Label>
+        <Input
+          id="number"
+          type="tel"
+          placeholder="Phone number"
+          value={userNumber}
+          onChange={(e) => setUserNumber(e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="socialNetwork">Social Link or Email</Label>
         <Input
           id="socialNetwork"
-          type="text"
+          type="url"
           placeholder="Social link or email"
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
-          className="w-full"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Payment Status</Label>
+        <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+          <SelectTrigger className="w-full bg-background border-input">
+            <SelectValue placeholder="Select payment status" />
+          </SelectTrigger>
+          <SelectContent className="bg-background border-input shadow-md">
+            <SelectItem value="not_paid" className="hover:bg-muted">Not paid</SelectItem>
+            <SelectItem value="partly" className="hover:bg-muted">Paid Partly</SelectItem>
+            <SelectItem value="fully" className="hover:bg-muted">Paid Fully</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {paymentStatus && paymentStatus !== 'not_paid' && (
+        <div className="space-y-2">
+          <Label htmlFor="amount">Payment Amount</Label>
+          <Input
+            id="amount"
+            type="number"
+            step="0.01"
+            placeholder="Enter amount"
+            value={paymentAmount}
+            onChange={(e) => setPaymentAmount(e.target.value)}
+            required
+            className="bg-background border-input"
+          />
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label htmlFor="notes">Event Notes</Label>
+        <Textarea
+          id="notes"
+          placeholder="Add notes about the event"
+          value={eventNotes}
+          onChange={(e) => setEventNotes(e.target.value)}
+          className="bg-background border-input"
         />
       </div>
 
       <div className="flex items-center space-x-2">
         <Checkbox
           id="createEvent"
-          checked={createEvent}
-          onCheckedChange={(checked) => setCreateEvent(checked as boolean)}
+          checked={createEventChecked}
+          onCheckedChange={(checked) => setCreateEventChecked(checked as boolean)}
         />
-        <Label htmlFor="createEvent">Create event for this customer</Label>
+        <Label htmlFor="createEvent">Create Event</Label>
       </div>
 
-      {createEvent && (
+      {createEventChecked && (
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="startDate">Start Date</Label>
             <Input
               id="startDate"
               type="datetime-local"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required={createEvent}
-              className="w-full"
+              value={eventStartDate}
+              onChange={(e) => {
+                setEventStartDate(e.target.value);
+                setStartDate(e.target.value);
+              }}
             />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="endDate">End Date</Label>
             <Input
               id="endDate"
               type="datetime-local"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required={createEvent}
-              className="w-full"
+              value={eventEndDate}
+              onChange={(e) => {
+                setEventEndDate(e.target.value);
+                setEndDate(e.target.value);
+              }}
             />
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-        <div className="space-y-1">
-          <Label>Payment Status</Label>
-          <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select payment status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="not_paid">Not paid</SelectItem>
-              <SelectItem value="partly">Paid Partly</SelectItem>
-              <SelectItem value="fully">Paid Fully</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {paymentStatus && paymentStatus !== 'not_paid' && (
-          <div className="space-y-1">
-            <Label htmlFor="amount">Payment Amount</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              placeholder="Enter amount"
-              value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-              required
-              className="w-full"
-            />
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-1">
-        <Label htmlFor="notes">Comment</Label>
-        <Textarea
-          id="notes"
-          placeholder="Add a comment about the customer"
-          value={eventNotes || ''}
-          onChange={(e) => setEventNotes(e.target.value)}
-          className="min-h-[80px]"
-        />
-      </div>
-
-      {customerId && existingFiles && existingFiles.length > 0 && (
-        <div className="space-y-1">
-          <Label>Attachments</Label>
+      {customerId && (
+        <div className="space-y-2">
           <FileDisplay 
-            files={existingFiles} 
+            files={[]} 
             bucketName="customer_attachments"
-            allowDelete
+            allowDelete={false}
           />
         </div>
       )}
