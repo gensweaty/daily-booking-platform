@@ -7,6 +7,8 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useEffect } from "react";
+import { format } from "date-fns";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -77,6 +79,27 @@ export const CustomerDialogFields = ({
     },
     enabled: !!customerId,
   });
+
+  // Check if this customer was created from an event
+  useEffect(() => {
+    const checkEventSource = async () => {
+      if (title) {
+        const { data: existingEvent } = await supabase
+          .from('events')
+          .select('*')
+          .eq('title', title)
+          .maybeSingle();
+
+        if (existingEvent) {
+          setCreateEvent(true);
+          setStartDate(format(new Date(existingEvent.start_date), "yyyy-MM-dd'T'HH:mm"));
+          setEndDate(format(new Date(existingEvent.end_date), "yyyy-MM-dd'T'HH:mm"));
+        }
+      }
+    };
+
+    checkEventSource();
+  }, [title, setCreateEvent, setStartDate, setEndDate]);
 
   return (
     <div className="space-y-2 sm:space-y-3">

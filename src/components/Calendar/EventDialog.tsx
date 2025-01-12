@@ -45,6 +45,50 @@ export const EventDialog = ({
   const { toast } = useToast();
 
   useEffect(() => {
+    const syncExistingEvent = async () => {
+      if (event && user) {
+        // Check if customer exists for this event
+        const { data: existingCustomer } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('title', event.title)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!existingCustomer) {
+          // Create customer record for existing event
+          const { error: customerError } = await supabase
+            .from('customers')
+            .insert([{
+              title: event.title,
+              user_surname: event.user_surname,
+              user_number: event.user_number,
+              social_network_link: event.social_network_link,
+              event_notes: event.event_notes,
+              payment_status: event.payment_status,
+              payment_amount: event.payment_amount,
+              type: 'customer',
+              user_id: user.id
+            }]);
+
+          if (customerError) {
+            console.error('Error syncing customer:', customerError);
+            toast({
+              title: "Error",
+              description: "Failed to sync customer data",
+              variant: "destructive",
+            });
+          } else {
+            await queryClient.invalidateQueries({ queryKey: ['customers'] });
+          }
+        }
+      }
+    };
+
+    syncExistingEvent();
+  }, [event, user, queryClient, toast]);
+
+  useEffect(() => {
     if (event) {
       const start = new Date(event.start_date);
       const end = new Date(event.end_date);
@@ -132,11 +176,11 @@ export const EventDialog = ({
         title: "Success",
         description: event ? "Event updated successfully" : "Event and customer created successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error handling event submission:', error);
       toast({
         title: "Error",
-        description: "Failed to save event",
+        description: error.message || "Failed to save event",
         variant: "destructive",
       });
       throw error;
