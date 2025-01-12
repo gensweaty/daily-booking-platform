@@ -34,10 +34,11 @@ export const CustomerList = () => {
     queryKey: ['customers'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('customers')
+        .from('events')
         .select(`
           *,
-          customer_files_new(*)
+          customer_files(*),
+          event_files(*)
         `)
         .eq('user_id', user?.id);
       
@@ -50,7 +51,7 @@ export const CustomerList = () => {
   const handleCreateCustomer = async (customerData: any) => {
     try {
       const { data, error } = await supabase
-        .from('customers')
+        .from('events')
         .insert([{ ...customerData, user_id: user?.id }])
         .select()
         .single();
@@ -58,6 +59,7 @@ export const CustomerList = () => {
       if (error) throw error;
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
 
       toast({
         title: "Success",
@@ -78,7 +80,7 @@ export const CustomerList = () => {
   const handleUpdateCustomer = async (customerData: any) => {
     try {
       const { data, error } = await supabase
-        .from('customers')
+        .from('events')
         .update(customerData)
         .eq('id', selectedCustomer.id)
         .eq('user_id', user?.id)
@@ -88,6 +90,7 @@ export const CustomerList = () => {
       if (error) throw error;
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
 
       toast({
         title: "Success",
@@ -110,7 +113,7 @@ export const CustomerList = () => {
 
     try {
       const { error } = await supabase
-        .from('customers')
+        .from('events')
         .delete()
         .eq('id', selectedCustomer.id)
         .eq('user_id', user.id);
@@ -118,6 +121,7 @@ export const CustomerList = () => {
       if (error) throw error;
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
 
       toast({
         title: "Success",
@@ -195,14 +199,33 @@ export const CustomerList = () => {
     );
   };
 
+  const openCreateDialog = () => {
+    setSelectedCustomer(null);
+    setIsDialogOpen(true);
+  };
+
+  const openEditDialog = (customer: any) => {
+    setSelectedCustomer({
+      ...customer,
+      title: customer.title || '',
+      user_number: customer.user_number || '',
+      social_network_link: customer.social_network_link || '',
+      event_notes: customer.event_notes || '',
+      payment_status: customer.payment_status || '',
+      payment_amount: customer.payment_amount?.toString() || '',
+    });
+    setIsDialogOpen(true);
+  };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Customers</h2>
-        <Button onClick={() => {
-          setSelectedCustomer(null);
-          setIsDialogOpen(true);
-        }} className="flex items-center gap-2">
+        <Button onClick={openCreateDialog} className="flex items-center gap-2">
           <PlusCircle className="w-4 h-4" />
           Add Customer
         </Button>
@@ -216,7 +239,8 @@ export const CustomerList = () => {
               <TableHead className="w-[130px]">Phone Number</TableHead>
               <TableHead className="w-[250px]">Social Link/Email</TableHead>
               <TableHead className="w-[120px]">Payment Status</TableHead>
-              <TableHead className="w-[180px]">Comment</TableHead>
+              <TableHead className="w-[180px]">Dates</TableHead>
+              <TableHead className="w-[120px]">Comment</TableHead>
               <TableHead className="w-[180px]">Attachments</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
@@ -268,6 +292,12 @@ export const CustomerList = () => {
                   {formatPaymentStatus(customer.payment_status, customer.payment_amount)}
                 </TableCell>
                 <TableCell className="py-2">
+                  <div className="space-y-1 text-sm">
+                    <div>{formatDate(customer.start_date)}</div>
+                    <div className="text-gray-500">{formatTimeRange(customer.start_date, customer.end_date)}</div>
+                  </div>
+                </TableCell>
+                <TableCell className="py-2">
                   <div className="flex items-center gap-2">
                     <TooltipProvider>
                       <Tooltip>
@@ -294,10 +324,10 @@ export const CustomerList = () => {
                   </div>
                 </TableCell>
                 <TableCell className="py-2">
-                  {customer.customer_files_new?.length > 0 ? (
+                  {(customer.customer_files?.length > 0 || customer.event_files?.length > 0) ? (
                     <div className="max-w-[180px]">
                       <FileDisplay 
-                        files={customer.customer_files_new}
+                        files={[...(customer.customer_files || []), ...(customer.event_files || [])]}
                         bucketName="customer_attachments"
                         allowDelete={false}
                       />
@@ -309,10 +339,7 @@ export const CustomerList = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => {
-                        setSelectedCustomer(customer);
-                        setIsDialogOpen(true);
-                      }}
+                      onClick={() => openEditDialog(customer)}
                     >
                       <Pencil className="w-4 h-4" />
                     </Button>

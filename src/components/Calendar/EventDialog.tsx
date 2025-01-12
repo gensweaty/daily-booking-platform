@@ -7,8 +7,6 @@ import { Trash2 } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/components/ui/use-toast";
 
 interface EventDialogProps {
   open: boolean;
@@ -41,80 +39,6 @@ export const EventDialog = ({
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    const syncExistingEvent = async () => {
-      if (event && user) {
-        // Check if customer exists for this event
-        const { data: existingCustomer } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('title', event.title)
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (!existingCustomer) {
-          // Create customer record for existing event
-          const { error: customerError } = await supabase
-            .from('customers')
-            .insert([{
-              title: event.title,
-              user_surname: event.user_surname,
-              user_number: event.user_number,
-              social_network_link: event.social_network_link,
-              event_notes: event.event_notes,
-              payment_status: event.payment_status,
-              payment_amount: event.payment_amount,
-              type: 'customer',
-              user_id: user.id,
-              start_date: event.start_date,
-              end_date: event.end_date
-            }]);
-
-          if (customerError) {
-            console.error('Error syncing customer:', customerError);
-            toast({
-              title: "Error",
-              description: "Failed to sync customer data",
-              variant: "destructive",
-            });
-          } else {
-            await queryClient.invalidateQueries({ queryKey: ['customers'] });
-          }
-        } else {
-          // Update existing customer with latest event data
-          const { error: updateError } = await supabase
-            .from('customers')
-            .update({
-              user_surname: event.user_surname,
-              user_number: event.user_number,
-              social_network_link: event.social_network_link,
-              event_notes: event.event_notes,
-              payment_status: event.payment_status,
-              payment_amount: event.payment_amount,
-              start_date: event.start_date,
-              end_date: event.end_date
-            })
-            .eq('id', existingCustomer.id);
-
-          if (updateError) {
-            console.error('Error updating customer:', updateError);
-            toast({
-              title: "Error",
-              description: "Failed to update customer data",
-              variant: "destructive",
-            });
-          } else {
-            await queryClient.invalidateQueries({ queryKey: ['customers'] });
-          }
-        }
-      }
-    };
-
-    syncExistingEvent();
-  }, [event, user, queryClient, toast]);
 
   useEffect(() => {
     if (event) {
@@ -153,25 +77,6 @@ export const EventDialog = ({
     try {
       const createdEvent = await onSubmit(eventData);
 
-      // Create corresponding customer record
-      if (!event) { // Only create customer for new events
-        const { error: customerError } = await supabase
-          .from('customers')
-          .insert([{
-            title,
-            user_surname: userSurname,
-            user_number: userNumber,
-            social_network_link: socialNetworkLink,
-            event_notes: eventNotes,
-            payment_status: paymentStatus || null,
-            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-            type: 'customer',
-            user_id: user?.id
-          }]);
-
-        if (customerError) throw customerError;
-      }
-
       if (selectedFile && createdEvent?.id && user) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -195,22 +100,8 @@ export const EventDialog = ({
 
         if (fileRecordError) throw fileRecordError;
       }
-
-      // Invalidate both events and customers queries
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['customers'] });
-
-      toast({
-        title: "Success",
-        description: event ? "Event updated successfully" : "Event and customer created successfully",
-      });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error handling event submission:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save event",
-        variant: "destructive",
-      });
       throw error;
     }
   };
