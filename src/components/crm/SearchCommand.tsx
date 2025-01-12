@@ -16,22 +16,24 @@ interface SearchCommandProps {
 }
 
 export function SearchCommand({ data, onSelect, setFilteredData }: SearchCommandProps) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
+
   const handleSearch = React.useCallback((search: string) => {
+    setSearchQuery(search);
     if (!search) {
-      setFilteredData(data)
-      return
+      setFilteredData(data);
+      setIsOpen(false);
+      return;
     }
 
-    const searchLower = search.toLowerCase()
+    setIsOpen(true);
+    const searchLower = search.toLowerCase();
     const filtered = data.filter((item) => {
       return (
-        // Search by title (full name)
         item.title?.toLowerCase().includes(searchLower) ||
-        // Search by phone number
         item.user_number?.toLowerCase().includes(searchLower) ||
-        // Search by social link/email
         item.social_network_link?.toLowerCase().includes(searchLower) ||
-        // Search by comment/notes
         item.event_notes?.toLowerCase().includes(searchLower)
       )
     })
@@ -39,37 +41,43 @@ export function SearchCommand({ data, onSelect, setFilteredData }: SearchCommand
   }, [data, setFilteredData])
 
   return (
-    <Command className="rounded-lg border shadow-md">
-      <div className="flex items-center border-b px-3">
-        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+    <Command className="w-[200px] rounded-lg border">
+      <div className="flex items-center px-2">
+        <Search className="mr-1 h-4 w-4 shrink-0 opacity-50" />
         <CommandInput
-          placeholder="Search customers..."
-          className="h-11 border-0 focus:ring-0"
+          placeholder="Search..."
+          className="h-9 border-0 focus:ring-0 px-0"
           onValueChange={handleSearch}
         />
       </div>
-      <CommandList className="max-h-[300px]">
-        <CommandEmpty>No results found.</CommandEmpty>
-        <CommandGroup>
-          {data.map((item) => (
-            <CommandItem
-              key={item.id}
-              value={item.title}
-              onSelect={() => onSelect(item)}
-              className="cursor-pointer"
-            >
-              <div className="flex flex-col">
-                <span>{item.title}</span>
-                {item.user_number && (
-                  <span className="text-sm text-muted-foreground">
-                    {item.user_number}
-                  </span>
-                )}
-              </div>
-            </CommandItem>
-          ))}
-        </CommandGroup>
-      </CommandList>
+      {isOpen && searchQuery && (
+        <CommandList className="absolute w-[200px] mt-1 bg-white rounded-lg border shadow-md max-h-[300px] z-50">
+          <CommandEmpty>No results found.</CommandEmpty>
+          <CommandGroup>
+            {data.map((item) => (
+              <CommandItem
+                key={item.id}
+                value={item.title}
+                onSelect={() => {
+                  onSelect(item);
+                  setIsOpen(false);
+                  setSearchQuery("");
+                }}
+                className="cursor-pointer"
+              >
+                <div className="flex flex-col">
+                  <span>{item.title}</span>
+                  {item.user_number && (
+                    <span className="text-sm text-muted-foreground">
+                      {item.user_number}
+                    </span>
+                  )}
+                </div>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      )}
     </Command>
   )
 }

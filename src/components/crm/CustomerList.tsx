@@ -271,20 +271,19 @@ export const CustomerList = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-4">
         <h2 className="text-2xl font-bold">Customers</h2>
-        <Button onClick={openCreateDialog} className="flex items-center gap-2">
-          <PlusCircle className="w-4 h-4" />
-          Add Customer
-        </Button>
-      </div>
-
-      <div className="mb-4">
-        <SearchCommand
-          data={combinedData}
-          onSelect={handleSearchSelect}
-          setFilteredData={setFilteredData}
-        />
+        <div className="flex items-center gap-4">
+          <SearchCommand
+            data={combinedData}
+            onSelect={handleSearchSelect}
+            setFilteredData={setFilteredData}
+          />
+          <Button onClick={openCreateDialog} className="flex items-center gap-2">
+            <PlusCircle className="w-4 h-4" />
+            Add Customer
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-md border">
