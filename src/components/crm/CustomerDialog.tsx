@@ -63,11 +63,37 @@ export const CustomerDialog = ({
         event_notes: eventNotes,
         payment_status: paymentStatus || null,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-        type: 'customer'
+        type: 'customer',
+        user_id: user?.id
       };
 
+      // Create or update customer
       const createdCustomer = await onSubmit(customerData);
 
+      // If createEvent is checked, create an event
+      if (createEvent && startDate && endDate) {
+        const { data: eventData, error: eventError } = await supabase
+          .from('events')
+          .insert([{
+            title,
+            user_surname: userSurname,
+            user_number: userNumber,
+            social_network_link: socialNetworkLink,
+            event_notes: eventNotes,
+            start_date: startDate,
+            end_date: endDate,
+            payment_status: paymentStatus || null,
+            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+            type: 'private_party',
+            user_id: user?.id
+          }])
+          .select()
+          .single();
+
+        if (eventError) throw eventError;
+      }
+
+      // Handle file upload if there's a file
       if (selectedFile && createdCustomer?.id && user) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -93,7 +119,13 @@ export const CustomerDialog = ({
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
       onOpenChange(false);
+      
+      toast({
+        title: "Success",
+        description: customer ? "Customer updated successfully" : "Customer created successfully",
+      });
     } catch (error: any) {
       console.error('Error handling customer submission:', error);
       toast({
