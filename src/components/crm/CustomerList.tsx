@@ -75,7 +75,10 @@ export const CustomerList = () => {
     enabled: !!user,
   });
 
+  // Move combinedData calculation into useMemo
   const combinedData = React.useMemo(() => {
+    if (isLoadingCustomers || isLoadingEvents) return [];
+    
     const combined = [...customers];
     events.forEach(event => {
       const existingCustomer = customers.find(
@@ -94,8 +97,16 @@ export const CustomerList = () => {
       }
     });
     return combined;
-  }, [customers, events]);
+  }, [customers, events, isLoadingCustomers, isLoadingEvents]);
 
+  // Move paginatedData calculation into useMemo
+  const paginatedData = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredData.slice(startIndex, endIndex);
+  }, [filteredData, currentPage, pageSize]);
+
+  // Initialize filteredData with combinedData when it changes
   React.useEffect(() => {
     setFilteredData(combinedData);
   }, [combinedData]);
@@ -274,22 +285,16 @@ export const CustomerList = () => {
     setIsDialogOpen(true);
   };
 
-  if (isLoadingCustomers || isLoadingEvents) {
-    return <div>Loading...</div>;
-  }
-
-  const paginatedData = React.useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return filteredData.slice(startIndex, endIndex);
-  }, [filteredData, currentPage, pageSize]);
-
   const totalPages = Math.ceil(filteredData.length / pageSize);
 
   const handlePageSizeChange = (value: string) => {
     setPageSize(Number(value));
-    setCurrentPage(1); // Reset to first page when changing page size
+    setCurrentPage(1);
   };
+
+  if (isLoadingCustomers || isLoadingEvents) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="space-y-4">
