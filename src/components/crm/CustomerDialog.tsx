@@ -52,7 +52,6 @@ export const CustomerDialog = ({
       setEventNotes(data?.event_notes || "");
       setPaymentStatus(data?.payment_status || "");
       setPaymentAmount(data?.payment_amount?.toString() || "");
-      // Only set createEvent to true if there are valid dates
       setCreateEvent(!!data?.start_date && !!data?.end_date);
     }
   }, [customer, event]);
@@ -84,9 +83,6 @@ export const CustomerDialog = ({
     
     try {
       let createdCustomer = null;
-      const currentDate = new Date();
-      const nextHour = new Date(currentDate);
-      nextHour.setHours(currentDate.getHours() + 1);
       
       const baseData = {
         title,
@@ -98,9 +94,11 @@ export const CustomerDialog = ({
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         user_id: user?.id,
         type: 'customer',
-        // Always include start_date and end_date, but only use selected dates if createEvent is true
-        start_date: createEvent ? new Date(startDate).toISOString() : currentDate.toISOString(),
-        end_date: createEvent ? new Date(endDate).toISOString() : nextHour.toISOString()
+        // Only include dates if createEvent is true
+        ...(createEvent ? {
+          start_date: new Date(startDate).toISOString(),
+          end_date: new Date(endDate).toISOString()
+        } : {})
       };
       
       if (customer?.id) {
