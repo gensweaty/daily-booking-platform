@@ -62,21 +62,42 @@ export const EventDialogFields = ({
 }: EventDialogFieldsProps) => {
   const queryClient = useQueryClient();
   
-  // Only fetch files if we have an eventId (editing mode)
-  const { data: existingFiles = [] } = useQuery({
+  // Fetch files from both event_files and customer_files_new tables
+  const { data: allFiles = [] } = useQuery({
     queryKey: ['eventFiles', eventId],
     queryFn: async () => {
       if (!eventId) return [];
       
-      const { data, error } = await supabase
+      // First get event files
+      const { data: eventFiles, error: eventFilesError } = await supabase
         .from('event_files')
         .select('*')
         .eq('event_id', eventId);
       
-      if (error) throw error;
-      return data || [];
+      if (eventFilesError) throw eventFilesError;
+
+      // Then get customer files
+      const { data: event } = await supabase
+        .from('events')
+        .select('title')
+        .eq('id', eventId)
+        .single();
+
+      if (event?.title) {
+        const { data: customerFiles, error: customerFilesError } = await supabase
+          .from('customer_files_new')
+          .select('*')
+          .eq('customer_id', eventId);
+
+        if (customerFilesError) throw customerFilesError;
+        
+        // Combine both sets of files
+        return [...(eventFiles || []), ...(customerFiles || [])];
+      }
+      
+      return eventFiles || [];
     },
-    enabled: !!eventId, // Only run query if eventId exists
+    enabled: !!eventId,
   });
 
   const handleFileDeleted = async (fileId: string) => {
@@ -179,10 +200,10 @@ export const EventDialogFields = ({
         />
       </div>
 
-      {eventId && existingFiles && existingFiles.length > 0 && (
+      {eventId && allFiles && allFiles.length > 0 && (
         <div className="space-y-2">
           <FileDisplay 
-            files={existingFiles} 
+            files={allFiles} 
             bucketName="event_attachments"
             allowDelete
             onFileDeleted={handleFileDeleted}
