@@ -67,23 +67,26 @@ export const CustomerList = () => {
   });
 
   // Combine and deduplicate customers and events
-  const combinedData = [...customers];
-  events.forEach(event => {
-    const existingCustomer = customers.find(
-      customer => 
-        customer.title === event.title &&
-        customer.start_date === event.start_date &&
-        customer.end_date === event.end_date
-    );
-    
-    if (!existingCustomer) {
-      combinedData.push({
-        ...event,
-        id: `event-${event.id}`,
-        customer_files_new: event.event_files
-      });
-    }
-  });
+  const combinedData = React.useMemo(() => {
+    const combined = [...customers];
+    events.forEach(event => {
+      const existingCustomer = customers.find(
+        customer => 
+          customer.title === event.title &&
+          customer.start_date === event.start_date &&
+          customer.end_date === event.end_date
+      );
+      
+      if (!existingCustomer) {
+        combined.push({
+          ...event,
+          id: `event-${event.id}`,
+          customer_files_new: event.event_files
+        });
+      }
+    });
+    return combined;
+  }, [customers, events]);
 
   // Initialize filteredData with combinedData when it changes
   React.useEffect(() => {

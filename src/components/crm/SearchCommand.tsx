@@ -11,24 +11,26 @@ interface SearchCommandProps {
   setFilteredData: (data: any[]) => void
 }
 
-export function SearchCommand({ data, onSelect, setFilteredData }: SearchCommandProps) {
+export function SearchCommand({ data, setFilteredData }: SearchCommandProps) {
   const handleSearch = React.useCallback((search: string) => {
     if (!search) {
-      setFilteredData(data)
-      return
+      setFilteredData(data);
+      return;
     }
 
-    const searchLower = search.toLowerCase()
+    const searchLower = search.toLowerCase();
     const filtered = data.filter((item) => {
       return (
         item.title?.toLowerCase().includes(searchLower) ||
         item.user_number?.toLowerCase().includes(searchLower) ||
         item.social_network_link?.toLowerCase().includes(searchLower) ||
-        item.event_notes?.toLowerCase().includes(searchLower)
-      )
-    })
-    setFilteredData(filtered)
-  }, [data, setFilteredData])
+        item.event_notes?.toLowerCase().includes(searchLower) ||
+        item.payment_status?.toLowerCase().includes(searchLower)
+      );
+    });
+    
+    setFilteredData(filtered);
+  }, [data, setFilteredData]);
 
   return (
     <Command className="w-[200px] rounded-lg border">
@@ -41,5 +43,5 @@ export function SearchCommand({ data, onSelect, setFilteredData }: SearchCommand
         />
       </div>
     </Command>
-  )
+  );
 }
