@@ -34,11 +34,10 @@ export const CustomerList = () => {
     queryKey: ['customers'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('events')
+        .from('customers')
         .select(`
           *,
-          customer_files(*),
-          event_files(*)
+          customer_files_new(*)
         `)
         .eq('user_id', user?.id);
       
@@ -51,7 +50,7 @@ export const CustomerList = () => {
   const handleCreateCustomer = async (customerData: any) => {
     try {
       const { data, error } = await supabase
-        .from('events')
+        .from('customers')
         .insert([{ ...customerData, user_id: user?.id }])
         .select()
         .single();
@@ -59,7 +58,6 @@ export const CustomerList = () => {
       if (error) throw error;
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
 
       toast({
         title: "Success",
@@ -80,7 +78,7 @@ export const CustomerList = () => {
   const handleUpdateCustomer = async (customerData: any) => {
     try {
       const { data, error } = await supabase
-        .from('events')
+        .from('customers')
         .update(customerData)
         .eq('id', selectedCustomer.id)
         .eq('user_id', user?.id)
@@ -90,7 +88,6 @@ export const CustomerList = () => {
       if (error) throw error;
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
 
       toast({
         title: "Success",
@@ -113,7 +110,7 @@ export const CustomerList = () => {
 
     try {
       const { error } = await supabase
-        .from('events')
+        .from('customers')
         .delete()
         .eq('id', selectedCustomer.id)
         .eq('user_id', user.id);
@@ -121,7 +118,6 @@ export const CustomerList = () => {
       if (error) throw error;
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
 
       toast({
         title: "Success",
@@ -324,10 +320,10 @@ export const CustomerList = () => {
                   </div>
                 </TableCell>
                 <TableCell className="py-2">
-                  {(customer.customer_files?.length > 0 || customer.event_files?.length > 0) ? (
+                  {customer.customer_files_new?.length > 0 ? (
                     <div className="max-w-[180px]">
                       <FileDisplay 
-                        files={[...(customer.customer_files || []), ...(customer.event_files || [])]}
+                        files={customer.customer_files_new}
                         bucketName="customer_attachments"
                         allowDelete={false}
                       />
