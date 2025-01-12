@@ -70,7 +70,7 @@ export const CustomerDialogFields = ({
     queryFn: async () => {
       if (!customerId) return [];
       const { data, error } = await supabase
-        .from('customer_files')
+        .from('customer_files_new')
         .select('*')
         .eq('customer_id', customerId);
       
@@ -80,7 +80,7 @@ export const CustomerDialogFields = ({
     enabled: !!customerId,
   });
 
-  // Check if this customer was created from an event
+  // Check if this customer was created from an event and sync event times
   useEffect(() => {
     const checkEventSource = async () => {
       if (title) {

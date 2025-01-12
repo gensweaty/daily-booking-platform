@@ -68,7 +68,9 @@ export const EventDialog = ({
               payment_status: event.payment_status,
               payment_amount: event.payment_amount,
               type: 'customer',
-              user_id: user.id
+              user_id: user.id,
+              start_date: event.start_date,
+              end_date: event.end_date
             }]);
 
           if (customerError) {
@@ -76,6 +78,32 @@ export const EventDialog = ({
             toast({
               title: "Error",
               description: "Failed to sync customer data",
+              variant: "destructive",
+            });
+          } else {
+            await queryClient.invalidateQueries({ queryKey: ['customers'] });
+          }
+        } else {
+          // Update existing customer with latest event data
+          const { error: updateError } = await supabase
+            .from('customers')
+            .update({
+              user_surname: event.user_surname,
+              user_number: event.user_number,
+              social_network_link: event.social_network_link,
+              event_notes: event.event_notes,
+              payment_status: event.payment_status,
+              payment_amount: event.payment_amount,
+              start_date: event.start_date,
+              end_date: event.end_date
+            })
+            .eq('id', existingCustomer.id);
+
+          if (updateError) {
+            console.error('Error updating customer:', updateError);
+            toast({
+              title: "Error",
+              description: "Failed to update customer data",
               variant: "destructive",
             });
           } else {
