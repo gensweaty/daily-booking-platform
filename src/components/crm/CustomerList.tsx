@@ -18,6 +18,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -30,6 +37,8 @@ export const CustomerList = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [filteredData, setFilteredData] = useState<any[]>([]);
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
   const queryClient = useQueryClient();
 
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
@@ -66,7 +75,6 @@ export const CustomerList = () => {
     enabled: !!user,
   });
 
-  // Combine and deduplicate customers and events
   const combinedData = React.useMemo(() => {
     const combined = [...customers];
     events.forEach(event => {
@@ -88,7 +96,6 @@ export const CustomerList = () => {
     return combined;
   }, [customers, events]);
 
-  // Initialize filteredData with combinedData when it changes
   React.useEffect(() => {
     setFilteredData(combinedData);
   }, [combinedData]);
@@ -251,7 +258,6 @@ export const CustomerList = () => {
   };
 
   const openEditDialog = (customer: any) => {
-    // If it's an event converted to customer format, remove the prefix
     const originalData = customer.id.startsWith('event-') 
       ? events.find(e => `event-${e.id}` === customer.id)
       : customer;
@@ -272,6 +278,19 @@ export const CustomerList = () => {
     return <div>Loading...</div>;
   }
 
+  const paginatedData = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredData.slice(startIndex, endIndex);
+  }, [filteredData, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filteredData.length / pageSize);
+
+  const handlePageSizeChange = (value: string) => {
+    setPageSize(Number(value));
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center gap-4">
@@ -279,7 +298,6 @@ export const CustomerList = () => {
         <div className="flex items-center gap-4">
           <SearchCommand
             data={combinedData}
-            onSelect={handleSearchSelect}
             setFilteredData={setFilteredData}
           />
           <Button onClick={openCreateDialog} className="flex items-center gap-2">
@@ -304,7 +322,7 @@ export const CustomerList = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredData.map((customer: any) => (
+            {paginatedData.map((customer: any) => (
               <TableRow key={customer.id} className="h-14">
                 <TableCell className="py-2">{customer.title}</TableCell>
                 <TableCell className="py-2">
@@ -417,6 +435,30 @@ export const CustomerList = () => {
             ))}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="flex justify-end items-center gap-4 mt-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Rows per page:</span>
+          <Select
+            value={pageSize.toString()}
+            onValueChange={handlePageSizeChange}
+          >
+            <SelectTrigger className="w-[100px]">
+              <SelectValue placeholder="10" />
+            </SelectTrigger>
+            <SelectContent>
+              {[10, 20, 50, 100, 500, 1000].map((size) => (
+                <SelectItem key={size} value={size.toString()}>
+                  {size}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, filteredData.length)} of {filteredData.length}
+        </div>
       </div>
 
       <CustomerDialog
