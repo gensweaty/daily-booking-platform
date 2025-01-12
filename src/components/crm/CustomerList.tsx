@@ -316,7 +316,7 @@ export const CustomerList = () => {
       <div className="flex justify-between items-center">
         <div className="flex-1 flex items-center gap-8">
           <h2 className="text-2xl font-bold flex-1">Customers</h2>
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-center mt-[2px]">
             <DateRangeSelect 
               selectedDate={dateRange}
               onDateChange={(start, end) => setDateRange({ start, end: end || start })}
@@ -365,10 +365,10 @@ export const CustomerList = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-4 w-4 p-0"
                         onClick={() => handleCopyText(customer.title)}
                       >
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-2 w-2" />
                       </Button>
                     )}
                   </div>
@@ -385,10 +385,10 @@ export const CustomerList = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-4 w-4 p-0"
                           onClick={() => handleCopyText(customer.user_number)}
                         >
-                          <Copy className="h-4 w-4" />
+                          <Copy className="h-2 w-2" />
                         </Button>
                       )}
                     </div>
@@ -414,10 +414,10 @@ export const CustomerList = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-4 w-4 p-0"
                         onClick={() => handleCopyText(customer.social_network_link)}
                       >
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-2 w-2" />
                       </Button>
                     )}
                   </div>
@@ -453,10 +453,10 @@ export const CustomerList = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-4 w-4 p-0"
                         onClick={() => handleCopyText(customer.event_notes)}
                       >
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-2 w-2" />
                       </Button>
                     )}
                   </div>
