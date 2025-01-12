@@ -47,7 +47,6 @@ export const CustomerList = () => {
     end: endOfMonth(currentDate)
   });
 
-  // Add hover states for copyable fields
   const [hoveredPhone, setHoveredPhone] = useState<string | null>(null);
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const [hoveredNote, setHoveredNote] = useState<string | null>(null);
@@ -315,8 +314,8 @@ export const CustomerList = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div className="flex-1 flex items-center gap-8">
-          <h2 className="text-2xl font-bold flex-1">Customers</h2>
-          <div className="flex items-center justify-center">
+          <h2 className="text-2xl font-bold">Customers</h2>
+          <div className="flex items-center justify-center mt-1">
             <DateRangeSelect 
               selectedDate={dateRange}
               onDateChange={(start, end) => setDateRange({ start, end: end || start })}
@@ -365,10 +364,10 @@ export const CustomerList = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-6 w-6 p-0"
                         onClick={() => handleCopyText(customer.title)}
                       >
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-3 w-3" />
                       </Button>
                     )}
                   </div>
@@ -385,10 +384,10 @@ export const CustomerList = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-6 w-6 p-0"
                           onClick={() => handleCopyText(customer.user_number)}
                         >
-                          <Copy className="h-4 w-4" />
+                          <Copy className="h-3 w-3" />
                         </Button>
                       )}
                     </div>
@@ -414,10 +413,10 @@ export const CustomerList = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-6 w-6 p-0"
                         onClick={() => handleCopyText(customer.social_network_link)}
                       >
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-3 w-3" />
                       </Button>
                     )}
                   </div>
@@ -453,10 +452,10 @@ export const CustomerList = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-6 w-6 p-0"
                         onClick={() => handleCopyText(customer.event_notes)}
                       >
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-3 w-3" />
                       </Button>
                     )}
                   </div>
