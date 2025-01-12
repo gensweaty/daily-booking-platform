@@ -444,15 +444,15 @@ export const CustomerList = () => {
 
       <div className="flex justify-end items-center gap-4 mt-4">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Rows per page:</span>
+          <span className="text-sm text-muted-foreground">Customers per page:</span>
           <Select
             value={pageSize.toString()}
             onValueChange={handlePageSizeChange}
           >
-            <SelectTrigger className="w-[100px]">
+            <SelectTrigger className="w-[100px] bg-background">
               <SelectValue placeholder="10" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-background">
               {[10, 20, 50, 100, 500, 1000].map((size) => (
                 <SelectItem key={size} value={size.toString()}>
                   {size}
@@ -462,7 +462,7 @@ export const CustomerList = () => {
           </Select>
         </div>
         <div className="text-sm text-muted-foreground">
-          {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, filteredData.length)} of {filteredData.length}
+          {Math.min((currentPage - 1) * pageSize + 1, filteredData.length)}-{Math.min(currentPage * pageSize, filteredData.length)} of {filteredData.length}
         </div>
       </div>
 
