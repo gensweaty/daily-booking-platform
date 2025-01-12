@@ -83,10 +83,6 @@ export const CustomerDialog = ({
     
     try {
       let createdCustomer = null;
-      const currentDate = new Date();
-      const nextHour = new Date(currentDate);
-      nextHour.setHours(currentDate.getHours() + 1);
-      
       const baseData = {
         title,
         user_surname: userSurname,
@@ -97,10 +93,13 @@ export const CustomerDialog = ({
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         user_id: user?.id,
         type: 'customer',
-        // Always include start_date and end_date
-        start_date: createEvent ? new Date(startDate).toISOString() : currentDate.toISOString(),
-        end_date: createEvent ? new Date(endDate).toISOString() : nextHour.toISOString()
       };
+
+      // Only add dates if createEvent is true
+      if (createEvent) {
+        baseData['start_date'] = new Date(startDate).toISOString();
+        baseData['end_date'] = new Date(endDate).toISOString();
+      }
       
       if (customer?.id) {
         const { data, error } = await supabase
