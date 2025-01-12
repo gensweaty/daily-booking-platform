@@ -51,6 +51,7 @@ export const CustomerList = () => {
   const [hoveredPhone, setHoveredPhone] = useState<string | null>(null);
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const [hoveredNote, setHoveredNote] = useState<string | null>(null);
+  const [hoveredName, setHoveredName] = useState<string | null>(null);
 
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
     queryKey: ['customers', dateRange],
@@ -313,7 +314,13 @@ export const CustomerList = () => {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center gap-4">
-        <h2 className="text-2xl font-bold">Customers</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-bold">Customers</h2>
+          <DateRangeSelect 
+            selectedDate={dateRange}
+            onDateChange={(start, end) => setDateRange({ start, end: end || start })}
+          />
+        </div>
         <div className="flex items-center gap-4">
           <SearchCommand
             data={combinedData}
@@ -325,11 +332,6 @@ export const CustomerList = () => {
           </Button>
         </div>
       </div>
-
-      <DateRangeSelect 
-        selectedDate={dateRange}
-        onDateChange={(start, end) => setDateRange({ start, end: end || start })}
-      />
 
       <div className="rounded-md border">
         <Table>
@@ -348,7 +350,25 @@ export const CustomerList = () => {
           <TableBody>
             {paginatedData.map((customer: any) => (
               <TableRow key={customer.id} className="h-14">
-                <TableCell className="py-2">{customer.title}</TableCell>
+                <TableCell className="py-2">
+                  <div 
+                    className="flex items-center gap-2"
+                    onMouseEnter={() => setHoveredName(customer.id)}
+                    onMouseLeave={() => setHoveredName(null)}
+                  >
+                    <span>{customer.title}</span>
+                    {hoveredName === customer.id && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleCopyText(customer.title)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="py-2">
                   {customer.user_number ? (
                     <div 
