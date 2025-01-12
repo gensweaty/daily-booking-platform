@@ -50,6 +50,89 @@ export type Database = {
           },
         ]
       }
+      customer_files_new: {
+        Row: {
+          content_type: string | null
+          created_at: string | null
+          customer_id: string | null
+          file_path: string
+          filename: string
+          id: string
+          size: number | null
+          user_id: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          file_path: string
+          filename: string
+          id?: string
+          size?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          file_path?: string
+          filename?: string
+          id?: string
+          size?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_files_new_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          created_at: string | null
+          event_notes: string | null
+          id: string
+          payment_amount: number | null
+          payment_status: string | null
+          social_network_link: string | null
+          title: string
+          type: string | null
+          user_id: string | null
+          user_number: string | null
+          user_surname: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_notes?: string | null
+          id?: string
+          payment_amount?: number | null
+          payment_status?: string | null
+          social_network_link?: string | null
+          title: string
+          type?: string | null
+          user_id?: string | null
+          user_number?: string | null
+          user_surname?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_notes?: string | null
+          id?: string
+          payment_amount?: number | null
+          payment_status?: string | null
+          social_network_link?: string | null
+          title?: string
+          type?: string | null
+          user_id?: string | null
+          user_number?: string | null
+          user_surname?: string | null
+        }
+        Relationships: []
+      }
       event_files: {
         Row: {
           content_type: string | null

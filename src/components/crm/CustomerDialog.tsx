@@ -7,7 +7,6 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
 
 interface CustomerDialogProps {
   open: boolean;
@@ -15,7 +14,6 @@ interface CustomerDialogProps {
   onSubmit: (data: any) => Promise<any>;
   onDelete?: () => void;
   customer?: any;
-  event?: any;
 }
 
 export const CustomerDialog = ({
@@ -24,66 +22,37 @@ export const CustomerDialog = ({
   onSubmit,
   onDelete,
   customer,
-  event,
 }: CustomerDialogProps) => {
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
   const [userNumber, setUserNumber] = useState("");
   const [socialNetworkLink, setSocialNetworkLink] = useState("");
   const [eventNotes, setEventNotes] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
-  const [createEvent, setCreateEvent] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (customer || event) {
-      const data = customer || event;
-      setTitle(data?.title || "");
-      setUserSurname(data?.user_surname || "");
-      setUserNumber(data?.user_number || "");
-      setSocialNetworkLink(data?.social_network_link || "");
-      setEventNotes(data?.event_notes || "");
-      setPaymentStatus(data?.payment_status || "");
-      setPaymentAmount(data?.payment_amount?.toString() || "");
-      setCreateEvent(!!data?.start_date);
+    if (customer) {
+      setTitle(customer?.title || "");
+      setUserSurname(customer?.user_surname || "");
+      setUserNumber(customer?.user_number || "");
+      setSocialNetworkLink(customer?.social_network_link || "");
+      setEventNotes(customer?.event_notes || "");
+      setPaymentStatus(customer?.payment_status || "");
+      setPaymentAmount(customer?.payment_amount?.toString() || "");
     }
-  }, [customer, event]);
-
-  useEffect(() => {
-    if (event) {
-      const start = new Date(event.start_date);
-      const end = new Date(event.end_date);
-      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-      setCreateEvent(true);
-    } else if (customer?.start_date) {
-      const start = new Date(customer.start_date);
-      const end = new Date(customer.end_date);
-      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-      setCreateEvent(true);
-    } else {
-      const start = new Date();
-      const end = new Date();
-      end.setHours(start.getHours() + 1);
-      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-    }
-  }, [event, customer]);
+  }, [customer]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
-      let createdCustomer = null;
-      const baseData = {
+      const customerData = {
         title,
         user_surname: userSurname,
         user_number: userNumber,
@@ -91,38 +60,11 @@ export const CustomerDialog = ({
         event_notes: eventNotes,
         payment_status: paymentStatus || null,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-        user_id: user?.id,
-        type: 'customer',
+        type: 'customer'
       };
 
-      // Only add dates if createEvent is true
-      if (createEvent) {
-        baseData['start_date'] = new Date(startDate).toISOString();
-        baseData['end_date'] = new Date(endDate).toISOString();
-      }
-      
-      if (customer?.id) {
-        const { data, error } = await supabase
-          .from('events')
-          .update(baseData)
-          .eq('id', customer.id)
-          .select()
-          .single();
-          
-        if (error) throw error;
-        createdCustomer = data;
-      } else {
-        const { data, error } = await supabase
-          .from('events')
-          .insert([baseData])
-          .select()
-          .single();
-          
-        if (error) throw error;
-        createdCustomer = data;
-      }
+      const createdCustomer = await onSubmit(customerData);
 
-      // Handle file upload if a file is selected
       if (selectedFile && createdCustomer?.id && user) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -134,7 +76,7 @@ export const CustomerDialog = ({
         if (uploadError) throw uploadError;
 
         const { error: fileRecordError } = await supabase
-          .from('customer_files')
+          .from('customer_files_new')
           .insert({
             customer_id: createdCustomer.id,
             filename: selectedFile.name,
@@ -148,19 +90,12 @@ export const CustomerDialog = ({
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-      
-      toast({
-        title: "Success",
-        description: customer ? "Customer updated successfully" : "Customer created successfully",
-      });
-      
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error handling customer submission:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to save customer. Please try again.",
+        description: error.message || "Failed to save customer",
         variant: "destructive",
       });
     }
@@ -182,10 +117,6 @@ export const CustomerDialog = ({
             setSocialNetworkLink={setSocialNetworkLink}
             eventNotes={eventNotes}
             setEventNotes={setEventNotes}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
             paymentStatus={paymentStatus}
             setPaymentStatus={setPaymentStatus}
             paymentAmount={paymentAmount}
@@ -195,8 +126,6 @@ export const CustomerDialog = ({
             fileError={fileError}
             setFileError={setFileError}
             customerId={customer?.id}
-            createEvent={createEvent}
-            setCreateEvent={setCreateEvent}
           />
           
           <div className="flex justify-between gap-4">
