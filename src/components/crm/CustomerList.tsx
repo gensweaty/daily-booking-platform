@@ -47,6 +47,11 @@ export const CustomerList = () => {
     end: endOfMonth(currentDate)
   });
 
+  // Add hover states for copyable fields
+  const [hoveredPhone, setHoveredPhone] = useState<string | null>(null);
+  const [hoveredLink, setHoveredLink] = useState<string | null>(null);
+  const [hoveredNote, setHoveredNote] = useState<string | null>(null);
+
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
     queryKey: ['customers', dateRange],
     queryFn: async () => {
@@ -346,21 +351,31 @@ export const CustomerList = () => {
                 <TableCell className="py-2">{customer.title}</TableCell>
                 <TableCell className="py-2">
                   {customer.user_number ? (
-                    <div className="flex items-center gap-2">
+                    <div 
+                      className="flex items-center gap-2"
+                      onMouseEnter={() => setHoveredPhone(customer.id)}
+                      onMouseLeave={() => setHoveredPhone(null)}
+                    >
                       <span>{customer.user_number}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleCopyText(customer.user_number)}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
+                      {hoveredPhone === customer.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleCopyText(customer.user_number)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   ) : '-'}
                 </TableCell>
                 <TableCell className="py-2">
-                  <div className="flex items-center gap-2">
+                  <div 
+                    className="flex items-center gap-2"
+                    onMouseEnter={() => setHoveredLink(customer.id)}
+                    onMouseLeave={() => setHoveredLink(null)}
+                  >
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger className="text-left">
@@ -371,7 +386,7 @@ export const CustomerList = () => {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    {customer.social_network_link && (
+                    {customer.social_network_link && hoveredLink === customer.id && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -393,7 +408,11 @@ export const CustomerList = () => {
                   </div>
                 </TableCell>
                 <TableCell className="py-2">
-                  <div className="flex items-center gap-2">
+                  <div 
+                    className="flex items-center gap-2"
+                    onMouseEnter={() => setHoveredNote(customer.id)}
+                    onMouseLeave={() => setHoveredNote(null)}
+                  >
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger className="text-left">
@@ -406,7 +425,7 @@ export const CustomerList = () => {
                         )}
                       </Tooltip>
                     </TooltipProvider>
-                    {customer.event_notes && (
+                    {customer.event_notes && hoveredNote === customer.id && (
                       <Button
                         variant="ghost"
                         size="icon"
