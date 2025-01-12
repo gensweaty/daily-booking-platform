@@ -52,7 +52,8 @@ export const CustomerDialog = ({
       setEventNotes(data?.event_notes || "");
       setPaymentStatus(data?.payment_status || "");
       setPaymentAmount(data?.payment_amount?.toString() || "");
-      setCreateEvent(!!data?.start_date);
+      // Only set createEvent to true if there are valid dates
+      setCreateEvent(!!data?.start_date && !!data?.end_date);
     }
   }, [customer, event]);
 
@@ -63,7 +64,7 @@ export const CustomerDialog = ({
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
       setCreateEvent(true);
-    } else if (customer?.start_date) {
+    } else if (customer?.start_date && customer?.end_date) {
       const start = new Date(customer.start_date);
       const end = new Date(customer.end_date);
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
@@ -97,9 +98,11 @@ export const CustomerDialog = ({
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         user_id: user?.id,
         type: 'customer',
-        // Always include start_date and end_date
-        start_date: createEvent ? new Date(startDate).toISOString() : currentDate.toISOString(),
-        end_date: createEvent ? new Date(endDate).toISOString() : nextHour.toISOString()
+        // Only include start_date and end_date if createEvent is true
+        ...(createEvent && {
+          start_date: new Date(startDate).toISOString(),
+          end_date: new Date(endDate).toISOString()
+        })
       };
       
       if (customer?.id) {
@@ -123,7 +126,6 @@ export const CustomerDialog = ({
         createdCustomer = data;
       }
 
-      // Handle file upload if a file is selected
       if (selectedFile && createdCustomer?.id && user) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -177,7 +179,7 @@ export const CustomerDialog = ({
             setTitle={setTitle}
             userSurname={userSurname}
             setUserSurname={setUserSurname}
-            userNumber={userNumber}
+            userNumber={setUserNumber}
             setUserNumber={setUserNumber}
             socialNetworkLink={socialNetworkLink}
             setSocialNetworkLink={setSocialNetworkLink}
