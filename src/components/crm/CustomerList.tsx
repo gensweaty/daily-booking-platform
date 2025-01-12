@@ -1,9 +1,9 @@
+import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Pencil, Trash2, Copy } from "lucide-react";
-import { useState } from "react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
