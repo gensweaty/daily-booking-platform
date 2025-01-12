@@ -8,6 +8,7 @@ import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { FileDisplay } from "@/components/shared/FileDisplay";
+import { SearchCommand } from "./SearchCommand";
 import {
   Table,
   TableBody,
@@ -28,9 +29,9 @@ export const CustomerList = () => {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [filteredData, setFilteredData] = useState<any[]>([]);
   const queryClient = useQueryClient();
 
-  // Fetch both customers and events
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
@@ -68,7 +69,6 @@ export const CustomerList = () => {
   // Combine and deduplicate customers and events
   const combinedData = [...customers];
   events.forEach(event => {
-    // Check if there's already a customer with matching details
     const existingCustomer = customers.find(
       customer => 
         customer.title === event.title &&
@@ -77,14 +77,18 @@ export const CustomerList = () => {
     );
     
     if (!existingCustomer) {
-      // Add the event as a customer entry
       combinedData.push({
         ...event,
-        id: `event-${event.id}`, // Prefix to distinguish from customer IDs
-        customer_files_new: event.event_files // Map event files to customer files format
+        id: `event-${event.id}`,
+        customer_files_new: event.event_files
       });
     }
   });
+
+  // Initialize filteredData with combinedData when it changes
+  React.useEffect(() => {
+    setFilteredData(combinedData);
+  }, [combinedData]);
 
   const handleCreateCustomer = async (customerData: any) => {
     try {
@@ -171,6 +175,10 @@ export const CustomerList = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleSearchSelect = (customer: any) => {
+    openEditDialog(customer);
   };
 
   const truncateText = (text: string, maxLength: number = 30) => {
@@ -271,6 +279,14 @@ export const CustomerList = () => {
         </Button>
       </div>
 
+      <div className="mb-4">
+        <SearchCommand
+          data={combinedData}
+          onSelect={handleSearchSelect}
+          setFilteredData={setFilteredData}
+        />
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -286,7 +302,7 @@ export const CustomerList = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {combinedData.map((customer: any) => (
+            {filteredData.map((customer: any) => (
               <TableRow key={customer.id} className="h-14">
                 <TableCell className="py-2">{customer.title}</TableCell>
                 <TableCell className="py-2">
