@@ -68,7 +68,7 @@ export const CustomerDialogFields = ({
     queryFn: async () => {
       if (!customerId) return [];
       const { data, error } = await supabase
-        .from('customer_files')
+        .from('customer_files_new')  // Changed from 'customer_files' to 'customer_files_new'
         .select('*')
         .eq('customer_id', customerId);
       
