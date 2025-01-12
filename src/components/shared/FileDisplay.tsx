@@ -4,6 +4,7 @@ import { Button } from "../ui/button";
 import { FileIcon, ExternalLinkIcon, XIcon } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../ui/use-toast";
+import { AspectRatio } from "../ui/aspect-ratio";
 
 interface FileDisplayProps {
   files: {
@@ -225,12 +226,12 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
             className="w-full aspect-square flex items-center justify-center bg-muted rounded-md overflow-hidden cursor-pointer"
             onClick={() => handleFileClick(file)}
           >
-            {isImage(file.filename) ? (
-              <div className="w-full h-full relative">
+            <AspectRatio ratio={1} className="w-full h-full">
+              {isImage(file.filename) ? (
                 <img
                   src={imageUrls[file.file_path] || '/placeholder.svg'}
                   alt={file.filename}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="w-full h-full object-cover"
                   onError={(e) => {
                     console.error('Image load error:', e);
                     e.currentTarget.src = '/placeholder.svg';
@@ -241,10 +242,12 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
                     }
                   }}
                 />
-              </div>
-            ) : (
-              <FileIcon className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 text-muted-foreground" />
-            )}
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <FileIcon className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 text-muted-foreground" />
+                </div>
+              )}
+            </AspectRatio>
           </div>
           <p className="text-[10px] sm:text-xs md:text-sm text-center text-foreground truncate w-full">
             {file.filename}
