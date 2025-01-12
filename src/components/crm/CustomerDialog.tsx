@@ -165,6 +165,7 @@ export const CustomerDialog = ({
         if (fileRecordError) throw fileRecordError;
       }
 
+      // Invalidate both customers and events queries
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
       
