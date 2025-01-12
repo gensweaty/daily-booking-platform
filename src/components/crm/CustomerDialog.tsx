@@ -32,6 +32,9 @@ export const CustomerDialog = ({
   const [paymentAmount, setPaymentAmount] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [createEvent, setCreateEvent] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -126,6 +129,12 @@ export const CustomerDialog = ({
             fileError={fileError}
             setFileError={setFileError}
             customerId={customer?.id}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
+            createEvent={createEvent}
+            setCreateEvent={setCreateEvent}
           />
           
           <div className="flex justify-between gap-4">
