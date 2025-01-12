@@ -53,37 +53,20 @@ export const CustomerDialog = ({
       setPaymentStatus(data?.payment_status || "");
       setPaymentAmount(data?.payment_amount?.toString() || "");
       setCreateEvent(!!data?.start_date && !!data?.end_date);
+      
+      if (data?.start_date) {
+        setStartDate(format(new Date(data.start_date), "yyyy-MM-dd'T'HH:mm"));
+      }
+      if (data?.end_date) {
+        setEndDate(format(new Date(data.end_date), "yyyy-MM-dd'T'HH:mm"));
+      }
     }
   }, [customer, event]);
-
-  useEffect(() => {
-    if (event) {
-      const start = new Date(event.start_date);
-      const end = new Date(event.end_date);
-      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-      setCreateEvent(true);
-    } else if (customer?.start_date && customer?.end_date) {
-      const start = new Date(customer.start_date);
-      const end = new Date(customer.end_date);
-      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-      setCreateEvent(true);
-    } else {
-      const start = new Date();
-      const end = new Date();
-      end.setHours(start.getHours() + 1);
-      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-    }
-  }, [event, customer]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
-      let createdCustomer = null;
-      
       const baseData = {
         title,
         user_surname: userSurname,
@@ -93,18 +76,22 @@ export const CustomerDialog = ({
         payment_status: paymentStatus || null,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         user_id: user?.id,
-        type: 'customer',
-        // Only include dates if createEvent is true
-        ...(createEvent ? {
-          start_date: new Date(startDate).toISOString(),
-          end_date: new Date(endDate).toISOString()
-        } : {})
+        type: 'customer'
       };
+
+      // Add start_date and end_date only if createEvent is true
+      const dataToSubmit = createEvent ? {
+        ...baseData,
+        start_date: new Date(startDate).toISOString(),
+        end_date: new Date(endDate).toISOString()
+      } : baseData;
+
+      let createdCustomer;
       
       if (customer?.id) {
         const { data, error } = await supabase
-          .from('events')
-          .update(baseData)
+          .from('customers')
+          .update(dataToSubmit)
           .eq('id', customer.id)
           .select()
           .single();
@@ -113,8 +100,8 @@ export const CustomerDialog = ({
         createdCustomer = data;
       } else {
         const { data, error } = await supabase
-          .from('events')
-          .insert([baseData])
+          .from('customers')
+          .insert([dataToSubmit])
           .select()
           .single();
           
@@ -133,7 +120,7 @@ export const CustomerDialog = ({
         if (uploadError) throw uploadError;
 
         const { error: fileRecordError } = await supabase
-          .from('customer_files')
+          .from('customer_files_new')
           .insert({
             customer_id: createdCustomer.id,
             filename: selectedFile.name,
@@ -147,7 +134,6 @@ export const CustomerDialog = ({
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
       
       toast({
         title: "Success",
