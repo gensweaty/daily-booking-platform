@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { isWithinInterval, parseISO } from "date-fns";
+import { supabase } from "@/lib/supabase";
 
 interface UseEventDialogProps {
   createEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -68,7 +69,6 @@ export const useEventDialog = ({
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
-      // Get all events from the Calendar component's events prop
       const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
       
       const startDate = new Date(data.start_date as string);
@@ -112,7 +112,6 @@ export const useEventDialog = ({
     if (!selectedEvent) return;
     
     try {
-      // Get all events from the Calendar component's events prop
       const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
       
       const startDate = new Date(updates.start_date as string);
@@ -122,7 +121,7 @@ export const useEventDialog = ({
         startDate,
         endDate,
         allEvents,
-        selectedEvent.id // Exclude the current event from the check
+        selectedEvent.id
       );
 
       if (!available && conflictingEvent) {
@@ -157,6 +156,15 @@ export const useEventDialog = ({
     if (!selectedEvent) return;
     
     try {
+      // First, delete any associated files from the customer_files table
+      const { error: filesError } = await supabase
+        .from('customer_files')
+        .delete()
+        .eq('customer_id', selectedEvent.id);
+
+      if (filesError) throw filesError;
+
+      // Then delete the event
       await deleteEvent(selectedEvent.id);
       setSelectedEvent(null);
       toast({
