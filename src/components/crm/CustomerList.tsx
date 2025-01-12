@@ -314,18 +314,20 @@ export const CustomerList = () => {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <div className="flex-1 flex items-center gap-8">
-          <h2 className="text-2xl font-bold">Customers</h2>
+        <div className="flex-1 flex items-center justify-center gap-8">
+          <h2 className="text-2xl font-bold flex-1">Customers</h2>
           <DateRangeSelect 
             selectedDate={dateRange}
             onDateChange={(start, end) => setDateRange({ start, end: end || start })}
           />
+          <div className="flex-1 flex justify-end">
+            <SearchCommand
+              data={combinedData}
+              setFilteredData={setFilteredData}
+            />
+          </div>
         </div>
         <div className="flex items-center gap-4">
-          <SearchCommand
-            data={combinedData}
-            setFilteredData={setFilteredData}
-          />
           <Button onClick={openCreateDialog} className="flex items-center gap-2">
             <PlusCircle className="w-4 h-4" />
             Add Customer
