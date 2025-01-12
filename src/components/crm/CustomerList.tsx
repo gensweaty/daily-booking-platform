@@ -365,10 +365,10 @@ export const CustomerList = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-4 w-4 p-0"
+                        className="h-6 w-6 p-0"
                         onClick={() => handleCopyText(customer.title)}
                       >
-                        <Copy className="h-2 w-2" />
+                        <Copy className="h-3 w-3" />
                       </Button>
                     )}
                   </div>
@@ -385,10 +385,10 @@ export const CustomerList = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-4 w-4 p-0"
+                          className="h-6 w-6 p-0"
                           onClick={() => handleCopyText(customer.user_number)}
                         >
-                          <Copy className="h-2 w-2" />
+                          <Copy className="h-3 w-3" />
                         </Button>
                       )}
                     </div>
@@ -414,10 +414,10 @@ export const CustomerList = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-4 w-4 p-0"
+                        className="h-6 w-6 p-0"
                         onClick={() => handleCopyText(customer.social_network_link)}
                       >
-                        <Copy className="h-2 w-2" />
+                        <Copy className="h-3 w-3" />
                       </Button>
                     )}
                   </div>
@@ -453,10 +453,10 @@ export const CustomerList = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-4 w-4 p-0"
+                        className="h-6 w-6 p-0"
                         onClick={() => handleCopyText(customer.event_notes)}
                       >
-                        <Copy className="h-2 w-2" />
+                        <Copy className="h-3 w-3" />
                       </Button>
                     )}
                   </div>

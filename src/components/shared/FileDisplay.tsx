@@ -214,7 +214,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
             <Button
               variant="ghost"
               size="icon"
-              className="absolute -right-1 -top-1 sm:-right-2 sm:-top-2 h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute -right-1 -top-1 sm:-right-2 sm:-top-2 h-6 w-6 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={() => handleDeleteFile(file)}
               disabled={deletingFile === file.id}
             >
@@ -226,20 +226,22 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
             onClick={() => handleFileClick(file)}
           >
             {isImage(file.filename) ? (
-              <img
-                src={imageUrls[file.file_path] || '/placeholder.svg'}
-                alt={file.filename}
-                className="w-full h-full object-contain max-h-[150px] sm:max-h-[200px] md:max-h-[300px]"
-                onError={(e) => {
-                  console.error('Image load error:', e);
-                  e.currentTarget.src = '/placeholder.svg';
-                }}
-                onLoad={async () => {
-                  if (!imageUrls[file.file_path]) {
-                    await loadImageUrl(file.file_path);
-                  }
-                }}
-              />
+              <div className="w-full h-full relative">
+                <img
+                  src={imageUrls[file.file_path] || '/placeholder.svg'}
+                  alt={file.filename}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error('Image load error:', e);
+                    e.currentTarget.src = '/placeholder.svg';
+                  }}
+                  onLoad={async () => {
+                    if (!imageUrls[file.file_path]) {
+                      await loadImageUrl(file.file_path);
+                    }
+                  }}
+                />
+              </div>
             ) : (
               <FileIcon className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 text-muted-foreground" />
             )}
