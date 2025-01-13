@@ -336,7 +336,7 @@ export const CustomerList = () => {
         </Button>
       </div>
 
-      <div className="rounded-md border overflow-hidden">
+      <div className="rounded-md border">
         <ScrollArea className="w-full overflow-auto">
           <div className="min-w-[1000px]">
             <Table>
