@@ -31,7 +31,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 export const CustomerList = () => {
   const { user } = useAuth();
@@ -336,174 +335,172 @@ export const CustomerList = () => {
         </Button>
       </div>
 
-      <div className="rounded-md border w-full overflow-auto">
-        <ScrollArea className="w-full overflow-auto" style={{ maxHeight: '70vh' }}>
-          <div className="min-w-[1000px]">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[180px]">Full Name</TableHead>
-                  <TableHead className="w-[130px]">Phone Number</TableHead>
-                  <TableHead className="w-[250px]">Social Link/Email</TableHead>
-                  <TableHead className="w-[120px]">Payment Status</TableHead>
-                  <TableHead className="w-[180px]">Dates</TableHead>
-                  <TableHead className="w-[120px]">Comment</TableHead>
-                  <TableHead className="w-[180px]">Attachments</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedData.map((customer: any) => (
-                  <TableRow key={customer.id} className="h-14">
-                    <TableCell className="py-2">
+      <div className="rounded-md border w-full overflow-x-auto">
+        <div className="min-w-[1000px]">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[180px]">Full Name</TableHead>
+                <TableHead className="w-[130px]">Phone Number</TableHead>
+                <TableHead className="w-[250px]">Social Link/Email</TableHead>
+                <TableHead className="w-[120px]">Payment Status</TableHead>
+                <TableHead className="w-[180px]">Dates</TableHead>
+                <TableHead className="w-[120px]">Comment</TableHead>
+                <TableHead className="w-[180px]">Attachments</TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedData.map((customer: any) => (
+                <TableRow key={customer.id} className="h-14">
+                  <TableCell className="py-2">
+                    <div 
+                      className="flex items-center gap-2"
+                      onMouseEnter={() => setHoveredName(customer.id)}
+                      onMouseLeave={() => setHoveredName(null)}
+                    >
+                      <span className="truncate max-w-[150px]">{customer.title}</span>
+                      {hoveredName === customer.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 p-0 flex-shrink-0"
+                          onClick={() => handleCopyText(customer.title)}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    {customer.user_number ? (
                       <div 
                         className="flex items-center gap-2"
-                        onMouseEnter={() => setHoveredName(customer.id)}
-                        onMouseLeave={() => setHoveredName(null)}
+                        onMouseEnter={() => setHoveredPhone(customer.id)}
+                        onMouseLeave={() => setHoveredPhone(null)}
                       >
-                        <span className="truncate max-w-[150px]">{customer.title}</span>
-                        {hoveredName === customer.id && (
+                        <span className="truncate max-w-[100px]">{customer.user_number}</span>
+                        {hoveredPhone === customer.id && (
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6 p-0 flex-shrink-0"
-                            onClick={() => handleCopyText(customer.title)}
+                            onClick={() => handleCopyText(customer.user_number)}
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
                         )}
                       </div>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      {customer.user_number ? (
-                        <div 
-                          className="flex items-center gap-2"
-                          onMouseEnter={() => setHoveredPhone(customer.id)}
-                          onMouseLeave={() => setHoveredPhone(null)}
+                    ) : '-'}
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <div 
+                      className="flex items-center gap-2"
+                      onMouseEnter={() => setHoveredLink(customer.id)}
+                      onMouseLeave={() => setHoveredLink(null)}
+                    >
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger className="text-left">
+                            <span className="truncate max-w-[200px] block">
+                              {truncateText(customer.social_network_link)}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{customer.social_network_link}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      {customer.social_network_link && hoveredLink === customer.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 p-0 flex-shrink-0"
+                          onClick={() => handleCopyText(customer.social_network_link)}
                         >
-                          <span className="truncate max-w-[100px]">{customer.user_number}</span>
-                          {hoveredPhone === customer.id && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 p-0 flex-shrink-0"
-                              onClick={() => handleCopyText(customer.user_number)}
-                            >
-                              <Copy className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <div 
-                        className="flex items-center gap-2"
-                        onMouseEnter={() => setHoveredLink(customer.id)}
-                        onMouseLeave={() => setHoveredLink(null)}
-                      >
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger className="text-left">
-                              <span className="truncate max-w-[200px] block">
-                                {truncateText(customer.social_network_link)}
-                              </span>
-                            </TooltipTrigger>
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    {formatPaymentStatus(customer.payment_status, customer.payment_amount)}
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <div className="space-y-1 text-sm">
+                      <div>{formatDate(customer.start_date)}</div>
+                      <div className="text-gray-500">{formatTimeRange(customer.start_date, customer.end_date)}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <div 
+                      className="flex items-center gap-2"
+                      onMouseEnter={() => setHoveredNote(customer.id)}
+                      onMouseLeave={() => setHoveredNote(null)}
+                    >
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger className="text-left">
+                            <span className="truncate max-w-[100px] block">
+                              {truncateText(customer.event_notes, 15)}
+                            </span>
+                          </TooltipTrigger>
+                          {customer.event_notes && (
                             <TooltipContent>
-                              <p>{customer.social_network_link}</p>
+                              <p className="max-w-xs whitespace-pre-wrap">{customer.event_notes}</p>
                             </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        {customer.social_network_link && hoveredLink === customer.id && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 p-0 flex-shrink-0"
-                            onClick={() => handleCopyText(customer.social_network_link)}
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        )}
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
+                      {customer.event_notes && hoveredNote === customer.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 p-0 flex-shrink-0"
+                          onClick={() => handleCopyText(customer.event_notes)}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    {(customer.customer_files_new?.length > 0 || customer.event_files?.length > 0) ? (
+                      <div className="max-w-[180px]">
+                        <FileDisplay 
+                          files={customer.customer_files_new || customer.event_files}
+                          bucketName={customer.id.startsWith('event-') ? "event_attachments" : "customer_attachments"}
+                          allowDelete={false}
+                        />
                       </div>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      {formatPaymentStatus(customer.payment_status, customer.payment_amount)}
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <div className="space-y-1 text-sm">
-                        <div>{formatDate(customer.start_date)}</div>
-                        <div className="text-gray-500">{formatTimeRange(customer.start_date, customer.end_date)}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <div 
-                        className="flex items-center gap-2"
-                        onMouseEnter={() => setHoveredNote(customer.id)}
-                        onMouseLeave={() => setHoveredNote(null)}
+                    ) : '-'}
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEditDialog(customer)}
                       >
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger className="text-left">
-                              <span className="truncate max-w-[100px] block">
-                                {truncateText(customer.event_notes, 15)}
-                              </span>
-                            </TooltipTrigger>
-                            {customer.event_notes && (
-                              <TooltipContent>
-                                <p className="max-w-xs whitespace-pre-wrap">{customer.event_notes}</p>
-                              </TooltipContent>
-                            )}
-                          </Tooltip>
-                        </TooltipProvider>
-                        {customer.event_notes && hoveredNote === customer.id && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 p-0 flex-shrink-0"
-                            onClick={() => handleCopyText(customer.event_notes)}
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      {(customer.customer_files_new?.length > 0 || customer.event_files?.length > 0) ? (
-                        <div className="max-w-[180px]">
-                          <FileDisplay 
-                            files={customer.customer_files_new || customer.event_files}
-                            bucketName={customer.id.startsWith('event-') ? "event_attachments" : "customer_attachments"}
-                            allowDelete={false}
-                          />
-                        </div>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditDialog(customer)}
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setSelectedCustomer(customer);
-                            handleDeleteCustomer();
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </ScrollArea>
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setSelectedCustomer(customer);
+                          handleDeleteCustomer();
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-4">
