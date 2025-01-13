@@ -63,9 +63,8 @@ export const CustomerList = () => {
           customer_files_new(*)
         `)
         .eq('user_id', user?.id)
-        .gte('created_at', dateRange.start.toISOString())
-        .lte('created_at', endOfDay(dateRange.end).toISOString())
-        .order('created_at', { ascending: false });
+        .or(`start_date.gte.${dateRange.start.toISOString()},created_at.gte.${dateRange.start.toISOString()}`)
+        .or(`start_date.lte.${endOfDay(dateRange.end).toISOString()},created_at.lte.${endOfDay(dateRange.end).toISOString()}`);
       
       if (error) throw error;
       return data || [];
@@ -83,9 +82,8 @@ export const CustomerList = () => {
           event_files(*)
         `)
         .eq('user_id', user?.id)
-        .gte('created_at', dateRange.start.toISOString())
-        .lte('created_at', endOfDay(dateRange.end).toISOString())
-        .order('created_at', { ascending: false });
+        .gte('start_date', dateRange.start.toISOString())
+        .lte('start_date', endOfDay(dateRange.end).toISOString());
       
       if (error) throw error;
       return data || [];
