@@ -353,17 +353,21 @@ export const CustomerList = () => {
                 <TableRow key={customer.id} className="h-14">
                   <TableCell className="py-2">
                     <div 
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 cursor-pointer group"
                       onMouseEnter={() => setHoveredName(customer.id)}
                       onMouseLeave={() => setHoveredName(null)}
+                      onClick={() => handleCopyText(customer.title)}
                     >
-                      <span className="truncate max-w-[150px]">{customer.title}</span>
+                      <span className="truncate max-w-[150px] group-hover:text-primary">{customer.title}</span>
                       {hoveredName === customer.id && (
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 p-0 flex-shrink-0"
-                          onClick={() => handleCopyText(customer.title)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopyText(customer.title);
+                          }}
                         >
                           <Copy className="h-3 w-3" />
                         </Button>
@@ -373,17 +377,21 @@ export const CustomerList = () => {
                   <TableCell className="py-2">
                     {customer.user_number ? (
                       <div 
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 cursor-pointer group"
                         onMouseEnter={() => setHoveredPhone(customer.id)}
                         onMouseLeave={() => setHoveredPhone(null)}
+                        onClick={() => handleCopyText(customer.user_number)}
                       >
-                        <span className="truncate max-w-[100px]">{customer.user_number}</span>
+                        <span className="truncate max-w-[100px] group-hover:text-primary">{customer.user_number}</span>
                         {hoveredPhone === customer.id && (
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6 p-0 flex-shrink-0"
-                            onClick={() => handleCopyText(customer.user_number)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyText(customer.user_number);
+                            }}
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
@@ -393,14 +401,15 @@ export const CustomerList = () => {
                   </TableCell>
                   <TableCell className="py-2">
                     <div 
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 cursor-pointer group"
                       onMouseEnter={() => setHoveredLink(customer.id)}
                       onMouseLeave={() => setHoveredLink(null)}
+                      onClick={() => customer.social_network_link && handleCopyText(customer.social_network_link)}
                     >
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger className="text-left">
-                            <span className="truncate max-w-[200px] block">
+                            <span className="truncate max-w-[200px] block group-hover:text-primary">
                               {truncateText(customer.social_network_link)}
                             </span>
                           </TooltipTrigger>
@@ -414,7 +423,10 @@ export const CustomerList = () => {
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 p-0 flex-shrink-0"
-                          onClick={() => handleCopyText(customer.social_network_link)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopyText(customer.social_network_link);
+                          }}
                         >
                           <Copy className="h-3 w-3" />
                         </Button>
@@ -432,14 +444,15 @@ export const CustomerList = () => {
                   </TableCell>
                   <TableCell className="py-2">
                     <div 
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 cursor-pointer group"
                       onMouseEnter={() => setHoveredNote(customer.id)}
                       onMouseLeave={() => setHoveredNote(null)}
+                      onClick={() => customer.event_notes && handleCopyText(customer.event_notes)}
                     >
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger className="text-left">
-                            <span className="truncate max-w-[100px] block">
+                            <span className="truncate max-w-[100px] block group-hover:text-primary">
                               {truncateText(customer.event_notes, 15)}
                             </span>
                           </TooltipTrigger>
@@ -455,7 +468,10 @@ export const CustomerList = () => {
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 p-0 flex-shrink-0"
-                          onClick={() => handleCopyText(customer.event_notes)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopyText(customer.event_notes);
+                          }}
                         >
                           <Copy className="h-3 w-3" />
                         </Button>
