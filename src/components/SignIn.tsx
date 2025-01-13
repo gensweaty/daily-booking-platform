@@ -15,31 +15,56 @@ export const SignIn = () => {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error("Session check error:", error);
-        if (error.message.includes('refresh_token_not_found')) {
-          // Clear any stale session data
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Session check error:", error);
+          if (error.message.includes('refresh_token_not_found')) {
+            // Clear any stale session data
+            await supabase.auth.signOut();
+            return;
+          }
+          throw error;
+        }
+        
+        if (session) {
+          navigate("/dashboard");
+        }
+      } catch (error: any) {
+        console.error("Session check failed:", error);
+        // Clear session on any auth-related errors
+        if (error.message.includes('auth')) {
           await supabase.auth.signOut();
         }
-        return;
-      }
-      if (session) {
-        navigate("/dashboard");
       }
     };
+
     checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, session);
+      
+      if (event === 'SIGNED_IN') {
         navigate("/dashboard");
+      } else if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        // Handle token refresh failures
+        const { error } = await supabase.auth.getSession();
+        if (error?.message.includes('refresh_token_not_found')) {
+          await supabase.auth.signOut();
+          toast({
+            title: "Session expired",
+            description: "Please sign in again",
+            variant: "destructive",
+          });
+        }
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +98,14 @@ export const SignIn = () => {
             description: "Please check your inbox and spam folder for the verification email.",
             variant: "destructive",
           });
+        } else if (error.message.includes("refresh_token_not_found")) {
+          // Handle refresh token errors
+          await supabase.auth.signOut();
+          toast({
+            title: "Session expired",
+            description: "Please sign in again",
+            variant: "destructive",
+          });
         } else {
           toast({
             title: "Error",
@@ -88,6 +121,8 @@ export const SignIn = () => {
       }
     } catch (error: any) {
       console.error("Unexpected error during sign in:", error);
+      // Clear session on unexpected errors
+      await supabase.auth.signOut();
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
