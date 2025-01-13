@@ -335,7 +335,7 @@ export const CustomerList = () => {
         </Button>
       </div>
 
-      <div className="rounded-md border w-full overflow-x-auto">
+      <div className="w-full overflow-x-auto">
         <div className="min-w-[1000px]">
           <Table>
             <TableHeader>
