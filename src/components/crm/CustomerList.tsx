@@ -31,6 +31,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export const CustomerList = () => {
   const { user } = useAuth();
@@ -312,196 +313,202 @@ export const CustomerList = () => {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div className="flex-1 flex items-center gap-8">
-          <h2 className="text-2xl font-bold flex-1">Customers</h2>
-          <div className="flex items-center justify-center mt-[2px]">
+    <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full">
+          <h2 className="text-2xl font-bold">Customers</h2>
+          <div className="w-full md:w-auto">
             <DateRangeSelect 
               selectedDate={dateRange}
               onDateChange={(start, end) => setDateRange({ start, end: end || start })}
             />
           </div>
-          <div className="flex-1 flex justify-end">
+          <div className="w-full md:w-auto">
             <SearchCommand
               data={combinedData}
               setFilteredData={setFilteredData}
             />
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <Button onClick={openCreateDialog} className="flex items-center gap-2">
-            <PlusCircle className="w-4 h-4" />
-            Add Customer
-          </Button>
-        </div>
+        <Button onClick={openCreateDialog} className="flex items-center gap-2 whitespace-nowrap">
+          <PlusCircle className="w-4 h-4" />
+          Add Customer
+        </Button>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="w-[180px]">Full Name</TableHead>
-              <TableHead className="w-[130px]">Phone Number</TableHead>
-              <TableHead className="w-[250px]">Social Link/Email</TableHead>
-              <TableHead className="w-[120px]">Payment Status</TableHead>
-              <TableHead className="w-[180px]">Dates</TableHead>
-              <TableHead className="w-[120px]">Comment</TableHead>
-              <TableHead className="w-[180px]">Attachments</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedData.map((customer: any) => (
-              <TableRow key={customer.id} className="h-14">
-                <TableCell className="py-2">
-                  <div 
-                    className="flex items-center gap-2"
-                    onMouseEnter={() => setHoveredName(customer.id)}
-                    onMouseLeave={() => setHoveredName(null)}
-                  >
-                    <span>{customer.title}</span>
-                    {hoveredName === customer.id && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 p-0"
-                        onClick={() => handleCopyText(customer.title)}
+      <div className="rounded-md border overflow-hidden">
+        <ScrollArea className="w-full overflow-auto">
+          <div className="min-w-[1000px]">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-[180px]">Full Name</TableHead>
+                  <TableHead className="w-[130px]">Phone Number</TableHead>
+                  <TableHead className="w-[250px]">Social Link/Email</TableHead>
+                  <TableHead className="w-[120px]">Payment Status</TableHead>
+                  <TableHead className="w-[180px]">Dates</TableHead>
+                  <TableHead className="w-[120px]">Comment</TableHead>
+                  <TableHead className="w-[180px]">Attachments</TableHead>
+                  <TableHead className="w-[100px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedData.map((customer: any) => (
+                  <TableRow key={customer.id} className="h-14">
+                    <TableCell className="py-2">
+                      <div 
+                        className="flex items-center gap-2"
+                        onMouseEnter={() => setHoveredName(customer.id)}
+                        onMouseLeave={() => setHoveredName(null)}
                       >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="py-2">
-                  {customer.user_number ? (
-                    <div 
-                      className="flex items-center gap-2"
-                      onMouseEnter={() => setHoveredPhone(customer.id)}
-                      onMouseLeave={() => setHoveredPhone(null)}
-                    >
-                      <span>{customer.user_number}</span>
-                      {hoveredPhone === customer.id && (
+                        <span className="truncate max-w-[150px]">{customer.title}</span>
+                        {hoveredName === customer.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 p-0 flex-shrink-0"
+                            onClick={() => handleCopyText(customer.title)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      {customer.user_number ? (
+                        <div 
+                          className="flex items-center gap-2"
+                          onMouseEnter={() => setHoveredPhone(customer.id)}
+                          onMouseLeave={() => setHoveredPhone(null)}
+                        >
+                          <span className="truncate max-w-[100px]">{customer.user_number}</span>
+                          {hoveredPhone === customer.id && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 p-0 flex-shrink-0"
+                              onClick={() => handleCopyText(customer.user_number)}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <div 
+                        className="flex items-center gap-2"
+                        onMouseEnter={() => setHoveredLink(customer.id)}
+                        onMouseLeave={() => setHoveredLink(null)}
+                      >
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger className="text-left">
+                              <span className="truncate max-w-[200px] block">
+                                {truncateText(customer.social_network_link)}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{customer.social_network_link}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        {customer.social_network_link && hoveredLink === customer.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 p-0 flex-shrink-0"
+                            onClick={() => handleCopyText(customer.social_network_link)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      {formatPaymentStatus(customer.payment_status, customer.payment_amount)}
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <div className="space-y-1 text-sm">
+                        <div>{formatDate(customer.start_date)}</div>
+                        <div className="text-gray-500">{formatTimeRange(customer.start_date, customer.end_date)}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <div 
+                        className="flex items-center gap-2"
+                        onMouseEnter={() => setHoveredNote(customer.id)}
+                        onMouseLeave={() => setHoveredNote(null)}
+                      >
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger className="text-left">
+                              <span className="truncate max-w-[100px] block">
+                                {truncateText(customer.event_notes, 15)}
+                              </span>
+                            </TooltipTrigger>
+                            {customer.event_notes && (
+                              <TooltipContent>
+                                <p className="max-w-xs whitespace-pre-wrap">{customer.event_notes}</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </TooltipProvider>
+                        {customer.event_notes && hoveredNote === customer.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 p-0 flex-shrink-0"
+                            onClick={() => handleCopyText(customer.event_notes)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      {(customer.customer_files_new?.length > 0 || customer.event_files?.length > 0) ? (
+                        <div className="max-w-[180px]">
+                          <FileDisplay 
+                            files={customer.customer_files_new || customer.event_files}
+                            bucketName={customer.id.startsWith('event-') ? "event_attachments" : "customer_attachments"}
+                            allowDelete={false}
+                          />
+                        </div>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <div className="flex items-center gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 p-0"
-                          onClick={() => handleCopyText(customer.user_number)}
+                          onClick={() => openEditDialog(customer)}
                         >
-                          <Copy className="h-3 w-3" />
+                          <Pencil className="w-4 h-4" />
                         </Button>
-                      )}
-                    </div>
-                  ) : '-'}
-                </TableCell>
-                <TableCell className="py-2">
-                  <div 
-                    className="flex items-center gap-2"
-                    onMouseEnter={() => setHoveredLink(customer.id)}
-                    onMouseLeave={() => setHoveredLink(null)}
-                  >
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger className="text-left">
-                          {truncateText(customer.social_network_link)}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{customer.social_network_link}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    {customer.social_network_link && hoveredLink === customer.id && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 p-0"
-                        onClick={() => handleCopyText(customer.social_network_link)}
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="py-2">
-                  {formatPaymentStatus(customer.payment_status, customer.payment_amount)}
-                </TableCell>
-                <TableCell className="py-2">
-                  <div className="space-y-1 text-sm">
-                    <div>{formatDate(customer.start_date)}</div>
-                    <div className="text-gray-500">{formatTimeRange(customer.start_date, customer.end_date)}</div>
-                  </div>
-                </TableCell>
-                <TableCell className="py-2">
-                  <div 
-                    className="flex items-center gap-2"
-                    onMouseEnter={() => setHoveredNote(customer.id)}
-                    onMouseLeave={() => setHoveredNote(null)}
-                  >
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger className="text-left">
-                          {truncateText(customer.event_notes, 15)}
-                        </TooltipTrigger>
-                        {customer.event_notes && (
-                          <TooltipContent>
-                            <p className="max-w-xs whitespace-pre-wrap">{customer.event_notes}</p>
-                          </TooltipContent>
-                        )}
-                      </Tooltip>
-                    </TooltipProvider>
-                    {customer.event_notes && hoveredNote === customer.id && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 p-0"
-                        onClick={() => handleCopyText(customer.event_notes)}
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="py-2">
-                  {(customer.customer_files_new?.length > 0 || customer.event_files?.length > 0) ? (
-                    <div className="max-w-[180px]">
-                      <FileDisplay 
-                        files={customer.customer_files_new || customer.event_files}
-                        bucketName={customer.id.startsWith('event-') ? "event_attachments" : "customer_attachments"}
-                        allowDelete={false}
-                      />
-                    </div>
-                  ) : '-'}
-                </TableCell>
-                <TableCell className="py-2">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEditDialog(customer)}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setSelectedCustomer(customer);
-                        handleDeleteCustomer();
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSelectedCustomer(customer);
+                            handleDeleteCustomer();
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </ScrollArea>
       </div>
 
-      <div className="flex justify-end items-center gap-4 mt-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-4">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Customers per page:</span>
+          <span className="text-sm text-muted-foreground whitespace-nowrap">Customers per page:</span>
           <Select
             value={pageSize.toString()}
             onValueChange={handlePageSizeChange}
