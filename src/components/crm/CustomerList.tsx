@@ -338,7 +338,7 @@ export const CustomerList = () => {
 
       <div className="rounded-md border w-full overflow-hidden">
         <ScrollArea className="w-full overflow-x-auto">
-          <div className="min-w-[1000px]">
+          <div className="min-w-[1000px] overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
