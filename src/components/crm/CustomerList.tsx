@@ -336,9 +336,9 @@ export const CustomerList = () => {
         </Button>
       </div>
 
-      <div className="rounded-md border w-full overflow-hidden">
-        <ScrollArea className="w-full overflow-x-auto">
-          <div className="min-w-[1000px] overflow-x-auto">
+      <div className="rounded-md border w-full overflow-x-auto">
+        <ScrollArea className="w-full overflow-auto" style={{ maxHeight: '70vh' }}>
+          <div className="min-w-[1000px]">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
