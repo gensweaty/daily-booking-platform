@@ -31,7 +31,7 @@ export function SearchCommand({ data, setFilteredData }: SearchCommandProps) {
   }, [data, setFilteredData]);
 
   return (
-    <Command className="w-full md:w-[200px] rounded-lg border -mt-3">
+    <Command className="w-full md:w-[200px] rounded-lg border -mt-4">
       <div className="flex items-center px-2">
         <CommandInput
           placeholder="Search..."
