@@ -197,11 +197,11 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   };
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-w-full overflow-x-auto p-2">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-w-full sm:overflow-x-auto p-2">
       {files.map((file) => (
         <div
           key={file.id}
-          className="relative flex flex-col items-center space-y-2 p-2 border rounded-lg bg-background group w-[120px]"
+          className="relative flex flex-col items-center space-y-2 p-2 border rounded-lg bg-background group w-full sm:w-[120px]"
         >
           {allowDelete && (
             <Button
