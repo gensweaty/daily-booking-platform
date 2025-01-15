@@ -201,7 +201,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
       {files.map((file) => (
         <div
           key={file.id}
-          className="relative flex flex-col items-center space-y-2 p-2 border rounded-lg bg-background group w-[100px]"
+          className="relative flex flex-col items-center space-y-1 p-1.5 border rounded-lg bg-background group w-[100px]"
         >
           {allowDelete && (
             <Button
@@ -247,7 +247,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
           <Button
             variant="outline"
             size="sm"
-            className="w-full text-xs py-1 px-2 h-7"
+            className="w-full text-xs py-0.5 px-2 h-6"
             onClick={() => handleFileClick(file)}
             disabled={loadingFile === file.file_path}
           >
