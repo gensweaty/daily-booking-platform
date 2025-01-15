@@ -312,9 +312,9 @@ export const CustomerList = () => {
   return (
     <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full">
-          <h2 className="text-2xl font-bold">Customers</h2>
-          <div className="w-full md:w-auto">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
+          <h2 className="text-2xl font-bold md:mb-0">Customers</h2>
+          <div className="w-full md:w-auto md:min-w-[200px]">
             <DateRangeSelect 
               selectedDate={dateRange}
               onDateChange={(start, end) => setDateRange({ start, end: end || start })}
