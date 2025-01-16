@@ -197,21 +197,21 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
   };
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-w-full overflow-x-auto p-2">
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-1.5 w-full p-1">
       {files.map((file) => (
         <div
           key={file.id}
-          className="relative flex flex-col items-center space-y-1 p-1.5 border rounded-lg bg-background group w-[100px]"
+          className="relative flex flex-col items-center space-y-0.5 p-1 border rounded-lg bg-background group min-w-[80px] max-w-[120px] w-full mx-auto"
         >
           {allowDelete && (
             <Button
               variant="ghost"
               size="icon"
-              className="absolute -right-1 -top-1 h-6 w-6 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute -right-1 -top-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={() => handleDeleteFile(file)}
               disabled={deletingFile === file.id}
             >
-              <XIcon className="h-3 w-3" />
+              <XIcon className="h-2.5 w-2.5" />
             </Button>
           )}
           <div 
@@ -236,18 +236,18 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <FileIcon className="w-8 h-8 text-muted-foreground" />
+                  <FileIcon className="w-6 h-6 text-muted-foreground" />
                 </div>
               )}
             </AspectRatio>
           </div>
-          <p className="text-xs text-center text-foreground truncate w-full">
+          <p className="text-[10px] text-center text-foreground truncate w-full px-0.5">
             {file.filename}
           </p>
           <Button
             variant="outline"
             size="sm"
-            className="w-full text-xs py-0.5 px-2 h-6"
+            className="w-full text-[10px] py-0.5 px-1.5 h-5 min-h-0"
             onClick={() => handleFileClick(file)}
             disabled={loadingFile === file.file_path}
           >
@@ -255,7 +255,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
               "Loading..."
             ) : (
               <>
-                <ExternalLinkIcon className="w-3 h-3 mr-1" />
+                <ExternalLinkIcon className="w-2.5 h-2.5 mr-0.5" />
                 Open
               </>
             )}
