@@ -1,11 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
-import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { TaskList } from "@/components/TaskList"
-import { Calendar } from "@/components/Calendar/Calendar"
-import { AddTaskForm } from "@/components/AddTaskForm"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
@@ -13,10 +5,30 @@ import { useToast } from "@/components/ui/use-toast"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { AuthUI } from "@/components/AuthUI"
 import { DashboardHeader } from "@/components/DashboardHeader"
-import { Statistics } from "@/components/Statistics"
 import { TrialExpiredDialog } from "@/components/TrialExpiredDialog"
 import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
+import { motion } from "framer-motion"
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      duration: 0.5,
+      staggerChildren: 0.1
+    }
+  }
+}
+
+const childVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.3 }
+  }
+}
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false)
@@ -27,7 +39,6 @@ const Index = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   
-  // Handle subscription redirect
   useSubscriptionRedirect()
 
   useEffect(() => {
@@ -62,14 +73,31 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      {showTrialExpired && <TrialExpiredDialog />}
-      <DashboardHeader username={username} />
-      <DashboardContent 
-        isTaskDialogOpen={isTaskDialogOpen}
-        setIsTaskDialogOpen={setIsTaskDialogOpen}
-      />
-    </div>
+    <motion.div 
+      className="min-h-screen bg-background p-4"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      {showTrialExpired && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+        >
+          <TrialExpiredDialog />
+        </motion.div>
+      )}
+      <motion.div variants={childVariants}>
+        <DashboardHeader username={username} />
+      </motion.div>
+      <motion.div variants={childVariants}>
+        <DashboardContent 
+          isTaskDialogOpen={isTaskDialogOpen}
+          setIsTaskDialogOpen={setIsTaskDialogOpen}
+        />
+      </motion.div>
+    </motion.div>
   )
 }
 
