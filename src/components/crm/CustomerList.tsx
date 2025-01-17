@@ -109,6 +109,24 @@ export const CustomerList = () => {
     }
   };
 
+  const handleSubmit = async (customerData: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .upsert(customerData)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      return data;
+    } catch (error: any) {
+      console.error('Error saving customer:', error);
+      throw error;
+    }
+  };
+
   const filteredCustomers = customers.filter((customer: any) =>
     Object.values(customer).some(value =>
       String(value).toLowerCase().includes(searchQuery.toLowerCase())
@@ -243,6 +261,7 @@ export const CustomerList = () => {
       <CustomerDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+        onSubmit={handleSubmit}
         customer={selectedCustomer}
       />
     </div>
