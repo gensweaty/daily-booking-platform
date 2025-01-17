@@ -37,10 +37,13 @@ export const CustomerList = () => {
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching customers:', error);
+          throw error;
+        }
         return data || [];
       } catch (error: any) {
-        console.error('Error fetching customers:', error);
+        console.error('Error in customers query:', error);
         toast({
           title: "Error fetching customers",
           description: error.message,
@@ -53,17 +56,12 @@ export const CustomerList = () => {
 
   const deleteCustomerMutation = useMutation({
     mutationFn: async (id: string) => {
-      try {
-        const { error } = await supabase
-          .from('customers')
-          .delete()
-          .eq('id', id);
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', id);
 
-        if (error) throw error;
-      } catch (error: any) {
-        console.error('Error deleting customer:', error);
-        throw error;
-      }
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
@@ -113,16 +111,26 @@ export const CustomerList = () => {
     try {
       const { data, error } = await supabase
         .from('customers')
-        .upsert(customerData)
+        .upsert({ ...customerData, user_id: (await supabase.auth.getUser()).data.user?.id })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+      setDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "Customer saved successfully",
+      });
       return data;
     } catch (error: any) {
       console.error('Error saving customer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save customer: " + error.message,
+        variant: "destructive",
+      });
       throw error;
     }
   };
