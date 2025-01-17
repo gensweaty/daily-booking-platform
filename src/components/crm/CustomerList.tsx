@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/tooltip";
 
 export const CustomerList = () => {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const queryClient = useQueryClient();
@@ -92,7 +92,7 @@ export const CustomerList = () => {
       if (error) throw error;
 
       setSelectedCustomer(data);
-      setIsDialogOpen(true);
+      setDialogOpen(true);
     } catch (error: any) {
       console.error('Error fetching customer:', error);
       toast({
@@ -120,11 +120,11 @@ export const CustomerList = () => {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <SearchCommand onSearch={setSearchQuery} />
+        <SearchCommand data={customers} setFilteredData={setSearchQuery} />
         <Button
           onClick={() => {
             setSelectedCustomer(null);
-            setIsDialogOpen(true);
+            setDialogOpen(true);
           }}
           className="flex items-center gap-2"
         >
@@ -241,8 +241,8 @@ export const CustomerList = () => {
       </div>
 
       <CustomerDialog
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
         customer={selectedCustomer}
       />
     </div>
