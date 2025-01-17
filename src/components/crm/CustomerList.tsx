@@ -160,9 +160,18 @@ export const CustomerList = () => {
         .eq('id', selectedCustomer.id)
         .eq('user_id', user?.id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      
+      if (!data) {
+        toast({
+          title: "Error",
+          description: "Customer not found",
+          variant: "destructive",
+        });
+        return null;
+      }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
 
