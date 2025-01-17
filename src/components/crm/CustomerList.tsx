@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Table,
   TableBody,
@@ -27,6 +28,7 @@ export const CustomerList = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
@@ -35,6 +37,7 @@ export const CustomerList = () => {
         const { data, error } = await supabase
           .from('customers')
           .select('*')
+          .eq('user_id', user?.id)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -52,6 +55,7 @@ export const CustomerList = () => {
         return [];
       }
     },
+    enabled: !!user,
   });
 
   const deleteCustomerMutation = useMutation({
@@ -59,7 +63,8 @@ export const CustomerList = () => {
       const { error } = await supabase
         .from('customers')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user?.id);
 
       if (error) throw error;
     },
@@ -85,6 +90,7 @@ export const CustomerList = () => {
         .from('customers')
         .select('*')
         .eq('id', id)
+        .eq('user_id', user?.id)
         .maybeSingle();
 
       if (error) throw error;
@@ -109,9 +115,16 @@ export const CustomerList = () => {
 
   const handleSubmit = async (customerData: any) => {
     try {
+      if (!user?.id) {
+        throw new Error("User not authenticated");
+      }
+
       const { data, error } = await supabase
         .from('customers')
-        .upsert({ ...customerData, user_id: (await supabase.auth.getUser()).data.user?.id })
+        .upsert({ 
+          ...customerData,
+          user_id: user.id
+        })
         .select()
         .maybeSingle();
 
@@ -142,6 +155,8 @@ export const CustomerList = () => {
   );
 
   if (isLoading) return <div>Loading customers...</div>;
+
+  // ... keep existing code (JSX for the customer list table and dialog)
 
   return (
     <div className="space-y-4">
