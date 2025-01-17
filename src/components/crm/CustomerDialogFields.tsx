@@ -68,7 +68,7 @@ export const CustomerDialogFields = ({
     queryFn: async () => {
       if (!customerId) return [];
       const { data, error } = await supabase
-        .from('customer_files_new')  // Changed from 'customer_files' to 'customer_files_new'
+        .from('customer_files_new')
         .select('*')
         .eq('customer_id', customerId);
       
@@ -158,13 +158,13 @@ export const CustomerDialogFields = ({
         <div className="space-y-1">
           <Label>Payment Status</Label>
           <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-            <SelectTrigger>
+            <SelectTrigger className="w-full bg-background border-input">
               <SelectValue placeholder="Select payment status" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="not_paid">Not paid</SelectItem>
-              <SelectItem value="partly">Paid Partly</SelectItem>
-              <SelectItem value="fully">Paid Fully</SelectItem>
+            <SelectContent className="bg-background border border-input shadow-md">
+              <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">Not paid</SelectItem>
+              <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">Paid Partly</SelectItem>
+              <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">Paid Fully</SelectItem>
             </SelectContent>
           </Select>
         </div>
