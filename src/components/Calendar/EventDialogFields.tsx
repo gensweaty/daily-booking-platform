@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { FileDisplay } from "@/components/shared/FileDisplay";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 interface EventDialogFieldsProps {
@@ -62,13 +62,11 @@ export const EventDialogFields = ({
 }: EventDialogFieldsProps) => {
   const queryClient = useQueryClient();
   
-  // Fetch files from both event_files and customer_files_new tables
   const { data: allFiles = [] } = useQuery({
     queryKey: ['eventFiles', eventId],
     queryFn: async () => {
       if (!eventId) return [];
       
-      // First get event files
       const { data: eventFiles, error: eventFilesError } = await supabase
         .from('event_files')
         .select('*')
@@ -76,7 +74,6 @@ export const EventDialogFields = ({
       
       if (eventFilesError) throw eventFilesError;
 
-      // Then get customer files by checking customers with matching title
       const { data: customers, error: customersError } = await supabase
         .from('customers')
         .select(`
@@ -87,10 +84,8 @@ export const EventDialogFields = ({
 
       if (customersError) throw customersError;
       
-      // Extract customer files from matching customers
       const customerFiles = customers?.flatMap(customer => customer.customer_files_new || []) || [];
       
-      // Combine both sets of files
       return [...(eventFiles || []), ...customerFiles];
     },
     enabled: !!eventId,
@@ -131,7 +126,7 @@ export const EventDialogFields = ({
         <Label htmlFor="socialNetwork">Social Link or Email</Label>
         <Input
           id="socialNetwork"
-          type="url"
+          type="text"
           placeholder="Social link or email"
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
@@ -161,10 +156,10 @@ export const EventDialogFields = ({
           <SelectTrigger className="w-full bg-background border-input">
             <SelectValue placeholder="Select payment status" />
           </SelectTrigger>
-          <SelectContent className="bg-background border-input shadow-md">
-            <SelectItem value="not_paid" className="hover:bg-muted">Not paid</SelectItem>
-            <SelectItem value="partly" className="hover:bg-muted">Paid Partly</SelectItem>
-            <SelectItem value="fully" className="hover:bg-muted">Paid Fully</SelectItem>
+          <SelectContent className="bg-background border border-input shadow-md">
+            <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">Not paid</SelectItem>
+            <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">Paid Partly</SelectItem>
+            <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">Paid Fully</SelectItem>
           </SelectContent>
         </Select>
       </div>
