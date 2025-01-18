@@ -7,7 +7,6 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
 
 interface CustomerDialogProps {
   open: boolean;
@@ -55,10 +54,16 @@ export const CustomerDialog = ({
       setCreateEvent(!!data?.start_date && !!data?.end_date);
       
       if (data?.start_date) {
-        setStartDate(format(new Date(data.start_date), "yyyy-MM-dd'T'HH:mm"));
+        const formattedStartDate = new Date(data.start_date)
+          .toISOString()
+          .slice(0, 16);
+        setStartDate(formattedStartDate);
       }
       if (data?.end_date) {
-        setEndDate(format(new Date(data.end_date), "yyyy-MM-dd'T'HH:mm"));
+        const formattedEndDate = new Date(data.end_date)
+          .toISOString()
+          .slice(0, 16);
+        setEndDate(formattedEndDate);
       }
     }
   }, [customer, event]);
@@ -89,12 +94,14 @@ export const CustomerDialog = ({
       let createdCustomer;
       
       if (customer?.id) {
+        // Update existing customer
         const { data, error } = await supabase
           .from('customers')
           .update(customerData)
           .eq('id', customer.id)
+          .eq('user_id', user?.id)
           .select()
-          .single();
+          .maybeSingle();
           
         if (error) throw error;
         createdCustomer = data;
@@ -110,16 +117,31 @@ export const CustomerDialog = ({
 
           const { error: eventError } = await supabase
             .from('events')
-            .upsert([{ ...eventData, user_id: user?.id }]);
+            .update(eventData)
+            .eq('title', customer.title)
+            .eq('user_id', user?.id);
 
-          if (eventError) throw eventError;
+          if (eventError) {
+            console.error('Error updating event:', eventError);
+            toast({
+              title: "Warning",
+              description: "Customer updated but event update failed",
+              variant: "destructive",
+            });
+          }
         }
+
+        toast({
+          title: "Success",
+          description: "Customer updated successfully",
+        });
       } else {
+        // Create new customer
         const { data, error } = await supabase
           .from('customers')
           .insert([customerData])
           .select()
-          .single();
+          .maybeSingle();
           
         if (error) throw error;
         createdCustomer = data;
@@ -137,10 +159,23 @@ export const CustomerDialog = ({
             .from('events')
             .insert([{ ...eventData, user_id: user?.id }]);
 
-          if (eventError) throw eventError;
+          if (eventError) {
+            console.error('Error creating event:', eventError);
+            toast({
+              title: "Warning",
+              description: "Customer created but event creation failed",
+              variant: "destructive",
+            });
+          }
         }
+
+        toast({
+          title: "Success",
+          description: "Customer created successfully",
+        });
       }
 
+      // Handle file upload if a file is selected
       if (selectedFile && createdCustomer?.id && user) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -165,21 +200,16 @@ export const CustomerDialog = ({
         if (fileRecordError) throw fileRecordError;
       }
 
-      // Invalidate both customers and events queries
+      // Invalidate queries to refresh the data
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
-      
-      toast({
-        title: "Success",
-        description: customer ? "Customer updated successfully" : "Customer created successfully",
-      });
       
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error handling customer submission:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to save customer. Please try again.",
+        description: error.message || "Failed to save customer",
         variant: "destructive",
       });
     }
