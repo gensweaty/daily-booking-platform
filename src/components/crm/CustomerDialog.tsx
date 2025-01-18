@@ -201,6 +201,7 @@ export const CustomerDialog = ({
       // Invalidate queries to refresh the data
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
+      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       
       onOpenChange(false);
     } catch (error: any) {
