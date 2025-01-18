@@ -67,16 +67,23 @@ export const CustomerDialogFields = ({
     queryKey: ['customerFiles', customerId],
     queryFn: async () => {
       if (!customerId) return [];
+      console.log('Fetching files for customer:', customerId);
       const { data, error } = await supabase
         .from('customer_files_new')
         .select('*')
         .eq('customer_id', customerId);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching customer files:', error);
+        throw error;
+      }
+      console.log('Found files:', data);
       return data || [];
     },
     enabled: !!customerId,
   });
+
+  // ... keep existing code (form fields JSX)
 
   return (
     <div className="space-y-2 sm:space-y-3">
