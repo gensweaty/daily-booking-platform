@@ -84,7 +84,6 @@ export const CustomerDialog = ({
         type: 'customer'
       };
 
-      // Add start_date and end_date only if createEvent is true
       const customerData = createEvent ? {
         ...baseData,
         start_date: new Date(startDate).toISOString(),
@@ -95,16 +94,16 @@ export const CustomerDialog = ({
       
       if (customer?.id) {
         // Update existing customer
-        const { data, error } = await supabase
+        const { data: updatedCustomer, error: updateError } = await supabase
           .from('customers')
           .update(customerData)
           .eq('id', customer.id)
           .eq('user_id', user?.id)
-          .select()
-          .maybeSingle();
-          
-        if (error) throw error;
-        createdCustomer = data;
+          .select();
+
+        if (updateError) throw updateError;
+        
+        createdCustomer = updatedCustomer?.[0];
 
         // Update corresponding event if it exists
         if (createEvent) {
@@ -137,14 +136,13 @@ export const CustomerDialog = ({
         });
       } else {
         // Create new customer
-        const { data, error } = await supabase
+        const { data: newCustomer, error: createError } = await supabase
           .from('customers')
           .insert([customerData])
-          .select()
-          .maybeSingle();
+          .select();
           
-        if (error) throw error;
-        createdCustomer = data;
+        if (createError) throw createError;
+        createdCustomer = newCustomer?.[0];
 
         // Create corresponding event if checkbox is checked
         if (createEvent) {
