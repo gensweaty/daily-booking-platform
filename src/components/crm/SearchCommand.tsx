@@ -5,14 +5,30 @@ import {
 } from "@/components/ui/command"
 
 interface SearchCommandProps {
-  data: any[];
-  setFilteredData: (data: string) => void;
+  data: any[]
+  setFilteredData: (data: any[]) => void
 }
 
 export function SearchCommand({ data, setFilteredData }: SearchCommandProps) {
   const handleSearch = React.useCallback((search: string) => {
-    setFilteredData(search);
-  }, [setFilteredData]);
+    if (!search) {
+      setFilteredData(data);
+      return;
+    }
+
+    const searchLower = search.toLowerCase();
+    const filtered = data.filter((item) => {
+      return (
+        item.title?.toLowerCase().includes(searchLower) ||
+        item.user_number?.toLowerCase().includes(searchLower) ||
+        item.social_network_link?.toLowerCase().includes(searchLower) ||
+        item.event_notes?.toLowerCase().includes(searchLower) ||
+        item.payment_status?.toLowerCase().includes(searchLower)
+      );
+    });
+    
+    setFilteredData(filtered);
+  }, [data, setFilteredData]);
 
   return (
     <Command className="w-full md:w-[200px] rounded-lg border -mt-4">
