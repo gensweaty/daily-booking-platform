@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { FileDisplay } from "@/components/shared/FileDisplay";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -63,24 +63,46 @@ export const CustomerDialogFields = ({
   createEvent,
   setCreateEvent,
 }: CustomerDialogFieldsProps) => {
-  const { data: existingFiles } = useQuery({
-    queryKey: ['customerFiles', customerId],
+  const queryClient = useQueryClient();
+  
+  const { data: allFiles = [] } = useQuery({
+    queryKey: ['customerFiles', customerId, title],
     queryFn: async () => {
-      if (!customerId) return [];
+      if (!customerId && !title) return [];
+      
       console.log('Fetching files for customer:', customerId);
-      const { data, error } = await supabase
+      
+      // Get files from customer_files_new
+      const { data: customerFiles, error: customerFilesError } = await supabase
         .from('customer_files_new')
         .select('*')
         .eq('customer_id', customerId);
       
-      if (error) {
-        console.error('Error fetching customer files:', error);
-        throw error;
+      if (customerFilesError) {
+        console.error('Error fetching customer files:', customerFilesError);
+        throw customerFilesError;
       }
-      console.log('Found files:', data);
-      return data || [];
+
+      // Get files from event_files where event title matches customer title
+      const { data: events, error: eventsError } = await supabase
+        .from('events')
+        .select(`
+          id,
+          event_files (*)
+        `)
+        .eq('title', title);
+
+      if (eventsError) {
+        console.error('Error fetching event files:', eventsError);
+        throw eventsError;
+      }
+
+      const eventFiles = events?.flatMap(event => event.event_files || []) || [];
+      
+      console.log('Found files:', [...(customerFiles || []), ...eventFiles]);
+      return [...(customerFiles || []), ...eventFiles];
     },
-    enabled: !!customerId,
+    enabled: !!(customerId || title),
   });
 
   return (
@@ -202,11 +224,11 @@ export const CustomerDialogFields = ({
         />
       </div>
 
-      {customerId && existingFiles && existingFiles.length > 0 && (
+      {customerId && allFiles && allFiles.length > 0 && (
         <div className="space-y-1">
           <Label>Attachments</Label>
           <FileDisplay 
-            files={existingFiles} 
+            files={allFiles} 
             bucketName="customer_attachments"
             allowDelete
           />
