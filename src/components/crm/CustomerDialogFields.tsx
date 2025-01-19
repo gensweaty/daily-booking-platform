@@ -7,6 +7,7 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useMemo } from "react";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -64,7 +65,7 @@ export const CustomerDialogFields = ({
   setCreateEvent,
 }: CustomerDialogFieldsProps) => {
   
-  const { data: allFiles = [] } = useQuery({
+  const { data: fetchedFiles = [], isLoading } = useQuery({
     queryKey: ['customerFiles', customerId, title],
     queryFn: async () => {
       if (!customerId && !title) return [];
@@ -102,11 +103,14 @@ export const CustomerDialogFields = ({
       return [...(customerFiles || []), ...eventFiles];
     },
     enabled: !!(customerId || title),
-    staleTime: Infinity, // Prevent automatic refetching
-    gcTime: 5 * 60 * 1000, // Cache for 5 minutes (formerly cacheTime)
-    refetchOnWindowFocus: false, // Prevent refetch on window focus
-    refetchOnMount: false, // Prevent refetch on component mount
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
+
+  // Memoize the files array to prevent unnecessary re-renders
+  const allFiles = useMemo(() => fetchedFiles, [fetchedFiles]);
 
   return (
     <div className="space-y-2 sm:space-y-3">
@@ -221,7 +225,7 @@ export const CustomerDialogFields = ({
         <Textarea
           id="notes"
           placeholder="Add a comment about the customer"
-          value={eventNotes || ''}
+          value={eventNotes}
           onChange={(e) => setEventNotes(e.target.value)}
           className="min-h-[80px]"
         />
