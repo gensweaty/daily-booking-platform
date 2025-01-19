@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { FileDisplay } from "@/components/shared/FileDisplay";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -63,7 +63,6 @@ export const CustomerDialogFields = ({
   createEvent,
   setCreateEvent,
 }: CustomerDialogFieldsProps) => {
-  const queryClient = useQueryClient();
   
   const { data: allFiles = [] } = useQuery({
     queryKey: ['customerFiles', customerId, title],
@@ -104,7 +103,9 @@ export const CustomerDialogFields = ({
     },
     enabled: !!(customerId || title),
     staleTime: Infinity, // Prevent automatic refetching
-    cacheTime: 5 * 60 * 1000, // Cache for 5 minutes
+    gcTime: 5 * 60 * 1000, // Cache for 5 minutes (formerly cacheTime)
+    refetchOnWindowFocus: false, // Prevent refetch on window focus
+    refetchOnMount: false, // Prevent refetch on component mount
   });
 
   return (
