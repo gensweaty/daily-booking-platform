@@ -103,6 +103,8 @@ export const CustomerDialogFields = ({
       return [...(customerFiles || []), ...eventFiles];
     },
     enabled: !!(customerId || title),
+    staleTime: Infinity, // Prevent automatic refetching
+    cacheTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   return (
