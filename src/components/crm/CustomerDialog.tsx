@@ -101,9 +101,12 @@ export const CustomerDialog = ({
           .eq('id', customerId)
           .eq('user_id', user?.id)
           .select()
-          .single();
+          .maybeSingle();
 
         if (updateError) throw updateError;
+        if (!updatedCustomer) {
+          throw new Error('Customer not found or access denied');
+        }
         result = updatedCustomer;
 
         // Update corresponding event if it exists
@@ -141,12 +144,15 @@ export const CustomerDialog = ({
           .from('customers')
           .insert([customerData])
           .select()
-          .single();
+          .maybeSingle();
           
         if (createError) throw createError;
+        if (!newCustomer) {
+          throw new Error('Failed to create customer');
+        }
         
         result = newCustomer;
-        customerId = result?.id;
+        customerId = result.id;
 
         if (!customerId) {
           throw new Error('Failed to get customer ID after creation');
@@ -189,9 +195,10 @@ export const CustomerDialog = ({
             .from('customers')
             .select('id')
             .eq('id', customerId)
-            .single();
+            .maybeSingle();
 
-          if (checkError || !customerCheck) {
+          if (checkError) throw checkError;
+          if (!customerCheck) {
             throw new Error('Customer record not found for file upload');
           }
 
