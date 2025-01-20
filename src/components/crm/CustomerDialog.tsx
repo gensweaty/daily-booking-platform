@@ -103,9 +103,45 @@ export const CustomerDialog = ({
       let customerId = customer?.id;
       let result;
 
-      // Handle file upload first if we're updating
+      // Create or update customer first
+      if (customerId) {
+        console.log('Updating customer:', customerId);
+        
+        const { data: updatedCustomer, error: updateError } = await supabase
+          .from('customers')
+          .update(customerData)
+          .eq('id', customerId)
+          .eq('user_id', user.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Error updating customer:', updateError);
+          throw updateError;
+        }
+        
+        result = updatedCustomer;
+      } else {
+        // Create new customer
+        console.log('Creating new customer');
+        const { data: newCustomer, error: createError } = await supabase
+          .from('customers')
+          .insert([customerData])
+          .select()
+          .single();
+          
+        if (createError) {
+          console.error('Error creating customer:', createError);
+          throw createError;
+        }
+        
+        result = newCustomer;
+        customerId = newCustomer.id;
+      }
+
+      // Handle file upload after customer is created/updated
       if (selectedFile && customerId) {
-        console.log('Handling file upload for existing customer');
+        console.log('Handling file upload for customer:', customerId);
         try {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -139,43 +175,24 @@ export const CustomerDialog = ({
         } catch (fileError: any) {
           console.error('Error handling file:', fileError);
           toast({
-            title: "Error",
-            description: "Failed to upload file. Please try again.",
+            title: "Warning",
+            description: "Customer saved but file upload failed. Please try uploading the file again.",
             variant: "destructive",
           });
-          return; // Stop the submission if file upload fails
         }
       }
-      
-      // Handle customer update/creation
-      if (customerId) {
-        console.log('Updating customer:', customerId);
-        
-        const { data: updatedCustomer, error: updateError } = await supabase
-          .from('customers')
-          .update(customerData)
-          .eq('id', customerId)
-          .eq('user_id', user.id)
-          .select()
-          .single();
 
-        if (updateError) {
-          console.error('Error updating customer:', updateError);
-          throw updateError;
-        }
-        
-        result = updatedCustomer;
+      // Handle event creation/update if needed
+      if (createEvent) {
+        console.log('Handling event for customer');
+        const eventData = {
+          ...baseData,
+          start_date: new Date(startDate).toISOString(),
+          end_date: new Date(endDate).toISOString(),
+          type: 'private_party'
+        };
 
-        // Update corresponding event if it exists
-        if (createEvent) {
-          console.log('Updating corresponding event');
-          const eventData = {
-            ...baseData,
-            start_date: new Date(startDate).toISOString(),
-            end_date: new Date(endDate).toISOString(),
-            type: 'private_party'
-          };
-
+        if (customer?.id) {
           const { error: eventError } = await supabase
             .from('events')
             .update(eventData)
@@ -190,80 +207,7 @@ export const CustomerDialog = ({
               variant: "destructive",
             });
           }
-        }
-
-        toast({
-          title: "Success",
-          description: "Customer updated successfully",
-        });
-      } else {
-        // Create new customer
-        console.log('Creating new customer');
-        const { data: newCustomer, error: createError } = await supabase
-          .from('customers')
-          .insert([customerData])
-          .select()
-          .single();
-          
-        if (createError) {
-          console.error('Error creating customer:', createError);
-          throw createError;
-        }
-        
-        result = newCustomer;
-        customerId = newCustomer.id;
-
-        // Handle file upload for new customer
-        if (selectedFile) {
-          console.log('Handling file upload for new customer');
-          try {
-            const fileExt = selectedFile.name.split('.').pop();
-            const filePath = `${crypto.randomUUID()}.${fileExt}`;
-            
-            const { error: uploadError } = await supabase.storage
-              .from('customer_attachments')
-              .upload(filePath, selectedFile);
-
-            if (uploadError) {
-              console.error('Error uploading file:', uploadError);
-              throw uploadError;
-            }
-
-            const { error: fileRecordError } = await supabase
-              .from('customer_files_new')
-              .insert({
-                customer_id: customerId,
-                filename: selectedFile.name,
-                file_path: filePath,
-                content_type: selectedFile.type,
-                size: selectedFile.size,
-                user_id: user.id
-              });
-
-            if (fileRecordError) {
-              console.error('Error creating file record:', fileRecordError);
-              throw fileRecordError;
-            }
-          } catch (fileError: any) {
-            console.error('Error handling file:', fileError);
-            toast({
-              title: "Warning",
-              description: "Customer created but file upload failed",
-              variant: "destructive",
-            });
-          }
-        }
-
-        // Create corresponding event if checkbox is checked
-        if (createEvent) {
-          console.log('Creating corresponding event');
-          const eventData = {
-            ...baseData,
-            start_date: new Date(startDate).toISOString(),
-            end_date: new Date(endDate).toISOString(),
-            type: 'private_party'
-          };
-
+        } else {
           const { error: eventError } = await supabase
             .from('events')
             .insert([{ ...eventData, user_id: user.id }]);
@@ -277,17 +221,17 @@ export const CustomerDialog = ({
             });
           }
         }
-
-        toast({
-          title: "Success",
-          description: "Customer created successfully",
-        });
       }
 
       // Invalidate queries to refresh the data
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
       await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      
+      toast({
+        title: "Success",
+        description: customer ? "Customer updated successfully" : "Customer created successfully",
+      });
       
       onOpenChange(false);
     } catch (error: any) {
