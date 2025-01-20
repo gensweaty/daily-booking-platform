@@ -154,10 +154,6 @@ export const CustomerDialog = ({
         result = newCustomer;
         customerId = result.id;
 
-        if (!customerId) {
-          throw new Error('Failed to get customer ID after creation');
-        }
-
         // Create corresponding event if checkbox is checked
         if (createEvent) {
           const eventData = {

@@ -72,41 +72,47 @@ export const CustomerDialogFields = ({
       
       console.log('Fetching files for customer:', customerId);
       
-      // Get files from customer_files_new
-      const { data: customerFiles, error: customerFilesError } = await supabase
-        .from('customer_files_new')
-        .select('*')
-        .eq('customer_id', customerId);
-      
-      if (customerFilesError) {
-        console.error('Error fetching customer files:', customerFilesError);
-        throw customerFilesError;
+      try {
+        // Get files from customer_files_new
+        const { data: customerFiles, error: customerFilesError } = await supabase
+          .from('customer_files_new')
+          .select('*')
+          .eq('customer_id', customerId);
+        
+        if (customerFilesError) {
+          console.error('Error fetching customer files:', customerFilesError);
+          return [];
+        }
+
+        // Get files from event_files where event title matches customer title
+        const { data: events, error: eventsError } = await supabase
+          .from('events')
+          .select(`
+            id,
+            event_files (*)
+          `)
+          .eq('title', title);
+
+        if (eventsError) {
+          console.error('Error fetching event files:', eventsError);
+          return customerFiles || [];
+        }
+
+        const eventFiles = events?.flatMap(event => event.event_files || []) || [];
+        
+        console.log('Found files:', [...(customerFiles || []), ...eventFiles]);
+        return [...(customerFiles || []), ...eventFiles];
+      } catch (error) {
+        console.error('Error in file fetching:', error);
+        return [];
       }
-
-      // Get files from event_files where event title matches customer title
-      const { data: events, error: eventsError } = await supabase
-        .from('events')
-        .select(`
-          id,
-          event_files (*)
-        `)
-        .eq('title', title);
-
-      if (eventsError) {
-        console.error('Error fetching event files:', eventsError);
-        throw eventsError;
-      }
-
-      const eventFiles = events?.flatMap(event => event.event_files || []) || [];
-      
-      console.log('Found files:', [...(customerFiles || []), ...eventFiles]);
-      return [...(customerFiles || []), ...eventFiles];
     },
     enabled: !!customerId,
     staleTime: Infinity,
     gcTime: Infinity,
     refetchOnWindowFocus: false,
-    refetchOnMount: false
+    refetchOnMount: false,
+    retry: 1
   });
 
   // Memoize the files array to prevent unnecessary re-renders
@@ -249,4 +255,4 @@ export const CustomerDialogFields = ({
       />
     </div>
   );
-};
+});
