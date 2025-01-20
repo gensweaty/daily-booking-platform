@@ -255,4 +255,4 @@ export const CustomerDialogFields = ({
       />
     </div>
   );
-});
+};
