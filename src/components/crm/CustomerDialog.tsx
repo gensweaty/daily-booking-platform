@@ -90,20 +90,18 @@ export const CustomerDialog = ({
         end_date: new Date(endDate).toISOString()
       } : baseData;
 
-      let createdCustomer;
+      let customerId = customer?.id;
       
-      if (customer?.id) {
+      if (customerId) {
         // Update existing customer
         const { data: updatedCustomer, error: updateError } = await supabase
           .from('customers')
           .update(customerData)
-          .eq('id', customer.id)
+          .eq('id', customerId)
           .eq('user_id', user?.id)
           .select();
 
         if (updateError) throw updateError;
-        
-        createdCustomer = updatedCustomer?.[0];
 
         // Update corresponding event if it exists
         if (createEvent) {
@@ -142,7 +140,7 @@ export const CustomerDialog = ({
           .select();
           
         if (createError) throw createError;
-        createdCustomer = newCustomer?.[0];
+        customerId = newCustomer?.[0]?.id;
 
         // Create corresponding event if checkbox is checked
         if (createEvent) {
@@ -174,7 +172,7 @@ export const CustomerDialog = ({
       }
 
       // Handle file upload if a file is selected
-      if (selectedFile && createdCustomer?.id && user) {
+      if (selectedFile && customerId && user) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
@@ -187,7 +185,7 @@ export const CustomerDialog = ({
         const { error: fileRecordError } = await supabase
           .from('customer_files_new')
           .insert({
-            customer_id: createdCustomer.id,
+            customer_id: customerId,
             filename: selectedFile.name,
             file_path: filePath,
             content_type: selectedFile.type,

@@ -66,7 +66,7 @@ export const CustomerDialogFields = ({
 }: CustomerDialogFieldsProps) => {
   
   const { data: fetchedFiles = [], isError } = useQuery({
-    queryKey: ['customerFiles', customerId, title],
+    queryKey: ['customerFiles', customerId],
     queryFn: async () => {
       if (!customerId) return [];
       
@@ -102,7 +102,7 @@ export const CustomerDialogFields = ({
       console.log('Found files:', [...(customerFiles || []), ...eventFiles]);
       return [...(customerFiles || []), ...eventFiles];
     },
-    enabled: !!customerId && !!title,
+    enabled: !!customerId,
     staleTime: Infinity,
     gcTime: Infinity,
     refetchOnWindowFocus: false,
