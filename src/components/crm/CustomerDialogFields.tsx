@@ -106,8 +106,7 @@ export const CustomerDialogFields = ({
     staleTime: Infinity,
     gcTime: Infinity,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    keepPreviousData: true
+    refetchOnMount: false
   });
 
   // Memoize the files array to prevent unnecessary re-renders
