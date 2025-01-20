@@ -106,6 +106,18 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
       const buckets = getEffectiveBuckets(file.file_path);
       let deleteSuccess = false;
 
+      // First delete from customer_files_new table
+      const { error: dbError } = await supabase
+        .from('customer_files_new')
+        .delete()
+        .eq('id', file.id);
+
+      if (dbError) {
+        console.error('Error deleting file record:', dbError);
+        throw dbError;
+      }
+
+      // Then try to delete the actual file from storage
       for (const bucket of buckets) {
         const { error } = await supabase.storage
           .from(bucket)
@@ -119,11 +131,18 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
       }
 
       if (deleteSuccess) {
-        await handleDatabaseDelete(file.id);
+        await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+        if (onFileDeleted) {
+          onFileDeleted(file.id);
+        }
+        toast({
+          title: "Success",
+          description: "File deleted successfully",
+        });
       } else {
-        throw new Error('Failed to delete file from any bucket');
+        throw new Error('Failed to delete file from storage');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting file:', error);
       toast({
         title: "Error",
@@ -133,35 +152,6 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
     } finally {
       setDeletingFile(null);
     }
-  };
-
-  const handleDatabaseDelete = async (fileId: string) => {
-    const tableName = bucketName === 'event_attachments' ? 'event_files' : 
-                     bucketName === 'note_attachments' ? 'note_files' : 
-                     bucketName === 'customer_attachments' ? 'customer_files' : 'files';
-                     
-    const { error: dbError } = await supabase
-      .from(tableName)
-      .delete()
-      .eq('id', fileId);
-
-    if (dbError) throw dbError;
-
-    await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-    await queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
-    await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
-    await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-    await queryClient.invalidateQueries({ queryKey: ['customers'] });
-    await queryClient.invalidateQueries({ queryKey: ['events'] });
-
-    if (onFileDeleted) {
-      onFileDeleted(fileId);
-    }
-
-    toast({
-      title: "Success",
-      description: "File deleted successfully",
-    });
   };
 
   const loadImageUrl = async (file_path: string) => {

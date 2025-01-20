@@ -192,11 +192,11 @@ export const CustomerDialog = ({
           type: 'private_party'
         };
 
-        if (customer?.id) {
+        if (event?.id) {
           const { error: eventError } = await supabase
             .from('events')
             .update(eventData)
-            .eq('title', customer.title)
+            .eq('id', event.id)
             .eq('user_id', user.id);
 
           if (eventError) {
