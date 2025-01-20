@@ -107,7 +107,6 @@ export const CustomerDialogFields = ({
     gcTime: Infinity,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    suspense: false,
     keepPreviousData: true
   });
 
@@ -251,4 +250,3 @@ export const CustomerDialogFields = ({
       />
     </div>
   );
-};
