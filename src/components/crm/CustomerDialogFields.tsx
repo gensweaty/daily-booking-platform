@@ -65,10 +65,10 @@ export const CustomerDialogFields = ({
   setCreateEvent,
 }: CustomerDialogFieldsProps) => {
   
-  const { data: fetchedFiles = [] } = useQuery({
+  const { data: fetchedFiles = [], isError } = useQuery({
     queryKey: ['customerFiles', customerId, title],
     queryFn: async () => {
-      if (!customerId && !title) return [];
+      if (!customerId) return [];
       
       console.log('Fetching files for customer:', customerId);
       
@@ -102,7 +102,7 @@ export const CustomerDialogFields = ({
       console.log('Found files:', [...(customerFiles || []), ...eventFiles]);
       return [...(customerFiles || []), ...eventFiles];
     },
-    enabled: !!(customerId || title),
+    enabled: !!customerId && !!title,
     staleTime: Infinity,
     gcTime: Infinity,
     refetchOnWindowFocus: false,
