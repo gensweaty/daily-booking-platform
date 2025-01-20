@@ -93,17 +93,18 @@ export const CustomerDialog = ({
       let customerId = customer?.id;
       let result;
       
+      // Handle customer update/creation
       if (customerId) {
-        // Update existing customer
         const { data: updatedCustomer, error: updateError } = await supabase
           .from('customers')
           .update(customerData)
           .eq('id', customerId)
           .eq('user_id', user?.id)
-          .select();
+          .select()
+          .single();
 
         if (updateError) throw updateError;
-        result = updatedCustomer?.[0];
+        result = updatedCustomer;
 
         // Update corresponding event if it exists
         if (createEvent) {
@@ -139,11 +140,17 @@ export const CustomerDialog = ({
         const { data: newCustomer, error: createError } = await supabase
           .from('customers')
           .insert([customerData])
-          .select();
+          .select()
+          .single();
           
         if (createError) throw createError;
-        result = newCustomer?.[0];
+        
+        result = newCustomer;
         customerId = result?.id;
+
+        if (!customerId) {
+          throw new Error('Failed to get customer ID after creation');
+        }
 
         // Create corresponding event if checkbox is checked
         if (createEvent) {
@@ -176,30 +183,47 @@ export const CustomerDialog = ({
 
       // Handle file upload if a file is selected
       if (selectedFile && customerId && user) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${crypto.randomUUID()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('customer_attachments')
-          .upload(filePath, selectedFile);
+        try {
+          // Verify customer exists before proceeding with file upload
+          const { data: customerCheck, error: checkError } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('id', customerId)
+            .single();
 
-        if (uploadError) throw uploadError;
+          if (checkError || !customerCheck) {
+            throw new Error('Customer record not found for file upload');
+          }
 
-        // Wait for the customer record to be fully created before inserting the file record
-        await new Promise(resolve => setTimeout(resolve, 1000));
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `${crypto.randomUUID()}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('customer_attachments')
+            .upload(filePath, selectedFile);
 
-        const { error: fileRecordError } = await supabase
-          .from('customer_files_new')
-          .insert({
-            customer_id: customerId,
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            user_id: user.id
+          if (uploadError) throw uploadError;
+
+          const { error: fileRecordError } = await supabase
+            .from('customer_files_new')
+            .insert({
+              customer_id: customerId,
+              filename: selectedFile.name,
+              file_path: filePath,
+              content_type: selectedFile.type,
+              size: selectedFile.size,
+              user_id: user.id
+            });
+
+          if (fileRecordError) throw fileRecordError;
+        } catch (fileError: any) {
+          console.error('Error handling file:', fileError);
+          toast({
+            title: "Warning",
+            description: "Customer saved but file upload failed",
+            variant: "destructive",
           });
-
-        if (fileRecordError) throw fileRecordError;
+        }
       }
 
       // Invalidate queries to refresh the data
