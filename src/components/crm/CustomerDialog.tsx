@@ -71,6 +71,16 @@ export const CustomerDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!user?.id) {
+      console.error('No user ID found');
+      toast({
+        title: "Error",
+        description: "User authentication required",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       const baseData = {
         title,
@@ -96,11 +106,30 @@ export const CustomerDialog = ({
       // Handle customer update/creation
       if (customerId) {
         console.log('Updating customer:', customerId);
+        
+        // First verify the customer exists and belongs to the user
+        const { data: existingCustomer, error: checkError } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('id', customerId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+          
+        if (checkError) {
+          console.error('Error checking customer:', checkError);
+          throw checkError;
+        }
+        
+        if (!existingCustomer) {
+          console.error('Customer not found or access denied');
+          throw new Error('Customer not found or access denied');
+        }
+
         const { data: updatedCustomer, error: updateError } = await supabase
           .from('customers')
           .update(customerData)
           .eq('id', customerId)
-          .eq('user_id', user?.id)
+          .eq('user_id', user.id)
           .select()
           .maybeSingle();
 
@@ -108,10 +137,12 @@ export const CustomerDialog = ({
           console.error('Error updating customer:', updateError);
           throw updateError;
         }
+        
         if (!updatedCustomer) {
-          console.error('Customer not found or access denied');
-          throw new Error('Customer not found or access denied');
+          console.error('Failed to update customer');
+          throw new Error('Failed to update customer');
         }
+        
         result = updatedCustomer;
 
         // Update corresponding event if it exists
@@ -128,7 +159,7 @@ export const CustomerDialog = ({
             .from('events')
             .update(eventData)
             .eq('title', customer.title)
-            .eq('user_id', user?.id);
+            .eq('user_id', user.id);
 
           if (eventError) {
             console.error('Error updating event:', eventError);
@@ -157,6 +188,7 @@ export const CustomerDialog = ({
           console.error('Error creating customer:', createError);
           throw createError;
         }
+        
         if (!newCustomer) {
           console.error('Failed to create customer');
           throw new Error('Failed to create customer');
@@ -177,7 +209,7 @@ export const CustomerDialog = ({
 
           const { error: eventError } = await supabase
             .from('events')
-            .insert([{ ...eventData, user_id: user?.id }]);
+            .insert([{ ...eventData, user_id: user.id }]);
 
           if (eventError) {
             console.error('Error creating event:', eventError);
@@ -199,22 +231,6 @@ export const CustomerDialog = ({
       if (selectedFile && customerId && user) {
         console.log('Handling file upload');
         try {
-          // Verify customer exists before proceeding with file upload
-          const { data: customerCheck, error: checkError } = await supabase
-            .from('customers')
-            .select('id')
-            .eq('id', customerId)
-            .maybeSingle();
-
-          if (checkError) {
-            console.error('Error checking customer:', checkError);
-            throw checkError;
-          }
-          if (!customerCheck) {
-            console.error('Customer record not found for file upload');
-            throw new Error('Customer record not found for file upload');
-          }
-
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;
           
