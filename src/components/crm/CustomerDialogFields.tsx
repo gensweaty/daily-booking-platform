@@ -65,7 +65,7 @@ export const CustomerDialogFields = ({
   setCreateEvent,
 }: CustomerDialogFieldsProps) => {
   
-  const { data: fetchedFiles = [], isLoading } = useQuery({
+  const { data: fetchedFiles = [] } = useQuery({
     queryKey: ['customerFiles', customerId, title],
     queryFn: async () => {
       if (!customerId && !title) return [];
@@ -107,6 +107,8 @@ export const CustomerDialogFields = ({
     gcTime: Infinity,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+    suspense: false,
+    keepPreviousData: true
   });
 
   // Memoize the files array to prevent unnecessary re-renders
