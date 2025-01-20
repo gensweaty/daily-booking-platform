@@ -91,6 +91,7 @@ export const CustomerDialog = ({
       } : baseData;
 
       let customerId = customer?.id;
+      let result;
       
       if (customerId) {
         // Update existing customer
@@ -102,6 +103,7 @@ export const CustomerDialog = ({
           .select();
 
         if (updateError) throw updateError;
+        result = updatedCustomer?.[0];
 
         // Update corresponding event if it exists
         if (createEvent) {
@@ -140,7 +142,8 @@ export const CustomerDialog = ({
           .select();
           
         if (createError) throw createError;
-        customerId = newCustomer?.[0]?.id;
+        result = newCustomer?.[0];
+        customerId = result?.id;
 
         // Create corresponding event if checkbox is checked
         if (createEvent) {
@@ -181,6 +184,9 @@ export const CustomerDialog = ({
           .upload(filePath, selectedFile);
 
         if (uploadError) throw uploadError;
+
+        // Wait for the customer record to be fully created before inserting the file record
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         const { error: fileRecordError } = await supabase
           .from('customer_files_new')
