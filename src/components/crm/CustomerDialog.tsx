@@ -95,6 +95,7 @@ export const CustomerDialog = ({
       
       // Handle customer update/creation
       if (customerId) {
+        console.log('Updating customer:', customerId);
         const { data: updatedCustomer, error: updateError } = await supabase
           .from('customers')
           .update(customerData)
@@ -103,14 +104,19 @@ export const CustomerDialog = ({
           .select()
           .maybeSingle();
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Error updating customer:', updateError);
+          throw updateError;
+        }
         if (!updatedCustomer) {
+          console.error('Customer not found or access denied');
           throw new Error('Customer not found or access denied');
         }
         result = updatedCustomer;
 
         // Update corresponding event if it exists
         if (createEvent) {
+          console.log('Updating corresponding event');
           const eventData = {
             ...baseData,
             start_date: new Date(startDate).toISOString(),
@@ -140,14 +146,19 @@ export const CustomerDialog = ({
         });
       } else {
         // Create new customer
+        console.log('Creating new customer');
         const { data: newCustomer, error: createError } = await supabase
           .from('customers')
           .insert([customerData])
           .select()
           .maybeSingle();
           
-        if (createError) throw createError;
+        if (createError) {
+          console.error('Error creating customer:', createError);
+          throw createError;
+        }
         if (!newCustomer) {
+          console.error('Failed to create customer');
           throw new Error('Failed to create customer');
         }
         
@@ -156,6 +167,7 @@ export const CustomerDialog = ({
 
         // Create corresponding event if checkbox is checked
         if (createEvent) {
+          console.log('Creating corresponding event');
           const eventData = {
             ...baseData,
             start_date: new Date(startDate).toISOString(),
@@ -185,6 +197,7 @@ export const CustomerDialog = ({
 
       // Handle file upload if a file is selected
       if (selectedFile && customerId && user) {
+        console.log('Handling file upload');
         try {
           // Verify customer exists before proceeding with file upload
           const { data: customerCheck, error: checkError } = await supabase
@@ -193,8 +206,12 @@ export const CustomerDialog = ({
             .eq('id', customerId)
             .maybeSingle();
 
-          if (checkError) throw checkError;
+          if (checkError) {
+            console.error('Error checking customer:', checkError);
+            throw checkError;
+          }
           if (!customerCheck) {
+            console.error('Customer record not found for file upload');
             throw new Error('Customer record not found for file upload');
           }
 
@@ -205,7 +222,10 @@ export const CustomerDialog = ({
             .from('customer_attachments')
             .upload(filePath, selectedFile);
 
-          if (uploadError) throw uploadError;
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            throw uploadError;
+          }
 
           const { error: fileRecordError } = await supabase
             .from('customer_files_new')
@@ -218,7 +238,10 @@ export const CustomerDialog = ({
               user_id: user.id
             });
 
-          if (fileRecordError) throw fileRecordError;
+          if (fileRecordError) {
+            console.error('Error creating file record:', fileRecordError);
+            throw fileRecordError;
+          }
         } catch (fileError: any) {
           console.error('Error handling file:', fileError);
           toast({
