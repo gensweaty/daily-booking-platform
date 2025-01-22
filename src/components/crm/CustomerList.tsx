@@ -323,6 +323,7 @@ export const CustomerList = () => {
       }`}>
         {displayStatus}
       </span>
+    );
   };
 
   const openCreateDialog = () => {
