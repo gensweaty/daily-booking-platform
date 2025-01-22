@@ -184,7 +184,12 @@ export const CustomerList = () => {
 
       if (!data) {
         console.error('No customer found to update');
-        throw new Error("Failed to update customer - customer not found");
+        toast({
+          title: "Error",
+          description: "Customer not found or you don't have permission to update it",
+          variant: "destructive",
+        });
+        return;
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
