@@ -30,7 +30,7 @@ const formatPaymentStatus = (status: string, amount: number | null) => {
   );
 };
 
-export const CustomerList = () => {
+const CustomerList = () => {
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
     queryFn: getCustomers,
@@ -54,3 +54,5 @@ export const CustomerList = () => {
     </div>
   );
 };
+
+export default CustomerList;
