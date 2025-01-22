@@ -130,9 +130,13 @@ export const CustomerList = () => {
         .from('customers')
         .insert([{ ...customerData, user_id: user?.id }])
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+
+      if (!data) {
+        throw new Error("Failed to create customer - no data returned");
+      }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
 
@@ -143,6 +147,7 @@ export const CustomerList = () => {
 
       return data;
     } catch (error: any) {
+      console.error('Error creating customer:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to create customer",
@@ -153,16 +158,29 @@ export const CustomerList = () => {
   };
 
   const handleUpdateCustomer = async (customerData: any) => {
+    if (!selectedCustomer?.id || !user?.id) {
+      toast({
+        title: "Error",
+        description: "Missing customer or user information",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('customers')
         .update(customerData)
         .eq('id', selectedCustomer.id)
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+
+      if (!data) {
+        throw new Error("Failed to update customer - no data returned");
+      }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
 
@@ -173,6 +191,7 @@ export const CustomerList = () => {
 
       return data;
     } catch (error: any) {
+      console.error('Error updating customer:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update customer",
@@ -183,7 +202,14 @@ export const CustomerList = () => {
   };
 
   const handleDeleteCustomer = async () => {
-    if (!selectedCustomer?.id || !user?.id) return;
+    if (!selectedCustomer?.id || !user?.id) {
+      toast({
+        title: "Error",
+        description: "Missing customer or user information",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const { error } = await supabase
@@ -203,6 +229,7 @@ export const CustomerList = () => {
       setIsDialogOpen(false);
       setSelectedCustomer(null);
     } catch (error: any) {
+      console.error('Error deleting customer:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete customer",
