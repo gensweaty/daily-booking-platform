@@ -184,7 +184,7 @@ export const CustomerList = () => {
 
       if (!data) {
         console.error('No customer found to update');
-        throw new Error("Failed to update customer - no data returned");
+        throw new Error("Failed to update customer - customer not found");
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
