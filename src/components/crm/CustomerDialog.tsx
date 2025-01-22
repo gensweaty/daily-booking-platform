@@ -127,11 +127,15 @@ export const CustomerDialog = ({
             .from('customers')
             .insert([customerData])
             .select()
-            .single();
+            .maybeSingle();
             
           if (createError) {
             console.error('Error creating customer:', createError);
             throw createError;
+          }
+          
+          if (!newCustomer) {
+            throw new Error('Failed to create customer');
           }
           
           result = newCustomer;
@@ -146,11 +150,15 @@ export const CustomerDialog = ({
           .from('customers')
           .insert([customerData])
           .select()
-          .single();
+          .maybeSingle();
           
         if (createError) {
           console.error('Error creating customer:', createError);
           throw createError;
+        }
+        
+        if (!newCustomer) {
+          throw new Error('Failed to create customer');
         }
         
         result = newCustomer;
