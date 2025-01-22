@@ -100,17 +100,17 @@ export const CustomerDialog = ({
         end_date: new Date(endDate).toISOString()
       } : baseData;
 
-      let customerId = customer?.id;
       let result;
+      let resultId = customer?.id;
 
       // Create or update customer first
-      if (customerId) {
-        console.log('Updating customer:', customerId);
+      if (resultId) {
+        console.log('Updating customer:', resultId);
         
         const { data: updatedCustomer, error: updateError } = await supabase
           .from('customers')
           .update(customerData)
-          .eq('id', customerId)
+          .eq('id', resultId)
           .eq('user_id', user.id)
           .select()
           .maybeSingle();
@@ -134,7 +134,7 @@ export const CustomerDialog = ({
           }
           
           result = newCustomer;
-          customerId = newCustomer.id;
+          resultId = newCustomer.id;
         } else {
           result = updatedCustomer;
         }
@@ -153,12 +153,12 @@ export const CustomerDialog = ({
         }
         
         result = newCustomer;
-        customerId = newCustomer.id;
+        resultId = newCustomer.id;
       }
 
       // Handle file upload after customer is created/updated
-      if (selectedFile && customerId) {
-        console.log('Handling file upload for customer:', customerId);
+      if (selectedFile && resultId) {
+        console.log('Handling file upload for customer:', resultId);
         try {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -176,7 +176,7 @@ export const CustomerDialog = ({
           const { error: fileRecordError } = await supabase
             .from('customer_files_new')
             .insert({
-              customer_id: customerId,
+              customer_id: resultId,
               filename: selectedFile.name,
               file_path: filePath,
               content_type: selectedFile.type,
@@ -290,7 +290,7 @@ export const CustomerDialog = ({
             setSelectedFile={setSelectedFile}
             fileError={fileError}
             setFileError={setFileError}
-            customerId={customerId}
+            customerId={resultId}
             createEvent={createEvent}
             setCreateEvent={setCreateEvent}
           />
