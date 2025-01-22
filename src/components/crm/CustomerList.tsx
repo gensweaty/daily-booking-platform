@@ -42,11 +42,11 @@ const CustomerList = () => {
     <div>
       <h2 className="text-2xl font-bold">Customer List</h2>
       <ul>
-        {customers.map((customer: Customer) => (
+        {(customers as Customer[]).map((customer: Customer) => (
           <li key={customer.id} className="py-2">
             <div className="flex justify-between">
-              <span>{customer.name}</span>
-              <span>{formatPaymentStatus(customer.payment_status, customer.amount)}</span>
+              <span>{customer.title}</span>
+              <span>{formatPaymentStatus(customer.payment_status || '', customer.payment_amount || null)}</span>
             </div>
           </li>
         ))}
