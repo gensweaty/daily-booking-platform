@@ -113,14 +113,31 @@ export const CustomerDialog = ({
           .eq('id', customerId)
           .eq('user_id', user.id)
           .select()
-          .single();
+          .maybeSingle();
 
         if (updateError) {
           console.error('Error updating customer:', updateError);
           throw updateError;
         }
         
-        result = updatedCustomer;
+        if (!updatedCustomer) {
+          // If no customer was found, create a new one
+          const { data: newCustomer, error: createError } = await supabase
+            .from('customers')
+            .insert([customerData])
+            .select()
+            .single();
+            
+          if (createError) {
+            console.error('Error creating customer:', createError);
+            throw createError;
+          }
+          
+          result = newCustomer;
+          customerId = newCustomer.id;
+        } else {
+          result = updatedCustomer;
+        }
       } else {
         // Create new customer
         console.log('Creating new customer');
@@ -159,7 +176,7 @@ export const CustomerDialog = ({
           const { error: fileRecordError } = await supabase
             .from('customer_files_new')
             .insert({
-              customer_id: customerId, // Use the customer ID directly
+              customer_id: customerId,
               filename: selectedFile.name,
               file_path: filePath,
               content_type: selectedFile.type,
@@ -273,7 +290,7 @@ export const CustomerDialog = ({
             setSelectedFile={setSelectedFile}
             fileError={fileError}
             setFileError={setFileError}
-            customerId={customer?.id}
+            customerId={customerId}
             createEvent={createEvent}
             setCreateEvent={setCreateEvent}
           />
