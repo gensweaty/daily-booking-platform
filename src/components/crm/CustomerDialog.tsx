@@ -49,6 +49,7 @@ export const CustomerDialog = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Starting customer submission...');
     
     const customerData: any = {
       title,
@@ -66,9 +67,12 @@ export const CustomerDialog = ({
     }
 
     try {
+      console.log('Submitting customer data:', customerData);
       const createdCustomer = await onSubmit(customerData);
+      console.log('Customer created/updated:', createdCustomer);
 
       if (selectedFile && createdCustomer?.id && user) {
+        console.log('Starting file upload for customer:', createdCustomer.id);
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
@@ -76,8 +80,12 @@ export const CustomerDialog = ({
           .from('customer_attachments')
           .upload(filePath, selectedFile);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('File upload error:', uploadError);
+          throw uploadError;
+        }
 
+        console.log('File uploaded successfully, creating file record...');
         const { error: fileRecordError } = await supabase
           .from('customer_files_new')
           .insert({
@@ -91,9 +99,13 @@ export const CustomerDialog = ({
           .select()
           .maybeSingle();
 
-        if (fileRecordError) throw fileRecordError;
+        if (fileRecordError) {
+          console.error('File record creation error:', fileRecordError);
+          throw fileRecordError;
+        }
       }
 
+      console.log('Customer submission completed successfully');
       onOpenChange(false);
     } catch (error) {
       console.error('Error handling customer submission:', error);

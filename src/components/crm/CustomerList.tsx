@@ -168,6 +168,7 @@ export const CustomerList = () => {
     }
 
     try {
+      console.log('Updating customer:', selectedCustomer.id, 'with data:', customerData);
       const { data, error } = await supabase
         .from('customers')
         .update(customerData)
@@ -176,9 +177,13 @@ export const CustomerList = () => {
         .select()
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating customer:', error);
+        throw error;
+      }
 
       if (!data) {
+        console.error('No customer found to update');
         throw new Error("Failed to update customer - no data returned");
       }
 
