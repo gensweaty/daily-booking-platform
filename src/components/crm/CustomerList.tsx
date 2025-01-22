@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion"
 
 export const CustomerList = () => {
   const [customers, setCustomers] = useState<any[]>([])
+  const [filteredCustomers, setFilteredCustomers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
@@ -42,6 +43,7 @@ export const CustomerList = () => {
       }
 
       setCustomers(data || [])
+      setFilteredCustomers(data || [])
     } catch (error: any) {
       console.error("Customer fetch error:", error)
       toast({
@@ -91,10 +93,18 @@ export const CustomerList = () => {
         customer.id === updatedCustomer.id ? updatedCustomer : customer
       )
     )
+    setFilteredCustomers(prevCustomers =>
+      prevCustomers.map(customer =>
+        customer.id === updatedCustomer.id ? updatedCustomer : customer
+      )
+    )
   }
 
   const handleCustomerDelete = (deletedCustomerId: string) => {
     setCustomers(prevCustomers =>
+      prevCustomers.filter(customer => customer.id !== deletedCustomerId)
+    )
+    setFilteredCustomers(prevCustomers =>
       prevCustomers.filter(customer => customer.id !== deletedCustomerId)
     )
   }
@@ -102,7 +112,10 @@ export const CustomerList = () => {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <SearchCommand customers={customers} onSelect={handleCustomerSelect} />
+        <SearchCommand 
+          data={customers} 
+          setFilteredData={setFilteredCustomers}
+        />
         <Button
           onClick={() => {
             setSelectedCustomer(null)
@@ -125,14 +138,14 @@ export const CustomerList = () => {
           >
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </motion.div>
-        ) : customers.length > 0 ? (
+        ) : filteredCustomers.length > 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
           >
-            {customers.map(customer => (
+            {filteredCustomers.map(customer => (
               <motion.div
                 key={customer.id}
                 initial={{ opacity: 0, y: 20 }}

@@ -7,9 +7,10 @@ import {
 interface SearchCommandProps {
   data: any[]
   setFilteredData: (data: any[]) => void
+  onSelect?: (customerId: string) => Promise<void>
 }
 
-export function SearchCommand({ data, setFilteredData }: SearchCommandProps) {
+export function SearchCommand({ data, setFilteredData, onSelect }: SearchCommandProps) {
   const handleSearch = React.useCallback((search: string) => {
     if (!search) {
       setFilteredData(data);
@@ -20,7 +21,7 @@ export function SearchCommand({ data, setFilteredData }: SearchCommandProps) {
     const filtered = data.filter((item) => {
       return (
         item.title?.toLowerCase().includes(searchLower) ||
-        item.user_number?.toLowerCase().includes(searchLower) ||
+        item.user_surname?.toLowerCase().includes(searchLower) ||
         item.social_network_link?.toLowerCase().includes(searchLower) ||
         item.event_notes?.toLowerCase().includes(searchLower) ||
         item.payment_status?.toLowerCase().includes(searchLower)
