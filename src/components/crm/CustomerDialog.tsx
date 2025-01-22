@@ -117,11 +117,15 @@ export const CustomerDialog = ({
             .eq('id', eventId)
             .eq('user_id', user.id)
             .select()
-            .single();
+            .maybeSingle();
 
           if (updateError) {
             console.error('Error updating event:', updateError);
             throw updateError;
+          }
+          
+          if (!updatedEvent) {
+            throw new Error('Event not found or you do not have permission to update it');
           }
           
           result = { ...updatedEvent, id: `event-${updatedEvent.id}` };
@@ -132,11 +136,15 @@ export const CustomerDialog = ({
             .eq('id', resultId)
             .eq('user_id', user.id)
             .select()
-            .single();
+            .maybeSingle();
 
           if (updateError) {
             console.error('Error updating customer:', updateError);
             throw updateError;
+          }
+          
+          if (!updatedCustomer) {
+            throw new Error('Customer not found or you do not have permission to update it');
           }
           
           result = updatedCustomer;
@@ -148,11 +156,15 @@ export const CustomerDialog = ({
           .from('customers')
           .insert([customerData])
           .select()
-          .single();
+          .maybeSingle();
           
         if (createError) {
           console.error('Error creating customer:', createError);
           throw createError;
+        }
+
+        if (!newCustomer) {
+          throw new Error('Failed to create customer - no data returned');
         }
 
         result = newCustomer;
