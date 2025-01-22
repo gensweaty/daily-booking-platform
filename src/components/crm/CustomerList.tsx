@@ -100,13 +100,15 @@ export const CustomerList = () => {
     )
   }
 
-  const handleCustomerDelete = (deletedCustomerId: string) => {
-    setCustomers(prevCustomers =>
-      prevCustomers.filter(customer => customer.id !== deletedCustomerId)
-    )
-    setFilteredCustomers(prevCustomers =>
-      prevCustomers.filter(customer => customer.id !== deletedCustomerId)
-    )
+  const handleCustomerDelete = () => {
+    if (selectedCustomer?.id) {
+      setCustomers(prevCustomers =>
+        prevCustomers.filter(customer => customer.id !== selectedCustomer.id)
+      )
+      setFilteredCustomers(prevCustomers =>
+        prevCustomers.filter(customer => customer.id !== selectedCustomer.id)
+      )
+    }
   }
 
   return (
@@ -191,7 +193,7 @@ export const CustomerList = () => {
         customer={selectedCustomer}
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
-        onUpdate={handleCustomerUpdate}
+        onSubmit={handleCustomerUpdate}
         onDelete={handleCustomerDelete}
       />
     </div>
