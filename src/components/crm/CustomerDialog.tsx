@@ -190,16 +190,20 @@ export const CustomerDialog = ({
           }
 
           // Create file record in appropriate table
+          const fileData = {
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user.id
+          };
+
           if (isEventCustomer) {
             const { error: eventFileError } = await supabase
               .from('event_files')
               .insert({
-                event_id: eventId,
-                filename: selectedFile.name,
-                file_path: filePath,
-                content_type: selectedFile.type,
-                size: selectedFile.size,
-                user_id: user.id
+                ...fileData,
+                event_id: eventId
               });
 
             if (eventFileError) {
@@ -210,12 +214,8 @@ export const CustomerDialog = ({
             const { error: customerFileError } = await supabase
               .from('customer_files_new')
               .insert({
-                customer_id: result.id,
-                filename: selectedFile.name,
-                file_path: filePath,
-                content_type: selectedFile.type,
-                size: selectedFile.size,
-                user_id: user.id
+                ...fileData,
+                customer_id: result.id
               });
 
             if (customerFileError) {
