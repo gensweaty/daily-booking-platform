@@ -131,15 +131,15 @@ export const CustomerDialog = ({
           .eq('id', resultId)
           .eq('user_id', user.id)
           .select()
-          .single();
+          .maybeSingle();
 
         if (updateError) {
-          if (updateError.code === 'PGRST116') {
-            console.error('Customer not found or no permission to update');
-            throw new Error('Customer not found or no permission to update');
-          }
           console.error('Error updating customer:', updateError);
           throw updateError;
+        }
+        
+        if (!updatedCustomer) {
+          throw new Error('Customer not found or no permission to update');
         }
         
         result = updatedCustomer;
@@ -150,15 +150,19 @@ export const CustomerDialog = ({
           .from('customers')
           .insert([customerData])
           .select()
-          .single();
+          .maybeSingle();
           
         if (createError) {
           console.error('Error creating customer:', createError);
           throw createError;
         }
+
+        if (!newCustomer) {
+          throw new Error('Failed to create customer');
+        }
         
         result = newCustomer;
-        setResultId(newCustomer?.id);
+        setResultId(newCustomer.id);
       }
 
       // Handle file upload after customer is created/updated
