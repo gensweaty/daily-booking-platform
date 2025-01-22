@@ -155,10 +155,11 @@ export const CustomerDialog = ({
             throw uploadError;
           }
 
+          // Insert file record into customer_files_new table
           const { error: fileRecordError } = await supabase
             .from('customer_files_new')
             .insert({
-              customer_id: customerId,
+              customer_id: customerId, // Use the customer ID directly
               filename: selectedFile.name,
               file_path: filePath,
               content_type: selectedFile.type,
