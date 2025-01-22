@@ -37,6 +37,7 @@ export const CustomerDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [createEvent, setCreateEvent] = useState(false);
+  const [resultId, setResultId] = useState<string | undefined>(customer?.id);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -52,6 +53,7 @@ export const CustomerDialog = ({
       setPaymentStatus(data?.payment_status || "");
       setPaymentAmount(data?.payment_amount?.toString() || "");
       setCreateEvent(!!data?.start_date && !!data?.end_date);
+      setResultId(data?.id);
       
       if (data?.start_date) {
         const formattedStartDate = new Date(data.start_date)
@@ -101,7 +103,6 @@ export const CustomerDialog = ({
       } : baseData;
 
       let result;
-      let resultId = customer?.id;
 
       // Create or update customer first
       if (resultId) {
@@ -134,7 +135,7 @@ export const CustomerDialog = ({
           }
           
           result = newCustomer;
-          resultId = newCustomer.id;
+          setResultId(newCustomer.id);
         } else {
           result = updatedCustomer;
         }
@@ -153,7 +154,7 @@ export const CustomerDialog = ({
         }
         
         result = newCustomer;
-        resultId = newCustomer.id;
+        setResultId(newCustomer.id);
       }
 
       // Handle file upload after customer is created/updated
