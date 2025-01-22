@@ -167,14 +167,19 @@ export const CustomerDialog = ({
 
       // Handle file upload after customer is created/updated
       if (selectedFile && result?.id) {
-        console.log('Handling file upload for customer:', result.id);
+        console.log('Handling file upload for:', result.id);
         try {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;
           
-          // Upload file to storage
+          // Determine if this is an event-converted-to-customer
+          const isEventCustomer = customer?.id?.startsWith('event-');
+          const eventId = isEventCustomer ? customer.id.replace('event-', '') : null;
+          
+          // Upload file to appropriate storage bucket
+          const bucketName = isEventCustomer ? 'event_attachments' : 'customer_attachments';
           const { error: uploadError } = await supabase.storage
-            .from('customer_attachments')
+            .from(bucketName)
             .upload(filePath, selectedFile);
 
           if (uploadError) {
@@ -182,25 +187,8 @@ export const CustomerDialog = ({
             throw uploadError;
           }
 
-          // Create customer file record
-          const { error: customerFileError } = await supabase
-            .from('customer_files_new')
-            .insert({
-              customer_id: result.id,
-              filename: selectedFile.name,
-              file_path: filePath,
-              content_type: selectedFile.type,
-              size: selectedFile.size,
-              user_id: user.id
-            });
-
-          if (customerFileError) {
-            console.error('Error creating customer file record:', customerFileError);
-            throw customerFileError;
-          }
-
-          // If there's a linked event, create event file record too
-          if (eventId) {
+          // Create file record in appropriate table
+          if (isEventCustomer) {
             const { error: eventFileError } = await supabase
               .from('event_files')
               .insert({
@@ -214,11 +202,23 @@ export const CustomerDialog = ({
 
             if (eventFileError) {
               console.error('Error creating event file record:', eventFileError);
-              toast({
-                title: "Warning",
-                description: "File uploaded to customer but failed to link to event",
-                variant: "destructive",
+              throw eventFileError;
+            }
+          } else {
+            const { error: customerFileError } = await supabase
+              .from('customer_files_new')
+              .insert({
+                customer_id: result.id,
+                filename: selectedFile.name,
+                file_path: filePath,
+                content_type: selectedFile.type,
+                size: selectedFile.size,
+                user_id: user.id
               });
+
+            if (customerFileError) {
+              console.error('Error creating customer file record:', customerFileError);
+              throw customerFileError;
             }
           }
 
