@@ -87,17 +87,20 @@ export const CustomerList = () => {
     }
   }
 
-  const handleCustomerUpdate = (updatedCustomer: any) => {
-    setCustomers(prevCustomers =>
-      prevCustomers.map(customer =>
-        customer.id === updatedCustomer.id ? updatedCustomer : customer
+  const handleCustomerUpdate = async (updatedCustomer: any) => {
+    return new Promise<void>((resolve) => {
+      setCustomers(prevCustomers =>
+        prevCustomers.map(customer =>
+          customer.id === updatedCustomer.id ? updatedCustomer : customer
+        )
       )
-    )
-    setFilteredCustomers(prevCustomers =>
-      prevCustomers.map(customer =>
-        customer.id === updatedCustomer.id ? updatedCustomer : customer
+      setFilteredCustomers(prevCustomers =>
+        prevCustomers.map(customer =>
+          customer.id === updatedCustomer.id ? updatedCustomer : customer
+        )
       )
-    )
+      resolve()
+    })
   }
 
   const handleCustomerDelete = () => {
