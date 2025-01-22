@@ -103,8 +103,21 @@ export const CustomerDialog = ({
       } : baseData;
 
       let result;
+      let eventId;
 
-      // Create or update customer first
+      // First, get the linked event if it exists
+      if (resultId) {
+        const { data: linkedEvent } = await supabase
+          .from('events')
+          .select('id')
+          .eq('title', title)
+          .eq('user_id', user.id)
+          .maybeSingle();
+          
+        eventId = linkedEvent?.id;
+      }
+
+      // Update or create customer
       if (resultId) {
         console.log('Updating customer:', resultId);
         
@@ -121,28 +134,7 @@ export const CustomerDialog = ({
           throw updateError;
         }
         
-        if (!updatedCustomer) {
-          console.log('No customer found with ID:', resultId, 'Creating new one');
-          const { data: newCustomer, error: createError } = await supabase
-            .from('customers')
-            .insert([customerData])
-            .select()
-            .maybeSingle();
-            
-          if (createError) {
-            console.error('Error creating customer:', createError);
-            throw createError;
-          }
-          
-          if (!newCustomer) {
-            throw new Error('Failed to create customer');
-          }
-          
-          result = newCustomer;
-          setResultId(newCustomer.id);
-        } else {
-          result = updatedCustomer;
-        }
+        result = updatedCustomer;
       } else {
         // Create new customer
         console.log('Creating new customer');
@@ -157,21 +149,18 @@ export const CustomerDialog = ({
           throw createError;
         }
         
-        if (!newCustomer) {
-          throw new Error('Failed to create customer');
-        }
-        
         result = newCustomer;
-        setResultId(newCustomer.id);
+        setResultId(newCustomer?.id);
       }
 
       // Handle file upload after customer is created/updated
-      if (selectedFile && resultId) {
-        console.log('Handling file upload for customer:', resultId);
+      if (selectedFile && result?.id) {
+        console.log('Handling file upload for customer:', result.id);
         try {
           const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${crypto.randomUUID()}.${fileExt}`;
+          constUID()}.${fileExt}`;
           
+          // Upload file to storage
           const { error: uploadError } = await supabase.storage
             .from('customer_attachments')
             .upload(filePath, selectedFile);
@@ -181,11 +170,11 @@ export const CustomerDialog = ({
             throw uploadError;
           }
 
-          // Insert file record into customer_files_new table
-          const { error: fileRecordError } = await supabase
+          // Create customer file record
+          const { error: customerFileError } = await supabase
             .from('customer_files_new')
             .insert({
-              customer_id: resultId,
+              customer_id: result.id,
               filename: selectedFile.name,
               file_path: filePath,
               content_type: selectedFile.type,
@@ -193,9 +182,33 @@ export const CustomerDialog = ({
               user_id: user.id
             });
 
-          if (fileRecordError) {
-            console.error('Error creating file record:', fileRecordError);
-            throw fileRecordError;
+          if (customerFileError) {
+            console.error('Error creating customer file record:', customerFileError);
+            throw customerFileError;
+          }
+
+          // If there's a linked event, create event file record too
+          if (eventId) {
+            const { error: eventFileError } = await supabase
+              .from('event_files')
+              .insert({
+                event_id: eventId,
+                filename: selectedFile.name,
+                file_path: filePath,
+                content_type: selectedFile.type,
+                size: selectedFile.size,
+                user_id: user.id
+              });
+
+            if (eventFileError) {
+              console.error('Error creating event file record:', eventFileError);
+              // Don't throw here, we still want to show success for customer file
+              toast({
+                title: "Warning",
+                description: "File uploaded to customer but failed to link to event",
+                variant: "destructive",
+              });
+            }
           }
 
           console.log('File uploaded successfully');
@@ -206,47 +219,6 @@ export const CustomerDialog = ({
             description: "Customer saved but file upload failed. Please try uploading the file again.",
             variant: "destructive",
           });
-        }
-      }
-
-      // Handle event creation/update if needed
-      if (createEvent) {
-        console.log('Handling event for customer');
-        const eventData = {
-          ...baseData,
-          start_date: new Date(startDate).toISOString(),
-          end_date: new Date(endDate).toISOString(),
-          type: 'private_party'
-        };
-
-        if (event?.id) {
-          const { error: eventError } = await supabase
-            .from('events')
-            .update(eventData)
-            .eq('id', event.id)
-            .eq('user_id', user.id);
-
-          if (eventError) {
-            console.error('Error updating event:', eventError);
-            toast({
-              title: "Warning",
-              description: "Customer updated but event update failed",
-              variant: "destructive",
-            });
-          }
-        } else {
-          const { error: eventError } = await supabase
-            .from('events')
-            .insert([{ ...eventData, user_id: user.id }]);
-
-          if (eventError) {
-            console.error('Error creating event:', eventError);
-            toast({
-              title: "Warning",
-              description: "Customer created but event creation failed",
-              variant: "destructive",
-            });
-          }
         }
       }
 
