@@ -122,7 +122,7 @@ export const CustomerDialog = ({
         }
         
         if (!updatedCustomer) {
-          // If no customer was found, create a new one
+          console.log('No customer found with ID:', resultId, 'Creating new one');
           const { data: newCustomer, error: createError } = await supabase
             .from('customers')
             .insert([customerData])
