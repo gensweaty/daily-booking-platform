@@ -106,18 +106,7 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
       const buckets = getEffectiveBuckets(file.file_path);
       let deleteSuccess = false;
 
-      // First delete from customer_files_new table
-      const { error: dbError } = await supabase
-        .from('customer_files_new')
-        .delete()
-        .eq('id', file.id);
-
-      if (dbError) {
-        console.error('Error deleting file record:', dbError);
-        throw dbError;
-      }
-
-      // Then try to delete the actual file from storage
+      // First delete from storage
       for (const bucket of buckets) {
         const { error } = await supabase.storage
           .from(bucket)
@@ -130,18 +119,46 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
         console.log(`Failed to delete from ${bucket}, trying next bucket if available`);
       }
 
-      if (deleteSuccess) {
-        await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-        if (onFileDeleted) {
-          onFileDeleted(file.id);
-        }
-        toast({
-          title: "Success",
-          description: "File deleted successfully",
-        });
-      } else {
+      if (!deleteSuccess) {
         throw new Error('Failed to delete file from storage');
       }
+
+      // Then delete from customer_files_new table
+      const { error: customerFileError } = await supabase
+        .from('customer_files_new')
+        .delete()
+        .eq('id', file.id);
+
+      if (customerFileError) {
+        console.error('Error deleting from customer_files_new:', customerFileError);
+      }
+
+      // Also try to delete from event_files table
+      const { error: eventFileError } = await supabase
+        .from('event_files')
+        .delete()
+        .eq('id', file.id);
+
+      if (eventFileError) {
+        console.error('Error deleting from event_files:', eventFileError);
+      }
+
+      // If both deletes failed, throw an error
+      if (customerFileError && eventFileError) {
+        throw new Error('Failed to delete file records from database');
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      
+      if (onFileDeleted) {
+        onFileDeleted(file.id);
+      }
+
+      toast({
+        title: "Success",
+        description: "File deleted successfully",
+      });
     } catch (error: any) {
       console.error('Error deleting file:', error);
       toast({

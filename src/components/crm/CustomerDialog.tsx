@@ -202,13 +202,21 @@ export const CustomerDialog = ({
 
             if (eventFileError) {
               console.error('Error creating event file record:', eventFileError);
-              // Don't throw here, we still want to show success for customer file
               toast({
                 title: "Warning",
                 description: "File uploaded to customer but failed to link to event",
                 variant: "destructive",
               });
             }
+          }
+
+          // Clear the selected file after successful upload
+          setSelectedFile(null);
+          
+          // Invalidate the files query to refresh the display
+          await queryClient.invalidateQueries({ queryKey: ['customerFiles', result.id] });
+          if (eventId) {
+            await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId] });
           }
 
           console.log('File uploaded successfully');
