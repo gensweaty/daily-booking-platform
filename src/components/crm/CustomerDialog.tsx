@@ -1,6 +1,6 @@
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import { CustomerDialogFields } from "./CustomerDialogFields";
 import { supabase } from "@/lib/supabase";
@@ -103,46 +103,44 @@ export const CustomerDialog = ({
       } : baseData;
 
       let result;
-      let eventId;
+      const isEventCustomer = customer?.id?.startsWith('event-');
+      const eventId = isEventCustomer ? customer.id.replace('event-', '') : null;
 
-      // First, get the linked event if it exists
+      // Update or create customer/event
       if (resultId) {
-        const { data: linkedEvent, error: linkedEventError } = await supabase
-          .from('events')
-          .select('id')
-          .eq('title', title)
-          .eq('user_id', user.id)
-          .maybeSingle();
+        console.log('Updating:', isEventCustomer ? 'event' : 'customer', resultId);
+        
+        if (isEventCustomer) {
+          const { data: updatedEvent, error: updateError } = await supabase
+            .from('events')
+            .update(customerData)
+            .eq('id', eventId)
+            .eq('user_id', user.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error('Error updating event:', updateError);
+            throw updateError;
+          }
           
-        if (linkedEventError) {
-          console.error('Error fetching linked event:', linkedEventError);
+          result = { ...updatedEvent, id: `event-${updatedEvent.id}` };
         } else {
-          eventId = linkedEvent?.id;
-        }
-      }
+          const { data: updatedCustomer, error: updateError } = await supabase
+            .from('customers')
+            .update(customerData)
+            .eq('id', resultId)
+            .eq('user_id', user.id)
+            .select()
+            .single();
 
-      // Update or create customer
-      if (resultId) {
-        console.log('Updating customer:', resultId);
-        
-        const { data: updatedCustomer, error: updateError } = await supabase
-          .from('customers')
-          .update(customerData)
-          .eq('id', resultId)
-          .eq('user_id', user.id)
-          .select()
-          .maybeSingle();
-
-        if (updateError) {
-          console.error('Error updating customer:', updateError);
-          throw updateError;
+          if (updateError) {
+            console.error('Error updating customer:', updateError);
+            throw updateError;
+          }
+          
+          result = updatedCustomer;
         }
-        
-        if (!updatedCustomer) {
-          throw new Error('Customer not found or no permission to update');
-        }
-        
-        result = updatedCustomer;
       } else {
         // Create new customer
         console.log('Creating new customer');
@@ -150,31 +148,23 @@ export const CustomerDialog = ({
           .from('customers')
           .insert([customerData])
           .select()
-          .maybeSingle();
+          .single();
           
         if (createError) {
           console.error('Error creating customer:', createError);
           throw createError;
         }
 
-        if (!newCustomer) {
-          throw new Error('Failed to create customer');
-        }
-        
         result = newCustomer;
         setResultId(newCustomer.id);
       }
 
-      // Handle file upload after customer is created/updated
+      // Handle file upload after customer/event is created/updated
       if (selectedFile && result?.id) {
         console.log('Handling file upload for:', result.id);
         try {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;
-          
-          // Determine if this is an event-converted-to-customer
-          const isEventCustomer = customer?.id?.startsWith('event-');
-          const eventId = isEventCustomer ? customer.id.replace('event-', '') : null;
           
           // Upload file to appropriate storage bucket
           const bucketName = isEventCustomer ? 'event_attachments' : 'customer_attachments';
@@ -222,10 +212,7 @@ export const CustomerDialog = ({
             }
           }
 
-          // Clear the selected file after successful upload
           setSelectedFile(null);
-          
-          // Invalidate the files query to refresh the display
           await queryClient.invalidateQueries({ queryKey: ['customerFiles', result.id] });
           if (eventId) {
             await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId] });
@@ -242,10 +229,8 @@ export const CustomerDialog = ({
         }
       }
 
-      // Invalidate queries to refresh the data
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       
       toast({
         title: "Success",
