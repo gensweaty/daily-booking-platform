@@ -158,7 +158,7 @@ export const CustomerDialog = ({
         console.log('Handling file upload for customer:', result.id);
         try {
           const fileExt = selectedFile.name.split('.').pop();
-          constUID()}.${fileExt}`;
+          const filePath = `${crypto.randomUUID()}.${fileExt}`;
           
           // Upload file to storage
           const { error: uploadError } = await supabase.storage
