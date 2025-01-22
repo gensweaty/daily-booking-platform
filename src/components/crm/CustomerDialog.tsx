@@ -107,14 +107,18 @@ export const CustomerDialog = ({
 
       // First, get the linked event if it exists
       if (resultId) {
-        const { data: linkedEvent } = await supabase
+        const { data: linkedEvent, error: linkedEventError } = await supabase
           .from('events')
           .select('id')
           .eq('title', title)
           .eq('user_id', user.id)
           .maybeSingle();
           
-        eventId = linkedEvent?.id;
+        if (linkedEventError) {
+          console.error('Error fetching linked event:', linkedEventError);
+        } else {
+          eventId = linkedEvent?.id;
+        }
       }
 
       // Update or create customer
@@ -127,9 +131,13 @@ export const CustomerDialog = ({
           .eq('id', resultId)
           .eq('user_id', user.id)
           .select()
-          .maybeSingle();
+          .single();
 
         if (updateError) {
+          if (updateError.code === 'PGRST116') {
+            console.error('Customer not found or no permission to update');
+            throw new Error('Customer not found or no permission to update');
+          }
           console.error('Error updating customer:', updateError);
           throw updateError;
         }
@@ -142,7 +150,7 @@ export const CustomerDialog = ({
           .from('customers')
           .insert([customerData])
           .select()
-          .maybeSingle();
+          .single();
           
         if (createError) {
           console.error('Error creating customer:', createError);
