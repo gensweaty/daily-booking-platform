@@ -26,19 +26,3 @@ export interface Reminder {
   created_at: string;
   user_id?: string;
 }
-
-export interface Customer {
-  id: string;
-  title: string;
-  user_surname?: string;
-  user_number?: string;
-  social_network_link?: string;
-  event_notes?: string;
-  payment_status?: string;
-  payment_amount?: number;
-  user_id?: string;
-  type?: string;
-  created_at?: string;
-  start_date?: string;
-  end_date?: string;
-}

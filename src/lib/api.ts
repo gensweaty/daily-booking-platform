@@ -2,16 +2,6 @@ import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Note, Task, Reminder } from "@/lib/types";
 
-export const getCustomers = async () => {
-  const { data, error } = await supabase
-    .from('customers')
-    .select('*')
-    .order('created_at', { ascending: false });
-    
-  if (error) throw error;
-  return data;
-};
-
 export const getNotes = async () => {
   const { data, error } = await supabase
     .from("notes")
