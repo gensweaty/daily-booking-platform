@@ -148,6 +148,7 @@ export const CustomerDialog = ({
           
           result = updatedCustomer;
 
+          // Update associated event if exists
           const { data: associatedEvent } = await supabase
             .from('events')
             .select()
@@ -194,6 +195,7 @@ export const CustomerDialog = ({
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;
           
+          // Upload to storage
           const { error: uploadError } = await supabase.storage
             .from('customer_attachments')
             .upload(filePath, selectedFile);
@@ -212,6 +214,7 @@ export const CustomerDialog = ({
           };
 
           if (isEventCustomer) {
+            // Save file record for event
             const { error: eventFileError } = await supabase
               .from('event_files')
               .insert({
@@ -224,6 +227,7 @@ export const CustomerDialog = ({
               throw eventFileError;
             }
           } else {
+            // Save file record for customer
             const { error: customerFileError } = await supabase
               .from('customer_files_new')
               .insert({
@@ -236,6 +240,7 @@ export const CustomerDialog = ({
               throw customerFileError;
             }
 
+            // If there's an associated event, save file there too
             const { data: associatedEvent } = await supabase
               .from('events')
               .select()
