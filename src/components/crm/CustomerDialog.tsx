@@ -91,6 +91,7 @@ export const CustomerDialog = ({
       console.log('Starting submission process...');
       console.log('Is event customer:', isEventCustomer);
       console.log('Event ID:', eventId);
+      console.log('Result ID:', resultId);
 
       const baseData = {
         title,
@@ -134,6 +135,7 @@ export const CustomerDialog = ({
           }
           
           result = { ...updatedEvent, id: `event-${updatedEvent.id}` };
+          console.log('Updated event result:', result);
         } else {
           const { data: updatedCustomer, error: updateError } = await supabase
             .from('customers')
@@ -153,6 +155,7 @@ export const CustomerDialog = ({
           }
           
           result = updatedCustomer;
+          console.log('Updated customer result:', result);
 
           // Update associated event if exists
           if (createEvent) {
@@ -195,6 +198,7 @@ export const CustomerDialog = ({
 
         result = newCustomer;
         setResultId(newCustomer.id);
+        console.log('Created new customer:', result);
 
         // Create associated event if needed
         if (createEvent) {
@@ -211,7 +215,9 @@ export const CustomerDialog = ({
       }
 
       if (selectedFile) {
-        console.log('Handling file upload for:', isEventCustomer ? eventId : result.id);
+        const targetId = isEventCustomer ? eventId : result.id;
+        console.log('Handling file upload for:', targetId);
+        
         try {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -235,6 +241,7 @@ export const CustomerDialog = ({
           };
 
           if (isEventCustomer) {
+            console.log('Saving event file record for event ID:', eventId);
             // Save file record for event
             const { error: eventFileError } = await supabase
               .from('event_files')
@@ -248,6 +255,7 @@ export const CustomerDialog = ({
               throw eventFileError;
             }
           } else {
+            console.log('Saving customer file record for customer ID:', result.id);
             // Save file record for customer
             const { error: customerFileError } = await supabase
               .from('customer_files_new')
@@ -259,29 +267,6 @@ export const CustomerDialog = ({
             if (customerFileError) {
               console.error('Error creating customer file record:', customerFileError);
               throw customerFileError;
-            }
-
-            // If there's an associated event, save file there too
-            if (createEvent) {
-              const { data: associatedEvent } = await supabase
-                .from('events')
-                .select()
-                .eq('title', title)
-                .eq('user_id', user.id)
-                .maybeSingle();
-
-              if (associatedEvent) {
-                const { error: eventFileError } = await supabase
-                  .from('event_files')
-                  .insert({
-                    ...fileData,
-                    event_id: associatedEvent.id
-                  });
-
-                if (eventFileError) {
-                  console.error('Error creating associated event file record:', eventFileError);
-                }
-              }
             }
           }
 
