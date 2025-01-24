@@ -148,6 +148,26 @@ export const CustomerDialog = ({
           }
           
           result = updatedCustomer;
+
+          // If this customer has an associated event, update it as well
+          const { data: associatedEvent } = await supabase
+            .from('events')
+            .select()
+            .eq('title', title)
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (associatedEvent) {
+            const { error: eventUpdateError } = await supabase
+              .from('events')
+              .update(customerData)
+              .eq('id', associatedEvent.id)
+              .eq('user_id', user.id);
+
+            if (eventUpdateError) {
+              console.error('Error updating associated event:', eventUpdateError);
+            }
+          }
         }
       } else {
         // Create new customer
@@ -178,10 +198,9 @@ export const CustomerDialog = ({
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;
           
-          // Upload file to appropriate storage bucket
-          const bucketName = isEventCustomer ? 'event_attachments' : 'customer_attachments';
+          // Upload file to storage
           const { error: uploadError } = await supabase.storage
-            .from(bucketName)
+            .from('customer_attachments')
             .upload(filePath, selectedFile);
 
           if (uploadError) {
@@ -189,17 +208,21 @@ export const CustomerDialog = ({
             throw uploadError;
           }
 
-          // Create file record in appropriate table
+          // Create file record for customer
+          const fileData = {
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user.id
+          };
+
           if (isEventCustomer) {
             const { error: eventFileError } = await supabase
               .from('event_files')
               .insert({
-                event_id: eventId,
-                filename: selectedFile.name,
-                file_path: filePath,
-                content_type: selectedFile.type,
-                size: selectedFile.size,
-                user_id: user.id
+                ...fileData,
+                event_id: eventId
               });
 
             if (eventFileError) {
@@ -207,20 +230,38 @@ export const CustomerDialog = ({
               throw eventFileError;
             }
           } else {
+            // Create customer file record
             const { error: customerFileError } = await supabase
               .from('customer_files_new')
               .insert({
-                customer_id: result.id,
-                filename: selectedFile.name,
-                file_path: filePath,
-                content_type: selectedFile.type,
-                size: selectedFile.size,
-                user_id: user.id
+                ...fileData,
+                customer_id: result.id
               });
 
             if (customerFileError) {
               console.error('Error creating customer file record:', customerFileError);
               throw customerFileError;
+            }
+
+            // If there's an associated event, create event file record too
+            const { data: associatedEvent } = await supabase
+              .from('events')
+              .select()
+              .eq('title', title)
+              .eq('user_id', user.id)
+              .maybeSingle();
+
+            if (associatedEvent) {
+              const { error: eventFileError } = await supabase
+                .from('event_files')
+                .insert({
+                  ...fileData,
+                  event_id: associatedEvent.id
+                });
+
+              if (eventFileError) {
+                console.error('Error creating associated event file record:', eventFileError);
+              }
             }
           }
 
