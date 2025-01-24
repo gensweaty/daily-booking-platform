@@ -151,22 +151,24 @@ export const CustomerDialog = ({
           result = updatedCustomer;
 
           // Update associated event if exists
-          const { data: associatedEvent } = await supabase
-            .from('events')
-            .select()
-            .eq('title', title)
-            .eq('user_id', user.id)
-            .maybeSingle();
-
-          if (associatedEvent) {
-            const { error: eventUpdateError } = await supabase
+          if (createEvent) {
+            const { data: associatedEvent } = await supabase
               .from('events')
-              .update(customerData)
-              .eq('id', associatedEvent.id)
-              .eq('user_id', user.id);
+              .select()
+              .eq('title', title)
+              .eq('user_id', user.id)
+              .maybeSingle();
 
-            if (eventUpdateError) {
-              console.error('Error updating associated event:', eventUpdateError);
+            if (associatedEvent) {
+              const { error: eventUpdateError } = await supabase
+                .from('events')
+                .update(customerData)
+                .eq('id', associatedEvent.id)
+                .eq('user_id', user.id);
+
+              if (eventUpdateError) {
+                console.error('Error updating associated event:', eventUpdateError);
+              }
             }
           }
         }
@@ -189,6 +191,19 @@ export const CustomerDialog = ({
 
         result = newCustomer;
         setResultId(newCustomer.id);
+
+        // Create associated event if needed
+        if (createEvent) {
+          const { data: newEvent, error: eventError } = await supabase
+            .from('events')
+            .insert([customerData])
+            .select()
+            .maybeSingle();
+
+          if (eventError) {
+            console.error('Error creating associated event:', eventError);
+          }
+        }
       }
 
       if (selectedFile) {
@@ -243,23 +258,25 @@ export const CustomerDialog = ({
             }
 
             // If there's an associated event, save file there too
-            const { data: associatedEvent } = await supabase
-              .from('events')
-              .select()
-              .eq('title', title)
-              .eq('user_id', user.id)
-              .maybeSingle();
+            if (createEvent) {
+              const { data: associatedEvent } = await supabase
+                .from('events')
+                .select()
+                .eq('title', title)
+                .eq('user_id', user.id)
+                .maybeSingle();
 
-            if (associatedEvent) {
-              const { error: eventFileError } = await supabase
-                .from('event_files')
-                .insert({
-                  ...fileData,
-                  event_id: associatedEvent.id
-                });
+              if (associatedEvent) {
+                const { error: eventFileError } = await supabase
+                  .from('event_files')
+                  .insert({
+                    ...fileData,
+                    event_id: associatedEvent.id
+                  });
 
-              if (eventFileError) {
-                console.error('Error creating associated event file record:', eventFileError);
+                if (eventFileError) {
+                  console.error('Error creating associated event file record:', eventFileError);
+                }
               }
             }
           }
