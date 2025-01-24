@@ -88,6 +88,10 @@ export const CustomerDialog = ({
     }
 
     try {
+      console.log('Starting submission process...');
+      console.log('Is event customer:', isEventCustomer);
+      console.log('Event ID:', eventId);
+
       const baseData = {
         title,
         user_surname: userSurname,
