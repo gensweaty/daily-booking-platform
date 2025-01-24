@@ -214,7 +214,7 @@ export const CustomerDialog = ({
           
           // Upload to storage
           const { error: uploadError } = await supabase.storage
-            .from('customer_attachments')
+            .from(isEventCustomer ? 'event_attachments' : 'customer_attachments')
             .upload(filePath, selectedFile);
 
           if (uploadError) {
