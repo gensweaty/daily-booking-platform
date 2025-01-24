@@ -106,7 +106,6 @@ export const CustomerDialog = ({
       const isEventCustomer = customer?.id?.startsWith('event-');
       const eventId = isEventCustomer ? customer.id.replace('event-', '') : null;
 
-      // Update or create customer/event
       if (resultId) {
         console.log('Updating:', isEventCustomer ? 'event' : 'customer', resultId);
         
@@ -170,7 +169,6 @@ export const CustomerDialog = ({
           }
         }
       } else {
-        // Create new customer
         console.log('Creating new customer');
         const { data: newCustomer, error: createError } = await supabase
           .from('customers')
