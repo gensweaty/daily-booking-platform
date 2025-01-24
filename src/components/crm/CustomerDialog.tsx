@@ -148,7 +148,6 @@ export const CustomerDialog = ({
           
           result = updatedCustomer;
 
-          // If this customer has an associated event, update it as well
           const { data: associatedEvent } = await supabase
             .from('events')
             .select()
