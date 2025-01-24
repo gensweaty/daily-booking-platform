@@ -42,6 +42,10 @@ export const CustomerDialog = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Add these two variables at the component level
+  const isEventCustomer = customer?.id?.startsWith('event-');
+  const eventId = isEventCustomer ? customer?.id?.replace('event-', '') : null;
+
   useEffect(() => {
     if (customer || event) {
       const data = customer || event;
@@ -103,8 +107,6 @@ export const CustomerDialog = ({
       } : baseData;
 
       let result;
-      const isEventCustomer = customer?.id?.startsWith('event-');
-      const eventId = isEventCustomer ? customer.id.replace('event-', '') : null;
 
       if (resultId) {
         console.log('Updating:', isEventCustomer ? 'event' : 'customer', resultId);
