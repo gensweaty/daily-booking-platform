@@ -189,8 +189,8 @@ export const CustomerDialog = ({
         setResultId(newCustomer.id);
       }
 
-      if (selectedFile && result?.id) {
-        console.log('Handling file upload for:', result.id);
+      if (selectedFile) {
+        console.log('Handling file upload for:', isEventCustomer ? eventId : result.id);
         try {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -326,7 +326,7 @@ export const CustomerDialog = ({
             setSelectedFile={setSelectedFile}
             fileError={fileError}
             setFileError={setFileError}
-            customerId={resultId}
+            customerId={isEventCustomer ? eventId : resultId}
             createEvent={createEvent}
             setCreateEvent={setCreateEvent}
           />
