@@ -188,14 +188,12 @@ export const CustomerDialog = ({
         setResultId(newCustomer.id);
       }
 
-      // Handle file upload after customer/event is created/updated
       if (selectedFile && result?.id) {
         console.log('Handling file upload for:', result.id);
         try {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;
           
-          // Upload file to storage
           const { error: uploadError } = await supabase.storage
             .from('customer_attachments')
             .upload(filePath, selectedFile);
@@ -205,7 +203,6 @@ export const CustomerDialog = ({
             throw uploadError;
           }
 
-          // Create file record for customer
           const fileData = {
             filename: selectedFile.name,
             file_path: filePath,
@@ -227,7 +224,6 @@ export const CustomerDialog = ({
               throw eventFileError;
             }
           } else {
-            // Create customer file record
             const { error: customerFileError } = await supabase
               .from('customer_files_new')
               .insert({
@@ -240,7 +236,6 @@ export const CustomerDialog = ({
               throw customerFileError;
             }
 
-            // If there's an associated event, create event file record too
             const { data: associatedEvent } = await supabase
               .from('events')
               .select()
