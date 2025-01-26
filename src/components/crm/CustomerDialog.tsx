@@ -166,7 +166,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         user_id: user.id
       };
 
-      let customerId;
+      let updatedCustomerId;
       if (customerId) {
         // Update existing customer
         const { data, error } = await supabase
@@ -178,7 +178,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           .single();
 
         if (error) throw error;
-        customerId = data.id;
+        updatedCustomerId = data.id;
       } else {
         // Create new customer
         const { data, error } = await supabase
@@ -188,11 +188,11 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           .single();
 
         if (error) throw error;
-        customerId = data.id;
+        updatedCustomerId = data.id;
       }
 
       // Handle file upload if a file is selected
-      if (selectedFile && customerId) {
+      if (selectedFile && updatedCustomerId) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
@@ -208,7 +208,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         const { error: fileRecordError } = await supabase
           .from(tableName)
           .insert({
-            [columnName]: customerId,
+            [columnName]: updatedCustomerId,
             filename: selectedFile.name,
             file_path: filePath,
             content_type: selectedFile.type,
