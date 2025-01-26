@@ -14,13 +14,28 @@ interface CustomerDialogProps {
 
 export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogProps) => {
   const [loading, setLoading] = useState(false);
-  const [customerData, setCustomerData] = useState<any>(null);
+  const [title, setTitle] = useState("");
+  const [userSurname, setUserSurname] = useState("");
+  const [userNumber, setUserNumber] = useState("");
+  const [socialNetworkLink, setSocialNetworkLink] = useState("");
+  const [eventNotes, setEventNotes] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
+  const [createEvent, setCreateEvent] = useState(false);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   useEffect(() => {
     const fetchCustomer = async () => {
-      if (!customerId) return;
+      if (!customerId) {
+        resetForm();
+        return;
+      }
       
       try {
         setLoading(true);
@@ -42,8 +57,26 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           return;
         }
         
-        console.log('Fetched customer data:', data);
-        setCustomerData(data || null);
+        if (data) {
+          console.log('Fetched customer data:', data);
+          setTitle(data.title || "");
+          setUserSurname(data.user_surname || "");
+          setUserNumber(data.user_number || "");
+          setSocialNetworkLink(data.social_network_link || "");
+          setEventNotes(data.event_notes || "");
+          setStartDate(data.start_date || "");
+          setEndDate(data.end_date || "");
+          setPaymentStatus(data.payment_status || "");
+          setPaymentAmount(data.payment_amount?.toString() || "");
+          setCreateEvent(!!data.start_date);
+        } else {
+          console.log('No customer found with ID:', customerId);
+          toast({
+            title: "Not Found",
+            description: "Customer not found",
+            variant: "destructive",
+          });
+        }
       } catch (error) {
         console.error('Unexpected error:', error);
         toast({
@@ -56,48 +89,35 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       }
     };
 
-    if (isOpen && customerId) {
+    if (isOpen) {
       fetchCustomer();
     }
   }, [customerId, isOpen, toast]);
 
-  const handleSave = async (formData: any) => {
-    try {
-      setLoading(true);
-      console.log('Saving customer data:', formData);
+  const resetForm = () => {
+    setTitle("");
+    setUserSurname("");
+    setUserNumber("");
+    setSocialNetworkLink("");
+    setEventNotes("");
+    setStartDate("");
+    setEndDate("");
+    setPaymentStatus("");
+    setPaymentAmount("");
+    setSelectedFile(null);
+    setFileError("");
+    setCreateEvent(false);
+  };
 
-      const { error } = customerId
-        ? await supabase
-            .from('customers')
-            .update(formData)
-            .eq('id', customerId)
-        : await supabase
-            .from('customers')
-            .insert([formData]);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: `Customer ${customerId ? 'updated' : 'created'} successfully`,
-      });
-      
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+  const handleClose = () => {
+    if (!loading) {
+      resetForm();
       onClose();
-    } catch (error: any) {
-      console.error('Error saving customer:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save customer",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => !loading && onClose()}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
@@ -106,10 +126,41 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         </DialogHeader>
         
         <CustomerDialogFields
-          initialData={customerData}
-          onSubmit={handleSave}
-          isLoading={loading}
+          title={title}
+          setTitle={setTitle}
+          userSurname={userSurname}
+          setUserSurname={setUserSurname}
+          userNumber={userNumber}
+          setUserNumber={setUserNumber}
+          socialNetworkLink={socialNetworkLink}
+          setSocialNetworkLink={setSocialNetworkLink}
+          eventNotes={eventNotes}
+          setEventNotes={setEventNotes}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
+          paymentStatus={paymentStatus}
+          setPaymentStatus={setPaymentStatus}
+          paymentAmount={paymentAmount}
+          setPaymentAmount={setPaymentAmount}
+          selectedFile={selectedFile}
+          setSelectedFile={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+          customerId={customerId}
+          createEvent={createEvent}
+          setCreateEvent={setCreateEvent}
         />
+
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={handleClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button onClick={() => {}} disabled={loading}>
+            {loading ? "Saving..." : "Save"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
