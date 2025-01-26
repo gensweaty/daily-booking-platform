@@ -59,7 +59,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         // If not found in events, try to fetch from customers table
         if (!eventData) {
           console.log('Event not found, checking customers table...');
-          const { data: customerData, error: customerError } = await supabase
+          const { data, error: customerError } = await supabase
             .from('customers')
             .select('*')
             .eq('id', customerId)
@@ -70,18 +70,18 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             throw customerError;
           }
 
-          if (customerData) {
-            console.log('Found customer data:', customerData);
-            setTitle(customerData.title || "");
-            setUserSurname(customerData.user_surname || "");
-            setUserNumber(customerData.user_number || "");
-            setSocialNetworkLink(customerData.social_network_link || "");
-            setEventNotes(customerData.event_notes || "");
-            setStartDate(customerData.start_date || "");
-            setEndDate(customerData.end_date || "");
-            setPaymentStatus(customerData.payment_status || "");
-            setPaymentAmount(customerData.payment_amount?.toString() || "");
-            setCreateEvent(!!customerData.start_date);
+          if (data) {
+            console.log('Found customer data:', data);
+            setTitle(data.title || "");
+            setUserSurname(data.user_surname || "");
+            setUserNumber(data.user_number || "");
+            setSocialNetworkLink(data.social_network_link || "");
+            setEventNotes(data.event_notes || "");
+            setStartDate(data.start_date || "");
+            setEndDate(data.end_date || "");
+            setPaymentStatus(data.payment_status || "");
+            setPaymentAmount(data.payment_amount?.toString() || "");
+            setCreateEvent(!!data.start_date);
             setIsEventData(false);
           }
         } else {
@@ -99,7 +99,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           setCreateEvent(true);
         }
         
-        if (!eventData && !customerData) {
+        if (!eventData && !data) {
           console.log('No customer or event found with ID:', customerId);
           toast({
             title: "Not Found",
