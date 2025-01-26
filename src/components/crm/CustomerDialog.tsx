@@ -110,7 +110,7 @@ export const CustomerDialog = ({
 
       let result;
 
-      if (isEventCustomer) {
+      if (isEventCustomer && eventId) {
         console.log('Updating event customer:', eventId);
         const { data: updatedEvent, error: updateError } = await supabase
           .from('events')
@@ -118,18 +118,13 @@ export const CustomerDialog = ({
           .eq('id', eventId)
           .eq('user_id', user.id)
           .select()
-          .maybeSingle();
+          .single();
 
         if (updateError) {
           console.error('Error updating event:', updateError);
           throw updateError;
         }
-        
-        if (!updatedEvent) {
-          console.error('No event found or permission denied');
-          throw new Error('Event not found or you do not have permission to update it');
-        }
-        
+
         result = { ...updatedEvent, id: `event-${updatedEvent.id}` };
         console.log('Updated event result:', result);
       } else if (resultId) {
@@ -177,7 +172,7 @@ export const CustomerDialog = ({
         console.log('Created new customer:', result);
       }
 
-      if (selectedFile) {
+      if (selectedFile && result) {
         const targetId = isEventCustomer ? eventId : result.id;
         const bucketName = isEventCustomer ? 'event_attachments' : 'customer_attachments';
         const tableName = isEventCustomer ? 'event_files' : 'customer_files_new';
