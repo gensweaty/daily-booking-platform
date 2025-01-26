@@ -118,11 +118,16 @@ export const CustomerDialog = ({
           .eq('id', eventId)
           .eq('user_id', user.id)
           .select()
-          .single();
+          .maybeSingle();
 
         if (updateError) {
           console.error('Error updating event:', updateError);
           throw updateError;
+        }
+
+        if (!updatedEvent) {
+          console.error('No event found or permission denied');
+          throw new Error('Event not found or you do not have permission to update it');
         }
 
         result = { ...updatedEvent, id: `event-${updatedEvent.id}` };
@@ -173,7 +178,7 @@ export const CustomerDialog = ({
       }
 
       if (selectedFile && result) {
-        const targetId = isEventCustomer ? eventId : result.id;
+        const targetId = isEventCustomer && eventId ? eventId : result.id;
         const bucketName = isEventCustomer ? 'event_attachments' : 'customer_attachments';
         const tableName = isEventCustomer ? 'event_files' : 'customer_files_new';
         const idField = isEventCustomer ? 'event_id' : 'customer_id';
