@@ -64,6 +64,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             .from('customers')
             .select('*')
             .eq('id', customerId)
+            .eq('user_id', user.id)
             .maybeSingle();
             
           if (customerError) {
