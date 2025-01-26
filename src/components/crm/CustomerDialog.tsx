@@ -43,48 +43,73 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         setLoading(true);
         console.log('Fetching customer with ID:', customerId);
         
-        const { data, error } = await supabase
+        // First try to fetch from customers table
+        let { data: customerData, error: customerError } = await supabase
           .from('customers')
           .select('*')
           .eq('id', customerId)
-          .eq('user_id', user.id)
           .maybeSingle();
           
-        if (error) {
-          console.error('Error fetching customer:', error);
-          toast({
-            title: "Error",
-            description: "Failed to fetch customer details",
-            variant: "destructive",
-          });
-          return;
+        if (customerError) {
+          console.error('Error fetching customer:', customerError);
+          throw customerError;
         }
         
-        if (data) {
-          console.log('Fetched customer data:', data);
-          setTitle(data.title || "");
-          setUserSurname(data.user_surname || "");
-          setUserNumber(data.user_number || "");
-          setSocialNetworkLink(data.social_network_link || "");
-          setEventNotes(data.event_notes || "");
-          setStartDate(data.start_date || "");
-          setEndDate(data.end_date || "");
-          setPaymentStatus(data.payment_status || "");
-          setPaymentAmount(data.payment_amount?.toString() || "");
-          setCreateEvent(!!data.start_date);
+        // If not found in customers, try to fetch from events table
+        if (!customerData) {
+          console.log('Customer not found in customers table, checking events...');
+          const { data: eventData, error: eventError } = await supabase
+            .from('events')
+            .select('*')
+            .eq('id', customerId)
+            .maybeSingle();
+            
+          if (eventError) {
+            console.error('Error fetching event:', eventError);
+            throw eventError;
+          }
+          
+          if (eventData) {
+            customerData = {
+              ...eventData,
+              title: eventData.title,
+              user_surname: eventData.user_surname,
+              user_number: eventData.user_number,
+              social_network_link: eventData.social_network_link,
+              event_notes: eventData.event_notes,
+              start_date: eventData.start_date,
+              end_date: eventData.end_date,
+              payment_status: eventData.payment_status,
+              payment_amount: eventData.payment_amount,
+            };
+          }
+        }
+        
+        if (customerData) {
+          console.log('Found data:', customerData);
+          setTitle(customerData.title || "");
+          setUserSurname(customerData.user_surname || "");
+          setUserNumber(customerData.user_number || "");
+          setSocialNetworkLink(customerData.social_network_link || "");
+          setEventNotes(customerData.event_notes || "");
+          setStartDate(customerData.start_date || "");
+          setEndDate(customerData.end_date || "");
+          setPaymentStatus(customerData.payment_status || "");
+          setPaymentAmount(customerData.payment_amount?.toString() || "");
+          setCreateEvent(!!customerData.start_date);
         } else {
-          console.log('No customer found with ID:', customerId);
+          console.log('No customer or event found with ID:', customerId);
           toast({
             title: "Not Found",
-            description: "Customer not found",
+            description: "Customer not found in either customers or events",
             variant: "destructive",
           });
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Unexpected error:', error);
         toast({
           title: "Error",
-          description: "An unexpected error occurred",
+          description: error.message || "An unexpected error occurred",
           variant: "destructive",
         });
       } finally {
