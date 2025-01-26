@@ -176,9 +176,10 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           .eq('id', customerId)
           .eq('user_id', user.id)
           .select()
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
+        if (!updatedData) throw new Error("Failed to update customer");
         updatedCustomerId = updatedData.id;
       } else {
         // Create new customer
@@ -186,9 +187,10 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           .from('customers')
           .insert([data])
           .select()
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
+        if (!newData) throw new Error("Failed to create customer");
         updatedCustomerId = newData.id;
       }
 
