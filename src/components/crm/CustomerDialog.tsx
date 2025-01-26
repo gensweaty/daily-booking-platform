@@ -43,7 +43,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       try {
         setLoading(true);
         console.log('Fetching customer with ID:', customerId);
-        let customerData = null;
         
         // First try to fetch from events table
         const { data: eventData, error: eventError } = await supabase
@@ -60,7 +59,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         // If not found in events, try to fetch from customers table
         if (!eventData) {
           console.log('Event not found, checking customers table...');
-          const { data, error: customerError } = await supabase
+          const { data: customerData, error: customerError } = await supabase
             .from('customers')
             .select('*')
             .eq('id', customerId)
@@ -72,20 +71,27 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             throw customerError;
           }
 
-          customerData = data;
-          if (data) {
-            console.log('Found customer data:', data);
-            setTitle(data.title || "");
-            setUserSurname(data.user_surname || "");
-            setUserNumber(data.user_number || "");
-            setSocialNetworkLink(data.social_network_link || "");
-            setEventNotes(data.event_notes || "");
-            setStartDate(data.start_date || "");
-            setEndDate(data.end_date || "");
-            setPaymentStatus(data.payment_status || "");
-            setPaymentAmount(data.payment_amount?.toString() || "");
-            setCreateEvent(!!data.start_date);
+          if (customerData) {
+            console.log('Found customer data:', customerData);
+            setTitle(customerData.title || "");
+            setUserSurname(customerData.user_surname || "");
+            setUserNumber(customerData.user_number || "");
+            setSocialNetworkLink(customerData.social_network_link || "");
+            setEventNotes(customerData.event_notes || "");
+            setStartDate(customerData.start_date || "");
+            setEndDate(customerData.end_date || "");
+            setPaymentStatus(customerData.payment_status || "");
+            setPaymentAmount(customerData.payment_amount?.toString() || "");
+            setCreateEvent(!!customerData.start_date);
             setIsEventData(false);
+          } else {
+            console.log('No customer found with ID:', customerId);
+            toast({
+              title: "Not Found",
+              description: "Customer not found",
+              variant: "destructive",
+            });
+            handleClose();
           }
         } else {
           setIsEventData(true);
@@ -101,15 +107,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           setPaymentAmount(eventData.payment_amount?.toString() || "");
           setCreateEvent(true);
         }
-        
-        if (!eventData && !customerData) {
-          console.log('No customer or event found with ID:', customerId);
-          toast({
-            title: "Not Found",
-            description: "Customer not found in either customers or events",
-            variant: "destructive",
-          });
-        }
       } catch (error: any) {
         console.error('Unexpected error:', error);
         toast({
@@ -117,6 +114,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           description: error.message || "An unexpected error occurred",
           variant: "destructive",
         });
+        handleClose();
       } finally {
         setLoading(false);
       }
