@@ -218,6 +218,35 @@ export const CustomerList = () => {
     }
 
     try {
+      // First delete associated files from storage
+      const { data: files } = await supabase
+        .from('customer_files_new')
+        .select('*')
+        .eq('customer_id', selectedCustomer.id);
+
+      if (files && files.length > 0) {
+        // Delete files from storage
+        for (const file of files) {
+          const { error: storageError } = await supabase.storage
+            .from('customer_attachments')
+            .remove([file.file_path]);
+
+          if (storageError) {
+            console.error('Error deleting file from storage:', storageError);
+          }
+        }
+
+        // Delete file records from database
+        const { error: filesDeleteError } = await supabase
+          .from('customer_files_new')
+          .delete()
+          .eq('customer_id', selectedCustomer.id);
+
+        if (filesDeleteError) {
+          throw filesDeleteError;
+        }
+      }
+
       // Check if this is an event-converted-to-customer
       if (selectedCustomer.id.startsWith('event-')) {
         const eventId = selectedCustomer.id.replace('event-', '');
