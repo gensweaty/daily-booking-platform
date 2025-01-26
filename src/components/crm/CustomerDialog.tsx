@@ -43,6 +43,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       try {
         setLoading(true);
         console.log('Fetching customer with ID:', customerId);
+        let customerData = null;
         
         // First try to fetch from events table
         const { data: eventData, error: eventError } = await supabase
@@ -70,6 +71,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             throw customerError;
           }
 
+          customerData = data;
           if (data) {
             console.log('Found customer data:', data);
             setTitle(data.title || "");
@@ -99,7 +101,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           setCreateEvent(true);
         }
         
-        if (!eventData && !data) {
+        if (!eventData && !customerData) {
           console.log('No customer or event found with ID:', customerId);
           toast({
             title: "Not Found",
