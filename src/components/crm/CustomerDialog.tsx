@@ -42,7 +42,6 @@ export const CustomerDialog = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Add these two variables at the component level
   const isEventCustomer = customer?.id?.startsWith('event-');
   const eventId = isEventCustomer ? customer?.id?.replace('event-', '') : null;
 
@@ -89,9 +88,6 @@ export const CustomerDialog = ({
 
     try {
       console.log('Starting submission process...');
-      console.log('Is event customer:', isEventCustomer);
-      console.log('Event ID:', eventId);
-      console.log('Result ID:', resultId);
 
       const baseData = {
         title,
@@ -113,72 +109,36 @@ export const CustomerDialog = ({
 
       let result;
 
-      if (resultId) {
-        console.log('Updating:', isEventCustomer ? 'event' : 'customer', resultId);
+      if (isEventCustomer) {
+        console.log('Updating event customer:', eventId);
+        const { data: updatedEvent, error: updateError } = await supabase
+          .from('events')
+          .update(customerData)
+          .eq('id', eventId)
+          .eq('user_id', user.id)
+          .select()
+          .maybeSingle();
+
+        if (updateError) throw updateError;
+        if (!updatedEvent) throw new Error('Event not found or you do not have permission to update it');
         
-        if (isEventCustomer) {
-          const { data: updatedEvent, error: updateError } = await supabase
-            .from('events')
-            .update(customerData)
-            .eq('id', eventId)
-            .eq('user_id', user.id)
-            .select()
-            .maybeSingle();
+        result = { ...updatedEvent, id: `event-${updatedEvent.id}` };
+        console.log('Updated event result:', result);
+      } else if (resultId) {
+        console.log('Updating customer:', resultId);
+        const { data: updatedCustomer, error: updateError } = await supabase
+          .from('customers')
+          .update(customerData)
+          .eq('id', resultId)
+          .eq('user_id', user.id)
+          .select()
+          .maybeSingle();
 
-          if (updateError) {
-            console.error('Error updating event:', updateError);
-            throw updateError;
-          }
-          
-          if (!updatedEvent) {
-            throw new Error('Event not found or you do not have permission to update it');
-          }
-          
-          result = { ...updatedEvent, id: `event-${updatedEvent.id}` };
-          console.log('Updated event result:', result);
-        } else {
-          const { data: updatedCustomer, error: updateError } = await supabase
-            .from('customers')
-            .update(customerData)
-            .eq('id', resultId)
-            .eq('user_id', user.id)
-            .select()
-            .maybeSingle();
-
-          if (updateError) {
-            console.error('Error updating customer:', updateError);
-            throw updateError;
-          }
-          
-          if (!updatedCustomer) {
-            throw new Error('Customer not found or you do not have permission to update it');
-          }
-          
-          result = updatedCustomer;
-          console.log('Updated customer result:', result);
-
-          // Update associated event if exists
-          if (createEvent) {
-            const { data: associatedEvent } = await supabase
-              .from('events')
-              .select()
-              .eq('title', title)
-              .eq('user_id', user.id)
-              .maybeSingle();
-
-            if (associatedEvent) {
-              const { error: eventUpdateError } = await supabase
-                .from('events')
-                .update(customerData)
-                .eq('id', associatedEvent.id)
-                .eq('user_id', user.id);
-
-              if (eventUpdateError) {
-                console.error('Error updating associated event:', eventUpdateError);
-              }
-            }
-          }
-        }
+        if (updateError) throw updateError;
+        if (!updatedCustomer) throw new Error('Customer not found or you do not have permission to update it');
+        
+        result = updatedCustomer;
+        console.log('Updated customer result:', result);
       } else {
         console.log('Creating new customer');
         const { data: newCustomer, error: createError } = await supabase
@@ -187,52 +147,34 @@ export const CustomerDialog = ({
           .select()
           .maybeSingle();
           
-        if (createError) {
-          console.error('Error creating customer:', createError);
-          throw createError;
-        }
-
-        if (!newCustomer) {
-          throw new Error('Failed to create customer - no data returned');
-        }
+        if (createError) throw createError;
+        if (!newCustomer) throw new Error('Failed to create customer - no data returned');
 
         result = newCustomer;
         setResultId(newCustomer.id);
         console.log('Created new customer:', result);
-
-        // Create associated event if needed
-        if (createEvent) {
-          const { data: newEvent, error: eventError } = await supabase
-            .from('events')
-            .insert([customerData])
-            .select()
-            .maybeSingle();
-
-          if (eventError) {
-            console.error('Error creating associated event:', eventError);
-          }
-        }
       }
 
       if (selectedFile) {
         const targetId = isEventCustomer ? eventId : result.id;
-        console.log('Handling file upload for:', targetId);
+        const bucketName = isEventCustomer ? 'event_attachments' : 'customer_attachments';
+        const tableName = isEventCustomer ? 'event_files' : 'customer_files_new';
+        const idField = isEventCustomer ? 'event_id' : 'customer_id';
+        
+        console.log('Uploading file for:', { targetId, bucketName, tableName, idField });
         
         try {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;
           
-          // Upload to storage
           const { error: uploadError } = await supabase.storage
-            .from(isEventCustomer ? 'event_attachments' : 'customer_attachments')
+            .from(bucketName)
             .upload(filePath, selectedFile);
 
-          if (uploadError) {
-            console.error('Error uploading file:', uploadError);
-            throw uploadError;
-          }
+          if (uploadError) throw uploadError;
 
           const fileData = {
+            [idField]: targetId,
             filename: selectedFile.name,
             file_path: filePath,
             content_type: selectedFile.type,
@@ -240,43 +182,21 @@ export const CustomerDialog = ({
             user_id: user.id
           };
 
-          if (isEventCustomer) {
-            console.log('Saving event file record for event ID:', eventId);
-            // Save file record for event
-            const { error: eventFileError } = await supabase
-              .from('event_files')
-              .insert({
-                ...fileData,
-                event_id: eventId
-              });
+          const { error: fileRecordError } = await supabase
+            .from(tableName)
+            .insert([fileData]);
 
-            if (eventFileError) {
-              console.error('Error creating event file record:', eventFileError);
-              throw eventFileError;
-            }
-          } else {
-            console.log('Saving customer file record for customer ID:', result.id);
-            // Save file record for customer
-            const { error: customerFileError } = await supabase
-              .from('customer_files_new')
-              .insert({
-                ...fileData,
-                customer_id: result.id
-              });
+          if (fileRecordError) throw fileRecordError;
 
-            if (customerFileError) {
-              console.error('Error creating customer file record:', customerFileError);
-              throw customerFileError;
-            }
-          }
-
-          setSelectedFile(null);
+          console.log('File uploaded successfully');
+          
+          // Invalidate queries to refresh the UI
           await queryClient.invalidateQueries({ queryKey: ['customerFiles', result.id] });
           if (eventId) {
             await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId] });
           }
-
-          console.log('File uploaded successfully');
+          
+          setSelectedFile(null);
         } catch (fileError: any) {
           console.error('Error handling file:', fileError);
           toast({
