@@ -47,6 +47,7 @@ export const CustomerDialog = ({
 
   useEffect(() => {
     if (customer || event) {
+      console.log('Loading customer/event data:', { customer, event });
       const data = customer || event;
       setTitle(data?.title || "");
       setUserSurname(data?.user_surname || "");
