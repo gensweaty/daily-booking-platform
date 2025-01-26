@@ -179,6 +179,10 @@ export const CustomerDialog = ({
 
       if (selectedFile && result) {
         const targetId = isEventCustomer && eventId ? eventId : result.id;
+        if (!targetId) {
+          throw new Error('No valid target ID for file upload');
+        }
+        
         const bucketName = isEventCustomer ? 'event_attachments' : 'customer_attachments';
         const tableName = isEventCustomer ? 'event_files' : 'customer_files_new';
         const idField = isEventCustomer ? 'event_id' : 'customer_id';
