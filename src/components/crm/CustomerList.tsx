@@ -168,6 +168,8 @@ export const CustomerList = () => {
     }
 
     try {
+      console.log('Attempting to update customer:', selectedCustomer.id);
+      
       const { data, error } = await supabase
         .from('customers')
         .update(customerData)
@@ -176,9 +178,13 @@ export const CustomerList = () => {
         .select()
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
 
       if (!data) {
+        console.error('No customer found or no permission to update');
         throw new Error("Customer not found or you do not have permission to update it");
       }
 
