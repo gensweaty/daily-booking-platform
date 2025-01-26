@@ -44,62 +44,62 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         setLoading(true);
         console.log('Fetching customer with ID:', customerId);
         
-        // First try to fetch from customers table
-        let { data: customerData, error: customerError } = await supabase
-          .from('customers')
+        // First try to fetch from events table
+        const { data: eventData, error: eventError } = await supabase
+          .from('events')
           .select('*')
           .eq('id', customerId)
           .maybeSingle();
           
-        if (customerError) {
-          console.error('Error fetching customer:', customerError);
-          throw customerError;
+        if (eventError) {
+          console.error('Error fetching event:', eventError);
+          throw eventError;
         }
-        
-        // If not found in customers, try to fetch from events table
-        if (!customerData) {
-          console.log('Customer not found in customers table, checking events...');
-          const { data: eventData, error: eventError } = await supabase
-            .from('events')
+
+        // If not found in events, try to fetch from customers table
+        if (!eventData) {
+          console.log('Event not found, checking customers table...');
+          const { data: customerData, error: customerError } = await supabase
+            .from('customers')
             .select('*')
             .eq('id', customerId)
             .maybeSingle();
             
-          if (eventError) {
-            console.error('Error fetching event:', eventError);
-            throw eventError;
+          if (customerError) {
+            console.error('Error fetching customer:', customerError);
+            throw customerError;
           }
-          
-          if (eventData) {
-            setIsEventData(true);
-            customerData = {
-              ...eventData,
-              title: eventData.title,
-              user_surname: eventData.user_surname,
-              user_number: eventData.user_number,
-              social_network_link: eventData.social_network_link,
-              event_notes: eventData.event_notes,
-              start_date: eventData.start_date,
-              end_date: eventData.end_date,
-              payment_status: eventData.payment_status,
-              payment_amount: eventData.payment_amount,
-            };
+
+          if (customerData) {
+            console.log('Found customer data:', customerData);
+            setTitle(customerData.title || "");
+            setUserSurname(customerData.user_surname || "");
+            setUserNumber(customerData.user_number || "");
+            setSocialNetworkLink(customerData.social_network_link || "");
+            setEventNotes(customerData.event_notes || "");
+            setStartDate(customerData.start_date || "");
+            setEndDate(customerData.end_date || "");
+            setPaymentStatus(customerData.payment_status || "");
+            setPaymentAmount(customerData.payment_amount?.toString() || "");
+            setCreateEvent(!!customerData.start_date);
+            setIsEventData(false);
           }
+        } else {
+          setIsEventData(true);
+          console.log('Found event data:', eventData);
+          setTitle(eventData.title || "");
+          setUserSurname(eventData.user_surname || "");
+          setUserNumber(eventData.user_number || "");
+          setSocialNetworkLink(eventData.social_network_link || "");
+          setEventNotes(eventData.event_notes || "");
+          setStartDate(eventData.start_date || "");
+          setEndDate(eventData.end_date || "");
+          setPaymentStatus(eventData.payment_status || "");
+          setPaymentAmount(eventData.payment_amount?.toString() || "");
+          setCreateEvent(true);
         }
         
-        if (customerData) {
-          console.log('Found data:', customerData);
-          setTitle(customerData.title || "");
-          setUserSurname(customerData.user_surname || "");
-          setUserNumber(customerData.user_number || "");
-          setSocialNetworkLink(customerData.social_network_link || "");
-          setEventNotes(customerData.event_notes || "");
-          setStartDate(customerData.start_date || "");
-          setEndDate(customerData.end_date || "");
-          setPaymentStatus(customerData.payment_status || "");
-          setPaymentAmount(customerData.payment_amount?.toString() || "");
-          setCreateEvent(!!customerData.start_date || isEventData);
-        } else {
+        if (!eventData && !customerData) {
           console.log('No customer or event found with ID:', customerId);
           toast({
             title: "Not Found",

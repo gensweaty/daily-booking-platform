@@ -68,11 +68,11 @@ export const CustomerDialogFields = ({
 }: CustomerDialogFieldsProps) => {
   
   const { data: fetchedFiles = [], isError } = useQuery({
-    queryKey: ['customerFiles', customerId],
+    queryKey: ['customerFiles', customerId, isEventData],
     queryFn: async () => {
       if (!customerId) return [];
       
-      console.log('Fetching files for customer:', customerId);
+      console.log('Fetching files for customer:', customerId, 'isEventData:', isEventData);
       
       try {
         let files = [];
