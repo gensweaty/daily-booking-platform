@@ -42,10 +42,16 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
       const { data: existsData, error: existsError } = await supabase.storage
         .from(bucket)
         .list('', {
-          search: filePath
+          search: filePath,
+          limit: 1
         });
 
-      if (existsError || !existsData?.length) {
+      if (existsError) {
+        console.error(`Error checking file existence in ${bucket}:`, existsError);
+        return null;
+      }
+
+      if (!existsData?.length) {
         console.log(`File not found in bucket ${bucket}`);
         return null;
       }
