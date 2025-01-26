@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { CustomerDialogFields } from "./CustomerDialogFields";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -87,7 +87,7 @@ export const CustomerDialog = ({
     }
 
     try {
-      console.log('Starting submission process...');
+      console.log('Starting submission process...', { isEventCustomer, eventId });
 
       const baseData = {
         title,
@@ -119,8 +119,13 @@ export const CustomerDialog = ({
           .select()
           .maybeSingle();
 
-        if (updateError) throw updateError;
-        if (!updatedEvent) throw new Error('Event not found or you do not have permission to update it');
+        if (updateError) {
+          console.error('Error updating event:', updateError);
+          throw updateError;
+        }
+        if (!updatedEvent) {
+          throw new Error('Event not found or you do not have permission to update it');
+        }
         
         result = { ...updatedEvent, id: `event-${updatedEvent.id}` };
         console.log('Updated event result:', result);
@@ -134,8 +139,13 @@ export const CustomerDialog = ({
           .select()
           .maybeSingle();
 
-        if (updateError) throw updateError;
-        if (!updatedCustomer) throw new Error('Customer not found or you do not have permission to update it');
+        if (updateError) {
+          console.error('Error updating customer:', updateError);
+          throw updateError;
+        }
+        if (!updatedCustomer) {
+          throw new Error('Customer not found or you do not have permission to update it');
+        }
         
         result = updatedCustomer;
         console.log('Updated customer result:', result);
@@ -147,8 +157,13 @@ export const CustomerDialog = ({
           .select()
           .maybeSingle();
           
-        if (createError) throw createError;
-        if (!newCustomer) throw new Error('Failed to create customer - no data returned');
+        if (createError) {
+          console.error('Error creating customer:', createError);
+          throw createError;
+        }
+        if (!newCustomer) {
+          throw new Error('Failed to create customer - no data returned');
+        }
 
         result = newCustomer;
         setResultId(newCustomer.id);
@@ -171,7 +186,10 @@ export const CustomerDialog = ({
             .from(bucketName)
             .upload(filePath, selectedFile);
 
-          if (uploadError) throw uploadError;
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            throw uploadError;
+          }
 
           const fileData = {
             [idField]: targetId,
@@ -186,11 +204,13 @@ export const CustomerDialog = ({
             .from(tableName)
             .insert([fileData]);
 
-          if (fileRecordError) throw fileRecordError;
+          if (fileRecordError) {
+            console.error('Error creating file record:', fileRecordError);
+            throw fileRecordError;
+          }
 
           console.log('File uploaded successfully');
           
-          // Invalidate queries to refresh the UI
           await queryClient.invalidateQueries({ queryKey: ['customerFiles', result.id] });
           if (eventId) {
             await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId] });
