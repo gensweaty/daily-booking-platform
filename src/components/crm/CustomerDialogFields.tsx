@@ -35,6 +35,7 @@ interface CustomerDialogFieldsProps {
   customerId?: string;
   createEvent: boolean;
   setCreateEvent: (value: boolean) => void;
+  isEventData: boolean;
 }
 
 export const CustomerDialogFields = ({
@@ -63,6 +64,7 @@ export const CustomerDialogFields = ({
   customerId,
   createEvent,
   setCreateEvent,
+  isEventData,
 }: CustomerDialogFieldsProps) => {
   
   const { data: fetchedFiles = [], isError } = useQuery({
@@ -73,35 +75,36 @@ export const CustomerDialogFields = ({
       console.log('Fetching files for customer:', customerId);
       
       try {
-        // Get files from customer_files_new
-        const { data: customerFiles, error: customerFilesError } = await supabase
-          .from('customer_files_new')
-          .select('*')
-          .eq('customer_id', customerId);
+        let files = [];
         
-        if (customerFilesError) {
-          console.error('Error fetching customer files:', customerFilesError);
-          return [];
+        if (isEventData) {
+          // Get files from event_files
+          const { data: eventFiles, error: eventFilesError } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', customerId);
+            
+          if (eventFilesError) {
+            console.error('Error fetching event files:', eventFilesError);
+          } else {
+            files = [...files, ...(eventFiles || [])];
+          }
+        } else {
+          // Get files from customer_files_new
+          const { data: customerFiles, error: customerFilesError } = await supabase
+            .from('customer_files_new')
+            .select('*')
+            .eq('customer_id', customerId);
+            
+          if (customerFilesError) {
+            console.error('Error fetching customer files:', customerFilesError);
+          } else {
+            files = [...files, ...(customerFiles || [])];
+          }
         }
-
-        // Get files from event_files where event title matches customer title
-        const { data: events, error: eventsError } = await supabase
-          .from('events')
-          .select(`
-            id,
-            event_files (*)
-          `)
-          .eq('title', title);
-
-        if (eventsError) {
-          console.error('Error fetching event files:', eventsError);
-          return customerFiles || [];
-        }
-
-        const eventFiles = events?.flatMap(event => event.event_files || []) || [];
         
-        console.log('Found files:', [...(customerFiles || []), ...eventFiles]);
-        return [...(customerFiles || []), ...eventFiles];
+        console.log('Found files:', files);
+        return files;
       } catch (error) {
         console.error('Error in file fetching:', error);
         return [];

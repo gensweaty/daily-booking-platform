@@ -27,6 +27,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [createEvent, setCreateEvent] = useState(false);
+  const [isEventData, setIsEventData] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -70,6 +71,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           }
           
           if (eventData) {
+            setIsEventData(true);
             customerData = {
               ...eventData,
               title: eventData.title,
@@ -96,7 +98,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           setEndDate(customerData.end_date || "");
           setPaymentStatus(customerData.payment_status || "");
           setPaymentAmount(customerData.payment_amount?.toString() || "");
-          setCreateEvent(!!customerData.start_date);
+          setCreateEvent(!!customerData.start_date || isEventData);
         } else {
           console.log('No customer or event found with ID:', customerId);
           toast({
@@ -135,6 +137,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     setSelectedFile(null);
     setFileError("");
     setCreateEvent(false);
+    setIsEventData(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -199,10 +202,13 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
 
         if (uploadError) throw uploadError;
 
+        const tableName = isEventData ? 'event_files' : 'customer_files_new';
+        const columnName = isEventData ? 'event_id' : 'customer_id';
+
         const { error: fileRecordError } = await supabase
-          .from('customer_files_new')
+          .from(tableName)
           .insert({
-            customer_id: customerId,
+            [columnName]: customerId,
             filename: selectedFile.name,
             file_path: filePath,
             content_type: selectedFile.type,
@@ -276,6 +282,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             customerId={customerId}
             createEvent={createEvent}
             setCreateEvent={setCreateEvent}
+            isEventData={isEventData}
           />
 
           <div className="flex justify-end gap-2 mt-4">
