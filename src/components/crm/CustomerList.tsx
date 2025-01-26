@@ -247,33 +247,22 @@ export const CustomerList = () => {
         }
       }
 
-      // Check if this is an event-converted-to-customer
-      if (selectedCustomer.id.startsWith('event-')) {
-        const eventId = selectedCustomer.id.replace('event-', '');
-        const { error } = await supabase
-          .from('events')
-          .delete()
-          .eq('id', eventId)
-          .eq('user_id', user.id);
+      // Now delete the customer
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', selectedCustomer.id)
+        .eq('user_id', user.id);
 
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('customers')
-          .delete()
-          .eq('id', selectedCustomer.id)
-          .eq('user_id', user.id);
-
-        if (error) throw error;
-      }
+      if (error) throw error;
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-
+      
       toast({
         title: "Success",
         description: "Customer deleted successfully",
       });
+      
       setIsDialogOpen(false);
       setSelectedCustomer(null);
     } catch (error: any) {

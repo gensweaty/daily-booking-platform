@@ -5,6 +5,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CustomerDialogProps {
   isOpen: boolean;
@@ -29,10 +30,11 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchCustomer = async () => {
-      if (!customerId) {
+      if (!customerId || !user) {
         resetForm();
         return;
       }
@@ -45,6 +47,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           .from('customers')
           .select('*')
           .eq('id', customerId)
+          .eq('user_id', user.id)
           .maybeSingle();
           
         if (error) {
@@ -92,7 +95,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     if (isOpen) {
       fetchCustomer();
     }
-  }, [customerId, isOpen, toast]);
+  }, [customerId, isOpen, toast, user]);
 
   const resetForm = () => {
     setTitle("");
@@ -107,6 +110,102 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     setSelectedFile(null);
     setFileError("");
     setCreateEvent(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to perform this action",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const customerData = {
+        title,
+        user_surname: userSurname,
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        start_date: createEvent ? startDate : null,
+        end_date: createEvent ? endDate : null,
+        payment_status: paymentStatus || null,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+        user_id: user.id
+      };
+
+      let customerId;
+      if (customerId) {
+        // Update existing customer
+        const { data, error } = await supabase
+          .from('customers')
+          .update(customerData)
+          .eq('id', customerId)
+          .eq('user_id', user.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        customerId = data.id;
+      } else {
+        // Create new customer
+        const { data, error } = await supabase
+          .from('customers')
+          .insert([customerData])
+          .select()
+          .single();
+
+        if (error) throw error;
+        customerId = data.id;
+      }
+
+      // Handle file upload if a file is selected
+      if (selectedFile && customerId) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('customer_attachments')
+          .upload(filePath, selectedFile);
+
+        if (uploadError) throw uploadError;
+
+        const { error: fileRecordError } = await supabase
+          .from('customer_files_new')
+          .insert({
+            customer_id: customerId,
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user.id
+          });
+
+        if (fileRecordError) throw fileRecordError;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      
+      toast({
+        title: "Success",
+        description: customerId ? "Customer updated successfully" : "Customer created successfully",
+      });
+      
+      handleClose();
+    } catch (error: any) {
+      console.error('Error saving customer:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save customer",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClose = () => {
@@ -125,42 +224,44 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           </DialogTitle>
         </DialogHeader>
         
-        <CustomerDialogFields
-          title={title}
-          setTitle={setTitle}
-          userSurname={userSurname}
-          setUserSurname={setUserSurname}
-          userNumber={userNumber}
-          setUserNumber={setUserNumber}
-          socialNetworkLink={socialNetworkLink}
-          setSocialNetworkLink={setSocialNetworkLink}
-          eventNotes={eventNotes}
-          setEventNotes={setEventNotes}
-          startDate={startDate}
-          setStartDate={setStartDate}
-          endDate={endDate}
-          setEndDate={setEndDate}
-          paymentStatus={paymentStatus}
-          setPaymentStatus={setPaymentStatus}
-          paymentAmount={paymentAmount}
-          setPaymentAmount={setPaymentAmount}
-          selectedFile={selectedFile}
-          setSelectedFile={setSelectedFile}
-          fileError={fileError}
-          setFileError={setFileError}
-          customerId={customerId}
-          createEvent={createEvent}
-          setCreateEvent={setCreateEvent}
-        />
+        <form onSubmit={handleSubmit}>
+          <CustomerDialogFields
+            title={title}
+            setTitle={setTitle}
+            userSurname={userSurname}
+            setUserSurname={setUserSurname}
+            userNumber={userNumber}
+            setUserNumber={setUserNumber}
+            socialNetworkLink={socialNetworkLink}
+            setSocialNetworkLink={setSocialNetworkLink}
+            eventNotes={eventNotes}
+            setEventNotes={setEventNotes}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
+            paymentStatus={paymentStatus}
+            setPaymentStatus={setPaymentStatus}
+            paymentAmount={paymentAmount}
+            setPaymentAmount={setPaymentAmount}
+            selectedFile={selectedFile}
+            setSelectedFile={setSelectedFile}
+            fileError={fileError}
+            setFileError={setFileError}
+            customerId={customerId}
+            createEvent={createEvent}
+            setCreateEvent={setCreateEvent}
+          />
 
-        <div className="flex justify-end gap-2 mt-4">
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
-            Cancel
-          </Button>
-          <Button onClick={() => {}} disabled={loading}>
-            {loading ? "Saving..." : "Save"}
-          </Button>
-        </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={handleClose} disabled={loading}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Saving..." : (customerId ? "Update" : "Create")}
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
