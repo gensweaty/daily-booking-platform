@@ -153,7 +153,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
 
     try {
       setLoading(true);
-      const customerData = {
+      const data = {
         title,
         user_surname: userSurname,
         user_number: userNumber,
@@ -169,26 +169,26 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       let updatedCustomerId;
       if (customerId) {
         // Update existing customer
-        const { data, error } = await supabase
+        const { data: updatedData, error } = await supabase
           .from('customers')
-          .update(customerData)
+          .update(data)
           .eq('id', customerId)
           .eq('user_id', user.id)
           .select()
           .single();
 
         if (error) throw error;
-        updatedCustomerId = data.id;
+        updatedCustomerId = updatedData.id;
       } else {
         // Create new customer
-        const { data, error } = await supabase
+        const { data: newData, error } = await supabase
           .from('customers')
-          .insert([customerData])
+          .insert([data])
           .select()
           .single();
 
         if (error) throw error;
-        updatedCustomerId = data.id;
+        updatedCustomerId = newData.id;
       }
 
       // Handle file upload if a file is selected
