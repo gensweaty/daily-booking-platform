@@ -207,8 +207,8 @@ export const CustomerList = () => {
     }
   };
 
-  const handleDeleteCustomer = async () => {
-    if (!selectedCustomer?.id || !user?.id) {
+  const handleDeleteCustomer = async (customer: any) => {
+    if (!user?.id) {
       toast({
         title: "Error",
         description: "Missing customer or user information",
@@ -222,7 +222,7 @@ export const CustomerList = () => {
       const { data: files } = await supabase
         .from('customer_files_new')
         .select('*')
-        .eq('customer_id', selectedCustomer.id);
+        .eq('customer_id', customer.id);
 
       if (files && files.length > 0) {
         // Delete files from storage
@@ -240,7 +240,7 @@ export const CustomerList = () => {
         const { error: filesDeleteError } = await supabase
           .from('customer_files_new')
           .delete()
-          .eq('customer_id', selectedCustomer.id);
+          .eq('customer_id', customer.id);
 
         if (filesDeleteError) {
           throw filesDeleteError;
@@ -251,7 +251,7 @@ export const CustomerList = () => {
       const { error } = await supabase
         .from('customers')
         .delete()
-        .eq('id', selectedCustomer.id)
+        .eq('id', customer.id)
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -591,7 +591,7 @@ export const CustomerList = () => {
                         size="icon"
                         onClick={() => {
                           setSelectedCustomer(customer);
-                          handleDeleteCustomer();
+                          handleDeleteCustomer(customer);
                         }}
                       >
                         <Trash2 className="w-4 h-4" />
