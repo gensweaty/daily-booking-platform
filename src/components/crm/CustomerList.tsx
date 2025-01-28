@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Pencil, Trash2, Copy } from "lucide-react";
-import { CustomerDialog } from "./CustomerDialog";
+import CustomerDialog from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { format, parseISO, startOfMonth, endOfMonth, endOfDay } from "date-fns";
 import { FileDisplay } from "@/components/shared/FileDisplay";
