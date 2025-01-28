@@ -33,6 +33,17 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  const formatDateForInput = (dateString: string | null) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      return date.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:mm
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return "";
+    }
+  };
+
   useEffect(() => {
     const fetchCustomer = async () => {
       if (!customerId || !user) {
@@ -78,11 +89,10 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             setUserNumber(customerData.user_number || "");
             setSocialNetworkLink(customerData.social_network_link || "");
             setEventNotes(customerData.event_notes || "");
-            setStartDate(customerData.start_date || "");
-            setEndDate(customerData.end_date || "");
+            setStartDate(formatDateForInput(customerData.start_date));
+            setEndDate(formatDateForInput(customerData.end_date));
             setPaymentStatus(customerData.payment_status || "");
             setPaymentAmount(customerData.payment_amount?.toString() || "");
-            // Set createEvent based on the presence of start_date and end_date
             setCreateEvent(!!customerData.start_date && !!customerData.end_date);
             setIsEventData(false);
           } else {
@@ -102,12 +112,10 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           setUserNumber(eventData.user_number || "");
           setSocialNetworkLink(eventData.social_network_link || "");
           setEventNotes(eventData.event_notes || "");
-          // Ensure dates are properly set for events
-          setStartDate(eventData.start_date || "");
-          setEndDate(eventData.end_date || "");
+          setStartDate(formatDateForInput(eventData.start_date));
+          setEndDate(formatDateForInput(eventData.end_date));
           setPaymentStatus(eventData.payment_status || "");
           setPaymentAmount(eventData.payment_amount?.toString() || "");
-          // Always set createEvent to true for event data
           setCreateEvent(true);
         }
       } catch (error: any) {
