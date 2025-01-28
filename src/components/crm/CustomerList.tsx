@@ -7,6 +7,7 @@ import { PlusCircle, Pencil, Trash2, Copy } from "lucide-react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { format, parseISO, startOfMonth, endOfMonth, endOfDay } from "date-fns";
+
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { SearchCommand } from "./SearchCommand";
 import { DateRangeSelect } from "@/components/Statistics/DateRangeSelect";
@@ -637,3 +638,4 @@ export const CustomerList = () => {
     </div>
   );
 };
+

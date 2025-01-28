@@ -13,7 +13,7 @@ interface CustomerDialogProps {
   customerId?: string;
 }
 
-const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogProps) => {
+export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogProps) => {
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
@@ -427,5 +427,3 @@ const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogProps) =>
     </Dialog>
   );
 };
-
-export default CustomerDialog;
