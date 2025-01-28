@@ -230,7 +230,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           .update(customerData)
           .eq('id', customerId)
           .select()
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
         if (!updatedData) throw new Error("Failed to update customer");
@@ -262,14 +262,16 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         // If createEvent is true and this is not already an event, create a new event
         else if (createEvent) {
           // Check if customer already has an event
-          const { data: existingEvent } = await supabase
+          const { data: existingEvents, error: existingEventError } = await supabase
             .from('events')
             .select('*')
             .eq('title', title)
-            .eq('user_id', user.id)
-            .single();
+            .eq('user_id', user.id);
 
-          if (!existingEvent) {
+          if (existingEventError) throw existingEventError;
+
+          // Only create new event if no existing events found
+          if (!existingEvents || existingEvents.length === 0) {
             const eventData = {
               title,
               user_surname: userSurname,
@@ -297,7 +299,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           .from('customers')
           .insert([customerData])
           .select()
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
         if (!newData) throw new Error("Failed to create customer");
