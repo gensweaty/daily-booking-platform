@@ -1,8 +1,15 @@
-import React, { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext"; // Add this import
-import { CustomerDialogFields } from "./CustomerDialogFields";
+import React, { useState, useMemo } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { FileUploadField } from "@/components/shared/FileUploadField";
+import { FileDisplay } from "@/components/shared/FileDisplay";
+import { useQuery } from "@tanstack/react-query";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -255,7 +262,13 @@ export const CustomerDialogFields = ({
   );
 };
 
-const CustomerDialog = ({ customerId, onClose }) => {
+interface CustomerDialogProps {
+  customerId?: string;
+  onClose: () => void;
+  isOpen: boolean;
+}
+
+const CustomerDialog = ({ customerId, onClose, isOpen }: CustomerDialogProps) => {
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
   const [userNumber, setUserNumber] = useState("");
