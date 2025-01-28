@@ -179,6 +179,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       };
 
       let updatedCustomerId;
+      
       if (customerId) {
         // Update existing customer
         const { data: updatedData, error } = await supabase
@@ -192,6 +193,29 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         if (error) throw error;
         if (!updatedData) throw new Error("Failed to update customer");
         updatedCustomerId = updatedData.id;
+
+        // If createEvent is true and this is not already an event, create a new event
+        if (createEvent && !isEventData) {
+          const eventData = {
+            title,
+            user_surname: userSurname,
+            user_number: userNumber,
+            social_network_link: socialNetworkLink,
+            event_notes: eventNotes,
+            start_date: startDate,
+            end_date: endDate,
+            payment_status: paymentStatus || null,
+            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+            user_id: user.id,
+            type: 'customer_event'
+          };
+
+          const { error: eventError } = await supabase
+            .from('events')
+            .insert([eventData]);
+
+          if (eventError) throw eventError;
+        }
       } else {
         // Create new customer
         const { data: newData, error } = await supabase
@@ -203,6 +227,29 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         if (error) throw error;
         if (!newData) throw new Error("Failed to create customer");
         updatedCustomerId = newData.id;
+
+        // If createEvent is true, create a new event
+        if (createEvent) {
+          const eventData = {
+            title,
+            user_surname: userSurname,
+            user_number: userNumber,
+            social_network_link: socialNetworkLink,
+            event_notes: eventNotes,
+            start_date: startDate,
+            end_date: endDate,
+            payment_status: paymentStatus || null,
+            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+            user_id: user.id,
+            type: 'customer_event'
+          };
+
+          const { error: eventError } = await supabase
+            .from('events')
+            .insert([eventData]);
+
+          if (eventError) throw eventError;
+        }
       }
 
       // Handle file upload if a file is selected
@@ -234,6 +281,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
       
       toast({
         title: "Success",
