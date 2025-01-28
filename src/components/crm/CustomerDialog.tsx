@@ -82,7 +82,8 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             setEndDate(customerData.end_date || "");
             setPaymentStatus(customerData.payment_status || "");
             setPaymentAmount(customerData.payment_amount?.toString() || "");
-            setCreateEvent(!!customerData.start_date);
+            // Set createEvent based on the presence of start_date and end_date
+            setCreateEvent(!!customerData.start_date && !!customerData.end_date);
             setIsEventData(false);
           } else {
             console.log('No customer found with ID:', customerId);
