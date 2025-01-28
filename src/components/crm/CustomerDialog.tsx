@@ -94,14 +94,32 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             setPaymentAmount(customerData.payment_amount?.toString() || "");
             setCreateEvent(!!customerData.start_date && !!customerData.end_date);
             setIsEventData(false);
-          } else {
-            console.log('No customer found with ID:', customerId);
-            toast({
-              title: "Not Found",
-              description: "Customer not found",
-              variant: "destructive",
-            });
-            handleClose();
+
+            // If customer has an event, fetch and sync with event data
+            if (customerData.start_date && customerData.end_date) {
+              const { data: linkedEvent } = await supabase
+                .from('events')
+                .select('*')
+                .eq('title', customerData.title)
+                .eq('user_id', user.id)
+                .maybeSingle();
+
+              if (linkedEvent) {
+                // Update event with customer data
+                const { error: updateError } = await supabase
+                  .from('events')
+                  .update({
+                    start_date: customerData.start_date,
+                    end_date: customerData.end_date,
+                    payment_status: customerData.payment_status,
+                    payment_amount: customerData.payment_amount,
+                    event_notes: customerData.event_notes
+                  })
+                  .eq('id', linkedEvent.id);
+
+                if (updateError) throw updateError;
+              }
+            }
           }
         } else {
           setIsEventData(true);
@@ -116,6 +134,30 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           setPaymentStatus(eventData.payment_status || "");
           setPaymentAmount(eventData.payment_amount?.toString() || "");
           setCreateEvent(true);
+
+          // Sync customer data with event data
+          const { data: linkedCustomer } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('title', eventData.title)
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (linkedCustomer) {
+            // Update customer with event data
+            const { error: updateError } = await supabase
+              .from('customers')
+              .update({
+                start_date: eventData.start_date,
+                end_date: eventData.end_date,
+                payment_status: eventData.payment_status,
+                payment_amount: eventData.payment_amount,
+                event_notes: eventData.event_notes
+              })
+              .eq('id', linkedCustomer.id);
+
+            if (updateError) throw updateError;
+          }
         }
       } catch (error: any) {
         console.error('Unexpected error:', error);
@@ -134,6 +176,240 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       fetchCustomer();
     }
   }, [customerId, isOpen, toast, user]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      if (!user) throw new Error("User must be authenticated");
+
+      // If creating/updating an event, check time slot availability
+      if (createEvent) {
+        const { available, conflictingEvent } = await checkTimeSlotAvailability(
+          startDate,
+          endDate,
+          isEventData ? customerId : undefined
+        );
+
+        if (!available) {
+          toast({
+            title: "Time Slot Unavailable",
+            description: `This time slot conflicts with "${conflictingEvent?.title}" (${new Date(conflictingEvent?.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent?.end_date).toLocaleTimeString()})`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      const customerData = {
+        title,
+        user_surname: userSurname,
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        payment_status: paymentStatus || null,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+        user_id: user.id,
+        type: 'customer',
+        start_date: createEvent ? startDate : null,
+        end_date: createEvent ? endDate : null,
+      };
+
+      let updatedCustomerId;
+      let eventId;
+      
+      if (customerId) {
+        // Update existing customer
+        const { data: updatedData, error } = await supabase
+          .from('customers')
+          .update(customerData)
+          .eq('id', customerId)
+          .select()
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!updatedData) throw new Error("Failed to update customer");
+        updatedCustomerId = updatedData.id;
+
+        // If this is an event, update it instead of creating a new one
+        if (isEventData) {
+          const eventData = {
+            title,
+            user_surname: userSurname,
+            user_number: userNumber,
+            social_network_link: socialNetworkLink,
+            event_notes: eventNotes,
+            start_date: startDate,
+            end_date: endDate,
+            payment_status: paymentStatus || null,
+            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+            user_id: user.id,
+          };
+
+          const { error: eventError } = await supabase
+            .from('events')
+            .update(eventData)
+            .eq('id', customerId)
+            .eq('user_id', user.id);
+
+          if (eventError) throw eventError;
+          eventId = customerId;
+        }
+        // If createEvent is true and this is not already an event, update or create event
+        else if (createEvent) {
+          const { data: existingEvent } = await supabase
+            .from('events')
+            .select('*')
+            .eq('title', title)
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          const eventData = {
+            title,
+            user_surname: userSurname,
+            user_number: userNumber,
+            social_network_link: socialNetworkLink,
+            event_notes: eventNotes,
+            start_date: startDate,
+            end_date: endDate,
+            payment_status: paymentStatus || null,
+            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+            user_id: user.id,
+            type: 'customer_event'
+          };
+
+          if (existingEvent) {
+            // Update existing event
+            const { error: eventError } = await supabase
+              .from('events')
+              .update(eventData)
+              .eq('id', existingEvent.id);
+
+            if (eventError) throw eventError;
+            eventId = existingEvent.id;
+          } else {
+            // Create new event
+            const { data: newEvent, error: eventError } = await supabase
+              .from('events')
+              .insert([eventData])
+              .select()
+              .maybeSingle();
+
+            if (eventError) throw eventError;
+            if (newEvent) eventId = newEvent.id;
+          }
+        }
+      } else {
+        // Create new customer
+        const { data: newData, error } = await supabase
+          .from('customers')
+          .insert([customerData])
+          .select()
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!newData) throw new Error("Failed to create customer");
+        updatedCustomerId = newData.id;
+
+        // If createEvent is true, create a new event
+        if (createEvent) {
+          const eventData = {
+            title,
+            user_surname: userSurname,
+            user_number: userNumber,
+            social_network_link: socialNetworkLink,
+            event_notes: eventNotes,
+            start_date: startDate,
+            end_date: endDate,
+            payment_status: paymentStatus || null,
+            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+            user_id: user.id,
+            type: 'customer_event'
+          };
+
+          const { data: newEvent, error: eventError } = await supabase
+            .from('events')
+            .insert([eventData])
+            .select()
+            .maybeSingle();
+
+          if (eventError) throw eventError;
+          if (newEvent) eventId = newEvent.id;
+        }
+      }
+
+      // Handle file upload if a file is selected
+      if (selectedFile && updatedCustomerId) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('customer_attachments')
+          .upload(filePath, selectedFile);
+
+        if (uploadError) throw uploadError;
+
+        const { error: fileRecordError } = await supabase
+          .from('customer_files_new')
+          .insert({
+            customer_id: updatedCustomerId,
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user.id
+          });
+
+        if (fileRecordError) throw fileRecordError;
+      }
+
+      // If we have an event ID and a file, upload it to event_files as well
+      if (selectedFile && eventId) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('event_attachments')
+          .upload(filePath, selectedFile);
+
+        if (uploadError) throw uploadError;
+
+        const { error: fileRecordError } = await supabase
+          .from('event_files')
+          .insert({
+            event_id: eventId,
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user.id
+          });
+
+        if (fileRecordError) throw fileRecordError;
+      }
+
+      toast({
+        title: "Success",
+        description: `Customer successfully ${customerId ? "updated" : "created"}`,
+      });
+
+      onClose();
+    } catch (error: any) {
+      console.error('Error handling customer submission:', error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleClose = () => {
+    if (!loading) {
+      resetForm();
+      onClose();
+    }
+  };
 
   const resetForm = () => {
     setTitle("");
@@ -181,200 +457,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       available: !conflict,
       conflictingEvent: conflict
     };
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      if (!user) throw new Error("User must be authenticated");
-
-      // If creating/updating an event, check time slot availability
-      if (createEvent) {
-        const { available, conflictingEvent } = await checkTimeSlotAvailability(
-          startDate,
-          endDate,
-          isEventData ? customerId : undefined
-        );
-
-        if (!available) {
-          toast({
-            title: "Time Slot Unavailable",
-            description: `This time slot conflicts with "${conflictingEvent?.title}" (${new Date(conflictingEvent?.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent?.end_date).toLocaleTimeString()})`,
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
-      const customerData = {
-        title,
-        user_surname: userSurname,
-        user_number: userNumber,
-        social_network_link: socialNetworkLink,
-        event_notes: eventNotes,
-        payment_status: paymentStatus || null,
-        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-        user_id: user.id,
-        type: 'customer',
-        start_date: createEvent ? startDate : null,
-        end_date: createEvent ? endDate : null,
-      };
-
-      let updatedCustomerId;
-      
-      if (customerId) {
-        // Update existing customer
-        const { data: updatedData, error } = await supabase
-          .from('customers')
-          .update(customerData)
-          .eq('id', customerId)
-          .select()
-          .maybeSingle();
-
-        if (error) throw error;
-        if (!updatedData) throw new Error("Failed to update customer");
-        updatedCustomerId = updatedData.id;
-
-        // If this is an event, update it instead of creating a new one
-        if (isEventData) {
-          const eventData = {
-            title,
-            user_surname: userSurname,
-            user_number: userNumber,
-            social_network_link: socialNetworkLink,
-            event_notes: eventNotes,
-            start_date: startDate,
-            end_date: endDate,
-            payment_status: paymentStatus || null,
-            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-            user_id: user.id,
-          };
-
-          const { error: eventError } = await supabase
-            .from('events')
-            .update(eventData)
-            .eq('id', customerId)
-            .eq('user_id', user.id);
-
-          if (eventError) throw eventError;
-        }
-        // If createEvent is true and this is not already an event, create a new event
-        else if (createEvent) {
-          // Check if customer already has an event
-          const { data: existingEvents, error: existingEventError } = await supabase
-            .from('events')
-            .select('*')
-            .eq('title', title)
-            .eq('user_id', user.id);
-
-          if (existingEventError) throw existingEventError;
-
-          // Only create new event if no existing events found
-          if (!existingEvents || existingEvents.length === 0) {
-            const eventData = {
-              title,
-              user_surname: userSurname,
-              user_number: userNumber,
-              social_network_link: socialNetworkLink,
-              event_notes: eventNotes,
-              start_date: startDate,
-              end_date: endDate,
-              payment_status: paymentStatus || null,
-              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-              user_id: user.id,
-              type: 'customer_event'
-            };
-
-            const { error: eventError } = await supabase
-              .from('events')
-              .insert([eventData]);
-
-            if (eventError) throw eventError;
-          }
-        }
-      } else {
-        // Create new customer
-        const { data: newData, error } = await supabase
-          .from('customers')
-          .insert([customerData])
-          .select()
-          .maybeSingle();
-
-        if (error) throw error;
-        if (!newData) throw new Error("Failed to create customer");
-        updatedCustomerId = newData.id;
-
-        // If createEvent is true, create a new event
-        if (createEvent) {
-          const eventData = {
-            title,
-            user_surname: userSurname,
-            user_number: userNumber,
-            social_network_link: socialNetworkLink,
-            event_notes: eventNotes,
-            start_date: startDate,
-            end_date: endDate,
-            payment_status: paymentStatus || null,
-            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-            user_id: user.id,
-            type: 'customer_event'
-          };
-
-          const { error: eventError } = await supabase
-            .from('events')
-            .insert([eventData]);
-
-          if (eventError) throw eventError;
-        }
-      }
-
-      // Handle file upload if a file is selected
-      if (selectedFile && updatedCustomerId) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${crypto.randomUUID()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('customer_attachments')
-          .upload(filePath, selectedFile);
-
-        if (uploadError) throw uploadError;
-
-        const { error: fileRecordError } = await supabase
-          .from('customer_files_new')
-          .insert({
-            customer_id: updatedCustomerId,
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            user_id: user.id
-          });
-
-        if (fileRecordError) throw fileRecordError;
-      }
-
-      toast({
-        title: "Success",
-        description: `Customer successfully ${customerId ? "updated" : "created"}`,
-      });
-
-      onClose();
-    } catch (error: any) {
-      console.error('Error handling customer submission:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleClose = () => {
-    if (!loading) {
-      resetForm();
-      onClose();
-    }
   };
 
   return (
