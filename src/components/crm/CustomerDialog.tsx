@@ -102,10 +102,12 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           setUserNumber(eventData.user_number || "");
           setSocialNetworkLink(eventData.social_network_link || "");
           setEventNotes(eventData.event_notes || "");
+          // Ensure dates are properly set for events
           setStartDate(eventData.start_date || "");
           setEndDate(eventData.end_date || "");
           setPaymentStatus(eventData.payment_status || "");
           setPaymentAmount(eventData.payment_amount?.toString() || "");
+          // Always set createEvent to true for event data
           setCreateEvent(true);
         }
       } catch (error: any) {
