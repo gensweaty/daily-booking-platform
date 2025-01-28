@@ -34,6 +34,18 @@ export const CalendarView = ({
     return ((actualHour - 6 + 24) % 24) * 80; // 80px is the height of each hour slot
   };
 
+  // Function to determine event background color based on type
+  const getEventBackgroundColor = (eventType?: string) => {
+    switch (eventType) {
+      case 'birthday':
+        return 'bg-primary text-primary-foreground';
+      case 'customer_event':
+        return 'bg-blue-500 text-white';
+      default:
+        return 'bg-secondary text-secondary-foreground';
+    }
+  };
+
   if (view === "month") {
     return (
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
@@ -54,11 +66,7 @@ export const CalendarView = ({
                 {dayEvents.map((event) => (
                   <div
                     key={event.id}
-                    className={`text-xs sm:text-sm p-1 rounded ${
-                      event.type === "birthday"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground"
-                    } cursor-pointer truncate hover:opacity-80 transition-opacity`}
+                    className={`text-xs sm:text-sm p-1 rounded ${getEventBackgroundColor(event.type)} cursor-pointer truncate hover:opacity-80 transition-opacity`}
                     onClick={(e) => {
                       e.stopPropagation();
                       onEventClick(event);
@@ -124,11 +132,7 @@ export const CalendarView = ({
                 return (
                   <div
                     key={event.id}
-                    className={`absolute left-0.5 right-0.5 rounded px-1 sm:px-2 py-1 text-xs sm:text-sm ${
-                      event.type === "birthday"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground"
-                    } cursor-pointer overflow-hidden hover:opacity-80 transition-opacity`}
+                    className={`absolute left-0.5 right-0.5 rounded px-1 sm:px-2 py-1 text-xs sm:text-sm ${getEventBackgroundColor(event.type)} cursor-pointer overflow-hidden hover:opacity-80 transition-opacity`}
                     style={{
                       top: `${top}px`,
                       height: `${Math.max(height, 20)}px`,
