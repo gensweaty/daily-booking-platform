@@ -1,8 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CustomerDialogFields } from "./CustomerDialogFields";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FileDisplay } from "@/components/shared/FileDisplay";
+import { FileUploadField } from "@/components/shared/FileUploadField";
 
 interface CustomerDialogProps {
   customerId?: string;
