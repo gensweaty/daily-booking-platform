@@ -81,20 +81,8 @@ export const EventDialogFields = ({
           throw eventFilesError;
         }
 
-        // Create a Map to track unique files by their file_path
-        const uniqueFiles = new Map();
-        const processedPaths = new Set();
-        
-        // Add event files first
-        eventFiles?.forEach(file => {
-          uniqueFiles.set(file.file_path, {
-            ...file,
-            source: 'event'
-          });
-          processedPaths.add(file.file_path);
-        });
-
-        // Only if we have a title, try to get customer files
+        // Get customer files if we have a title
+        let customerFiles = [];
         if (title) {
           const { data: customer, error: customerError } = await supabase
             .from('customers')
@@ -108,21 +96,38 @@ export const EventDialogFields = ({
           if (customerError) {
             console.error('Error fetching customer:', customerError);
           } else if (customer?.customer_files_new) {
-            // Only add customer files that haven't been processed yet
-            customer.customer_files_new.forEach(file => {
-              if (!processedPaths.has(file.file_path)) {
-                uniqueFiles.set(file.file_path, {
-                  ...file,
-                  source: 'customer'
-                });
-              }
-            });
+            customerFiles = customer.customer_files_new;
           }
         }
-        
-        const finalFiles = Array.from(uniqueFiles.values());
-        console.log('Final unique files:', finalFiles);
-        return finalFiles;
+
+        // Create a map of all files using file_path as key
+        const fileMap = new Map();
+
+        // Add event files first
+        eventFiles?.forEach(file => {
+          const key = `${file.file_path}`;
+          if (!fileMap.has(key)) {
+            fileMap.set(key, {
+              ...file,
+              source: 'event'
+            });
+          }
+        });
+
+        // Add customer files
+        customerFiles.forEach(file => {
+          const key = `${file.file_path}`;
+          if (!fileMap.has(key)) {
+            fileMap.set(key, {
+              ...file,
+              source: 'customer'
+            });
+          }
+        });
+
+        const uniqueFiles = Array.from(fileMap.values());
+        console.log('Unique files:', uniqueFiles);
+        return uniqueFiles;
       } catch (error) {
         console.error('Error in file fetching:', error);
         return [];
