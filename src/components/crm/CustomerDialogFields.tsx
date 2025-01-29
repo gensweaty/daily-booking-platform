@@ -7,7 +7,7 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -129,6 +129,35 @@ export const CustomerDialogFields = ({
     retry: 1
   });
 
+  // Effect to handle createEvent checkbox and dates based on customer data
+  useEffect(() => {
+    if (customerId && !isEventData) {
+      const fetchCustomerData = async () => {
+        const { data: customer, error } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('id', customerId)
+          .single();
+
+        if (error) {
+          console.error('Error fetching customer:', error);
+          return;
+        }
+
+        // If customer has start_date and end_date, they have an event
+        const hasEvent = customer.start_date !== null && customer.end_date !== null;
+        setCreateEvent(hasEvent);
+        
+        if (!hasEvent) {
+          setStartDate('');
+          setEndDate('');
+        }
+      };
+
+      fetchCustomerData();
+    }
+  }, [customerId, isEventData, setCreateEvent, setStartDate, setEndDate]);
+
   // Memoize the files array to prevent unnecessary re-renders
   const allFiles = useMemo(() => fetchedFiles, [fetchedFiles]);
 
@@ -176,7 +205,13 @@ export const CustomerDialogFields = ({
         <Checkbox
           id="createEvent"
           checked={createEvent}
-          onCheckedChange={(checked) => setCreateEvent(checked as boolean)}
+          onCheckedChange={(checked) => {
+            setCreateEvent(checked as boolean);
+            if (!checked) {
+              setStartDate('');
+              setEndDate('');
+            }
+          }}
         />
         <Label htmlFor="createEvent">Create event for this customer</Label>
       </div>
