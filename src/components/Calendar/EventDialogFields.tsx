@@ -81,6 +81,8 @@ export const EventDialogFields = ({
           throw eventFilesError;
         }
 
+        console.log('Event files fetched:', eventFiles);
+
         // Get customer files if we have a title
         let customerFiles = [];
         if (title) {
@@ -97,35 +99,44 @@ export const EventDialogFields = ({
             console.error('Error fetching customer:', customerError);
           } else if (customer?.customer_files_new) {
             customerFiles = customer.customer_files_new;
+            console.log('Customer files fetched:', customerFiles);
           }
         }
 
-        // Use a single map to track unique files by their actual content (file path)
-        const uniqueFiles = new Map();
+        // Create a Set to track unique file paths
+        const seenPaths = new Set();
+        const uniqueFiles = [];
 
         // Process event files first (they take precedence)
         eventFiles?.forEach(file => {
-          const key = file.file_path;
-          uniqueFiles.set(key, {
-            ...file,
-            source: 'event'
-          });
-        });
-
-        // Only add customer files if they don't exist as event files
-        customerFiles.forEach(file => {
-          const key = file.file_path;
-          if (!uniqueFiles.has(key)) {
-            uniqueFiles.set(key, {
+          if (!seenPaths.has(file.file_path)) {
+            seenPaths.add(file.file_path);
+            uniqueFiles.push({
               ...file,
-              source: 'customer'
+              source: 'event'
             });
+            console.log('Added event file:', file.filename, file.file_path);
+          } else {
+            console.log('Skipped duplicate event file:', file.filename, file.file_path);
           }
         });
 
-        const finalFiles = Array.from(uniqueFiles.values());
-        console.log('Final unique files:', finalFiles);
-        return finalFiles;
+        // Only add customer files if their path hasn't been seen
+        customerFiles.forEach(file => {
+          if (!seenPaths.has(file.file_path)) {
+            seenPaths.add(file.file_path);
+            uniqueFiles.push({
+              ...file,
+              source: 'customer'
+            });
+            console.log('Added customer file:', file.filename, file.file_path);
+          } else {
+            console.log('Skipped duplicate customer file:', file.filename, file.file_path);
+          }
+        });
+
+        console.log('Final unique files:', uniqueFiles);
+        return uniqueFiles;
       } catch (error) {
         console.error('Error in file fetching:', error);
         return [];
