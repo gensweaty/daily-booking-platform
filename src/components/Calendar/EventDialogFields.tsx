@@ -82,35 +82,29 @@ export const EventDialogFields = ({
           id,
           customer_files_new (*)
         `)
-        .eq('title', title);
+        .eq('title', title)
+        .single();
 
-      if (customersError) throw customersError;
+      if (customersError && customersError.code !== 'PGRST116') throw customersError;
       
-      const customerFiles = customers?.flatMap(customer => customer.customer_files_new || []) || [];
+      const customerFiles = customers?.customer_files_new || [];
       
-      // Create a Set to store unique file paths
-      const uniqueFilePaths = new Set();
-      const uniqueFiles = [];
+      // Create a Map to store unique files based on file_path
+      const uniqueFilesMap = new Map();
       
       // First add event files
       eventFiles?.forEach(file => {
-        const fileIdentifier = `${file.file_path}`;
-        if (!uniqueFilePaths.has(fileIdentifier)) {
-          uniqueFilePaths.add(fileIdentifier);
-          uniqueFiles.push(file);
-        }
+        uniqueFilesMap.set(file.file_path, file);
       });
       
-      // Then add customer files if they don't exist
+      // Then add customer files if they don't exist with the same file_path
       customerFiles.forEach(file => {
-        const fileIdentifier = `${file.file_path}`;
-        if (!uniqueFilePaths.has(fileIdentifier)) {
-          uniqueFilePaths.add(fileIdentifier);
-          uniqueFiles.push(file);
+        if (!uniqueFilesMap.has(file.file_path)) {
+          uniqueFilesMap.set(file.file_path, file);
         }
       });
       
-      return uniqueFiles;
+      return Array.from(uniqueFilesMap.values());
     },
     enabled: !!eventId,
   });
@@ -121,8 +115,6 @@ export const EventDialogFields = ({
     }
     await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId] });
   };
-
-  // ... keep existing code (form fields JSX)
 
   return (
     <div className="space-y-4">
