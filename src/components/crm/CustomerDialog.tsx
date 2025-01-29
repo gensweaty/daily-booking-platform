@@ -341,53 +341,51 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       }
 
       // Handle file upload if a file is selected
-      if (selectedFile && updatedCustomerId) {
+      if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
-        const { error: uploadError } = await supabase.storage
-          .from('customer_attachments')
-          .upload(filePath, selectedFile);
-
-        if (uploadError) throw uploadError;
-
-        const { error: fileRecordError } = await supabase
-          .from('customer_files_new')
-          .insert({
-            customer_id: updatedCustomerId,
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            user_id: user.id
-          });
-
-        if (fileRecordError) throw fileRecordError;
-      }
-
-      // If we have an event ID and a file, upload it to event_files as well
-      if (selectedFile && eventId) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${crypto.randomUUID()}.${fileExt}`;
-        
+        // Upload to storage
         const { error: uploadError } = await supabase.storage
           .from('event_attachments')
           .upload(filePath, selectedFile);
 
         if (uploadError) throw uploadError;
 
-        const { error: fileRecordError } = await supabase
-          .from('event_files')
-          .insert({
-            event_id: eventId,
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            user_id: user.id
-          });
+        // Create file records for both customer and event if applicable
+        const fileData = {
+          filename: selectedFile.name,
+          file_path: filePath,
+          content_type: selectedFile.type,
+          size: selectedFile.size,
+          user_id: user.id
+        };
 
-        if (fileRecordError) throw fileRecordError;
+        const filePromises = [];
+
+        if (updatedCustomerId) {
+          filePromises.push(
+            supabase
+              .from('customer_files_new')
+              .insert({
+                ...fileData,
+                customer_id: updatedCustomerId
+              })
+          );
+        }
+
+        if (eventId) {
+          filePromises.push(
+            supabase
+              .from('event_files')
+              .insert({
+                ...fileData,
+                event_id: eventId
+              })
+          );
+        }
+
+        await Promise.all(filePromises);
       }
 
       // Invalidate both customers and events queries

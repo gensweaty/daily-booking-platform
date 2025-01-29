@@ -65,33 +65,30 @@ export const EventDialogFields = ({
   const { data: allFiles = [] } = useQuery({
     queryKey: ['eventFiles', eventId, title],
     queryFn: async () => {
-      if (!eventId) return [];
+      if (!eventId && !title) return [];
       
       try {
-        // First, get event files
-        const { data: eventFiles, error: eventFilesError } = await supabase
-          .from('event_files')
-          .select('*')
-          .eq('event_id', eventId);
-        
-        if (eventFilesError) throw eventFilesError;
+        const uniqueFiles = new Map();
 
-        // Create a Map to track unique files using a composite key
-        const uniqueFilesMap = new Map();
+        // First try to get event files if we have an eventId
+        if (eventId) {
+          const { data: eventFiles, error: eventFilesError } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', eventId);
+          
+          if (eventFilesError) throw eventFilesError;
 
-        // Process event files first as they are the source of truth
-        eventFiles?.forEach(file => {
-          const compositeKey = `${file.file_path}-${file.size}-${file.content_type}`;
-          if (!uniqueFilesMap.has(compositeKey)) {
-            uniqueFilesMap.set(compositeKey, {
+          eventFiles?.forEach(file => {
+            uniqueFiles.set(file.file_path, {
               ...file,
               source: 'event'
             });
-          }
-        });
+          });
+        }
 
-        // Only fetch customer files if we have a title and no event files for this path
-        if (title && (!eventFiles || eventFiles.length === 0)) {
+        // Then try to get customer files if we have a title
+        if (title) {
           const { data: customer, error: customerError } = await supabase
             .from('customers')
             .select(`
@@ -103,9 +100,8 @@ export const EventDialogFields = ({
 
           if (!customerError && customer?.customer_files_new) {
             customer.customer_files_new.forEach(file => {
-              const compositeKey = `${file.file_path}-${file.size}-${file.content_type}`;
-              if (!uniqueFilesMap.has(compositeKey)) {
-                uniqueFilesMap.set(compositeKey, {
+              if (!uniqueFiles.has(file.file_path)) {
+                uniqueFiles.set(file.file_path, {
                   ...file,
                   source: 'customer'
                 });
@@ -114,15 +110,15 @@ export const EventDialogFields = ({
           }
         }
 
-        const uniqueFiles = Array.from(uniqueFilesMap.values());
-        console.log('Final unique files:', uniqueFiles);
-        return uniqueFiles;
+        const files = Array.from(uniqueFiles.values());
+        console.log('Final files:', files);
+        return files;
       } catch (error) {
         console.error('Error in file fetching:', error);
         return [];
       }
     },
-    enabled: !!eventId,
+    enabled: !!(eventId || title),
   });
 
   const handleFileDeleted = async (fileId: string) => {
@@ -173,8 +169,6 @@ export const EventDialogFields = ({
       console.error('Error in file deletion:', error);
     }
   };
-
-  // ... keep existing code (form fields JSX)
 
   return (
     <div className="space-y-4">
@@ -269,7 +263,7 @@ export const EventDialogFields = ({
         />
       </div>
 
-      {eventId && allFiles && allFiles.length > 0 && (
+      {(eventId || title) && allFiles && allFiles.length > 0 && (
         <div className="space-y-2">
           <FileDisplay 
             files={allFiles} 
