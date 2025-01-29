@@ -63,71 +63,39 @@ export const EventDialogFields = ({
   const queryClient = useQueryClient();
   
   const { data: allFiles = [] } = useQuery({
-    queryKey: ['eventFiles', eventId, title],
+    queryKey: ['eventFiles', eventId],
     queryFn: async () => {
-      if (!eventId && !title) return [];
+      if (!eventId) return [];
       
-      let files = [];
+      const { data: eventFiles, error: eventFilesError } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', eventId);
       
-      // First, try to fetch event files if we have an event ID
-      if (eventId) {
-        console.log('Fetching event files for event:', eventId);
-        const { data: eventFiles, error: eventFilesError } = await supabase
-          .from('event_files')
-          .select('*')
-          .eq('event_id', eventId);
-        
-        if (eventFilesError) {
-          console.error('Error fetching event files:', eventFilesError);
-        } else {
-          console.log('Event files found:', eventFiles);
-          files = [...files, ...(eventFiles || [])];
-        }
-      }
+      if (eventFilesError) throw eventFilesError;
 
-      // Then, try to fetch customer files if we have a title
-      if (title) {
-        console.log('Fetching customer with title:', title);
-        const { data: customers, error: customerError } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('title', title);
+      const { data: customers, error: customersError } = await supabase
+        .from('customers')
+        .select(`
+          id,
+          customer_files_new (*)
+        `)
+        .eq('title', title);
 
-        if (!customerError && customers && customers.length > 0) {
-          const customer = customers[0];
-          console.log('Customer found:', customer);
-          const { data: customerFiles, error: customerFilesError } = await supabase
-            .from('customer_files_new')
-            .select('*')
-            .eq('customer_id', customer.id);
-
-          if (customerFilesError) {
-            console.error('Error fetching customer files:', customerFilesError);
-          } else {
-            console.log('Customer files found:', customerFiles);
-            files = [...files, ...(customerFiles || [])];
-          }
-        } else {
-          console.log('Customer not found or error:', customerError);
-        }
-      }
-
-      // Remove duplicates based on file path
-      const uniqueFiles = files.filter((file, index, self) =>
-        index === self.findIndex((f) => f.file_path === file.file_path)
-      );
+      if (customersError) throw customersError;
       
-      console.log('Final unique files:', uniqueFiles);
-      return uniqueFiles;
+      const customerFiles = customers?.flatMap(customer => customer.customer_files_new || []) || [];
+      
+      return [...(eventFiles || []), ...customerFiles];
     },
-    enabled: !!(eventId || title),
+    enabled: !!eventId,
   });
 
   const handleFileDeleted = async (fileId: string) => {
     if (onFileDeleted) {
       onFileDeleted(fileId);
     }
-    await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId, title] });
+    await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId] });
   };
 
   return (
@@ -223,7 +191,7 @@ export const EventDialogFields = ({
         />
       </div>
 
-      {(eventId || title) && allFiles && allFiles.length > 0 && (
+      {eventId && allFiles && allFiles.length > 0 && (
         <div className="space-y-2">
           <FileDisplay 
             files={allFiles} 
