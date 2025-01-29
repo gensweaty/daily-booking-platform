@@ -1,4 +1,4 @@
-import { format, isSameDay, isSameMonth } from "date-fns";
+import { format, isSameDay, isSameMonth, startOfWeek, addDays } from "date-fns";
 import { CalendarEvent } from "@/lib/types";
 
 interface CalendarGridProps {
@@ -16,9 +16,17 @@ export const CalendarGrid = ({
   onDayClick,
   onEventClick,
 }: CalendarGridProps) => {
+  // Get the start of the week for proper alignment
+  const startDate = startOfWeek(days[0]);
+  
+  // Generate properly aligned weekday headers
+  const weekDays = Array.from({ length: 7 }, (_, i) => 
+    format(addDays(startDate, i), 'EEE')
+  );
+
   return (
     <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
-      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+      {weekDays.map((day) => (
         <div key={day} className="bg-white p-4 text-center font-semibold">
           {day}
         </div>
