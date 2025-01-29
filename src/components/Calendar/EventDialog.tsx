@@ -87,9 +87,10 @@ export const EventDialog = ({
         .from('customers')
         .select('id')
         .eq('title', title)
-        .single();
+        .maybeSingle(); // Changed from .single() to .maybeSingle()
 
       if (customerQueryError && customerQueryError.code !== 'PGRST116') {
+        console.error('Error checking for existing customer:', customerQueryError);
         throw customerQueryError;
       }
 
@@ -115,7 +116,10 @@ export const EventDialog = ({
           .select()
           .single();
 
-        if (customerError) throw customerError;
+        if (customerError) {
+          console.error('Error creating new customer:', customerError);
+          throw customerError;
+        }
         customerId = newCustomer.id;
         console.log('Created new customer:', newCustomer);
       } else {
@@ -136,7 +140,10 @@ export const EventDialog = ({
           })
           .eq('id', customerId);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Error updating customer:', updateError);
+          throw updateError;
+        }
         console.log('Updated existing customer:', customerId);
       }
 
@@ -151,7 +158,10 @@ export const EventDialog = ({
           .from('event_attachments')
           .upload(filePath, selectedFile);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('Error uploading file:', uploadError);
+          throw uploadError;
+        }
 
         // Prepare file metadata
         const fileData = {
