@@ -85,17 +85,17 @@ export const EventDialogFields = ({
 
       // Fetch customer files if we have a title
       if (title) {
-        const { data: customers, error: customersError } = await supabase
+        const { data: customer, error: customerError } = await supabase
           .from('customers')
           .select('id')
           .eq('title', title)
-          .single();
+          .maybeSingle();
 
-        if (!customersError && customers) {
+        if (!customerError && customer) {
           const { data: customerFiles, error: customerFilesError } = await supabase
             .from('customer_files_new')
             .select('*')
-            .eq('customer_id', customers.id);
+            .eq('customer_id', customer.id);
 
           if (customerFilesError) {
             console.error('Error fetching customer files:', customerFilesError);
