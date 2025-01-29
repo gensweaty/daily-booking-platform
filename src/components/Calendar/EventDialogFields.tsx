@@ -67,43 +67,56 @@ export const EventDialogFields = ({
     queryFn: async () => {
       if (!eventId) return [];
       
+      console.log('Fetching files for event:', eventId);
+      
       // First get event files
       const { data: eventFiles, error: eventFilesError } = await supabase
         .from('event_files')
         .select('*')
         .eq('event_id', eventId);
       
-      if (eventFilesError) throw eventFilesError;
+      if (eventFilesError) {
+        console.error('Error fetching event files:', eventFilesError);
+        throw eventFilesError;
+      }
 
       // Then get customer files based on title
-      const { data: customers, error: customersError } = await supabase
+      const { data: customer, error: customerError } = await supabase
         .from('customers')
         .select(`
           id,
           customer_files_new (*)
         `)
         .eq('title', title)
-        .single();
+        .maybeSingle();
 
-      if (customersError && customersError.code !== 'PGRST116') throw customersError;
+      if (customerError) {
+        console.error('Error fetching customer:', customerError);
+        throw customerError;
+      }
+
+      const customerFiles = customer?.customer_files_new || [];
       
-      const customerFiles = customers?.customer_files_new || [];
-      
-      // Create a Map to store unique files based on file_path
+      // Use a Map to track unique files by both ID and file_path
       const uniqueFilesMap = new Map();
       
-      // First add event files
+      // Add event files first
       eventFiles?.forEach(file => {
-        uniqueFilesMap.set(file.file_path, file);
-      });
-      
-      // Then add customer files if they don't exist with the same file_path
-      customerFiles.forEach(file => {
-        if (!uniqueFilesMap.has(file.file_path)) {
-          uniqueFilesMap.set(file.file_path, file);
+        const key = `${file.id}-${file.file_path}`;
+        if (!uniqueFilesMap.has(key)) {
+          uniqueFilesMap.set(key, file);
         }
       });
       
+      // Add customer files only if they don't exist
+      customerFiles.forEach(file => {
+        const key = `${file.id}-${file.file_path}`;
+        if (!uniqueFilesMap.has(key)) {
+          uniqueFilesMap.set(key, file);
+        }
+      });
+      
+      console.log('Unique files:', Array.from(uniqueFilesMap.values()));
       return Array.from(uniqueFilesMap.values());
     },
     enabled: !!eventId,
