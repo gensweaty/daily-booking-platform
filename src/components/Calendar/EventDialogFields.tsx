@@ -92,8 +92,8 @@ export const EventDialogFields = ({
           });
         });
 
-        // Only if we have a title and no event files for this path, try to get customer files
-        if (title && (!eventFiles || eventFiles.length === 0)) {
+        // Only if we have a title, try to get customer files
+        if (title) {
           const { data: customer, error: customerError } = await supabase
             .from('customers')
             .select(`
@@ -106,7 +106,7 @@ export const EventDialogFields = ({
           if (customerError) {
             console.error('Error fetching customer:', customerError);
           } else if (customer?.customer_files_new) {
-            // Only add customer files if we don't have event files
+            // Add customer files if they don't exist in event files
             customer.customer_files_new.forEach(file => {
               if (!uniqueFiles.has(file.file_path)) {
                 uniqueFiles.set(file.file_path, {
