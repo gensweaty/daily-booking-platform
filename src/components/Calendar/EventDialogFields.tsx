@@ -68,6 +68,7 @@ export const EventDialogFields = ({
       if (!eventId) return [];
       
       try {
+        // First, get event files
         const { data: eventFiles, error: eventFilesError } = await supabase
           .from('event_files')
           .select('*')
@@ -75,6 +76,7 @@ export const EventDialogFields = ({
         
         if (eventFilesError) throw eventFilesError;
 
+        // Then, get customer files if we have a title
         let customerFiles = [];
         if (title) {
           const { data: customer, error: customerError } = await supabase
@@ -91,35 +93,28 @@ export const EventDialogFields = ({
           }
         }
 
-        // Create a Map to track unique files by their actual content identity
+        // Create a Map to track unique files
         const uniqueFilesMap = new Map();
-
-        // Helper function to create a unique key for a file
-        const createFileKey = (file) => {
-          return `${file.file_path}-${file.size}-${file.content_type}-${file.filename}`;
-        };
 
         // Process event files first (they take precedence)
         eventFiles?.forEach(file => {
-          const fileKey = createFileKey(file);
-          uniqueFilesMap.set(fileKey, {
+          uniqueFilesMap.set(file.file_path, {
             ...file,
             source: 'event'
           });
         });
 
-        // Only add customer files if they don't match any existing event files
+        // Only add customer files if they don't exist in event files
         customerFiles.forEach(file => {
-          const fileKey = createFileKey(file);
-          if (!uniqueFilesMap.has(fileKey)) {
-            uniqueFilesMap.set(fileKey, {
+          if (!uniqueFilesMap.has(file.file_path)) {
+            uniqueFilesMap.set(file.file_path, {
               ...file,
               source: 'customer'
             });
           }
         });
 
-        console.log('Unique files found:', Array.from(uniqueFilesMap.values()));
+        console.log('Final unique files:', Array.from(uniqueFilesMap.values()));
         return Array.from(uniqueFilesMap.values());
       } catch (error) {
         console.error('Error in file fetching:', error);
@@ -149,7 +144,7 @@ export const EventDialogFields = ({
         console.error('Error deleting from storage:', storageError);
       }
 
-      // Delete from both tables regardless of source
+      // Delete from both tables to ensure complete cleanup
       const deletePromises = [
         supabase
           .from('event_files')
@@ -161,13 +156,7 @@ export const EventDialogFields = ({
           .eq('file_path', fileToDelete.file_path)
       ];
 
-      const results = await Promise.allSettled(deletePromises);
-      
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          console.error(`Error in deletion operation ${index}:`, result.reason);
-        }
-      });
+      await Promise.all(deletePromises);
 
       if (onFileDeleted) {
         onFileDeleted(fileId);
@@ -183,7 +172,6 @@ export const EventDialogFields = ({
     }
   };
 
-  // ... keep existing code (form fields JSX)
   return (
     <div className="space-y-4">
       <div className="space-y-2">
