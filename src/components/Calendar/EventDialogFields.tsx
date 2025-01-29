@@ -103,38 +103,38 @@ export const EventDialogFields = ({
           }
         }
 
-        // Create a Set to track unique file paths
-        const seenPaths = new Set();
-        const uniqueFiles = [];
+        // Create a Map to track unique files by their actual content
+        const uniqueFilesMap = new Map();
 
         // Process event files first (they take precedence)
         eventFiles?.forEach(file => {
-          if (!seenPaths.has(file.file_path)) {
-            seenPaths.add(file.file_path);
-            uniqueFiles.push({
+          const key = `${file.filename}-${file.size}-${file.content_type}`;
+          if (!uniqueFilesMap.has(key)) {
+            uniqueFilesMap.set(key, {
               ...file,
               source: 'event'
             });
-            console.log('Added event file:', file.filename, file.file_path);
+            console.log('Added event file:', file.filename, file.file_path, key);
           } else {
-            console.log('Skipped duplicate event file:', file.filename, file.file_path);
+            console.log('Skipped duplicate event file:', file.filename, file.file_path, key);
           }
         });
 
-        // Only add customer files if their path hasn't been seen
+        // Only add customer files if they represent unique content
         customerFiles.forEach(file => {
-          if (!seenPaths.has(file.file_path)) {
-            seenPaths.add(file.file_path);
-            uniqueFiles.push({
+          const key = `${file.filename}-${file.size}-${file.content_type}`;
+          if (!uniqueFilesMap.has(key)) {
+            uniqueFilesMap.set(key, {
               ...file,
               source: 'customer'
             });
-            console.log('Added customer file:', file.filename, file.file_path);
+            console.log('Added customer file:', file.filename, file.file_path, key);
           } else {
-            console.log('Skipped duplicate customer file:', file.filename, file.file_path);
+            console.log('Skipped duplicate customer file:', file.filename, file.file_path, key);
           }
         });
 
+        const uniqueFiles = Array.from(uniqueFilesMap.values());
         console.log('Final unique files:', uniqueFiles);
         return uniqueFiles;
       } catch (error) {
