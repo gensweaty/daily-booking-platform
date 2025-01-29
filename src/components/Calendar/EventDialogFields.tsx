@@ -91,21 +91,23 @@ export const EventDialogFields = ({
           }
         }
 
-        // Create a Map to track unique files by file path
+        // Create a Map to track unique files by file path AND content
         const uniqueFilesMap = new Map();
 
         // Process event files first (they take precedence)
         eventFiles?.forEach(file => {
-          uniqueFilesMap.set(file.file_path, {
+          const fileKey = `${file.file_path}-${file.size}-${file.content_type}`;
+          uniqueFilesMap.set(fileKey, {
             ...file,
             source: 'event'
           });
         });
 
-        // Only add customer files if they have a unique file path
+        // Only add customer files if they have a unique combination
         customerFiles.forEach(file => {
-          if (!uniqueFilesMap.has(file.file_path)) {
-            uniqueFilesMap.set(file.file_path, {
+          const fileKey = `${file.file_path}-${file.size}-${file.content_type}`;
+          if (!uniqueFilesMap.has(fileKey)) {
+            uniqueFilesMap.set(fileKey, {
               ...file,
               source: 'customer'
             });
@@ -132,6 +134,15 @@ export const EventDialogFields = ({
 
       console.log('Deleting file:', fileToDelete);
 
+      // Delete from storage first
+      const { error: storageError } = await supabase.storage
+        .from('event_attachments')
+        .remove([fileToDelete.file_path]);
+
+      if (storageError) {
+        console.error('Error deleting from storage:', storageError);
+      }
+
       // Delete from both tables regardless of source
       const deletePromises = [
         supabase
@@ -141,10 +152,7 @@ export const EventDialogFields = ({
         supabase
           .from('customer_files_new')
           .delete()
-          .eq('file_path', fileToDelete.file_path),
-        supabase.storage
-          .from('event_attachments')
-          .remove([fileToDelete.file_path])
+          .eq('file_path', fileToDelete.file_path)
       ];
 
       const results = await Promise.allSettled(deletePromises);
@@ -169,6 +177,7 @@ export const EventDialogFields = ({
     }
   };
 
+  // ... keep existing code (form fields JSX)
   return (
     <div className="space-y-4">
       <div className="space-y-2">
