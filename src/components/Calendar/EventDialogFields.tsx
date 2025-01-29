@@ -67,6 +67,7 @@ export const EventDialogFields = ({
     queryFn: async () => {
       if (!eventId) return [];
       
+      // First get event files
       const { data: eventFiles, error: eventFilesError } = await supabase
         .from('event_files')
         .select('*')
@@ -74,6 +75,7 @@ export const EventDialogFields = ({
       
       if (eventFilesError) throw eventFilesError;
 
+      // Then get customer files based on title
       const { data: customers, error: customersError } = await supabase
         .from('customers')
         .select(`
@@ -86,25 +88,29 @@ export const EventDialogFields = ({
       
       const customerFiles = customers?.flatMap(customer => customer.customer_files_new || []) || [];
       
-      // Create a Map to store unique files based on id and file_path combination
-      const uniqueFiles = new Map();
+      // Create a Set to store unique file paths
+      const uniqueFilePaths = new Set();
+      const uniqueFiles = [];
       
       // First add event files
       eventFiles?.forEach(file => {
-        const key = `${file.id}-${file.file_path}`;
-        uniqueFiles.set(key, file);
+        const fileIdentifier = `${file.file_path}`;
+        if (!uniqueFilePaths.has(fileIdentifier)) {
+          uniqueFilePaths.add(fileIdentifier);
+          uniqueFiles.push(file);
+        }
       });
       
       // Then add customer files if they don't exist
       customerFiles.forEach(file => {
-        const key = `${file.id}-${file.file_path}`;
-        if (!uniqueFiles.has(key)) {
-          uniqueFiles.set(key, file);
+        const fileIdentifier = `${file.file_path}`;
+        if (!uniqueFilePaths.has(fileIdentifier)) {
+          uniqueFilePaths.add(fileIdentifier);
+          uniqueFiles.push(file);
         }
       });
       
-      // Convert Map back to array
-      return Array.from(uniqueFiles.values());
+      return uniqueFiles;
     },
     enabled: !!eventId,
   });
@@ -115,6 +121,8 @@ export const EventDialogFields = ({
     }
     await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId] });
   };
+
+  // ... keep existing code (form fields JSX)
 
   return (
     <div className="space-y-4">
