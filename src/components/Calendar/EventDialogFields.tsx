@@ -84,13 +84,16 @@ export const EventDialogFields = ({
         // Create a Map to track unique files by their file_path
         const uniqueFiles = new Map();
         
-        // Add event files first
+        // Add event files first - these take precedence
         eventFiles?.forEach(file => {
-          uniqueFiles.set(file.file_path, file);
+          uniqueFiles.set(file.file_path, {
+            ...file,
+            source: 'event'  // Add source for debugging
+          });
         });
 
-        // Only if we have a title, try to get customer files
-        if (title) {
+        // Only if we have a title and no event files for this path, try to get customer files
+        if (title && (!eventFiles || eventFiles.length === 0)) {
           const { data: customer, error: customerError } = await supabase
             .from('customers')
             .select(`
@@ -103,17 +106,20 @@ export const EventDialogFields = ({
           if (customerError) {
             console.error('Error fetching customer:', customerError);
           } else if (customer?.customer_files_new) {
-            // Add customer files only if they don't exist in event files
+            // Only add customer files if we don't have event files
             customer.customer_files_new.forEach(file => {
               if (!uniqueFiles.has(file.file_path)) {
-                uniqueFiles.set(file.file_path, file);
+                uniqueFiles.set(file.file_path, {
+                  ...file,
+                  source: 'customer'  // Add source for debugging
+                });
               }
             });
           }
         }
         
         const finalFiles = Array.from(uniqueFiles.values());
-        console.log('Final unique files:', finalFiles);
+        console.log('Final unique files with sources:', finalFiles);
         return finalFiles;
       } catch (error) {
         console.error('Error in file fetching:', error);
