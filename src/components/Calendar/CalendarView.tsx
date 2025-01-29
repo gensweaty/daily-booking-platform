@@ -1,4 +1,4 @@
-import { format, isSameDay, parseISO } from "date-fns";
+import { format, isSameDay, isSameMonth, parseISO } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 
 interface CalendarViewProps {
@@ -42,16 +42,19 @@ export const CalendarView = ({
           const dayEvents = events.filter((event) => 
             isSameDay(parseISO(event.start_date), day)
           );
+          const isCurrentMonth = isSameMonth(day, selectedDate);
 
           return (
             <div
               key={day.toISOString()}
-              className="bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted border border-border"
+              className={`bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted border border-border ${
+                !isCurrentMonth ? 'opacity-0 pointer-events-none' : ''
+              }`}
               onClick={() => onDayClick(day)}
             >
               <div className="font-medium text-foreground">{format(day, "d")}</div>
               <div className="mt-1 sm:mt-2 space-y-1">
-                {dayEvents.map((event) => (
+                {isCurrentMonth && dayEvents.map((event) => (
                   <div
                     key={event.id}
                     className={`text-xs sm:text-sm p-1 rounded ${
