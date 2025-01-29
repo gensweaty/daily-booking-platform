@@ -100,34 +100,32 @@ export const EventDialogFields = ({
           }
         }
 
-        // Create a map of all files using file_path as key
-        const fileMap = new Map();
+        // Use a single map to track unique files by their actual content (file path)
+        const uniqueFiles = new Map();
 
-        // Add event files first
+        // Process event files first (they take precedence)
         eventFiles?.forEach(file => {
-          const key = `${file.file_path}`;
-          if (!fileMap.has(key)) {
-            fileMap.set(key, {
-              ...file,
-              source: 'event'
-            });
-          }
+          const key = file.file_path;
+          uniqueFiles.set(key, {
+            ...file,
+            source: 'event'
+          });
         });
 
-        // Add customer files
+        // Only add customer files if they don't exist as event files
         customerFiles.forEach(file => {
-          const key = `${file.file_path}`;
-          if (!fileMap.has(key)) {
-            fileMap.set(key, {
+          const key = file.file_path;
+          if (!uniqueFiles.has(key)) {
+            uniqueFiles.set(key, {
               ...file,
               source: 'customer'
             });
           }
         });
 
-        const uniqueFiles = Array.from(fileMap.values());
-        console.log('Unique files:', uniqueFiles);
-        return uniqueFiles;
+        const finalFiles = Array.from(uniqueFiles.values());
+        console.log('Final unique files:', finalFiles);
+        return finalFiles;
       } catch (error) {
         console.error('Error in file fetching:', error);
         return [];
@@ -142,6 +140,8 @@ export const EventDialogFields = ({
     }
     await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId] });
   };
+
+  // ... keep existing code (render JSX)
 
   return (
     <div className="space-y-4">
