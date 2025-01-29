@@ -1,4 +1,4 @@
-import { format, isSameDay, isSameMonth, parseISO } from "date-fns";
+import { format, isSameDay, parseISO } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 
 interface CalendarViewProps {
@@ -42,21 +42,14 @@ export const CalendarView = ({
           const dayEvents = events.filter((event) => 
             isSameDay(parseISO(event.start_date), day)
           );
-          const isCurrentMonth = isSameMonth(day, selectedDate);
 
           return (
             <div
               key={day.toISOString()}
-              className={`relative bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted/50 border border-border transition-colors duration-200 ${
-                !isCurrentMonth ? 'bg-muted/5' : ''
-              }`}
+              className="bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted border border-border"
               onClick={() => onDayClick(day)}
             >
-              <div className={`font-medium ${
-                isCurrentMonth ? 'text-foreground' : 'text-muted-foreground/50'
-              }`}>
-                {format(day, "d")}
-              </div>
+              <div className="font-medium text-foreground">{format(day, "d")}</div>
               <div className="mt-1 sm:mt-2 space-y-1">
                 {dayEvents.map((event) => (
                   <div
@@ -65,9 +58,7 @@ export const CalendarView = ({
                       event.type === "birthday"
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground"
-                    } cursor-pointer truncate hover:opacity-80 transition-opacity ${
-                      !isCurrentMonth ? 'opacity-50' : ''
-                    }`}
+                    } cursor-pointer truncate hover:opacity-80 transition-opacity`}
                     onClick={(e) => {
                       e.stopPropagation();
                       onEventClick(event);

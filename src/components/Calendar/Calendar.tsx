@@ -76,18 +76,15 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   const getDaysForView = () => {
     switch (view) {
       case "month": {
+        // Get the start of the month and calculate the start of its first week
         const monthStart = startOfMonth(selectedDate);
+        const firstWeekStart = startOfWeek(monthStart);
         const monthEnd = endOfMonth(selectedDate);
-        
-        // Calculate days needed to fill the calendar grid
-        const firstDayOfMonth = startOfMonth(selectedDate);
-        const startDate = startOfWeek(firstDayOfMonth);
-        const endDate = endOfMonth(selectedDate);
         
         // Get all days from the start of the first week to the end of the month
         return eachDayOfInterval({
-          start: startDate,
-          end: endDate,
+          start: firstWeekStart,
+          end: monthEnd,
         });
       }
       case "week":
