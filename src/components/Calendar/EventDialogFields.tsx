@@ -115,8 +115,6 @@ export const EventDialogFields = ({
               source: 'event'
             });
             console.log('Added event file:', file.filename, file.file_path, key);
-          } else {
-            console.log('Skipped duplicate event file:', file.filename, file.file_path, key);
           }
         });
 
@@ -129,8 +127,6 @@ export const EventDialogFields = ({
               source: 'customer'
             });
             console.log('Added customer file:', file.filename, file.file_path, key);
-          } else {
-            console.log('Skipped duplicate customer file:', file.filename, file.file_path, key);
           }
         });
 
@@ -146,10 +142,57 @@ export const EventDialogFields = ({
   });
 
   const handleFileDeleted = async (fileId: string) => {
-    if (onFileDeleted) {
-      onFileDeleted(fileId);
+    try {
+      // Find the file in our current files list
+      const fileToDelete = allFiles.find(f => f.id === fileId);
+      
+      if (!fileToDelete) {
+        console.error('File not found:', fileId);
+        return;
+      }
+
+      console.log('Deleting file:', fileToDelete);
+
+      // Delete from event_files if it exists there
+      const { error: eventFileError } = await supabase
+        .from('event_files')
+        .delete()
+        .eq('id', fileId);
+
+      if (eventFileError) {
+        console.error('Error deleting from event_files:', eventFileError);
+      }
+
+      // Delete from customer_files_new if it exists there
+      const { error: customerFileError } = await supabase
+        .from('customer_files_new')
+        .delete()
+        .eq('id', fileId);
+
+      if (customerFileError) {
+        console.error('Error deleting from customer_files_new:', customerFileError);
+      }
+
+      // Delete the actual file from storage
+      const { error: storageError } = await supabase.storage
+        .from('event_attachments')
+        .remove([fileToDelete.file_path]);
+
+      if (storageError) {
+        console.error('Error deleting from storage:', storageError);
+      }
+
+      if (onFileDeleted) {
+        onFileDeleted(fileId);
+      }
+
+      // Invalidate both queries to refresh the UI
+      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+
+    } catch (error) {
+      console.error('Error in file deletion:', error);
     }
-    await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId] });
   };
 
   // ... keep existing code (render JSX)
