@@ -47,14 +47,18 @@ export const CalendarView = ({
           return (
             <div
               key={day.toISOString()}
-              className={`bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted border border-border ${
-                !isCurrentMonth ? 'opacity-0 pointer-events-none' : ''
+              className={`relative bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted/50 border border-border transition-colors duration-200 ${
+                !isCurrentMonth ? 'bg-muted/10' : ''
               }`}
               onClick={() => onDayClick(day)}
             >
-              <div className="font-medium text-foreground">{format(day, "d")}</div>
+              <div className={`font-medium ${
+                isCurrentMonth ? 'text-foreground' : 'text-muted-foreground/60'
+              }`}>
+                {format(day, "d")}
+              </div>
               <div className="mt-1 sm:mt-2 space-y-1">
-                {isCurrentMonth && dayEvents.map((event) => (
+                {dayEvents.map((event) => (
                   <div
                     key={event.id}
                     className={`text-xs sm:text-sm p-1 rounded ${
