@@ -83,13 +83,15 @@ export const EventDialogFields = ({
 
         // Create a Map to track unique files by their file_path
         const uniqueFiles = new Map();
+        const processedPaths = new Set();
         
-        // Add event files first - these take precedence
+        // Add event files first
         eventFiles?.forEach(file => {
           uniqueFiles.set(file.file_path, {
             ...file,
-            source: 'event'  // Add source for debugging
+            source: 'event'
           });
+          processedPaths.add(file.file_path);
         });
 
         // Only if we have a title, try to get customer files
@@ -106,12 +108,12 @@ export const EventDialogFields = ({
           if (customerError) {
             console.error('Error fetching customer:', customerError);
           } else if (customer?.customer_files_new) {
-            // Add customer files if they don't exist in event files
+            // Only add customer files that haven't been processed yet
             customer.customer_files_new.forEach(file => {
-              if (!uniqueFiles.has(file.file_path)) {
+              if (!processedPaths.has(file.file_path)) {
                 uniqueFiles.set(file.file_path, {
                   ...file,
-                  source: 'customer'  // Add source for debugging
+                  source: 'customer'
                 });
               }
             });
@@ -119,7 +121,7 @@ export const EventDialogFields = ({
         }
         
         const finalFiles = Array.from(uniqueFiles.values());
-        console.log('Final unique files with sources:', finalFiles);
+        console.log('Final unique files:', finalFiles);
         return finalFiles;
       } catch (error) {
         console.error('Error in file fetching:', error);
