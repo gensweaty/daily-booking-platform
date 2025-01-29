@@ -69,8 +69,9 @@ export const EventDialogFields = ({
       
       let files = [];
       
-      // Fetch event files if we have an event ID
+      // First, try to fetch event files if we have an event ID
       if (eventId) {
+        console.log('Fetching event files for event:', eventId);
         const { data: eventFiles, error: eventFilesError } = await supabase
           .from('event_files')
           .select('*')
@@ -84,8 +85,9 @@ export const EventDialogFields = ({
         }
       }
 
-      // Fetch customer files if we have a title
+      // Then, try to fetch customer files if we have a title
       if (title) {
+        console.log('Fetching customer with title:', title);
         const { data: customer, error: customerError } = await supabase
           .from('customers')
           .select('id')
@@ -105,6 +107,8 @@ export const EventDialogFields = ({
             console.log('Customer files found:', customerFiles);
             files = [...files, ...(customerFiles || [])];
           }
+        } else {
+          console.log('Customer not found or error:', customerError);
         }
       }
 
@@ -125,6 +129,8 @@ export const EventDialogFields = ({
     }
     await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId, title] });
   };
+
+  // ... keep existing code (form fields JSX)
 
   return (
     <div className="space-y-4">
