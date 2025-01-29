@@ -8,6 +8,7 @@ import { EventDialogFields } from "./EventDialogFields";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface EventDialogProps {
   open: boolean;
@@ -41,6 +42,7 @@ export const EventDialog = ({
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (event) {
@@ -78,13 +80,18 @@ export const EventDialog = ({
 
     try {
       const createdEvent = await onSubmit(eventData);
+      console.log('Created/Updated event:', createdEvent);
 
       // First, check if a customer with this title exists
-      const { data: existingCustomer } = await supabase
+      const { data: existingCustomer, error: customerQueryError } = await supabase
         .from('customers')
         .select('id')
         .eq('title', title)
         .single();
+
+      if (customerQueryError && customerQueryError.code !== 'PGRST116') {
+        throw customerQueryError;
+      }
 
       let customerId;
       
@@ -110,13 +117,34 @@ export const EventDialog = ({
 
         if (customerError) throw customerError;
         customerId = newCustomer.id;
+        console.log('Created new customer:', newCustomer);
       } else {
         customerId = existingCustomer.id;
+        
+        // Update existing customer
+        const { error: updateError } = await supabase
+          .from('customers')
+          .update({
+            user_surname: userSurname,
+            user_number: userNumber,
+            social_network_link: socialNetworkLink,
+            event_notes: eventNotes,
+            payment_status: paymentStatus || null,
+            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+            start_date: startDateTime.toISOString(),
+            end_date: endDateTime.toISOString(),
+          })
+          .eq('id', customerId);
+
+        if (updateError) throw updateError;
+        console.log('Updated existing customer:', customerId);
       }
 
       if (selectedFile && createdEvent?.id && user) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        
+        console.log('Uploading file:', filePath);
         
         // Upload file to storage
         const { error: uploadError } = await supabase.storage
@@ -125,7 +153,7 @@ export const EventDialog = ({
 
         if (uploadError) throw uploadError;
 
-        // Create file records for both event and customer
+        // Prepare file metadata
         const fileData = {
           filename: selectedFile.name,
           file_path: filePath,
@@ -134,25 +162,38 @@ export const EventDialog = ({
           user_id: user.id
         };
 
-        // Insert into event_files
-        const { error: eventFileError } = await supabase
-          .from('event_files')
-          .insert({
-            ...fileData,
-            event_id: createdEvent.id
-          });
+        // Create file records for both event and customer
+        const filePromises = [];
 
-        if (eventFileError) throw eventFileError;
+        // Insert into event_files
+        filePromises.push(
+          supabase
+            .from('event_files')
+            .insert({
+              ...fileData,
+              event_id: createdEvent.id
+            })
+        );
 
         // Insert into customer_files_new
-        const { error: customerFileError } = await supabase
-          .from('customer_files_new')
-          .insert({
-            ...fileData,
-            customer_id: customerId
-          });
+        filePromises.push(
+          supabase
+            .from('customer_files_new')
+            .insert({
+              ...fileData,
+              customer_id: customerId
+            })
+        );
 
-        if (customerFileError) throw customerFileError;
+        const results = await Promise.all(filePromises);
+        const errors = results.filter(r => r.error);
+        
+        if (errors.length > 0) {
+          console.error('Errors creating file records:', errors);
+          throw errors[0].error;
+        }
+
+        console.log('File records created successfully');
 
         toast({
           title: "Success",
@@ -161,6 +202,13 @@ export const EventDialog = ({
       }
 
       onOpenChange(false);
+      
+      // Invalidate relevant queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      
     } catch (error: any) {
       console.error('Error handling event submission:', error);
       toast({

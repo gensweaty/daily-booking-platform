@@ -72,6 +72,7 @@ export const EventDialogFields = ({
 
         // First try to get event files if we have an eventId
         if (eventId) {
+          console.log('Fetching event files for eventId:', eventId);
           const { data: eventFiles, error: eventFilesError } = await supabase
             .from('event_files')
             .select('*')
@@ -85,10 +86,13 @@ export const EventDialogFields = ({
               source: 'event'
             });
           });
+          
+          console.log('Found event files:', eventFiles);
         }
 
         // Then try to get customer files if we have a title
         if (title) {
+          console.log('Fetching customer files for title:', title);
           const { data: customer, error: customerError } = await supabase
             .from('customers')
             .select(`
@@ -107,11 +111,13 @@ export const EventDialogFields = ({
                 });
               }
             });
+            
+            console.log('Found customer files:', customer.customer_files_new);
           }
         }
 
         const files = Array.from(uniqueFiles.values());
-        console.log('Final files:', files);
+        console.log('Final combined files:', files);
         return files;
       } catch (error) {
         console.error('Error in file fetching:', error);
@@ -120,55 +126,6 @@ export const EventDialogFields = ({
     },
     enabled: !!(eventId || title),
   });
-
-  const handleFileDeleted = async (fileId: string) => {
-    try {
-      const fileToDelete = allFiles.find(f => f.id === fileId);
-      
-      if (!fileToDelete) {
-        console.error('File not found:', fileId);
-        return;
-      }
-
-      console.log('Deleting file:', fileToDelete);
-
-      // Delete from storage first
-      const { error: storageError } = await supabase.storage
-        .from('event_attachments')
-        .remove([fileToDelete.file_path]);
-
-      if (storageError) {
-        console.error('Error deleting from storage:', storageError);
-        throw storageError;
-      }
-
-      // Delete from both tables to ensure complete cleanup
-      const deletePromises = [
-        supabase
-          .from('event_files')
-          .delete()
-          .eq('file_path', fileToDelete.file_path),
-        supabase
-          .from('customer_files_new')
-          .delete()
-          .eq('file_path', fileToDelete.file_path)
-      ];
-
-      await Promise.all(deletePromises);
-
-      if (onFileDeleted) {
-        onFileDeleted(fileId);
-      }
-
-      // Invalidate all relevant queries
-      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId, title] });
-
-    } catch (error) {
-      console.error('Error in file deletion:', error);
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -269,7 +226,7 @@ export const EventDialogFields = ({
             files={allFiles} 
             bucketName="event_attachments"
             allowDelete
-            onFileDeleted={handleFileDeleted}
+            onFileDeleted={onFileDeleted}
           />
         </div>
       )}
