@@ -88,13 +88,13 @@ export const EventDialogFields = ({
       // Then, try to fetch customer files if we have a title
       if (title) {
         console.log('Fetching customer with title:', title);
-        const { data: customer, error: customerError } = await supabase
+        const { data: customers, error: customerError } = await supabase
           .from('customers')
           .select('id')
-          .eq('title', title)
-          .maybeSingle();
+          .eq('title', title);
 
-        if (!customerError && customer) {
+        if (!customerError && customers && customers.length > 0) {
+          const customer = customers[0];
           console.log('Customer found:', customer);
           const { data: customerFiles, error: customerFilesError } = await supabase
             .from('customer_files_new')
@@ -129,8 +129,6 @@ export const EventDialogFields = ({
     }
     await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId, title] });
   };
-
-  // ... keep existing code (form fields JSX)
 
   return (
     <div className="space-y-4">
