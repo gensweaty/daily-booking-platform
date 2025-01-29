@@ -63,7 +63,7 @@ export const EventDialogFields = ({
   const queryClient = useQueryClient();
   
   const { data: allFiles = [] } = useQuery({
-    queryKey: ['eventFiles', eventId],
+    queryKey: ['eventFiles', eventId, title],
     queryFn: async () => {
       if (!eventId) return [];
       
@@ -81,45 +81,40 @@ export const EventDialogFields = ({
           throw eventFilesError;
         }
 
-        // Then get customer files based on title
-        const { data: customer, error: customerError } = await supabase
-          .from('customers')
-          .select(`
-            id,
-            customer_files_new (*)
-          `)
-          .eq('title', title)
-          .maybeSingle();
-
-        if (customerError) {
-          console.error('Error fetching customer:', customerError);
-          throw customerError;
-        }
-
-        const customerFiles = customer?.customer_files_new || [];
+        // Create a Map to track unique files by their file_path
+        const uniqueFiles = new Map();
         
-        // Create a Set to track unique file paths
-        const uniqueFilePaths = new Set();
-        const uniqueFiles = [];
-        
-        // Process event files first
+        // Add event files first
         eventFiles?.forEach(file => {
-          if (!uniqueFilePaths.has(file.file_path)) {
-            uniqueFilePaths.add(file.file_path);
-            uniqueFiles.push(file);
-          }
+          uniqueFiles.set(file.file_path, file);
         });
-        
-        // Then process customer files
-        customerFiles.forEach(file => {
-          if (!uniqueFilePaths.has(file.file_path)) {
-            uniqueFilePaths.add(file.file_path);
-            uniqueFiles.push(file);
+
+        // Only if we have a title, try to get customer files
+        if (title) {
+          const { data: customer, error: customerError } = await supabase
+            .from('customers')
+            .select(`
+              id,
+              customer_files_new (*)
+            `)
+            .eq('title', title)
+            .maybeSingle();
+
+          if (customerError) {
+            console.error('Error fetching customer:', customerError);
+          } else if (customer?.customer_files_new) {
+            // Add customer files only if they don't exist in event files
+            customer.customer_files_new.forEach(file => {
+              if (!uniqueFiles.has(file.file_path)) {
+                uniqueFiles.set(file.file_path, file);
+              }
+            });
           }
-        });
+        }
         
-        console.log('Final unique files:', uniqueFiles);
-        return uniqueFiles;
+        const finalFiles = Array.from(uniqueFiles.values());
+        console.log('Final unique files:', finalFiles);
+        return finalFiles;
       } catch (error) {
         console.error('Error in file fetching:', error);
         return [];
