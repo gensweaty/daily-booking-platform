@@ -129,37 +129,27 @@ export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDele
         throw new Error('Failed to delete file from storage');
       }
 
-      // Then delete from customer_files_new table
-      const { error: customerFileError } = await supabase
-        .from('customer_files_new')
-        .delete()
-        .eq('id', file.id);
+      // Delete from all relevant tables to ensure complete cleanup
+      const deletePromises = [
+        supabase
+          .from('event_files')
+          .delete()
+          .eq('file_path', file.file_path),
+        supabase
+          .from('customer_files_new')
+          .delete()
+          .eq('file_path', file.file_path)
+      ];
 
-      if (customerFileError) {
-        console.error('Error deleting from customer_files_new:', customerFileError);
-      }
+      await Promise.all(deletePromises);
 
-      // Also try to delete from event_files table
-      const { error: eventFileError } = await supabase
-        .from('event_files')
-        .delete()
-        .eq('id', file.id);
-
-      if (eventFileError) {
-        console.error('Error deleting from event_files:', eventFileError);
-      }
-
-      // If both deletes failed, throw an error
-      if (customerFileError && eventFileError) {
-        throw new Error('Failed to delete file records from database');
-      }
-
-      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      
       if (onFileDeleted) {
         onFileDeleted(file.id);
       }
+
+      // Invalidate all relevant queries
+      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
 
       toast({
         title: "Success",

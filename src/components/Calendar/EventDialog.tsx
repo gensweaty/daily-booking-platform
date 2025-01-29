@@ -7,6 +7,7 @@ import { Trash2 } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
 
 interface EventDialogProps {
   open: boolean;
@@ -39,6 +40,7 @@ export const EventDialog = ({
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
   const { user } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (event) {
@@ -77,32 +79,95 @@ export const EventDialog = ({
     try {
       const createdEvent = await onSubmit(eventData);
 
+      // First, check if a customer with this title exists
+      const { data: existingCustomer } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('title', title)
+        .single();
+
+      let customerId;
+      
+      if (!existingCustomer) {
+        // Create a new customer if one doesn't exist
+        const { data: newCustomer, error: customerError } = await supabase
+          .from('customers')
+          .insert({
+            title,
+            user_surname: userSurname,
+            user_number: userNumber,
+            social_network_link: socialNetworkLink,
+            event_notes: eventNotes,
+            payment_status: paymentStatus || null,
+            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+            start_date: startDateTime.toISOString(),
+            end_date: endDateTime.toISOString(),
+            user_id: user?.id,
+            type: 'customer'
+          })
+          .select()
+          .single();
+
+        if (customerError) throw customerError;
+        customerId = newCustomer.id;
+      } else {
+        customerId = existingCustomer.id;
+      }
+
       if (selectedFile && createdEvent?.id && user) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
+        // Upload file to storage
         const { error: uploadError } = await supabase.storage
           .from('event_attachments')
           .upload(filePath, selectedFile);
 
         if (uploadError) throw uploadError;
 
-        const { error: fileRecordError } = await supabase
+        // Create file records for both event and customer
+        const fileData = {
+          filename: selectedFile.name,
+          file_path: filePath,
+          content_type: selectedFile.type,
+          size: selectedFile.size,
+          user_id: user.id
+        };
+
+        // Insert into event_files
+        const { error: eventFileError } = await supabase
           .from('event_files')
           .insert({
-            event_id: createdEvent.id,
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            user_id: user.id
+            ...fileData,
+            event_id: createdEvent.id
           });
 
-        if (fileRecordError) throw fileRecordError;
+        if (eventFileError) throw eventFileError;
+
+        // Insert into customer_files_new
+        const { error: customerFileError } = await supabase
+          .from('customer_files_new')
+          .insert({
+            ...fileData,
+            customer_id: customerId
+          });
+
+        if (customerFileError) throw customerFileError;
+
+        toast({
+          title: "Success",
+          description: "File uploaded successfully",
+        });
       }
-    } catch (error) {
+
+      onOpenChange(false);
+    } catch (error: any) {
       console.error('Error handling event submission:', error);
-      throw error;
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save changes",
+        variant: "destructive",
+      });
     }
   };
 
