@@ -48,12 +48,12 @@ export const CalendarView = ({
             <div
               key={day.toISOString()}
               className={`relative bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted/50 border border-border transition-colors duration-200 ${
-                !isCurrentMonth ? 'bg-muted/10' : ''
+                !isCurrentMonth ? 'bg-muted/5' : ''
               }`}
               onClick={() => onDayClick(day)}
             >
               <div className={`font-medium ${
-                isCurrentMonth ? 'text-foreground' : 'text-muted-foreground/60'
+                isCurrentMonth ? 'text-foreground' : 'text-muted-foreground/50'
               }`}>
                 {format(day, "d")}
               </div>
@@ -65,7 +65,9 @@ export const CalendarView = ({
                       event.type === "birthday"
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground"
-                    } cursor-pointer truncate hover:opacity-80 transition-opacity`}
+                    } cursor-pointer truncate hover:opacity-80 transition-opacity ${
+                      !isCurrentMonth ? 'opacity-50' : ''
+                    }`}
                     onClick={(e) => {
                       e.stopPropagation();
                       onEventClick(event);
