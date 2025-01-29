@@ -91,21 +91,26 @@ export const EventDialogFields = ({
           }
         }
 
-        // Create a Map to track unique files by file path AND content
+        // Create a Map to track unique files by their actual content identity
         const uniqueFilesMap = new Map();
+
+        // Helper function to create a unique key for a file
+        const createFileKey = (file) => {
+          return `${file.file_path}-${file.size}-${file.content_type}-${file.filename}`;
+        };
 
         // Process event files first (they take precedence)
         eventFiles?.forEach(file => {
-          const fileKey = `${file.file_path}-${file.size}-${file.content_type}`;
+          const fileKey = createFileKey(file);
           uniqueFilesMap.set(fileKey, {
             ...file,
             source: 'event'
           });
         });
 
-        // Only add customer files if they have a unique combination
+        // Only add customer files if they don't match any existing event files
         customerFiles.forEach(file => {
-          const fileKey = `${file.file_path}-${file.size}-${file.content_type}`;
+          const fileKey = createFileKey(file);
           if (!uniqueFilesMap.has(fileKey)) {
             uniqueFilesMap.set(fileKey, {
               ...file,
@@ -114,6 +119,7 @@ export const EventDialogFields = ({
           }
         });
 
+        console.log('Unique files found:', Array.from(uniqueFilesMap.values()));
         return Array.from(uniqueFilesMap.values());
       } catch (error) {
         console.error('Error in file fetching:', error);
