@@ -100,12 +100,18 @@ export const EventDialogFields = ({
           if (customerFilesError) {
             console.error('Error fetching customer files:', customerFilesError);
           } else {
+            // Add customer files to the array
             files = [...files, ...(customerFiles || [])];
           }
         }
       }
+
+      // Remove duplicates based on file path
+      const uniqueFiles = files.filter((file, index, self) =>
+        index === self.findIndex((f) => f.file_path === file.file_path)
+      );
       
-      return files;
+      return uniqueFiles;
     },
     enabled: !!(eventId || title),
   });
