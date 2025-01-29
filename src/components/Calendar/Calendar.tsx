@@ -10,6 +10,7 @@ import {
   subMonths,
   addHours,
   setHours,
+  startOfDay,
 } from "date-fns";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
@@ -74,18 +75,34 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
 
   const getDaysForView = () => {
     switch (view) {
-      case "month":
-        return eachDayOfInterval({
-          start: startOfMonth(selectedDate),
-          end: endOfMonth(selectedDate),
+      case "month": {
+        // Get the start and end of the month
+        const monthStart = startOfMonth(selectedDate);
+        const monthEnd = endOfMonth(selectedDate);
+        
+        // Get the start of the week that contains the first day of the month
+        const calendarStart = startOfWeek(monthStart);
+        
+        // Get all days from the start of the week to the end of the month
+        const days = eachDayOfInterval({
+          start: calendarStart,
+          end: monthEnd,
         });
+        
+        // Add days to complete the grid (42 days = 6 weeks)
+        while (days.length < 42) {
+          days.push(addDays(days[days.length - 1], 1));
+        }
+        
+        return days;
+      }
       case "week":
         return eachDayOfInterval({
           start: startOfWeek(selectedDate),
           end: endOfWeek(selectedDate),
         });
       case "day":
-        return [selectedDate];
+        return [startOfDay(selectedDate)];
     }
   };
 
