@@ -76,9 +76,22 @@ export const EventDialogFields = ({
         
         if (eventFilesError) throw eventFilesError;
 
-        // Then, get customer files if we have a title
-        let customerFiles = [];
-        if (title) {
+        // Create a Map to track unique files using a composite key
+        const uniqueFilesMap = new Map();
+
+        // Process event files first as they are the source of truth
+        eventFiles?.forEach(file => {
+          const compositeKey = `${file.file_path}-${file.size}-${file.content_type}`;
+          if (!uniqueFilesMap.has(compositeKey)) {
+            uniqueFilesMap.set(compositeKey, {
+              ...file,
+              source: 'event'
+            });
+          }
+        });
+
+        // Only fetch customer files if we have a title and no event files for this path
+        if (title && (!eventFiles || eventFiles.length === 0)) {
           const { data: customer, error: customerError } = await supabase
             .from('customers')
             .select(`
@@ -89,33 +102,21 @@ export const EventDialogFields = ({
             .maybeSingle();
 
           if (!customerError && customer?.customer_files_new) {
-            customerFiles = customer.customer_files_new;
+            customer.customer_files_new.forEach(file => {
+              const compositeKey = `${file.file_path}-${file.size}-${file.content_type}`;
+              if (!uniqueFilesMap.has(compositeKey)) {
+                uniqueFilesMap.set(compositeKey, {
+                  ...file,
+                  source: 'customer'
+                });
+              }
+            });
           }
         }
 
-        // Create a Map to track unique files
-        const uniqueFilesMap = new Map();
-
-        // Process event files first (they take precedence)
-        eventFiles?.forEach(file => {
-          uniqueFilesMap.set(file.file_path, {
-            ...file,
-            source: 'event'
-          });
-        });
-
-        // Only add customer files if they don't exist in event files
-        customerFiles.forEach(file => {
-          if (!uniqueFilesMap.has(file.file_path)) {
-            uniqueFilesMap.set(file.file_path, {
-              ...file,
-              source: 'customer'
-            });
-          }
-        });
-
-        console.log('Final unique files:', Array.from(uniqueFilesMap.values()));
-        return Array.from(uniqueFilesMap.values());
+        const uniqueFiles = Array.from(uniqueFilesMap.values());
+        console.log('Final unique files:', uniqueFiles);
+        return uniqueFiles;
       } catch (error) {
         console.error('Error in file fetching:', error);
         return [];
@@ -142,6 +143,7 @@ export const EventDialogFields = ({
 
       if (storageError) {
         console.error('Error deleting from storage:', storageError);
+        throw storageError;
       }
 
       // Delete from both tables to ensure complete cleanup
@@ -171,6 +173,8 @@ export const EventDialogFields = ({
       console.error('Error in file deletion:', error);
     }
   };
+
+  // ... keep existing code (form fields JSX)
 
   return (
     <div className="space-y-4">
