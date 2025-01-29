@@ -76,6 +76,7 @@ export const CustomerDialogFields = ({
       
       try {
         let files = [];
+        const uniqueFilePaths = new Set();
         
         if (isEventData) {
           // Get files from event_files
@@ -87,7 +88,12 @@ export const CustomerDialogFields = ({
           if (eventFilesError) {
             console.error('Error fetching event files:', eventFilesError);
           } else {
-            files = [...files, ...(eventFiles || [])];
+            eventFiles?.forEach(file => {
+              if (!uniqueFilePaths.has(file.file_path)) {
+                uniqueFilePaths.add(file.file_path);
+                files.push(file);
+              }
+            });
           }
         } else {
           // Get files from customer_files_new
@@ -99,11 +105,16 @@ export const CustomerDialogFields = ({
           if (customerFilesError) {
             console.error('Error fetching customer files:', customerFilesError);
           } else {
-            files = [...files, ...(customerFiles || [])];
+            customerFiles?.forEach(file => {
+              if (!uniqueFilePaths.has(file.file_path)) {
+                uniqueFilePaths.add(file.file_path);
+                files.push(file);
+              }
+            });
           }
         }
         
-        console.log('Found files:', files);
+        console.log('Found unique files:', files);
         return files;
       } catch (error) {
         console.error('Error in file fetching:', error);

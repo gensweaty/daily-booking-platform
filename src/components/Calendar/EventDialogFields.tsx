@@ -69,55 +69,61 @@ export const EventDialogFields = ({
       
       console.log('Fetching files for event:', eventId);
       
-      // First get event files
-      const { data: eventFiles, error: eventFilesError } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', eventId);
-      
-      if (eventFilesError) {
-        console.error('Error fetching event files:', eventFilesError);
-        throw eventFilesError;
-      }
-
-      // Then get customer files based on title
-      const { data: customer, error: customerError } = await supabase
-        .from('customers')
-        .select(`
-          id,
-          customer_files_new (*)
-        `)
-        .eq('title', title)
-        .maybeSingle();
-
-      if (customerError) {
-        console.error('Error fetching customer:', customerError);
-        throw customerError;
-      }
-
-      const customerFiles = customer?.customer_files_new || [];
-      
-      // Use a Map to track unique files by both ID and file_path
-      const uniqueFilesMap = new Map();
-      
-      // Add event files first
-      eventFiles?.forEach(file => {
-        const key = `${file.id}-${file.file_path}`;
-        if (!uniqueFilesMap.has(key)) {
-          uniqueFilesMap.set(key, file);
+      try {
+        // First get event files
+        const { data: eventFiles, error: eventFilesError } = await supabase
+          .from('event_files')
+          .select('*')
+          .eq('event_id', eventId);
+        
+        if (eventFilesError) {
+          console.error('Error fetching event files:', eventFilesError);
+          throw eventFilesError;
         }
-      });
-      
-      // Add customer files only if they don't exist
-      customerFiles.forEach(file => {
-        const key = `${file.id}-${file.file_path}`;
-        if (!uniqueFilesMap.has(key)) {
-          uniqueFilesMap.set(key, file);
+
+        // Then get customer files based on title
+        const { data: customer, error: customerError } = await supabase
+          .from('customers')
+          .select(`
+            id,
+            customer_files_new (*)
+          `)
+          .eq('title', title)
+          .maybeSingle();
+
+        if (customerError) {
+          console.error('Error fetching customer:', customerError);
+          throw customerError;
         }
-      });
-      
-      console.log('Unique files:', Array.from(uniqueFilesMap.values()));
-      return Array.from(uniqueFilesMap.values());
+
+        const customerFiles = customer?.customer_files_new || [];
+        
+        // Create a Set to track unique file paths
+        const uniqueFilePaths = new Set();
+        const uniqueFiles = [];
+        
+        // Process event files first
+        eventFiles?.forEach(file => {
+          if (!uniqueFilePaths.has(file.file_path)) {
+            uniqueFilePaths.add(file.file_path);
+            uniqueFiles.push(file);
+          }
+        });
+        
+        // Then process customer files
+        customerFiles.forEach(file => {
+          if (!uniqueFilePaths.has(file.file_path)) {
+            uniqueFilePaths.add(file.file_path);
+            uniqueFiles.push(file);
+          }
+        });
+        
+        console.log('Final unique files:', uniqueFiles);
+        return uniqueFiles;
+      } catch (error) {
+        console.error('Error in file fetching:', error);
+        return [];
+      }
     },
     enabled: !!eventId,
   });
@@ -240,4 +246,4 @@ export const EventDialogFields = ({
       />
     </div>
   );
-};
+});
