@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseISO } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface CustomerDialogProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
   
   const { toast } = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const formatDateForInput = (dateString: string | null) => {
     if (!dateString) return "";
@@ -361,6 +363,9 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           });
 
         if (fileRecordError) throw fileRecordError;
+
+        // Invalidate the files query to refresh the list
+        queryClient.invalidateQueries({ queryKey: ['customerFiles', updatedCustomerId] });
       }
 
       // If we have an event ID and a file, upload it to event_files as well
@@ -386,6 +391,9 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           });
 
         if (fileRecordError) throw fileRecordError;
+
+        // Invalidate the files query to refresh the list
+        queryClient.invalidateQueries({ queryKey: ['customerFiles', eventId] });
       }
 
       toast({
