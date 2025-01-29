@@ -86,18 +86,20 @@ export const EventDialogFields = ({
       
       const customerFiles = customers?.flatMap(customer => customer.customer_files_new || []) || [];
       
-      // Create a Map to store unique files based on file_path
+      // Create a Map to store unique files based on id and file_path combination
       const uniqueFiles = new Map();
       
       // First add event files
       eventFiles?.forEach(file => {
-        uniqueFiles.set(file.file_path, file);
+        const key = `${file.id}-${file.file_path}`;
+        uniqueFiles.set(key, file);
       });
       
       // Then add customer files if they don't exist
       customerFiles.forEach(file => {
-        if (!uniqueFiles.has(file.file_path)) {
-          uniqueFiles.set(file.file_path, file);
+        const key = `${file.id}-${file.file_path}`;
+        if (!uniqueFiles.has(key)) {
+          uniqueFiles.set(key, file);
         }
       });
       
