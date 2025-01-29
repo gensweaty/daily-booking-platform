@@ -63,39 +63,58 @@ export const EventDialogFields = ({
   const queryClient = useQueryClient();
   
   const { data: allFiles = [] } = useQuery({
-    queryKey: ['eventFiles', eventId],
+    queryKey: ['eventFiles', eventId, title],
     queryFn: async () => {
-      if (!eventId) return [];
+      if (!eventId && !title) return [];
       
-      const { data: eventFiles, error: eventFilesError } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', eventId);
+      let files = [];
       
-      if (eventFilesError) throw eventFilesError;
+      // Fetch event files if we have an event ID
+      if (eventId) {
+        const { data: eventFiles, error: eventFilesError } = await supabase
+          .from('event_files')
+          .select('*')
+          .eq('event_id', eventId);
+        
+        if (eventFilesError) {
+          console.error('Error fetching event files:', eventFilesError);
+        } else {
+          files = [...files, ...(eventFiles || [])];
+        }
+      }
 
-      const { data: customers, error: customersError } = await supabase
-        .from('customers')
-        .select(`
-          id,
-          customer_files_new (*)
-        `)
-        .eq('title', title);
+      // Fetch customer files if we have a title
+      if (title) {
+        const { data: customers, error: customersError } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('title', title)
+          .single();
 
-      if (customersError) throw customersError;
+        if (!customersError && customers) {
+          const { data: customerFiles, error: customerFilesError } = await supabase
+            .from('customer_files_new')
+            .select('*')
+            .eq('customer_id', customers.id);
+
+          if (customerFilesError) {
+            console.error('Error fetching customer files:', customerFilesError);
+          } else {
+            files = [...files, ...(customerFiles || [])];
+          }
+        }
+      }
       
-      const customerFiles = customers?.flatMap(customer => customer.customer_files_new || []) || [];
-      
-      return [...(eventFiles || []), ...customerFiles];
+      return files;
     },
-    enabled: !!eventId,
+    enabled: !!(eventId || title),
   });
 
   const handleFileDeleted = async (fileId: string) => {
     if (onFileDeleted) {
       onFileDeleted(fileId);
     }
-    await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId] });
+    await queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId, title] });
   };
 
   return (
@@ -191,7 +210,7 @@ export const EventDialogFields = ({
         />
       </div>
 
-      {eventId && allFiles && allFiles.length > 0 && (
+      {(eventId || title) && allFiles && allFiles.length > 0 && (
         <div className="space-y-2">
           <FileDisplay 
             files={allFiles} 
