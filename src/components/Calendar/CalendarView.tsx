@@ -1,4 +1,4 @@
-import { format, isSameDay, parseISO, isSameMonth } from "date-fns";
+import { format, isSameDay, parseISO, isSameMonth, endOfMonth, startOfMonth, eachDayOfInterval, startOfWeek, endOfWeek } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 
 interface CalendarViewProps {
@@ -35,10 +35,19 @@ export const CalendarView = ({
   };
 
   if (view === "month") {
+    // Get the start and end of the month view
+    const monthStart = startOfMonth(selectedDate);
+    const monthEnd = endOfMonth(selectedDate);
+    const calendarStart = startOfWeek(monthStart);
+    const calendarEnd = endOfWeek(monthEnd);
+
+    // Get all days that should be shown in the calendar grid
+    const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
     return (
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(renderDayHeader)}
-        {days.map((day) => {
+        {calendarDays.map((day) => {
           const dayEvents = events.filter((event) => 
             isSameDay(parseISO(event.start_date), day)
           );
