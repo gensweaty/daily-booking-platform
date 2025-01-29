@@ -212,65 +212,110 @@ export const CustomerList = () => {
     if (!user?.id) {
       toast({
         title: "Error",
-        description: "Missing customer or user information",
+        description: "Missing user information",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      // First delete associated files from storage
-      const { data: files } = await supabase
-        .from('customer_files_new')
-        .select('*')
-        .eq('customer_id', customer.id);
+      if (customer.id.startsWith('event-')) {
+        // Handle event deletion
+        const eventId = customer.id.replace('event-', '');
+        
+        // First delete associated files from storage
+        const { data: files } = await supabase
+          .from('event_files')
+          .select('*')
+          .eq('event_id', eventId);
 
-      if (files && files.length > 0) {
-        // Delete files from storage
-        for (const file of files) {
-          const { error: storageError } = await supabase.storage
-            .from('customer_attachments')
-            .remove([file.file_path]);
+        if (files && files.length > 0) {
+          // Delete files from storage
+          for (const file of files) {
+            const { error: storageError } = await supabase.storage
+              .from('event_attachments')
+              .remove([file.file_path]);
 
-          if (storageError) {
-            console.error('Error deleting file from storage:', storageError);
+            if (storageError) {
+              console.error('Error deleting file from storage:', storageError);
+            }
+          }
+
+          // Delete file records from database
+          const { error: filesDeleteError } = await supabase
+            .from('event_files')
+            .delete()
+            .eq('event_id', eventId);
+
+          if (filesDeleteError) {
+            throw filesDeleteError;
           }
         }
 
-        // Delete file records from database
-        const { error: filesDeleteError } = await supabase
-          .from('customer_files_new')
+        // Delete the event
+        const { error } = await supabase
+          .from('events')
           .delete()
+          .eq('id', eventId)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+      } else {
+        // Handle customer deletion (existing logic)
+        // First delete associated files from storage
+        const { data: files } = await supabase
+          .from('customer_files_new')
+          .select('*')
           .eq('customer_id', customer.id);
 
-        if (filesDeleteError) {
-          throw filesDeleteError;
+        if (files && files.length > 0) {
+          // Delete files from storage
+          for (const file of files) {
+            const { error: storageError } = await supabase.storage
+              .from('customer_attachments')
+              .remove([file.file_path]);
+
+            if (storageError) {
+              console.error('Error deleting file from storage:', storageError);
+            }
+          }
+
+          // Delete file records from database
+          const { error: filesDeleteError } = await supabase
+            .from('customer_files_new')
+            .delete()
+            .eq('customer_id', customer.id);
+
+          if (filesDeleteError) {
+            throw filesDeleteError;
+          }
         }
+
+        // Delete the customer
+        const { error } = await supabase
+          .from('customers')
+          .delete()
+          .eq('id', customer.id)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
       }
 
-      // Now delete the customer
-      const { error } = await supabase
-        .from('customers')
-        .delete()
-        .eq('id', customer.id)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
       
       toast({
         title: "Success",
-        description: "Customer deleted successfully",
+        description: "Successfully deleted",
       });
       
       setIsDialogOpen(false);
       setSelectedCustomer(null);
     } catch (error: any) {
-      console.error('Error deleting customer:', error);
+      console.error('Error deleting:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete customer",
+        description: error.message || "Failed to delete",
         variant: "destructive",
       });
     }
@@ -638,4 +683,3 @@ export const CustomerList = () => {
     </div>
   );
 };
-
