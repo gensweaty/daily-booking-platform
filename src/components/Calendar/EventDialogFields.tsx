@@ -79,6 +79,7 @@ export const EventDialogFields = ({
         if (eventFilesError) {
           console.error('Error fetching event files:', eventFilesError);
         } else {
+          console.log('Event files found:', eventFiles);
           files = [...files, ...(eventFiles || [])];
         }
       }
@@ -92,6 +93,7 @@ export const EventDialogFields = ({
           .maybeSingle();
 
         if (!customerError && customer) {
+          console.log('Customer found:', customer);
           const { data: customerFiles, error: customerFilesError } = await supabase
             .from('customer_files_new')
             .select('*')
@@ -100,7 +102,7 @@ export const EventDialogFields = ({
           if (customerFilesError) {
             console.error('Error fetching customer files:', customerFilesError);
           } else {
-            // Add customer files to the array
+            console.log('Customer files found:', customerFiles);
             files = [...files, ...(customerFiles || [])];
           }
         }
@@ -111,6 +113,7 @@ export const EventDialogFields = ({
         index === self.findIndex((f) => f.file_path === file.file_path)
       );
       
+      console.log('Final unique files:', uniqueFiles);
       return uniqueFiles;
     },
     enabled: !!(eventId || title),
