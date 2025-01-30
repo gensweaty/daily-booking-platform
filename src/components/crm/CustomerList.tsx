@@ -453,16 +453,16 @@ export const CustomerList = () => {
                 <TableRow key={customer.id} className="h-auto min-h-[4rem]">
                   <TableCell className="py-2">
                     <div 
-                      className="flex items-start gap-2 group relative"
+                      className="flex items-start gap-2 group relative pr-6"
                       onMouseEnter={() => setHoveredField({ id: customer.id, field: 'title' })}
                       onMouseLeave={() => setHoveredField(null)}
                     >
-                      <span className="line-clamp-2 text-left text-sm group-hover:text-primary">
+                      <span className="line-clamp-2 text-left text-sm">
                         {customer.title}
                       </span>
                       {hoveredField?.id === customer.id && hoveredField?.field === 'title' && (
                         <Copy 
-                          className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0"
+                          className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0 opacity-60 hover:opacity-100 transition-opacity"
                           onClick={() => handleCopyText(customer.title)}
                         />
                       )}
@@ -471,16 +471,16 @@ export const CustomerList = () => {
                   <TableCell className="py-2">
                     {customer.user_number ? (
                       <div 
-                        className="flex items-start gap-2 group relative"
+                        className="flex items-start gap-2 group relative pr-6"
                         onMouseEnter={() => setHoveredField({ id: customer.id, field: 'phone' })}
                         onMouseLeave={() => setHoveredField(null)}
                       >
-                        <span className="line-clamp-2 text-left text-sm group-hover:text-primary">
+                        <span className="line-clamp-2 text-left text-sm">
                           {customer.user_number}
                         </span>
                         {hoveredField?.id === customer.id && hoveredField?.field === 'phone' && (
                           <Copy 
-                            className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0"
+                            className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0 opacity-60 hover:opacity-100 transition-opacity"
                             onClick={() => handleCopyText(customer.user_number)}
                           />
                         )}
@@ -489,16 +489,16 @@ export const CustomerList = () => {
                   </TableCell>
                   <TableCell className="py-2">
                     <div 
-                      className="flex items-start gap-2 group relative"
+                      className="flex items-start gap-2 group relative pr-6"
                       onMouseEnter={() => setHoveredField({ id: customer.id, field: 'link' })}
                       onMouseLeave={() => setHoveredField(null)}
                     >
-                      <span className="line-clamp-2 text-left text-sm group-hover:text-primary">
+                      <span className="line-clamp-2 text-left text-sm">
                         {customer.social_network_link || '-'}
                       </span>
                       {customer.social_network_link && hoveredField?.id === customer.id && hoveredField?.field === 'link' && (
                         <Copy 
-                          className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0"
+                          className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0 opacity-60 hover:opacity-100 transition-opacity"
                           onClick={() => handleCopyText(customer.social_network_link)}
                         />
                       )}
@@ -515,16 +515,16 @@ export const CustomerList = () => {
                   </TableCell>
                   <TableCell className="py-2">
                     <div 
-                      className="flex items-start gap-2 group relative"
+                      className="flex items-start gap-2 group relative pr-6"
                       onMouseEnter={() => setHoveredField({ id: customer.id, field: 'notes' })}
                       onMouseLeave={() => setHoveredField(null)}
                     >
-                      <span className="line-clamp-3 text-left text-sm group-hover:text-primary min-h-[1.5rem]">
+                      <span className="line-clamp-3 text-left text-sm min-h-[1.5rem]">
                         {customer.event_notes || '-'}
                       </span>
                       {customer.event_notes && hoveredField?.id === customer.id && hoveredField?.field === 'notes' && (
                         <Copy 
-                          className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0"
+                          className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0 opacity-60 hover:opacity-100 transition-opacity"
                           onClick={() => handleCopyText(customer.event_notes)}
                         />
                       )}
