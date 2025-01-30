@@ -386,6 +386,11 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         }
 
         await Promise.all(filePromises);
+
+        // Invalidate the specific customer files query
+        await queryClient.invalidateQueries({ 
+          queryKey: ['customerFiles', updatedCustomerId || customerId, isEventData]
+        });
       }
 
       // Invalidate both customers and events queries

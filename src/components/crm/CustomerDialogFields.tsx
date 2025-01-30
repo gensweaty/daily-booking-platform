@@ -122,10 +122,9 @@ export const CustomerDialogFields = ({
       }
     },
     enabled: !!customerId,
-    staleTime: Infinity,
+    staleTime: 0, // Set staleTime to 0 to always refetch when the query is invalidated
     gcTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnWindowFocus: true,
     retry: 1
   });
 
