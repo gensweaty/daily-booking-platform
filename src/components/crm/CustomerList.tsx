@@ -7,7 +7,6 @@ import { PlusCircle, Pencil, Trash2, Copy } from "lucide-react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { format, parseISO, startOfMonth, endOfMonth, endOfDay } from "date-fns";
-
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { SearchCommand } from "./SearchCommand";
 import { DateRangeSelect } from "@/components/Statistics/DateRangeSelect";
@@ -26,12 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 export const CustomerList = () => {
   const { user } = useAuth();
@@ -49,10 +42,7 @@ export const CustomerList = () => {
   });
 
   // Add hover states for copyable fields
-  const [hoveredPhone, setHoveredPhone] = useState<string | null>(null);
-  const [hoveredLink, setHoveredLink] = useState<string | null>(null);
-  const [hoveredNote, setHoveredNote] = useState<string | null>(null);
-  const [hoveredName, setHoveredName] = useState<string | null>(null);
+  const [hoveredField, setHoveredField] = useState<{id: string, field: string} | null>(null);
 
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
     queryKey: ['customers', dateRange],
@@ -463,107 +453,54 @@ export const CustomerList = () => {
                 <TableRow key={customer.id} className="h-auto min-h-[4rem]">
                   <TableCell className="py-2">
                     <div 
-                      className="flex items-start gap-2 cursor-pointer group"
-                      onMouseEnter={() => setHoveredName(customer.id)}
-                      onMouseLeave={() => setHoveredName(null)}
-                      onClick={() => handleCopyText(customer.title)}
+                      className="flex items-start gap-2 group relative"
+                      onMouseEnter={() => setHoveredField({ id: customer.id, field: 'title' })}
+                      onMouseLeave={() => setHoveredField(null)}
                     >
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="line-clamp-2 text-left text-sm group-hover:text-primary">
-                              {customer.title}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="right" className="max-w-[300px]">
-                            <p className="whitespace-pre-wrap break-words">{customer.title}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      {hoveredName === customer.id && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 p-0 flex-shrink-0 mt-0.5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCopyText(customer.title);
-                          }}
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
+                      <span className="line-clamp-2 text-left text-sm group-hover:text-primary">
+                        {customer.title}
+                      </span>
+                      {hoveredField?.id === customer.id && hoveredField?.field === 'title' && (
+                        <Copy 
+                          className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0"
+                          onClick={() => handleCopyText(customer.title)}
+                        />
                       )}
                     </div>
                   </TableCell>
                   <TableCell className="py-2">
                     {customer.user_number ? (
                       <div 
-                        className="flex items-start gap-2 cursor-pointer group"
-                        onMouseEnter={() => setHoveredPhone(customer.id)}
-                        onMouseLeave={() => setHoveredPhone(null)}
-                        onClick={() => handleCopyText(customer.user_number)}
+                        className="flex items-start gap-2 group relative"
+                        onMouseEnter={() => setHoveredField({ id: customer.id, field: 'phone' })}
+                        onMouseLeave={() => setHoveredField(null)}
                       >
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="line-clamp-2 text-left text-sm group-hover:text-primary">
-                                {customer.user_number}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="right">
-                              <p className="whitespace-pre-wrap break-words">{customer.user_number}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        {hoveredPhone === customer.id && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 p-0 flex-shrink-0 mt-0.5"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCopyText(customer.user_number);
-                            }}
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
+                        <span className="line-clamp-2 text-left text-sm group-hover:text-primary">
+                          {customer.user_number}
+                        </span>
+                        {hoveredField?.id === customer.id && hoveredField?.field === 'phone' && (
+                          <Copy 
+                            className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0"
+                            onClick={() => handleCopyText(customer.user_number)}
+                          />
                         )}
                       </div>
                     ) : '-'}
                   </TableCell>
                   <TableCell className="py-2">
                     <div 
-                      className="flex items-start gap-2 cursor-pointer group"
-                      onMouseEnter={() => setHoveredLink(customer.id)}
-                      onMouseLeave={() => setHoveredLink(null)}
-                      onClick={() => customer.social_network_link && handleCopyText(customer.social_network_link)}
+                      className="flex items-start gap-2 group relative"
+                      onMouseEnter={() => setHoveredField({ id: customer.id, field: 'link' })}
+                      onMouseLeave={() => setHoveredField(null)}
                     >
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="line-clamp-2 text-left text-sm group-hover:text-primary">
-                              {customer.social_network_link || '-'}
-                            </span>
-                          </TooltipTrigger>
-                          {customer.social_network_link && (
-                            <TooltipContent side="right" className="max-w-[300px]">
-                              <p className="whitespace-pre-wrap break-words">{customer.social_network_link}</p>
-                            </TooltipContent>
-                          )}
-                        </Tooltip>
-                      </TooltipProvider>
-                      {customer.social_network_link && hoveredLink === customer.id && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 p-0 flex-shrink-0 mt-0.5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCopyText(customer.social_network_link);
-                          }}
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
+                      <span className="line-clamp-2 text-left text-sm group-hover:text-primary">
+                        {customer.social_network_link || '-'}
+                      </span>
+                      {customer.social_network_link && hoveredField?.id === customer.id && hoveredField?.field === 'link' && (
+                        <Copy 
+                          className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0"
+                          onClick={() => handleCopyText(customer.social_network_link)}
+                        />
                       )}
                     </div>
                   </TableCell>
@@ -578,37 +515,18 @@ export const CustomerList = () => {
                   </TableCell>
                   <TableCell className="py-2">
                     <div 
-                      className="flex items-start gap-2 cursor-pointer group"
-                      onMouseEnter={() => setHoveredNote(customer.id)}
-                      onMouseLeave={() => setHoveredNote(null)}
-                      onClick={() => customer.event_notes && handleCopyText(customer.event_notes)}
+                      className="flex items-start gap-2 group relative"
+                      onMouseEnter={() => setHoveredField({ id: customer.id, field: 'notes' })}
+                      onMouseLeave={() => setHoveredField(null)}
                     >
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="line-clamp-3 text-left text-sm group-hover:text-primary min-h-[1.5rem]">
-                              {customer.event_notes || '-'}
-                            </span>
-                          </TooltipTrigger>
-                          {customer.event_notes && (
-                            <TooltipContent side="right" className="max-w-[300px]">
-                              <p className="whitespace-pre-wrap break-words">{customer.event_notes}</p>
-                            </TooltipContent>
-                          )}
-                        </Tooltip>
-                      </TooltipProvider>
-                      {customer.event_notes && hoveredNote === customer.id && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 p-0 flex-shrink-0 mt-0.5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCopyText(customer.event_notes);
-                          }}
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
+                      <span className="line-clamp-3 text-left text-sm group-hover:text-primary min-h-[1.5rem]">
+                        {customer.event_notes || '-'}
+                      </span>
+                      {customer.event_notes && hoveredField?.id === customer.id && hoveredField?.field === 'notes' && (
+                        <Copy 
+                          className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0"
+                          onClick={() => handleCopyText(customer.event_notes)}
+                        />
                       )}
                     </div>
                   </TableCell>
