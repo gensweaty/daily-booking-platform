@@ -75,7 +75,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             .from('customers')
             .select('*')
             .eq('id', customerId)
-            .eq('user_id', user.id)
             .maybeSingle();
             
           if (customerError) {
@@ -96,32 +95,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             setPaymentAmount(customerData.payment_amount?.toString() || "");
             setCreateEvent(!!customerData.start_date && !!customerData.end_date);
             setIsEventData(false);
-
-            // If customer has an event, fetch and sync with event data
-            if (customerData.start_date && customerData.end_date) {
-              const { data: linkedEvent } = await supabase
-                .from('events')
-                .select('*')
-                .eq('title', customerData.title)
-                .eq('user_id', user.id)
-                .maybeSingle();
-
-              if (linkedEvent) {
-                // Update event with customer data
-                const { error: updateError } = await supabase
-                  .from('events')
-                  .update({
-                    start_date: customerData.start_date,
-                    end_date: customerData.end_date,
-                    payment_status: customerData.payment_status,
-                    payment_amount: customerData.payment_amount,
-                    event_notes: customerData.event_notes
-                  })
-                  .eq('id', linkedEvent.id);
-
-                if (updateError) throw updateError;
-              }
-            }
           }
         } else {
           setIsEventData(true);
@@ -136,30 +109,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           setPaymentStatus(eventData.payment_status || "");
           setPaymentAmount(eventData.payment_amount?.toString() || "");
           setCreateEvent(true);
-
-          // Sync customer data with event data
-          const { data: linkedCustomer } = await supabase
-            .from('customers')
-            .select('*')
-            .eq('title', eventData.title)
-            .eq('user_id', user.id)
-            .maybeSingle();
-
-          if (linkedCustomer) {
-            // Update customer with event data
-            const { error: updateError } = await supabase
-              .from('customers')
-              .update({
-                start_date: eventData.start_date,
-                end_date: eventData.end_date,
-                payment_status: eventData.payment_status,
-                payment_amount: eventData.payment_amount,
-                event_notes: eventData.event_notes
-              })
-              .eq('id', linkedCustomer.id);
-
-            if (updateError) throw updateError;
-          }
         }
       } catch (error: any) {
         console.error('Unexpected error:', error);
@@ -221,20 +170,8 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       let eventId;
       
       if (customerId) {
-        // Update existing customer
-        const { data: updatedData, error } = await supabase
-          .from('customers')
-          .update(customerData)
-          .eq('id', customerId)
-          .select()
-          .maybeSingle();
-
-        if (error) throw error;
-        if (!updatedData) throw new Error("Failed to update customer");
-        updatedCustomerId = updatedData.id;
-
-        // If this is an event, update it instead of creating a new one
         if (isEventData) {
+          // Update event if we're editing an event
           const eventData = {
             title,
             user_surname: userSurname,
@@ -256,49 +193,87 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
 
           if (eventError) throw eventError;
           eventId = customerId;
-        }
-        // If createEvent is true and this is not already an event, update or create event
-        else if (createEvent) {
-          const { data: existingEvent } = await supabase
-            .from('events')
+          
+          // Also update or create corresponding customer record
+          const { data: existingCustomer } = await supabase
+            .from('customers')
             .select('*')
             .eq('title', title)
             .eq('user_id', user.id)
             .maybeSingle();
-
-          const eventData = {
-            title,
-            user_surname: userSurname,
-            user_number: userNumber,
-            social_network_link: socialNetworkLink,
-            event_notes: eventNotes,
-            start_date: startDate,
-            end_date: endDate,
-            payment_status: paymentStatus || null,
-            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-            user_id: user.id,
-            type: 'customer_event'
-          };
-
-          if (existingEvent) {
-            // Update existing event
-            const { error: eventError } = await supabase
-              .from('events')
-              .update(eventData)
-              .eq('id', existingEvent.id);
-
-            if (eventError) throw eventError;
-            eventId = existingEvent.id;
+            
+          if (existingCustomer) {
+            const { error: customerError } = await supabase
+              .from('customers')
+              .update(customerData)
+              .eq('id', existingCustomer.id);
+              
+            if (customerError) throw customerError;
+            updatedCustomerId = existingCustomer.id;
           } else {
-            // Create new event
-            const { data: newEvent, error: eventError } = await supabase
-              .from('events')
-              .insert([eventData])
+            const { data: newCustomer, error: customerError } = await supabase
+              .from('customers')
+              .insert([customerData])
               .select()
               .maybeSingle();
+              
+            if (customerError) throw customerError;
+            if (newCustomer) updatedCustomerId = newCustomer.id;
+          }
+        } else {
+          // Update customer if we're editing a customer
+          const { data: updatedData, error } = await supabase
+            .from('customers')
+            .update(customerData)
+            .eq('id', customerId)
+            .select()
+            .maybeSingle();
 
-            if (eventError) throw eventError;
-            if (newEvent) eventId = newEvent.id;
+          if (error) throw error;
+          if (!updatedData) throw new Error("Failed to update customer");
+          updatedCustomerId = updatedData.id;
+
+          // If createEvent is true, update or create event
+          if (createEvent) {
+            const eventData = {
+              title,
+              user_surname: userSurname,
+              user_number: userNumber,
+              social_network_link: socialNetworkLink,
+              event_notes: eventNotes,
+              start_date: startDate,
+              end_date: endDate,
+              payment_status: paymentStatus || null,
+              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+              user_id: user.id,
+              type: 'customer_event'
+            };
+
+            const { data: existingEvent } = await supabase
+              .from('events')
+              .select('*')
+              .eq('title', title)
+              .eq('user_id', user.id)
+              .maybeSingle();
+
+            if (existingEvent) {
+              const { error: eventError } = await supabase
+                .from('events')
+                .update(eventData)
+                .eq('id', existingEvent.id);
+
+              if (eventError) throw eventError;
+              eventId = existingEvent.id;
+            } else {
+              const { data: newEvent, error: eventError } = await supabase
+                .from('events')
+                .insert([eventData])
+                .select()
+                .maybeSingle();
+
+              if (eventError) throw eventError;
+              if (newEvent) eventId = newEvent.id;
+            }
           }
         }
       } else {
@@ -386,18 +361,16 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         }
 
         await Promise.all(filePromises);
-
-        // Invalidate the specific customer files query
-        await queryClient.invalidateQueries({ 
-          queryKey: ['customerFiles', updatedCustomerId || customerId, isEventData]
-        });
       }
 
-      // Invalidate both customers and events queries
+      // Invalidate queries
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       if (createEvent || isEventData) {
         await queryClient.invalidateQueries({ queryKey: ['events'] });
       }
+      await queryClient.invalidateQueries({ 
+        queryKey: ['customerFiles', updatedCustomerId || customerId, isEventData]
+      });
 
       toast({
         title: "Success",
