@@ -82,7 +82,7 @@ export const EventDialogFields = ({
 
           console.log('Found event files:', eventFiles?.length || 0);
           eventFiles?.forEach(file => {
-            uniqueFiles.set(file.file_path, {
+            uniqueFiles.set(file.id, {
               ...file,
               source: 'event'
             });
@@ -103,9 +103,9 @@ export const EventDialogFields = ({
           if (!customerError && customer?.customer_files_new) {
             console.log('Found customer files:', customer.customer_files_new.length);
             customer.customer_files_new.forEach(file => {
-              // Only add if file_path is not already in the map
-              if (!uniqueFiles.has(file.file_path)) {
-                uniqueFiles.set(file.file_path, {
+              // Only add if file ID is not already in the map
+              if (!uniqueFiles.has(file.id)) {
+                uniqueFiles.set(file.id, {
                   ...file,
                   source: 'customer'
                 });
