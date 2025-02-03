@@ -166,8 +166,11 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       let updatedCustomerId;
       let eventId;
       
+      console.log('Starting customer/event update process');
+      
       if (customerId) {
         if (isEventData) {
+          console.log('Updating event data');
           const eventData = {
             title,
             user_surname: userSurname,
@@ -216,6 +219,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             if (newCustomer) updatedCustomerId = newCustomer.id;
           }
         } else {
+          console.log('Updating customer data');
           const { data: updatedData, error } = await supabase
             .from('customers')
             .update(customerData)
@@ -228,6 +232,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           updatedCustomerId = updatedData.id;
 
           if (createEvent) {
+            console.log('Creating new event for existing customer');
             const eventData = {
               title,
               user_surname: userSurname,
@@ -270,6 +275,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           }
         }
       } else {
+        console.log('Creating new customer');
         const { data: newData, error } = await supabase
           .from('customers')
           .insert([customerData])
@@ -281,6 +287,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         updatedCustomerId = newData.id;
 
         if (createEvent) {
+          console.log('Creating new event for new customer');
           const eventData = {
             title,
             user_surname: userSurname,
@@ -326,31 +333,34 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           user_id: user.id
         };
 
-        const filePromises = [];
-
+        // Only insert file records if we have valid IDs
         if (updatedCustomerId) {
-          filePromises.push(
-            supabase
-              .from('customer_files_new')
-              .insert({
-                ...fileData,
-                customer_id: updatedCustomerId
-              })
-          );
+          console.log('Adding file to customer_files_new');
+          const { error: customerFileError } = await supabase
+            .from('customer_files_new')
+            .insert({
+              ...fileData,
+              customer_id: updatedCustomerId
+            });
+            
+          if (customerFileError) {
+            console.error('Error adding customer file:', customerFileError);
+          }
         }
 
         if (eventId) {
-          filePromises.push(
-            supabase
-              .from('event_files')
-              .insert({
-                ...fileData,
-                event_id: eventId
-              })
-          );
+          console.log('Adding file to event_files');
+          const { error: eventFileError } = await supabase
+            .from('event_files')
+            .insert({
+              ...fileData,
+              event_id: eventId
+            });
+            
+          if (eventFileError) {
+            console.error('Error adding event file:', eventFileError);
+          }
         }
-
-        await Promise.all(filePromises);
       }
 
       // Invalidate relevant queries to refresh the data
