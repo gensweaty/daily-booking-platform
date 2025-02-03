@@ -2,19 +2,16 @@ import { Calendar, ChartBar, ListTodo, Users } from "lucide-react";
 
 const calendarViews = [
   {
-    src: "/lovable-uploads/729a5752-6967-4e92-97b1-320ef1479952.png",
-    alt: "Day View",
-    title: "Day View"
-  },
-  {
-    src: "/lovable-uploads/5eaaed29-3f1c-4a89-88a5-c93168076cdc.png",
-    alt: "Week View",
-    title: "Week View"
-  },
-  {
-    src: "/lovable-uploads/a8b02dd4-b4a0-489c-84e2-d9f78cd4d039.png",
+    src: "/lovable-uploads/2c659363-6837-44d0-9f56-4f0a5c8a2b74.png",
     alt: "Month View",
-    title: "Month View"
+  },
+  {
+    src: "/lovable-uploads/400e814b-7812-448a-9e9a-9036616aab00.png",
+    alt: "Week View",
+  },
+  {
+    src: "/lovable-uploads/541c86d2-6a17-4ec4-9a9c-5ad9e6e3ba4d.png",
+    alt: "Day View",
   },
 ];
 
@@ -37,7 +34,7 @@ export const FeatureSection = () => {
       icon: ChartBar,
       title: "Comprehensive Analytics",
       description: "Track your performance and growth",
-      image: "/lovable-uploads/88db91f1-2c5b-4da1-a62a-5f194dc429a1.png",
+      image: "/lovable-uploads/2de2197d-0e7b-4d8c-b4a8-a0d30828d8be.png",
       benefits: [
         "Booking and revenue analytics",
         "Custom date range filtering",
@@ -49,7 +46,7 @@ export const FeatureSection = () => {
       icon: Users,
       title: "Customer Relationship Management",
       description: "Build and maintain strong client relationships",
-      image: "/lovable-uploads/6e75e8c4-d994-4533-96f5-cb4c2b60936e.png",
+      image: "/lovable-uploads/84a5ef8b-fbd6-46dd-bb22-9378e67590d9.png",
       benefits: [
         "Centralized customer information management",
         "File attachments and document organization",
@@ -60,7 +57,7 @@ export const FeatureSection = () => {
       icon: ListTodo,
       title: "Task Management",
       description: "Stay organized and productive",
-      image: "/lovable-uploads/8a5e9b4a-8d20-4dc8-b251-ccb9233f112c.png",
+      image: "/lovable-uploads/f519fa18-e3d9-44a3-a449-70fc67e6f5de.png",
       benefits: [
         "Kanban board for visual task organization",
         "Task status tracking and progress monitoring",
