@@ -239,4 +239,4 @@ export const EventDialogFields = ({
       />
     </div>
   );
-});
+};
