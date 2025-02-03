@@ -69,10 +69,10 @@ export const EventDialogFields = ({
       
       try {
         const uniqueFiles = new Map();
+        console.log('Starting file fetch for eventId:', eventId, 'and title:', title);
 
         // First try to get event files if we have an eventId
         if (eventId) {
-          console.log('Fetching event files for eventId:', eventId);
           const { data: eventFiles, error: eventFilesError } = await supabase
             .from('event_files')
             .select('*')
@@ -80,19 +80,17 @@ export const EventDialogFields = ({
           
           if (eventFilesError) throw eventFilesError;
 
+          console.log('Found event files:', eventFiles?.length || 0);
           eventFiles?.forEach(file => {
             uniqueFiles.set(file.file_path, {
               ...file,
               source: 'event'
             });
           });
-          
-          console.log('Found event files:', eventFiles);
         }
 
         // Then try to get customer files if we have a title
         if (title) {
-          console.log('Fetching customer files for title:', title);
           const { data: customer, error: customerError } = await supabase
             .from('customers')
             .select(`
@@ -103,6 +101,7 @@ export const EventDialogFields = ({
             .maybeSingle();
 
           if (!customerError && customer?.customer_files_new) {
+            console.log('Found customer files:', customer.customer_files_new.length);
             customer.customer_files_new.forEach(file => {
               // Only add if file_path is not already in the map
               if (!uniqueFiles.has(file.file_path)) {
@@ -112,13 +111,11 @@ export const EventDialogFields = ({
                 });
               }
             });
-            
-            console.log('Found customer files:', customer.customer_files_new);
           }
         }
 
         const files = Array.from(uniqueFiles.values());
-        console.log('Final combined unique files:', files);
+        console.log('Final unique files count:', files.length);
         return files;
       } catch (error) {
         console.error('Error in file fetching:', error);
