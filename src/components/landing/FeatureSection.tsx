@@ -46,7 +46,7 @@ export const FeatureSection = () => {
       icon: Users,
       title: "Customer Relationship Management",
       description: "Build and maintain strong client relationships",
-      image: "/lovable-uploads/CRM white.png",
+      image: "/lovable-uploads/84a5ef8b-fbd6-46dd-bb22-9378e67590d9.png",
       benefits: [
         "Centralized customer information management",
         "File attachments and document organization",
