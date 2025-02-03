@@ -82,7 +82,9 @@ export const EventDialogFields = ({
 
           console.log('Found event files:', eventFiles?.length || 0);
           eventFiles?.forEach(file => {
-            uniqueFiles.set(file.id, {
+            // Use a composite key of file path and source to ensure true uniqueness
+            const uniqueKey = `${file.file_path}_event`;
+            uniqueFiles.set(uniqueKey, {
               ...file,
               source: 'event'
             });
@@ -103,9 +105,12 @@ export const EventDialogFields = ({
           if (!customerError && customer?.customer_files_new) {
             console.log('Found customer files:', customer.customer_files_new.length);
             customer.customer_files_new.forEach(file => {
-              // Only add if file ID is not already in the map
-              if (!uniqueFiles.has(file.id)) {
-                uniqueFiles.set(file.id, {
+              // Use a composite key of file path and source to ensure true uniqueness
+              const uniqueKey = `${file.file_path}_customer`;
+              // Only add if the file isn't already present from event files
+              const eventFileKey = `${file.file_path}_event`;
+              if (!uniqueFiles.has(eventFileKey)) {
+                uniqueFiles.set(uniqueKey, {
                   ...file,
                   source: 'customer'
                 });
@@ -124,6 +129,8 @@ export const EventDialogFields = ({
     },
     enabled: !!(eventId || title),
   });
+
+  // ... keep existing code (render JSX)
 
   return (
     <div className="space-y-4">
