@@ -8,16 +8,20 @@ import { ClientLogos } from "./ClientLogos";
 
 const productImages = [
   {
-    src: "/lovable-uploads/7c1cf779-ae3c-44e7-bb09-416636a68b72.png",
+    src: "/lovable-uploads/a00576d5-fb16-4a4b-a313-0e1cbb61b00c.png",
     alt: "Calendar Preview",
   },
   {
-    src: "/lovable-uploads/6ed3a140-619e-4555-8c77-60246cfb2077.png",
+    src: "/lovable-uploads/7a8c5cac-2431-44db-8e9b-ca6e5ba6d633.png",
     alt: "Analytics Preview",
   },
   {
-    src: "/lovable-uploads/9abedd44-1226-45b3-ab8e-cf31550ffddd.png",
+    src: "/lovable-uploads/292b8b91-64ee-4bf3-b4e6-1e68f77a6563.png",
     alt: "Tasks Preview",
+  },
+  {
+    src: "/lovable-uploads/f35ff4e8-3ae5-4bc2-95f6-c3bef5d53689.png",
+    alt: "CRM Preview",
   },
 ];
 
