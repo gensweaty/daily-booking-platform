@@ -34,7 +34,7 @@ export const FeatureSection = () => {
       icon: ChartBar,
       title: "Comprehensive Analytics",
       description: "Track your performance and growth",
-      image: "/lovable-uploads/6ed3a140-619e-4555-8c77-60246cfb2077.png",
+      image: "/lovable-uploads/2de2197d-0e7b-4d8c-b4a8-a0d30828d8be.png",
       benefits: [
         "Booking and revenue analytics",
         "Custom date range filtering",
