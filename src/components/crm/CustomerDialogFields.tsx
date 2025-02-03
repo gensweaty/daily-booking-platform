@@ -122,7 +122,7 @@ export const CustomerDialogFields = ({
       }
     },
     enabled: !!customerId,
-    staleTime: 0, // Set staleTime to 0 to always refetch when the query is invalidated
+    staleTime: 0,
     gcTime: Infinity,
     refetchOnWindowFocus: true,
     retry: 1
@@ -132,24 +132,30 @@ export const CustomerDialogFields = ({
   useEffect(() => {
     if (customerId && !isEventData) {
       const fetchCustomerData = async () => {
-        const { data: customer, error } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('id', customerId)
-          .single();
+        try {
+          const { data: customer, error } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('id', customerId)
+            .maybeSingle();  // Changed from single() to maybeSingle()
 
-        if (error) {
-          console.error('Error fetching customer:', error);
-          return;
-        }
+          if (error) {
+            console.error('Error fetching customer:', error);
+            return;
+          }
 
-        // If customer has start_date and end_date, they have an event
-        const hasEvent = customer.start_date !== null && customer.end_date !== null;
-        setCreateEvent(hasEvent);
-        
-        if (!hasEvent) {
-          setStartDate('');
-          setEndDate('');
+          if (customer) {
+            // If customer has start_date and end_date, they have an event
+            const hasEvent = customer.start_date !== null && customer.end_date !== null;
+            setCreateEvent(hasEvent);
+            
+            if (!hasEvent) {
+              setStartDate('');
+              setEndDate('');
+            }
+          }
+        } catch (error) {
+          console.error('Error in fetchCustomerData:', error);
         }
       };
 
