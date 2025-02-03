@@ -57,7 +57,7 @@ export const FeatureSection = () => {
       icon: ListTodo,
       title: "Task Management",
       description: "Stay organized and productive",
-      image: "/lovable-uploads/9abedd44-1226-45b3-ab8e-cf31550ffddd.png",
+      image: "/lovable-uploads/f519fa18-e3d9-44a3-a449-70fc67e6f5de.png",
       benefits: [
         "Kanban board for visual task organization",
         "Task status tracking and progress monitoring",
