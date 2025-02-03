@@ -38,7 +38,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     if (!dateString) return "";
     try {
       const date = new Date(dateString);
-      return date.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:mm
+      return date.toISOString().slice(0, 16);
     } catch (error) {
       console.error('Error formatting date:', error);
       return "";
@@ -56,7 +56,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         setLoading(true);
         console.log('Fetching customer with ID:', customerId);
         
-        // First try to fetch from events table
         const { data: eventData, error: eventError } = await supabase
           .from('events')
           .select('*')
@@ -68,7 +67,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           throw eventError;
         }
 
-        // If not found in events, try to fetch from customers table
         if (!eventData) {
           console.log('Event not found, checking customers table...');
           const { data: customerData, error: customerError } = await supabase
@@ -134,7 +132,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     try {
       if (!user) throw new Error("User must be authenticated");
 
-      // If creating/updating an event, check time slot availability
       if (createEvent) {
         const { available, conflictingEvent } = await checkTimeSlotAvailability(
           startDate,
@@ -171,7 +168,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       
       if (customerId) {
         if (isEventData) {
-          // Update event if we're editing an event
           const eventData = {
             title,
             user_surname: userSurname,
@@ -194,7 +190,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           if (eventError) throw eventError;
           eventId = customerId;
           
-          // Also update or create corresponding customer record
           const { data: existingCustomer } = await supabase
             .from('customers')
             .select('*')
@@ -221,7 +216,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             if (newCustomer) updatedCustomerId = newCustomer.id;
           }
         } else {
-          // Update customer if we're editing a customer
           const { data: updatedData, error } = await supabase
             .from('customers')
             .update(customerData)
@@ -233,7 +227,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           if (!updatedData) throw new Error("Failed to update customer");
           updatedCustomerId = updatedData.id;
 
-          // If createEvent is true, update or create event
           if (createEvent) {
             const eventData = {
               title,
@@ -277,7 +270,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           }
         }
       } else {
-        // Create new customer
         const { data: newData, error } = await supabase
           .from('customers')
           .insert([customerData])
@@ -288,7 +280,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         if (!newData) throw new Error("Failed to create customer");
         updatedCustomerId = newData.id;
 
-        // If createEvent is true, create a new event
         if (createEvent) {
           const eventData = {
             title,
@@ -315,19 +306,16 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         }
       }
 
-      // Handle file upload if a file is selected
       if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
-        // Upload to storage
         const { error: uploadError } = await supabase.storage
           .from('event_attachments')
           .upload(filePath, selectedFile);
 
         if (uploadError) throw uploadError;
 
-        // Create file records for both customer and event if applicable
         const fileData = {
           filename: selectedFile.name,
           file_path: filePath,
@@ -363,7 +351,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         await Promise.all(filePromises);
       }
 
-      // Invalidate queries
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       if (createEvent || isEventData) {
         await queryClient.invalidateQueries({ queryKey: ['events'] });
@@ -415,7 +402,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     const start = new Date(startDate);
     const end = new Date(endDate);
     
-    // Query existing events within the time range
     const { data: existingEvents, error } = await supabase
       .from('events')
       .select('*')
@@ -427,7 +413,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       return { available: false, error: error.message };
     }
 
-    // Check for conflicts
     const conflict = existingEvents?.find(event => {
       if (excludeEventId && event.id === excludeEventId) return false;
       
