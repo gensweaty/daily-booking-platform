@@ -308,6 +308,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
 
       // Only handle file upload if there's a new file selected
       if (selectedFile) {
+        console.log('New file selected, processing upload:', selectedFile.name);
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
