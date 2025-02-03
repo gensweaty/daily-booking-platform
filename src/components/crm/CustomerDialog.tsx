@@ -306,6 +306,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         }
       }
 
+      // Only handle file upload if there's a new file selected
       if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -351,13 +352,23 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         await Promise.all(filePromises);
       }
 
+      // Invalidate relevant queries to refresh the data
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       if (createEvent || isEventData) {
         await queryClient.invalidateQueries({ queryKey: ['events'] });
       }
-      await queryClient.invalidateQueries({ 
-        queryKey: ['customerFiles', updatedCustomerId || customerId, isEventData]
-      });
+      
+      // Important: Invalidate the files query for both the customer and event
+      if (updatedCustomerId) {
+        await queryClient.invalidateQueries({ 
+          queryKey: ['customerFiles', updatedCustomerId, false]
+        });
+      }
+      if (eventId) {
+        await queryClient.invalidateQueries({ 
+          queryKey: ['customerFiles', eventId, true]
+        });
+      }
 
       toast({
         title: "Success",
