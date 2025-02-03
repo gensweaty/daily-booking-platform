@@ -76,7 +76,7 @@ export const CustomerDialogFields = ({
       
       try {
         let files = [];
-        const uniqueFilePaths = new Set();
+        const uniqueFilePaths = new Map();
         
         if (isEventData) {
           // Get files from event_files
@@ -90,8 +90,7 @@ export const CustomerDialogFields = ({
           } else {
             eventFiles?.forEach(file => {
               if (!uniqueFilePaths.has(file.file_path)) {
-                uniqueFilePaths.add(file.file_path);
-                files.push(file);
+                uniqueFilePaths.set(file.file_path, file);
               }
             });
           }
@@ -107,13 +106,13 @@ export const CustomerDialogFields = ({
           } else {
             customerFiles?.forEach(file => {
               if (!uniqueFilePaths.has(file.file_path)) {
-                uniqueFilePaths.add(file.file_path);
-                files.push(file);
+                uniqueFilePaths.set(file.file_path, file);
               }
             });
           }
         }
         
+        files = Array.from(uniqueFilePaths.values());
         console.log('Found unique files:', files);
         return files;
       } catch (error) {

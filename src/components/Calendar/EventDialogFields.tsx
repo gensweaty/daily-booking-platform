@@ -104,6 +104,7 @@ export const EventDialogFields = ({
 
           if (!customerError && customer?.customer_files_new) {
             customer.customer_files_new.forEach(file => {
+              // Only add if file_path is not already in the map
               if (!uniqueFiles.has(file.file_path)) {
                 uniqueFiles.set(file.file_path, {
                   ...file,
@@ -117,7 +118,7 @@ export const EventDialogFields = ({
         }
 
         const files = Array.from(uniqueFiles.values());
-        console.log('Final combined files:', files);
+        console.log('Final combined unique files:', files);
         return files;
       } catch (error) {
         console.error('Error in file fetching:', error);
@@ -238,4 +239,4 @@ export const EventDialogFields = ({
       />
     </div>
   );
-};
+});
