@@ -1,4 +1,4 @@
-import { Calendar, ChartBar, ListTodo } from "lucide-react";
+import { Calendar, ChartBar, ListTodo, Users } from "lucide-react";
 
 const calendarViews = [
   {
@@ -43,6 +43,17 @@ export const FeatureSection = () => {
       reverse: true
     },
     {
+      icon: Users,
+      title: "Customer Relationship Management",
+      description: "Build and maintain strong client relationships",
+      image: "/lovable-uploads/CRM white.png",
+      benefits: [
+        "Centralized customer information management",
+        "File attachments and document organization",
+        "Payment tracking and status monitoring"
+      ]
+    },
+    {
       icon: ListTodo,
       title: "Task Management",
       description: "Stay organized and productive",
@@ -51,7 +62,8 @@ export const FeatureSection = () => {
         "Kanban board for visual task organization",
         "Task status tracking and progress monitoring",
         "Efficient task prioritization"
-      ]
+      ],
+      reverse: true
     }
   ];
 
