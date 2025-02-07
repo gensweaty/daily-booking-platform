@@ -31,7 +31,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// New component for auth routes that redirects to dashboard if logged in
+// Auth routes that redirect to dashboard if logged in
 const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
@@ -59,18 +59,38 @@ const AnimatedRoutes = () => {
         transition={{ duration: 0.3 }}
       >
         <Routes location={location}>
-          {/* Public routes - always accessible */}
+          {/* Public routes - no auth required */}
           <Route path="/" element={<Landing />} />
           <Route path="/contact" element={<Contact />} />
           
           {/* Auth routes - redirect to dashboard if logged in */}
-          <Route path="/login" element={<AuthRoute><AuthUI defaultTab="signin" /></AuthRoute>} />
-          <Route path="/signup" element={<AuthRoute><AuthUI defaultTab="signup" /></AuthRoute>} />
-          <Route path="/forgot-password" element={<AuthRoute><ForgotPassword /></AuthRoute>} />
-          <Route path="/reset-password" element={<AuthRoute><ResetPassword /></AuthRoute>} />
+          <Route path="/login" element={
+            <AuthRoute>
+              <AuthUI defaultTab="signin" />
+            </AuthRoute>
+          } />
+          <Route path="/signup" element={
+            <AuthRoute>
+              <AuthUI defaultTab="signup" />
+            </AuthRoute>
+          } />
+          <Route path="/forgot-password" element={
+            <AuthRoute>
+              <ForgotPassword />
+            </AuthRoute>
+          } />
+          <Route path="/reset-password" element={
+            <AuthRoute>
+              <ResetPassword />
+            </AuthRoute>
+          } />
           
           {/* Protected routes - require authentication */}
-          <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Index />
+            </ProtectedRoute>
+          } />
           
           {/* Fallback route */}
           <Route path="*" element={<Navigate to="/" replace />} />
