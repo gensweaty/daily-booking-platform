@@ -1,4 +1,5 @@
-import { Link, useNavigate } from "react-router-dom";
+
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -27,11 +28,6 @@ const productImages = [
 
 export const HeroSection = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const navigate = useNavigate();
-
-  const handleContactClick = () => {
-    navigate('/contact');
-  };
 
   return (
     <header className="relative overflow-hidden">
@@ -74,13 +70,11 @@ export const HeroSection = () => {
                   Sign Up Free
                 </Button>
               </Link>
-              <Button 
-                variant="outline" 
-                className="hover:scale-105 transition-transform"
-                onClick={handleContactClick}
-              >
-                Contact
-              </Button>
+              <Link to="/contact">
+                <Button variant="outline" className="hover:scale-105 transition-transform">
+                  Contact
+                </Button>
+              </Link>
             </div>
           </div>
 
@@ -96,13 +90,11 @@ export const HeroSection = () => {
                   Sign Up Free
                 </Button>
               </Link>
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={handleContactClick}
-              >
-                Contact
-              </Button>
+              <Link to="/contact" className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  Contact
+                </Button>
+              </Link>
             </div>
           )}
         </nav>
