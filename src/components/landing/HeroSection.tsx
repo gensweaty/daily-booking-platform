@@ -29,6 +29,10 @@ const productImages = [
 export const HeroSection = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const handleMenuClose = () => {
+    setIsMobileMenuOpen(false);
+  };
+
   return (
     <header className="relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary-light via-background to-accent-light opacity-10" />
@@ -57,17 +61,17 @@ export const HeroSection = () => {
 
             <div className="hidden md:flex items-center space-x-4">
               <ThemeToggle />
-              <Link to="/login" className="inline-block">
+              <Link to="/login">
                 <Button variant="outline" className="hover:scale-105 transition-transform">
                   Sign In
                 </Button>
               </Link>
-              <Link to="/signup" className="inline-block">
+              <Link to="/signup">
                 <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
                   Sign Up Free
                 </Button>
               </Link>
-              <Link to="/contact" className="inline-block">
+              <Link to="/contact">
                 <Button variant="outline" className="hover:scale-105 transition-transform">
                   Contact
                 </Button>
@@ -76,18 +80,18 @@ export const HeroSection = () => {
           </div>
 
           {isMobileMenuOpen && (
-            <div className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in">
-              <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="block">
+            <div className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50">
+              <Link to="/login" onClick={handleMenuClose}>
                 <Button variant="outline" className="w-full justify-start">
                   Sign In
                 </Button>
               </Link>
-              <Link to="/signup" onClick={() => setIsMobileMenuOpen(false)} className="block">
+              <Link to="/signup" onClick={handleMenuClose}>
                 <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90">
                   Sign Up Free
                 </Button>
               </Link>
-              <Link to="/contact" onClick={() => setIsMobileMenuOpen(false)} className="block">
+              <Link to="/contact" onClick={handleMenuClose}>
                 <Button variant="outline" className="w-full justify-start">
                   Contact
                 </Button>
@@ -105,7 +109,7 @@ export const HeroSection = () => {
               Streamline your workflow with our integrated booking calendar, task management, and analytics platform.
             </p>
             <div className="pt-4">
-              <Link to="/signup" className="inline-block">
+              <Link to="/signup">
                 <Button 
                   size="lg" 
                   className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
