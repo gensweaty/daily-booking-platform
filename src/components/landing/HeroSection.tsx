@@ -31,7 +31,6 @@ export const HeroSection = () => {
 
   return (
     <header className="relative overflow-hidden">
-      {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary-light via-background to-accent-light opacity-10" />
       
       <div className="container mx-auto px-4 py-8 relative">
@@ -58,29 +57,41 @@ export const HeroSection = () => {
 
             <div className="hidden md:flex items-center space-x-4">
               <ThemeToggle />
-              <Button variant="outline" className="hover:scale-105 transition-transform" asChild>
-                <Link to="/login">Sign In</Link>
-              </Button>
-              <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105" asChild>
-                <Link to="/signup">Sign Up Free</Link>
-              </Button>
-              <Button variant="outline" className="hover:scale-105 transition-transform" asChild>
-                <Link to="/contact">Contact</Link>
-              </Button>
+              <Link to="/login" className="inline-block">
+                <Button variant="outline" className="hover:scale-105 transition-transform">
+                  Sign In
+                </Button>
+              </Link>
+              <Link to="/signup" className="inline-block">
+                <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
+                  Sign Up Free
+                </Button>
+              </Link>
+              <Link to="/contact" className="inline-block">
+                <Button variant="outline" className="hover:scale-105 transition-transform">
+                  Contact
+                </Button>
+              </Link>
             </div>
           </div>
 
           {isMobileMenuOpen && (
             <div className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in">
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link to="/login" onClick={() => setIsMobileMenuOpen(false)}>Sign In</Link>
-              </Button>
-              <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90" asChild>
-                <Link to="/signup" onClick={() => setIsMobileMenuOpen(false)}>Sign Up Free</Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link to="/contact" onClick={() => setIsMobileMenuOpen(false)}>Contact</Link>
-              </Button>
+              <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  Sign In
+                </Button>
+              </Link>
+              <Link to="/signup" onClick={() => setIsMobileMenuOpen(false)} className="block">
+                <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90">
+                  Sign Up Free
+                </Button>
+              </Link>
+              <Link to="/contact" onClick={() => setIsMobileMenuOpen(false)} className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  Contact
+                </Button>
+              </Link>
             </div>
           )}
         </nav>
@@ -94,18 +105,17 @@ export const HeroSection = () => {
               Streamline your workflow with our integrated booking calendar, task management, and analytics platform.
             </p>
             <div className="pt-4">
-              <Button 
-                size="lg" 
-                className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
-                asChild
-              >
-                <Link to="/signup">
+              <Link to="/signup" className="inline-block">
+                <Button 
+                  size="lg" 
+                  className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
+                >
                   <span className="flex items-center gap-2">
                     Start Your Free Journey
                     <Sparkles className="w-5 h-5 animate-pulse" />
                   </span>
-                </Link>
-              </Button>
+                </Button>
+              </Link>
             </div>
           </div>
           <div className="animate-fade-in">

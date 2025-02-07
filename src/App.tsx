@@ -31,21 +31,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Auth routes - redirect to dashboard if already logged in
-const AuthRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-  
-  if (user) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
-  return <>{children}</>;
-};
-
 const AnimatedRoutes = () => {
   const location = useLocation();
 
@@ -59,30 +44,23 @@ const AnimatedRoutes = () => {
         transition={{ duration: 0.3 }}
       >
         <Routes location={location}>
-          {/* Public routes - no auth checks */}
+          {/* Public routes */}
           <Route path="/" element={<Landing />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/login" element={<AuthUI defaultTab="signin" />} />
+          <Route path="/signup" element={<AuthUI defaultTab="signup" />} />
           
-          {/* Auth routes - redirect to dashboard if logged in */}
-          <Route path="/login" element={
-            <AuthRoute>
-              <AuthUI defaultTab="signin" />
-            </AuthRoute>
-          } />
-          <Route path="/signup" element={
-            <AuthRoute>
-              <AuthUI defaultTab="signup" />  
-            </AuthRoute>
-          } />
-          
-          {/* Protected routes - require authentication */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Index />
-            </ProtectedRoute>
-          } />
+          {/* Protected routes */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Index />
+              </ProtectedRoute>
+            } 
+          />
           
           {/* Fallback route */}
           <Route path="*" element={<Navigate to="/" replace />} />
