@@ -1,4 +1,3 @@
-
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
@@ -30,8 +29,7 @@ export const HeroSection = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
-  const handleContactClick = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleContactClick = () => {
     navigate('/contact');
   };
 
