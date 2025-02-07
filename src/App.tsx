@@ -33,12 +33,15 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
   
   if (loading) {
     return <div>Loading...</div>;
   }
   
-  if (user && window.location.pathname !== '/reset-password') {
+  // Only redirect to dashboard if user is logged in AND trying to access auth-related pages
+  const authPages = ['/login', '/signup', '/forgot-password'];
+  if (user && authPages.includes(location.pathname)) {
     return <Navigate to="/dashboard" />;
   }
   
