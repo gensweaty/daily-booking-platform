@@ -70,7 +70,7 @@ export const HeroSection = () => {
                   Sign Up Free
                 </Button>
               </Link>
-              <Link to="/contact">
+              <Link to="/contact" onClick={(e) => e.preventDefault()}>
                 <Button variant="outline" className="hover:scale-105 transition-transform">
                   Contact
                 </Button>
