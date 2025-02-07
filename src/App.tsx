@@ -16,7 +16,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 const queryClient = new QueryClient();
 
-// Separate component for protected routes
+// Protected routes - require authentication
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
@@ -31,7 +31,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Auth routes that redirect to dashboard if logged in
+// Auth routes - redirect to dashboard if already logged in
 const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
@@ -59,9 +59,11 @@ const AnimatedRoutes = () => {
         transition={{ duration: 0.3 }}
       >
         <Routes location={location}>
-          {/* Public routes - no auth required */}
+          {/* Public routes - no auth checks */}
           <Route path="/" element={<Landing />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           
           {/* Auth routes - redirect to dashboard if logged in */}
           <Route path="/login" element={
@@ -71,17 +73,7 @@ const AnimatedRoutes = () => {
           } />
           <Route path="/signup" element={
             <AuthRoute>
-              <AuthUI defaultTab="signup" />
-            </AuthRoute>
-          } />
-          <Route path="/forgot-password" element={
-            <AuthRoute>
-              <ForgotPassword />
-            </AuthRoute>
-          } />
-          <Route path="/reset-password" element={
-            <AuthRoute>
-              <ResetPassword />
+              <AuthUI defaultTab="signup" />  
             </AuthRoute>
           } />
           
