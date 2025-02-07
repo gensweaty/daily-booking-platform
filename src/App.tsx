@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -67,11 +68,7 @@ const AnimatedRoutes = () => {
           />
           <Route 
             path="/contact" 
-            element={
-              <PublicRoute>
-                <Contact />
-              </PublicRoute>
-            } 
+            element={<Contact />} 
           />
           <Route 
             path="/login" 
