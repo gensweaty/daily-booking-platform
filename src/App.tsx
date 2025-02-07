@@ -69,6 +69,7 @@ const AnimatedRoutes = () => {
               </PublicRoute>
             } 
           />
+          {/* Contact route without any auth wrapper */}
           <Route path="/contact" element={<Contact />} />
           <Route 
             path="/login" 
