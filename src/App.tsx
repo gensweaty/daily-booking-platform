@@ -71,7 +71,7 @@ const AnimatedRoutes = () => {
           />
           <Route 
             path="/contact" 
-            element={<Contact />} 
+            element={<Contact />}
           />
           <Route 
             path="/login" 
