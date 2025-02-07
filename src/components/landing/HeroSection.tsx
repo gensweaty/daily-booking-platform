@@ -58,57 +58,29 @@ export const HeroSection = () => {
 
             <div className="hidden md:flex items-center space-x-4">
               <ThemeToggle />
-              <Link to="/login">
-                <Button 
-                  variant="outline" 
-                  className="hover:scale-105 transition-transform"
-                >
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/signup">
-                <Button 
-                  className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
-                >
-                  Sign Up Free
-                </Button>
-              </Link>
-              <Link to="/contact">
-                <Button 
-                  variant="outline" 
-                  className="hover:scale-105 transition-transform"
-                >
-                  Contact
-                </Button>
-              </Link>
+              <Button variant="outline" className="hover:scale-105 transition-transform" asChild>
+                <Link to="/login">Sign In</Link>
+              </Button>
+              <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105" asChild>
+                <Link to="/signup">Sign Up Free</Link>
+              </Button>
+              <Button variant="outline" className="hover:scale-105 transition-transform" asChild>
+                <Link to="/contact">Contact</Link>
+              </Button>
             </div>
           </div>
 
           {isMobileMenuOpen && (
             <div className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in">
-              <Link to="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                >
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/signup" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button 
-                  className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90"
-                >
-                  Sign Up Free
-                </Button>
-              </Link>
-              <Link to="/contact" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                >
-                  Contact
-                </Button>
-              </Link>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/login" onClick={() => setIsMobileMenuOpen(false)}>Sign In</Link>
+              </Button>
+              <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90" asChild>
+                <Link to="/signup" onClick={() => setIsMobileMenuOpen(false)}>Sign Up Free</Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/contact" onClick={() => setIsMobileMenuOpen(false)}>Contact</Link>
+              </Button>
             </div>
           )}
         </nav>
@@ -122,17 +94,18 @@ export const HeroSection = () => {
               Streamline your workflow with our integrated booking calendar, task management, and analytics platform.
             </p>
             <div className="pt-4">
-              <Link to="/signup">
-                <Button 
-                  size="lg" 
-                  className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
-                >
+              <Button 
+                size="lg" 
+                className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
+                asChild
+              >
+                <Link to="/signup">
                   <span className="flex items-center gap-2">
                     Start Your Free Journey
                     <Sparkles className="w-5 h-5 animate-pulse" />
                   </span>
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </div>
           <div className="animate-fade-in">
