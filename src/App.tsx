@@ -69,10 +69,7 @@ const AnimatedRoutes = () => {
               </PublicRoute>
             } 
           />
-          <Route 
-            path="/contact" 
-            element={<Contact />}
-          />
+          <Route path="/contact" element={<Contact />} />
           <Route 
             path="/login" 
             element={
