@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
 import Landing from "./pages/Landing";
@@ -12,11 +12,11 @@ import Contact from "./pages/Contact";
 import { AuthUI } from "./components/AuthUI";
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
-import { useAuth } from "./contexts/AuthContext";
 import { AnimatePresence, motion } from "framer-motion";
 
 const queryClient = new QueryClient();
 
+// Separate component for protected routes
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
@@ -25,24 +25,22 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
   
   return <>{children}</>;
 };
 
-const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+// New component for auth routes that redirects to dashboard if logged in
+const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  const location = useLocation();
   
   if (loading) {
     return <div>Loading...</div>;
   }
   
-  // Only redirect to dashboard if user is logged in AND trying to access auth-related pages
-  const authPages = ['/login', '/signup', '/forgot-password'];
-  if (user && authPages.includes(location.pathname)) {
-    return <Navigate to="/dashboard" />;
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
   }
   
   return <>{children}</>;
@@ -61,56 +59,21 @@ const AnimatedRoutes = () => {
         transition={{ duration: 0.3 }}
       >
         <Routes location={location}>
-          <Route 
-            path="/" 
-            element={
-              <PublicRoute>
-                <Landing />
-              </PublicRoute>
-            } 
-          />
+          {/* Public routes - always accessible */}
+          <Route path="/" element={<Landing />} />
           <Route path="/contact" element={<Contact />} />
-          <Route 
-            path="/login" 
-            element={
-              <PublicRoute>
-                <AuthUI defaultTab="signin" />
-              </PublicRoute>
-            } 
-          />
-          <Route 
-            path="/signup" 
-            element={
-              <PublicRoute>
-                <AuthUI defaultTab="signup" />
-              </PublicRoute>
-            } 
-          />
-          <Route 
-            path="/forgot-password" 
-            element={
-              <PublicRoute>
-                <ForgotPassword />
-              </PublicRoute>
-            } 
-          />
-          <Route 
-            path="/reset-password" 
-            element={
-              <PublicRoute>
-                <ResetPassword />
-              </PublicRoute>
-            } 
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" />} />
+          
+          {/* Auth routes - redirect to dashboard if logged in */}
+          <Route path="/login" element={<AuthRoute><AuthUI defaultTab="signin" /></AuthRoute>} />
+          <Route path="/signup" element={<AuthRoute><AuthUI defaultTab="signup" /></AuthRoute>} />
+          <Route path="/forgot-password" element={<AuthRoute><ForgotPassword /></AuthRoute>} />
+          <Route path="/reset-password" element={<AuthRoute><ResetPassword /></AuthRoute>} />
+          
+          {/* Protected routes - require authentication */}
+          <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+          
+          {/* Fallback route */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </motion.div>
     </AnimatePresence>

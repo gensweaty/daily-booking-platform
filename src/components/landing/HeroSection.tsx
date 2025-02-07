@@ -1,5 +1,5 @@
 
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -28,12 +28,6 @@ const productImages = [
 
 export const HeroSection = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const navigate = useNavigate();
-
-  const handleNavigation = (path: string) => {
-    setIsMobileMenuOpen(false);
-    navigate(path);
-  };
 
   return (
     <header className="relative overflow-hidden">
@@ -43,9 +37,9 @@ export const HeroSection = () => {
       <div className="container mx-auto px-4 py-8 relative">
         <nav className="relative">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Taskify Minder
-            </h1>
+            </Link>
             
             <div className="flex items-center gap-4 md:hidden">
               <ThemeToggle />
@@ -64,51 +58,57 @@ export const HeroSection = () => {
 
             <div className="hidden md:flex items-center space-x-4">
               <ThemeToggle />
-              <Button 
-                variant="outline" 
-                className="hover:scale-105 transition-transform"
-                onClick={() => handleNavigation('/login')}
-              >
-                Sign In
-              </Button>
-              <Button 
-                className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
-                onClick={() => handleNavigation('/signup')}
-              >
-                Sign Up Free
-              </Button>
-              <Button 
-                variant="outline" 
-                className="hover:scale-105 transition-transform"
-                onClick={() => handleNavigation('/contact')}
-              >
-                Contact
-              </Button>
+              <Link to="/login">
+                <Button 
+                  variant="outline" 
+                  className="hover:scale-105 transition-transform"
+                >
+                  Sign In
+                </Button>
+              </Link>
+              <Link to="/signup">
+                <Button 
+                  className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
+                >
+                  Sign Up Free
+                </Button>
+              </Link>
+              <Link to="/contact">
+                <Button 
+                  variant="outline" 
+                  className="hover:scale-105 transition-transform"
+                >
+                  Contact
+                </Button>
+              </Link>
             </div>
           </div>
 
           {isMobileMenuOpen && (
             <div className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in">
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => handleNavigation('/login')}
-              >
-                Sign In
-              </Button>
-              <Button 
-                className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90"
-                onClick={() => handleNavigation('/signup')}
-              >
-                Sign Up Free
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => handleNavigation('/contact')}
-              >
-                Contact
-              </Button>
+              <Link to="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                >
+                  Sign In
+                </Button>
+              </Link>
+              <Link to="/signup" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button 
+                  className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                >
+                  Sign Up Free
+                </Button>
+              </Link>
+              <Link to="/contact" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                >
+                  Contact
+                </Button>
+              </Link>
             </div>
           )}
         </nav>
@@ -122,16 +122,17 @@ export const HeroSection = () => {
               Streamline your workflow with our integrated booking calendar, task management, and analytics platform.
             </p>
             <div className="pt-4">
-              <Button 
-                size="lg" 
-                className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
-                onClick={() => handleNavigation('/signup')}
-              >
-                <span className="flex items-center gap-2">
-                  Start Your Free Journey
-                  <Sparkles className="w-5 h-5 animate-pulse" />
-                </span>
-              </Button>
+              <Link to="/signup">
+                <Button 
+                  size="lg" 
+                  className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
+                >
+                  <span className="flex items-center gap-2">
+                    Start Your Free Journey
+                    <Sparkles className="w-5 h-5 animate-pulse" />
+                  </span>
+                </Button>
+              </Link>
             </div>
           </div>
           <div className="animate-fade-in">
