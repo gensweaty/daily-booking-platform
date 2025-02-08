@@ -102,8 +102,7 @@ const Contact = () => {
                     <Phone className="w-5 h-5 text-primary mt-1" />
                     <div>
                       <h4 className="font-medium">Phone</h4>
-                      <p className="text-sm text-muted-foreground">+1 (555) 123-4567</p>
-                      <p className="text-sm text-muted-foreground">Mon-Fri, 9:00 AM - 6:00 PM EST</p>
+                      <p className="text-sm text-muted-foreground">+995 598 57 47 42</p>
                     </div>
                   </div>
                 </Card>
@@ -114,9 +113,8 @@ const Contact = () => {
                     <div>
                       <h4 className="font-medium">Address</h4>
                       <p className="text-sm text-muted-foreground">
-                        123 Innovation Drive<br />
-                        Suite 200<br />
-                        San Francisco, CA 94105
+                        Davit Agmashenebeli Avenue 174<br />
+                        Tbilisi, Georgia
                       </p>
                     </div>
                   </div>
@@ -128,7 +126,7 @@ const Contact = () => {
                     <div>
                       <h4 className="font-medium">Business Hours</h4>
                       <p className="text-sm text-muted-foreground">
-                        Monday - Friday: 9:00 AM - 6:00 PM EST<br />
+                        Monday - Friday: 10:00 AM - 7:00 PM<br />
                         Saturday - Sunday: Closed
                       </p>
                     </div>
