@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,7 +7,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Clock } from "lucide-react";
+import { Card } from "@/components/ui/card";
 
 const Contact = () => {
   const { toast } = useToast();
@@ -48,7 +50,7 @@ const Contact = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="container mx-auto px-4 py-8">
-        <nav className="flex justify-between items-center mb-16">
+        <nav className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-4">
             <Button 
               variant="ghost" 
@@ -75,52 +77,118 @@ const Contact = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold mb-8 text-center">Contact Us</h2>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium mb-2">
-                Name
-              </label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl font-bold mb-8 text-center">Get in Touch</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Contact Information */}
+            <div className="space-y-6">
+              <h3 className="text-xl font-semibold mb-4">Contact Information</h3>
+              
+              <div className="grid gap-6">
+                <Card className="p-4">
+                  <div className="flex items-start space-x-3">
+                    <Mail className="w-5 h-5 text-primary mt-1" />
+                    <div>
+                      <h4 className="font-medium">Email</h4>
+                      <p className="text-sm text-muted-foreground">support@taskifyminder.com</p>
+                      <p className="text-sm text-muted-foreground">sales@taskifyminder.com</p>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <div className="flex items-start space-x-3">
+                    <Phone className="w-5 h-5 text-primary mt-1" />
+                    <div>
+                      <h4 className="font-medium">Phone</h4>
+                      <p className="text-sm text-muted-foreground">+1 (555) 123-4567</p>
+                      <p className="text-sm text-muted-foreground">Mon-Fri, 9:00 AM - 6:00 PM EST</p>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <div className="flex items-start space-x-3">
+                    <MapPin className="w-5 h-5 text-primary mt-1" />
+                    <div>
+                      <h4 className="font-medium">Address</h4>
+                      <p className="text-sm text-muted-foreground">
+                        123 Innovation Drive<br />
+                        Suite 200<br />
+                        San Francisco, CA 94105
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <div className="flex items-start space-x-3">
+                    <Clock className="w-5 h-5 text-primary mt-1" />
+                    <div>
+                      <h4 className="font-medium">Business Hours</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Monday - Friday: 9:00 AM - 6:00 PM EST<br />
+                        Saturday - Sunday: Closed
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              </div>
             </div>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium mb-2">
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-              />
+
+            {/* Contact Form */}
+            <div className="bg-card rounded-lg p-6 shadow-sm">
+              <h3 className="text-xl font-semibold mb-4">Send us a Message</h3>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium mb-2">
+                    Name
+                  </label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                    placeholder="Your name"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium mb-2">
+                    Email
+                  </label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                    placeholder="your.email@example.com"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="message" className="block text-sm font-medium mb-2">
+                    Message
+                  </label>
+                  <Textarea
+                    id="message"
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                    required
+                    placeholder="How can we help you?"
+                    className="min-h-[120px]"
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full bg-primary hover:bg-primary/90"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Sending..." : "Send Message"}
+                </Button>
+              </form>
             </div>
-            <div>
-              <label htmlFor="message" className="block text-sm font-medium mb-2">
-                Message
-              </label>
-              <Textarea
-                id="message"
-                value={formData.message}
-                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                required
-                className="min-h-[150px]"
-              />
-            </div>
-            <Button 
-              type="submit" 
-              className="w-full bg-primary hover:bg-primary/90"
-              disabled={isLoading}
-            >
-              {isLoading ? "Sending..." : "Send Message"}
-            </Button>
-          </form>
+          </div>
         </div>
       </main>
     </div>
