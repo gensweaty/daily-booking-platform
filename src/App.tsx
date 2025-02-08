@@ -9,6 +9,7 @@ import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
 import Landing from "./pages/Landing";
 import Contact from "./pages/Contact";
+import Legal from "./pages/Legal";
 import { AuthUI } from "./components/AuthUI";
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
@@ -58,6 +59,7 @@ const AnimatedRoutes = () => {
           {/* Public routes - accessible to everyone */}
           <Route path="/" element={<Landing />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/legal" element={<Legal />} />
           
           {/* Auth routes - redirect to dashboard if logged in */}
           <Route path="/login" element={

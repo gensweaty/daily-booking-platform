@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { Facebook, Twitter, Instagram, Linkedin, Github } from "lucide-react";
 import { motion } from "framer-motion";
@@ -15,8 +16,7 @@ export const FooterSection = () => {
     { label: "Sign In", href: "/login" },
     { label: "Sign Up", href: "/signup" },
     { label: "Contact", href: "/contact" },
-    { label: "Terms", href: "#" },
-    { label: "Privacy", href: "#" },
+    { label: "Terms & Privacy", href: "/legal" },
   ];
 
   return (
