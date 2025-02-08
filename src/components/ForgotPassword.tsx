@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ export const ForgotPassword = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://daily-booking-platform.lovable.app/reset-password',
+        redirectTo: `${window.location.origin}/reset-password`,
       });
 
       if (error) {
@@ -35,7 +36,6 @@ export const ForgotPassword = () => {
       setEmail("");
     } catch (error: any) {
       console.error("Password reset request error:", error);
-      // Don't reveal if email exists or not for security
       toast({
         title: "Reset Link Sent",
         description: "If an account exists with this email, you will receive a password reset link.",

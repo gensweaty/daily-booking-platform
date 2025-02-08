@@ -31,8 +31,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Public routes that redirect to dashboard if logged in
-const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+// Auth routes that redirect to dashboard if logged in
+const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   
   if (user) {
@@ -55,25 +55,33 @@ const AnimatedRoutes = () => {
         transition={{ duration: 0.3 }}
       >
         <Routes location={location}>
-          {/* Public routes */}
+          {/* Public routes - accessible to everyone */}
           <Route path="/" element={<Landing />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
           
-          {/* Authentication routes */}
+          {/* Auth routes - redirect to dashboard if logged in */}
           <Route path="/login" element={
-            <PublicRoute>
+            <AuthRoute>
               <AuthUI defaultTab="signin" />
-            </PublicRoute>
+            </AuthRoute>
           } />
           <Route path="/signup" element={
-            <PublicRoute>
+            <AuthRoute>
               <AuthUI defaultTab="signup" />
-            </PublicRoute>
+            </AuthRoute>
+          } />
+          <Route path="/forgot-password" element={
+            <AuthRoute>
+              <ForgotPassword />
+            </AuthRoute>
+          } />
+          <Route path="/reset-password" element={
+            <AuthRoute>
+              <ResetPassword />
+            </AuthRoute>
           } />
           
-          {/* Protected routes */}
+          {/* Protected routes - require authentication */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Index />
