@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -27,47 +28,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
 
   useEffect(() => {
-    let mounted = true;
-
     const initSession = async () => {
       try {
-        console.log('Initializing session...');
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Session initialization error:', error);
+          console.error('Error getting session:', error);
           throw error;
         }
 
-        if (mounted) {
-          console.log('Initial session:', initialSession);
-          if (initialSession) {
-            setSession(initialSession);
-            setUser(initialSession.user);
-            
-            if (location.pathname === '/login' || location.pathname === '/signup') {
-              navigate('/dashboard');
-            }
-          } else if (location.pathname !== '/login' && location.pathname !== '/signup' && location.pathname !== '/') {
+        if (currentSession) {
+          console.log('Session found:', currentSession);
+          setSession(currentSession);
+          setUser(currentSession.user);
+          
+          // Only redirect if we're on an auth route
+          if (location.pathname === '/login' || location.pathname === '/signup') {
+            navigate('/dashboard');
+          }
+        } else {
+          console.log('No session found');
+          // Only redirect to login if we're trying to access protected routes
+          if (location.pathname.startsWith('/dashboard')) {
             navigate('/login');
           }
         }
       } catch (error: any) {
         console.error('Session initialization error:', error);
-        if (mounted) {
-          toast({
-            title: "Error",
-            description: "Failed to initialize session",
-            variant: "destructive",
-          });
-          if (location.pathname !== '/login' && location.pathname !== '/signup' && location.pathname !== '/') {
-            navigate('/login');
-          }
-        }
+        toast({
+          title: "Error",
+          description: "Failed to initialize session",
+          variant: "destructive",
+        });
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
@@ -76,43 +70,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event, newSession);
       
-      if (mounted) {
-        if (event === 'SIGNED_IN') {
-          setSession(newSession);
-          setUser(newSession?.user ?? null);
-          navigate('/dashboard');
-        } else if (event === 'SIGNED_OUT') {
-          setSession(null);
-          setUser(null);
+      if (event === 'SIGNED_IN') {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        navigate('/dashboard');
+      } else if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        // Only navigate to login if we're not already on a public route
+        if (!location.pathname.match(/^(\/$|\/contact$)/)) {
           navigate('/login');
-        } else if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-          setSession(newSession);
-          setUser(newSession?.user ?? null);
         }
-        
-        setLoading(false);
+      } else if (event === 'TOKEN_REFRESHED') {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
       }
     });
 
     return () => {
-      mounted = false;
       subscription.unsubscribe();
     };
   }, [navigate, toast, location.pathname]);
 
   const signOut = async () => {
     try {
-      setLoading(true);
       console.log('Signing out...');
-      
-      // First clear local storage
-      localStorage.clear();
-      
-      // Then sign out from Supabase
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      console.log('Successfully signed out');
+      localStorage.removeItem('app-auth-token');
       setUser(null);
       setSession(null);
       
@@ -129,8 +115,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: "Failed to sign out properly. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 

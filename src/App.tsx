@@ -31,7 +31,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Auth routes that redirect to dashboard if logged in
+// Auth routes - redirect to dashboard if logged in
 const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   
