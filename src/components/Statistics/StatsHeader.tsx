@@ -18,7 +18,7 @@ export const StatsHeader = ({ dateRange, onDateChange, onExport }: StatsHeaderPr
       />
       <Button
         variant="outline"
-        className="h-10 w-10 flex items-center justify-center"
+        className="h-10 w-10 flex items-center justify-center -mt-1"
         onClick={onExport}
         title="Export to Excel"
       >
@@ -27,4 +27,3 @@ export const StatsHeader = ({ dateRange, onDateChange, onExport }: StatsHeaderPr
     </div>
   );
 };
-
