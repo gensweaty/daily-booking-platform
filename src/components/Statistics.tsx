@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -132,8 +131,29 @@ export const Statistics = () => {
       return;
     }
 
+    // Create statistics summary data
+    const statsData = [{
+      'Category': 'Tasks Statistics',
+      'Total': taskStats?.total || 0,
+      'Details': `Completed: ${taskStats?.completed || 0}`,
+      'Additional Info': `In Progress: ${taskStats?.inProgress || 0}, Todo: ${taskStats?.todo || 0}`,
+      'Value': '-'
+    }, {
+      'Category': 'Events Statistics',
+      'Total': eventStats?.total || 0,
+      'Details': `Partly Paid: ${eventStats?.partlyPaid || 0}`,
+      'Additional Info': `Fully Paid: ${eventStats?.fullyPaid || 0}`,
+      'Value': '-'
+    }, {
+      'Category': 'Financial Summary',
+      'Total': 'Total Income',
+      'Details': `₾${eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
+      'Additional Info': 'From all events',
+      'Value': eventStats?.totalIncome || 0
+    }];
+
     // Transform events data for Excel
-    const excelData = eventStats.events.map(event => ({
+    const eventsData = eventStats.events.map(event => ({
       'Full Name': `${event.title || ''} ${event.user_surname || ''}`.trim(),
       'Phone Number': event.user_number || '',
       'Social Link/Email': event.social_network_link || '',
@@ -145,12 +165,28 @@ export const Statistics = () => {
       'Comment': event.event_notes || '',
     }));
 
-    // Create workbook and worksheet
+    // Create workbook
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(excelData);
 
-    // Set column widths
-    const colWidths = [
+    // Create and add statistics worksheet
+    const wsStats = XLSX.utils.json_to_sheet(statsData);
+    XLSX.utils.book_append_sheet(wb, wsStats, 'Summary Statistics');
+
+    // Set statistics column widths
+    wsStats['!cols'] = [
+      { wch: 20 },  // Category
+      { wch: 15 },  // Total
+      { wch: 30 },  // Details
+      { wch: 40 },  // Additional Info
+      { wch: 15 },  // Value
+    ];
+
+    // Create and add events worksheet
+    const wsEvents = XLSX.utils.json_to_sheet(eventsData);
+    XLSX.utils.book_append_sheet(wb, wsEvents, 'Events Data');
+
+    // Set events column widths
+    wsEvents['!cols'] = [
       { wch: 20 },  // Full Name
       { wch: 15 },  // Phone Number
       { wch: 30 },  // Social Link/Email
@@ -160,10 +196,6 @@ export const Statistics = () => {
       { wch: 20 },  // Time
       { wch: 40 },  // Comment
     ];
-    ws['!cols'] = colWidths;
-
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Statistics');
 
     // Generate Excel file
     const dateStr = format(new Date(), 'dd-MM-yyyy');
@@ -204,7 +236,7 @@ export const Statistics = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 mb-4">
         <DateRangeSelect 
           selectedDate={dateRange}
           onDateChange={(start, end) => setDateRange({ start, end: end || start })}
