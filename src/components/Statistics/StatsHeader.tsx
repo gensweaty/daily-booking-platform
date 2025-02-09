@@ -17,10 +17,11 @@ export const StatsHeader = ({ dateRange, onDateChange, onExport }: StatsHeaderPr
         onDateChange={(start, end) => onDateChange(start, end || start)}
       />
       <Button
-        variant="outline"
-        className="h-10 w-10 flex items-center justify-center -mt-4"
+        variant="ghost"
+        size="icon"
         onClick={onExport}
-        title="Export to Excel"
+        className="h-9 w-9"
+        title="Download as Excel"
       >
         <FileSpreadsheet className="h-5 w-5" />
       </Button>
