@@ -18,11 +18,11 @@ export const StatsHeader = ({ dateRange, onDateChange, onExport }: StatsHeaderPr
       />
       <Button
         variant="outline"
-        className="h-10 w-10 flex items-center justify-center -mt-2"
+        className="h-10 w-10 flex items-center justify-center -mt-3"
         onClick={onExport}
         title="Export to Excel"
       >
-        <FileSpreadsheet className="h-6 w-6" />
+        <FileSpreadsheet className="h-8 w-8" />
       </Button>
     </div>
   );
