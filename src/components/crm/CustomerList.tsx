@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -460,7 +461,7 @@ export const CustomerList = () => {
     <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
-          <h2 className="text-2xl font-bold md:mb-0">Customers</h2>
+          <h2 className="text-2xl font-bold md:mb-0 -mt-4">Customers</h2>
           <div className="w-full md:w-auto md:min-w-[200px]">
             <DateRangeSelect 
               selectedDate={dateRange}
@@ -657,3 +658,6 @@ export const CustomerList = () => {
     </div>
   );
 };
+
+export default CustomerList;
+
