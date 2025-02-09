@@ -11,7 +11,7 @@ interface StatsHeaderProps {
 
 export const StatsHeader = ({ dateRange, onDateChange, onExport }: StatsHeaderProps) => {
   return (
-    <div className="flex items-center gap-2 mb-4">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
       <DateRangeSelect 
         selectedDate={dateRange}
         onDateChange={(start, end) => onDateChange(start, end || start)}
@@ -20,7 +20,7 @@ export const StatsHeader = ({ dateRange, onDateChange, onExport }: StatsHeaderPr
         variant="ghost"
         size="icon"
         onClick={onExport}
-        className="h-9 w-9 -mt-4"
+        className="h-9 w-9 sm:-mt-4"
         title="Download as Excel"
       >
         <FileSpreadsheet className="h-5 w-5" />
