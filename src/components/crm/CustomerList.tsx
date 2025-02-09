@@ -477,7 +477,7 @@ export const CustomerList = () => {
             variant="ghost"
             size="icon"
             onClick={handleExcelDownload}
-            className="h-9 w-9"
+            className="h-9 w-9 -mt-4"
             title="Download as Excel"
           >
             <FileSpreadsheet className="h-5 w-5" />
