@@ -11,7 +11,7 @@ interface StatsHeaderProps {
 
 export const StatsHeader = ({ dateRange, onDateChange, onExport }: StatsHeaderProps) => {
   return (
-    <div className="flex items-center gap-2 mb-2 -mt-10">
+    <div className="flex items-center gap-2 mb-4">
       <DateRangeSelect 
         selectedDate={dateRange}
         onDateChange={(start, end) => onDateChange(start, end || start)}
