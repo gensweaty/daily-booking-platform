@@ -22,7 +22,7 @@ export const StatsHeader = ({ dateRange, onDateChange, onExport }: StatsHeaderPr
         onClick={onExport}
         title="Export to Excel"
       >
-        <FileSpreadsheet className="h-10 w-10" />
+        <FileSpreadsheet className="h-5 w-5" />
       </Button>
     </div>
   );
