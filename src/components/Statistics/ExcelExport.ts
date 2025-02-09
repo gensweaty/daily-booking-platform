@@ -36,21 +36,23 @@ export const useExcelExport = () => {
     const statsData = [{
       'Category': 'Tasks Statistics',
       'Total': data.taskStats?.total || 0,
-      'Details': `Completed: ${data.taskStats?.completed || 0}`,
-      'Additional Info': `In Progress: ${data.taskStats?.inProgress || 0}, Todo: ${data.taskStats?.todo || 0}`,
-      'Value': '-'
+      'Details': `Completed tasks: ${data.taskStats?.completed || 0}`,
+      'Additional Info': `Tasks in progress: ${data.taskStats?.inProgress || 0}, Tasks todo: ${data.taskStats?.todo || 0}`,
     }, {
       'Category': 'Events Statistics',
       'Total': data.eventStats?.total || 0,
       'Details': `Partly Paid: ${data.eventStats?.partlyPaid || 0}`,
       'Additional Info': `Fully Paid: ${data.eventStats?.fullyPaid || 0}`,
-      'Value': '-'
+    }, {
+      'Category': '',
+      'Total': '',
+      'Details': '',
+      'Additional Info': '',
     }, {
       'Category': 'Financial Summary',
       'Total': 'Total Income',
       'Details': `₾${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
       'Additional Info': 'From all events',
-      'Value': data.eventStats?.totalIncome || 0
     }];
 
     // Transform events data for Excel
@@ -79,7 +81,6 @@ export const useExcelExport = () => {
       { wch: 15 },  // Total
       { wch: 30 },  // Details
       { wch: 40 },  // Additional Info
-      { wch: 15 },  // Value
     ];
 
     // Create and add events worksheet
