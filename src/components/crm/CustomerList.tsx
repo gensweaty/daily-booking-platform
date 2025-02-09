@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -478,7 +477,7 @@ export const CustomerList = () => {
             variant="ghost"
             size="icon"
             onClick={handleExcelDownload}
-            className="h-9 w-9 -mt-4"
+            className="h-9 w-9 sm:-mt-4"
             title="Download as Excel"
           >
             <FileSpreadsheet className="h-5 w-5" />
@@ -660,4 +659,3 @@ export const CustomerList = () => {
 };
 
 export default CustomerList;
-

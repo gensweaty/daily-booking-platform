@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -23,13 +24,13 @@ export const DateRangeSelect = ({ selectedDate, onDateChange }: DateRangeSelectP
   });
 
   return (
-    <div className="flex items-center gap-2 mb-4">
+    <div className="flex items-center gap-2 mb-4 w-full sm:w-auto">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             className={cn(
-              "w-[280px] justify-start text-left font-normal",
+              "w-full sm:w-[280px] justify-start text-left font-normal",
               !date && "text-muted-foreground"
             )}
           >
