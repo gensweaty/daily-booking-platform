@@ -41,8 +41,8 @@ export const useExcelExport = () => {
     }, {
       'Category': 'Events Statistics',
       'Total': data.eventStats?.total || 0,
-      'Details': `Partly Paid: ${data.eventStats?.partlyPaid || 0}`,
-      'Additional Info': `Fully Paid: ${data.eventStats?.fullyPaid || 0}`,
+      'Details': `Partly paid events: ${data.eventStats?.partlyPaid || 0}`,
+      'Additional Info': `Fully paid events: ${data.eventStats?.fullyPaid || 0}`,
     }, {
       'Category': '',
       'Total': '',
@@ -111,3 +111,4 @@ export const useExcelExport = () => {
 
   return { exportToExcel };
 };
+

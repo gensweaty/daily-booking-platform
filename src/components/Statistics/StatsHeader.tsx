@@ -27,3 +27,4 @@ export const StatsHeader = ({ dateRange, onDateChange, onExport }: StatsHeaderPr
     </div>
   );
 };
+
