@@ -3,13 +3,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Trash2, Copy } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet } from "lucide-react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { format, parseISO, startOfMonth, endOfMonth, endOfDay } from "date-fns";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { SearchCommand } from "./SearchCommand";
 import { DateRangeSelect } from "@/components/Statistics/DateRangeSelect";
+import * as XLSX from 'xlsx';
 import {
   Table,
   TableBody,
@@ -405,6 +406,37 @@ export const CustomerList = () => {
     setCurrentPage(1);
   };
 
+  const handleExcelDownload = () => {
+    // Transform the data for Excel
+    const excelData = filteredData.map(customer => ({
+      'Full Name': customer.title || '',
+      'Phone Number': customer.user_number || '',
+      'Social Link/Email': customer.social_network_link || '',
+      'Payment Status': customer.payment_status || '',
+      'Payment Amount': customer.payment_amount || '',
+      'Date': customer.start_date ? format(new Date(customer.start_date), 'dd.MM.yyyy') : '',
+      'Time': customer.start_date && customer.end_date ? 
+        formatTimeRange(customer.start_date, customer.end_date) : '',
+      'Comment': customer.event_notes || ''
+    }));
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(excelData);
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Customers');
+
+    // Generate Excel file
+    const currentDate = format(new Date(), 'dd-MM-yyyy');
+    XLSX.writeFile(wb, `customers-${currentDate}.xlsx`);
+
+    toast({
+      title: "Success",
+      description: "Excel file has been downloaded",
+    });
+  };
+
   if (isLoadingCustomers || isLoadingEvents) {
     return <div>Loading...</div>;
   }
@@ -426,6 +458,15 @@ export const CustomerList = () => {
               setFilteredData={setFilteredData}
             />
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleExcelDownload}
+            className="h-9 w-9"
+            title="Download as Excel"
+          >
+            <FileSpreadsheet className="h-5 w-5" />
+          </Button>
         </div>
         <Button onClick={openCreateDialog} className="flex items-center gap-2 whitespace-nowrap">
           <PlusCircle className="w-4 h-4" />
