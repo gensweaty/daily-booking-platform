@@ -417,12 +417,27 @@ export const CustomerList = () => {
       'Date': customer.start_date ? format(new Date(customer.start_date), 'dd.MM.yyyy') : '',
       'Time': customer.start_date && customer.end_date ? 
         formatTimeRange(customer.start_date, customer.end_date) : '',
-      'Comment': customer.event_notes || ''
+      'Comment': customer.event_notes || '',
+      'Event': customer.id.startsWith('event-') ? 'Yes' : 'No'
     }));
 
     // Create workbook and worksheet
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(excelData);
+
+    // Set column widths
+    const colWidths = [
+      { wch: 20 },  // Full Name
+      { wch: 15 },  // Phone Number
+      { wch: 30 },  // Social Link/Email
+      { wch: 15 },  // Payment Status
+      { wch: 15 },  // Payment Amount
+      { wch: 12 },  // Date
+      { wch: 20 },  // Time
+      { wch: 40 },  // Comment
+      { wch: 8 }    // Event
+    ];
+    ws['!cols'] = colWidths;
 
     // Add worksheet to workbook
     XLSX.utils.book_append_sheet(wb, ws, 'Customers');
