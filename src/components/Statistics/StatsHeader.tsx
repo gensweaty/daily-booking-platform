@@ -20,7 +20,7 @@ export const StatsHeader = ({ dateRange, onDateChange, onExport }: StatsHeaderPr
         variant="ghost"
         size="icon"
         onClick={onExport}
-        className="h-9 w-9"
+        className="h-9 w-9 -mt-4"
         title="Download as Excel"
       >
         <FileSpreadsheet className="h-5 w-5" />
