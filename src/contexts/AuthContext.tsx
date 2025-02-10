@@ -27,6 +27,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const handleTokenError = async () => {
+    console.log('Handling token error - clearing session');
+    // Clear the session state
+    setSession(null);
+    setUser(null);
+    
+    // Clear local storage
+    localStorage.removeItem('app-auth-token');
+    localStorage.removeItem('supabase.auth.token');
+    
+    // Force sign out to clear any remaining session data
+    await supabase.auth.signOut();
+    
+    // Only navigate to login if we're not already on a public route
+    if (!location.pathname.match(/^(\/$|\/login$|\/signup$|\/contact$)/)) {
+      navigate('/login');
+      toast({
+        title: "Session expired",
+        description: "Please sign in again",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     const initSession = async () => {
       try {
@@ -34,6 +58,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (error) {
           console.error('Error getting session:', error);
+          if (error.message.includes('refresh_token_not_found')) {
+            await handleTokenError();
+            return;
+          }
           throw error;
         }
 
@@ -55,6 +83,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       } catch (error: any) {
         console.error('Session initialization error:', error);
+        if (error.message.includes('refresh_token_not_found')) {
+          await handleTokenError();
+          return;
+        }
         toast({
           title: "Error",
           description: "Failed to initialize session",
@@ -74,11 +106,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(newSession);
         setUser(newSession?.user ?? null);
         navigate('/dashboard');
-      } else if (event === 'SIGNED_OUT') {
+      } else if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
         setSession(null);
         setUser(null);
+        localStorage.removeItem('app-auth-token');
+        localStorage.removeItem('supabase.auth.token');
         // Only navigate to login if we're not already on a public route
-        if (!location.pathname.match(/^(\/$|\/contact$)/)) {
+        if (!location.pathname.match(/^(\/$|\/login$|\/signup$|\/contact$)/)) {
           navigate('/login');
         }
       } else if (event === 'TOKEN_REFRESHED') {
@@ -98,7 +132,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
+      // Clear all auth-related storage
       localStorage.removeItem('app-auth-token');
+      localStorage.removeItem('supabase.auth.token');
       setUser(null);
       setSession(null);
       

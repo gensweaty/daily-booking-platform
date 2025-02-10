@@ -13,7 +13,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    storageKey: 'app-auth-token',
+    storageKey: 'supabase.auth.token',
     storage: window.localStorage
   }
 });
