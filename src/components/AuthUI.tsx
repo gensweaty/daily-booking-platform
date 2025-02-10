@@ -40,9 +40,9 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
             </Button>
             <Link to="/" className="flex items-center gap-2">
               <img 
-                src="/lovable-uploads/e175e3cf-c66c-48c2-9a8c-3ee2a3b52232.png" 
+                src="/lovable-uploads/df79a530-b22e-49c6-87e1-10c925151f56.png" 
                 alt="smrtbookly" 
-                className="h-16 md:h-20 w-auto" // Increased from h-12 to h-16/h-20
+                className="h-24 md:h-32 w-auto object-contain"
               />
             </Link>
           </div>
