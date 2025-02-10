@@ -1,3 +1,4 @@
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SignIn } from "@/components/SignIn";
 import { SignUp } from "@/components/SignUp";
@@ -37,13 +38,17 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <Link to="/" className="text-2xl font-bold text-primary hover:text-primary/90">
-              Taskify Minder
+            <Link to="/" className="flex items-center gap-2">
+              <img 
+                src="/lovable-uploads/e175e3cf-c66c-48c2-9a8c-3ee2a3b52232.png" 
+                alt="smrtbookly" 
+                className="h-12 w-auto"
+              />
             </Link>
           </div>
           <ThemeToggle />
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2 text-center">Welcome to Taskify Minder Note</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2 text-center">Welcome to smrtbookly</h1>
         <p className="text-foreground/80 text-center">Complete Agile productivity - tasks notes calendar all in one</p>
       </header>
 

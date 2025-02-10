@@ -40,8 +40,12 @@ export const HeroSection = () => {
       <div className="container mx-auto px-4 py-8 relative">
         <nav className="relative">
           <div className="flex justify-between items-center">
-            <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Taskify Minder
+            <Link to="/" className="flex items-center gap-2">
+              <img 
+                src="/lovable-uploads/e175e3cf-c66c-48c2-9a8c-3ee2a3b52232.png" 
+                alt="smrtbookly" 
+                className="h-12 w-auto"
+              />
             </Link>
             
             <div className="flex items-center gap-4 md:hidden">

@@ -25,9 +25,13 @@ export const FooterSection = () => {
       <div className="container mx-auto px-4 relative">
         <div className="grid md:grid-cols-2 gap-12">
           <div className="space-y-6">
-            <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Taskify Minder
-            </h3>
+            <Link to="/" className="flex items-center gap-2">
+              <img 
+                src="/lovable-uploads/e175e3cf-c66c-48c2-9a8c-3ee2a3b52232.png" 
+                alt="smrtbookly" 
+                className="h-12 w-auto"
+              />
+            </Link>
             <p className="text-muted-foreground max-w-md">
               Streamline your workflow with our integrated booking calendar, task management, and analytics platform.
             </p>
@@ -98,7 +102,7 @@ export const FooterSection = () => {
         </div>
         <div className="mt-12 pt-8 border-t">
           <p className="text-sm text-center text-muted-foreground">
-            © 2024 Taskify Minder. All rights reserved.
+            © 2024 smrtbookly. All rights reserved.
           </p>
         </div>
       </div>
