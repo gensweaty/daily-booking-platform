@@ -28,7 +28,7 @@ export const FooterSection = () => {
               <img 
                 src="/lovable-uploads/df79a530-b22e-49c6-87e1-10c925151f56.png" 
                 alt="smrtbookly" 
-                className="h-24 md:h-32 w-auto object-contain"
+                className="h-12 md:h-16 w-auto object-contain"
               />
             </Link>
             <p className="text-muted-foreground max-w-md">
