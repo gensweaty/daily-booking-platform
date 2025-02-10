@@ -42,7 +42,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
               <img 
                 src="/lovable-uploads/e175e3cf-c66c-48c2-9a8c-3ee2a3b52232.png" 
                 alt="smrtbookly" 
-                className="h-32 md:h-40 w-auto" // Doubled from h-16/h-20 to h-32/h-40
+                className="h-16 md:h-20 w-auto" // Increased from h-12 to h-16/h-20
               />
             </Link>
           </div>
