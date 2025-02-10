@@ -41,7 +41,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
               <img 
                 src="/lovable-uploads/df79a530-b22e-49c6-87e1-10c925151f56.png" 
                 alt="smrtbookly" 
-                className="h-12 md:h-16 w-auto object-contain"
+                className="h-18 md:h-24 w-auto object-contain"
               />
             </Link>
           </div>
