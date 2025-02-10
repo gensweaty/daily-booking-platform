@@ -106,7 +106,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(newSession);
         setUser(newSession?.user ?? null);
         navigate('/dashboard');
-      } else if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+      } else if (event === 'SIGNED_OUT') {
         setSession(null);
         setUser(null);
         localStorage.removeItem('app-auth-token');
@@ -116,6 +116,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           navigate('/login');
         }
       } else if (event === 'TOKEN_REFRESHED') {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+      } else if (event === 'USER_UPDATED') {
         setSession(newSession);
         setUser(newSession?.user ?? null);
       }
