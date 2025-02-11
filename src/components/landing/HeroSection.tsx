@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
@@ -40,11 +41,7 @@ export const HeroSection = () => {
         <nav className="relative">
           <div className="flex justify-between items-center">
             <Link to="/" className="flex items-center gap-2">
-              <img 
-                src="/lovable-uploads/df79a530-b22e-49c6-87e1-10c925151f56.png" 
-                alt="smrtbookly" 
-                className="h-18 md:h-24 w-auto object-contain"
-              />
+              {/* Logo temporarily removed */}
             </Link>
             
             <div className="flex items-center gap-4 md:hidden">
@@ -105,7 +102,7 @@ export const HeroSection = () => {
 
         <div className="grid md:grid-cols-2 gap-12 items-center mt-16">
           <div className="space-y-8 animate-fade-in">
-            <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Your Professional Booking & Task Management Solution
             </h2>
             <p className="text-xl md:text-2xl text-muted-foreground">
