@@ -132,39 +132,43 @@ export const HeroSection = () => {
                 </Button>
               </Link>
             </div>
-            <div className="flex flex-col md:flex-row gap-4 justify-between px-4">
-              <Button 
-                variant="outline"
-                onClick={() => scrollToSection('smart-booking')}
-                className="flex-1 flex items-center justify-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 min-w-[200px]"
-              >
-                <Calendar className="w-5 h-5 text-primary animate-pulse" />
-                <span>Smart Appointment Scheduling</span>
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => scrollToSection('task-management')}
-                className="flex-1 flex items-center justify-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 min-w-[200px]"
-              >
-                <ListTodo className="w-5 h-5 text-accent animate-pulse" />
-                <span>Kanban Board Task Management</span>
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => scrollToSection('crm-solution')}
-                className="flex-1 flex items-center justify-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 min-w-[200px]"
-              >
-                <Users className="w-5 h-5 text-primary animate-pulse" />
-                <span>Modern CRM Solution</span>
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => scrollToSection('analytics')}
-                className="flex-1 flex items-center justify-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 min-w-[200px]"
-              >
-                <BarChart className="w-5 h-5 text-accent animate-pulse" />
-                <span>Automated Performance Analytics</span>
-              </Button>
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button 
+                  variant="outline"
+                  onClick={() => scrollToSection('smart-booking')}
+                  className="h-auto py-3 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+                >
+                  <Calendar className="w-6 h-6 text-primary" />
+                  <span className="text-sm">Smart Appointment Scheduling</span>
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => scrollToSection('task-management')}
+                  className="h-auto py-3 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+                >
+                  <ListTodo className="w-6 h-6 text-accent" />
+                  <span className="text-sm">Kanban Board Task Management</span>
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button 
+                  variant="outline"
+                  onClick={() => scrollToSection('crm-solution')}
+                  className="h-auto py-3 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+                >
+                  <Users className="w-6 h-6 text-primary" />
+                  <span className="text-sm">Modern CRM Solution</span>
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => scrollToSection('analytics')}
+                  className="h-auto py-3 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+                >
+                  <BarChart className="w-6 h-6 text-accent" />
+                  <span className="text-sm">Automated Performance Analytics</span>
+                </Button>
+              </div>
             </div>
           </div>
           <div className="animate-fade-in">
