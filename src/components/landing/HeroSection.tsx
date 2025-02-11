@@ -70,7 +70,7 @@ export const HeroSection = () => {
               </Link>
               <Link to="/signup">
                 <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
-                  Sign Up Free
+                  Start Your Free Journey
                 </Button>
               </Link>
               <Link to="/contact">
@@ -90,7 +90,7 @@ export const HeroSection = () => {
               </Link>
               <Link to="/signup" onClick={handleMenuClose}>
                 <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90">
-                  Sign Up Free
+                  Start Your Free Journey
                 </Button>
               </Link>
               <Link to="/contact" onClick={handleMenuClose}>
@@ -111,11 +111,11 @@ export const HeroSection = () => {
                 Productivity with SmartBookly
               </h2>
               <h3 className="text-xl md:text-2xl font-semibold text-foreground/90">
-                All-in-One Booking, Task Management & CRM Solution
+                All-in-One Booking, Task Management, CRM, and Analytics Solution
               </h3>
             </div>
             <p className="text-xl text-muted-foreground leading-relaxed">
-              Take full control of your workflow with a seamless booking calendar, powerful task management, smart customer relationship management, and built-in analytics—everything your business needs, all in one place.
+              Take full control of your workflow with our seamless booking calendar, powerful task management, intelligent customer relationship management, and integrated analytics. Everything your business needs, all in one place.
             </p>
             <div className="pt-3">
               <Link to="/signup">
@@ -124,7 +124,7 @@ export const HeroSection = () => {
                   className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
                 >
                   <span className="flex items-center gap-2">
-                    Get Started for Free
+                    Start Your Free Journey
                     <Sparkles className="w-5 h-5 animate-pulse" />
                   </span>
                 </Button>
