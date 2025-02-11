@@ -103,21 +103,29 @@ export const HeroSection = () => {
         <div className="grid md:grid-cols-2 gap-12 items-center mt-16">
           <div className="space-y-4 animate-fade-in">
             <div className="space-y-2">
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Grow Your Business Productivity
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(155,135,245,0.3)] animate-pulse">
+                Grow Your Business Productivity with Us
               </h2>
               <h3 className="text-2xl md:text-3xl font-semibold text-foreground/90">
                 All-in-One Booking, Task Management & CRM Solution
               </h3>
             </div>
             <p className="text-xl text-muted-foreground leading-relaxed">
-              Take control of your workflow with a seamless booking calendar, powerful task management, and built-in analytics—everything your business needs, in one place.
+              Take control of your business workflow with a seamless booking calendar, powerful task management, Customer Relation Management and built-in analytics—everything your business needs, in one place.
             </p>
             <div className="flex flex-wrap gap-3 text-lg text-primary">
-              <span>🔸 Smart Appointments on live calendar</span>
-              <span>🔸 Tasks on Kanban Board</span>
-              <span>🔸 Modern CRM Solution</span>
-              <span>🔸 Auto Calculated Analytics</span>
+              <span className="transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]">
+                🔸 Smart Appointments on live calendar
+              </span>
+              <span className="transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]">
+                🔸 Tasks on Kanban Board
+              </span>
+              <span className="transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]">
+                🔸 Modern CRM Solution
+              </span>
+              <span className="transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]">
+                🔸 Auto Calculated Analytics
+              </span>
             </div>
             <div className="pt-3">
               <Link to="/signup">
