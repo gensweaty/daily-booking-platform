@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
@@ -133,11 +132,11 @@ export const HeroSection = () => {
                 </Button>
               </Link>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 justify-items-center w-full">
+            <div className="flex flex-col md:flex-row gap-4 justify-between px-4">
               <Button 
                 variant="outline"
                 onClick={() => scrollToSection('smart-booking')}
-                className="w-full md:w-auto flex items-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+                className="flex-1 flex items-center justify-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 min-w-[200px]"
               >
                 <Calendar className="w-5 h-5 text-primary animate-pulse" />
                 <span>Smart Appointment Scheduling</span>
@@ -145,7 +144,7 @@ export const HeroSection = () => {
               <Button 
                 variant="outline"
                 onClick={() => scrollToSection('task-management')}
-                className="w-full md:w-auto flex items-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+                className="flex-1 flex items-center justify-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 min-w-[200px]"
               >
                 <ListTodo className="w-5 h-5 text-accent animate-pulse" />
                 <span>Kanban Board Task Management</span>
@@ -153,7 +152,7 @@ export const HeroSection = () => {
               <Button 
                 variant="outline"
                 onClick={() => scrollToSection('crm-solution')}
-                className="w-full md:w-auto flex items-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+                className="flex-1 flex items-center justify-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 min-w-[200px]"
               >
                 <Users className="w-5 h-5 text-primary animate-pulse" />
                 <span>Modern CRM Solution</span>
@@ -161,7 +160,7 @@ export const HeroSection = () => {
               <Button 
                 variant="outline"
                 onClick={() => scrollToSection('analytics')}
-                className="w-full md:w-auto flex items-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+                className="flex-1 flex items-center justify-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 min-w-[200px]"
               >
                 <BarChart className="w-5 h-5 text-accent animate-pulse" />
                 <span>Automated Performance Analytics</span>
