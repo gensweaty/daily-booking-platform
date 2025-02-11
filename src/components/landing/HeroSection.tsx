@@ -101,10 +101,10 @@ export const HeroSection = () => {
         </nav>
 
         <div className="grid md:grid-cols-2 gap-12 items-center mt-16">
-          <div className="space-y-8 animate-fade-in">
-            <div className="space-y-4">
+          <div className="space-y-4 animate-fade-in">
+            <div className="space-y-2">
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Simplify Your Business with SmartBookly
+                Grow Your Business Productivity
               </h2>
               <h3 className="text-2xl md:text-3xl font-semibold text-foreground/90">
                 All-in-One Booking, Task Management & CRM Solution
@@ -113,12 +113,13 @@ export const HeroSection = () => {
             <p className="text-xl text-muted-foreground leading-relaxed">
               Take control of your workflow with a seamless booking calendar, powerful task management, and built-in analytics—everything your business needs, in one place.
             </p>
-            <div className="flex flex-wrap gap-4 text-lg text-primary">
-              <span>🔸 Automate tasks</span>
-              <span>🔸 Boost productivity</span>
-              <span>🔸 Grow your business</span>
+            <div className="flex flex-wrap gap-3 text-lg text-primary">
+              <span>🔸 Smart Appointments on live calendar</span>
+              <span>🔸 Tasks on Kanban Board</span>
+              <span>🔸 Modern CRM Solution</span>
+              <span>🔸 Auto Calculated Analytics</span>
             </div>
-            <div className="pt-4">
+            <div className="pt-3">
               <Link to="/signup">
                 <Button 
                   size="lg" 
