@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { Facebook, Twitter, Instagram, Linkedin, Github } from "lucide-react";
 import { motion } from "framer-motion";
@@ -28,7 +29,7 @@ export const FooterSection = () => {
               {/* Logo temporarily removed */}
             </Link>
             <p className="text-muted-foreground max-w-md">
-              Streamline your workflow with our integrated booking calendar, task management, and analytics platform.
+              Streamline Your Workflow with Our Integrated Booking Calendar, Task Management, CRM, and Analytics Platform.
             </p>
             <div className="flex space-x-4">
               {socialLinks.map((social, index) => {
