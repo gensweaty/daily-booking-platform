@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
@@ -135,10 +136,9 @@ export const HeroSection = () => {
           </div>
         </div>
       </div>
-      
-      <ClientLogos />
     </header>
     <FeatureButtons />
+    <ClientLogos />
     </>
   );
 };
