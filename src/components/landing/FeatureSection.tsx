@@ -1,3 +1,4 @@
+
 import { Calendar, ChartBar, ListTodo, Users } from "lucide-react";
 
 const calendarViews = [
@@ -27,9 +28,10 @@ export const FeatureSection = () => {
       benefits: [
         "Multiple calendar views (month, week, day)",
         "Event scheduling with customizable time slots",
-        "Client booking management with payment tracking"
+        "Client booking management with payment tracking",
+        "Automated Event Synchronization with CRM"
       ],
-      id: "smart-booking"  // Added ID for scrolling
+      id: "smart-booking"
     },
     {
       icon: ChartBar,
@@ -39,10 +41,12 @@ export const FeatureSection = () => {
       benefits: [
         "Booking and revenue analytics",
         "Custom date range filtering",
-        "Income comparison across months"
+        "Income comparison across months",
+        "Interactive visual metrics & graphs",
+        "One-click Excel download"
       ],
       reverse: true,
-      id: "analytics"  // Added ID for scrolling
+      id: "analytics"
     },
     {
       icon: Users,
@@ -52,9 +56,11 @@ export const FeatureSection = () => {
       benefits: [
         "Centralized customer information management",
         "File attachments and document organization",
-        "Payment tracking and status monitoring"
+        "Payment tracking and status monitoring",
+        "Elastic search for quick data access",
+        "One-click Excel download of all displayed data"
       ],
-      id: "crm-solution"  // Added ID for scrolling
+      id: "crm-solution"
     },
     {
       icon: ListTodo,
@@ -64,10 +70,12 @@ export const FeatureSection = () => {
       benefits: [
         "Kanban board for visual task organization",
         "Task status tracking and progress monitoring",
-        "Efficient task prioritization"
+        "Efficient task prioritization",
+        "Simple drag-and-drop functionality",
+        "Quick note-saving for tasks"
       ],
       reverse: true,
-      id: "task-management"  // Added ID for scrolling
+      id: "task-management"
     }
   ];
 
