@@ -1,3 +1,4 @@
+
 import { motion } from "framer-motion";
 import { 
   PartyPopper, 
@@ -55,9 +56,9 @@ export const ClientLogos = () => {
   ];
 
   return (
-    <div className="w-full bg-muted/30 py-12 mt-20">
+    <div className="w-full bg-muted/30 py-8">
       <div className="container mx-auto px-4">
-        <h3 className="text-center text-xl font-semibold mb-8 text-muted-foreground">
+        <h3 className="text-center text-2xl font-semibold mb-8 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
           For Small and Medium Business Like
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
@@ -67,13 +68,13 @@ export const ClientLogos = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="flex flex-col items-center space-y-3 p-4 rounded-lg hover:bg-background/50 transition-all duration-300 hover:scale-105 group"
+              className="flex flex-col items-center space-y-3 p-4 rounded-lg hover:bg-background/50 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:-translate-y-1 group"
             >
               <div className={`p-4 rounded-full ${company.bgColor} group-hover:scale-110 transition-transform duration-300`}>
                 <company.icon className={`w-8 h-8 ${company.iconColor}`} />
               </div>
-              <span className="text-sm font-medium text-center">{company.name}</span>
-              <span className="text-xs text-muted-foreground text-center hidden lg:block">
+              <span className="text-base font-medium text-center leading-tight">{company.name}</span>
+              <span className="text-sm text-muted-foreground text-center hidden lg:block leading-snug">
                 {company.description}
               </span>
             </motion.div>

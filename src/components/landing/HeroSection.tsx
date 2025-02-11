@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Menu, X, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { ClientLogos } from "./ClientLogos";
+import { FeatureButtons } from "./FeatureButtons";
 
 const productImages = [
   {
@@ -34,6 +35,7 @@ export const HeroSection = () => {
   };
 
   return (
+    <>
     <header className="relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary-light via-background to-accent-light opacity-10" />
       
@@ -100,22 +102,29 @@ export const HeroSection = () => {
           )}
         </nav>
 
-        <div className="grid md:grid-cols-2 gap-12 items-center mt-16">
-          <div className="space-y-8 animate-fade-in">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Your Professional Booking & Task Management Solution
-            </h2>
-            <p className="text-xl md:text-2xl text-muted-foreground">
-              Streamline your workflow with our integrated booking calendar, task management, and analytics platform.
+        <div className="grid md:grid-cols-2 gap-12 items-center mt-12">
+          <div className="space-y-4 animate-fade-in">
+            <div className="space-y-2">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent relative overflow-hidden">
+                Boost Your Business
+                <br />
+                Productivity with SmartBookly
+              </h2>
+              <h3 className="text-xl md:text-2xl font-semibold text-foreground/90">
+                All-in-One Booking, Task Management & CRM Solution
+              </h3>
+            </div>
+            <p className="text-xl text-muted-foreground leading-relaxed">
+              Take full control of your workflow with a seamless booking calendar, powerful task management, smart customer relationship management, and built-in analytics—everything your business needs, all in one place.
             </p>
-            <div className="pt-4">
+            <div className="pt-3">
               <Link to="/signup">
                 <Button 
                   size="lg" 
                   className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
                 >
                   <span className="flex items-center gap-2">
-                    Start Your Free Journey
+                    Get Started for Free
                     <Sparkles className="w-5 h-5 animate-pulse" />
                   </span>
                 </Button>
@@ -127,8 +136,9 @@ export const HeroSection = () => {
           </div>
         </div>
       </div>
-      
-      <ClientLogos />
     </header>
+    <FeatureButtons />
+    <ClientLogos />
+    </>
   );
 };

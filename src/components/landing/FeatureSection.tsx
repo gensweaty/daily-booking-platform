@@ -28,7 +28,8 @@ export const FeatureSection = () => {
         "Multiple calendar views (month, week, day)",
         "Event scheduling with customizable time slots",
         "Client booking management with payment tracking"
-      ]
+      ],
+      id: "smart-booking"  // Added ID for scrolling
     },
     {
       icon: ChartBar,
@@ -40,7 +41,8 @@ export const FeatureSection = () => {
         "Custom date range filtering",
         "Income comparison across months"
       ],
-      reverse: true
+      reverse: true,
+      id: "analytics"  // Added ID for scrolling
     },
     {
       icon: Users,
@@ -51,7 +53,8 @@ export const FeatureSection = () => {
         "Centralized customer information management",
         "File attachments and document organization",
         "Payment tracking and status monitoring"
-      ]
+      ],
+      id: "crm-solution"  // Added ID for scrolling
     },
     {
       icon: ListTodo,
@@ -63,7 +66,8 @@ export const FeatureSection = () => {
         "Task status tracking and progress monitoring",
         "Efficient task prioritization"
       ],
-      reverse: true
+      reverse: true,
+      id: "task-management"  // Added ID for scrolling
     }
   ];
 
@@ -75,7 +79,9 @@ export const FeatureSection = () => {
         </h2>
         
         {features.map((feature, index) => (
-          <FeatureCard key={index} {...feature} />
+          <div key={index} id={feature.id}>
+            <FeatureCard {...feature} />
+          </div>
         ))}
       </div>
     </section>
