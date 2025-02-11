@@ -11,7 +11,7 @@ export const FeatureButtons = () => {
   };
 
   return (
-    <section className="py-12 bg-muted/5">
+    <section className="py-8 bg-muted/5">
       <div className="container mx-auto px-4">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
