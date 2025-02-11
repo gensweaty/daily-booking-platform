@@ -1,8 +1,9 @@
+
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Menu, X, Sparkles } from "lucide-react";
+import { Menu, X, Sparkles, Calendar, ListTodo, Users, BarChart } from "lucide-react";
 import { useState } from "react";
 import { ClientLogos } from "./ClientLogos";
 
@@ -107,7 +108,7 @@ export const HeroSection = () => {
         </nav>
 
         <div className="grid md:grid-cols-2 gap-12 items-center mt-16">
-          <div className="space-y-4 animate-fade-in">
+          <div className="space-y-6 animate-fade-in">
             <div className="space-y-2">
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:-translate-x-full before:animate-[shimmer_2s_infinite] before:pointer-events-none">
                 Boost Your Business Productivity with Ease
@@ -119,32 +120,6 @@ export const HeroSection = () => {
             <p className="text-xl text-muted-foreground leading-relaxed">
               Take full control of your workflow with a seamless booking calendar, powerful task management, smart customer relationship management, and built-in analytics—everything your business needs, all in one place.
             </p>
-            <div className="flex flex-wrap gap-3 text-lg text-primary">
-              <button 
-                onClick={() => scrollToSection('smart-booking')}
-                className="text-left transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]"
-              >
-                ✅ Smart Appointment Scheduling
-              </button>
-              <button 
-                onClick={() => scrollToSection('task-management')}
-                className="text-left transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]"
-              >
-                ✅ Kanban Board Task Management
-              </button>
-              <button 
-                onClick={() => scrollToSection('crm-solution')}
-                className="text-left transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]"
-              >
-                ✅ Modern CRM Solution
-              </button>
-              <button 
-                onClick={() => scrollToSection('analytics')}
-                className="text-left transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]"
-              >
-                ✅ Automated Performance Analytics
-              </button>
-            </div>
             <div className="pt-3">
               <Link to="/signup">
                 <Button 
@@ -157,6 +132,40 @@ export const HeroSection = () => {
                   </span>
                 </Button>
               </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Button 
+                variant="outline"
+                onClick={() => scrollToSection('smart-booking')}
+                className="flex items-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+              >
+                <Calendar className="w-4 h-4" />
+                <span>Scheduling</span>
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => scrollToSection('task-management')}
+                className="flex items-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+              >
+                <ListTodo className="w-4 h-4" />
+                <span>Tasks</span>
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => scrollToSection('crm-solution')}
+                className="flex items-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+              >
+                <Users className="w-4 h-4" />
+                <span>CRM</span>
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => scrollToSection('analytics')}
+                className="flex items-center gap-2 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+              >
+                <BarChart className="w-4 h-4" />
+                <span>Analytics</span>
+              </Button>
             </div>
           </div>
           <div className="animate-fade-in">
