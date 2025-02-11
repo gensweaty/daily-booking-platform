@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
@@ -110,10 +109,10 @@ export const HeroSection = () => {
         <div className="grid md:grid-cols-2 gap-12 items-center mt-16">
           <div className="space-y-4 animate-fade-in">
             <div className="space-y-2">
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(155,135,245,0.3)] animate-pulse relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:-translate-x-full before:animate-[shimmer_2s_infinite] before:pointer-events-none">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:-translate-x-full before:animate-[shimmer_2s_infinite] before:pointer-events-none">
                 Boost Your Business Productivity with Ease
               </h2>
-              <h3 className="text-2xl md:text-3xl font-semibold text-foreground/90">
+              <h3 className="text-xl md:text-2xl font-semibold text-foreground/90">
                 All-in-One Booking, Task Management & CRM Solution
               </h3>
             </div>
@@ -170,4 +169,3 @@ export const HeroSection = () => {
     </header>
   );
 };
-
