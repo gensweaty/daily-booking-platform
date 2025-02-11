@@ -132,41 +132,46 @@ export const HeroSection = () => {
                 </Button>
               </Link>
             </div>
-            <div className="flex flex-col gap-4">
+            <div className="text-center mt-12 mb-6">
+              <h2 className="text-2xl font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                What we offer
+              </h2>
+            </div>
+            <div className="flex flex-col gap-4 max-w-3xl mx-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Button 
                   variant="outline"
                   onClick={() => scrollToSection('smart-booking')}
-                  className="h-auto py-3 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+                  className="h-14 w-full flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
                 >
-                  <Calendar className="w-6 h-6 text-primary" />
-                  <span className="text-sm">Smart Appointment Scheduling</span>
+                  <Calendar className="w-6 h-6 text-primary shrink-0" />
+                  <span className="text-sm font-medium truncate">Smart Appointment Scheduling</span>
                 </Button>
                 <Button 
                   variant="outline"
                   onClick={() => scrollToSection('task-management')}
-                  className="h-auto py-3 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+                  className="h-14 w-full flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
                 >
-                  <ListTodo className="w-6 h-6 text-accent" />
-                  <span className="text-sm">Kanban Board Task Management</span>
+                  <ListTodo className="w-6 h-6 text-accent shrink-0" />
+                  <span className="text-sm font-medium truncate">Kanban Board Task Management</span>
                 </Button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Button 
                   variant="outline"
                   onClick={() => scrollToSection('crm-solution')}
-                  className="h-auto py-3 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+                  className="h-14 w-full flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
                 >
-                  <Users className="w-6 h-6 text-primary" />
-                  <span className="text-sm">Modern CRM Solution</span>
+                  <Users className="w-6 h-6 text-primary shrink-0" />
+                  <span className="text-sm font-medium truncate">Modern CRM Solution</span>
                 </Button>
                 <Button 
                   variant="outline"
                   onClick={() => scrollToSection('analytics')}
-                  className="h-auto py-3 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105"
+                  className="h-14 w-full flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
                 >
-                  <BarChart className="w-6 h-6 text-accent" />
-                  <span className="text-sm">Automated Performance Analytics</span>
+                  <BarChart className="w-6 h-6 text-accent shrink-0" />
+                  <span className="text-sm font-medium truncate">Automated Performance Analytics</span>
                 </Button>
               </div>
             </div>
