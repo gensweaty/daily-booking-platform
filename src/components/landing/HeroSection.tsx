@@ -102,12 +102,22 @@ export const HeroSection = () => {
 
         <div className="grid md:grid-cols-2 gap-12 items-center mt-16">
           <div className="space-y-8 animate-fade-in">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Your Professional Booking & Task Management Solution
-            </h2>
-            <p className="text-xl md:text-2xl text-muted-foreground">
-              Streamline your workflow with our integrated booking calendar, task management, and analytics platform.
+            <div className="space-y-4">
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Simplify Your Business with SmartBookly
+              </h2>
+              <h3 className="text-2xl md:text-3xl font-semibold text-foreground/90">
+                All-in-One Booking, Task Management & CRM Solution
+              </h3>
+            </div>
+            <p className="text-xl text-muted-foreground leading-relaxed">
+              Take control of your workflow with a seamless booking calendar, powerful task management, and built-in analytics—everything your business needs, in one place.
             </p>
+            <div className="flex flex-wrap gap-4 text-lg text-primary">
+              <span>🔸 Automate tasks</span>
+              <span>🔸 Boost productivity</span>
+              <span>🔸 Grow your business</span>
+            </div>
             <div className="pt-4">
               <Link to="/signup">
                 <Button 
@@ -115,7 +125,7 @@ export const HeroSection = () => {
                   className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
                 >
                   <span className="flex items-center gap-2">
-                    Start Your Free Journey
+                    Get Started for Free
                     <Sparkles className="w-5 h-5 animate-pulse" />
                   </span>
                 </Button>
