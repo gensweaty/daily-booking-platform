@@ -1,3 +1,4 @@
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SignIn } from "@/components/SignIn";
 import { SignUp } from "@/components/SignUp";
@@ -38,11 +39,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <Link to="/" className="flex items-center gap-2">
-              <img 
-                src="/lovable-uploads/df79a530-b22e-49c6-87e1-10c925151f56.png" 
-                alt="smrtbookly" 
-                className="h-18 md:h-24 w-auto object-contain"
-              />
+              {/* Logo temporarily removed */}
             </Link>
           </div>
           <ThemeToggle />

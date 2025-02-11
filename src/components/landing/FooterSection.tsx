@@ -25,11 +25,7 @@ export const FooterSection = () => {
         <div className="grid md:grid-cols-2 gap-12">
           <div className="space-y-6">
             <Link to="/" className="flex items-center gap-2">
-              <img 
-                src="/lovable-uploads/df79a530-b22e-49c6-87e1-10c925151f56.png" 
-                alt="smrtbookly" 
-                className="h-18 md:h-24 w-auto object-contain"
-              />
+              {/* Logo temporarily removed */}
             </Link>
             <p className="text-muted-foreground max-w-md">
               Streamline your workflow with our integrated booking calendar, task management, and analytics platform.
