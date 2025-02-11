@@ -74,6 +74,7 @@
 
   body {
     @apply bg-background text-foreground;
-    cursor: none;
+    /* Temporarily removed for debugging */
+    /* cursor: none; */
   }
 }

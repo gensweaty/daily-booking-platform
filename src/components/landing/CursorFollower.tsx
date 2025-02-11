@@ -7,7 +7,10 @@ export const CursorFollower = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    console.log("CursorFollower mounted");
+    
     const updateMousePosition = (e: MouseEvent) => {
+      console.log("Mouse moving:", e.clientX, e.clientY);
       setMousePosition({ x: e.clientX, y: e.clientY });
       if (!isVisible) setIsVisible(true);
     };
@@ -28,12 +31,13 @@ export const CursorFollower = () => {
   return (
     <>
       <motion.div
-        className="fixed pointer-events-none z-50 hidden md:block"
+        className="fixed pointer-events-none z-50 block"
         animate={{
           x: mousePosition.x - 16,
           y: mousePosition.y - 16,
           opacity: isVisible ? 1 : 0,
           scale: isVisible ? 1 : 0.8,
+          transformOrigin: "center center"
         }}
         transition={{
           type: "spring",
@@ -45,12 +49,13 @@ export const CursorFollower = () => {
         <div className="w-8 h-8 bg-gradient-to-r from-primary/30 to-accent/30 rounded-full blur-sm" />
       </motion.div>
       <motion.div
-        className="fixed pointer-events-none z-50 hidden md:block"
+        className="fixed pointer-events-none z-50 block"
         animate={{
           x: mousePosition.x - 4,
           y: mousePosition.y - 4,
           opacity: isVisible ? 1 : 0,
           scale: isVisible ? 1 : 0.8,
+          transformOrigin: "center center"
         }}
         transition={{
           type: "spring",
