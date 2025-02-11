@@ -2,9 +2,10 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Menu, X, Sparkles, Calendar, ListTodo, Users, BarChart } from "lucide-react";
+import { Menu, X, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { ClientLogos } from "./ClientLogos";
+import { FeatureButtons } from "./FeatureButtons";
 
 const productImages = [
   {
@@ -32,14 +33,8 @@ export const HeroSection = () => {
     setIsMobileMenuOpen(false);
   };
 
-  const scrollToSection = (sectionId: string) => {
-    const section = document.getElementById(sectionId);
-    if (section) {
-      section.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
   return (
+    <>
     <header className="relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary-light via-background to-accent-light opacity-10" />
       
@@ -106,11 +101,13 @@ export const HeroSection = () => {
           )}
         </nav>
 
-        <div className="grid md:grid-cols-2 gap-12 items-center mt-16">
-          <div className="space-y-6 animate-fade-in">
+        <div className="grid md:grid-cols-2 gap-12 items-center mt-12">
+          <div className="space-y-4 animate-fade-in">
             <div className="space-y-2">
-              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:-translate-x-full before:animate-[shimmer_2s_infinite] before:pointer-events-none">
-                Boost Your Business Productivity with Ease
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent relative overflow-hidden">
+                Boost Your Business
+                <br />
+                Productivity with SmartBookly
               </h2>
               <h3 className="text-xl md:text-2xl font-semibold text-foreground/90">
                 All-in-One Booking, Task Management & CRM Solution
@@ -132,49 +129,6 @@ export const HeroSection = () => {
                 </Button>
               </Link>
             </div>
-            <div className="text-center mt-12 mb-6">
-              <h2 className="text-2xl font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                What we offer
-              </h2>
-            </div>
-            <div className="flex flex-col gap-4 max-w-3xl mx-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Button 
-                  variant="outline"
-                  onClick={() => scrollToSection('smart-booking')}
-                  className="h-14 w-full flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
-                >
-                  <Calendar className="w-6 h-6 text-primary shrink-0" />
-                  <span className="text-sm font-medium truncate">Smart Appointment Scheduling</span>
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => scrollToSection('task-management')}
-                  className="h-14 w-full flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
-                >
-                  <ListTodo className="w-6 h-6 text-accent shrink-0" />
-                  <span className="text-sm font-medium truncate">Kanban Board Task Management</span>
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Button 
-                  variant="outline"
-                  onClick={() => scrollToSection('crm-solution')}
-                  className="h-14 w-full flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
-                >
-                  <Users className="w-6 h-6 text-primary shrink-0" />
-                  <span className="text-sm font-medium truncate">Modern CRM Solution</span>
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => scrollToSection('analytics')}
-                  className="h-14 w-full flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
-                >
-                  <BarChart className="w-6 h-6 text-accent shrink-0" />
-                  <span className="text-sm font-medium truncate">Automated Performance Analytics</span>
-                </Button>
-              </div>
-            </div>
           </div>
           <div className="animate-fade-in">
             <ImageCarousel images={productImages} permanentArrows={true} />
@@ -184,5 +138,7 @@ export const HeroSection = () => {
       
       <ClientLogos />
     </header>
+    <FeatureButtons />
+    </>
   );
 };
