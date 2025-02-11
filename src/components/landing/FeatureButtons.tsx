@@ -23,34 +23,34 @@ export const FeatureButtons = () => {
             <Button 
               variant="outline"
               onClick={() => scrollToSection('smart-booking')}
-              className="h-20 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-6"
+              className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
             >
-              <Calendar className="w-8 h-8 text-primary shrink-0" />
-              <span className="text-base font-medium">Smart Appointment Scheduling</span>
+              <Calendar className="w-5 h-5 text-primary shrink-0" />
+              <span className="text-sm font-medium">Smart Appointment Scheduling</span>
             </Button>
             <Button 
               variant="outline"
               onClick={() => scrollToSection('task-management')}
-              className="h-20 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-6"
+              className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
             >
-              <ListTodo className="w-8 h-8 text-accent shrink-0" />
-              <span className="text-base font-medium">Kanban Board Task Management</span>
+              <ListTodo className="w-5 h-5 text-accent shrink-0" />
+              <span className="text-sm font-medium">Kanban Board Task Management</span>
             </Button>
             <Button 
               variant="outline"
               onClick={() => scrollToSection('crm-solution')}
-              className="h-20 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-6"
+              className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
             >
-              <Users className="w-8 h-8 text-primary shrink-0" />
-              <span className="text-base font-medium">Modern CRM Solution</span>
+              <Users className="w-5 h-5 text-primary shrink-0" />
+              <span className="text-sm font-medium">Modern CRM Solution</span>
             </Button>
             <Button 
               variant="outline"
               onClick={() => scrollToSection('analytics')}
-              className="h-20 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-6"
+              className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
             >
-              <BarChart className="w-8 h-8 text-accent shrink-0" />
-              <span className="text-base font-medium">Automated Performance Analytics</span>
+              <BarChart className="w-5 h-5 text-accent shrink-0" />
+              <span className="text-sm font-medium">Automated Performance Analytics</span>
             </Button>
           </div>
         </div>
