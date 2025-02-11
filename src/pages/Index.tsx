@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
@@ -9,6 +10,7 @@ import { TrialExpiredDialog } from "@/components/TrialExpiredDialog"
 import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
+import { CursorFollower } from "@/components/landing/CursorFollower"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -69,7 +71,12 @@ const Index = () => {
   }, [user])
 
   if (!user) {
-    return <AuthUI />
+    return (
+      <>
+        <CursorFollower />
+        <AuthUI />
+      </>
+    )
   }
 
   return (
