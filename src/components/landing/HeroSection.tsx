@@ -33,6 +33,13 @@ export const HeroSection = () => {
     setIsMobileMenuOpen(false);
   };
 
+  const scrollToSection = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <header className="relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary-light via-background to-accent-light opacity-10" />
@@ -103,29 +110,41 @@ export const HeroSection = () => {
         <div className="grid md:grid-cols-2 gap-12 items-center mt-16">
           <div className="space-y-4 animate-fade-in">
             <div className="space-y-2">
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(155,135,245,0.3)] animate-pulse">
-                Grow Your Business Productivity with Us
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(155,135,245,0.3)] animate-pulse relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:-translate-x-full before:animate-[shimmer_2s_infinite] before:pointer-events-none">
+                Boost Your Business Productivity with Ease
               </h2>
               <h3 className="text-2xl md:text-3xl font-semibold text-foreground/90">
                 All-in-One Booking, Task Management & CRM Solution
               </h3>
             </div>
             <p className="text-xl text-muted-foreground leading-relaxed">
-              Take control of your business workflow with a seamless booking calendar, powerful task management, Customer Relation Management and built-in analytics—everything your business needs, in one place.
+              Take full control of your workflow with a seamless booking calendar, powerful task management, smart customer relationship management, and built-in analytics—everything your business needs, all in one place.
             </p>
             <div className="flex flex-wrap gap-3 text-lg text-primary">
-              <span className="transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]">
-                🔸 Smart Appointments on live calendar
-              </span>
-              <span className="transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]">
-                🔸 Tasks on Kanban Board
-              </span>
-              <span className="transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]">
-                🔸 Modern CRM Solution
-              </span>
-              <span className="transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]">
-                🔸 Auto Calculated Analytics
-              </span>
+              <button 
+                onClick={() => scrollToSection('smart-booking')}
+                className="text-left transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]"
+              >
+                ✅ Smart Appointment Scheduling
+              </button>
+              <button 
+                onClick={() => scrollToSection('task-management')}
+                className="text-left transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]"
+              >
+                ✅ Kanban Board Task Management
+              </button>
+              <button 
+                onClick={() => scrollToSection('crm-solution')}
+                className="text-left transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]"
+              >
+                ✅ Modern CRM Solution
+              </button>
+              <button 
+                onClick={() => scrollToSection('analytics')}
+                className="text-left transition-all duration-300 hover:text-accent hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]"
+              >
+                ✅ Automated Performance Analytics
+              </button>
             </div>
             <div className="pt-3">
               <Link to="/signup">
@@ -151,3 +170,4 @@ export const HeroSection = () => {
     </header>
   );
 };
+
