@@ -37,9 +37,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem('app-auth-token');
     localStorage.removeItem('supabase.auth.token');
     
-    // Force sign out to clear any remaining session data
-    await supabase.auth.signOut();
-    
     // Only navigate to login if we're not already on a public route
     if (!location.pathname.match(/^(\/$|\/login$|\/signup$|\/contact$)/)) {
       navigate('/login');
@@ -131,15 +128,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
-      console.log('Signing out...');
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      console.log('Starting sign out process...');
       
-      // Clear all auth-related storage
+      // First clear all auth-related storage and state
       localStorage.removeItem('app-auth-token');
       localStorage.removeItem('supabase.auth.token');
       setUser(null);
       setSession(null);
+      
+      // Then attempt to sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      // If there's a session_not_found error, we can ignore it since we've already cleared everything
+      if (error && !error.message.includes('session_not_found')) {
+        throw error;
+      }
       
       toast({
         title: "Success",
@@ -149,10 +152,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       navigate('/login');
     } catch (error: any) {
       console.error('Sign out error:', error);
+      // Even if there's an error, we want to ensure the user is signed out locally
+      localStorage.removeItem('app-auth-token');
+      localStorage.removeItem('supabase.auth.token');
+      setUser(null);
+      setSession(null);
+      navigate('/login');
+      
       toast({
-        title: "Error",
-        description: "Failed to sign out properly. Please try again.",
-        variant: "destructive",
+        title: "Notice",
+        description: "You have been signed out.",
       });
     }
   };
