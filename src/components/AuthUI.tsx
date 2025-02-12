@@ -1,4 +1,3 @@
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SignIn } from "@/components/SignIn";
 import { SignUp } from "@/components/SignUp";
@@ -7,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/components/ui/theme";
 
 interface AuthUIProps {
   defaultTab?: "signin" | "signup";
@@ -16,6 +16,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (location.pathname === "/signup") {
@@ -40,7 +41,10 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
             </Button>
             <Link to="/" className="flex items-center gap-2">
               <img 
-                src="/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png" 
+                src={theme === 'dark' 
+                  ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                  : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+                }
                 alt="SmartBookly Logo" 
                 className="h-8 md:h-10 w-auto"
               />

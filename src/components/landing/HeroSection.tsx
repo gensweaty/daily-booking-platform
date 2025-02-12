@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
@@ -7,6 +6,7 @@ import { Menu, X, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { ClientLogos } from "./ClientLogos";
 import { FeatureButtons } from "./FeatureButtons";
+import { useTheme } from "@/components/ThemeToggle";
 
 const productImages = [
   {
@@ -29,6 +29,7 @@ const productImages = [
 
 export const HeroSection = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { theme } = useTheme();
 
   const handleMenuClose = () => {
     setIsMobileMenuOpen(false);
@@ -44,7 +45,10 @@ export const HeroSection = () => {
           <div className="flex justify-between items-center">
             <Link to="/" className="flex items-center gap-2">
               <img 
-                src="/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png" 
+                src={theme === 'dark' 
+                  ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                  : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+                }
                 alt="SmartBookly Logo" 
                 className="h-8 md:h-10 w-auto"
               />
