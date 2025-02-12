@@ -6,7 +6,7 @@ import { Menu, X, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { ClientLogos } from "./ClientLogos";
 import { FeatureButtons } from "./FeatureButtons";
-import { useTheme } from "@/components/ThemeToggle";
+import { useTheme } from "next-themes";
 
 const productImages = [
   {

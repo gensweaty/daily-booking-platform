@@ -1,3 +1,4 @@
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SignIn } from "@/components/SignIn";
 import { SignUp } from "@/components/SignUp";
@@ -6,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTheme } from "@/components/ui/theme";
+import { useTheme } from "next-themes";
 
 interface AuthUIProps {
   defaultTab?: "signin" | "signup";
