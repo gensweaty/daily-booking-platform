@@ -9,10 +9,12 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Mail, Phone, MapPin, Clock } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { useTheme } from "next-themes";
 
 const Contact = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const { theme } = useTheme();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -60,8 +62,15 @@ const Contact = () => {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <Link to="/" className="text-2xl font-bold text-primary hover:text-primary/90">
-              Taskify Minder
+            <Link to="/" className="flex items-center gap-2">
+              <img 
+                src={theme === 'dark' 
+                  ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                  : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+                }
+                alt="SmartBookly Logo" 
+                className="h-8 md:h-10 w-auto"
+              />
             </Link>
           </div>
           <div className="flex items-center space-x-4">
@@ -91,8 +100,7 @@ const Contact = () => {
                     <Mail className="w-5 h-5 text-primary mt-1" />
                     <div>
                       <h4 className="font-medium">Email</h4>
-                      <p className="text-sm text-muted-foreground">support@taskifyminder.com</p>
-                      <p className="text-sm text-muted-foreground">sales@taskifyminder.com</p>
+                      <p className="text-sm text-muted-foreground">info@smartbookly.com</p>
                     </div>
                   </div>
                 </Card>

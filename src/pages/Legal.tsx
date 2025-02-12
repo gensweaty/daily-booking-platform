@@ -2,23 +2,37 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import { useTheme } from "next-themes";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Legal = () => {
+  const { theme } = useTheme();
+
   return (
     <div className="min-h-screen bg-background">
       <header className="container mx-auto px-4 py-8">
-        <nav className="flex items-center gap-4 mb-8">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => window.history.back()}
-            className="hover:bg-accent"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <Link to="/" className="text-2xl font-bold text-primary hover:text-primary/90">
-            Taskify Minder
-          </Link>
+        <nav className="flex justify-between items-center mb-8">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => window.history.back()}
+              className="hover:bg-accent"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <Link to="/" className="flex items-center gap-2">
+              <img 
+                src={theme === 'dark' 
+                  ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                  : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+                }
+                alt="SmartBookly Logo" 
+                className="h-8 md:h-10 w-auto"
+              />
+            </Link>
+          </div>
+          <ThemeToggle />
         </nav>
       </header>
 
