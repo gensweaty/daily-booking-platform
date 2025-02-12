@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -12,6 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "next-themes";
+import { Link } from "react-router-dom";
 
 interface DashboardHeaderProps {
   username: string;
@@ -28,6 +31,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     const fetchSubscription = async () => {
@@ -112,13 +116,17 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
 
   return (
     <header className="mb-8">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div className="text-center sm:text-left">
-          <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">Welcome to Taskify Minder Note</h1>
-          <p className="text-foreground">
-            {username ? `Hello ${username}!` : 'Welcome!'} Complete Agile productivity - tasks notes calendar all in one
-          </p>
-        </div>
+      <div className="flex items-center justify-between mb-4">
+        <Link to="/" className="flex items-center gap-2">
+          <img 
+            src={theme === 'dark' 
+              ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+              : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+            }
+            alt="SmartBookly Logo" 
+            className="h-8 md:h-10 w-auto"
+          />
+        </Link>
         <div className="flex items-center gap-2">
           <Dialog>
             <DialogTrigger asChild>
@@ -184,6 +192,12 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             Sign Out
           </Button>
         </div>
+      </div>
+      <div className="text-center">
+        <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">Welcome to SmartBookly!</h1>
+        <p className="text-foreground">
+          Your all-in-one hub for tasks, bookings, CRM, and insights—stay organized effortlessly.
+        </p>
       </div>
     </header>
   );
