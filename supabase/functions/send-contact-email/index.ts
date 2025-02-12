@@ -48,8 +48,8 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "SmartBookly <onboarding@resend.dev>",
-        to: ["info@smartbookly.com", "ananiadevsurashvili@gmail.com"],
+        from: "SmartBookly <gensweaty@gmail.com>",
+        to: ["gensweaty@gmail.com"],
         subject: `New Contact Form Submission from ${contactRequest.name}`,
         html: `
           <h2>New Contact Form Submission</h2>
