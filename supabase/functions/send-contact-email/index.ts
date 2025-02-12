@@ -49,7 +49,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         from: "SmartBookly <onboarding@resend.dev>",
-        to: ["gensweaty@gmail.com"],
+        to: ["gensweaty@gmail.com", "info@smartbookly.com", "ananiadevsurashvili@gmail.com"],
         reply_to: contactRequest.email,
         subject: `New Contact Form Submission from ${contactRequest.name}`,
         html: `
