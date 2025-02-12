@@ -7,6 +7,7 @@ import { Menu, X, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { ClientLogos } from "./ClientLogos";
 import { FeatureButtons } from "./FeatureButtons";
+import { useTheme } from "next-themes";
 
 const productImages = [
   {
@@ -29,6 +30,7 @@ const productImages = [
 
 export const HeroSection = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { theme } = useTheme();
 
   const handleMenuClose = () => {
     setIsMobileMenuOpen(false);
@@ -36,109 +38,116 @@ export const HeroSection = () => {
 
   return (
     <>
-    <header className="relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary-light via-background to-accent-light opacity-10" />
-      
-      <div className="container mx-auto px-4 py-8 relative">
-        <nav className="relative">
-          <div className="flex justify-between items-center">
-            <Link to="/" className="flex items-center gap-2">
-              {/* Logo temporarily removed */}
-            </Link>
-            
-            <div className="flex items-center gap-4 md:hidden">
-              <ThemeToggle />
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              >
-                {isMobileMenuOpen ? (
-                  <X className="h-6 w-6" />
-                ) : (
-                  <Menu className="h-6 w-6" />
-                )}
-              </Button>
-            </div>
-
-            <div className="hidden md:flex items-center space-x-4">
-              <ThemeToggle />
-              <Link to="/login">
-                <Button variant="outline" className="hover:scale-105 transition-transform">
-                  Sign In
-                </Button>
+      <header className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-light via-background to-accent-light opacity-10" />
+        
+        <div className="container mx-auto px-4 py-8 relative">
+          <nav className="relative">
+            <div className="flex justify-between items-center">
+              <Link to="/" className="flex items-center gap-2">
+                <img 
+                  src={theme === 'dark' 
+                    ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                    : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+                  }
+                  alt="SmartBookly Logo" 
+                  className="h-8 md:h-10 w-auto"
+                />
               </Link>
-              <Link to="/signup">
-                <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
-                  Start Your Free Journey
-                </Button>
-              </Link>
-              <Link to="/contact">
-                <Button variant="outline" className="hover:scale-105 transition-transform">
-                  Contact
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          {isMobileMenuOpen && (
-            <div className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50">
-              <Link to="/login" onClick={handleMenuClose}>
-                <Button variant="outline" className="w-full justify-start">
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/signup" onClick={handleMenuClose}>
-                <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90">
-                  Start Your Free Journey
-                </Button>
-              </Link>
-              <Link to="/contact" onClick={handleMenuClose}>
-                <Button variant="outline" className="w-full justify-start">
-                  Contact
-                </Button>
-              </Link>
-            </div>
-          )}
-        </nav>
-
-        <div className="grid md:grid-cols-2 gap-12 items-center mt-12">
-          <div className="space-y-4 animate-fade-in">
-            <div className="space-y-2">
-              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent relative overflow-hidden">
-                Boost Your Business
-                <br />
-                Productivity with SmartBookly
-              </h2>
-              <h3 className="text-xl md:text-2xl font-semibold text-foreground/90">
-                All-in-One Booking, Task Management, CRM, and Analytics Solution
-              </h3>
-            </div>
-            <p className="text-xl text-muted-foreground leading-relaxed">
-              Take full control of your workflow with our seamless booking calendar, powerful task management, intelligent customer relationship management, and integrated analytics. Everything your business needs, all in one place.
-            </p>
-            <div className="pt-3">
-              <Link to="/signup">
+              
+              <div className="flex items-center gap-4 md:hidden">
+                <ThemeToggle />
                 <Button 
-                  size="lg" 
-                  className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 >
-                  <span className="flex items-center gap-2">
-                    Start Your Free Journey
-                    <Sparkles className="w-5 h-5 animate-pulse" />
-                  </span>
+                  {isMobileMenuOpen ? (
+                    <X className="h-6 w-6" />
+                  ) : (
+                    <Menu className="h-6 w-6" />
+                  )}
                 </Button>
-              </Link>
+              </div>
+
+              <div className="hidden md:flex items-center space-x-4">
+                <ThemeToggle />
+                <Link to="/login">
+                  <Button variant="outline" className="hover:scale-105 transition-transform">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/signup">
+                  <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
+                    Start Your Free Journey
+                  </Button>
+                </Link>
+                <Link to="/contact">
+                  <Button variant="outline" className="hover:scale-105 transition-transform">
+                    Contact
+                  </Button>
+                </Link>
+              </div>
             </div>
-          </div>
-          <div className="animate-fade-in">
-            <ImageCarousel images={productImages} permanentArrows={true} />
+
+            {isMobileMenuOpen && (
+              <div className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50">
+                <Link to="/login" onClick={handleMenuClose}>
+                  <Button variant="outline" className="w-full justify-start">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/signup" onClick={handleMenuClose}>
+                  <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90">
+                    Start Your Free Journey
+                  </Button>
+                </Link>
+                <Link to="/contact" onClick={handleMenuClose}>
+                  <Button variant="outline" className="w-full justify-start">
+                    Contact
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </nav>
+
+          <div className="grid md:grid-cols-2 gap-12 items-center mt-12">
+            <div className="space-y-4 animate-fade-in">
+              <div className="space-y-2">
+                <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent relative overflow-hidden">
+                  Boost Your Business
+                  <br />
+                  Productivity with SmartBookly
+                </h2>
+                <h3 className="text-xl md:text-2xl font-semibold text-foreground/90">
+                  All-in-One Booking, Task Management, CRM, and Analytics Solution
+                </h3>
+              </div>
+              <p className="text-xl text-muted-foreground leading-relaxed">
+                Take full control of your workflow with our seamless booking calendar, powerful task management, intelligent customer relationship management, and integrated analytics. Everything your business needs, all in one place.
+              </p>
+              <div className="pt-3">
+                <Link to="/signup">
+                  <Button 
+                    size="lg" 
+                    className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
+                  >
+                    <span className="flex items-center gap-2">
+                      Start Your Free Journey
+                      <Sparkles className="w-5 h-5 animate-pulse" />
+                    </span>
+                  </Button>
+                </Link>
+              </div>
+            </div>
+            <div className="animate-fade-in">
+              <ImageCarousel images={productImages} permanentArrows={true} />
+            </div>
           </div>
         </div>
-      </div>
-    </header>
-    <FeatureButtons />
-    <ClientLogos />
+      </header>
+      <FeatureButtons />
+      <ClientLogos />
     </>
   );
 };

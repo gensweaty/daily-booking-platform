@@ -2,23 +2,37 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import { useTheme } from "next-themes";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Legal = () => {
+  const { theme } = useTheme();
+
   return (
     <div className="min-h-screen bg-background">
       <header className="container mx-auto px-4 py-8">
-        <nav className="flex items-center gap-4 mb-8">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => window.history.back()}
-            className="hover:bg-accent"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <Link to="/" className="text-2xl font-bold text-primary hover:text-primary/90">
-            Taskify Minder
-          </Link>
+        <nav className="flex justify-between items-center mb-8">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => window.history.back()}
+              className="hover:bg-accent"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <Link to="/" className="flex items-center gap-2">
+              <img 
+                src={theme === 'dark' 
+                  ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                  : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+                }
+                alt="SmartBookly Logo" 
+                className="h-8 md:h-10 w-auto"
+              />
+            </Link>
+          </div>
+          <ThemeToggle />
         </nav>
       </header>
 
@@ -29,13 +43,13 @@ const Legal = () => {
 
           <section className="mt-8">
             <h2 className="text-2xl font-semibold mb-4">Terms of Service</h2>
-            <p>Welcome to Taskify Minder. These Terms of Service ("Terms") govern your use of our SaaS platform and services ("Services"). By accessing or using our Services, you agree to these Terms. If you do not agree, please do not use our Services.</p>
+            <p>Welcome to SmartBookly. These Terms of Service ("Terms") govern your use of our SaaS platform and services ("Services"). By accessing or using our Services, you agree to these Terms. If you do not agree, please do not use our Services.</p>
 
             <h3 className="text-xl font-semibold mt-6 mb-3">1. General Information</h3>
             <p>
-              Company Name: Taskify Minder<br />
+              Company Name: SmartBookly<br />
               Registered in: Georgia<br />
-              Contact Email: support@taskifyminder.com
+              Contact Email: info@smartbookly.com
             </p>
 
             <h3 className="text-xl font-semibold mt-6 mb-3">2. Eligibility</h3>
@@ -94,7 +108,7 @@ const Legal = () => {
             </ul>
 
             <h3 className="text-xl font-semibold mt-6 mb-3">Contact Us</h3>
-            <p>If you have any questions about our Terms or Privacy Policy, please contact us at support@taskifyminder.com</p>
+            <p>If you have any questions about our Terms or Privacy Policy, please contact us at info@smartbookly.com</p>
           </section>
         </div>
       </main>

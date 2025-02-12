@@ -1,9 +1,10 @@
-
 import { Link } from "react-router-dom";
 import { Facebook, Twitter, Instagram, Linkedin, Github } from "lucide-react";
 import { motion } from "framer-motion";
+import { useTheme } from "next-themes";
 
 export const FooterSection = () => {
+  const { theme } = useTheme();
   const socialLinks = [
     { icon: Facebook, href: "#", label: "Facebook" },
     { icon: Twitter, href: "#", label: "Twitter" },
@@ -26,7 +27,14 @@ export const FooterSection = () => {
         <div className="grid md:grid-cols-2 gap-12">
           <div className="space-y-6">
             <Link to="/" className="flex items-center gap-2">
-              {/* Logo temporarily removed */}
+              <img 
+                src={theme === 'dark' 
+                  ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                  : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+                }
+                alt="SmartBookly Logo" 
+                className="h-8 md:h-10 w-auto"
+              />
             </Link>
             <p className="text-muted-foreground max-w-md">
               Streamline Your Workflow with Our Integrated Booking Calendar, Task Management, CRM, and Analytics Platform.

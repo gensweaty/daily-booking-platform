@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
@@ -47,8 +48,9 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Taskify Minder <onboarding@resend.dev>",
-        to: ["ananiadevsurashvili@gmail.com"],
+        from: "SmartBookly <onboarding@resend.dev>",
+        to: ["gensweaty@gmail.com", "info@smartbookly.com", "ananiadevsurashvili@gmail.com"],
+        reply_to: contactRequest.email,
         subject: `New Contact Form Submission from ${contactRequest.name}`,
         html: `
           <h2>New Contact Form Submission</h2>
