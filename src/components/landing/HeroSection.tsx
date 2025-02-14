@@ -101,10 +101,8 @@ export const HeroSection = () => {
                 <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary lg:text-5xl">
                   Boost Your Business Productivity with SmartBookly
                 </h1>
-                <h2 className="text-2xl md:text-3xl font-semibold text-foreground/90">
-                  All-in-One Booking, Task Management, CRM, and Analytics Solution
-                </h2>
-                <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
+                <h2 className="text-2xl font-semibold text-foreground/90 md:text-2xl">All-in-One Booking, Task Management, CRM, and Analytics Solution.</h2>
+                <p className="text-lg text-muted-foreground leading-relaxed md:text-lg">
                   Take full control of your workflow with our seamless booking calendar, powerful task management, intelligent customer relationship management, and integrated analytics. Everything your business needs, all in one place.
                 </p>
               </article>
