@@ -130,21 +130,17 @@ export const HeroSection = () => {
 
           <main className="grid md:grid-cols-2 gap-8 md:gap-12 items-center mt-8 md:mt-12">
             <div className="space-y-4 animate-fade-in">
-              <article className="space-y-2">
-                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">
-                  SmartBookly – All-in-One CRM, Booking, and Task Management
+              <article className="space-y-4">
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary">
+                  Boost Your Business Productivity with SmartBookly
                 </h1>
-                <h2 className="text-xl md:text-2xl lg:text-3xl text-foreground/80 font-semibold">
-                  Streamline Your Business with a Powerful Productivity Tool
+                <h2 className="text-2xl md:text-3xl font-semibold text-foreground/90">
+                  All-in-One Booking, Task Management, CRM, and Analytics Solution
                 </h2>
+                <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
+                  Take full control of your workflow with our seamless booking calendar, powerful task management, intelligent customer relationship management, and integrated analytics. Everything your business needs, all in one place.
+                </p>
               </article>
-              <div className="space-y-3 text-muted-foreground">
-                <h3 className="font-medium">AI-Powered Booking Calendar with Automated Scheduling</h3>
-                <h3 className="font-medium">Comprehensive CRM for Client and Payment Management</h3>
-                <h3 className="font-medium">Advanced Task Management with Kanban and Drag & Drop</h3>
-                <h3 className="font-medium">Real-Time Analytics with One-Click Excel Export</h3>
-                <h3 className="font-medium">Seamless Integration and Synchronization Across Platforms</h3>
-              </div>
               <div className="pt-3">
                 <Link to="/signup">
                   <Button 
