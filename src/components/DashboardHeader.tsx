@@ -115,8 +115,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   };
 
   return (
-    <header className="mb-8">
-      <div className="flex items-center justify-between mb-4">
+    <header className="mb-4">
+      <div className="flex items-center justify-between mb-3">
         <Link to="/" className="flex items-center gap-2">
           <img 
             src={theme === 'dark' 
@@ -193,9 +193,9 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           </Button>
         </div>
       </div>
-      <div className="text-center">
-        <h1 className="text-2xl sm:text-4xl font-bold text-primary mb-2">Welcome to SmartBookly!</h1>
-        <p className="text-foreground">
+      <div className="text-center mb-2">
+        <h1 className="text-xl sm:text-2xl font-bold text-primary">Welcome to SmartBookly!</h1>
+        <p className="text-sm text-foreground/80">
           Your all-in-one hub for tasks, bookings, CRM, and insights—stay organized effortlessly.
         </p>
       </div>
