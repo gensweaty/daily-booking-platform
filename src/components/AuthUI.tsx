@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SignIn } from "@/components/SignIn";
 import { SignUp } from "@/components/SignUp";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useEffect, useState } from "react";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -53,7 +54,10 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
               />
             </Link>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-4">
+            <LanguageSwitcher />
+            <ThemeToggle />
+          </div>
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2 text-center">{t("auth.welcome")}</h1>
         <p className="text-foreground/80 text-center">{t("auth.description")}</p>

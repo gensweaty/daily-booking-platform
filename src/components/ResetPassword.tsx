@@ -1,10 +1,14 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useTheme } from "next-themes";
 
 export const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -12,6 +16,7 @@ export const ResetPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { theme } = useTheme();
 
   useEffect(() => {
     const handleRecoveryToken = async () => {
@@ -120,6 +125,25 @@ export const ResetPassword = () => {
 
   return (
     <div className="min-h-screen bg-background p-4">
+      <header className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <Link to="/" className="flex items-center gap-2">
+            <img 
+              src={theme === 'dark' 
+                ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+              }
+              alt="SmartBookly Logo" 
+              className="h-8 md:h-10 w-auto"
+            />
+          </Link>
+          <div className="flex items-center gap-4">
+            <LanguageSwitcher />
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
+      
       <div className="w-full max-w-md mx-auto p-4 sm:p-6">
         <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Set New Password</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
