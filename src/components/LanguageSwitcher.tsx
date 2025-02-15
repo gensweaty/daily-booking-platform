@@ -34,10 +34,15 @@ export const LanguageSwitcher = () => {
           <span className="sr-only">Toggle language</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent 
+        align="end" 
+        className="bg-popover dark:bg-gray-800 border dark:border-gray-700"
+      >
         <DropdownMenuItem 
           onClick={() => setLanguage('en')} 
-          className={`flex items-center gap-2 ${language === 'en' ? 'bg-accent' : ''}`}
+          className={`flex items-center gap-2 hover:bg-accent/50 dark:hover:bg-gray-700 ${
+            language === 'en' ? 'bg-accent dark:bg-gray-700' : ''
+          }`}
         >
           <img 
             src={languages.en.flag} 
@@ -48,7 +53,9 @@ export const LanguageSwitcher = () => {
         </DropdownMenuItem>
         <DropdownMenuItem 
           onClick={() => setLanguage('es')} 
-          className={`flex items-center gap-2 ${language === 'es' ? 'bg-accent' : ''}`}
+          className={`flex items-center gap-2 hover:bg-accent/50 dark:hover:bg-gray-700 ${
+            language === 'es' ? 'bg-accent dark:bg-gray-700' : ''
+          }`}
         >
           <img 
             src={languages.es.flag} 
