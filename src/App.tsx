@@ -101,19 +101,19 @@ const AnimatedRoutes = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <LanguageProvider>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <BrowserRouter>
+    <BrowserRouter>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+        <LanguageProvider>
+          <AuthProvider>
             <TooltipProvider>
               <Toaster />
               <Sonner />
               <AnimatedRoutes />
             </TooltipProvider>
-          </BrowserRouter>
-        </ThemeProvider>
-      </LanguageProvider>
-    </AuthProvider>
+          </AuthProvider>
+        </LanguageProvider>
+      </ThemeProvider>
+    </BrowserRouter>
   </QueryClientProvider>
 );
 
