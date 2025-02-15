@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { TrendingUp } from "lucide-react";
 import {
@@ -10,28 +11,35 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { CustomTooltip } from "./CustomTooltip";
-import { format } from 'date-fns';
+import { format, differenceInMonths } from 'date-fns';
 
 interface BookingChartProps {
   data: Array<{
     day: string;
     bookings: number;
-    date: Date; // Add date to the interface
+    date: Date;
+    month: string;
   }>;
 }
 
 export const BookingChart = ({ data }: BookingChartProps) => {
-  // Transform data to show real cumulative growth with dates
+  // Transform data to show real cumulative growth
   const transformedData = data.reduce((acc: Array<{ date: string; total: number }>, item, index, arr) => {
     const previousTotal = acc.length > 0 ? acc[acc.length - 1].total : 0;
     const currentTotal = previousTotal + item.bookings;
     
     // Only add points when there's an actual increase in bookings
     if (currentTotal > previousTotal) {
-      // Format the date using the actual date from the data
-      const formattedDate = `${parseInt(item.day)} ${format(item.date, 'MMM')}`;
+      // Use month for date display if the period is longer than a month
+      const monthDifference = differenceInMonths(
+        arr[arr.length - 1].date,
+        arr[0].date
+      );
+      
+      const dateLabel = monthDifference > 0 ? item.month : `${parseInt(item.day)} ${format(item.date, 'MMM')}`;
+      
       acc.push({
-        date: formattedDate,
+        date: dateLabel,
         total: currentTotal,
       });
     }
