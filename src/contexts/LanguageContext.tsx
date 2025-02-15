@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 type Language = 'en' | 'es';
@@ -88,6 +87,45 @@ export const translations = {
     "business.beauty": "Beauty & Wellness",
     "business.personal": "Personal Meetings & Services",
     "business.education": "Education",
+
+    // Feature Descriptions
+    "features.mainTitle": "Powerful Features for Modern Professionals",
+    "features.businessTitle": "For Small and Medium Business Like",
+    
+    // Smart Booking Calendar
+    "booking.title": "Smart Booking Calendar",
+    "booking.description": "Efficiently manage your appointments and events",
+    "booking.feature1": "Multiple calendar views (month, week, day)",
+    "booking.feature2": "Event scheduling with customizable time slots",
+    "booking.feature3": "Client booking management with payment tracking",
+    "booking.feature4": "Automated Event Synchronization with CRM",
+
+    // Analytics
+    "analytics.title": "Comprehensive Analytics",
+    "analytics.description": "Track your performance and growth",
+    "analytics.feature1": "Booking and revenue analytics",
+    "analytics.feature2": "Custom date range filtering",
+    "analytics.feature3": "Income comparison across months",
+    "analytics.feature4": "Interactive visual metrics & graphs",
+    "analytics.feature5": "One-click Excel download",
+
+    // CRM
+    "crm.title": "Customer Relationship Management",
+    "crm.description": "Build and maintain strong client relationships",
+    "crm.feature1": "Centralized customer information management",
+    "crm.feature2": "File attachments and document organization",
+    "crm.feature3": "Payment tracking and status monitoring",
+    "crm.feature4": "Elastic search for quick data access",
+    "crm.feature5": "One-click Excel download of all displayed data",
+
+    // Task Management
+    "tasks.title": "Task Management",
+    "tasks.description": "Stay organized and productive",
+    "tasks.feature1": "Kanban board for visual task organization",
+    "tasks.feature2": "Task status tracking and progress monitoring",
+    "tasks.feature3": "Efficient task prioritization",
+    "tasks.feature4": "Simple drag-and-drop functionality",
+    "tasks.feature5": "Quick note-saving for tasks"
   },
   es: {
     // Navigation
@@ -165,6 +203,45 @@ export const translations = {
     "business.beauty": "Belleza y Bienestar",
     "business.personal": "Reuniones y Servicios Personales",
     "business.education": "Educación",
+
+    // Feature Descriptions
+    "features.mainTitle": "Características Poderosas para Profesionales Modernos",
+    "features.businessTitle": "Para Pequeñas y Medianas Empresas Como",
+    
+    // Smart Booking Calendar
+    "booking.title": "Calendario de Reservas Inteligente",
+    "booking.description": "Gestiona eficientemente tus citas y eventos",
+    "booking.feature1": "Múltiples vistas de calendario (mes, semana, día)",
+    "booking.feature2": "Programación de eventos con horarios personalizables",
+    "booking.feature3": "Gestión de reservas de clientes con seguimiento de pagos",
+    "booking.feature4": "Sincronización automática de eventos con CRM",
+
+    // Analytics
+    "analytics.title": "Análisis Completo",
+    "analytics.description": "Monitorea tu rendimiento y crecimiento",
+    "analytics.feature1": "Análisis de reservas e ingresos",
+    "analytics.feature2": "Filtrado personalizado por rango de fechas",
+    "analytics.feature3": "Comparación de ingresos entre meses",
+    "analytics.feature4": "Métricas y gráficos visuales interactivos",
+    "analytics.feature5": "Descarga en Excel con un clic",
+
+    // CRM
+    "crm.title": "Gestión de Relaciones con Clientes",
+    "crm.description": "Construye y mantén relaciones sólidas con los clientes",
+    "crm.feature1": "Gestión centralizada de información de clientes",
+    "crm.feature2": "Archivos adjuntos y organización de documentos",
+    "crm.feature3": "Seguimiento de pagos y monitoreo de estado",
+    "crm.feature4": "Búsqueda elástica para acceso rápido a datos",
+    "crm.feature5": "Descarga en Excel de todos los datos mostrados con un clic",
+
+    // Task Management
+    "tasks.title": "Gestión de Tareas",
+    "tasks.description": "Mantente organizado y productivo",
+    "tasks.feature1": "Tablero Kanban para organización visual de tareas",
+    "tasks.feature2": "Seguimiento de estado y monitoreo de progreso",
+    "tasks.feature3": "Priorización eficiente de tareas",
+    "tasks.feature4": "Funcionalidad simple de arrastrar y soltar",
+    "tasks.feature5": "Guardado rápido de notas para tareas"
   }
 };
 
