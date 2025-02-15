@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { BanknoteIcon } from "lucide-react";
 import {
@@ -19,11 +20,13 @@ interface IncomeChartProps {
 }
 
 export const IncomeChart = ({ data }: IncomeChartProps) => {
+  const title = data.length > 3 ? `${data.length} Month Income Comparison` : "Three Month Income Comparison";
+
   return (
     <Card className="p-4">
       <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
         <BanknoteIcon className="w-4 h-4" />
-        Three Month Income Comparison
+        {title}
       </h3>
       <div className="h-[345px] w-full">
         <ResponsiveContainer width="100%" height="100%">

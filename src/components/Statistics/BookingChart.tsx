@@ -23,20 +23,22 @@ interface BookingChartProps {
 }
 
 export const BookingChart = ({ data }: BookingChartProps) => {
+  // Check if the date range spans multiple months
+  const isMultiMonth = data.length > 0 && 
+    differenceInMonths(
+      data[data.length - 1].date,
+      data[0].date
+    ) > 0;
+
   // Transform data to show real cumulative growth
   const transformedData = data.reduce((acc: Array<{ date: string; total: number }>, item, index, arr) => {
     const previousTotal = acc.length > 0 ? acc[acc.length - 1].total : 0;
     const currentTotal = previousTotal + item.bookings;
     
     // Only add points when there's an actual increase in bookings
-    if (currentTotal > previousTotal) {
+    if (currentTotal > previousTotal || index === 0) {
       // Use month for date display if the period is longer than a month
-      const monthDifference = differenceInMonths(
-        arr[arr.length - 1].date,
-        arr[0].date
-      );
-      
-      const dateLabel = monthDifference > 0 ? item.month : `${parseInt(item.day)} ${format(item.date, 'MMM')}`;
+      const dateLabel = isMultiMonth ? item.month : `${parseInt(item.day)} ${format(item.date, 'MMM')}`;
       
       acc.push({
         date: dateLabel,
@@ -73,7 +75,7 @@ export const BookingChart = ({ data }: BookingChartProps) => {
               height={60}
               interval={0}
               label={{ 
-                value: 'Booking Dates', 
+                value: isMultiMonth ? 'Months' : 'Booking Dates', 
                 position: 'bottom', 
                 offset: 20,
                 style: { textAnchor: 'middle' }
