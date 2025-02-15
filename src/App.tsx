@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -99,21 +100,21 @@ const AnimatedRoutes = () => {
 };
 
 const App = () => (
-  <BrowserRouter>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <LanguageProvider>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <LanguageProvider>
+          <BrowserRouter>
             <TooltipProvider>
               <Toaster />
               <Sonner />
               <AnimatedRoutes />
             </TooltipProvider>
-          </LanguageProvider>
+          </BrowserRouter>
         </ThemeProvider>
-      </AuthProvider>
-    </QueryClientProvider>
-  </BrowserRouter>
+      </LanguageProvider>
+    </AuthProvider>
+  </QueryClientProvider>
 );
 
 export default App;
