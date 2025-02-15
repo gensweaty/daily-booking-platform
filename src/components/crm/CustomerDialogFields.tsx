@@ -264,12 +264,12 @@ export const CustomerDialogFields = ({
 
         {paymentStatus && paymentStatus !== 'not_paid' && (
           <div className="space-y-1">
-            <Label htmlFor="amount">Payment Amount</Label>
+            <Label htmlFor="amount">Payment Amount ($)</Label>
             <Input
               id="amount"
               type="number"
               step="0.01"
-              placeholder="Enter amount"
+              placeholder="Enter amount in USD"
               value={paymentAmount}
               onChange={(e) => setPaymentAmount(e.target.value)}
               required

@@ -52,7 +52,7 @@ export const IncomeChart = ({ data }: IncomeChartProps) => {
             />
             <YAxis 
               label={{ 
-                value: 'Income (₾)', 
+                value: 'Income ($)', 
                 angle: -90, 
                 position: 'insideLeft',
                 offset: 0,
@@ -67,7 +67,7 @@ export const IncomeChart = ({ data }: IncomeChartProps) => {
             <Bar
               dataKey="income"
               fill="#82ca9d"
-              name="Income (₾)"
+              name="Income ($)"
             />
           </BarChart>
         </ResponsiveContainer>

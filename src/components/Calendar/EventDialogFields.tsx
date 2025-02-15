@@ -130,8 +130,6 @@ export const EventDialogFields = ({
     enabled: !!(eventId || title),
   });
 
-  // ... keep existing code (render JSX)
-
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -200,12 +198,12 @@ export const EventDialogFields = ({
 
       {paymentStatus && paymentStatus !== 'not_paid' && (
         <div className="space-y-2">
-          <Label htmlFor="amount">Payment Amount</Label>
+          <Label htmlFor="amount">Payment Amount ($)</Label>
           <Input
             id="amount"
             type="number"
             step="0.01"
-            placeholder="Enter amount"
+            placeholder="Enter amount in USD"
             value={paymentAmount}
             onChange={(e) => setPaymentAmount(e.target.value)}
             required
