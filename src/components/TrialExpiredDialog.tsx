@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   Dialog,
@@ -5,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SubscriptionPlanSelect } from "./signup/SubscriptionPlanSelect";
+import { SubscriptionPlanSelect } from "./subscription/SubscriptionPlanSelect";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
