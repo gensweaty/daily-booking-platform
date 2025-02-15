@@ -94,6 +94,7 @@ export type Database = {
       customers: {
         Row: {
           created_at: string | null
+          deleted_at: string | null
           end_date: string | null
           event_notes: string | null
           id: string
@@ -109,6 +110,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          deleted_at?: string | null
           end_date?: string | null
           event_notes?: string | null
           id?: string
@@ -124,6 +126,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          deleted_at?: string | null
           end_date?: string | null
           event_notes?: string | null
           id?: string
@@ -183,6 +186,7 @@ export type Database = {
       events: {
         Row: {
           created_at: string | null
+          deleted_at: string | null
           end_date: string
           event_notes: string | null
           id: string
@@ -198,6 +202,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          deleted_at?: string | null
           end_date: string
           event_notes?: string | null
           id?: string
@@ -213,6 +218,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          deleted_at?: string | null
           end_date?: string
           event_notes?: string | null
           id?: string

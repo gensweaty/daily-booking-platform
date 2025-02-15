@@ -51,7 +51,7 @@ export const useExcelExport = () => {
     }, {
       'Category': 'Financial Summary',
       'Total': 'Total Income',
-      'Details': `₾${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
+      'Details': `$${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
       'Additional Info': 'From all events',
     }];
 
@@ -61,7 +61,7 @@ export const useExcelExport = () => {
       'Phone Number': event.user_number || '',
       'Social Link/Email': event.social_network_link || '',
       'Payment Status': event.payment_status || '',
-      'Payment Amount': event.payment_amount || '',
+      'Payment Amount': event.payment_amount ? `$${event.payment_amount}` : '',
       'Date': event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
       'Time': event.start_date && event.end_date ? 
         `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',
@@ -111,4 +111,3 @@ export const useExcelExport = () => {
 
   return { exportToExcel };
 };
-

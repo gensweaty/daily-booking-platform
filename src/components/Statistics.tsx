@@ -1,6 +1,6 @@
 
 import { useAuth } from "@/contexts/AuthContext";
-import { startOfMonth, endOfMonth } from 'date-fns';
+import { startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { useState } from "react";
 import { BookingChart } from "./Statistics/BookingChart";
 import { IncomeChart } from "./Statistics/IncomeChart";
@@ -13,8 +13,8 @@ export const Statistics = () => {
   const { user } = useAuth();
   const currentDate = new Date();
   const [dateRange, setDateRange] = useState({ 
-    start: startOfMonth(currentDate),
-    end: endOfMonth(currentDate)
+    start: startOfMonth(currentDate), // Start from current month's first day
+    end: endOfMonth(currentDate) // End at current month's last day
   });
 
   const { taskStats, eventStats } = useStatistics(user?.id, dateRange);

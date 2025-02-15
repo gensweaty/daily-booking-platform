@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { TrendingUp } from "lucide-react";
 import {
@@ -10,28 +11,38 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { CustomTooltip } from "./CustomTooltip";
-import { format } from 'date-fns';
+import { format, differenceInMonths } from 'date-fns';
 
 interface BookingChartProps {
   data: Array<{
     day: string;
     bookings: number;
-    date: Date; // Add date to the interface
+    date: Date;
+    month: string;
   }>;
 }
 
 export const BookingChart = ({ data }: BookingChartProps) => {
-  // Transform data to show real cumulative growth with dates
-  const transformedData = data.reduce((acc: Array<{ date: string; total: number }>, item, index, arr) => {
+  // Check if the date range spans multiple months
+  const isMultiMonth = data.length > 0 && 
+    differenceInMonths(
+      data[data.length - 1].date,
+      data[0].date
+    ) > 0;
+
+  // Transform data to show real cumulative growth and handle date display
+  const transformedData = data.reduce((acc: Array<{ date: string; total: number }>, item, index) => {
     const previousTotal = acc.length > 0 ? acc[acc.length - 1].total : 0;
     const currentTotal = previousTotal + item.bookings;
     
-    // Only add points when there's an actual increase in bookings
-    if (currentTotal > previousTotal) {
-      // Format the date using the actual date from the data
-      const formattedDate = `${parseInt(item.day)} ${format(item.date, 'MMM')}`;
+    // Only add points when there's an actual increase in bookings or it's the first entry
+    if (currentTotal > previousTotal || index === 0) {
+      const dateLabel = isMultiMonth ? 
+        format(item.date, 'MMM d') : // Just show Month Day for multi-month view
+        `${parseInt(item.day)} ${format(item.date, 'MMM')}`; // Show Day Month for single month
+      
       acc.push({
-        date: formattedDate,
+        date: dateLabel,
         total: currentTotal,
       });
     }
@@ -63,7 +74,8 @@ export const BookingChart = ({ data }: BookingChartProps) => {
               tick={{ fontSize: 12, fill: '#6b7280' }}
               dy={16}
               height={60}
-              interval={0}
+              interval={isMultiMonth ? 2 : 0} // Show fewer ticks in multi-month view
+              angle={isMultiMonth ? -45 : 0} // Angle the text in multi-month view
               label={{ 
                 value: 'Booking Dates', 
                 position: 'bottom', 

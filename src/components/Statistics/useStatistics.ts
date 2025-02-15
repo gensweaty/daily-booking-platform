@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { format, parseISO, eachDayOfInterval, addMonths, subMonths, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
+import { format, parseISO, eachDayOfInterval, endOfDay, startOfMonth, endOfMonth, differenceInMonths, addMonths, eachMonthOfInterval } from 'date-fns';
 
 export const useStatistics = (userId: string | undefined, dateRange: { start: Date; end: Date }) => {
   const { data: taskStats } = useQuery({
@@ -36,7 +36,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       const partlyPaid = events?.filter(e => e.payment_status === 'partly').length || 0;
       const fullyPaid = events?.filter(e => e.payment_status === 'fully').length || 0;
 
-      // Get all days in the selected month for daily bookings
+      // Get all days in the selected range for daily bookings
       const daysInRange = eachDayOfInterval({
         start: dateRange.start,
         end: dateRange.end
@@ -51,19 +51,34 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         return {
           day: format(day, 'dd'),
           date: day,
+          month: format(day, 'MMM yyyy'),
           bookings: dayEvents?.length || 0,
         };
       });
 
-      // Get three months for income comparison
+      // Get months for income comparison
+      let monthsToCompare;
       const currentDate = new Date();
-      const threeMonths = [
-        subMonths(startOfMonth(currentDate), 1),
-        startOfMonth(currentDate),
-        addMonths(startOfMonth(currentDate), 1)
-      ];
+      const isDefaultDateRange = 
+        format(dateRange.start, 'yyyy-MM-dd') === format(startOfMonth(currentDate), 'yyyy-MM-dd') &&
+        format(dateRange.end, 'yyyy-MM-dd') === format(endOfMonth(currentDate), 'yyyy-MM-dd');
 
-      const monthlyIncome = await Promise.all(threeMonths.map(async (month) => {
+      if (isDefaultDateRange) {
+        // For default view, show current month and previous 2 months
+        monthsToCompare = [
+          addMonths(startOfMonth(currentDate), -2),
+          addMonths(startOfMonth(currentDate), -1),
+          startOfMonth(currentDate)
+        ];
+      } else {
+        // For manually selected date range, use those months
+        monthsToCompare = eachMonthOfInterval({
+          start: startOfMonth(dateRange.start),
+          end: endOfMonth(dateRange.end)
+        });
+      }
+
+      const monthlyIncome = await Promise.all(monthsToCompare.map(async (month) => {
         const monthStart = startOfMonth(month);
         const monthEnd = endOfMonth(month);
         
