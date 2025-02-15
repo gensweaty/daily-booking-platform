@@ -56,13 +56,27 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         };
       });
 
-      // For income comparison, always use current month and previous 2 months
+      // Get months for income comparison
+      let monthsToCompare;
       const currentDate = new Date();
-      const monthsToCompare = [
-        addMonths(startOfMonth(currentDate), -2),
-        addMonths(startOfMonth(currentDate), -1),
-        startOfMonth(currentDate)
-      ];
+      const isDefaultDateRange = 
+        format(dateRange.start, 'yyyy-MM-dd') === format(startOfMonth(currentDate), 'yyyy-MM-dd') &&
+        format(dateRange.end, 'yyyy-MM-dd') === format(endOfMonth(currentDate), 'yyyy-MM-dd');
+
+      if (isDefaultDateRange) {
+        // For default view, show current month and previous 2 months
+        monthsToCompare = [
+          addMonths(startOfMonth(currentDate), -2),
+          addMonths(startOfMonth(currentDate), -1),
+          startOfMonth(currentDate)
+        ];
+      } else {
+        // For manually selected date range, use those months
+        monthsToCompare = eachMonthOfInterval({
+          start: startOfMonth(dateRange.start),
+          end: endOfMonth(dateRange.end)
+        });
+      }
 
       const monthlyIncome = await Promise.all(monthsToCompare.map(async (month) => {
         const monthStart = startOfMonth(month);
