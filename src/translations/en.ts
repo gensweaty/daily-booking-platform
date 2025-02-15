@@ -1,4 +1,3 @@
-
 export const enTranslations = {
   // Navigation
   "nav.signin": "Sign In",
@@ -150,7 +149,66 @@ export const enTranslations = {
   "events.noFileChosen": "No file chosen",
   "events.createEvent": "Create Event",
   "events.maxSize": "Max size: Images - 2MB, Documents - 1MB",
-  "events.supportedFormats": "Supported formats: Images (jpg, jpeg, png, webp), Documents (pdf, docx, xlsx, pptx)"
+  "events.supportedFormats": "Supported formats: Images (jpg, jpeg, png, webp), Documents (pdf, docx, xlsx, pptx)",
+
+  // Business
+  "business.events": "Event Planning",
+  "business.eventsDesc": "For event planners and organizers",
+  "business.health": "Healthcare",
+  "business.healthDesc": "For medical professionals and clinics",
+  "business.sports": "Sports & Fitness",
+  "business.sportsDesc": "For trainers and fitness centers",
+  "business.beauty": "Beauty & Wellness",
+  "business.beautyDesc": "For salons and wellness centers",
+  "business.personal": "Personal Services",
+  "business.personalDesc": "For consultants and coaches",
+  "business.education": "Education",
+  "business.educationDesc": "For tutors and educational centers",
+
+  // Legal
+  "legal.termsAndPrivacy": "Terms and Privacy Policy",
+  "legal.lastUpdated": "Last Updated",
+  "legal.termsTitle": "Terms of Service",
+  "legal.termsIntro": "Please read these terms carefully before using our service.",
+  "legal.generalInfo": "General Information",
+  "legal.companyName": "Company Name",
+  "legal.companyRegistered": "Registered In",
+  "legal.contactEmail": "Contact Email",
+  "legal.eligibility": "Eligibility",
+  "legal.eligibilityText": "You must be at least 18 years old to use this service.",
+  "legal.accountTitle": "Account Terms",
+  "legal.accountInfo": "You are responsible for maintaining your account security",
+  "legal.accountSecurity": "Keep your password secure and confidential",
+  "legal.accountNotify": "Notify us of any unauthorized account access",
+  "legal.acceptableUseTitle": "Acceptable Use",
+  "legal.acceptableUse1": "Use the service lawfully and fairly",
+  "legal.acceptableUse2": "Respect other users' rights",
+  "legal.acceptableUse3": "Do not abuse or misuse the service",
+  "legal.paymentsTitle": "Payments",
+  "legal.payments1": "All payments are processed securely",
+  "legal.payments2": "Refunds are subject to our refund policy",
+  "legal.payments3": "Prices are subject to change with notice",
+  "legal.privacyTitle": "Privacy Policy",
+  "legal.privacyIntro": "We take your privacy seriously",
+  "legal.infoCollectTitle": "Information Collection",
+  "legal.infoCollectIntro": "We collect the following information",
+  "legal.infoCollect1": "Basic account information",
+  "legal.infoCollect2": "Usage data and analytics",
+  "legal.infoCollect3": "Payment information",
+  "legal.dataUseTitle": "How We Use Your Data",
+  "legal.dataUseIntro": "Your data is used for",
+  "legal.dataUse1": "Providing and improving our services",
+  "legal.dataUse2": "Processing payments",
+  "legal.dataUse3": "Communication about your account",
+  "legal.dataUse4": "Analytics and service optimization",
+  "legal.dataRightsTitle": "Your Data Rights",
+  "legal.dataRightsIntro": "You have the right to",
+  "legal.dataRights1": "Access your personal data",
+  "legal.dataRights2": "Request data correction",
+  "legal.dataRights3": "Request data deletion",
+  "legal.dataRights4": "Opt out of marketing communications",
+  "legal.contactUs": "Contact Us",
+  "legal.contactUsText": "If you have any questions about these terms, please contact us."
 } as const;
 
 export type TranslationKeys = keyof typeof enTranslations;
