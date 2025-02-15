@@ -4,6 +4,7 @@ import { CheckCircle } from "lucide-react";
 import { ImageCarousel } from "./ImageCarousel";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { TranslationKeys } from "@/translations/types";
 
 interface FeatureCardProps {
   icon: LucideIcon;
@@ -17,7 +18,7 @@ interface FeatureCardProps {
     title?: string;
   }[];
   reverse?: boolean;
-  translationPrefix: string;
+  translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks';
 }
 
 export const FeatureCard = ({
@@ -31,6 +32,10 @@ export const FeatureCard = ({
   translationPrefix,
 }: FeatureCardProps) => {
   const { t } = useLanguage();
+  
+  const getTranslationKey = (key: string): TranslationKeys => {
+    return `${translationPrefix}.${key}` as TranslationKeys;
+  };
   
   return (
     <motion.div
@@ -48,10 +53,10 @@ export const FeatureCard = ({
             <Icon className="w-6 h-6 text-primary animate-pulse" />
           </div>
           <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            {t(`${translationPrefix}.title`)}
+            {t(getTranslationKey('title'))}
           </h3>
         </div>
-        <p className="text-lg text-muted-foreground">{t(`${translationPrefix}.description`)}</p>
+        <p className="text-lg text-muted-foreground">{t(getTranslationKey('description'))}</p>
         <ul className="space-y-3">
           {benefits.map((benefit, idx) => (
             <motion.li
@@ -63,7 +68,7 @@ export const FeatureCard = ({
               className="flex items-start gap-2"
             >
               <CheckCircle className="w-5 h-5 text-primary mt-1" />
-              <span>{t(`${translationPrefix}.feature${idx + 1}`)}</span>
+              <span>{t(getTranslationKey(`feature${idx + 1}` as const))}</span>
             </motion.li>
           ))}
         </ul>
@@ -85,7 +90,7 @@ export const FeatureCard = ({
           ) : (
             <img 
               src={image} 
-              alt={t(`${translationPrefix}.title`)} 
+              alt={t(getTranslationKey('title'))} 
               className="w-full h-[400px] object-contain p-4"
             />
           )}
