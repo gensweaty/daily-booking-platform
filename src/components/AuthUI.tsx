@@ -8,6 +8,7 @@ import { useLocation, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface AuthUIProps {
   defaultTab?: "signin" | "signup";
@@ -18,6 +19,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (location.pathname === "/signup") {
@@ -53,15 +55,15 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
           </div>
           <ThemeToggle />
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2 text-center">Welcome to SmartBookly</h1>
-        <p className="text-foreground/80 text-center">Complete Agile productivity - tasks notes calendar all in one</p>
+        <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2 text-center">{t("auth.welcome")}</h1>
+        <p className="text-foreground/80 text-center">{t("auth.description")}</p>
       </header>
 
       <div className="w-full max-w-md mx-auto">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "signin" | "signup")} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-8">
-            <TabsTrigger value="signin">Sign In</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            <TabsTrigger value="signin">{t("auth.signInButton")}</TabsTrigger>
+            <TabsTrigger value="signup">{t("auth.signUpButton")}</TabsTrigger>
           </TabsList>
           <TabsContent value="signin">
             <SignIn />

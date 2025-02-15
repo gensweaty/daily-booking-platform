@@ -105,8 +105,11 @@ export const translations = {
     "dashboard.changePassword": "Change Password",
     
     // Auth
+    "auth.welcome": "Welcome to SmartBookly",
+    "auth.description": "Complete Agile productivity - tasks notes calendar all in one",
     "auth.emailLabel": "Email",
     "auth.passwordLabel": "Password",
+    "auth.passwordRequirements": "Password (min. 6 characters, include numbers)",
     "auth.confirmPasswordLabel": "Confirm Password",
     "auth.usernameLabel": "Username",
     "auth.forgotPassword": "Forgot password?",
@@ -115,6 +118,10 @@ export const translations = {
     "auth.backToSignIn": "Back to Sign In",
     "auth.resetPassword": "Reset Password",
     "auth.sendResetLink": "Send Reset Link",
+    "auth.sending": "Sending...",
+    "auth.enterEmail": "Enter your email",
+    "auth.resetLinkSent": "Reset Link Sent",
+    "auth.resetLinkSentDescription": "If an account exists with this email, you will receive a password reset link.",
     
     // Business Types
     "business.events": "Events & Entertainment",
@@ -269,8 +276,11 @@ export const translations = {
     "dashboard.changePassword": "Cambiar Contraseña",
     
     // Auth
+    "auth.welcome": "Bienvenido a SmartBookly",
+    "auth.description": "Productividad Ágil completa - tareas, notas, calendario todo en uno",
     "auth.emailLabel": "Correo Electrónico",
     "auth.passwordLabel": "Contraseña",
+    "auth.passwordRequirements": "Contraseña (mín. 6 caracteres, incluir números)",
     "auth.confirmPasswordLabel": "Confirmar Contraseña",
     "auth.usernameLabel": "Nombre de Usuario",
     "auth.forgotPassword": "¿Olvidaste tu contraseña?",
@@ -279,6 +289,10 @@ export const translations = {
     "auth.backToSignIn": "Volver a Iniciar Sesión",
     "auth.resetPassword": "Restablecer Contraseña",
     "auth.sendResetLink": "Enviar Link de Restablecimiento",
+    "auth.sending": "Enviando...",
+    "auth.enterEmail": "Ingresa tu correo electrónico",
+    "auth.resetLinkSent": "Link de Restablecimiento Enviado",
+    "auth.resetLinkSentDescription": "Si existe una cuenta con este correo electrónico, recibirás un link para restablecer tu contraseña.",
     
     // Business Types
     "business.events": "Eventos y Entretenimiento",
