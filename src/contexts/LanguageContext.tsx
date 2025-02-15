@@ -26,6 +26,7 @@ export const translations = {
     
     // Features
     "features.title": "What we offer",
+    "features.mainTitle": "Powerful Features for Modern Professionals",
     "features.booking": "Smart Appointment Scheduling",
     "features.tasks": "Kanban Board Task Management",
     "features.crm": "Modern CRM Solution",
@@ -41,6 +42,44 @@ export const translations = {
     "footer.navigation": "Navigation",
     "footer.legal": "Legal",
     "footer.rights": "© 2025 Smrtbookly.Com All rights reserved.",
+    
+    // Contact Page
+    "contact.title": "Get in Touch",
+    "contact.subtitle": "We'd love to hear from you",
+    "contact.name": "Full Name",
+    "contact.email": "Email Address",
+    "contact.message": "Your Message",
+    "contact.submit": "Send Message",
+    "contact.success": "Message sent successfully!",
+    
+    // Legal Page
+    "legal.title": "Legal Information",
+    "legal.terms": "Terms of Service",
+    "legal.privacy": "Privacy Policy",
+    "legal.cookies": "Cookie Policy",
+    
+    // Dashboard
+    "dashboard.welcome": "Welcome to SmartBookly!",
+    "dashboard.subtitle": "Your all-in-one hub for tasks, bookings, CRM, and insights—stay organized effortlessly.",
+    "dashboard.tasks": "Tasks",
+    "dashboard.events": "Events",
+    "dashboard.customers": "Customers",
+    "dashboard.analytics": "Analytics",
+    "dashboard.signOut": "Sign Out",
+    "dashboard.profile": "User Profile",
+    "dashboard.changePassword": "Change Password",
+    
+    // Auth
+    "auth.emailLabel": "Email",
+    "auth.passwordLabel": "Password",
+    "auth.confirmPasswordLabel": "Confirm Password",
+    "auth.usernameLabel": "Username",
+    "auth.forgotPassword": "Forgot password?",
+    "auth.signInButton": "Sign In",
+    "auth.signUpButton": "Sign Up",
+    "auth.backToSignIn": "Back to Sign In",
+    "auth.resetPassword": "Reset Password",
+    "auth.sendResetLink": "Send Reset Link",
     
     // Business Types
     "business.events": "Events & Entertainment",
@@ -64,13 +103,13 @@ export const translations = {
     
     // Features
     "features.title": "Lo que ofrecemos",
+    "features.mainTitle": "Características Poderosas para Profesionales Modernos",
     "features.booking": "Programación Inteligente de Citas",
     "features.tasks": "Gestión de Tareas con Tablero Kanban",
     "features.crm": "Solución CRM Moderna",
     "features.analytics": "Análisis de Rendimiento Automatizado",
     
     // CTA Section
-    "features.mainTitle": "Características Poderosas para Profesionales Modernos",
     "cta.title": "¿Listo para Impulsar la Productividad de tu Negocio?",
     "cta.subtitle": "Únete a los Profesionales que ya Usan SmartBookly",
     "cta.button": "Comienza Gratis",
@@ -80,6 +119,44 @@ export const translations = {
     "footer.navigation": "Navegación",
     "footer.legal": "Legal",
     "footer.rights": "© 2025 Smrtbookly.Com Todos los derechos reservados.",
+    
+    // Contact Page
+    "contact.title": "Contáctanos",
+    "contact.subtitle": "Nos encantaría saber de ti",
+    "contact.name": "Nombre Completo",
+    "contact.email": "Correo Electrónico",
+    "contact.message": "Tu Mensaje",
+    "contact.submit": "Enviar Mensaje",
+    "contact.success": "¡Mensaje enviado con éxito!",
+    
+    // Legal Page
+    "legal.title": "Información Legal",
+    "legal.terms": "Términos de Servicio",
+    "legal.privacy": "Política de Privacidad",
+    "legal.cookies": "Política de Cookies",
+    
+    // Dashboard
+    "dashboard.welcome": "¡Bienvenido a SmartBookly!",
+    "dashboard.subtitle": "Tu centro integral para tareas, reservas, CRM y análisis: mantente organizado sin esfuerzo.",
+    "dashboard.tasks": "Tareas",
+    "dashboard.events": "Eventos",
+    "dashboard.customers": "Clientes",
+    "dashboard.analytics": "Análisis",
+    "dashboard.signOut": "Cerrar Sesión",
+    "dashboard.profile": "Perfil de Usuario",
+    "dashboard.changePassword": "Cambiar Contraseña",
+    
+    // Auth
+    "auth.emailLabel": "Correo Electrónico",
+    "auth.passwordLabel": "Contraseña",
+    "auth.confirmPasswordLabel": "Confirmar Contraseña",
+    "auth.usernameLabel": "Nombre de Usuario",
+    "auth.forgotPassword": "¿Olvidaste tu contraseña?",
+    "auth.signInButton": "Iniciar Sesión",
+    "auth.signUpButton": "Registrarse",
+    "auth.backToSignIn": "Volver a Iniciar Sesión",
+    "auth.resetPassword": "Restablecer Contraseña",
+    "auth.sendResetLink": "Enviar Link de Restablecimiento",
     
     // Business Types
     "business.events": "Eventos y Entretenimiento",

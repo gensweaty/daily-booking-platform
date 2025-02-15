@@ -15,6 +15,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "next-themes";
 import { Link } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 interface DashboardHeaderProps {
   username: string;
@@ -32,6 +34,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { toast } = useToast();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const { theme } = useTheme();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const fetchSubscription = async () => {
@@ -128,6 +131,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           />
         </Link>
         <div className="flex items-center gap-2">
+          <LanguageSwitcher />
           <Dialog>
             <DialogTrigger asChild>
               <Button 
@@ -140,15 +144,15 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>User Profile</DialogTitle>
+                <DialogTitle>{t('dashboard.profile')}</DialogTitle>
               </DialogHeader>
               <div className="py-4 space-y-4">
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Email</p>
+                  <p className="text-sm font-medium">{t('auth.emailLabel')}</p>
                   <p className="text-sm text-muted-foreground">{user?.email}</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Username</p>
+                  <p className="text-sm font-medium">{t('auth.usernameLabel')}</p>
                   <p className="text-sm text-muted-foreground">{username}</p>
                 </div>
                 <div className="space-y-2">
@@ -176,7 +180,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                     className="w-full"
                     onClick={handleChangePassword}
                   >
-                    Change Password
+                    {t('dashboard.changePassword')}
                   </Button>
                 </div>
               </div>
@@ -189,14 +193,14 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             onClick={handleSignOut}
           >
             <LogOut className="w-4 h-4" />
-            Sign Out
+            {t('dashboard.signOut')}
           </Button>
         </div>
       </div>
       <div className="text-center mb-2">
-        <h1 className="text-xl sm:text-2xl font-bold text-primary">Welcome to SmartBookly!</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-primary">{t('dashboard.welcome')}</h1>
         <p className="text-sm text-foreground/80">
-          Your all-in-one hub for tasks, bookings, CRM, and insights—stay organized effortlessly.
+          {t('dashboard.subtitle')}
         </p>
       </div>
     </header>
