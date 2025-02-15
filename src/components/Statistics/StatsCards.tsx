@@ -36,13 +36,13 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
         title="Total Events"
         value={eventStats.total}
         icon={CheckSquare}
-        description={`${eventStats.fullyPaid} fully paid`}
+        description={`${eventStats.partlyPaid} partly paid, ${eventStats.fullyPaid} fully paid`}
       />
       <StatCard
         title="Total Income"
         value={`$${eventStats.totalIncome.toFixed(2)}`}
         icon={CircleDollarSign}
-        description={`${eventStats.partlyPaid} partly paid`}
+        description="From all events"
       />
     </div>
   );
