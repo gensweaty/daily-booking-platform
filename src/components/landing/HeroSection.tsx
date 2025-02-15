@@ -2,9 +2,11 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Menu, X, Sparkles } from "lucide-react";
 import { useState, lazy, Suspense } from "react";
 import { useTheme } from "next-themes";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // Lazy load less critical components
 const ClientLogos = lazy(() => import("./ClientLogos").then(mod => ({
@@ -30,14 +32,16 @@ const productImages = [{
   alt: "CRM Preview",
   loading: "lazy"
 }];
+
 export const HeroSection = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const {
-    theme
-  } = useTheme();
+  const { theme } = useTheme();
+  const { t } = useLanguage();
+
   const handleMenuClose = () => {
     setIsMobileMenuOpen(false);
   };
+
   return <>
       <header className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary-light via-background to-accent-light opacity-10" />
@@ -50,6 +54,7 @@ export const HeroSection = () => {
               </Link>
               
               <div className="flex items-center gap-4 md:hidden">
+                <LanguageSwitcher />
                 <ThemeToggle />
                 <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu">
                   {isMobileMenuOpen ? <X className="h-6 w-6" aria-hidden="true" /> : <Menu className="h-6 w-6" aria-hidden="true" />}
@@ -57,20 +62,21 @@ export const HeroSection = () => {
               </div>
 
               <div className="hidden md:flex items-center space-x-4" role="navigation">
+                <LanguageSwitcher />
                 <ThemeToggle />
                 <Link to="/login">
                   <Button variant="outline" className="hover:scale-105 transition-transform">
-                    Sign In
+                    {t('nav.signin')}
                   </Button>
                 </Link>
                 <Link to="/signup">
                   <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
-                    Start Your Free Journey
+                    {t('nav.startJourney')}
                   </Button>
                 </Link>
                 <Link to="/contact">
                   <Button variant="outline" className="hover:scale-105 transition-transform">
-                    Contact
+                    {t('nav.contact')}
                   </Button>
                 </Link>
               </div>
@@ -79,17 +85,17 @@ export const HeroSection = () => {
             {isMobileMenuOpen && <div id="mobile-menu" className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50" role="menu">
                 <Link to="/login" onClick={handleMenuClose} role="menuitem">
                   <Button variant="outline" className="w-full justify-start">
-                    Sign In
+                    {t('nav.signin')}
                   </Button>
                 </Link>
                 <Link to="/signup" onClick={handleMenuClose} role="menuitem">
                   <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90">
-                    Start Your Free Journey
+                    {t('nav.startJourney')}
                   </Button>
                 </Link>
                 <Link to="/contact" onClick={handleMenuClose} role="menuitem">
                   <Button variant="outline" className="w-full justify-start">
-                    Contact
+                    {t('nav.contact')}
                   </Button>
                 </Link>
               </div>}
@@ -99,18 +105,20 @@ export const HeroSection = () => {
             <div className="space-y-4 animate-fade-in">
               <article className="space-y-4">
                 <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary lg:text-5xl">
-                  Boost Your Business Productivity with SmartBookly
+                  {t('hero.title')}
                 </h1>
-                <h2 className="text-2xl font-semibold text-foreground/90 md:text-2xl">All-in-One SaaS - Event Booking, Task Management, CRM, and Analytics Solution.</h2>
+                <h2 className="text-2xl font-semibold text-foreground/90 md:text-2xl">
+                  {t('hero.subtitle')}
+                </h2>
                 <p className="text-lg text-muted-foreground leading-relaxed md:text-lg">
-                  Take full control of your workflow with our seamless booking calendar, powerful task management, intelligent customer relationship management, and integrated analytics. Everything your business needs, all in one place.
+                  {t('hero.description')}
                 </p>
               </article>
               <div className="pt-3">
                 <Link to="/signup">
                   <Button size="lg" className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
                     <span className="flex items-center gap-2">
-                      Start Your Free Journey
+                      {t('nav.startJourney')}
                       <Sparkles className="w-5 h-5 animate-pulse" aria-hidden="true" />
                     </span>
                   </Button>
