@@ -8,48 +8,51 @@ import {
   Users, 
   GraduationCap 
 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export const ClientLogos = () => {
+  const { t } = useLanguage();
+  
   const logos = [
     { 
-      name: "Events & Entertainment", 
+      name: t('business.events'),
       icon: PartyPopper,
-      description: "Perfect for event planners and entertainment venues",
+      description: t('business.eventsDesc'),
       bgColor: "bg-purple-100",
       iconColor: "text-purple-500"
     },
     { 
-      name: "Health & Medicine", 
+      name: t('business.health'),
       icon: Stethoscope,
-      description: "Ideal for medical practices and healthcare providers",
+      description: t('business.healthDesc'),
       bgColor: "bg-blue-100",
       iconColor: "text-blue-500"
     },
     { 
-      name: "Sports & Fitness", 
+      name: t('business.sports'),
       icon: Dumbbell,
-      description: "Great for gyms and fitness instructors",
+      description: t('business.sportsDesc'),
       bgColor: "bg-green-100",
       iconColor: "text-green-500"
     },
     { 
-      name: "Beauty & Wellness", 
+      name: t('business.beauty'),
       icon: Flower2,
-      description: "Designed for spas and wellness centers",
+      description: t('business.beautyDesc'),
       bgColor: "bg-pink-100",
       iconColor: "text-pink-500"
     },
     { 
-      name: "Personal Meetings & Services", 
+      name: t('business.personal'),
       icon: Users,
-      description: "Perfect for consultants and service providers",
+      description: t('business.personalDesc'),
       bgColor: "bg-orange-100",
       iconColor: "text-orange-500"
     },
     { 
-      name: "Education", 
+      name: t('business.education'),
       icon: GraduationCap,
-      description: "Tailored for educational institutions and tutors",
+      description: t('business.educationDesc'),
       bgColor: "bg-teal-100",
       iconColor: "text-teal-500"
     },
@@ -59,7 +62,7 @@ export const ClientLogos = () => {
     <div className="w-full bg-muted/30 py-8">
       <div className="container mx-auto px-4">
         <h3 className="text-center text-2xl font-semibold mb-8 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-          For Small and Medium Business Like
+          {t('features.businessTitle')}
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
           {logos.map((company, index) => (

@@ -118,11 +118,17 @@ export const translations = {
     
     // Business Types
     "business.events": "Events & Entertainment",
+    "business.eventsDesc": "Perfect for event planners and entertainment venues",
     "business.health": "Health & Medicine",
+    "business.healthDesc": "Ideal for medical practices and healthcare providers",
     "business.sports": "Sports & Fitness",
+    "business.sportsDesc": "Great for gyms and fitness instructors",
     "business.beauty": "Beauty & Wellness",
+    "business.beautyDesc": "Designed for spas and wellness centers",
     "business.personal": "Personal Meetings & Services",
-    "business.education": "Education"
+    "business.personalDesc": "Perfect for consultants and service providers",
+    "business.education": "Education",
+    "business.educationDesc": "Tailored for educational institutions and tutors"
   },
   es: {
     // Navigation
@@ -231,11 +237,17 @@ export const translations = {
     
     // Business Types
     "business.events": "Eventos y Entretenimiento",
+    "business.eventsDesc": "Perfecto para event planners y locales de entretenimiento",
     "business.health": "Salud y Medicina",
+    "business.healthDesc": "Ideal para consultorios médicos y proveedores de atención sanitaria",
     "business.sports": "Deportes y Fitness",
+    "business.sportsDesc": "Great for gyms and fitness instructors",
     "business.beauty": "Belleza y Bienestar",
-    "business.personal": "Reuniones y Servicios Personales",
-    "business.education": "Educación"
+    "business.beautyDesc": "Diseñado para spas y centros de bienestar",
+    "business.personal": "Reuniones personales y servicios",
+    "business.personalDesc": "Perfecto para consultores y proveedores de servicios",
+    "business.education": "Educación",
+    "business.educationDesc": "Adaptado para instituciones educativas y tutores"
   }
 };
 
