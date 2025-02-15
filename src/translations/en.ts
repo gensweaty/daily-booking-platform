@@ -208,7 +208,31 @@ export const enTranslations = {
   "legal.dataRights3": "Request data deletion",
   "legal.dataRights4": "Opt out of marketing communications",
   "legal.contactUs": "Contact Us",
-  "legal.contactUsText": "If you have any questions about these terms, please contact us."
+  "legal.contactUsText": "If you have any questions about these terms, please contact us.",
+
+  // Contact Page
+  "contact.getInTouch": "Get in Touch",
+  "contact.contactInfo": "Contact Information",
+  "contact.email": "Email",
+  "contact.phone": "Phone",
+  "contact.address": "Address",
+  "contact.addressLine1": "Davit Agmashenebeli Avenue 174",
+  "contact.addressLine2": "Tbilisi, Georgia",
+  "contact.businessHours": "Business Hours",
+  "contact.workingHours": "Monday - Friday: 10:00 AM - 7:00 PM",
+  "contact.weekendHours": "Saturday - Sunday: Closed",
+  "contact.sendMessage": "Send us a Message",
+  "contact.name": "Name",
+  "contact.namePlaceholder": "Your name",
+  "contact.emailPlaceholder": "your.email@example.com",
+  "contact.message": "Message",
+  "contact.messagePlaceholder": "How can we help you?",
+  "contact.send": "Send Message",
+  "contact.sending": "Sending...",
+  "contact.messageSent": "Message sent!",
+  "contact.messageSentDesc": "We'll get back to you as soon as possible.",
+  "contact.error": "Error",
+  "contact.errorDesc": "Failed to send message. Please try again later."
 } as const;
 
 export type TranslationKeys = keyof typeof enTranslations;

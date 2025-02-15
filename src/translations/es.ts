@@ -208,5 +208,29 @@ export const esTranslations = {
   "legal.dataRights3": "Solicitar eliminación de datos",
   "legal.dataRights4": "Optar por no recibir comunicaciones de marketing",
   "legal.contactUs": "Contáctenos",
-  "legal.contactUsText": "Si tiene alguna pregunta sobre estos términos, contáctenos."
+  "legal.contactUsText": "Si tiene alguna pregunta sobre estos términos, contáctenos.",
+
+  // Contact Page
+  "contact.getInTouch": "Ponte en Contacto",
+  "contact.contactInfo": "Información de Contacto",
+  "contact.email": "Correo Electrónico",
+  "contact.phone": "Teléfono",
+  "contact.address": "Dirección",
+  "contact.addressLine1": "Avenida Davit Agmashenebeli 174",
+  "contact.addressLine2": "Tbilisi, Georgia",
+  "contact.businessHours": "Horario Comercial",
+  "contact.workingHours": "Lunes - Viernes: 10:00 AM - 7:00 PM",
+  "contact.weekendHours": "Sábado - Domingo: Cerrado",
+  "contact.sendMessage": "Envíanos un Mensaje",
+  "contact.name": "Nombre",
+  "contact.namePlaceholder": "Tu nombre",
+  "contact.emailPlaceholder": "tu.correo@ejemplo.com",
+  "contact.message": "Mensaje",
+  "contact.messagePlaceholder": "¿Cómo podemos ayudarte?",
+  "contact.send": "Enviar Mensaje",
+  "contact.sending": "Enviando...",
+  "contact.messageSent": "¡Mensaje enviado!",
+  "contact.messageSentDesc": "Nos pondremos en contacto contigo lo antes posible.",
+  "contact.error": "Error",
+  "contact.errorDesc": "No se pudo enviar el mensaje. Por favor, inténtalo de nuevo más tarde."
 } as const;
