@@ -36,12 +36,13 @@ export const LanguageSwitcher = () => {
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end" 
-        className="bg-popover dark:bg-gray-800 border dark:border-gray-700"
+        className="bg-background border shadow-lg min-w-[150px] z-50"
+        sideOffset={8}
       >
         <DropdownMenuItem 
           onClick={() => setLanguage('en')} 
-          className={`flex items-center gap-2 hover:bg-accent/50 dark:hover:bg-gray-700 ${
-            language === 'en' ? 'bg-accent dark:bg-gray-700' : ''
+          className={`flex items-center gap-2 hover:bg-accent cursor-pointer ${
+            language === 'en' ? 'bg-accent' : ''
           }`}
         >
           <img 
@@ -53,8 +54,8 @@ export const LanguageSwitcher = () => {
         </DropdownMenuItem>
         <DropdownMenuItem 
           onClick={() => setLanguage('es')} 
-          className={`flex items-center gap-2 hover:bg-accent/50 dark:hover:bg-gray-700 ${
-            language === 'es' ? 'bg-accent dark:bg-gray-700' : ''
+          className={`flex items-center gap-2 hover:bg-accent cursor-pointer ${
+            language === 'es' ? 'bg-accent' : ''
           }`}
         >
           <img 
