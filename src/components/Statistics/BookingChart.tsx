@@ -30,15 +30,18 @@ export const BookingChart = ({ data }: BookingChartProps) => {
       data[0].date
     ) > 0;
 
-  // Transform data to show real cumulative growth
-  const transformedData = data.reduce((acc: Array<{ date: string; total: number }>, item, index, arr) => {
+  // Transform data to show real cumulative growth and handle date display
+  const transformedData = data.reduce((acc: Array<{ date: string; total: number }>, item, index) => {
     const previousTotal = acc.length > 0 ? acc[acc.length - 1].total : 0;
     const currentTotal = previousTotal + item.bookings;
     
-    // Only add points when there's an actual increase in bookings
+    // Only add points when there's an actual increase in bookings or it's the first entry
     if (currentTotal > previousTotal || index === 0) {
-      // Use month for date display if the period is longer than a month
-      const dateLabel = isMultiMonth ? item.month : `${parseInt(item.day)} ${format(item.date, 'MMM')}`;
+      const dateLabel = isMultiMonth ? 
+        // For multi-month periods, use month names
+        format(item.date, 'MMM yyyy') :
+        // For single month, use day and month
+        `${parseInt(item.day)} ${format(item.date, 'MMM')}`;
       
       acc.push({
         date: dateLabel,
