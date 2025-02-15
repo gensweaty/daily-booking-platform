@@ -57,7 +57,7 @@ export const CustomerList = () => {
         .eq('user_id', user?.id)
         .or(`start_date.gte.${dateRange.start.toISOString()},created_at.gte.${dateRange.start.toISOString()}`)
         .or(`start_date.lte.${endOfDay(dateRange.end).toISOString()},created_at.lte.${endOfDay(dateRange.end).toISOString()}`)
-        .not('deleted_at', 'is', 'not null'); // Exclude deleted customers
+        .is('deleted_at', null); // Correct syntax to exclude deleted customers
       
       if (error) throw error;
       return data || [];
@@ -77,7 +77,7 @@ export const CustomerList = () => {
         .eq('user_id', user?.id)
         .gte('start_date', dateRange.start.toISOString())
         .lte('start_date', endOfDay(dateRange.end).toISOString())
-        .not('deleted_at', 'is', 'not null'); // Exclude deleted events
+        .is('deleted_at', null); // Correct syntax to exclude deleted events
       
       if (error) throw error;
       return data || [];
