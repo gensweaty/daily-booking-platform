@@ -38,10 +38,8 @@ export const BookingChart = ({ data }: BookingChartProps) => {
     // Only add points when there's an actual increase in bookings or it's the first entry
     if (currentTotal > previousTotal || index === 0) {
       const dateLabel = isMultiMonth ? 
-        // For multi-month periods, use month names
-        format(item.date, 'MMM yyyy') :
-        // For single month, use day and month
-        `${parseInt(item.day)} ${format(item.date, 'MMM')}`;
+        format(item.date, 'MMM d') : // Just show Month Day for multi-month view
+        `${parseInt(item.day)} ${format(item.date, 'MMM')}`; // Show Day Month for single month
       
       acc.push({
         date: dateLabel,
@@ -76,9 +74,10 @@ export const BookingChart = ({ data }: BookingChartProps) => {
               tick={{ fontSize: 12, fill: '#6b7280' }}
               dy={16}
               height={60}
-              interval={0}
+              interval={isMultiMonth ? 2 : 0} // Show fewer ticks in multi-month view
+              angle={isMultiMonth ? -45 : 0} // Angle the text in multi-month view
               label={{ 
-                value: isMultiMonth ? 'Months' : 'Booking Dates', 
+                value: 'Booking Dates', 
                 position: 'bottom', 
                 offset: 20,
                 style: { textAnchor: 'middle' }

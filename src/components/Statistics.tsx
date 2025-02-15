@@ -13,8 +13,8 @@ export const Statistics = () => {
   const { user } = useAuth();
   const currentDate = new Date();
   const [dateRange, setDateRange] = useState({ 
-    start: addMonths(startOfMonth(currentDate), -2), // Start from 2 months ago
-    end: endOfMonth(currentDate) // End at current month
+    start: startOfMonth(currentDate), // Start from current month's first day
+    end: endOfMonth(currentDate) // End at current month's last day
   });
 
   const { taskStats, eventStats } = useStatistics(user?.id, dateRange);
