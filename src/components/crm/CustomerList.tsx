@@ -213,81 +213,20 @@ export const CustomerList = () => {
 
     try {
       if (customer.id.startsWith('event-')) {
-        // Handle event deletion
+        // Handle event soft deletion
         const eventId = customer.id.replace('event-', '');
-        
-        // First delete associated files from storage
-        const { data: files } = await supabase
-          .from('event_files')
-          .select('*')
-          .eq('event_id', eventId);
-
-        if (files && files.length > 0) {
-          // Delete files from storage
-          for (const file of files) {
-            const { error: storageError } = await supabase.storage
-              .from('event_attachments')
-              .remove([file.file_path]);
-
-            if (storageError) {
-              console.error('Error deleting file from storage:', storageError);
-            }
-          }
-
-          // Delete file records from database
-          const { error: filesDeleteError } = await supabase
-            .from('event_files')
-            .delete()
-            .eq('event_id', eventId);
-
-          if (filesDeleteError) {
-            throw filesDeleteError;
-          }
-        }
-
-        // Delete the event
         const { error } = await supabase
           .from('events')
-          .delete()
+          .update({ deleted_at: new Date().toISOString() })
           .eq('id', eventId)
           .eq('user_id', user.id);
 
         if (error) throw error;
       } else {
-        // Handle customer deletion (existing logic)
-        // First delete associated files from storage
-        const { data: files } = await supabase
-          .from('customer_files_new')
-          .select('*')
-          .eq('customer_id', customer.id);
-
-        if (files && files.length > 0) {
-          // Delete files from storage
-          for (const file of files) {
-            const { error: storageError } = await supabase.storage
-              .from('customer_attachments')
-              .remove([file.file_path]);
-
-            if (storageError) {
-              console.error('Error deleting file from storage:', storageError);
-            }
-          }
-
-          // Delete file records from database
-          const { error: filesDeleteError } = await supabase
-            .from('customer_files_new')
-            .delete()
-            .eq('customer_id', customer.id);
-
-          if (filesDeleteError) {
-            throw filesDeleteError;
-          }
-        }
-
-        // Delete the customer
+        // Handle customer soft deletion
         const { error } = await supabase
           .from('customers')
-          .delete()
+          .update({ deleted_at: new Date().toISOString() })
           .eq('id', customer.id)
           .eq('user_id', user.id);
 
