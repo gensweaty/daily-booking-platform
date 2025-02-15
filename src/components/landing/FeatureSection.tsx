@@ -34,7 +34,7 @@ export const FeatureSection = () => {
         t('booking.feature3'),
         t('booking.feature4')
       ],
-      translationPrefix: 'booking',
+      translationPrefix: 'booking' as const,
       id: "smart-booking"
     },
     {
@@ -49,7 +49,7 @@ export const FeatureSection = () => {
         t('analytics.feature4'),
         t('analytics.feature5')
       ],
-      translationPrefix: 'analytics',
+      translationPrefix: 'analytics' as const,
       reverse: true,
       id: "analytics"
     },
@@ -65,7 +65,7 @@ export const FeatureSection = () => {
         t('crm.feature4'),
         t('crm.feature5')
       ],
-      translationPrefix: 'crm',
+      translationPrefix: 'crm' as const,
       id: "crm-solution"
     },
     {
@@ -80,7 +80,7 @@ export const FeatureSection = () => {
         t('tasks.feature4'),
         t('tasks.feature5')
       ],
-      translationPrefix: 'tasks',
+      translationPrefix: 'tasks' as const,
       reverse: true,
       id: "task-management"
     }
