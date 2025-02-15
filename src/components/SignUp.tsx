@@ -1,7 +1,7 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SignUpFields } from "./signup/SignUpFields";
-import { SubscriptionPlanSelect } from "./signup/SubscriptionPlanSelect";
 import { useSignup } from "@/hooks/useSignup";
 import { useToast } from "@/hooks/use-toast";
 
@@ -10,7 +10,6 @@ export const SignUp = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
   
   const { handleSignup, isLoading } = useSignup();
   const { toast } = useToast();
@@ -44,7 +43,8 @@ export const SignUp = () => {
       return;
     }
 
-    await handleSignup(email, username, password, confirmPassword, selectedPlan, clearForm);
+    // Always use monthly plan as default for free trial
+    await handleSignup(email, username, password, confirmPassword, 'monthly', clearForm);
   };
 
   return (
@@ -60,11 +60,6 @@ export const SignUp = () => {
           setPassword={setPassword}
           confirmPassword={confirmPassword}
           setConfirmPassword={setConfirmPassword}
-          isLoading={isLoading}
-        />
-        <SubscriptionPlanSelect
-          selectedPlan={selectedPlan}
-          setSelectedPlan={setSelectedPlan}
           isLoading={isLoading}
         />
         <Button 
