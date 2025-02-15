@@ -413,12 +413,12 @@ export const CustomerList = () => {
       'Phone Number': customer.user_number || '',
       'Social Link/Email': customer.social_network_link || '',
       'Payment Status': customer.payment_status || '',
-      'Payment Amount': customer.payment_amount || '',
+      'Payment Amount': customer.payment_amount ? `$${customer.payment_amount}` : '',
       'Date': customer.start_date ? format(new Date(customer.start_date), 'dd.MM.yyyy') : '',
       'Time': customer.start_date && customer.end_date ? 
         formatTimeRange(customer.start_date, customer.end_date) : '',
       'Comment': customer.event_notes || '',
-      'Event': customer.id.startsWith('event-') ? 'Yes' : 'No'
+      'Event': 'Yes'  // Since all entries are from events, we always set this to "Yes"
     }));
 
     // Create workbook and worksheet
