@@ -56,7 +56,8 @@ export const CustomerList = () => {
         `)
         .eq('user_id', user?.id)
         .or(`start_date.gte.${dateRange.start.toISOString()},created_at.gte.${dateRange.start.toISOString()}`)
-        .or(`start_date.lte.${endOfDay(dateRange.end).toISOString()},created_at.lte.${endOfDay(dateRange.end).toISOString()}`);
+        .or(`start_date.lte.${endOfDay(dateRange.end).toISOString()},created_at.lte.${endOfDay(dateRange.end).toISOString()}`)
+        .not('deleted_at', 'is', 'not null'); // Exclude deleted customers
       
       if (error) throw error;
       return data || [];
@@ -75,7 +76,8 @@ export const CustomerList = () => {
         `)
         .eq('user_id', user?.id)
         .gte('start_date', dateRange.start.toISOString())
-        .lte('start_date', endOfDay(dateRange.end).toISOString());
+        .lte('start_date', endOfDay(dateRange.end).toISOString())
+        .not('deleted_at', 'is', 'not null'); // Exclude deleted events
       
       if (error) throw error;
       return data || [];
@@ -418,7 +420,7 @@ export const CustomerList = () => {
       'Time': customer.start_date && customer.end_date ? 
         formatTimeRange(customer.start_date, customer.end_date) : '',
       'Comment': customer.event_notes || '',
-      'Event': 'Yes'  // Since all entries are from events, we always set this to "Yes"
+      'Event': customer.id.startsWith('event-') || (customer.start_date && customer.end_date) ? 'Yes' : 'No'
     }));
 
     // Create workbook and worksheet
