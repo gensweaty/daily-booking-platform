@@ -25,7 +25,8 @@ export const useEventDialog = ({
     
     if (hour !== undefined) {
       clickedDate.setHours(hour, 0, 0, 0);
-    } else if (view === "month") {
+    } else {
+      // Always set to 9 AM for month view clicks
       clickedDate.setHours(9, 0, 0, 0);
     }
     
