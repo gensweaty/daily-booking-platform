@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { createTask, updateTask } from "@/lib/api";
@@ -8,6 +9,7 @@ import { Task } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { TaskFormHeader } from "./tasks/TaskFormHeader";
 import { TaskFormFields } from "./tasks/TaskFormFields";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface AddTaskFormProps {
   onClose: () => void;
@@ -22,14 +24,12 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { language } = useLanguage();
 
   useEffect(() => {
     if (editingTask) {
-      console.log("Setting form with editingTask:", editingTask);
       setTitle(editingTask.title);
-      // Initialize description with the actual content from editingTask
       const initialDescription = editingTask.description || "";
-      console.log("Initializing description with:", initialDescription);
       setDescription(initialDescription);
     }
   }, [editingTask]);
@@ -39,7 +39,9 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     if (!user) {
       toast({
         title: "Error",
-        description: "You must be logged in to create tasks",
+        description: language === 'es' 
+          ? "Debes iniciar sesión para crear tareas"
+          : "You must be logged in to create tasks",
         variant: "destructive",
       });
       return;
@@ -52,8 +54,6 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         status: editingTask ? editingTask.status : ('todo' as const),
         user_id: user.id
       };
-
-      console.log("Submitting task with data:", taskData);
 
       let taskResponse;
       if (editingTask) {
@@ -90,15 +90,23 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
       
       toast({
-        title: "Success",
-        description: editingTask ? "Task updated successfully" : "Task created successfully",
+        title: language === 'es' ? "Éxito" : "Success",
+        description: language === 'es'
+          ? editingTask 
+            ? "Tarea actualizada exitosamente"
+            : "Tarea creada exitosamente"
+          : editingTask
+            ? "Task updated successfully"
+            : "Task created successfully",
       });
       onClose();
     } catch (error: any) {
       console.error('Task operation error:', error);
       toast({
         title: "Error",
-        description: error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`,
+        description: language === 'es'
+          ? `Error al ${editingTask ? 'actualizar' : 'crear'} la tarea. Por favor intenta de nuevo.`
+          : error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`,
         variant: "destructive",
       });
     }
@@ -120,7 +128,10 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           editingTask={editingTask}
         />
         <Button type="submit" className="w-full">
-          {editingTask ? 'Update Task' : 'Add Task'}
+          {language === 'es'
+            ? editingTask ? 'Actualizar Tarea' : 'Agregar Tarea'
+            : editingTask ? 'Update Task' : 'Add Task'
+          }
         </Button>
       </form>
     </>
