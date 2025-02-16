@@ -42,7 +42,6 @@ export const CustomerList = () => {
     end: endOfMonth(currentDate)
   });
 
-  // Add hover states for copyable fields
   const [hoveredField, setHoveredField] = useState<{id: string, field: string} | null>(null);
 
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
@@ -57,8 +56,8 @@ export const CustomerList = () => {
         .eq('user_id', user?.id)
         .or(`start_date.gte.${dateRange.start.toISOString()},created_at.gte.${dateRange.start.toISOString()}`)
         .or(`start_date.lte.${endOfDay(dateRange.end).toISOString()},created_at.lte.${endOfDay(dateRange.end).toISOString()}`)
-        .is('deleted_at', null); // Correct syntax to exclude deleted customers
-      
+        .is('deleted_at', null);
+
       if (error) throw error;
       return data || [];
     },
@@ -77,8 +76,8 @@ export const CustomerList = () => {
         .eq('user_id', user?.id)
         .gte('start_date', dateRange.start.toISOString())
         .lte('start_date', endOfDay(dateRange.end).toISOString())
-        .is('deleted_at', null); // Correct syntax to exclude deleted events
-      
+        .is('deleted_at', null);
+
       if (error) throw error;
       return data || [];
     },
@@ -213,7 +212,6 @@ export const CustomerList = () => {
 
     try {
       if (customer.id.startsWith('event-')) {
-        // Handle event soft deletion
         const eventId = customer.id.replace('event-', '');
         const { error } = await supabase
           .from('events')
@@ -223,7 +221,6 @@ export const CustomerList = () => {
 
         if (error) throw error;
       } else {
-        // Handle customer soft deletion
         const { error } = await supabase
           .from('customers')
           .update({ deleted_at: new Date().toISOString() })
@@ -348,7 +345,6 @@ export const CustomerList = () => {
   };
 
   const handleExcelDownload = () => {
-    // Transform the data for Excel
     const excelData = filteredData.map(customer => ({
       'Full Name': customer.title || '',
       'Phone Number': customer.user_number || '',
@@ -362,11 +358,9 @@ export const CustomerList = () => {
       'Event': customer.id.startsWith('event-') || (customer.start_date && customer.end_date) ? 'Yes' : 'No'
     }));
 
-    // Create workbook and worksheet
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(excelData);
 
-    // Set column widths
     const colWidths = [
       { wch: 20 },  // Full Name
       { wch: 15 },  // Phone Number
@@ -380,10 +374,8 @@ export const CustomerList = () => {
     ];
     ws['!cols'] = colWidths;
 
-    // Add worksheet to workbook
     XLSX.utils.book_append_sheet(wb, ws, 'Customers');
 
-    // Generate Excel file
     const currentDate = format(new Date(), 'dd-MM-yyyy');
     XLSX.writeFile(wb, `customers-${currentDate}.xlsx`);
 
@@ -401,7 +393,7 @@ export const CustomerList = () => {
     <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
-          <h2 className="text-2xl font-bold md:mb-0 -mt-4">Customers</h2>
+          <h2 className="text-2xl font-bold md:mb-0 -mt-4">{t("crm.title")}</h2>
           <div className="w-full md:w-auto md:min-w-[200px]">
             <DateRangeSelect 
               selectedDate={dateRange}
@@ -419,14 +411,14 @@ export const CustomerList = () => {
             size="icon"
             onClick={handleExcelDownload}
             className="h-9 w-9 sm:-mt-4"
-            title="Download as Excel"
+            title={language === 'es' ? "Descargar como Excel" : "Download as Excel"}
           >
             <FileSpreadsheet className="h-5 w-5" />
           </Button>
         </div>
         <Button onClick={openCreateDialog} className="flex items-center gap-2 whitespace-nowrap">
           <PlusCircle className="w-4 h-4" />
-          Add Customer
+          {t("crm.addCustomer")}
         </Button>
       </div>
 
@@ -435,14 +427,14 @@ export const CustomerList = () => {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[180px]">Full Name</TableHead>
-                <TableHead className="w-[130px]">Phone Number</TableHead>
-                <TableHead className="w-[250px]">Social Link/Email</TableHead>
-                <TableHead className="w-[120px]">Payment Status</TableHead>
-                <TableHead className="w-[180px]">Dates</TableHead>
-                <TableHead className="w-[120px]">Comment</TableHead>
-                <TableHead className="w-[180px]">Attachments</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
+                <TableHead className="w-[180px]">{t("crm.fullName")}</TableHead>
+                <TableHead className="w-[130px]">{t("crm.phoneNumber")}</TableHead>
+                <TableHead className="w-[250px]">{t("crm.socialLinkEmail")}</TableHead>
+                <TableHead className="w-[120px]">{t("crm.paymentStatus")}</TableHead>
+                <TableHead className="w-[180px]">{t("crm.dates")}</TableHead>
+                <TableHead className="w-[120px]">{t("crm.comment")}</TableHead>
+                <TableHead className="w-[180px]">{t("crm.attachments")}</TableHead>
+                <TableHead className="w-[100px]">{t("crm.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

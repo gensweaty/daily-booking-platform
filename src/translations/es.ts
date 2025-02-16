@@ -1,4 +1,3 @@
-
 export const esTranslations = {
   // Nav
   "nav.home": "Inicio",
@@ -187,15 +186,33 @@ export const esTranslations = {
   "footer.description": "Tu solución integral para la gestión de eventos y tareas",
 
   // CRM
-  "crm.error": "Error",
-  "crm.noDataToExport": "No hay datos para exportar",
-  "crm.title": "Gestión de Clientes",
-  "crm.description": "Gestiona tus relaciones con los clientes",
-  "crm.feature1": "Base de datos de clientes",
-  "crm.feature2": "Seguimiento de interacciones",
-  "crm.feature3": "Segmentación de clientes",
-  "crm.feature4": "Automatización de comunicaciones",
-  "crm.feature5": "Informes de clientes",
+  "crm.title": "Clientes",
+  "crm.addCustomer": "Agregar Cliente",
+  "crm.fullName": "Nombre Completo",
+  "crm.phoneNumber": "Número de Teléfono",
+  "crm.socialLinkEmail": "Red Social o Correo",
+  "crm.paymentStatus": "Estado de Pago",
+  "crm.dates": "Fechas",
+  "crm.comment": "Comentario",
+  "crm.attachments": "Archivos Adjuntos",
+  "crm.actions": "Acciones",
+  "crm.fullNameRequired": "Nombre Completo (requerido)",
+  "crm.fullNamePlaceholder": "Nombre completo",
+  "crm.phoneNumberPlaceholder": "Número de teléfono",
+  "crm.socialLinkEmailPlaceholder": "Red social o correo electrónico",
+  "crm.createEventForCustomer": "Crear evento para este cliente",
+  "crm.selectPaymentStatus": "Seleccionar estado de pago",
+  "crm.notPaid": "No pagado",
+  "crm.paidPartly": "Pago parcial",
+  "crm.paidFully": "Pago completo",
+  "crm.paymentAmount": "Monto de Pago (€)",
+  "crm.paymentAmountPlaceholder": "Ingrese el monto en euros",
+  "crm.commentPlaceholder": "Agregar un comentario sobre el cliente",
+  "crm.newCustomer": "Nuevo Cliente",
+  "crm.editCustomer": "Editar Cliente",
+  "crm.create": "Crear",
+  "crm.update": "Actualizar",
+  "crm.cancel": "Cancelar",
 
   // Legal
   "legal.termsAndPrivacy": "Términos y Política de Privacidad",
