@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -46,6 +47,7 @@ export const EventDialog = ({
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
 
+  // Initialize dates whenever selectedDate changes or dialog opens
   useEffect(() => {
     if (!selectedDate) return;
 
@@ -56,17 +58,16 @@ export const EventDialog = ({
       start = new Date(event.start_date);
       end = new Date(event.end_date);
     } else {
-      const dateValue = typeof selectedDate === 'object' && selectedDate._type === 'Date' 
-        ? new Date(selectedDate.value.iso)
-        : new Date(selectedDate);
+      // Ensure we're working with a proper Date object
+      start = new Date(selectedDate);
+      end = new Date(selectedDate);
 
-      start = new Date(dateValue);
-      end = new Date(dateValue);
-
+      // Set default hours if needed
       if (start.getHours() === 0 && start.getMinutes() === 0) {
         start.setHours(9, 0, 0, 0);
         end.setHours(10, 0, 0, 0);
       } else {
+        // Add one hour for end time
         end.setTime(start.getTime() + 60 * 60 * 1000);
       }
     }
@@ -75,6 +76,7 @@ export const EventDialog = ({
     setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
   }, [selectedDate, event]);
 
+  // Reset form when dialog closes
   useEffect(() => {
     if (!open) {
       setTitle("");
