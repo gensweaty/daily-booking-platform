@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseISO } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CustomerDialogProps {
   isOpen: boolean;
@@ -29,21 +31,12 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
   const [fileError, setFileError] = useState("");
   const [createEvent, setCreateEvent] = useState(false);
   const [isEventData, setIsEventData] = useState(false);
+  const [associatedEventId, setAssociatedEventId] = useState<string | null>(null);
   
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-
-  const formatDateForInput = (dateString: string | null) => {
-    if (!dateString) return "";
-    try {
-      const date = new Date(dateString);
-      return date.toISOString().slice(0, 16);
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return "";
-    }
-  };
+  const { t } = useLanguage();
 
   useEffect(() => {
     const fetchCustomer = async () => {
@@ -54,100 +47,140 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       
       try {
         setLoading(true);
-        console.log('Fetching customer with ID:', customerId);
-        
-        const { data: eventData, error: eventError } = await supabase
-          .from('events')
+
+        // Fetch customer data first
+        const { data: customerData, error: customerError } = await supabase
+          .from('customers')
           .select('*')
           .eq('id', customerId)
           .maybeSingle();
-          
-        if (eventError) {
-          console.error('Error fetching event:', eventError);
-          throw eventError;
+
+        if (customerError && customerError.code !== 'PGRST116') {
+          console.error('Error fetching customer:', customerError);
+          throw customerError;
         }
 
-        if (!eventData) {
-          console.log('Event not found, checking customers table...');
-          const { data: customerData, error: customerError } = await supabase
-            .from('customers')
+        if (!customerData) {
+          toast({
+            title: "Error",
+            description: "Customer not found",
+            variant: "destructive",
+          });
+          onClose();
+          return;
+        }
+
+        // Set customer data
+        setTitle(customerData.title || "");
+        setUserSurname(customerData.user_surname || "");
+        setUserNumber(customerData.user_number || "");
+        setSocialNetworkLink(customerData.social_network_link || "");
+        setEventNotes(customerData.event_notes || "");
+        setStartDate(customerData.start_date ? new Date(customerData.start_date).toISOString().slice(0, 16) : "");
+        setEndDate(customerData.end_date ? new Date(customerData.end_date).toISOString().slice(0, 16) : "");
+        setPaymentStatus(customerData.payment_status || "");
+        setPaymentAmount(customerData.payment_amount?.toString() || "");
+        setCreateEvent(!!customerData.start_date && !!customerData.end_date);
+
+        // If customer has dates, try to find associated event
+        if (customerData.start_date && customerData.end_date) {
+          const { data: existingEvent, error: eventError } = await supabase
+            .from('events')
             .select('*')
-            .eq('id', customerId)
+            .eq('title', customerData.title)
+            .eq('start_date', customerData.start_date)
+            .eq('end_date', customerData.end_date)
             .maybeSingle();
-            
-          if (customerError) {
-            console.error('Error fetching customer:', customerError);
-            throw customerError;
+
+          if (eventError && eventError.code !== 'PGRST116') {
+            console.error('Error fetching event:', eventError);
+            throw eventError;
           }
 
-          if (customerData) {
-            console.log('Found customer data:', customerData);
-            setTitle(customerData.title || "");
-            setUserSurname(customerData.user_surname || "");
-            setUserNumber(customerData.user_number || "");
-            setSocialNetworkLink(customerData.social_network_link || "");
-            setEventNotes(customerData.event_notes || "");
-            setStartDate(formatDateForInput(customerData.start_date));
-            setEndDate(formatDateForInput(customerData.end_date));
-            setPaymentStatus(customerData.payment_status || "");
-            setPaymentAmount(customerData.payment_amount?.toString() || "");
-            setCreateEvent(!!customerData.start_date && !!customerData.end_date);
-            setIsEventData(false);
+          if (existingEvent) {
+            setAssociatedEventId(existingEvent.id);
           }
-        } else {
-          setIsEventData(true);
-          console.log('Found event data:', eventData);
-          setTitle(eventData.title || "");
-          setUserSurname(eventData.user_surname || "");
-          setUserNumber(eventData.user_number || "");
-          setSocialNetworkLink(eventData.social_network_link || "");
-          setEventNotes(eventData.event_notes || "");
-          setStartDate(formatDateForInput(eventData.start_date));
-          setEndDate(formatDateForInput(eventData.end_date));
-          setPaymentStatus(eventData.payment_status || "");
-          setPaymentAmount(eventData.payment_amount?.toString() || "");
-          setCreateEvent(true);
         }
+
       } catch (error: any) {
-        console.error('Unexpected error:', error);
+        console.error('Error fetching customer:', error);
         toast({
           title: "Error",
-          description: error.message || "An unexpected error occurred",
+          description: error.message || "Failed to load customer data",
           variant: "destructive",
         });
-        handleClose();
+        onClose();
       } finally {
         setLoading(false);
       }
     };
 
-    if (isOpen) {
+    if (isOpen && customerId) {
       fetchCustomer();
     }
-  }, [customerId, isOpen, toast, user]);
+  }, [customerId, isOpen, user]); // Removed title from dependencies
+
+  const checkTimeSlotAvailability = async (startDate: string, endDate: string, excludeEventId?: string): Promise<boolean> => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    const { data: existingEvents, error } = await supabase
+      .from('events')
+      .select('*')
+      .or(`start_date.lte.${end.toISOString()},end_date.gte.${start.toISOString()}`);
+
+    if (error) {
+      console.error('Error checking time slot availability:', error);
+      return false;
+    }
+
+    if (!existingEvents) return true;
+
+    return !existingEvents.some(event => {
+      if (excludeEventId && event.id === excludeEventId) return false;
+      
+      const eventStart = parseISO(event.start_date);
+      const eventEnd = parseISO(event.end_date);
+      
+      return (start < eventEnd && end > eventStart);
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to perform this action",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      if (!user) throw new Error("User must be authenticated");
+      setLoading(true);
 
       if (createEvent) {
-        const { available, conflictingEvent } = await checkTimeSlotAvailability(
+        const isTimeSlotAvailable = await checkTimeSlotAvailability(
           startDate,
           endDate,
-          isEventData ? customerId : undefined
+          associatedEventId || undefined
         );
 
-        if (!available) {
+        if (!isTimeSlotAvailable) {
           toast({
-            title: "Time Slot Unavailable",
-            description: `This time slot conflicts with "${conflictingEvent?.title}" (${new Date(conflictingEvent?.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent?.end_date).toLocaleTimeString()})`,
+            title: "Error",
+            description: "This time slot is already booked",
             variant: "destructive",
           });
           return;
         }
       }
+
+      // Ensure dates are properly formatted
+      const formattedStartDate = createEvent ? new Date(startDate).toISOString() : null;
+      const formattedEndDate = createEvent ? new Date(endDate).toISOString() : null;
 
       const customerData = {
         title,
@@ -158,169 +191,77 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         payment_status: paymentStatus || null,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         user_id: user.id,
-        type: 'customer',
-        start_date: createEvent ? startDate : null,
-        end_date: createEvent ? endDate : null,
+        start_date: formattedStartDate,
+        end_date: formattedEndDate,
       };
 
-      let updatedCustomerId;
-      let eventId;
-      
-      console.log('Starting customer/event update process');
-      
       if (customerId) {
-        if (isEventData) {
-          console.log('Updating event data');
+        // Update customer
+        const { error: customerError } = await supabase
+          .from('customers')
+          .update(customerData)
+          .eq('id', customerId);
+
+        if (customerError) throw customerError;
+
+        // Handle associated event
+        if (createEvent) {
           const eventData = {
-            title,
-            user_surname: userSurname,
-            user_number: userNumber,
-            social_network_link: socialNetworkLink,
-            event_notes: eventNotes,
-            start_date: startDate,
-            end_date: endDate,
-            payment_status: paymentStatus || null,
-            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-            user_id: user.id,
+            ...customerData,
+            type: 'customer_event',
+            start_date: formattedStartDate,
+            end_date: formattedEndDate,
+          };
+
+          if (associatedEventId) {
+            // Update existing event
+            const { error: eventError } = await supabase
+              .from('events')
+              .update(eventData)
+              .eq('id', associatedEventId);
+
+            if (eventError) throw eventError;
+          } else {
+            // Create new event
+            const { error: eventError } = await supabase
+              .from('events')
+              .insert([eventData]);
+
+            if (eventError) throw eventError;
+          }
+        }
+      } else {
+        // Create new customer
+        const { error: customerError } = await supabase
+          .from('customers')
+          .insert([customerData]);
+
+        if (customerError) throw customerError;
+
+        // Create new event if needed
+        if (createEvent) {
+          const eventData = {
+            ...customerData,
+            type: 'customer_event',
+            start_date: formattedStartDate,
+            end_date: formattedEndDate,
           };
 
           const { error: eventError } = await supabase
             .from('events')
-            .update(eventData)
-            .eq('id', customerId)
-            .eq('user_id', user.id);
+            .insert([eventData]);
 
           if (eventError) throw eventError;
-          eventId = customerId;
-          
-          const { data: existingCustomer } = await supabase
-            .from('customers')
-            .select('*')
-            .eq('title', title)
-            .eq('user_id', user.id)
-            .maybeSingle();
-            
-          if (existingCustomer) {
-            const { error: customerError } = await supabase
-              .from('customers')
-              .update(customerData)
-              .eq('id', existingCustomer.id);
-              
-            if (customerError) throw customerError;
-            updatedCustomerId = existingCustomer.id;
-          } else {
-            const { data: newCustomer, error: customerError } = await supabase
-              .from('customers')
-              .insert([customerData])
-              .select()
-              .maybeSingle();
-              
-            if (customerError) throw customerError;
-            if (newCustomer) updatedCustomerId = newCustomer.id;
-          }
-        } else {
-          console.log('Updating customer data');
-          const { data: updatedData, error } = await supabase
-            .from('customers')
-            .update(customerData)
-            .eq('id', customerId)
-            .select()
-            .maybeSingle();
-
-          if (error) throw error;
-          if (!updatedData) throw new Error("Failed to update customer");
-          updatedCustomerId = updatedData.id;
-
-          if (createEvent) {
-            console.log('Creating new event for existing customer');
-            const eventData = {
-              title,
-              user_surname: userSurname,
-              user_number: userNumber,
-              social_network_link: socialNetworkLink,
-              event_notes: eventNotes,
-              start_date: startDate,
-              end_date: endDate,
-              payment_status: paymentStatus || null,
-              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-              user_id: user.id,
-              type: 'customer_event'
-            };
-
-            const { data: existingEvent } = await supabase
-              .from('events')
-              .select('*')
-              .eq('title', title)
-              .eq('user_id', user.id)
-              .maybeSingle();
-
-            if (existingEvent) {
-              const { error: eventError } = await supabase
-                .from('events')
-                .update(eventData)
-                .eq('id', existingEvent.id);
-
-              if (eventError) throw eventError;
-              eventId = existingEvent.id;
-            } else {
-              const { data: newEvent, error: eventError } = await supabase
-                .from('events')
-                .insert([eventData])
-                .select()
-                .maybeSingle();
-
-              if (eventError) throw eventError;
-              if (newEvent) eventId = newEvent.id;
-            }
-          }
-        }
-      } else {
-        console.log('Creating new customer');
-        const { data: newData, error } = await supabase
-          .from('customers')
-          .insert([customerData])
-          .select()
-          .maybeSingle();
-
-        if (error) throw error;
-        if (!newData) throw new Error("Failed to create customer");
-        updatedCustomerId = newData.id;
-
-        if (createEvent) {
-          console.log('Creating new event for new customer');
-          const eventData = {
-            title,
-            user_surname: userSurname,
-            user_number: userNumber,
-            social_network_link: socialNetworkLink,
-            event_notes: eventNotes,
-            start_date: startDate,
-            end_date: endDate,
-            payment_status: paymentStatus || null,
-            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-            user_id: user.id,
-            type: 'customer_event'
-          };
-
-          const { data: newEvent, error: eventError } = await supabase
-            .from('events')
-            .insert([eventData])
-            .select()
-            .maybeSingle();
-
-          if (eventError) throw eventError;
-          if (newEvent) eventId = newEvent.id;
         }
       }
 
-      // Only handle file upload if there's a new file selected
+      // Handle file upload if a file is selected
       if (selectedFile) {
-        console.log('New file selected, processing upload:', selectedFile.name);
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
-          .from('event_attachments')
+          .from('customer_attachments')
           .upload(filePath, selectedFile);
 
         if (uploadError) throw uploadError;
@@ -330,60 +271,23 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           file_path: filePath,
           content_type: selectedFile.type,
           size: selectedFile.size,
-          user_id: user.id
+          user_id: user.id,
+          customer_id: customerId
         };
 
-        // Only insert file records if we have valid IDs
-        if (updatedCustomerId) {
-          console.log('Adding file to customer_files_new');
-          const { error: customerFileError } = await supabase
-            .from('customer_files_new')
-            .insert({
-              ...fileData,
-              customer_id: updatedCustomerId
-            });
-            
-          if (customerFileError) {
-            console.error('Error adding customer file:', customerFileError);
-          }
-        }
+        const { error: fileError } = await supabase
+          .from('customer_files_new')
+          .insert([fileData]);
 
-        if (eventId) {
-          console.log('Adding file to event_files');
-          const { error: eventFileError } = await supabase
-            .from('event_files')
-            .insert({
-              ...fileData,
-              event_id: eventId
-            });
-            
-          if (eventFileError) {
-            console.error('Error adding event file:', eventFileError);
-          }
-        }
+        if (fileError) throw fileError;
       }
 
-      // Invalidate relevant queries to refresh the data
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      if (createEvent || isEventData) {
-        await queryClient.invalidateQueries({ queryKey: ['events'] });
-      }
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
       
-      // Important: Invalidate the files query for both the customer and event
-      if (updatedCustomerId) {
-        await queryClient.invalidateQueries({ 
-          queryKey: ['customerFiles', updatedCustomerId, false]
-        });
-      }
-      if (eventId) {
-        await queryClient.invalidateQueries({ 
-          queryKey: ['customerFiles', eventId, true]
-        });
-      }
-
       toast({
         title: "Success",
-        description: `Customer successfully ${customerId ? "updated" : "created"}`,
+        description: customerId ? "Customer updated successfully" : "Customer created successfully",
       });
 
       onClose();
@@ -394,6 +298,8 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -418,36 +324,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     setFileError("");
     setCreateEvent(false);
     setIsEventData(false);
-  };
-
-  const checkTimeSlotAvailability = async (startDate: string, endDate: string, excludeEventId?: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    const { data: existingEvents, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('user_id', user?.id)
-      .or(`start_date.lte.${end.toISOString()},end_date.gte.${start.toISOString()}`);
-
-    if (error) {
-      console.error('Error checking time slot:', error);
-      return { available: false, error: error.message };
-    }
-
-    const conflict = existingEvents?.find(event => {
-      if (excludeEventId && event.id === excludeEventId) return false;
-      
-      const eventStart = parseISO(event.start_date);
-      const eventEnd = parseISO(event.end_date);
-      
-      return (start < eventEnd && end > eventStart);
-    });
-
-    return { 
-      available: !conflict,
-      conflictingEvent: conflict
-    };
+    setAssociatedEventId(null);
   };
 
   return (
@@ -455,7 +332,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {customerId ? 'Edit Customer' : 'New Customer'}
+            {customerId ? t("crm.editCustomer") : t("crm.newCustomer")}
           </DialogTitle>
         </DialogHeader>
         
@@ -487,14 +364,15 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             createEvent={createEvent}
             setCreateEvent={setCreateEvent}
             isEventData={isEventData}
+            isOpen={isOpen}
           />
 
           <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={handleClose} disabled={loading}>
-              Cancel
+              {t("crm.cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : (customerId ? "Update" : "Create")}
+              {loading ? "..." : (customerId ? t("crm.update") : t("crm.create"))}
             </Button>
           </div>
         </form>

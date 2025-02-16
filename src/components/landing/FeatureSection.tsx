@@ -1,5 +1,6 @@
 
 import { Calendar, ChartBar, ListTodo, Users } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const calendarViews = [
   {
@@ -19,61 +20,67 @@ const calendarViews = [
 import { FeatureCard } from "./FeatureCard";
 
 export const FeatureSection = () => {
+  const { t } = useLanguage();
+  
   const features = [
     {
       icon: Calendar,
-      title: "Smart Booking Calendar",
-      description: "Efficiently manage your appointments and events",
+      title: t('booking.title'),
+      description: t('booking.description'),
       carousel: calendarViews,
       benefits: [
-        "Multiple calendar views (month, week, day)",
-        "Event scheduling with customizable time slots",
-        "Client booking management with payment tracking",
-        "Automated Event Synchronization with CRM"
+        t('booking.feature1'),
+        t('booking.feature2'),
+        t('booking.feature3'),
+        t('booking.feature4')
       ],
+      translationPrefix: 'booking' as const,
       id: "smart-booking"
     },
     {
       icon: ChartBar,
-      title: "Comprehensive Analytics",
-      description: "Track your performance and growth",
+      title: t('analytics.title'),
+      description: t('analytics.description'),
       image: "/lovable-uploads/2de2197d-0e7b-4d8c-b4a8-a0d30828d8be.png",
       benefits: [
-        "Booking and revenue analytics",
-        "Custom date range filtering",
-        "Income comparison across months",
-        "Interactive visual metrics & graphs",
-        "One-click Excel download"
+        t('analytics.feature1'),
+        t('analytics.feature2'),
+        t('analytics.feature3'),
+        t('analytics.feature4'),
+        t('analytics.feature5')
       ],
+      translationPrefix: 'analytics' as const,
       reverse: true,
       id: "analytics"
     },
     {
       icon: Users,
-      title: "Customer Relationship Management",
-      description: "Build and maintain strong client relationships",
+      title: t('crm.title'),
+      description: t('crm.description'),
       image: "/lovable-uploads/84a5ef8b-fbd6-46dd-bb22-9378e67590d9.png",
       benefits: [
-        "Centralized customer information management",
-        "File attachments and document organization",
-        "Payment tracking and status monitoring",
-        "Elastic search for quick data access",
-        "One-click Excel download of all displayed data"
+        t('crm.feature1'),
+        t('crm.feature2'),
+        t('crm.feature3'),
+        t('crm.feature4'),
+        t('crm.feature5')
       ],
+      translationPrefix: 'crm' as const,
       id: "crm-solution"
     },
     {
       icon: ListTodo,
-      title: "Task Management",
-      description: "Stay organized and productive",
+      title: t('tasks.title'),
+      description: t('tasks.description'),
       image: "/lovable-uploads/f519fa18-e3d9-44a3-a449-70fc67e6f5de.png",
       benefits: [
-        "Kanban board for visual task organization",
-        "Task status tracking and progress monitoring",
-        "Efficient task prioritization",
-        "Simple drag-and-drop functionality",
-        "Quick note-saving for tasks"
+        t('tasks.feature1'),
+        t('tasks.feature2'),
+        t('tasks.feature3'),
+        t('tasks.feature4'),
+        t('tasks.feature5')
       ],
+      translationPrefix: 'tasks' as const,
       reverse: true,
       id: "task-management"
     }
@@ -83,7 +90,7 @@ export const FeatureSection = () => {
     <section className="py-20 bg-muted/30">
       <div className="container mx-auto px-4">
         <h2 className="text-3xl font-bold text-center mb-16">
-          Powerful Features for Modern Professionals
+          {t('features.mainTitle')}
         </h2>
         
         {features.map((feature, index) => (

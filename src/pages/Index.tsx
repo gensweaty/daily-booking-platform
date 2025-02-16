@@ -11,6 +11,7 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
+import { LanguageProvider } from "@/contexts/LanguageContext"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -70,16 +71,7 @@ const Index = () => {
     getProfile()
   }, [user])
 
-  if (!user) {
-    return (
-      <>
-        <CursorFollower />
-        <AuthUI />
-      </>
-    )
-  }
-
-  return (
+  const content = user ? (
     <motion.div 
       className="min-h-screen bg-background p-4"
       variants={containerVariants}
@@ -105,7 +97,18 @@ const Index = () => {
         />
       </motion.div>
     </motion.div>
-  )
+  ) : (
+    <>
+      <CursorFollower />
+      <AuthUI />
+    </>
+  );
+
+  return (
+    <LanguageProvider>
+      {content}
+    </LanguageProvider>
+  );
 }
 
-export default Index
+export default Index;

@@ -1,5 +1,7 @@
+
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface SignUpFieldsProps {
   email: string;
@@ -24,14 +26,16 @@ export const SignUpFields = ({
   setConfirmPassword,
   isLoading
 }: SignUpFieldsProps) => {
+  const { t } = useLanguage();
+  
   return (
     <>
       <div className="space-y-2">
-        <Label htmlFor="username">Username</Label>
+        <Label htmlFor="username">{t("auth.usernameLabel")}</Label>
         <Input
           id="username"
           type="text"
-          placeholder="Username"
+          placeholder={t("auth.usernameLabel")}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
@@ -41,11 +45,11 @@ export const SignUpFields = ({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("auth.emailLabel")}</Label>
         <Input
           id="email"
           type="email"
-          placeholder="Email"
+          placeholder={t("auth.emailLabel")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -54,11 +58,11 @@ export const SignUpFields = ({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">{t("auth.passwordLabel")}</Label>
         <Input
           id="password"
           type="password"
-          placeholder="Password (min. 6 characters, include numbers)"
+          placeholder={t("auth.passwordRequirements")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -67,11 +71,11 @@ export const SignUpFields = ({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirm Password</Label>
+        <Label htmlFor="confirmPassword">{t("auth.confirmPasswordLabel")}</Label>
         <Input
           id="confirmPassword"
           type="password"
-          placeholder="Confirm Password"
+          placeholder={t("auth.confirmPasswordLabel")}
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           required

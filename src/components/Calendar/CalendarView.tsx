@@ -1,5 +1,8 @@
+
 import { format, isSameDay, parseISO, isSameMonth, endOfMonth, startOfMonth, eachDayOfInterval, startOfWeek, endOfWeek } from "date-fns";
+import { es } from "date-fns/locale";
 import { CalendarEventType } from "@/lib/types/calendar";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarViewProps {
   days: Date[];
@@ -18,6 +21,13 @@ export const CalendarView = ({
   onDayClick,
   onEventClick,
 }: CalendarViewProps) => {
+  const { language } = useLanguage();
+  const locale = language === 'es' ? es : undefined;
+
+  const weekDays = language === 'es' 
+    ? ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
+    : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
   const renderDayHeader = (day: string) => (
     <div key={day} className="bg-background p-2 sm:p-4 text-center font-semibold text-foreground border-b border-border">
       {day}
@@ -46,7 +56,7 @@ export const CalendarView = ({
 
     return (
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(renderDayHeader)}
+        {weekDays.map(renderDayHeader)}
         {calendarDays.map((day) => {
           const dayEvents = events.filter((event) => 
             isSameDay(parseISO(event.start_date), day)
@@ -101,8 +111,12 @@ export const CalendarView = ({
             key={day.toISOString()} 
             className="bg-background p-2 sm:p-4 text-center border-b border-border h-20"
           >
-            <div className="font-semibold text-sm text-foreground">{format(day, "EEE")}</div>
-            <div className="text-xs text-muted-foreground">{format(day, "MMM d")}</div>
+            <div className="font-semibold text-sm text-foreground">
+              {format(day, "EEE", { locale })}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {format(day, "MMM d", { locale })}
+            </div>
           </div>
         ))}
       </div>
@@ -157,7 +171,7 @@ export const CalendarView = ({
                     <div className="font-semibold truncate">{event.title}</div>
                     {height > 40 && (
                       <div className="text-[10px] sm:text-xs truncate">
-                        {format(start, "h:mm a")} - {format(end, "h:mm a")}
+                        {format(start, "h:mm a", { locale })} - {format(end, "h:mm a", { locale })}
                       </div>
                     )}
                   </div>

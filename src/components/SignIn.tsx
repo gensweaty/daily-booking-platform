@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
 import { useNavigate, Link } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export const SignIn = () => {
   const [email, setEmail] = useState("");
@@ -13,6 +14,7 @@ export const SignIn = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const checkSession = async () => {
@@ -131,14 +133,14 @@ export const SignIn = () => {
 
   return (
     <div className="w-full max-w-md mx-auto p-4 sm:p-6">
-      <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Sign In</h2>
+      <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">{t('auth.signInButton')}</h2>
       <form onSubmit={handleSignIn} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{t('auth.emailLabel')}</Label>
           <Input
             id="email"
             type="email"
-            placeholder="Email"
+            placeholder={t('auth.emailLabel')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -148,18 +150,18 @@ export const SignIn = () => {
         </div>
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t('auth.passwordLabel')}</Label>
             <Link 
               to="/forgot-password"
               className="text-sm text-primary hover:underline"
             >
-              Forgot password?
+              {t('auth.forgotPassword')}
             </Link>
           </div>
           <Input
             id="password"
             type="password"
-            placeholder="Password"
+            placeholder={t('auth.passwordLabel')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -172,7 +174,7 @@ export const SignIn = () => {
           className="w-full"
           disabled={isLoading}
         >
-          {isLoading ? "Signing in..." : "Sign In"}
+          {isLoading ? t('auth.loading') : t('auth.signInButton')}
         </Button>
       </form>
     </div>

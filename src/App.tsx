@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import Index from "./pages/Index";
 import Landing from "./pages/Landing";
 import Contact from "./pages/Contact";
@@ -99,19 +100,21 @@ const AnimatedRoutes = () => {
 };
 
 const App = () => (
-  <BrowserRouter>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+  <QueryClientProvider client={queryClient}>
+    <BrowserRouter>
+      <LanguageProvider>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <AnimatedRoutes />
-          </TooltipProvider>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <AnimatedRoutes />
+            </TooltipProvider>
+          </AuthProvider>
         </ThemeProvider>
-      </AuthProvider>
-    </QueryClientProvider>
-  </BrowserRouter>
+      </LanguageProvider>
+    </BrowserRouter>
+  </QueryClientProvider>
 );
 
 export default App;

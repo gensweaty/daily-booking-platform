@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface EventDialogProps {
   open: boolean;
@@ -43,6 +44,7 @@ export const EventDialog = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t, language } = useLanguage();
 
   useEffect(() => {
     if (event) {
@@ -52,13 +54,19 @@ export const EventDialog = ({
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     } else if (selectedDate) {
       const start = new Date(selectedDate);
-      const end = new Date(start);
-      end.setHours(start.getHours() + 1);
+      const end = new Date(selectedDate);
+      
+      if (start.getHours() === 0 && start.getMinutes() === 0) {
+        start.setHours(9, 0, 0, 0);
+        end.setHours(10, 0, 0, 0);
+      } else {
+        end.setTime(start.getTime() + 60 * 60 * 1000);
+      }
       
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     }
-  }, [selectedDate, event]);
+  }, [selectedDate, event, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,12 +90,11 @@ export const EventDialog = ({
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
 
-      // First, check if a customer with this title exists
       const { data: existingCustomer, error: customerQueryError } = await supabase
         .from('customers')
         .select('id')
         .eq('title', title)
-        .maybeSingle(); // Changed from .single() to .maybeSingle()
+        .maybeSingle();
 
       if (customerQueryError && customerQueryError.code !== 'PGRST116') {
         console.error('Error checking for existing customer:', customerQueryError);
@@ -97,7 +104,6 @@ export const EventDialog = ({
       let customerId;
       
       if (!existingCustomer) {
-        // Create a new customer if one doesn't exist
         const { data: newCustomer, error: customerError } = await supabase
           .from('customers')
           .insert({
@@ -125,7 +131,6 @@ export const EventDialog = ({
       } else {
         customerId = existingCustomer.id;
         
-        // Update existing customer
         const { error: updateError } = await supabase
           .from('customers')
           .update({
@@ -153,7 +158,6 @@ export const EventDialog = ({
         
         console.log('Uploading file:', filePath);
         
-        // Upload file to storage
         const { error: uploadError } = await supabase.storage
           .from('event_attachments')
           .upload(filePath, selectedFile);
@@ -163,7 +167,6 @@ export const EventDialog = ({
           throw uploadError;
         }
 
-        // Prepare file metadata
         const fileData = {
           filename: selectedFile.name,
           file_path: filePath,
@@ -172,10 +175,8 @@ export const EventDialog = ({
           user_id: user.id
         };
 
-        // Create file records for both event and customer
         const filePromises = [];
 
-        // Insert into event_files
         filePromises.push(
           supabase
             .from('event_files')
@@ -185,7 +186,6 @@ export const EventDialog = ({
             })
         );
 
-        // Insert into customer_files_new
         filePromises.push(
           supabase
             .from('customer_files_new')
@@ -213,7 +213,6 @@ export const EventDialog = ({
 
       onOpenChange(false);
       
-      // Invalidate relevant queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
@@ -236,7 +235,7 @@ export const EventDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle>{event ? "Edit Event" : "Add New Event"}</DialogTitle>
+        <DialogTitle>{event ? t("events.editEvent") : t("events.addNewEvent")}</DialogTitle>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <EventDialogFields
             title={title}
@@ -267,7 +266,7 @@ export const EventDialog = ({
           
           <div className="flex justify-between gap-4">
             <Button type="submit" className="flex-1">
-              {event ? "Update Event" : "Create Event"}
+              {event ? t("events.updateEvent") : t("events.createEvent")}
             </Button>
             {event && onDelete && (
               <Button

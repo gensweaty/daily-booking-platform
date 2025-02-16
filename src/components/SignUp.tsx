@@ -1,19 +1,20 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SignUpFields } from "./signup/SignUpFields";
-import { SubscriptionPlanSelect } from "./signup/SubscriptionPlanSelect";
 import { useSignup } from "@/hooks/useSignup";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export const SignUp = () => {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
   
   const { handleSignup, isLoading } = useSignup();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const clearForm = () => {
     setEmail("");
@@ -29,7 +30,7 @@ export const SignUp = () => {
     if (password !== confirmPassword) {
       toast({
         title: "Error",
-        description: "Passwords do not match",
+        description: t("auth.passwordsDoNotMatch"),
         variant: "destructive",
       });
       return;
@@ -38,18 +39,19 @@ export const SignUp = () => {
     if (password.length < 6) {
       toast({
         title: "Error",
-        description: "Password must be at least 6 characters long",
+        description: t("auth.passwordTooShort"),
         variant: "destructive",
       });
       return;
     }
 
-    await handleSignup(email, username, password, confirmPassword, selectedPlan, clearForm);
+    // Always use monthly plan as default for free trial
+    await handleSignup(email, username, password, confirmPassword, 'monthly', clearForm);
   };
 
   return (
     <div className="w-full max-w-md mx-auto p-4 sm:p-6">
-      <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Sign Up</h2>
+      <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">{t("auth.signUpButton")}</h2>
       <form onSubmit={onSubmit} className="space-y-4">
         <SignUpFields
           email={email}
@@ -62,17 +64,12 @@ export const SignUp = () => {
           setConfirmPassword={setConfirmPassword}
           isLoading={isLoading}
         />
-        <SubscriptionPlanSelect
-          selectedPlan={selectedPlan}
-          setSelectedPlan={setSelectedPlan}
-          isLoading={isLoading}
-        />
         <Button 
           type="submit" 
           className="w-full"
           disabled={isLoading}
         >
-          {isLoading ? "Signing up..." : "Sign Up"}
+          {isLoading ? t("auth.signingUp") : t("auth.signUpButton")}
         </Button>
       </form>
     </div>

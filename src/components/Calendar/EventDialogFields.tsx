@@ -4,8 +4,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { FileDisplay } from "@/components/shared/FileDisplay";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useEffect } from "react";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -60,8 +62,45 @@ export const EventDialogFields = ({
   eventId,
   onFileDeleted,
 }: EventDialogFieldsProps) => {
-  const queryClient = useQueryClient();
-  
+  const { t, language } = useLanguage();
+
+  useEffect(() => {
+    const formData = {
+      title,
+      userSurname,
+      userNumber,
+      socialNetworkLink,
+      eventNotes,
+      startDate,
+      endDate,
+      paymentStatus,
+      paymentAmount,
+    };
+    sessionStorage.setItem('eventFormData', JSON.stringify(formData));
+  }, [title, userSurname, userNumber, socialNetworkLink, eventNotes, startDate, endDate, paymentStatus, paymentAmount]);
+
+  useEffect(() => {
+    const savedFormData = sessionStorage.getItem('eventFormData');
+    if (savedFormData && !title) {
+      const parsedData = JSON.parse(savedFormData);
+      setTitle(parsedData.title || '');
+      setUserSurname(parsedData.userSurname || '');
+      setUserNumber(parsedData.userNumber || '');
+      setSocialNetworkLink(parsedData.socialNetworkLink || '');
+      setEventNotes(parsedData.eventNotes || '');
+      setStartDate(parsedData.startDate || '');
+      setEndDate(parsedData.endDate || '');
+      setPaymentStatus(parsedData.paymentStatus || '');
+      setPaymentAmount(parsedData.paymentAmount || '');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!eventId) {
+      sessionStorage.removeItem('eventFormData');
+    }
+  }, [eventId]);
+
   const { data: allFiles = [] } = useQuery({
     queryKey: ['eventFiles', eventId, title],
     queryFn: async () => {
@@ -71,7 +110,6 @@ export const EventDialogFields = ({
         const uniqueFiles = new Map();
         console.log('Starting file fetch for eventId:', eventId, 'and title:', title);
 
-        // First try to get event files if we have an eventId
         if (eventId) {
           const { data: eventFiles, error: eventFilesError } = await supabase
             .from('event_files')
@@ -82,7 +120,6 @@ export const EventDialogFields = ({
 
           console.log('Found event files:', eventFiles?.length || 0);
           eventFiles?.forEach(file => {
-            // Use a composite key of file path and source to ensure true uniqueness
             const uniqueKey = `${file.file_path}_event`;
             uniqueFiles.set(uniqueKey, {
               ...file,
@@ -91,7 +128,6 @@ export const EventDialogFields = ({
           });
         }
 
-        // Then try to get customer files if we have a title
         if (title) {
           const { data: customer, error: customerError } = await supabase
             .from('customers')
@@ -105,9 +141,7 @@ export const EventDialogFields = ({
           if (!customerError && customer?.customer_files_new) {
             console.log('Found customer files:', customer.customer_files_new.length);
             customer.customer_files_new.forEach(file => {
-              // Use a composite key of file path and source to ensure true uniqueness
               const uniqueKey = `${file.file_path}_customer`;
-              // Only add if the file isn't already present from event files
               const eventFileKey = `${file.file_path}_event`;
               if (!uniqueFiles.has(eventFileKey)) {
                 uniqueFiles.set(uniqueKey, {
@@ -133,10 +167,10 @@ export const EventDialogFields = ({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="title">Full Name (required)</Label>
+        <Label htmlFor="title">{t("events.fullNameRequired")}</Label>
         <Input
           id="title"
-          placeholder="Full name"
+          placeholder={t("events.fullName")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
@@ -144,66 +178,89 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="number">Phone Number</Label>
+        <Label htmlFor="number">{t("events.phoneNumber")}</Label>
         <Input
           id="number"
           type="tel"
-          placeholder="Phone number"
+          placeholder={t("events.phoneNumber")}
           value={userNumber}
           onChange={(e) => setUserNumber(e.target.value)}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="socialNetwork">Social Link or Email</Label>
+        <Label htmlFor="socialNetwork">{t("events.socialLinkEmail")}</Label>
         <Input
           id="socialNetwork"
           type="text"
-          placeholder="Social link or email"
+          placeholder={t("events.socialLinkEmail")}
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Input
-          type="datetime-local"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          required
-          className="bg-background border-input"
-        />
-        <Input
-          type="datetime-local"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          required
-          className="bg-background border-input"
-        />
+      <div className="space-y-2">
+        <Label>{t("events.dateAndTime")}</Label>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="startDate" className="text-sm text-muted-foreground mb-1">
+              {t("events.startDateTime")}
+            </Label>
+            <Input
+              id="startDate"
+              type="datetime-local"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+              className="bg-background border-input"
+            />
+          </div>
+          <div>
+            <Label htmlFor="endDate" className="text-sm text-muted-foreground mb-1">
+              {t("events.endDateTime")}
+            </Label>
+            <Input
+              id="endDate"
+              type="datetime-local"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              required
+              className="bg-background border-input"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="space-y-2">
-        <Label>Payment Status</Label>
+        <Label>{t("events.paymentStatus")}</Label>
         <Select value={paymentStatus} onValueChange={setPaymentStatus}>
           <SelectTrigger className="w-full bg-background border-input">
-            <SelectValue placeholder="Select payment status" />
+            <SelectValue placeholder={t("events.selectPaymentStatus")} />
           </SelectTrigger>
           <SelectContent className="bg-background border border-input shadow-md">
-            <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">Not paid</SelectItem>
-            <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">Paid Partly</SelectItem>
-            <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">Paid Fully</SelectItem>
+            <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">
+              {t("crm.notPaid")}
+            </SelectItem>
+            <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">
+              {t("crm.paidPartly")}
+            </SelectItem>
+            <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">
+              {t("crm.paidFully")}
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {paymentStatus && paymentStatus !== 'not_paid' && (
         <div className="space-y-2">
-          <Label htmlFor="amount">Payment Amount ($)</Label>
+          <Label htmlFor="amount">
+            {t("events.paymentAmount")} ({language === 'es' ? '€' : '$'})
+          </Label>
           <Input
             id="amount"
             type="number"
             step="0.01"
-            placeholder="Enter amount in USD"
+            placeholder={`${t("events.paymentAmount")} ${language === 'es' ? '(€)' : '($)'}`}
             value={paymentAmount}
             onChange={(e) => setPaymentAmount(e.target.value)}
             required
@@ -213,10 +270,10 @@ export const EventDialogFields = ({
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="notes">Event Notes</Label>
+        <Label htmlFor="notes">{t("events.eventNotes")}</Label>
         <Textarea
           id="notes"
-          placeholder="Add notes about the event"
+          placeholder={t("events.addEventNotes")}
           value={eventNotes}
           onChange={(e) => setEventNotes(e.target.value)}
           className="bg-background border-input"

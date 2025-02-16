@@ -4,9 +4,12 @@ import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useTheme } from "next-themes";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Legal = () => {
   const { theme } = useTheme();
+  const { t } = useLanguage();
 
   return (
     <div className="min-h-screen bg-background">
@@ -32,83 +35,86 @@ const Legal = () => {
               />
             </Link>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-4">
+            <LanguageSwitcher />
+            <ThemeToggle />
+          </div>
         </nav>
       </header>
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto prose dark:prose-invert">
-          <h1 className="text-3xl font-bold mb-8">Terms of Service & Privacy Policy</h1>
-          <p className="text-muted-foreground">Last Updated: 08.02.2025</p>
+          <h1 className="text-3xl font-bold mb-8">{t('legal.termsAndPrivacy')}</h1>
+          <p className="text-muted-foreground">{t('legal.lastUpdated')}: 08.02.2025</p>
 
           <section className="mt-8">
-            <h2 className="text-2xl font-semibold mb-4">Terms of Service</h2>
-            <p>Welcome to SmartBookly. These Terms of Service ("Terms") govern your use of our SaaS platform and services ("Services"). By accessing or using our Services, you agree to these Terms. If you do not agree, please do not use our Services.</p>
+            <h2 className="text-2xl font-semibold mb-4">{t('legal.termsTitle')}</h2>
+            <p>{t('legal.termsIntro')}</p>
 
-            <h3 className="text-xl font-semibold mt-6 mb-3">1. General Information</h3>
+            <h3 className="text-xl font-semibold mt-6 mb-3">1. {t('legal.generalInfo')}</h3>
             <p>
-              Company Name: SmartBookly<br />
-              Registered in: Georgia<br />
-              Contact Email: info@smartbookly.com
+              {t('legal.companyName')}: SmartBookly<br />
+              {t('legal.companyRegistered')}: Georgia<br />
+              {t('legal.contactEmail')}: info@smartbookly.com
             </p>
 
-            <h3 className="text-xl font-semibold mt-6 mb-3">2. Eligibility</h3>
-            <p>You must be at least 18 years old to use our Services. By using our platform, you confirm that you meet this requirement.</p>
+            <h3 className="text-xl font-semibold mt-6 mb-3">2. {t('legal.eligibility')}</h3>
+            <p>{t('legal.eligibilityText')}</p>
 
-            <h3 className="text-xl font-semibold mt-6 mb-3">3. Account Registration & Security</h3>
+            <h3 className="text-xl font-semibold mt-6 mb-3">3. {t('legal.accountTitle')}</h3>
             <ul>
-              <li>You must provide accurate and complete information when creating an account.</li>
-              <li>You are responsible for maintaining the confidentiality of your account and password.</li>
-              <li>Notify us immediately of any unauthorized access to your account.</li>
+              <li>{t('legal.accountInfo')}</li>
+              <li>{t('legal.accountSecurity')}</li>
+              <li>{t('legal.accountNotify')}</li>
             </ul>
 
-            <h3 className="text-xl font-semibold mt-6 mb-3">4. Acceptable Use</h3>
+            <h3 className="text-xl font-semibold mt-6 mb-3">4. {t('legal.acceptableUseTitle')}</h3>
             <ul>
-              <li>You agree not to misuse our Services or violate any applicable laws.</li>
-              <li>You must not engage in fraud, distribute malware, or infringe on intellectual property rights.</li>
-              <li>We reserve the right to suspend or terminate accounts violating these rules.</li>
+              <li>{t('legal.acceptableUse1')}</li>
+              <li>{t('legal.acceptableUse2')}</li>
+              <li>{t('legal.acceptableUse3')}</li>
             </ul>
 
-            <h3 className="text-xl font-semibold mt-6 mb-3">5. Payments & Subscriptions</h3>
+            <h3 className="text-xl font-semibold mt-6 mb-3">5. {t('legal.paymentsTitle')}</h3>
             <ul>
-              <li>Services may require a paid subscription, billed on a recurring basis.</li>
-              <li>Prices are subject to change, and we will notify you in advance.</li>
-              <li>Refunds are issued only in specific cases as outlined in our Refund Policy.</li>
+              <li>{t('legal.payments1')}</li>
+              <li>{t('legal.payments2')}</li>
+              <li>{t('legal.payments3')}</li>
             </ul>
           </section>
 
           <section className="mt-12">
-            <h2 className="text-2xl font-semibold mb-4">Privacy Policy</h2>
-            <p>We respect your privacy and are committed to protecting your personal data.</p>
+            <h2 className="text-2xl font-semibold mb-4">{t('legal.privacyTitle')}</h2>
+            <p>{t('legal.privacyIntro')}</p>
 
-            <h3 className="text-xl font-semibold mt-6 mb-3">1. Information We Collect</h3>
-            <p>We collect:</p>
+            <h3 className="text-xl font-semibold mt-6 mb-3">1. {t('legal.infoCollectTitle')}</h3>
+            <p>{t('legal.infoCollectIntro')}:</p>
             <ul>
-              <li>Personal data (e.g., name, email, payment details) when you register.</li>
-              <li>Usage data (e.g., IP address, device information, browsing behavior).</li>
-              <li>Cookies and tracking technologies to improve our Services.</li>
+              <li>{t('legal.infoCollect1')}</li>
+              <li>{t('legal.infoCollect2')}</li>
+              <li>{t('legal.infoCollect3')}</li>
             </ul>
 
-            <h3 className="text-xl font-semibold mt-6 mb-3">2. How We Use Your Data</h3>
-            <p>We use your data for:</p>
+            <h3 className="text-xl font-semibold mt-6 mb-3">2. {t('legal.dataUseTitle')}</h3>
+            <p>{t('legal.dataUseIntro')}:</p>
             <ul>
-              <li>Providing and improving our Services.</li>
-              <li>Processing payments and subscriptions.</li>
-              <li>Communication and support.</li>
-              <li>Compliance with legal obligations.</li>
+              <li>{t('legal.dataUse1')}</li>
+              <li>{t('legal.dataUse2')}</li>
+              <li>{t('legal.dataUse3')}</li>
+              <li>{t('legal.dataUse4')}</li>
             </ul>
 
-            <h3 className="text-xl font-semibold mt-6 mb-3">3. Data Protection Rights</h3>
-            <p>You have the right to:</p>
+            <h3 className="text-xl font-semibold mt-6 mb-3">3. {t('legal.dataRightsTitle')}</h3>
+            <p>{t('legal.dataRightsIntro')}:</p>
             <ul>
-              <li>Access, correct, or delete your data.</li>
-              <li>Withdraw consent at any time.</li>
-              <li>Object to data processing in certain circumstances.</li>
-              <li>File a complaint with a data protection authority.</li>
+              <li>{t('legal.dataRights1')}</li>
+              <li>{t('legal.dataRights2')}</li>
+              <li>{t('legal.dataRights3')}</li>
+              <li>{t('legal.dataRights4')}</li>
             </ul>
 
-            <h3 className="text-xl font-semibold mt-6 mb-3">Contact Us</h3>
-            <p>If you have any questions about our Terms or Privacy Policy, please contact us at info@smartbookly.com</p>
+            <h3 className="text-xl font-semibold mt-6 mb-3">{t('legal.contactUs')}</h3>
+            <p>{t('legal.contactUsText')}</p>
           </section>
         </div>
       </main>
