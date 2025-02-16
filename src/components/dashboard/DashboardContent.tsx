@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -48,7 +47,7 @@ export const DashboardContent = ({
 
   return (
     <Tabs defaultValue="calendar" className="w-full max-w-[90%] xl:max-w-[85%] 2xl:max-w-[80%] mx-auto">
-      <TabsList className="grid w-full grid-cols-4 mb-4">
+      <TabsList className="grid w-full grid-cols-4 mb-2">
         <TabsTrigger 
           value="calendar" 
           className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95"
@@ -108,14 +107,16 @@ export const DashboardContent = ({
             exit="exit"
           >
             <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
-              <CardContent className="p-0 overflow-x-auto">
-                <motion.div
-                  variants={cardVariants}
-                  initial="hidden"
-                  animate="visible"
-                >
-                  <Calendar defaultView="month" />
-                </motion.div>
+              <CardContent className="p-0">
+                <div className="pt-6">
+                  <motion.div
+                    variants={cardVariants}
+                    initial="hidden"
+                    animate="visible"
+                  >
+                    <Calendar defaultView="month" />
+                  </motion.div>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
