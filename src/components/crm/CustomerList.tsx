@@ -26,8 +26,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export const CustomerList = () => {
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);

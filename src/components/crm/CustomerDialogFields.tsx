@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useMemo, useEffect } from "react";
-import { useLanguage } from "@/lib/language";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CustomerDialogFieldsProps {
   title: string;

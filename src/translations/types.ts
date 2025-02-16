@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es';
 
 export type TranslationType = {
@@ -184,6 +183,32 @@ export type TranslationType = {
   "crm.feature3": string;
   "crm.feature4": string;
   "crm.feature5": string;
+  "crm.addCustomer": string;
+  "crm.fullName": string;
+  "crm.phoneNumber": string;
+  "crm.socialLinkEmail": string;
+  "crm.paymentStatus": string;
+  "crm.dates": string;
+  "crm.comment": string;
+  "crm.attachments": string;
+  "crm.actions": string;
+  "crm.fullNameRequired": string;
+  "crm.fullNamePlaceholder": string;
+  "crm.phoneNumberPlaceholder": string;
+  "crm.socialLinkEmailPlaceholder": string;
+  "crm.createEventForCustomer": string;
+  "crm.selectPaymentStatus": string;
+  "crm.notPaid": string;
+  "crm.paidPartly": string;
+  "crm.paidFully": string;
+  "crm.paymentAmount": string;
+  "crm.paymentAmountPlaceholder": string;
+  "crm.commentPlaceholder": string;
+  "crm.newCustomer": string;
+  "crm.editCustomer": string;
+  "crm.create": string;
+  "crm.update": string;
+  "crm.cancel": string;
 
   // Business
   "business.events": string;
