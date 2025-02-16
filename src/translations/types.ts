@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es';
 
 export type TranslationType = {
@@ -62,6 +61,96 @@ export type TranslationType = {
   "dashboard.eventsData": string;
   "dashboard.exportSuccessful": string;
   "dashboard.exportSuccessMessage": string;
+
+  // Business Types
+  "business.events": string;
+  "business.eventsDesc": string;
+  "business.health": string;
+  "business.healthDesc": string;
+  "business.sports": string;
+  "business.sportsDesc": string;
+  "business.beauty": string;
+  "business.beautyDesc": string;
+  "business.personal": string;
+  "business.personalDesc": string;
+  "business.education": string;
+  "business.educationDesc": string;
+
+  // Legal
+  "legal.termsAndPrivacy": string;
+  "legal.lastUpdated": string;
+  "legal.termsTitle": string;
+  "legal.termsIntro": string;
+  "legal.generalInfo": string;
+  "legal.companyName": string;
+  "legal.companyRegistered": string;
+  "legal.contactEmail": string;
+  "legal.eligibility": string;
+  "legal.eligibilityText": string;
+  "legal.accountTitle": string;
+  "legal.accountInfo": string;
+  "legal.accountSecurity": string;
+  "legal.accountNotify": string;
+  "legal.acceptableUseTitle": string;
+  "legal.acceptableUse1": string;
+  "legal.acceptableUse2": string;
+  "legal.acceptableUse3": string;
+  "legal.paymentsTitle": string;
+  "legal.payments1": string;
+  "legal.payments2": string;
+  "legal.payments3": string;
+  "legal.privacyTitle": string;
+  "legal.privacyIntro": string;
+  "legal.infoCollectTitle": string;
+  "legal.infoCollectIntro": string;
+  "legal.infoCollect1": string;
+  "legal.infoCollect2": string;
+  "legal.infoCollect3": string;
+  "legal.dataUseTitle": string;
+  "legal.dataUseIntro": string;
+  "legal.dataUse1": string;
+  "legal.dataUse2": string;
+  "legal.dataUse3": string;
+  "legal.dataUse4": string;
+  "legal.dataRightsTitle": string;
+  "legal.dataRightsIntro": string;
+  "legal.dataRights1": string;
+  "legal.dataRights2": string;
+  "legal.dataRights3": string;
+  "legal.dataRights4": string;
+  "legal.contactUs": string;
+  "legal.contactUsText": string;
+
+  // CTA
+  "cta.title": string;
+  "cta.subtitle": string;
+  "cta.button": string;
+
+  // Booking
+  "booking.title": string;
+  "booking.description": string;
+  "booking.feature1": string;
+  "booking.feature2": string;
+  "booking.feature3": string;
+  "booking.feature4": string;
+
+  // Analytics
+  "analytics.title": string;
+  "analytics.description": string;
+  "analytics.feature1": string;
+  "analytics.feature2": string;
+  "analytics.feature3": string;
+  "analytics.feature4": string;
+  "analytics.feature5": string;
+
+  // Tasks
+  "tasks.title": string;
+  "tasks.description": string;
+  "tasks.feature1": string;
+  "tasks.feature2": string;
+  "tasks.feature3": string;
+  "tasks.feature4": string;
+  "tasks.feature5": string;
 
   // Events
   "events.addNewEvent": string;
