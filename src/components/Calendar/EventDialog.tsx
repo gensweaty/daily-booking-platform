@@ -47,14 +47,22 @@ export const EventDialog = ({
   const { t, language } = useLanguage();
 
   useEffect(() => {
-    if (!open) return;
+    console.log('Dialog open state:', open);
+    console.log('Selected date:', selectedDate);
+    
+    if (!open || !selectedDate) {
+      console.log('Returning early - dialog not open or no selected date');
+      return;
+    }
 
     if (event) {
+      console.log('Setting dates for existing event');
       const start = new Date(event.start_date);
       const end = new Date(event.end_date);
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-    } else if (selectedDate) {
+    } else {
+      console.log('Setting dates for new event');
       const start = new Date(selectedDate);
       const end = new Date(selectedDate);
       
@@ -65,18 +73,27 @@ export const EventDialog = ({
         end.setTime(start.getTime() + 60 * 60 * 1000);
       }
       
-      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
+      const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
+      const formattedEnd = format(end, "yyyy-MM-dd'T'HH:mm");
+      
+      console.log('Setting start date to:', formattedStart);
+      console.log('Setting end date to:', formattedEnd);
+      
+      setStartDate(formattedStart);
+      setEndDate(formattedEnd);
     }
   }, [selectedDate, event, open]);
 
   useEffect(() => {
     if (!open) {
+      console.log('Resetting form data');
       setTitle("");
       setUserSurname("");
       setUserNumber("");
       setSocialNetworkLink("");
       setEventNotes("");
+      setStartDate("");
+      setEndDate("");
       setPaymentStatus("");
       setPaymentAmount("");
       setSelectedFile(null);
