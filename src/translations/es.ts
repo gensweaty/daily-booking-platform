@@ -19,6 +19,11 @@ export const esTranslations = {
   "features.analytics": "Análisis de Rendimiento Automatizado",
   "features.businessTitle": "Para Pequeñas y Medianas Empresas Como",
 
+  // CTA Section
+  "cta.title": "¿Listo para Impulsar la Productividad de tu Negocio?",
+  "cta.subtitle": "Únete a los Muchos Profesionales que ya Usan SmartBookly",
+  "cta.button": "Comienza Gratis",
+
   // Dashboard
   "dashboard.welcome": "¡Bienvenido a SmartBookly!",
   "dashboard.subtitle": "Tu centro integral para tareas, reservas, CRM y análisis.",
