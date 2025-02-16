@@ -1,6 +1,6 @@
 
 import { useAuth } from "@/contexts/AuthContext";
-import { startOfMonth, endOfMonth } from 'date-fns';
+import { startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { useState } from "react";
 import { BookingChart } from "./Statistics/BookingChart";
 import { IncomeChart } from "./Statistics/IncomeChart";
@@ -13,8 +13,8 @@ export const Statistics = () => {
   const { user } = useAuth();
   const currentDate = new Date();
   const [dateRange, setDateRange] = useState({ 
-    start: startOfMonth(currentDate),
-    end: endOfMonth(currentDate)
+    start: startOfMonth(currentDate), // Start from current month's first day
+    end: endOfMonth(currentDate) // End at current month's last day
   });
 
   const { taskStats, eventStats } = useStatistics(user?.id, dateRange);
@@ -34,18 +34,12 @@ export const Statistics = () => {
         onExport={handleExport}
       />
       
-      <StatsCards 
-        taskStats={taskStats || { total: 0, completed: 0, inProgress: 0, todo: 0 }} 
-        eventStats={eventStats || { total: 0, partlyPaid: 0, fullyPaid: 0, totalIncome: 0 }} 
-      />
+      <StatsCards taskStats={taskStats || { total: 0, completed: 0, inProgress: 0, todo: 0 }} 
+                  eventStats={eventStats || { total: 0, partlyPaid: 0, fullyPaid: 0, totalIncome: 0 }} />
 
       <div className="grid gap-4 md:grid-cols-2">
-        <BookingChart 
-          data={eventStats?.dailyStats || []}
-        />
-        <IncomeChart 
-          data={eventStats?.monthlyIncome || []}
-        />
+        <BookingChart data={eventStats?.dailyStats || []} />
+        <IncomeChart data={eventStats?.monthlyIncome || []} />
       </div>
     </div>
   );

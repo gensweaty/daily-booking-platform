@@ -100,8 +100,8 @@ const AnimatedRoutes = () => {
 };
 
 const App = () => (
-  <BrowserRouter>
-    <QueryClientProvider client={queryClient}>
+  <QueryClientProvider client={queryClient}>
+    <BrowserRouter>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
         <LanguageProvider>
           <AuthProvider>
@@ -113,8 +113,8 @@ const App = () => (
           </AuthProvider>
         </LanguageProvider>
       </ThemeProvider>
-    </QueryClientProvider>
-  </BrowserRouter>
+    </BrowserRouter>
+  </QueryClientProvider>
 );
 
 export default App;
