@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseISO } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CustomerDialogProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { t } = useLanguage();
 
   const formatDateForInput = (dateString: string | null) => {
     if (!dateString) return "";
@@ -313,7 +315,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         }
       }
 
-      // Only handle file upload if there's a new file selected
       if (selectedFile) {
         console.log('New file selected, processing upload:', selectedFile.name);
         const fileExt = selectedFile.name.split('.').pop();
@@ -333,7 +334,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           user_id: user.id
         };
 
-        // Only insert file records if we have valid IDs
         if (updatedCustomerId) {
           console.log('Adding file to customer_files_new');
           const { error: customerFileError } = await supabase
@@ -363,13 +363,11 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         }
       }
 
-      // Invalidate relevant queries to refresh the data
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       if (createEvent || isEventData) {
         await queryClient.invalidateQueries({ queryKey: ['events'] });
       }
       
-      // Important: Invalidate the files query for both the customer and event
       if (updatedCustomerId) {
         await queryClient.invalidateQueries({ 
           queryKey: ['customerFiles', updatedCustomerId, false]
@@ -455,7 +453,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {customerId ? 'Edit Customer' : 'New Customer'}
+            {customerId ? t("crm.editCustomer") : t("crm.newCustomer")}
           </DialogTitle>
         </DialogHeader>
         
@@ -491,10 +489,10 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
 
           <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={handleClose} disabled={loading}>
-              Cancel
+              {t("crm.cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : (customerId ? "Update" : "Create")}
+              {loading ? "Saving..." : (customerId ? t("crm.update") : t("crm.create"))}
             </Button>
           </div>
         </form>
