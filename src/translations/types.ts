@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es';
 
 export type TranslationType = {
@@ -75,19 +76,22 @@ export type TranslationType = {
   "auth.confirmPasswordLabel": string;
 
   // Events
-  "events.editEvent": string;
-  "events.addNewEvent": string;
-  "events.updateEvent": string;
-  "events.createEvent": string;
   "events.fullNameRequired": string;
   "events.fullName": string;
   "events.phoneNumber": string;
   "events.socialLinkEmail": string;
+  "events.dateAndTime": string;
+  "events.startDateTime": string;
+  "events.endDateTime": string;
   "events.paymentStatus": string;
   "events.selectPaymentStatus": string;
   "events.paymentAmount": string;
   "events.eventNotes": string;
   "events.addEventNotes": string;
+  "events.editEvent": string;
+  "events.addNewEvent": string;
+  "events.updateEvent": string;
+  "events.createEvent": string;
   "events.attachment": string;
   "events.maxSize": string;
   "events.supportedFormats": string;
