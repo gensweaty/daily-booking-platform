@@ -98,7 +98,7 @@ export const esTranslations = {
 
   // Dashboard
   "dashboard.welcome": "¡Bienvenido a SmartBookIy!",
-  "dashboard.subtitle": "Tu centro integral para Reservas, Tareas, CRM y Análisis—mantente organizado con nosotros",
+  "dashboard.subtitle": "Tu centro integral para Reservas, Tareas, CRM y Análisis—mantente organizado con nosotros.",
   "dashboard.profile": "Perfil",
   "dashboard.signOut": "Cerrar sesión",
   "dashboard.changePassword": "Cambiar contraseña",
