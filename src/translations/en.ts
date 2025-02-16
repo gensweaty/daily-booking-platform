@@ -1,3 +1,4 @@
+
 export const enTranslations = {
   // Navigation
   "nav.signin": "Sign In",
@@ -137,17 +138,21 @@ export const enTranslations = {
 
   // Events
   "events.addNewEvent": "Add New Event",
+  "events.editEvent": "Edit Event",
   "events.fullNameRequired": "Full Name (required)",
+  "events.fullName": "Full name",
   "events.phoneNumber": "Phone Number",
   "events.socialLinkEmail": "Social Link or Email",
   "events.paymentStatus": "Payment Status",
   "events.selectPaymentStatus": "Select payment status",
   "events.eventNotes": "Event Notes",
-  "events.addEventNotes": "Add notes about the event",
+  "events.addEventNotes": "Add event notes",
   "events.attachment": "Attachment (optional)",
   "events.chooseFile": "Choose File",
   "events.noFileChosen": "No file chosen",
   "events.createEvent": "Create Event",
+  "events.updateEvent": "Update Event",
+  "events.paymentAmount": "Payment Amount",
   "events.maxSize": "Max size: Images - 2MB, Documents - 1MB",
   "events.supportedFormats": "Supported formats: Images (jpg, jpeg, png, webp), Documents (pdf, docx, xlsx, pptx)",
 
@@ -234,5 +239,3 @@ export const enTranslations = {
   "contact.error": "Error",
   "contact.errorDesc": "Failed to send message. Please try again later."
 } as const;
-
-export type TranslationKeys = keyof typeof enTranslations;
