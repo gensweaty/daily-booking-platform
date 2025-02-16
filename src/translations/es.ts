@@ -261,5 +261,26 @@ export const esTranslations = {
   "contact.messageSent": "¡Mensaje enviado!",
   "contact.messageSentDesc": "Nos pondremos en contacto contigo lo antes posible.",
   "contact.error": "Error",
-  "contact.errorDesc": "No se pudo enviar el mensaje. Por favor, inténtalo de nuevo más tarde."
+  "contact.errorDesc": "No se pudo enviar el mensaje. Por favor, inténtalo de nuevo más tarde.",
+
+  // Dashboard Statistics
+  "dashboard.category": "Categoría",
+  "dashboard.total": "Total",
+  "dashboard.details": "Detalles",
+  "dashboard.additionalInfo": "Información Adicional",
+  "dashboard.taskStatistics": "Estadísticas de Tareas",
+  "dashboard.eventStatistics": "Estadísticas de Eventos",
+  "dashboard.financialSummary": "Resumen Financiero",
+  "dashboard.summaryStatistics": "Resumen de Estadísticas",
+  "dashboard.eventsData": "Datos de Eventos",
+  "dashboard.statistics": "Estadísticas",
+  "dashboard.exportSuccessful": "Exportación Exitosa",
+  "dashboard.exportSuccessMessage": "Los datos se han exportado correctamente a Excel",
+  "dashboard.totalBookingsGrowth": "Crecimiento Total de Reservas",
+  "dashboard.threeMonthIncome": "Ingresos de Tres Meses",
+  "dashboard.fromAllEvents": "De Todos los Eventos",
+
+  // CRM
+  "crm.error": "Error",
+  "crm.noDataToExport": "No hay datos para exportar",
 } as const;

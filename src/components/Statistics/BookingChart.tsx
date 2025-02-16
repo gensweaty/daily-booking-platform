@@ -6,7 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 interface BookingChartProps {
   data: {
     day: string;
-    date: string;
+    date: Date | string;
     month: string;
     bookings: number;
   }[];
