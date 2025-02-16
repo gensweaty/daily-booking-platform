@@ -48,45 +48,64 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       try {
         setLoading(true);
         
-        // First, try to find any associated event
-        const { data: existingEvent } = await supabase
+        // First, try to find any associated event, using maybeSingle() instead of single()
+        const { data: existingEvent, error: eventError } = await supabase
           .from('events')
           .select('*')
           .eq('title', title)
           .gte('start_date', new Date().toISOString())
-          .single();
+          .maybeSingle();
+
+        if (eventError && eventError.code !== 'PGRST116') {
+          console.error('Error fetching event:', eventError);
+          throw eventError;
+        }
 
         if (existingEvent) {
           setAssociatedEventId(existingEvent.id);
         }
 
+        // Fetch customer data, using maybeSingle() instead of single()
         const { data: customerData, error: customerError } = await supabase
           .from('customers')
           .select('*')
           .eq('id', customerId)
-          .single();
+          .maybeSingle();
 
-        if (customerError) throw customerError;
-
-        if (customerData) {
-          setTitle(customerData.title || "");
-          setUserSurname(customerData.user_surname || "");
-          setUserNumber(customerData.user_number || "");
-          setSocialNetworkLink(customerData.social_network_link || "");
-          setEventNotes(customerData.event_notes || "");
-          setStartDate(customerData.start_date ? new Date(customerData.start_date).toISOString().slice(0, 16) : "");
-          setEndDate(customerData.end_date ? new Date(customerData.end_date).toISOString().slice(0, 16) : "");
-          setPaymentStatus(customerData.payment_status || "");
-          setPaymentAmount(customerData.payment_amount?.toString() || "");
-          setCreateEvent(!!customerData.start_date && !!customerData.end_date);
+        if (customerError && customerError.code !== 'PGRST116') {
+          console.error('Error fetching customer:', customerError);
+          throw customerError;
         }
-      } catch (error) {
+
+        if (!customerData) {
+          toast({
+            title: "Error",
+            description: "Customer not found",
+            variant: "destructive",
+          });
+          onClose();
+          return;
+        }
+
+        setTitle(customerData.title || "");
+        setUserSurname(customerData.user_surname || "");
+        setUserNumber(customerData.user_number || "");
+        setSocialNetworkLink(customerData.social_network_link || "");
+        setEventNotes(customerData.event_notes || "");
+        setStartDate(customerData.start_date ? new Date(customerData.start_date).toISOString().slice(0, 16) : "");
+        setEndDate(customerData.end_date ? new Date(customerData.end_date).toISOString().slice(0, 16) : "");
+        setPaymentStatus(customerData.payment_status || "");
+        setPaymentAmount(customerData.payment_amount?.toString() || "");
+        setCreateEvent(!!customerData.start_date && !!customerData.end_date);
+
+      } catch (error: any) {
         console.error('Error fetching customer:', error);
         toast({
           title: "Error",
-          description: "Failed to load customer data",
+          description: error.message || "Failed to load customer data",
           variant: "destructive",
         });
+        onClose();
       } finally {
         setLoading(false);
       }
@@ -95,18 +114,25 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     if (isOpen && customerId) {
       fetchCustomer();
     }
-  }, [customerId, isOpen, user]);
+  }, [customerId, isOpen, user, title]);
 
   const checkTimeSlotAvailability = async (startDate: string, endDate: string, excludeEventId?: string): Promise<boolean> => {
     const start = new Date(startDate);
     const end = new Date(endDate);
     
-    const { data: existingEvents } = await supabase
+    const { data: existingEvents, error } = await supabase
       .from('events')
       .select('*')
       .or(`start_date.lte.${end.toISOString()},end_date.gte.${start.toISOString()}`);
 
-    return !existingEvents?.some(event => {
+    if (error) {
+      console.error('Error checking time slot availability:', error);
+      return false;
+    }
+
+    if (!existingEvents) return true;
+
+    return !existingEvents.some(event => {
       if (excludeEventId && event.id === excludeEventId) return false;
       
       const eventStart = parseISO(event.start_date);
