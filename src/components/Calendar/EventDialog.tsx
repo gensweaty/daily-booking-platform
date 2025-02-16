@@ -47,7 +47,6 @@ export const EventDialog = ({
   const { t, language } = useLanguage();
 
   useEffect(() => {
-    console.log('Selected date changed:', selectedDate);
     if (event) {
       const start = new Date(event.start_date);
       const end = new Date(event.end_date);
@@ -57,23 +56,17 @@ export const EventDialog = ({
       const start = new Date(selectedDate);
       const end = new Date(selectedDate);
       
-      if (start.getHours() === 0) {
+      if (start.getHours() === 0 && start.getMinutes() === 0) {
         start.setHours(9, 0, 0, 0);
         end.setHours(10, 0, 0, 0);
       } else {
         end.setTime(start.getTime() + 60 * 60 * 1000);
       }
       
-      const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
-      const formattedEnd = format(end, "yyyy-MM-dd'T'HH:mm");
-      
-      console.log('Setting start date to:', formattedStart);
-      console.log('Setting end date to:', formattedEnd);
-      
-      setStartDate(formattedStart);
-      setEndDate(formattedEnd);
+      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     }
-  }, [selectedDate, event]);
+  }, [selectedDate, event, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
