@@ -7,6 +7,7 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useEffect } from "react";
 
 interface EventDialogFieldsProps {
   title: string;

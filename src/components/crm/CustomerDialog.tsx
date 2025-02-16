@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -485,6 +486,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             createEvent={createEvent}
             setCreateEvent={setCreateEvent}
             isEventData={isEventData}
+            isOpen={isOpen}
           />
 
           <div className="flex justify-end gap-2 mt-4">
@@ -492,7 +494,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
               {t("crm.cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : (customerId ? t("crm.update") : t("crm.create"))}
+              {loading ? "..." : (customerId ? t("crm.update") : t("crm.create"))}
             </Button>
           </div>
         </form>
