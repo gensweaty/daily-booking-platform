@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -46,7 +47,7 @@ export const DashboardContent = ({
   const { t } = useLanguage();
 
   return (
-    <Tabs defaultValue="calendar" className="w-full max-w-[90%] xl:max-w-[85%] 2xl:max-w-[80%] mx-auto">
+    <Tabs defaultValue="calendar" className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
       <TabsList className="grid w-full grid-cols-4 mb-2">
         <TabsTrigger 
           value="calendar" 
@@ -108,7 +109,7 @@ export const DashboardContent = ({
           >
             <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
               <CardContent className="p-0">
-                <div className="pt-6">
+                <div className="px-6 pt-6">
                   <motion.div
                     variants={cardVariants}
                     initial="hidden"
