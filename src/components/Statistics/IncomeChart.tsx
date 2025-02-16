@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { CustomTooltip } from "./CustomTooltip";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface IncomeChartProps {
   data: Array<{
@@ -20,7 +21,19 @@ interface IncomeChartProps {
 }
 
 export const IncomeChart = ({ data }: IncomeChartProps) => {
-  const title = data.length > 3 ? `${data.length} Month Income Comparison` : "Three Month Income Comparison";
+  const { language } = useLanguage();
+  const isSpanish = language === 'es';
+  
+  const title = isSpanish 
+    ? data.length > 3 
+      ? `Comparación de Ingresos de ${data.length} Meses`
+      : "Comparación de Ingresos de Tres Meses"
+    : data.length > 3 
+      ? `${data.length} Month Income Comparison`
+      : "Three Month Income Comparison";
+
+  const xAxisLabel = isSpanish ? "Meses" : "Months";
+  const yAxisLabel = isSpanish ? "Ingresos ($)" : "Income ($)";
 
   return (
     <Card className="p-4">
@@ -44,7 +57,7 @@ export const IncomeChart = ({ data }: IncomeChartProps) => {
               axisLine={false}
               dy={16}
               label={{ 
-                value: 'Months', 
+                value: xAxisLabel, 
                 position: 'bottom', 
                 offset: 20,
                 style: { textAnchor: 'middle' }
@@ -52,7 +65,7 @@ export const IncomeChart = ({ data }: IncomeChartProps) => {
             />
             <YAxis 
               label={{ 
-                value: 'Income ($)', 
+                value: yAxisLabel, 
                 angle: -90, 
                 position: 'insideLeft',
                 offset: 0,
@@ -67,7 +80,7 @@ export const IncomeChart = ({ data }: IncomeChartProps) => {
             <Bar
               dataKey="income"
               fill="#82ca9d"
-              name="Income ($)"
+              name={yAxisLabel}
             />
           </BarChart>
         </ResponsiveContainer>
