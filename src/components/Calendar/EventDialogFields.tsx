@@ -62,7 +62,7 @@ export const EventDialogFields = ({
   eventId,
   onFileDeleted,
 }: EventDialogFieldsProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   const { data: allFiles = [] } = useQuery({
     queryKey: ['eventFiles', eventId, title],
@@ -84,7 +84,6 @@ export const EventDialogFields = ({
 
           console.log('Found event files:', eventFiles?.length || 0);
           eventFiles?.forEach(file => {
-            // Use a composite key of file path and source to ensure true uniqueness
             const uniqueKey = `${file.file_path}_event`;
             uniqueFiles.set(uniqueKey, {
               ...file,
@@ -93,7 +92,6 @@ export const EventDialogFields = ({
           });
         }
 
-        // Then try to get customer files if we have a title
         if (title) {
           const { data: customer, error: customerError } = await supabase
             .from('customers')
@@ -107,9 +105,7 @@ export const EventDialogFields = ({
           if (!customerError && customer?.customer_files_new) {
             console.log('Found customer files:', customer.customer_files_new.length);
             customer.customer_files_new.forEach(file => {
-              // Use a composite key of file path and source to ensure true uniqueness
               const uniqueKey = `${file.file_path}_customer`;
-              // Only add if the file isn't already present from event files
               const eventFileKey = `${file.file_path}_event`;
               if (!uniqueFiles.has(eventFileKey)) {
                 uniqueFiles.set(uniqueKey, {
@@ -191,21 +187,29 @@ export const EventDialogFields = ({
             <SelectValue placeholder={t("events.selectPaymentStatus")} />
           </SelectTrigger>
           <SelectContent className="bg-background border border-input shadow-md">
-            <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">No pagado</SelectItem>
-            <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">Pagado parcialmente</SelectItem>
-            <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">Pagado totalmente</SelectItem>
+            <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">
+              {t("crm.notPaid")}
+            </SelectItem>
+            <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">
+              {t("crm.paidPartly")}
+            </SelectItem>
+            <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">
+              {t("crm.paidFully")}
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {paymentStatus && paymentStatus !== 'not_paid' && (
         <div className="space-y-2">
-          <Label htmlFor="amount">{t("events.paymentAmount")} ($)</Label>
+          <Label htmlFor="amount">
+            {t("events.paymentAmount")} ({language === 'es' ? '€' : '$'})
+          </Label>
           <Input
             id="amount"
             type="number"
             step="0.01"
-            placeholder="Ingrese monto en USD"
+            placeholder={`${t("events.paymentAmount")} ${language === 'es' ? '(€)' : '($)'}`}
             value={paymentAmount}
             onChange={(e) => setPaymentAmount(e.target.value)}
             required
