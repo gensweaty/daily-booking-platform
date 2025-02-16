@@ -26,38 +26,34 @@ interface StatsCardsProps {
 }
 
 export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
   const isSpanish = language === 'es';
 
   return (
     <div className="grid gap-4 md:grid-cols-4">
       <StatCard
-        title={isSpanish ? "Tareas Totales" : "Total Tasks"}
+        title={t("dashboard.totalTasks")}
         value={taskStats.total}
-        description={isSpanish ? `${taskStats.completed} completadas` : `${taskStats.completed} completed`}
-        icon={<CheckCircle2 className="h-4 w-4" />}
+        description={`${taskStats.completed} ${t("dashboard.completed")}`}
+        icon={CheckCircle2}
       />
       <StatCard
-        title={isSpanish ? "En Progreso" : "In Progress"}
+        title={t("dashboard.inProgress")}
         value={taskStats.inProgress}
-        description={isSpanish ? "pendientes" : "pending"}
-        icon={<Clock className="h-4 w-4" />}
+        description={t("dashboard.todo")}
+        icon={Clock}
       />
       <StatCard
-        title={isSpanish ? "Eventos Totales" : "Total Events"}
+        title={t("dashboard.totalEvents")}
         value={eventStats.total}
-        description={
-          isSpanish
-            ? `${eventStats.partlyPaid} pago parcial, ${eventStats.fullyPaid} pago completo`
-            : `${eventStats.partlyPaid} partly paid, ${eventStats.fullyPaid} fully paid`
-        }
-        icon={<CalendarCheck className="h-4 w-4" />}
+        description={`${eventStats.partlyPaid} ${t("dashboard.partlyPaid")}, ${eventStats.fullyPaid} ${t("dashboard.fullyPaid")}`}
+        icon={CalendarCheck}
       />
       <StatCard
-        title={isSpanish ? "Ingresos Totales" : "Total Income"}
+        title={t("dashboard.totalIncome")}
         value={`${isSpanish ? '€' : '$'}${eventStats.totalIncome.toFixed(2)}`}
-        description={isSpanish ? "de todos los eventos" : "from all events"}
-        icon={isSpanish ? <EuroIcon className="h-4 w-4" /> : <DollarSign className="h-4 w-4" />}
+        description={t("dashboard.fromAllEvents")}
+        icon={isSpanish ? EuroIcon : DollarSign}
         valueClassName="text-2xl"
       />
     </div>
