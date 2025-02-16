@@ -1,3 +1,4 @@
+
 export const esTranslations = {
   // Navigation
   "nav.signin": "Iniciar Sesión",
@@ -137,7 +138,9 @@ export const esTranslations = {
 
   // Events
   "events.addNewEvent": "Agregar Nuevo Evento",
+  "events.editEvent": "Editar Evento",
   "events.fullNameRequired": "Nombre Completo (requerido)",
+  "events.fullName": "Nombre completo",
   "events.phoneNumber": "Número de Teléfono",
   "events.socialLinkEmail": "Link Social o Email",
   "events.paymentStatus": "Estado de Pago",
@@ -148,6 +151,8 @@ export const esTranslations = {
   "events.chooseFile": "Elegir Archivo",
   "events.noFileChosen": "Ningún archivo seleccionado",
   "events.createEvent": "Crear Evento",
+  "events.updateEvent": "Actualizar Evento",
+  "events.paymentAmount": "Monto de Pago",
   "events.maxSize": "Tamaño máximo: Imágenes - 2MB, Documentos - 1MB",
   "events.supportedFormats": "Formatos soportados: Imágenes (jpg, jpeg, png, webp), Documentos (pdf, docx, xlsx, pptx)",
 

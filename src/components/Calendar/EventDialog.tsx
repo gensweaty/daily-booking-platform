@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface EventDialogProps {
   open: boolean;
@@ -43,6 +44,7 @@ export const EventDialog = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t, language } = useLanguage();
 
   useEffect(() => {
     if (event) {
@@ -87,7 +89,7 @@ export const EventDialog = ({
         .from('customers')
         .select('id')
         .eq('title', title)
-        .maybeSingle(); // Changed from .single() to .maybeSingle()
+        .maybeSingle();
 
       if (customerQueryError && customerQueryError.code !== 'PGRST116') {
         console.error('Error checking for existing customer:', customerQueryError);
@@ -236,7 +238,7 @@ export const EventDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle>{event ? "Edit Event" : "Add New Event"}</DialogTitle>
+        <DialogTitle>{event ? t("events.editEvent") : t("events.addNewEvent")}</DialogTitle>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <EventDialogFields
             title={title}
@@ -267,7 +269,7 @@ export const EventDialog = ({
           
           <div className="flex justify-between gap-4">
             <Button type="submit" className="flex-1">
-              {event ? "Update Event" : "Create Event"}
+              {event ? t("events.updateEvent") : t("events.createEvent")}
             </Button>
             {event && onDelete && (
               <Button

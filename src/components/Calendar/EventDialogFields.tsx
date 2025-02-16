@@ -1,11 +1,13 @@
+
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { FileDisplay } from "@/components/shared/FileDisplay";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -60,7 +62,7 @@ export const EventDialogFields = ({
   eventId,
   onFileDeleted,
 }: EventDialogFieldsProps) => {
-  const queryClient = useQueryClient();
+  const { t } = useLanguage();
   
   const { data: allFiles = [] } = useQuery({
     queryKey: ['eventFiles', eventId, title],
@@ -133,10 +135,10 @@ export const EventDialogFields = ({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="title">Full Name (required)</Label>
+        <Label htmlFor="title">{t("events.fullNameRequired")}</Label>
         <Input
           id="title"
-          placeholder="Full name"
+          placeholder={t("events.fullName")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
@@ -144,22 +146,22 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="number">Phone Number</Label>
+        <Label htmlFor="number">{t("events.phoneNumber")}</Label>
         <Input
           id="number"
           type="tel"
-          placeholder="Phone number"
+          placeholder={t("events.phoneNumber")}
           value={userNumber}
           onChange={(e) => setUserNumber(e.target.value)}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="socialNetwork">Social Link or Email</Label>
+        <Label htmlFor="socialNetwork">{t("events.socialLinkEmail")}</Label>
         <Input
           id="socialNetwork"
           type="text"
-          placeholder="Social link or email"
+          placeholder={t("events.socialLinkEmail")}
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
         />
@@ -183,27 +185,27 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label>Payment Status</Label>
+        <Label>{t("events.paymentStatus")}</Label>
         <Select value={paymentStatus} onValueChange={setPaymentStatus}>
           <SelectTrigger className="w-full bg-background border-input">
-            <SelectValue placeholder="Select payment status" />
+            <SelectValue placeholder={t("events.selectPaymentStatus")} />
           </SelectTrigger>
           <SelectContent className="bg-background border border-input shadow-md">
-            <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">Not paid</SelectItem>
-            <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">Paid Partly</SelectItem>
-            <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">Paid Fully</SelectItem>
+            <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">No pagado</SelectItem>
+            <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">Pagado parcialmente</SelectItem>
+            <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">Pagado totalmente</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {paymentStatus && paymentStatus !== 'not_paid' && (
         <div className="space-y-2">
-          <Label htmlFor="amount">Payment Amount ($)</Label>
+          <Label htmlFor="amount">{t("events.paymentAmount")} ($)</Label>
           <Input
             id="amount"
             type="number"
             step="0.01"
-            placeholder="Enter amount in USD"
+            placeholder="Ingrese monto en USD"
             value={paymentAmount}
             onChange={(e) => setPaymentAmount(e.target.value)}
             required
@@ -213,10 +215,10 @@ export const EventDialogFields = ({
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="notes">Event Notes</Label>
+        <Label htmlFor="notes">{t("events.eventNotes")}</Label>
         <Textarea
           id="notes"
-          placeholder="Add notes about the event"
+          placeholder={t("events.addEventNotes")}
           value={eventNotes}
           onChange={(e) => setEventNotes(e.target.value)}
           className="bg-background border-input"
