@@ -9,9 +9,10 @@ interface StatCardProps {
   value: string | number;
   icon: LucideIcon;
   description: keyof TranslationType;
+  descriptionValues?: string;
 }
 
-export const StatCard = ({ title, value, icon: Icon, description }: StatCardProps) => {
+export const StatCard = ({ title, value, icon: Icon, description, descriptionValues }: StatCardProps) => {
   const { t } = useLanguage();
   
   return (
@@ -21,7 +22,9 @@ export const StatCard = ({ title, value, icon: Icon, description }: StatCardProp
         <h3 className="text-sm font-medium">{t(title)}</h3>
       </div>
       <div className="text-2xl font-bold">{value}</div>
-      <p className="text-xs text-muted-foreground">{t(description)}</p>
+      <p className="text-xs text-muted-foreground">
+        {descriptionValues || t(description)}
+      </p>
     </Card>
   );
 };

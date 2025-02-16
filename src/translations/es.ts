@@ -145,7 +145,10 @@ export const esTranslations = {
   "dashboard.eventsData": "Datos de Eventos",
   "dashboard.exportSuccessful": "Exportación Exitosa",
   "dashboard.exportSuccessMessage": "Los datos se han exportado exitosamente",
-
+  "dashboard.taskSummary": "Completadas: {count}",
+  "dashboard.progressSummary": "Pendientes: {count}",
+  "dashboard.eventSummary": "Estado de Pago",
+  
   // Calendar
   "calendar.today": "Hoy",
   "calendar.clear": "Limpiar",

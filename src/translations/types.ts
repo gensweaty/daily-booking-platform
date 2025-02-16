@@ -16,6 +16,9 @@ export type TranslationType = {
   "dashboard.eventsData": string;
   "dashboard.exportSuccessful": string;
   "dashboard.exportSuccessMessage": string;
+  "dashboard.taskSummary": string;
+  "dashboard.progressSummary": string;
+  "dashboard.eventSummary": string;
   
   // Events translations
   "events.date": string;
