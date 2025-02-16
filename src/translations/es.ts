@@ -5,7 +5,7 @@ export const esTranslations = {
   "nav.contact": "Contacto",
   "nav.startJourney": "Comienza Gratis",
   
-  // Hero Section
+  // Hero
   "hero.title": "Impulsa la Productividad de tu Negocio con SmartBookly",
   "hero.subtitle": "Solución Todo en Uno - Reservas, Gestión de Tareas, CRM y Análisis.",
   "hero.description": "Toma el control total de tu flujo de trabajo con nuestro calendario de reservas, gestión de tareas, administración de relaciones con clientes y análisis integrado. Todo lo que tu negocio necesita, en un solo lugar.",
@@ -18,23 +18,69 @@ export const esTranslations = {
   "features.crm": "Solución CRM Moderna",
   "features.analytics": "Análisis de Rendimiento Automatizado",
   "features.businessTitle": "Para Pequeñas y Medianas Empresas Como",
-  
-  // Smart Booking Calendar
-  "booking.title": "Calendario de Reservas Inteligente",
-  "booking.description": "Gestiona eficientemente tus citas y eventos",
-  "booking.feature1": "Múltiples vistas de calendario (mes, semana, día)",
-  "booking.feature2": "Programación de eventos con horarios personalizables",
-  "booking.feature3": "Gestión de reservas de clientes con seguimiento de pagos",
-  "booking.feature4": "Sincronización automática de eventos con CRM",
 
-  // Analytics
-  "analytics.title": "Análisis Completo",
-  "analytics.description": "Monitorea tu rendimiento y crecimiento",
-  "analytics.feature1": "Análisis de reservas e ingresos",
-  "analytics.feature2": "Filtrado personalizado por rango de fechas",
-  "analytics.feature3": "Comparación de ingresos entre meses",
-  "analytics.feature4": "Métricas y gráficos visuales interactivos",
-  "analytics.feature5": "Descarga en Excel con un clic",
+  // Dashboard
+  "dashboard.welcome": "¡Bienvenido a SmartBookly!",
+  "dashboard.subtitle": "Tu centro integral para tareas, reservas, CRM y análisis.",
+  "dashboard.bookingCalendar": "Calendario de Reservas",
+  "dashboard.statistics": "Estadísticas",
+  "dashboard.tasks": "Tareas",
+  "dashboard.crm": "CRM",
+  "dashboard.month": "Mes",
+  "dashboard.week": "Semana",
+  "dashboard.day": "Día",
+  "dashboard.addEvent": "Agregar Evento",
+  "dashboard.editEvent": "Editar Evento",
+  "dashboard.totalTasks": "Total de Tareas",
+  "dashboard.inProgress": "En Progreso",
+  "dashboard.totalEvents": "Total de Eventos",
+  "dashboard.totalIncome": "Ingresos Totales",
+  "dashboard.fromAllEvents": "De Todos los Eventos",
+  "dashboard.completed": "completadas",
+  "dashboard.todo": "pendientes",
+  "dashboard.partlyPaid": "pago parcial",
+  "dashboard.fullyPaid": "pago completo",
+  "dashboard.totalBookingsGrowth": "Crecimiento Total de Reservas",
+  "dashboard.threeMonthIncome": "Ingresos de Tres Meses",
+  "dashboard.bookingDates": "Fechas de Reserva",
+  "dashboard.months": "Meses",
+  "dashboard.income": "Ingresos",
+  "dashboard.signOut": "Cerrar Sesión",
+  "dashboard.profile": "Perfil de Usuario",
+  "dashboard.changePassword": "Cambiar Contraseña",
+  "dashboard.category": "Categoría",
+  "dashboard.total": "Total",
+  "dashboard.details": "Detalles",
+  "dashboard.additionalInfo": "Información Adicional",
+  "dashboard.taskStatistics": "Estadísticas de Tareas",
+  "dashboard.eventStatistics": "Estadísticas de Eventos",
+  "dashboard.financialSummary": "Resumen Financiero",
+  "dashboard.summaryStatistics": "Resumen de Estadísticas",
+  "dashboard.eventsData": "Datos de Eventos",
+  "dashboard.exportSuccessful": "Exportación Exitosa",
+  "dashboard.exportSuccessMessage": "Los datos se han exportado correctamente a Excel",
+
+  // Events
+  "events.addNewEvent": "Agregar Nuevo Evento",
+  "events.editEvent": "Editar Evento",
+  "events.fullNameRequired": "Nombre Completo (requerido)",
+  "events.fullName": "Nombre completo",
+  "events.phoneNumber": "Número de Teléfono",
+  "events.socialLinkEmail": "Link Social o Email",
+  "events.paymentStatus": "Estado de Pago",
+  "events.selectPaymentStatus": "Seleccionar estado de pago",
+  "events.eventNotes": "Notas del Evento",
+  "events.addEventNotes": "Agregar notas sobre el evento",
+  "events.attachment": "Archivo Adjunto (opcional)",
+  "events.chooseFile": "Elegir Archivo",
+  "events.noFileChosen": "Ningún archivo seleccionado",
+  "events.createEvent": "Crear Evento",
+  "events.updateEvent": "Actualizar Evento",
+  "events.paymentAmount": "Monto de Pago",
+  "events.maxSize": "Tamaño máximo: Imágenes - 2MB, Documentos - 1MB",
+  "events.supportedFormats": "Formatos soportados: Imágenes (jpg, jpeg, png, webp), Documentos (pdf, docx, xlsx, pptx)",
+  "events.date": "Fecha",
+  "events.time": "Hora",
 
   // CRM
   "crm.title": "Gestión de Relaciones con Clientes",
@@ -61,6 +107,8 @@ export const esTranslations = {
   "crm.cancel": "Cancelar",
   "crm.open": "Abrir",
   "crm.search": "Buscar...",
+  "crm.error": "Error",
+  "crm.noDataToExport": "No hay datos para exportar",
 
   // Task Management
   "tasks.title": "Gestión de Tareas",
@@ -179,6 +227,8 @@ export const esTranslations = {
   "events.paymentAmount": "Monto de Pago",
   "events.maxSize": "Tamaño máximo: Imágenes - 2MB, Documentos - 1MB",
   "events.supportedFormats": "Formatos soportados: Imágenes (jpg, jpeg, png, webp), Documentos (pdf, docx, xlsx, pptx)",
+  "events.date": "Fecha",
+  "events.time": "Hora",
 
   // Business
   "business.events": "Planificación de Eventos",
@@ -279,8 +329,4 @@ export const esTranslations = {
   "dashboard.totalBookingsGrowth": "Crecimiento Total de Reservas",
   "dashboard.threeMonthIncome": "Ingresos de Tres Meses",
   "dashboard.fromAllEvents": "De Todos los Eventos",
-
-  // CRM
-  "crm.error": "Error",
-  "crm.noDataToExport": "No hay datos para exportar",
 } as const;
