@@ -2,6 +2,7 @@
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 import { useToast } from "../ui/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface StatsData {
   taskStats: {
@@ -21,12 +22,13 @@ interface StatsData {
 
 export const useExcelExport = () => {
   const { toast } = useToast();
+  const { t, language } = useLanguage();
 
   const exportToExcel = (data: StatsData) => {
     if (!data.eventStats?.events) {
       toast({
-        title: "No data to export",
-        description: "There are no events in the selected date range.",
+        title: t("crm.error"),
+        description: t("crm.noDataToExport"),
         variant: "destructive",
       });
       return;
@@ -34,38 +36,38 @@ export const useExcelExport = () => {
 
     // Create statistics summary data
     const statsData = [{
-      'Category': 'Tasks Statistics',
-      'Total': data.taskStats?.total || 0,
-      'Details': `Completed tasks: ${data.taskStats?.completed || 0}`,
-      'Additional Info': `Tasks in progress: ${data.taskStats?.inProgress || 0}, Tasks todo: ${data.taskStats?.todo || 0}`,
+      [t("dashboard.category")]: t("dashboard.taskStatistics"),
+      [t("dashboard.total")]: data.taskStats?.total || 0,
+      [t("dashboard.details")]: `${t("dashboard.completed")}: ${data.taskStats?.completed || 0}`,
+      [t("dashboard.additionalInfo")]: `${t("dashboard.inProgress")}: ${data.taskStats?.inProgress || 0}, ${t("dashboard.todo")}: ${data.taskStats?.todo || 0}`,
     }, {
-      'Category': 'Events Statistics',
-      'Total': data.eventStats?.total || 0,
-      'Details': `Partly paid events: ${data.eventStats?.partlyPaid || 0}`,
-      'Additional Info': `Fully paid events: ${data.eventStats?.fullyPaid || 0}`,
+      [t("dashboard.category")]: t("dashboard.eventStatistics"),
+      [t("dashboard.total")]: data.eventStats?.total || 0,
+      [t("dashboard.details")]: `${t("dashboard.partlyPaid")}: ${data.eventStats?.partlyPaid || 0}`,
+      [t("dashboard.additionalInfo")]: `${t("dashboard.fullyPaid")}: ${data.eventStats?.fullyPaid || 0}`,
     }, {
-      'Category': '',
-      'Total': '',
-      'Details': '',
-      'Additional Info': '',
+      [t("dashboard.category")]: '',
+      [t("dashboard.total")]: '',
+      [t("dashboard.details")]: '',
+      [t("dashboard.additionalInfo")]: '',
     }, {
-      'Category': 'Financial Summary',
-      'Total': 'Total Income',
-      'Details': `$${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
-      'Additional Info': 'From all events',
+      [t("dashboard.category")]: t("dashboard.financialSummary"),
+      [t("dashboard.total")]: t("dashboard.totalIncome"),
+      [t("dashboard.details")]: `$${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
+      [t("dashboard.additionalInfo")]: t("dashboard.fromAllEvents"),
     }];
 
     // Transform events data for Excel
     const eventsData = data.eventStats.events.map(event => ({
-      'Full Name': `${event.title || ''} ${event.user_surname || ''}`.trim(),
-      'Phone Number': event.user_number || '',
-      'Social Link/Email': event.social_network_link || '',
-      'Payment Status': event.payment_status || '',
-      'Payment Amount': event.payment_amount ? `$${event.payment_amount}` : '',
-      'Date': event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
-      'Time': event.start_date && event.end_date ? 
+      [t("crm.fullName")]: `${event.title || ''} ${event.user_surname || ''}`.trim(),
+      [t("crm.phoneNumber")]: event.user_number || '',
+      [t("crm.socialLinkEmail")]: event.social_network_link || '',
+      [t("crm.paymentStatus")]: event.payment_status || '',
+      [t("events.paymentAmount")]: event.payment_amount ? `$${event.payment_amount}` : '',
+      [t("events.date")]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
+      [t("events.time")]: event.start_date && event.end_date ? 
         `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',
-      'Comment': event.event_notes || '',
+      [t("crm.comment")]: event.event_notes || '',
     }));
 
     // Create workbook
@@ -73,7 +75,7 @@ export const useExcelExport = () => {
 
     // Create and add statistics worksheet
     const wsStats = XLSX.utils.json_to_sheet(statsData);
-    XLSX.utils.book_append_sheet(wb, wsStats, 'Summary Statistics');
+    XLSX.utils.book_append_sheet(wb, wsStats, t("dashboard.summaryStatistics"));
 
     // Set statistics column widths
     wsStats['!cols'] = [
@@ -85,7 +87,7 @@ export const useExcelExport = () => {
 
     // Create and add events worksheet
     const wsEvents = XLSX.utils.json_to_sheet(eventsData);
-    XLSX.utils.book_append_sheet(wb, wsEvents, 'Events Data');
+    XLSX.utils.book_append_sheet(wb, wsEvents, t("dashboard.eventsData"));
 
     // Set events column widths
     wsEvents['!cols'] = [
@@ -101,11 +103,11 @@ export const useExcelExport = () => {
 
     // Generate Excel file
     const dateStr = format(new Date(), 'dd-MM-yyyy');
-    XLSX.writeFile(wb, `statistics-${dateStr}.xlsx`);
+    XLSX.writeFile(wb, `${t("dashboard.statistics")}-${dateStr}.xlsx`);
 
     toast({
-      title: "Export successful",
-      description: "The statistics data has been exported to Excel.",
+      title: t("dashboard.exportSuccessful"),
+      description: t("dashboard.exportSuccessMessage"),
     });
   };
 

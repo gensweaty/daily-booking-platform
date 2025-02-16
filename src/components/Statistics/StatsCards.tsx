@@ -1,6 +1,7 @@
 
 import { CircleDollarSign, Clock, CheckSquare, ListTodo } from "lucide-react";
 import { StatCard } from "./StatCard";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface StatsCardsProps {
   taskStats: {
@@ -18,31 +19,33 @@ interface StatsCardsProps {
 }
 
 export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
+  const { t } = useLanguage();
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <StatCard
-        title="Total Tasks"
+        title={t("dashboard.totalTasks")}
         value={taskStats.total}
         icon={ListTodo}
-        description={`${taskStats.completed} completed`}
+        description={`${taskStats.completed} ${t("dashboard.completed")}`}
       />
       <StatCard
-        title="In Progress"
+        title={t("dashboard.inProgress")}
         value={taskStats.inProgress}
         icon={Clock}
-        description={`${taskStats.todo} todo`}
+        description={`${taskStats.todo} ${t("dashboard.todo")}`}
       />
       <StatCard
-        title="Total Events"
+        title={t("dashboard.totalEvents")}
         value={eventStats.total}
         icon={CheckSquare}
-        description={`${eventStats.partlyPaid} partly paid, ${eventStats.fullyPaid} fully paid`}
+        description={`${eventStats.partlyPaid} ${t("dashboard.partlyPaid")}, ${eventStats.fullyPaid} ${t("dashboard.fullyPaid")}`}
       />
       <StatCard
-        title="Total Income"
+        title={t("dashboard.totalIncome")}
         value={`$${eventStats.totalIncome.toFixed(2)}`}
         icon={CircleDollarSign}
-        description="From all events"
+        description={t("dashboard.fromAllEvents")}
       />
     </div>
   );
