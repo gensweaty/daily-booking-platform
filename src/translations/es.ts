@@ -1,3 +1,4 @@
+
 export const esTranslations = {
   // Nav
   "nav.home": "Inicio",
@@ -49,6 +50,49 @@ export const esTranslations = {
   "tasks.feature4": "Configuración de prioridades",
   "tasks.feature5": "Recordatorios de tareas",
 
+  // Auth
+  "auth.welcome": "Bienvenido a SmartBookly",
+  "auth.description": "Productividad Ágil completa - tareas, notas, calendario todo en uno",
+  "auth.signInButton": "Iniciar Sesión",
+  "auth.signUpButton": "Registrarse",
+  "auth.emailLabel": "Correo electrónico",
+  "auth.passwordLabel": "Contraseña",
+  "auth.usernameLabel": "Nombre de usuario",
+  "auth.passwordsDoNotMatch": "Las contraseñas no coinciden",
+  "auth.passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
+  "auth.forgotPassword": "¿Olvidaste tu contraseña?",
+  "auth.loading": "Cargando...",
+  "auth.signingUp": "Registrando...",
+  "auth.resetLinkSent": "Enlace de Restablecimiento Enviado",
+  "auth.resetLinkSentDescription": "Si existe una cuenta con este correo, recibirás un enlace para restablecer la contraseña.",
+  "auth.backToSignIn": "Volver a Iniciar Sesión",
+  "auth.resetPassword": "Restablecer Contraseña",
+  "auth.enterEmail": "Ingresa tu correo electrónico",
+  "auth.sending": "Enviando...",
+  "auth.sendResetLink": "Enviar Enlace de Restablecimiento",
+  "auth.passwordRequirements": "Contraseña (mín. 6 caracteres)",
+  "auth.confirmPasswordLabel": "Confirmar Contraseña",
+
+  // Events
+  "events.editEvent": "Editar Evento",
+  "events.addNewEvent": "Agregar Nuevo Evento",
+  "events.updateEvent": "Actualizar Evento",
+  "events.createEvent": "Crear Evento",
+  "events.fullNameRequired": "Nombre Completo (requerido)",
+  "events.fullName": "Nombre completo",
+  "events.phoneNumber": "Número de Teléfono",
+  "events.socialLinkEmail": "Enlace Social o Correo",
+  "events.paymentStatus": "Estado de Pago",
+  "events.selectPaymentStatus": "Seleccionar estado de pago",
+  "events.paymentAmount": "Monto del Pago",
+  "events.eventNotes": "Notas del Evento",
+  "events.addEventNotes": "Agregar notas del evento",
+  "events.attachment": "Archivo adjunto (opcional)",
+  "events.maxSize": "Tamaño máximo: Imágenes - 2MB, Documentos - 1MB",
+  "events.supportedFormats": "Formatos soportados: Imágenes (jpg, jpeg, png, webp), Documentos (pdf, docx, xlsx, pptx)",
+  "events.date": "Fecha",
+  "events.time": "Hora",
+
   // Dashboard
   "dashboard.welcome": "Bienvenido",
   "dashboard.subtitle": "Aquí tienes un resumen de tus eventos y tareas.",
@@ -78,84 +122,6 @@ export const esTranslations = {
   "dashboard.totalEvents": "Eventos Totales",
   "dashboard.totalIncome": "Ingresos Totales",
   "dashboard.fromAllEvents": "de todos los eventos",
-
-  // Contact
-  "contact.title": "Ponte en contacto",
-  "contact.description": "¿Tienes preguntas? ¡Contáctanos hoy mismo!",
-  "contact.name": "Nombre",
-  "contact.email": "Correo electrónico",
-  "contact.message": "Mensaje",
-  "contact.send": "Enviar mensaje",
-  "contact.success": "¡Gracias! Tu mensaje ha sido enviado.",
-  "contact.error": "Vaya, ha habido un error. Inténtalo de nuevo.",
-  "contact.errorDesc": "No se pudo enviar el mensaje. Por favor, inténtalo de nuevo más tarde.",
-
-  // Footer
-  "footer.copyright": "Derechos de autor © 2024 SmartBookly. Todos los derechos reservados.",
-  "footer.terms": "Términos de servicio",
-  "footer.privacy": "Política de privacidad",
-  "footer.navigation": "Navegación",
-  "footer.legal": "Legal",
-  "footer.rights": "Todos los derechos reservados",
-  "footer.description": "Tu solución integral para la gestión de eventos y tareas",
-
-  // Events
-  "events.date": "Fecha",
-  "events.time": "Hora",
-
-  // CRM
-  "crm.error": "Error",
-  "crm.noDataToExport": "No hay datos para exportar",
-  "crm.title": "Gestión de Clientes",
-  "crm.description": "Gestiona tus relaciones con los clientes",
-  "crm.feature1": "Base de datos de clientes",
-  "crm.feature2": "Seguimiento de interacciones",
-  "crm.feature3": "Segmentación de clientes",
-  "crm.feature4": "Automatización de comunicaciones",
-  "crm.feature5": "Informes de clientes",
-  
-  // Auth
-  "auth.welcome": "Bienvenido a SmartBookly",
-  "auth.description": "Productividad Ágil completa - tareas, notas, calendario todo en uno",
-  "auth.signInButton": "Iniciar Sesión",
-  "auth.signUpButton": "Registrarse",
-  "auth.emailLabel": "Correo electrónico",
-  "auth.passwordLabel": "Contraseña",
-  "auth.usernameLabel": "Nombre de usuario",
-  "auth.passwordsDoNotMatch": "Las contraseñas no coinciden",
-  "auth.passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
-  "auth.forgotPassword": "¿Olvidaste tu contraseña?",
-  "auth.loading": "Cargando...",
-  "auth.signingUp": "Registrando...",
-  "auth.resetLinkSent": "Enlace de Restablecimiento Enviado",
-  "auth.resetLinkSentDescription": "Si existe una cuenta con este correo, recibirás un enlace para restablecer la contraseña.",
-  "auth.backToSignIn": "Volver a Iniciar Sesión",
-  "auth.resetPassword": "Restablecer Contraseña",
-  "auth.enterEmail": "Ingresa tu correo electrónico",
-  "auth.sending": "Enviando...",
-  "auth.sendResetLink": "Enviar Enlace de Restablecimiento",
-  "auth.passwordRequirements": "Contraseña (mín. 6 caracteres)",
-  "auth.confirmPasswordLabel": "Confirmar Contraseña",
-
-  // Calendar & Events
-  "events.editEvent": "Editar Evento",
-  "events.addNewEvent": "Agregar Nuevo Evento",
-  "events.updateEvent": "Actualizar Evento",
-  "events.createEvent": "Crear Evento",
-  "events.fullNameRequired": "Nombre Completo (requerido)",
-  "events.fullName": "Nombre completo",
-  "events.phoneNumber": "Número de Teléfono",
-  "events.socialLinkEmail": "Enlace Social o Correo",
-  "events.paymentStatus": "Estado de Pago",
-  "events.selectPaymentStatus": "Seleccionar estado de pago",
-  "events.paymentAmount": "Monto del Pago",
-  "events.eventNotes": "Notas del Evento",
-  "events.addEventNotes": "Agregar notas del evento",
-  "events.attachment": "Archivo adjunto (opcional)",
-  "events.maxSize": "Tamaño máximo: Imágenes - 2MB, Documentos - 1MB",
-  "events.supportedFormats": "Formatos soportados: Imágenes (jpg, jpeg, png, webp), Documentos (pdf, docx, xlsx, pptx)",
-
-  // Dashboard
   "dashboard.month": "Mes",
   "dashboard.week": "Semana",
   "dashboard.day": "Día",
@@ -164,11 +130,6 @@ export const esTranslations = {
   "dashboard.statistics": "Estadísticas",
   "dashboard.tasks": "Tareas",
   "dashboard.crm": "CRM",
-
-  // CTA Section
-  "cta.title": "¿Listo para Impulsar la Productividad de tu Negocio?",
-  "cta.subtitle": "Únete a los Muchos Profesionales que ya Usan SmartBookly",
-  "cta.button": "Comienza Gratis",
 
   // Business
   "business.events": "Planificación de Eventos",
@@ -184,10 +145,21 @@ export const esTranslations = {
   "business.education": "Educación",
   "business.educationDesc": "Para tutores y centros educativos",
 
-  // Features
-  "features.businessTitle": "Perfecto para Negocios Como",
+  // CTA
+  "cta.title": "¿Listo para Impulsar la Productividad de tu Negocio?",
+  "cta.subtitle": "Únete a los Muchos Profesionales que ya Usan SmartBookly",
+  "cta.button": "Comienza Gratis",
 
-  // Contact Additional
+  // Contact
+  "contact.title": "Ponte en contacto",
+  "contact.description": "¿Tienes preguntas? ¡Contáctanos hoy mismo!",
+  "contact.name": "Nombre",
+  "contact.email": "Correo electrónico",
+  "contact.message": "Mensaje",
+  "contact.send": "Enviar mensaje",
+  "contact.success": "¡Gracias! Tu mensaje ha sido enviado.",
+  "contact.error": "Vaya, ha habido un error. Inténtalo de nuevo.",
+  "contact.errorDesc": "No se pudo enviar el mensaje. Por favor, inténtalo de nuevo más tarde.",
   "contact.messageSent": "Mensaje Enviado",
   "contact.messageSentDesc": "Nos pondremos en contacto contigo lo antes posible.",
   "contact.getInTouch": "Ponte en Contacto",
@@ -204,6 +176,26 @@ export const esTranslations = {
   "contact.emailPlaceholder": "tu.correo@ejemplo.com",
   "contact.messagePlaceholder": "¿Cómo podemos ayudarte?",
   "contact.sending": "Enviando...",
+
+  // Footer
+  "footer.copyright": "Derechos de autor © 2024 SmartBookly. Todos los derechos reservados.",
+  "footer.terms": "Términos de servicio",
+  "footer.privacy": "Política de privacidad",
+  "footer.navigation": "Navegación",
+  "footer.legal": "Legal",
+  "footer.rights": "Todos los derechos reservados",
+  "footer.description": "Tu solución integral para la gestión de eventos y tareas",
+
+  // CRM
+  "crm.error": "Error",
+  "crm.noDataToExport": "No hay datos para exportar",
+  "crm.title": "Gestión de Clientes",
+  "crm.description": "Gestiona tus relaciones con los clientes",
+  "crm.feature1": "Base de datos de clientes",
+  "crm.feature2": "Seguimiento de interacciones",
+  "crm.feature3": "Segmentación de clientes",
+  "crm.feature4": "Automatización de comunicaciones",
+  "crm.feature5": "Informes de clientes",
 
   // Legal
   "legal.termsAndPrivacy": "Términos y Política de Privacidad",
