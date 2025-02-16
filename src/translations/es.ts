@@ -222,6 +222,8 @@ export const esTranslations = {
   "crm.create": "Crear",
   "crm.update": "Actualizar",
   "crm.cancel": "Cancelar",
+  "crm.yes": "Sí",
+  "crm.no": "No",
 
   // Legal
   "legal.termsAndPrivacy": "Términos y Política de Privacidad",

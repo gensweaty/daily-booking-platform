@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -292,22 +293,36 @@ export const CustomerList = () => {
 
   const formatPaymentStatus = (status: string, amount: number | null) => {
     if (!status) return '-';
-    const displayStatus = status.replace('_', ' ');
+    
+    let displayStatus = '';
+    switch (status) {
+      case 'not_paid':
+        displayStatus = t("crm.notPaid");
+        break;
+      case 'partly':
+        displayStatus = t("crm.paidPartly");
+        break;
+      case 'fully':
+        displayStatus = t("crm.paidFully");
+        break;
+      default:
+        displayStatus = status;
+    }
     
     if ((status === 'partly' || status === 'fully') && amount) {
       return (
-        <span className={`capitalize ${
+        <span className={`${
           status === 'fully' ? 'text-green-600' :
           status === 'partly' ? 'text-yellow-600' :
           'text-red-600'
         }`}>
-          {displayStatus} (${amount})
+          {`${displayStatus} (${language === 'es' ? '€' : '$'}${amount})`}
         </span>
       );
     }
 
     return (
-      <span className={`capitalize ${
+      <span className={`${
         status === 'fully' ? 'text-green-600' :
         status === 'partly' ? 'text-yellow-600' :
         'text-red-600'
@@ -347,18 +362,26 @@ export const CustomerList = () => {
   };
 
   const handleExcelDownload = () => {
-    const excelData = filteredData.map(customer => ({
-      'Full Name': customer.title || '',
-      'Phone Number': customer.user_number || '',
-      'Social Link/Email': customer.social_network_link || '',
-      'Payment Status': customer.payment_status || '',
-      'Payment Amount': customer.payment_amount ? `$${customer.payment_amount}` : '',
-      'Date': customer.start_date ? format(new Date(customer.start_date), 'dd.MM.yyyy') : '',
-      'Time': customer.start_date && customer.end_date ? 
-        formatTimeRange(customer.start_date, customer.end_date) : '',
-      'Comment': customer.event_notes || '',
-      'Event': customer.id.startsWith('event-') || (customer.start_date && customer.end_date) ? 'Yes' : 'No'
-    }));
+    const excelData = filteredData.map(customer => {
+      const paymentStatusText = customer.payment_status ? 
+        customer.payment_status === 'not_paid' ? t("crm.notPaid") :
+        customer.payment_status === 'partly' ? t("crm.paidPartly") :
+        customer.payment_status === 'fully' ? t("crm.paidFully") :
+        customer.payment_status : '';
+
+      return {
+        [t("crm.fullName")]: customer.title || '',
+        [t("crm.phoneNumber")]: customer.user_number || '',
+        [t("crm.socialLinkEmail")]: customer.social_network_link || '',
+        [t("crm.paymentStatus")]: paymentStatusText,
+        [t("crm.paymentAmount")]: customer.payment_amount ? `${language === 'es' ? '€' : '$'}${customer.payment_amount}` : '',
+        [t("events.date")]: customer.start_date ? format(new Date(customer.start_date), 'dd.MM.yyyy') : '',
+        [t("events.time")]: customer.start_date && customer.end_date ? 
+          formatTimeRange(customer.start_date, customer.end_date) : '',
+        [t("crm.comment")]: customer.event_notes || '',
+        [t("crm.dates")]: customer.id.startsWith('event-') || (customer.start_date && customer.end_date) ? t("crm.yes") : t("crm.no")
+      };
+    });
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(excelData);
@@ -376,14 +399,14 @@ export const CustomerList = () => {
     ];
     ws['!cols'] = colWidths;
 
-    XLSX.utils.book_append_sheet(wb, ws, 'Customers');
+    XLSX.utils.book_append_sheet(wb, ws, t("crm.title"));
 
     const currentDate = format(new Date(), 'dd-MM-yyyy');
-    XLSX.writeFile(wb, `customers-${currentDate}.xlsx`);
+    XLSX.writeFile(wb, `${t("crm.title").toLowerCase()}-${currentDate}.xlsx`);
 
     toast({
-      title: "Success",
-      description: "Excel file has been downloaded",
+      title: t("dashboard.exportSuccessful"),
+      description: t("dashboard.exportSuccessMessage"),
     });
   };
 

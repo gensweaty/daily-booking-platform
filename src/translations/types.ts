@@ -210,6 +210,8 @@ export type TranslationType = {
   "crm.create": string;
   "crm.update": string;
   "crm.cancel": string;
+  "crm.yes": string;
+  "crm.no": string;
 
   // Business
   "business.events": string;
