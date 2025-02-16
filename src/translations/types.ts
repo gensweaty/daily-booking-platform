@@ -93,6 +93,7 @@ export type TranslationType = {
   "events.supportedFormats": string;
   "events.date": string;
   "events.time": string;
+  "events.endDate": string;
 
   // Dashboard
   "dashboard.welcome": string;
