@@ -2,12 +2,13 @@
 import { Card } from "@/components/ui/card";
 import { LucideIcon } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { TranslationType } from "@/translations/types";
 
 interface StatCardProps {
-  title: string;
+  title: keyof TranslationType;
   value: string | number;
   icon: LucideIcon;
-  description: string;
+  description: keyof TranslationType;
 }
 
 export const StatCard = ({ title, value, icon: Icon, description }: StatCardProps) => {

@@ -61,6 +61,8 @@ export const enTranslations = {
   "crm.cancel": "Cancel",
   "crm.open": "Open",
   "crm.search": "Search...",
+  "crm.error": "Error",
+  "crm.noDataToExport": "No data available for export",
 
   // Task Management
   "tasks.title": "Task Management",
@@ -134,6 +136,17 @@ export const enTranslations = {
   "dashboard.signOut": "Sign Out",
   "dashboard.profile": "User Profile",
   "dashboard.changePassword": "Change Password",
+  "dashboard.category": "Category",
+  "dashboard.taskStatistics": "Task Statistics",
+  "dashboard.total": "Total",
+  "dashboard.details": "Details",
+  "dashboard.additionalInfo": "Additional Info",
+  "dashboard.eventStatistics": "Event Statistics",
+  "dashboard.financialSummary": "Financial Summary",
+  "dashboard.summaryStatistics": "Summary Statistics",
+  "dashboard.eventsData": "Events Data",
+  "dashboard.exportSuccessful": "Export Successful",
+  "dashboard.exportSuccessMessage": "Data has been exported successfully",
 
   // Calendar
   "calendar.today": "Today",
@@ -179,6 +192,8 @@ export const enTranslations = {
   "events.paymentAmount": "Payment Amount",
   "events.maxSize": "Max size: Images - 2MB, Documents - 1MB",
   "events.supportedFormats": "Supported formats: Images (jpg, jpeg, png, webp), Documents (pdf, docx, xlsx, pptx)",
+  "events.date": "Date",
+  "events.time": "Time",
 
   // Business
   "business.events": "Event Planning",

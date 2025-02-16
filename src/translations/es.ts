@@ -134,6 +134,17 @@ export const esTranslations = {
   "dashboard.signOut": "Cerrar Sesión",
   "dashboard.profile": "Perfil de Usuario",
   "dashboard.changePassword": "Cambiar Contraseña",
+  "dashboard.category": "Categoría",
+  "dashboard.taskStatistics": "Estadísticas de Tareas",
+  "dashboard.total": "Total",
+  "dashboard.details": "Detalles",
+  "dashboard.additionalInfo": "Información Adicional",
+  "dashboard.eventStatistics": "Estadísticas de Eventos",
+  "dashboard.financialSummary": "Resumen Financiero",
+  "dashboard.summaryStatistics": "Resumen de Estadísticas",
+  "dashboard.eventsData": "Datos de Eventos",
+  "dashboard.exportSuccessful": "Exportación Exitosa",
+  "dashboard.exportSuccessMessage": "Los datos se han exportado exitosamente",
 
   // Calendar
   "calendar.today": "Hoy",
@@ -179,6 +190,8 @@ export const esTranslations = {
   "events.paymentAmount": "Monto de Pago",
   "events.maxSize": "Tamaño máximo: Imágenes - 2MB, Documentos - 1MB",
   "events.supportedFormats": "Formatos soportados: Imágenes (jpg, jpeg, png, webp), Documentos (pdf, docx, xlsx, pptx)",
+  "events.date": "Fecha",
+  "events.time": "Hora",
 
   // Business
   "business.events": "Planificación de Eventos",
@@ -261,5 +274,7 @@ export const esTranslations = {
   "contact.messageSent": "¡Mensaje enviado!",
   "contact.messageSentDesc": "Nos pondremos en contacto contigo lo antes posible.",
   "contact.error": "Error",
-  "contact.errorDesc": "No se pudo enviar el mensaje. Por favor, inténtalo de nuevo más tarde."
+  "contact.errorDesc": "No se pudo enviar el mensaje. Por favor, inténtalo de nuevo más tarde.",
+  "crm.error": "Error",
+  "crm.noDataToExport": "No hay datos disponibles para exportar"
 } as const;
