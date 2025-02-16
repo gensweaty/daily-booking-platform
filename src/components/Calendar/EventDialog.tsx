@@ -47,8 +47,6 @@ export const EventDialog = ({
   const { t, language } = useLanguage();
 
   useEffect(() => {
-    if (!open) return;
-
     if (event) {
       const start = new Date(event.start_date);
       const end = new Date(event.end_date);
@@ -69,21 +67,6 @@ export const EventDialog = ({
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     }
   }, [selectedDate, event, open]);
-
-  useEffect(() => {
-    if (!open) {
-      setTitle("");
-      setUserSurname("");
-      setUserNumber("");
-      setSocialNetworkLink("");
-      setEventNotes("");
-      setPaymentStatus("");
-      setPaymentAmount("");
-      setSelectedFile(null);
-      setFileError("");
-      setDisplayedFiles([]);
-    }
-  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
