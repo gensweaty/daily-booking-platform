@@ -13,7 +13,7 @@ import {
 import { CustomTooltip } from "./CustomTooltip";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { es } from 'date-fns/locale';
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
 
 interface IncomeChartProps {
   data: Array<{
@@ -29,8 +29,8 @@ export const IncomeChart = ({ data }: IncomeChartProps) => {
   // Transform data to use Spanish month names if needed
   const transformedData = data.map(item => {
     if (isSpanish) {
-      // Parse the English month and convert to Spanish
-      const date = new Date(2024, ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(item.month), 1);
+      // Parse the month string to a Date object
+      const date = parse(item.month, 'MMM', new Date());
       return {
         ...item,
         month: format(date, 'MMM', { locale: es })

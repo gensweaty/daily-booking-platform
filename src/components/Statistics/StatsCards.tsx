@@ -1,7 +1,14 @@
 
-import { CircleDollarSign, Clock, CheckSquare, ListTodo } from "lucide-react";
-import { StatCard } from "./StatCard";
+import { Card } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { StatCard } from "./StatCard";
+import {
+  CheckCircle2,
+  Clock,
+  CalendarCheck,
+  DollarSign,
+  EuroIcon,
+} from "lucide-react";
 
 interface StatsCardsProps {
   taskStats: {
@@ -19,48 +26,39 @@ interface StatsCardsProps {
 }
 
 export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
-  const { t } = useLanguage();
-
-  const formatTaskDescription = (completed: number) => {
-    return t("dashboard.completed").replace("{count}", completed.toString());
-  };
-
-  const formatProgressDescription = (todo: number) => {
-    return t("dashboard.todo").replace("{count}", todo.toString());
-  };
-
-  const formatEventDescription = (partlyPaid: number, fullyPaid: number) => {
-    return `${partlyPaid} ${t("dashboard.partlyPaid")}, ${fullyPaid} ${t("dashboard.fullyPaid")}`;
-  };
+  const { language } = useLanguage();
+  const isSpanish = language === 'es';
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-4">
       <StatCard
-        title="dashboard.totalTasks"
+        title={isSpanish ? "Tareas Totales" : "Total Tasks"}
         value={taskStats.total}
-        icon={ListTodo}
-        description="dashboard.taskSummary"
-        descriptionValues={formatTaskDescription(taskStats.completed)}
+        description={isSpanish ? `${taskStats.completed} completadas` : `${taskStats.completed} completed`}
+        icon={<CheckCircle2 className="h-4 w-4" />}
       />
       <StatCard
-        title="dashboard.inProgress"
+        title={isSpanish ? "En Progreso" : "In Progress"}
         value={taskStats.inProgress}
-        icon={Clock}
-        description="dashboard.progressSummary"
-        descriptionValues={formatProgressDescription(taskStats.todo)}
+        description={isSpanish ? "pendientes" : "pending"}
+        icon={<Clock className="h-4 w-4" />}
       />
       <StatCard
-        title="dashboard.totalEvents"
+        title={isSpanish ? "Eventos Totales" : "Total Events"}
         value={eventStats.total}
-        icon={CheckSquare}
-        description="dashboard.eventSummary"
-        descriptionValues={formatEventDescription(eventStats.partlyPaid, eventStats.fullyPaid)}
+        description={
+          isSpanish
+            ? `${eventStats.partlyPaid} pago parcial, ${eventStats.fullyPaid} pago completo`
+            : `${eventStats.partlyPaid} partly paid, ${eventStats.fullyPaid} fully paid`
+        }
+        icon={<CalendarCheck className="h-4 w-4" />}
       />
       <StatCard
-        title="dashboard.totalIncome"
-        value={`$${eventStats.totalIncome.toFixed(2)}`}
-        icon={CircleDollarSign}
-        description="dashboard.fromAllEvents"
+        title={isSpanish ? "Ingresos Totales" : "Total Income"}
+        value={`${isSpanish ? '€' : '$'}${eventStats.totalIncome.toFixed(2)}`}
+        description={isSpanish ? "de todos los eventos" : "from all events"}
+        icon={isSpanish ? <EuroIcon className="h-4 w-4" /> : <DollarSign className="h-4 w-4" />}
+        valueClassName="text-2xl"
       />
     </div>
   );
