@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -63,7 +62,44 @@ export const EventDialogFields = ({
   onFileDeleted,
 }: EventDialogFieldsProps) => {
   const { t, language } = useLanguage();
-  
+
+  useEffect(() => {
+    const formData = {
+      title,
+      userSurname,
+      userNumber,
+      socialNetworkLink,
+      eventNotes,
+      startDate,
+      endDate,
+      paymentStatus,
+      paymentAmount,
+    };
+    sessionStorage.setItem('eventFormData', JSON.stringify(formData));
+  }, [title, userSurname, userNumber, socialNetworkLink, eventNotes, startDate, endDate, paymentStatus, paymentAmount]);
+
+  useEffect(() => {
+    const savedFormData = sessionStorage.getItem('eventFormData');
+    if (savedFormData && !title) {
+      const parsedData = JSON.parse(savedFormData);
+      setTitle(parsedData.title || '');
+      setUserSurname(parsedData.userSurname || '');
+      setUserNumber(parsedData.userNumber || '');
+      setSocialNetworkLink(parsedData.socialNetworkLink || '');
+      setEventNotes(parsedData.eventNotes || '');
+      setStartDate(parsedData.startDate || '');
+      setEndDate(parsedData.endDate || '');
+      setPaymentStatus(parsedData.paymentStatus || '');
+      setPaymentAmount(parsedData.paymentAmount || '');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!eventId) {
+      sessionStorage.removeItem('eventFormData');
+    }
+  }, [eventId]);
+
   const { data: allFiles = [] } = useQuery({
     queryKey: ['eventFiles', eventId, title],
     queryFn: async () => {
@@ -73,7 +109,6 @@ export const EventDialogFields = ({
         const uniqueFiles = new Map();
         console.log('Starting file fetch for eventId:', eventId, 'and title:', title);
 
-        // First try to get event files if we have an eventId
         if (eventId) {
           const { data: eventFiles, error: eventFilesError } = await supabase
             .from('event_files')

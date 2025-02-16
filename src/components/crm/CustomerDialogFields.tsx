@@ -37,6 +37,7 @@ interface CustomerDialogFieldsProps {
   createEvent: boolean;
   setCreateEvent: (value: boolean) => void;
   isEventData: boolean;
+  isOpen: boolean;
 }
 
 export const CustomerDialogFields = ({
@@ -66,8 +67,46 @@ export const CustomerDialogFields = ({
   createEvent,
   setCreateEvent,
   isEventData,
+  isOpen,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
+
+  useEffect(() => {
+    const formData = {
+      title,
+      userNumber,
+      socialNetworkLink,
+      eventNotes,
+      startDate,
+      endDate,
+      paymentStatus,
+      paymentAmount,
+      createEvent,
+    };
+    sessionStorage.setItem('customerFormData', JSON.stringify(formData));
+  }, [title, userNumber, socialNetworkLink, eventNotes, startDate, endDate, paymentStatus, paymentAmount, createEvent]);
+
+  useEffect(() => {
+    const savedFormData = sessionStorage.getItem('customerFormData');
+    if (savedFormData && !title) {
+      const parsedData = JSON.parse(savedFormData);
+      setTitle(parsedData.title || '');
+      setUserNumber(parsedData.userNumber || '');
+      setSocialNetworkLink(parsedData.socialNetworkLink || '');
+      setEventNotes(parsedData.eventNotes || '');
+      setStartDate(parsedData.startDate || '');
+      setEndDate(parsedData.endDate || '');
+      setPaymentStatus(parsedData.paymentStatus || '');
+      setPaymentAmount(parsedData.paymentAmount || '');
+      setCreateEvent(parsedData.createEvent || false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      sessionStorage.removeItem('customerFormData');
+    }
+  }, [isOpen]);
 
   const { data: fetchedFiles = [], isError } = useQuery({
     queryKey: ['customerFiles', customerId, isEventData],

@@ -39,6 +39,7 @@ export const FileUploadField = ({ onFileChange, fileError, setFileError }: FileU
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault(); // Prevent default behavior
     const selectedFile = e.target.files?.[0];
     setFileError("");
 
@@ -62,6 +63,10 @@ export const FileUploadField = ({ onFileChange, fileError, setFileError }: FileU
         onChange={handleFileChange}
         accept={[...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")}
         className="cursor-pointer bg-background border-gray-700"
+        onClick={(e) => {
+          // Reset value before opening to ensure onChange triggers even if same file is selected
+          (e.target as HTMLInputElement).value = '';
+        }}
       />
       {fileError && (
         <p className="text-sm text-red-500 mt-1">{fileError}</p>
