@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { translations } from '@/translations';
-import { Language, LanguageContextType, TranslationKeys } from '@/translations/types';
+import { Language, LanguageContextType, TranslationType } from '@/translations/types';
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
@@ -15,7 +15,7 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     localStorage.setItem('language', language);
   }, [language]);
 
-  const t = (key: TranslationKeys): string => {
+  const t = (key: keyof TranslationType): string => {
     return translations[language][key] || key;
   };
 

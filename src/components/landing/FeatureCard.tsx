@@ -4,7 +4,7 @@ import { CheckCircle } from "lucide-react";
 import { ImageCarousel } from "./ImageCarousel";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { TranslationKeys } from "@/translations/types";
+import { TranslationType } from "@/translations/types";
 
 interface FeatureCardProps {
   icon: LucideIcon;
@@ -33,8 +33,8 @@ export const FeatureCard = ({
 }: FeatureCardProps) => {
   const { t } = useLanguage();
   
-  const getTranslationKey = (key: string): TranslationKeys => {
-    return `${translationPrefix}.${key}` as TranslationKeys;
+  const getTranslationKey = (key: string): keyof TranslationType => {
+    return `${translationPrefix}.${key}` as keyof TranslationType;
   };
   
   return (
