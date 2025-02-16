@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es';
 
 export type TranslationType = {
@@ -23,6 +24,7 @@ export type TranslationType = {
   "features.tasks": string;
   "features.crm": string;
   "features.analytics": string;
+  "features.businessTitle": string;
 
   // Booking
   "booking.title": string;
@@ -49,6 +51,49 @@ export type TranslationType = {
   "tasks.feature3": string;
   "tasks.feature4": string;
   "tasks.feature5": string;
+
+  // Auth
+  "auth.welcome": string;
+  "auth.description": string;
+  "auth.signInButton": string;
+  "auth.signUpButton": string;
+  "auth.emailLabel": string;
+  "auth.passwordLabel": string;
+  "auth.usernameLabel": string;
+  "auth.passwordsDoNotMatch": string;
+  "auth.passwordTooShort": string;
+  "auth.forgotPassword": string;
+  "auth.loading": string;
+  "auth.signingUp": string;
+  "auth.resetLinkSent": string;
+  "auth.resetLinkSentDescription": string;
+  "auth.backToSignIn": string;
+  "auth.resetPassword": string;
+  "auth.enterEmail": string;
+  "auth.sending": string;
+  "auth.sendResetLink": string;
+  "auth.passwordRequirements": string;
+  "auth.confirmPasswordLabel": string;
+
+  // Events
+  "events.editEvent": string;
+  "events.addNewEvent": string;
+  "events.updateEvent": string;
+  "events.createEvent": string;
+  "events.fullNameRequired": string;
+  "events.fullName": string;
+  "events.phoneNumber": string;
+  "events.socialLinkEmail": string;
+  "events.paymentStatus": string;
+  "events.selectPaymentStatus": string;
+  "events.paymentAmount": string;
+  "events.eventNotes": string;
+  "events.addEventNotes": string;
+  "events.attachment": string;
+  "events.maxSize": string;
+  "events.supportedFormats": string;
+  "events.date": string;
+  "events.time": string;
 
   // Dashboard
   "dashboard.welcome": string;
@@ -79,6 +124,19 @@ export type TranslationType = {
   "dashboard.totalEvents": string;
   "dashboard.totalIncome": string;
   "dashboard.fromAllEvents": string;
+  "dashboard.month": string;
+  "dashboard.week": string;
+  "dashboard.day": string;
+  "dashboard.addEvent": string;
+  "dashboard.bookingCalendar": string;
+  "dashboard.statistics": string;
+  "dashboard.tasks": string;
+  "dashboard.crm": string;
+
+  // CTA
+  "cta.title": string;
+  "cta.subtitle": string;
+  "cta.button": string;
 
   // Contact
   "contact.title": string;
@@ -90,105 +148,6 @@ export type TranslationType = {
   "contact.success": string;
   "contact.error": string;
   "contact.errorDesc": string;
-
-  // Footer
-  "footer.copyright": string;
-  "footer.terms": string;
-  "footer.privacy": string;
-  "footer.navigation": string;
-  "footer.legal": string;
-  "footer.rights": string;
-  "footer.description": string;
-
-  // Events
-  "events.date": string;
-  "events.time": string;
-
-  // CRM
-  "crm.error": string;
-  "crm.noDataToExport": string;
-  "crm.title": string;
-  "crm.description": string;
-  "crm.feature1": string;
-  "crm.feature2": string;
-  "crm.feature3": string;
-  "crm.feature4": string;
-  "crm.feature5": string;
-
-  // Auth related translations
-  "auth.welcome": string;
-  "auth.description": string;
-  "auth.signInButton": string;
-  "auth.signUpButton": string;
-  "auth.emailLabel": string;
-  "auth.passwordLabel": string;
-  "auth.usernameLabel": string;
-  "auth.passwordsDoNotMatch": string;
-  "auth.passwordTooShort": string;
-  "auth.forgotPassword": string;
-  "auth.loading": string;
-  "auth.signingUp": string;
-  "auth.resetLinkSent": string;
-  "auth.resetLinkSentDescription": string;
-  "auth.backToSignIn": string;
-  "auth.resetPassword": string;
-  "auth.enterEmail": string;
-  "auth.sending": string;
-  "auth.sendResetLink": string;
-  "auth.passwordRequirements": string;
-  "auth.confirmPasswordLabel": string;
-
-  // Calendar & Events
-  "events.editEvent": string;
-  "events.addNewEvent": string;
-  "events.updateEvent": string;
-  "events.createEvent": string;
-  "events.fullNameRequired": string;
-  "events.fullName": string;
-  "events.phoneNumber": string;
-  "events.socialLinkEmail": string;
-  "events.paymentStatus": string;
-  "events.selectPaymentStatus": string;
-  "events.paymentAmount": string;
-  "events.eventNotes": string;
-  "events.addEventNotes": string;
-  "events.attachment": string;
-  "events.maxSize": string;
-  "events.supportedFormats": string;
-
-  // Dashboard
-  "dashboard.month": string;
-  "dashboard.week": string;
-  "dashboard.day": string;
-  "dashboard.addEvent": string;
-  "dashboard.bookingCalendar": string;
-  "dashboard.statistics": string;
-  "dashboard.tasks": string;
-  "dashboard.crm": string;
-
-  // CTA Section
-  "cta.title": string;
-  "cta.subtitle": string;
-  "cta.button": string;
-
-  // Business
-  "business.events": string;
-  "business.eventsDesc": string;
-  "business.health": string;
-  "business.healthDesc": string;
-  "business.sports": string;
-  "business.sportsDesc": string;
-  "business.beauty": string;
-  "business.beautyDesc": string;
-  "business.personal": string;
-  "business.personalDesc": string;
-  "business.education": string;
-  "business.educationDesc": string;
-
-  // Features
-  "features.businessTitle": string;
-
-  // Contact Additional
   "contact.messageSent": string;
   "contact.messageSentDesc": string;
   "contact.getInTouch": string;
@@ -205,6 +164,40 @@ export type TranslationType = {
   "contact.emailPlaceholder": string;
   "contact.messagePlaceholder": string;
   "contact.sending": string;
+
+  // Footer
+  "footer.copyright": string;
+  "footer.terms": string;
+  "footer.privacy": string;
+  "footer.navigation": string;
+  "footer.legal": string;
+  "footer.rights": string;
+  "footer.description": string;
+
+  // CRM
+  "crm.error": string;
+  "crm.noDataToExport": string;
+  "crm.title": string;
+  "crm.description": string;
+  "crm.feature1": string;
+  "crm.feature2": string;
+  "crm.feature3": string;
+  "crm.feature4": string;
+  "crm.feature5": string;
+
+  // Business
+  "business.events": string;
+  "business.eventsDesc": string;
+  "business.health": string;
+  "business.healthDesc": string;
+  "business.sports": string;
+  "business.sportsDesc": string;
+  "business.beauty": string;
+  "business.beautyDesc": string;
+  "business.personal": string;
+  "business.personalDesc": string;
+  "business.education": string;
+  "business.educationDesc": string;
 
   // Legal
   "legal.termsAndPrivacy": string;

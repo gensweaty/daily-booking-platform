@@ -1,4 +1,3 @@
-
 export const enTranslations = {
   // Nav
   "nav.home": "Home",
@@ -23,6 +22,32 @@ export const enTranslations = {
   "features.crm": "Modern CRM Solution",
   "features.analytics": "Automated Performance Analytics",
   "features.businessTitle": "Perfect for Businesses Like",
+
+  // Booking
+  "booking.title": "Smart Booking System",
+  "booking.description": "Efficiently manage your appointments",
+  "booking.feature1": "Integrated calendar",
+  "booking.feature2": "Availability management",
+  "booking.feature3": "Automatic confirmations",
+  "booking.feature4": "Custom reminders",
+
+  // Analytics
+  "analytics.title": "Detailed Analytics",
+  "analytics.description": "Get valuable insights into your business",
+  "analytics.feature1": "Real-time reporting",
+  "analytics.feature2": "Trend analysis",
+  "analytics.feature3": "Custom metrics",
+  "analytics.feature4": "Data export",
+  "analytics.feature5": "Interactive visualizations",
+
+  // Tasks
+  "tasks.title": "Task Management",
+  "tasks.description": "Keep your projects organized",
+  "tasks.feature1": "Task lists",
+  "tasks.feature2": "Task assignment",
+  "tasks.feature3": "Progress tracking",
+  "tasks.feature4": "Priority setting",
+  "tasks.feature5": "Task reminders",
 
   // Auth
   "auth.welcome": "Welcome to SmartBookly",

@@ -2,27 +2,30 @@ export const esTranslations = {
   // Nav
   "nav.home": "Inicio",
   "nav.features": "Características",
+  "nav.contact": "Contacto",
   "nav.login": "Iniciar Sesión",
+  "nav.signup": "Registrarse",
   "nav.dashboard": "Panel",
   "nav.signin": "Iniciar Sesión",
   "nav.startJourney": "Comienza tu viaje",
 
   // Hero
-  "hero.title": "La plataforma de gestión de eventos todo en uno",
-  "hero.subtitle": "Simplifica la planificación de eventos, la gestión de tareas y el seguimiento financiero en un solo lugar.",
-  "hero.description": "Tu solución integral para la gestión de eventos",
+  "hero.title": "Impulsa la Productividad de tu Negocio con SmartBookly",
+  "hero.subtitle": "Solución Todo en Uno - Reservas, Gestión de Tareas, CRM y Análisis.",
+  "hero.description": "Toma el control total de tu flujo de trabajo con nuestro calendario de reservas, gestión de tareas, CRM inteligente y análisis integrado. Todo lo que tu negocio necesita en un solo lugar.",
 
   // Features
-  "features.title": "Características que te encantarán",
-  "features.mainTitle": "Nuestras Características Principales",
-  "features.booking": "Reservas",
-  "features.tasks": "Tareas",
-  "features.crm": "CRM",
-  "features.analytics": "Análisis",
-  
+  "features.title": "Lo que ofrecemos",
+  "features.mainTitle": "Funciones Potentes para Profesionales Modernos",
+  "features.booking": "Programación Inteligente de Citas",
+  "features.tasks": "Gestión de Tareas Kanban",
+  "features.crm": "Solución CRM Moderna",
+  "features.analytics": "Análisis Automatizado del Rendimiento",
+  "features.businessTitle": "Perfecto para Negocios Como",
+
   // Booking
-  "booking.title": "Sistema de Reservas Inteligente",
-  "booking.description": "Gestiona tus reservas de manera eficiente",
+  "booking.title": "Sistema Inteligente de Reservas",
+  "booking.description": "Gestiona tus citas eficientemente",
   "booking.feature1": "Calendario integrado",
   "booking.feature2": "Gestión de disponibilidad",
   "booking.feature3": "Confirmaciones automáticas",
@@ -43,8 +46,8 @@ export const esTranslations = {
   "tasks.feature1": "Listas de tareas",
   "tasks.feature2": "Asignación de tareas",
   "tasks.feature3": "Seguimiento de progreso",
-  "tasks.feature4": "Priorización",
-  "tasks.feature5": "Recordatorios",
+  "tasks.feature4": "Configuración de prioridades",
+  "tasks.feature5": "Recordatorios de tareas",
 
   // Dashboard
   "dashboard.welcome": "Bienvenido",
