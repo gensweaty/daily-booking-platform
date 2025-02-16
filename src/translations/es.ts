@@ -2,9 +2,7 @@ export const esTranslations = {
   // Nav
   "nav.home": "Inicio",
   "nav.features": "Características",
-  "nav.contact": "Contacto",
   "nav.login": "Iniciar Sesión",
-  "nav.signup": "Regístrate",
   "nav.dashboard": "Panel",
   "nav.signin": "Iniciar Sesión",
   "nav.startJourney": "Comienza tu viaje",
