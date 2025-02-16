@@ -1,3 +1,4 @@
+
 export const esTranslations = {
   // Nav
   "nav.home": "Inicio",
@@ -6,56 +7,47 @@ export const esTranslations = {
   "nav.login": "Iniciar Sesión",
   "nav.signup": "Regístrate",
   "nav.dashboard": "Panel",
+  "nav.signin": "Iniciar Sesión",
+  "nav.startJourney": "Comienza tu viaje",
 
   // Hero
   "hero.title": "La plataforma de gestión de eventos todo en uno",
   "hero.subtitle": "Simplifica la planificación de eventos, la gestión de tareas y el seguimiento financiero en un solo lugar.",
-  "hero.cta": "Comienza gratis",
+  "hero.description": "Tu solución integral para la gestión de eventos",
 
   // Features
   "features.title": "Características que te encantarán",
-  "features.taskManagement.title": "Gestión de Tareas",
-  "features.taskManagement.description": "Crea, asigna y gestiona tareas para tu equipo. Mantente al tanto de los plazos y el progreso.",
-  "features.eventPlanning.title": "Planificación de Eventos",
-  "features.eventPlanning.description": "Planifica eventos sin esfuerzo con calendarios integrados, gestión de lugares y herramientas de promoción.",
-  "features.financialTracking.title": "Seguimiento Financiero",
-  "features.financialTracking.description": "Realiza un seguimiento de los ingresos, gastos y presupuestos de los eventos. Obtén información valiosa sobre tu rentabilidad.",
-  "features.crm.title": "CRM",
-  "features.crm.description": "Gestiona las relaciones con los clientes, automatiza la comunicación y mejora la satisfacción del cliente.",
+  "features.mainTitle": "Nuestras Características Principales",
+  "features.booking": "Reservas",
+  "features.tasks": "Tareas",
+  "features.crm": "CRM",
+  "features.analytics": "Análisis",
+  
+  // Booking
+  "booking.title": "Sistema de Reservas Inteligente",
+  "booking.description": "Gestiona tus reservas de manera eficiente",
+  "booking.feature1": "Calendario integrado",
+  "booking.feature2": "Gestión de disponibilidad",
+  "booking.feature3": "Confirmaciones automáticas",
+  "booking.feature4": "Recordatorios personalizados",
 
-  // Contact
-  "contact.title": "Ponte en contacto",
-  "contact.description": "¿Tienes preguntas? ¡Contáctanos hoy mismo!",
-  "contact.name": "Nombre",
-  "contact.email": "Correo electrónico",
-  "contact.message": "Mensaje",
-  "contact.send": "Enviar mensaje",
-  "contact.success": "¡Gracias! Tu mensaje ha sido enviado.",
-  "contact.error": "Vaya, ha habido un error. Inténtalo de nuevo.",
+  // Analytics
+  "analytics.title": "Análisis Detallado",
+  "analytics.description": "Obtén información valiosa sobre tu negocio",
+  "analytics.feature1": "Informes en tiempo real",
+  "analytics.feature2": "Análisis de tendencias",
+  "analytics.feature3": "Métricas personalizables",
+  "analytics.feature4": "Exportación de datos",
+  "analytics.feature5": "Visualizaciones interactivas",
 
-  // Footer
-  "footer.copyright": "Derechos de autor © 2024 SmartBookly. Todos los derechos reservados.",
-  "footer.terms": "Términos de servicio",
-  "footer.privacy": "Política de privacidad",
-
-  // Auth
-  "auth.signInButton": "Iniciar sesión",
-  "auth.signUpButton": "Regístrate",
-  "auth.emailLabel": "Correo electrónico",
-  "auth.passwordLabel": "Contraseña",
-  "auth.forgotPassword": "¿Olvidaste tu contraseña?",
-  "auth.resetPassword": "Restablecer contraseña",
-  "auth.backToSignIn": "Volver a iniciar sesión",
-  "auth.enterEmail": "Introduce tu correo electrónico",
-  "auth.sendResetLink": "Enviar enlace de restablecimiento",
-  "auth.resetLinkSent": "Enlace de restablecimiento enviado",
-  "auth.resetLinkSentDescription": "Revisa tu correo electrónico para restablecer tu contraseña.",
-  "auth.loading": "Cargando...",
-  "auth.signingUp": "Registrando...",
-  "auth.passwordsDoNotMatch": "Las contraseñas no coinciden.",
-  "auth.passwordTooShort": "La contraseña debe tener al menos 6 caracteres.",
-  "auth.usernameLabel": "Nombre de usuario",
-  "auth.sending": "Enviando...",
+  // Tasks
+  "tasks.title": "Gestión de Tareas",
+  "tasks.description": "Mantén tus proyectos organizados",
+  "tasks.feature1": "Listas de tareas",
+  "tasks.feature2": "Asignación de tareas",
+  "tasks.feature3": "Seguimiento de progreso",
+  "tasks.feature4": "Priorización",
+  "tasks.feature5": "Recordatorios",
 
   // Dashboard
   "dashboard.welcome": "Bienvenido",
@@ -86,12 +78,39 @@ export const esTranslations = {
   "dashboard.totalEvents": "Eventos Totales",
   "dashboard.totalIncome": "Ingresos Totales",
   "dashboard.fromAllEvents": "de todos los eventos",
-  
-  // Events translations
+
+  // Contact
+  "contact.title": "Ponte en contacto",
+  "contact.description": "¿Tienes preguntas? ¡Contáctanos hoy mismo!",
+  "contact.name": "Nombre",
+  "contact.email": "Correo electrónico",
+  "contact.message": "Mensaje",
+  "contact.send": "Enviar mensaje",
+  "contact.success": "¡Gracias! Tu mensaje ha sido enviado.",
+  "contact.error": "Vaya, ha habido un error. Inténtalo de nuevo.",
+  "contact.errorDesc": "No se pudo enviar el mensaje. Por favor, inténtalo de nuevo más tarde.",
+
+  // Footer
+  "footer.copyright": "Derechos de autor © 2024 SmartBookly. Todos los derechos reservados.",
+  "footer.terms": "Términos de servicio",
+  "footer.privacy": "Política de privacidad",
+  "footer.navigation": "Navegación",
+  "footer.legal": "Legal",
+  "footer.rights": "Todos los derechos reservados",
+  "footer.description": "Tu solución integral para la gestión de eventos y tareas",
+
+  // Events
   "events.date": "Fecha",
   "events.time": "Hora",
 
-  // CRM translations
+  // CRM
   "crm.error": "Error",
   "crm.noDataToExport": "No hay datos para exportar",
+  "crm.title": "Gestión de Clientes",
+  "crm.description": "Gestiona tus relaciones con los clientes",
+  "crm.feature1": "Base de datos de clientes",
+  "crm.feature2": "Seguimiento de interacciones",
+  "crm.feature3": "Segmentación de clientes",
+  "crm.feature4": "Automatización de comunicaciones",
+  "crm.feature5": "Informes de clientes"
 } as const;
