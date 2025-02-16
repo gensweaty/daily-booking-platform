@@ -199,21 +199,36 @@ export const EventDialogFields = ({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Input
-          type="datetime-local"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          required
-          className="bg-background border-input"
-        />
-        <Input
-          type="datetime-local"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          required
-          className="bg-background border-input"
-        />
+      <div className="space-y-2">
+        <Label>{t("events.dateAndTime")}</Label>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="startDate" className="text-sm text-muted-foreground mb-1">
+              {t("events.startDateTime")}
+            </Label>
+            <Input
+              id="startDate"
+              type="datetime-local"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+              className="bg-background border-input"
+            />
+          </div>
+          <div>
+            <Label htmlFor="endDate" className="text-sm text-muted-foreground mb-1">
+              {t("events.endDateTime")}
+            </Label>
+            <Input
+              id="endDate"
+              type="datetime-local"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              required
+              className="bg-background border-input"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="space-y-2">

@@ -54,16 +54,10 @@ export const EventDialog = ({
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     } else if (selectedDate) {
       const start = new Date(selectedDate);
-      const end = new Date(start);
+      const end = new Date(selectedDate);
       
-      // Set default hours (9 AM to 10 AM if clicking in month view)
-      if (start.getHours() === 0 && start.getMinutes() === 0) {
-        start.setHours(9, 0, 0, 0);
-        end.setHours(10, 0, 0, 0);
-      } else {
-        // If clicking in week/day view, add 1 hour to end time
-        end.setHours(start.getHours() + 1);
-      }
+      start.setHours(9, 0, 0, 0);
+      end.setHours(10, 0, 0, 0);
       
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
@@ -92,7 +86,6 @@ export const EventDialog = ({
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
 
-      // First, check if a customer with this title exists
       const { data: existingCustomer, error: customerQueryError } = await supabase
         .from('customers')
         .select('id')
@@ -107,7 +100,6 @@ export const EventDialog = ({
       let customerId;
       
       if (!existingCustomer) {
-        // Create a new customer if one doesn't exist
         const { data: newCustomer, error: customerError } = await supabase
           .from('customers')
           .insert({
@@ -135,7 +127,6 @@ export const EventDialog = ({
       } else {
         customerId = existingCustomer.id;
         
-        // Update existing customer
         const { error: updateError } = await supabase
           .from('customers')
           .update({
@@ -163,7 +154,6 @@ export const EventDialog = ({
         
         console.log('Uploading file:', filePath);
         
-        // Upload file to storage
         const { error: uploadError } = await supabase.storage
           .from('event_attachments')
           .upload(filePath, selectedFile);
@@ -173,7 +163,6 @@ export const EventDialog = ({
           throw uploadError;
         }
 
-        // Prepare file metadata
         const fileData = {
           filename: selectedFile.name,
           file_path: filePath,
@@ -182,10 +171,8 @@ export const EventDialog = ({
           user_id: user.id
         };
 
-        // Create file records for both event and customer
         const filePromises = [];
 
-        // Insert into event_files
         filePromises.push(
           supabase
             .from('event_files')
@@ -195,7 +182,6 @@ export const EventDialog = ({
             })
         );
 
-        // Insert into customer_files_new
         filePromises.push(
           supabase
             .from('customer_files_new')
@@ -223,7 +209,6 @@ export const EventDialog = ({
 
       onOpenChange(false);
       
-      // Invalidate relevant queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });

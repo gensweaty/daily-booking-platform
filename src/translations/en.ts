@@ -92,6 +92,9 @@ export const enTranslations = {
   "events.date": "Date",
   "events.time": "Time",
   "events.endDate": "End Date",
+  "events.dateAndTime": "Date and Time",
+  "events.startDateTime": "Start Date & Time",
+  "events.endDateTime": "End Date & Time",
 
   // Dashboard
   "dashboard.welcome": "Welcome",

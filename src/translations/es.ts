@@ -92,6 +92,9 @@ export const esTranslations = {
   "events.date": "Fecha",
   "events.time": "Hora",
   "events.endDate": "Fecha de Finalización",
+  "events.dateAndTime": "Fecha y Hora",
+  "events.startDateTime": "Fecha y Hora de Inicio",
+  "events.endDateTime": "Fecha y Hora de Fin",
 
   // Dashboard
   "dashboard.welcome": "Bienvenido",
