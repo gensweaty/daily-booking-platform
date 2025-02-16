@@ -47,60 +47,36 @@ export const EventDialog = ({
   const { t, language } = useLanguage();
 
   useEffect(() => {
-    console.log('Dialog open state:', open);
-    console.log('Selected date:', selectedDate);
-    
-    if (!open || !selectedDate) {
-      console.log('Returning early - dialog not open or no selected date');
-      return;
+    if (!selectedDate) return;
+
+    let start: Date;
+    let end: Date;
+
+    if (event) {
+      start = new Date(event.start_date);
+      end = new Date(event.end_date);
+    } else {
+      const dateValue = typeof selectedDate === 'object' && selectedDate._type === 'Date' 
+        ? new Date(selectedDate.value.iso)
+        : new Date(selectedDate);
+
+      start = new Date(dateValue);
+      end = new Date(dateValue);
+
+      if (start.getHours() === 0 && start.getMinutes() === 0) {
+        start.setHours(9, 0, 0, 0);
+        end.setHours(10, 0, 0, 0);
+      } else {
+        end.setTime(start.getTime() + 60 * 60 * 1000);
+      }
     }
 
-    try {
-      if (event) {
-        console.log('Setting dates for existing event');
-        const start = new Date(event.start_date);
-        const end = new Date(event.end_date);
-        setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-        setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-      } else {
-        console.log('Setting dates for new event');
-        const dateValue = selectedDate instanceof Date ? selectedDate : new Date(selectedDate);
-        const start = new Date(dateValue);
-        const end = new Date(dateValue);
-        
-        console.log('Initial start date:', start);
-        
-        if (start.getHours() === 0 && start.getMinutes() === 0) {
-          start.setHours(9, 0, 0, 0);
-          end.setHours(10, 0, 0, 0);
-        } else {
-          end.setTime(start.getTime() + 60 * 60 * 1000);
-        }
-        
-        const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
-        const formattedEnd = format(end, "yyyy-MM-dd'T'HH:mm");
-        
-        console.log('Formatted start date:', formattedStart);
-        console.log('Formatted end date:', formattedEnd);
-        
-        setStartDate(formattedStart);
-        setEndDate(formattedEnd);
-      }
-    } catch (error) {
-      console.error('Error setting dates:', error);
-      const start = new Date(selectedDate);
-      start.setHours(9, 0, 0, 0);
-      const end = new Date(selectedDate);
-      end.setHours(10, 0, 0, 0);
-      
-      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-    }
-  }, [selectedDate, event, open]);
+    setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+    setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
+  }, [selectedDate, event]);
 
   useEffect(() => {
     if (!open) {
-      console.log('Resetting form data');
       setTitle("");
       setUserSurname("");
       setUserNumber("");
