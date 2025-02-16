@@ -12,6 +12,8 @@ import {
 } from 'recharts';
 import { CustomTooltip } from "./CustomTooltip";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { es } from 'date-fns/locale';
+import { format } from 'date-fns';
 
 interface IncomeChartProps {
   data: Array<{
@@ -24,6 +26,19 @@ export const IncomeChart = ({ data }: IncomeChartProps) => {
   const { language } = useLanguage();
   const isSpanish = language === 'es';
   
+  // Transform data to use Spanish month names if needed
+  const transformedData = data.map(item => {
+    if (isSpanish) {
+      // Parse the English month and convert to Spanish
+      const date = new Date(2024, ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(item.month), 1);
+      return {
+        ...item,
+        month: format(date, 'MMM', { locale: es })
+      };
+    }
+    return item;
+  });
+
   const title = isSpanish 
     ? data.length > 3 
       ? `Comparación de Ingresos de ${data.length} Meses`
@@ -33,7 +48,7 @@ export const IncomeChart = ({ data }: IncomeChartProps) => {
       : "Three Month Income Comparison";
 
   const xAxisLabel = isSpanish ? "Meses" : "Months";
-  const yAxisLabel = isSpanish ? "Ingresos ($)" : "Income ($)";
+  const yAxisLabel = isSpanish ? "Ingresos (€)" : "Income ($)";
 
   return (
     <Card className="p-4">
@@ -44,7 +59,7 @@ export const IncomeChart = ({ data }: IncomeChartProps) => {
       <div className="h-[345px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart 
-            data={data || []}
+            data={transformedData || []}
             margin={{ top: 10, right: 30, left: 10, bottom: 40 }}
           >
             <CartesianGrid strokeDasharray="3 3" />

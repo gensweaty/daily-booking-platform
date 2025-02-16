@@ -23,6 +23,7 @@ interface StatsData {
 export const useExcelExport = () => {
   const { toast } = useToast();
   const { t, language } = useLanguage();
+  const isSpanish = language === 'es';
 
   const exportToExcel = (data: StatsData) => {
     if (!data.eventStats?.events) {
@@ -53,7 +54,7 @@ export const useExcelExport = () => {
     }, {
       [t('dashboard.category')]: t('dashboard.financialSummary'),
       [t('dashboard.total')]: t('dashboard.totalIncome'),
-      [t('dashboard.details')]: `$${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
+      [t('dashboard.details')]: `${isSpanish ? '€' : '$'}${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
       [t('dashboard.additionalInfo')]: t('dashboard.fromAllEvents'),
     }];
 
@@ -63,7 +64,7 @@ export const useExcelExport = () => {
       [t('events.phoneNumber')]: event.user_number || '',
       [t('events.socialLinkEmail')]: event.social_network_link || '',
       [t('events.paymentStatus')]: event.payment_status || '',
-      [t('events.paymentAmount')]: event.payment_amount ? `$${event.payment_amount}` : '',
+      [t('events.paymentAmount')]: event.payment_amount ? `${isSpanish ? '€' : '$'}${event.payment_amount}` : '',
       [t('events.date')]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
       [t('events.time')]: event.start_date && event.end_date ? 
         `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',
