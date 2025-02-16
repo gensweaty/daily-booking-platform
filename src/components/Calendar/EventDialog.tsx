@@ -55,7 +55,15 @@ export const EventDialog = ({
     } else if (selectedDate) {
       const start = new Date(selectedDate);
       const end = new Date(start);
-      end.setHours(start.getHours() + 1);
+      
+      // Set default hours (9 AM to 10 AM if clicking in month view)
+      if (start.getHours() === 0 && start.getMinutes() === 0) {
+        start.setHours(9, 0, 0, 0);
+        end.setHours(10, 0, 0, 0);
+      } else {
+        // If clicking in week/day view, add 1 hour to end time
+        end.setHours(start.getHours() + 1);
+      }
       
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));

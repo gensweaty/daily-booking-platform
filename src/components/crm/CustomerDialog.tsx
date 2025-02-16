@@ -178,6 +178,10 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         }
       }
 
+      // Ensure dates are properly formatted
+      const formattedStartDate = createEvent ? new Date(startDate).toISOString() : null;
+      const formattedEndDate = createEvent ? new Date(endDate).toISOString() : null;
+
       const customerData = {
         title,
         user_surname: userSurname,
@@ -187,8 +191,8 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         payment_status: paymentStatus || null,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         user_id: user.id,
-        start_date: createEvent ? startDate : null,
-        end_date: createEvent ? endDate : null,
+        start_date: formattedStartDate,
+        end_date: formattedEndDate,
       };
 
       if (customerId) {
@@ -204,7 +208,9 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         if (createEvent) {
           const eventData = {
             ...customerData,
-            type: 'customer_event'
+            type: 'customer_event',
+            start_date: formattedStartDate,
+            end_date: formattedEndDate,
           };
 
           if (associatedEventId) {
@@ -216,7 +222,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
 
             if (eventError) throw eventError;
           } else {
-            // Create new event only if there isn't an existing one
+            // Create new event
             const { error: eventError } = await supabase
               .from('events')
               .insert([eventData]);
@@ -236,7 +242,9 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         if (createEvent) {
           const eventData = {
             ...customerData,
-            type: 'customer_event'
+            type: 'customer_event',
+            start_date: formattedStartDate,
+            end_date: formattedEndDate,
           };
 
           const { error: eventError } = await supabase
