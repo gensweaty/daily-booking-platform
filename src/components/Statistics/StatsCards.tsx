@@ -21,28 +21,28 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <StatCard
-        title="Total Tasks"
+        title="dashboard.totalTasks"
         value={taskStats.total}
         icon={ListTodo}
-        description={`${taskStats.completed} completed`}
+        description={`${taskStats.completed} dashboard.completed`}
       />
       <StatCard
-        title="In Progress"
+        title="dashboard.inProgress"
         value={taskStats.inProgress}
         icon={Clock}
-        description={`${taskStats.todo} todo`}
+        description={`${taskStats.todo} dashboard.todo`}
       />
       <StatCard
-        title="Total Events"
+        title="dashboard.totalEvents"
         value={eventStats.total}
         icon={CheckSquare}
-        description={`${eventStats.partlyPaid} partly paid, ${eventStats.fullyPaid} fully paid`}
+        description={`${eventStats.partlyPaid} dashboard.partlyPaid, ${eventStats.fullyPaid} dashboard.fullyPaid`}
       />
       <StatCard
-        title="Total Income"
+        title="dashboard.totalIncome"
         value={`$${eventStats.totalIncome.toFixed(2)}`}
         icon={CircleDollarSign}
-        description="From all events"
+        description="dashboard.fromAllEvents"
       />
     </div>
   );
