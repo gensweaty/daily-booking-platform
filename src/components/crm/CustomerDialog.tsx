@@ -47,25 +47,8 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       
       try {
         setLoading(true);
-        
-        // First, try to find any associated event, using maybeSingle() instead of single()
-        const { data: existingEvent, error: eventError } = await supabase
-          .from('events')
-          .select('*')
-          .eq('title', title)
-          .gte('start_date', new Date().toISOString())
-          .maybeSingle();
 
-        if (eventError && eventError.code !== 'PGRST116') {
-          console.error('Error fetching event:', eventError);
-          throw eventError;
-        }
-
-        if (existingEvent) {
-          setAssociatedEventId(existingEvent.id);
-        }
-
-        // Fetch customer data, using maybeSingle() instead of single()
+        // Fetch customer data first
         const { data: customerData, error: customerError } = await supabase
           .from('customers')
           .select('*')
@@ -87,6 +70,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           return;
         }
 
+        // Set customer data
         setTitle(customerData.title || "");
         setUserSurname(customerData.user_surname || "");
         setUserNumber(customerData.user_number || "");
@@ -97,6 +81,26 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         setPaymentStatus(customerData.payment_status || "");
         setPaymentAmount(customerData.payment_amount?.toString() || "");
         setCreateEvent(!!customerData.start_date && !!customerData.end_date);
+
+        // If customer has dates, try to find associated event
+        if (customerData.start_date && customerData.end_date) {
+          const { data: existingEvent, error: eventError } = await supabase
+            .from('events')
+            .select('*')
+            .eq('title', customerData.title)
+            .eq('start_date', customerData.start_date)
+            .eq('end_date', customerData.end_date)
+            .maybeSingle();
+
+          if (eventError && eventError.code !== 'PGRST116') {
+            console.error('Error fetching event:', eventError);
+            throw eventError;
+          }
+
+          if (existingEvent) {
+            setAssociatedEventId(existingEvent.id);
+          }
+        }
 
       } catch (error: any) {
         console.error('Error fetching customer:', error);
@@ -114,7 +118,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     if (isOpen && customerId) {
       fetchCustomer();
     }
-  }, [customerId, isOpen, user, title]);
+  }, [customerId, isOpen, user]); // Removed title from dependencies
 
   const checkTimeSlotAvailability = async (startDate: string, endDate: string, excludeEventId?: string): Promise<boolean> => {
     const start = new Date(startDate);
