@@ -97,8 +97,8 @@ export const esTranslations = {
   "events.endDateTime": "Fecha y Hora de Fin",
 
   // Dashboard
-  "dashboard.welcome": "Bienvenido",
-  "dashboard.subtitle": "Aquí tienes un resumen de tus eventos y tareas.",
+  "dashboard.welcome": "¡Bienvenido a SmartBookIy!",
+  "dashboard.subtitle": "Tu centro integral para Reservas, Tareas, CRM y Análisis—mantente organizado con nosotros",
   "dashboard.profile": "Perfil",
   "dashboard.signOut": "Cerrar sesión",
   "dashboard.changePassword": "Cambiar contraseña",
