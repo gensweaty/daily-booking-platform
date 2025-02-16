@@ -125,7 +125,7 @@ export const enTranslations = {
   "dashboard.totalIncome": "Total Income",
   "dashboard.fromAllEvents": "From all events",
   "dashboard.completed": "completed",
-  "dashboard.todo": "todo",
+  "dashboard.todo": "to do",
   "dashboard.partlyPaid": "partly paid",
   "dashboard.fullyPaid": "fully paid",
   "dashboard.totalBookingsGrowth": "Total Bookings Growth",

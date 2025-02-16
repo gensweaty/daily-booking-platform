@@ -19,6 +19,10 @@ export type TranslationType = {
   "dashboard.taskSummary": string;
   "dashboard.progressSummary": string;
   "dashboard.eventSummary": string;
+  "dashboard.completed": string;
+  "dashboard.todo": string;
+  "dashboard.partlyPaid": string;
+  "dashboard.fullyPaid": string;
   
   // Events translations
   "events.date": string;
