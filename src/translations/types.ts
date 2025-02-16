@@ -1,8 +1,7 @@
 
-import { enTranslations } from './en';
-
 export type Language = 'en' | 'es';
-export type TranslationKeys = keyof typeof enTranslations;
+
+export type TranslationKeys = keyof typeof import('./en').enTranslations;
 
 export interface LanguageContextType {
   language: Language;

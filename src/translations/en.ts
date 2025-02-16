@@ -1,4 +1,3 @@
-
 export const enTranslations = {
   // Navigation
   "nav.signin": "Sign In",
@@ -135,6 +134,35 @@ export const enTranslations = {
   "dashboard.signOut": "Sign Out",
   "dashboard.profile": "User Profile",
   "dashboard.changePassword": "Change Password",
+
+  // Calendar
+  "calendar.today": "Today",
+  "calendar.clear": "Clear",
+  "calendar.months": {
+    "january": "January",
+    "february": "February",
+    "march": "March",
+    "april": "April",
+    "may": "May",
+    "june": "June",
+    "july": "July",
+    "august": "August",
+    "september": "September",
+    "october": "October",
+    "november": "November",
+    "december": "December"
+  },
+  "calendar.weekdays": {
+    "sunday": "Su",
+    "monday": "Mo",
+    "tuesday": "Tu",
+    "wednesday": "We",
+    "thursday": "Th",
+    "friday": "Fr",
+    "saturday": "Sa"
+  },
+  "calendar.am": "AM",
+  "calendar.pm": "PM",
 
   // Events
   "events.addNewEvent": "Add New Event",

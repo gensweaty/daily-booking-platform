@@ -1,4 +1,3 @@
-
 export const esTranslations = {
   // Navigation
   "nav.signin": "Iniciar Sesión",
@@ -135,6 +134,35 @@ export const esTranslations = {
   "dashboard.signOut": "Cerrar Sesión",
   "dashboard.profile": "Perfil de Usuario",
   "dashboard.changePassword": "Cambiar Contraseña",
+
+  // Calendar
+  "calendar.today": "Hoy",
+  "calendar.clear": "Limpiar",
+  "calendar.months": {
+    "january": "Enero",
+    "february": "Febrero",
+    "march": "Marzo",
+    "april": "Abril",
+    "may": "Mayo",
+    "june": "Junio",
+    "july": "Julio",
+    "august": "Agosto",
+    "september": "Septiembre",
+    "october": "Octubre",
+    "november": "Noviembre",
+    "december": "Diciembre"
+  },
+  "calendar.weekdays": {
+    "sunday": "Do",
+    "monday": "Lu",
+    "tuesday": "Ma",
+    "wednesday": "Mi",
+    "thursday": "Ju",
+    "friday": "Vi",
+    "saturday": "Sa"
+  },
+  "calendar.am": "AM",
+  "calendar.pm": "PM",
 
   // Events
   "events.addNewEvent": "Agregar Nuevo Evento",

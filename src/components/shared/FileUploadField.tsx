@@ -1,5 +1,7 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
 const MAX_FILE_SIZE_IMAGES = 2048 * 1024; // 2MB
@@ -18,6 +20,8 @@ interface FileUploadFieldProps {
 }
 
 export const FileUploadField = ({ onFileChange, fileError, setFileError }: FileUploadFieldProps) => {
+  const { t } = useLanguage();
+
   const validateFile = (file: File) => {
     const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
     const isDoc = ALLOWED_DOC_TYPES.includes(file.type);
@@ -51,7 +55,7 @@ export const FileUploadField = ({ onFileChange, fileError, setFileError }: FileU
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="file" className="text-foreground">Attachment (optional)</Label>
+      <Label htmlFor="file" className="text-foreground">{t("events.attachment")}</Label>
       <Input
         id="file"
         type="file"
@@ -63,9 +67,9 @@ export const FileUploadField = ({ onFileChange, fileError, setFileError }: FileU
         <p className="text-sm text-red-500 mt-1">{fileError}</p>
       )}
       <p className="text-[0.5rem] text-muted-foreground mt-1">
-        Max size: Images - 2MB, Documents - 1MB
+        {t("events.maxSize")}
         <br />
-        Supported formats: Images (jpg, jpeg, png, webp), Documents (pdf, docx, xlsx, pptx)
+        {t("events.supportedFormats")}
       </p>
     </div>
   );
