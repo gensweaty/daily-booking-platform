@@ -25,29 +25,29 @@ export const enTranslations = {
 
   // Booking
   "booking.title": "Smart Booking System",
-  "booking.description": "Efficiently manage your appointments",
-  "booking.feature1": "Integrated calendar",
-  "booking.feature2": "Availability management",
-  "booking.feature3": "Automatic confirmations",
-  "booking.feature4": "Custom reminders",
+  "booking.description": "Efficiently manage your appointments and events",
+  "booking.feature1": "Multiple calendar views (month, week, day)",
+  "booking.feature2": "Event scheduling with customizable time slots",
+  "booking.feature3": "Client booking management with payment tracking",
+  "booking.feature4": "Automated Event Synchronization with CRM",
 
   // Analytics
-  "analytics.title": "Detailed Analytics",
-  "analytics.description": "Get valuable insights into your business",
-  "analytics.feature1": "Real-time reporting",
-  "analytics.feature2": "Trend analysis",
-  "analytics.feature3": "Custom metrics",
-  "analytics.feature4": "Data export",
-  "analytics.feature5": "Interactive visualizations",
+  "analytics.title": "Comprehensive Analytics",
+  "analytics.description": "Track your performance and growth",
+  "analytics.feature1": "Booking and revenue analytics",
+  "analytics.feature2": "Custom date range filtering",
+  "analytics.feature3": "Income comparison across months",
+  "analytics.feature4": "Interactive visual metrics & graphs",
+  "analytics.feature5": "One-click Excel download",
 
   // Tasks
   "tasks.title": "Task Management",
-  "tasks.description": "Keep your projects organized",
-  "tasks.feature1": "Task lists",
-  "tasks.feature2": "Task assignment",
-  "tasks.feature3": "Progress tracking",
-  "tasks.feature4": "Priority setting",
-  "tasks.feature5": "Task reminders",
+  "tasks.description": "Stay organized and productive",
+  "tasks.feature1": "Kanban board for visual task organization",
+  "tasks.feature2": "Task status tracking and progress monitoring",
+  "tasks.feature3": "Efficient task prioritization",
+  "tasks.feature4": "Simple drag-and-drop functionality",
+  "tasks.feature5": "Quick note-saving for tasks",
 
   // Auth
   "auth.welcome": "Welcome to SmartBookly",
