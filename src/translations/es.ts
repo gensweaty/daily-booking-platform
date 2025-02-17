@@ -1,3 +1,4 @@
+
 export const esTranslations = {
   // Nav
   "nav.home": "Inicio",
@@ -197,6 +198,8 @@ export const esTranslations = {
   "crm.feature3": "Seguimiento y monitoreo del estado de pagos",
   "crm.feature4": "Búsqueda elástica para acceso rápido a datos",
   "crm.feature5": "Descarga en Excel de todos los datos mostrados con un clic",
+  "crm.error": "Error al cargar datos del CRM",
+  "crm.noDataToExport": "No hay datos disponibles para exportar",
   "crm.addCustomer": "Agregar Cliente",
   "crm.fullName": "Nombre Completo",
   "crm.phoneNumber": "Número de Teléfono",
