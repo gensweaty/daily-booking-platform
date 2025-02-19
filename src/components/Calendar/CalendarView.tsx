@@ -29,7 +29,7 @@ export const CalendarView = ({
     : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const renderDayHeader = (day: string) => (
-    <div key={day} className="bg-background p-1 sm:p-4 text-center font-semibold text-foreground border-b border-border">
+    <div key={day} className="bg-background p-0.5 sm:p-4 text-center font-semibold text-foreground border-b border-border">
       {day}
     </div>
   );
@@ -109,7 +109,7 @@ export const CalendarView = ({
         {days.map((day) => (
           <div 
             key={day.toISOString()} 
-            className="bg-background px-1 sm:px-4 py-2 text-center border-b border-border h-20"
+            className="bg-background px-0.5 sm:px-4 py-2 text-center border-b border-border h-20"
           >
             <div className="font-semibold text-xs sm:text-sm text-foreground">
               {format(day, "EEE", { locale })}
@@ -125,7 +125,7 @@ export const CalendarView = ({
         {days.map((day) => (
           <div 
             key={day.toISOString()} 
-            className="relative bg-background border-r border-l border-border min-w-[40px]"
+            className="relative bg-background border-r border-l border-border min-w-[35px]"
           >
             {Array.from({ length: 24 }).map((_, index) => {
               const actualHour = displayHourToActualHour(index);
