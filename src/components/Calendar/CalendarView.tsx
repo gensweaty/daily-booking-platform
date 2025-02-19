@@ -29,7 +29,7 @@ export const CalendarView = ({
     : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const renderDayHeader = (day: string) => (
-    <div key={day} className="bg-background p-2 sm:p-4 text-center font-semibold text-foreground border-b border-border">
+    <div key={day} className="bg-background p-1 sm:p-4 text-center font-semibold text-foreground border-b border-border">
       {day}
     </div>
   );
@@ -109,12 +109,12 @@ export const CalendarView = ({
         {days.map((day) => (
           <div 
             key={day.toISOString()} 
-            className="bg-background p-2 sm:p-4 text-center border-b border-border h-20"
+            className="bg-background px-1 sm:px-4 py-2 text-center border-b border-border h-20"
           >
-            <div className="font-semibold text-sm text-foreground">
+            <div className="font-semibold text-xs sm:text-sm text-foreground">
               {format(day, "EEE", { locale })}
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">
               {format(day, "MMM d", { locale })}
             </div>
           </div>
@@ -125,7 +125,7 @@ export const CalendarView = ({
         {days.map((day) => (
           <div 
             key={day.toISOString()} 
-            className="relative bg-background border-r border-l border-border"
+            className="relative bg-background border-r border-l border-border min-w-[40px]"
           >
             {Array.from({ length: 24 }).map((_, index) => {
               const actualHour = displayHourToActualHour(index);
@@ -154,7 +154,7 @@ export const CalendarView = ({
                 return (
                   <div
                     key={event.id}
-                    className={`absolute left-0.5 right-0.5 rounded px-1 sm:px-2 py-1 text-xs sm:text-sm ${
+                    className={`absolute left-0.5 right-0.5 rounded px-0.5 sm:px-2 py-1 text-[10px] sm:text-sm ${
                       event.type === "birthday"
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground"
@@ -170,7 +170,7 @@ export const CalendarView = ({
                   >
                     <div className="font-semibold truncate">{event.title}</div>
                     {height > 40 && (
-                      <div className="text-[10px] sm:text-xs truncate">
+                      <div className="text-[8px] sm:text-xs truncate">
                         {format(start, "h:mm a", { locale })} - {format(end, "h:mm a", { locale })}
                       </div>
                     )}
