@@ -17,8 +17,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storageKey: 'supabase.auth.token',
   },
   global: {
-    fetch: (...args) => {
-      return fetch(...args).catch(error => {
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+      return fetch(input, init).catch(error => {
         console.error('Supabase fetch error:', error);
         throw error;
       });
