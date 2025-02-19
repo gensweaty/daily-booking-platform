@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/components/ui/use-toast";
@@ -27,17 +27,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleTokenError = async () => {
+  const handleTokenError = useCallback(async () => {
     console.log('Handling token error - clearing session');
-    // Clear the session state
     setSession(null);
     setUser(null);
     
-    // Clear local storage
     localStorage.removeItem('app-auth-token');
     localStorage.removeItem('supabase.auth.token');
     
-    // Only navigate to login if we're not already on a public route
     if (!location.pathname.match(/^(\/$|\/login$|\/signup$|\/contact$)/)) {
       navigate('/login');
       toast({
@@ -46,55 +43,65 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         variant: "destructive",
       });
     }
-  };
+  }, [navigate, toast, location.pathname]);
+
+  const refreshSession = useCallback(async () => {
+    try {
+      const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+      if (error) {
+        if (error.message.includes('token_refresh_failed') || 
+            error.message.includes('invalid_refresh_token') ||
+            error.message.includes('token_not_found')) {
+          await handleTokenError();
+          return;
+        }
+        throw error;
+      }
+
+      if (!currentSession) {
+        await handleTokenError();
+        return;
+      }
+
+      setSession(currentSession);
+      setUser(currentSession.user);
+    } catch (error) {
+      console.error('Session refresh error:', error);
+      await handleTokenError();
+    }
+  }, [handleTokenError]);
 
   useEffect(() => {
     const initSession = async () => {
       try {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error getting session:', error);
-          if (error.message.includes('refresh_token_not_found')) {
-            await handleTokenError();
-            return;
-          }
-          throw error;
-        }
-
-        if (currentSession) {
-          console.log('Session found:', currentSession);
-          setSession(currentSession);
-          setUser(currentSession.user);
-          
-          // Only redirect if we're on an auth route
-          if (location.pathname === '/login' || location.pathname === '/signup') {
-            navigate('/dashboard');
-          }
-        } else {
-          console.log('No session found');
-          // Only redirect to login if we're trying to access protected routes
-          if (location.pathname.startsWith('/dashboard')) {
-            navigate('/login');
-          }
-        }
-      } catch (error: any) {
+        await refreshSession();
+      } catch (error) {
         console.error('Session initialization error:', error);
-        if (error.message.includes('refresh_token_not_found')) {
-          await handleTokenError();
-          return;
-        }
-        toast({
-          title: "Error",
-          description: "Failed to initialize session",
-          variant: "destructive",
-        });
+        await handleTokenError();
       } finally {
         setLoading(false);
       }
     };
 
     initSession();
+
+    // Set up periodic session refresh (every 4 minutes)
+    const refreshInterval = setInterval(refreshSession, 4 * 60 * 1000);
+
+    // Set up visibility change handler
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshSession();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Set up online/offline handlers
+    const handleOnline = () => {
+      console.log('Network is online - refreshing session');
+      refreshSession();
+    };
+    window.addEventListener('online', handleOnline);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event, newSession);
@@ -108,7 +115,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(null);
         localStorage.removeItem('app-auth-token');
         localStorage.removeItem('supabase.auth.token');
-        // Only navigate to login if we're not already on a public route
         if (!location.pathname.match(/^(\/$|\/login$|\/signup$|\/contact$)/)) {
           navigate('/login');
         }
@@ -123,23 +129,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => {
       subscription.unsubscribe();
+      clearInterval(refreshInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('online', handleOnline);
     };
-  }, [navigate, toast, location.pathname]);
+  }, [navigate, handleTokenError, refreshSession, location.pathname]);
 
   const signOut = async () => {
     try {
       console.log('Starting sign out process...');
-      
-      // First clear all auth-related storage and state
       localStorage.removeItem('app-auth-token');
       localStorage.removeItem('supabase.auth.token');
       setUser(null);
       setSession(null);
       
-      // Then attempt to sign out from Supabase
       const { error } = await supabase.auth.signOut();
       
-      // If there's a session_not_found error, we can ignore it since we've already cleared everything
       if (error && !error.message.includes('session_not_found')) {
         throw error;
       }
@@ -152,7 +157,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       navigate('/login');
     } catch (error: any) {
       console.error('Sign out error:', error);
-      // Even if there's an error, we want to ensure the user is signed out locally
       localStorage.removeItem('app-auth-token');
       localStorage.removeItem('supabase.auth.token');
       setUser(null);
