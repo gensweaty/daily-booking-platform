@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -8,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useEffect } from "react";
+import { format } from "date-fns";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -65,6 +67,19 @@ export const EventDialogFields = ({
   const { t, language } = useLanguage();
 
   useEffect(() => {
+    // Set default times if no startDate or endDate is provided
+    if (!startDate || !endDate) {
+      const now = new Date();
+      now.setHours(9, 0, 0, 0);
+      const end = new Date(now);
+      end.setHours(10, 0, 0, 0);
+      
+      setStartDate(format(now, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
+    }
+  }, []);
+
+  useEffect(() => {
     const formData = {
       title,
       userSurname,
@@ -88,8 +103,8 @@ export const EventDialogFields = ({
       setUserNumber(parsedData.userNumber || '');
       setSocialNetworkLink(parsedData.socialNetworkLink || '');
       setEventNotes(parsedData.eventNotes || '');
-      setStartDate(parsedData.startDate || '');
-      setEndDate(parsedData.endDate || '');
+      if (parsedData.startDate) setStartDate(parsedData.startDate);
+      if (parsedData.endDate) setEndDate(parsedData.endDate);
       setPaymentStatus(parsedData.paymentStatus || '');
       setPaymentAmount(parsedData.paymentAmount || '');
     }

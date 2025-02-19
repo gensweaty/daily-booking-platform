@@ -15,5 +15,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
     storage: localStorage,
     storageKey: 'supabase.auth.token',
+  },
+  global: {
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+      return fetch(input, init).catch(error => {
+        console.error('Supabase fetch error:', error);
+        throw error;
+      });
+    }
   }
 });

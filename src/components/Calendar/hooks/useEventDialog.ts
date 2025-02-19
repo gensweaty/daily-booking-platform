@@ -1,7 +1,8 @@
+
 import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
-import { isWithinInterval, parseISO } from "date-fns";
+import { isWithinInterval, parseISO, setHours, setMinutes } from "date-fns";
 import { supabase } from "@/lib/supabase";
 
 interface UseEventDialogProps {
@@ -24,13 +25,19 @@ export const useEventDialog = ({
     const clickedDate = new Date(date);
     
     if (hour !== undefined) {
+      // If hour is provided (week/day view), use it
       clickedDate.setHours(hour, 0, 0, 0);
     } else {
-      // Always set to 9 AM for month view clicks
+      // For month view or unspecified hour, set to 9 AM
       clickedDate.setHours(9, 0, 0, 0);
     }
     
-    setSelectedSlot({ date: clickedDate });
+    const endDate = new Date(clickedDate);
+    endDate.setHours(clickedDate.getHours() + 1);
+    
+    setSelectedSlot({ 
+      date: clickedDate
+    });
     setSelectedEvent(null);
     setIsNewEventDialogOpen(true);
   };
