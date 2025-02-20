@@ -22,16 +22,33 @@ export const useSignup = () => {
       let planType: 'monthly' | 'yearly' | 'ultimate' = 'monthly';
       
       if (redeemCode) {
-        console.log('Checking redeem code:', redeemCode);
+        // Debug log the exact code being searched
+        const trimmedCode = redeemCode.trim();
+        console.log('Searching for redeem code:', {
+          rawCode: redeemCode,
+          trimmedCode,
+          length: trimmedCode.length
+        });
         
-        // Simple query to check if code exists
-        const { data: codes, error: codeError } = await supabase
+        // First get all codes to debug
+        const { data: allCodes, error: allCodesError } = await supabase
+          .from('redeem_codes')
+          .select('code, is_used');
+        
+        console.log('All available codes:', allCodes);
+        
+        // Check for the specific code
+        const { data: codeData, error: codeError } = await supabase
           .from('redeem_codes')
           .select('*')
-          .eq('code', redeemCode)
+          .ilike('code', trimmedCode)
           .maybeSingle();
 
-        console.log('Code check result:', { codes, codeError });
+        console.log('Code search result:', {
+          data: codeData,
+          error: codeError,
+          searchedCode: trimmedCode
+        });
 
         if (codeError) {
           console.error('Database error checking code:', codeError);
@@ -45,8 +62,8 @@ export const useSignup = () => {
           return;
         }
 
-        if (!codes) {
-          console.log('No code found in database');
+        if (!codeData) {
+          console.log('No matching code found');
           toast({
             title: "Invalid Redeem Code",
             description: "The redeem code does not exist.",
@@ -57,7 +74,7 @@ export const useSignup = () => {
           return;
         }
 
-        if (codes.is_used) {
+        if (codeData.is_used) {
           console.log('Code has already been used');
           toast({
             title: "Invalid Redeem Code",
@@ -124,7 +141,7 @@ export const useSignup = () => {
         if (redeemCode) {
           console.log('Activating redeem code for user:', data.user.id);
           
-          // Mark code as used and create ultimate subscription
+          // Mark code as used
           const { error: updateError } = await supabase
             .from('redeem_codes')
             .update({
@@ -132,7 +149,7 @@ export const useSignup = () => {
               used_by: data.user.id,
               used_at: new Date().toISOString()
             })
-            .eq('code', redeemCode);
+            .eq('code', redeemCode.trim());
 
           if (updateError) {
             console.error('Error updating redeem code:', updateError);
