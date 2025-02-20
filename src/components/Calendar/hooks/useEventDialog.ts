@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { parseISO } from "date-fns";
@@ -15,16 +16,7 @@ export const useEventDialog = ({
   updateEvent,
   deleteEvent,
 }: UseEventDialogProps) => {
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
-  const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const { toast } = useToast();
-
-  useEffect(() => {
-    if (!isNewEventDialogOpen && !selectedEvent) {
-      setSelectedDate(null);
-    }
-  }, [isNewEventDialogOpen, selectedEvent]);
 
   const checkTimeSlotAvailability = (
     startDate: Date,
@@ -81,9 +73,6 @@ export const useEventDialog = ({
       }
 
       const result = await createEvent(data);
-      setIsNewEventDialogOpen(false);
-      setSelectedDate(null);
-      setSelectedEvent(null);
       toast({
         title: "Success",
         description: "Event created successfully",
@@ -103,8 +92,6 @@ export const useEventDialog = ({
   };
 
   const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
-    if (!selectedEvent) return;
-    
     try {
       const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
       
@@ -115,7 +102,7 @@ export const useEventDialog = ({
         startDate,
         endDate,
         allEvents,
-        selectedEvent.id
+        data.id
       );
 
       if (!available && conflictingEvent) {
@@ -128,8 +115,6 @@ export const useEventDialog = ({
       }
 
       const result = await updateEvent(data);
-      setSelectedEvent(null);
-      setSelectedDate(null);
       toast({
         title: "Success",
         description: "Event updated successfully",
@@ -148,16 +133,12 @@ export const useEventDialog = ({
     }
   };
 
-  const handleDeleteEvent = async () => {
-    if (!selectedEvent) return;
-    
+  const handleDeleteEvent = async (id: string) => {
     try {
       const { data: customer, error: customerError } = await supabase
         .from('customers')
         .select('*')
-        .eq('title', selectedEvent.title)
-        .eq('start_date', selectedEvent.start_date)
-        .eq('end_date', selectedEvent.end_date)
+        .eq('id', id)
         .maybeSingle();
 
       if (customerError) {
@@ -183,7 +164,7 @@ export const useEventDialog = ({
       const { data: files } = await supabase
         .from('event_files')
         .select('*')
-        .eq('event_id', selectedEvent.id);
+        .eq('event_id', id);
 
       if (files && files.length > 0) {
         for (const file of files) {
@@ -199,7 +180,7 @@ export const useEventDialog = ({
         const { error: filesDeleteError } = await supabase
           .from('event_files')
           .delete()
-          .eq('event_id', selectedEvent.id);
+          .eq('event_id', id);
 
         if (filesDeleteError) {
           console.error('Error deleting file records:', filesDeleteError);
@@ -207,8 +188,7 @@ export const useEventDialog = ({
         }
       }
 
-      await deleteEvent(selectedEvent.id);
-      setSelectedEvent(null);
+      await deleteEvent(id);
       toast({
         title: "Success",
         description: "Event deleted successfully",
@@ -225,12 +205,6 @@ export const useEventDialog = ({
   };
 
   return {
-    selectedEvent,
-    setSelectedEvent,
-    isNewEventDialogOpen,
-    setIsNewEventDialogOpen,
-    selectedDate,
-    setSelectedDate,
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,

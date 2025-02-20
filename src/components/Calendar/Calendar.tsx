@@ -27,6 +27,12 @@ interface CalendarProps {
   defaultView?: CalendarViewType;
 }
 
+interface DialogState {
+  isOpen: boolean;
+  date: Date | null;
+  event: CalendarEventType | null;
+}
+
 export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
@@ -34,18 +40,25 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Separate dialog states
+  const [newEventDialog, setNewEventDialog] = useState<DialogState>({
+    isOpen: false,
+    date: null,
+    event: null,
+  });
+
+  const [editEventDialog, setEditEventDialog] = useState<DialogState>({
+    isOpen: false,
+    date: null,
+    event: null,
+  });
+
   // Make events available globally for the useEventDialog hook
   if (typeof window !== 'undefined') {
     (window as any).__CALENDAR_EVENTS__ = events;
   }
 
   const {
-    selectedEvent,
-    setSelectedEvent,
-    isNewEventDialogOpen,
-    setIsNewEventDialogOpen,
-    selectedDate: dialogSelectedDate,
-    setSelectedDate: setDialogSelectedDate,
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
@@ -55,9 +68,9 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
       return result;
     },
     updateEvent: async (data) => {
-      if (!selectedEvent) throw new Error("No event selected");
+      if (!editEventDialog.event) throw new Error("No event selected");
       const result = await updateEvent({
-        id: selectedEvent.id,
+        id: editEventDialog.event.id,
         updates: data,
       });
       return result;
@@ -125,45 +138,56 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     const clickedDate = new Date(date);
     clickedDate.setHours(hour || 9, 0, 0, 0);
     
-    // Close any open dialogs and reset states
-    setSelectedEvent(null);
-    setIsNewEventDialogOpen(false);
+    // Close edit dialog if open
+    setEditEventDialog({
+      isOpen: false,
+      date: null,
+      event: null,
+    });
 
-    // Set new date and open dialog
-    setDialogSelectedDate(clickedDate);
-    setTimeout(() => {
-      setIsNewEventDialogOpen(true);
-    }, 0);
+    // Open new event dialog
+    setNewEventDialog({
+      isOpen: true,
+      date: clickedDate,
+      event: null,
+    });
   };
 
   const handleAddEventClick = () => {
     const now = new Date();
     now.setHours(9, 0, 0, 0);
     
-    // Close any open dialogs and reset states
-    setSelectedEvent(null);
-    setIsNewEventDialogOpen(false);
+    // Close edit dialog if open
+    setEditEventDialog({
+      isOpen: false,
+      date: null,
+      event: null,
+    });
 
-    // Set new date and open dialog
-    setDialogSelectedDate(now);
-    setTimeout(() => {
-      setIsNewEventDialogOpen(true);
-    }, 0);
+    // Open new event dialog
+    setNewEventDialog({
+      isOpen: true,
+      date: now,
+      event: null,
+    });
   };
 
   const handleEventClick = (event: CalendarEventType) => {
     console.log('Event clicked:', event);
     
-    // Close any open dialogs and reset states
-    setIsNewEventDialogOpen(false);
-    setSelectedEvent(null);
+    // Close new event dialog if open
+    setNewEventDialog({
+      isOpen: false,
+      date: null,
+      event: null,
+    });
 
-    // Set event date and open edit dialog
-    const eventDate = new Date(event.start_date);
-    setDialogSelectedDate(eventDate);
-    setTimeout(() => {
-      setSelectedEvent(event);
-    }, 0);
+    // Open edit dialog
+    setEditEventDialog({
+      isOpen: true,
+      date: new Date(event.start_date),
+      event: event,
+    });
   };
 
   if (error) {
@@ -209,35 +233,61 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
       </div>
 
       {/* New Event Dialog */}
-      {isNewEventDialogOpen && (
+      {newEventDialog.isOpen && (
         <EventDialog
-          key={`new-${dialogSelectedDate?.getTime()}`}
-          open={isNewEventDialogOpen}
+          key={`new-${newEventDialog.date?.getTime()}`}
+          open={newEventDialog.isOpen}
           onOpenChange={(open) => {
-            setIsNewEventDialogOpen(open);
-            if (!open) {
-              setSelectedEvent(null);
-            }
+            setNewEventDialog({
+              isOpen: open,
+              date: open ? newEventDialog.date : null,
+              event: null,
+            });
           }}
-          selectedDate={dialogSelectedDate}
-          onSubmit={handleCreateEvent}
+          selectedDate={newEventDialog.date}
+          onSubmit={async (data) => {
+            await handleCreateEvent(data);
+            setNewEventDialog({
+              isOpen: false,
+              date: null,
+              event: null,
+            });
+          }}
         />
       )}
 
       {/* Edit Event Dialog */}
-      {selectedEvent && (
+      {editEventDialog.isOpen && editEventDialog.event && (
         <EventDialog
-          key={`edit-${selectedEvent.id}`}
-          open={!!selectedEvent}
+          key={`edit-${editEventDialog.event.id}`}
+          open={editEventDialog.isOpen}
           onOpenChange={(open) => {
-            if (!open) {
-              setSelectedEvent(null);
+            setEditEventDialog({
+              isOpen: open,
+              date: open ? editEventDialog.date : null,
+              event: open ? editEventDialog.event : null,
+            });
+          }}
+          selectedDate={editEventDialog.date}
+          event={editEventDialog.event}
+          onSubmit={async (data) => {
+            await handleUpdateEvent(data);
+            setEditEventDialog({
+              isOpen: false,
+              date: null,
+              event: null,
+            });
+          }}
+          onDelete={async () => {
+            if (editEventDialog.event) {
+              await handleDeleteEvent(editEventDialog.event.id);
+              setEditEventDialog({
+                isOpen: false,
+                date: null,
+                event: null,
+              });
             }
           }}
-          selectedDate={dialogSelectedDate}
-          event={selectedEvent}
-          onSubmit={handleUpdateEvent}
-          onDelete={handleDeleteEvent}
         />
       )}
     </div>
