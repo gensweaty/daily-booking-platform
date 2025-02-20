@@ -23,15 +23,21 @@ export const useSignup = () => {
       let planType: 'monthly' | 'yearly' | 'ultimate' = 'monthly';
       
       if (redeemCode) {
+        console.log('Validating redeem code:', redeemCode);
+        
         // Check if redeem code is valid and unused
         const { data: redeemData, error: redeemError } = await supabase
           .from('redeem_codes')
           .select('*')
-          .eq('code', redeemCode)
-          .eq('is_used', false)
+          .eq('code', redeemCode.trim())
+          .is('is_used', false)
           .single();
 
+        console.log('Redeem code query result:', { redeemData, redeemError });
+
         if (redeemError) {
+          console.error('Redeem code validation error:', redeemError);
+          
           if (redeemError.code === 'PGRST116') {
             // No rows returned
             toast({
@@ -40,14 +46,25 @@ export const useSignup = () => {
               variant: "destructive",
               duration: 5000,
             });
+            setIsLoading(false);
             return;
           }
           throw redeemError;
         }
 
-        if (redeemData) {
-          planType = 'ultimate';
+        if (!redeemData) {
+          toast({
+            title: "Invalid Redeem Code",
+            description: "The redeem code is invalid or has already been used.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          setIsLoading(false);
+          return;
         }
+
+        planType = 'ultimate';
+        console.log('Valid redeem code found, setting plan type to:', planType);
       }
 
       // Fetch the subscription plan
@@ -61,6 +78,8 @@ export const useSignup = () => {
         console.error('Error fetching subscription plan:', planError);
         throw new Error('Failed to fetch subscription plan');
       }
+
+      console.log('Found subscription plan:', plans);
 
       // Sign up the user
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -101,14 +120,18 @@ export const useSignup = () => {
 
       if (data?.user) {
         if (redeemCode) {
+          console.log('Activating redeem code for user:', data.user.id);
+          
           // Use the validate_and_use_redeem_code function
           const { data: validationResult, error: validationError } = await supabase
             .rpc('validate_and_use_redeem_code', {
-              p_code: redeemCode,
+              p_code: redeemCode.trim(),
               p_user_id: data.user.id
             });
 
-          if (validationError || !validationResult) {
+          console.log('Redeem code validation result:', { validationResult, validationError });
+
+          if (validationError || validationResult === false) {
             console.error('Error validating redeem code:', validationError);
             toast({
               title: "Error",
