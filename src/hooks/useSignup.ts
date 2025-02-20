@@ -83,21 +83,7 @@ export const useSignup = () => {
         });
       }
 
-      // Get subscription plan
-      const { data: plans, error: planError } = await supabase
-        .from('subscription_plans')
-        .select('id')
-        .eq('type', planType)
-        .single();
-
-      if (planError) {
-        console.error('Error fetching plan:', planError);
-        throw new Error('Failed to fetch subscription plan');
-      }
-
-      console.log('Found plan:', plans);
-
-      // Sign up user
+      // Sign up user first
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -132,76 +118,103 @@ export const useSignup = () => {
         throw signUpError;
       }
 
-      if (data?.user) {
-        console.log('User created successfully:', data.user.id);
+      if (!data?.user) {
+        throw new Error('Failed to create user account');
+      }
 
-        const trialEndDate = new Date();
-        trialEndDate.setDate(trialEndDate.getDate() + 14);
+      console.log('User created successfully:', data.user.id);
 
-        const subscriptionData = {
-          user_id: data.user.id,
-          plan_id: plans.id,
-          plan_type: planType,
-          status: redeemCode ? 'active' : 'trial',
-          trial_end_date: redeemCode ? null : trialEndDate.toISOString(),
-          current_period_start: new Date().toISOString(),
-          current_period_end: redeemCode ? null : trialEndDate.toISOString()
-        };
+      // Get ultimate plan for redeem code users, or monthly plan for regular users
+      const { data: plan, error: planError } = await supabase
+        .from('subscription_plans')
+        .select('id')
+        .eq('type', planType)
+        .single();
 
-        console.log('Creating subscription:', subscriptionData);
+      if (planError || !plan) {
+        console.error('Error fetching plan:', planError);
+        throw new Error('Failed to fetch subscription plan');
+      }
 
-        const { error: subscriptionError } = await supabase
-          .from('subscriptions')
-          .insert([subscriptionData]);
+      console.log('Found plan:', plan);
 
-        if (subscriptionError) {
-          console.error('Subscription creation error:', subscriptionError);
+      // Create subscription based on whether it's a redeem code signup or regular signup
+      const subscriptionData = redeemCode ? {
+        // Ultimate plan subscription (no trial, no end date)
+        user_id: data.user.id,
+        plan_id: plan.id,
+        plan_type: 'ultimate',
+        status: 'active',
+        trial_end_date: null,
+        current_period_start: new Date().toISOString(),
+        current_period_end: null // Ultimate plan has no end date
+      } : {
+        // Regular subscription with trial
+        user_id: data.user.id,
+        plan_id: plan.id,
+        plan_type: 'monthly',
+        status: 'trial',
+        trial_end_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        current_period_start: new Date().toISOString(),
+        current_period_end: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+      };
+
+      console.log('Creating subscription:', subscriptionData);
+
+      // Insert the subscription
+      const { error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .insert([subscriptionData]);
+
+      if (subscriptionError) {
+        console.error('Subscription creation error:', subscriptionError);
+        toast({
+          title: "Error",
+          description: "Account created but subscription setup failed. Please contact support.",
+          variant: "destructive",
+          duration: 8000,
+        });
+        return;
+      }
+
+      console.log('Subscription created successfully');
+
+      // If this was a redeem code signup, mark the code as used
+      if (redeemCode) {
+        console.log('Updating redeem code status');
+        
+        const { error: updateError } = await supabase
+          .from('redeem_codes')
+          .update({
+            is_used: true,
+            used_by: data.user.id,
+            used_at: new Date().toISOString()
+          })
+          .eq('code', redeemCode.trim());
+
+        if (updateError) {
+          console.error('Error updating redeem code:', updateError);
           toast({
             title: "Error",
-            description: "Account created but subscription setup failed. Please contact support.",
+            description: "Failed to activate redeem code. Please contact support.",
             variant: "destructive",
             duration: 8000,
           });
           return;
         }
 
-        console.log('Subscription created successfully');
-
-        if (redeemCode) {
-          console.log('Updating redeem code status');
-          
-          const { error: updateError } = await supabase
-            .from('redeem_codes')
-            .update({
-              is_used: true,
-              used_by: data.user.id,
-              used_at: new Date().toISOString()
-            })
-            .eq('code', redeemCode.trim());
-
-          if (updateError) {
-            console.error('Error updating redeem code:', updateError);
-            toast({
-              title: "Error",
-              description: "Failed to activate redeem code. Please contact support.",
-              variant: "destructive",
-              duration: 8000,
-            });
-            return;
-          }
-
-          console.log('Redeem code updated successfully');
-        }
-
-        toast({
-          title: "Success",
-          description: redeemCode 
-            ? "Account created successfully with Ultimate plan! Please check your email to confirm your account."
-            : "Please check your email to confirm your account before signing in.",
-          duration: 5000,
-        });
-        clearForm();
+        console.log('Redeem code updated successfully');
       }
+
+      toast({
+        title: "Success",
+        description: redeemCode 
+          ? "Account created successfully with Ultimate plan! Please check your email to confirm your account."
+          : "Please check your email to confirm your account before signing in.",
+        duration: 5000,
+      });
+      clearForm();
+
     } catch (error: any) {
       console.error('Signup error:', error);
       toast({
