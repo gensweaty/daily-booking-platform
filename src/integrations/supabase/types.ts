@@ -499,6 +499,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      check_and_lock_redeem_code: {
+        Args: {
+          p_code: string
+        }
+        Returns: {
+          is_valid: boolean
+          code_id: string
+          error_message: string
+        }[]
+      }
       check_trial_status: {
         Args: Record<PropertyKey, never>
         Returns: undefined
