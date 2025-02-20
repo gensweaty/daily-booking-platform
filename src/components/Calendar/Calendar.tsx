@@ -124,6 +124,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   const handleCalendarDayClick = (date: Date, hour?: number) => {
     const clickedDate = new Date(date);
     clickedDate.setHours(hour || 9, 0, 0, 0);
+    setSelectedEvent(null); // Reset selected event for new events
     setDialogSelectedDate(clickedDate);
     setIsNewEventDialogOpen(true);
   };
@@ -131,6 +132,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   const handleAddEventClick = () => {
     const now = new Date();
     now.setHours(9, 0, 0, 0);
+    setSelectedEvent(null); // Reset selected event for new events
     setDialogSelectedDate(now);
     setIsNewEventDialogOpen(true);
   };
@@ -196,7 +198,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
           key={selectedEvent.id}
           open={!!selectedEvent}
           onOpenChange={() => setSelectedEvent(null)}
-          selectedDate={dialogSelectedDate} // Now uses correct date for both cases
+          selectedDate={dialogSelectedDate}
           event={selectedEvent}
           onSubmit={handleUpdateEvent}
           onDelete={handleDeleteEvent}
