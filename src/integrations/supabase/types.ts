@@ -514,6 +514,12 @@ export type Database = {
         }
         Returns: undefined
       }
+      generate_code_number: {
+        Args: {
+          n: number
+        }
+        Returns: string
+      }
       validate_and_use_redeem_code: {
         Args: {
           p_code: string
