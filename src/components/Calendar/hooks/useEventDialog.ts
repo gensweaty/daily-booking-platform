@@ -22,8 +22,12 @@ export const useEventDialog = ({
   const { toast } = useToast();
 
   const handleDayClick = (date: Date, hour?: number, view?: "month" | "week" | "day") => {
-    // Create a new date object from the clicked date and ensure it's the start of that day
-    const clickedDate = startOfDay(new Date(date));
+    // Force create a new date instance and explicitly set all components
+    const clickedDate = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate()
+    );
     
     if (hour !== undefined) {
       // If hour is provided (week/day view), use it
@@ -34,15 +38,35 @@ export const useEventDialog = ({
     }
     
     // Create end date as a new Date object to avoid reference issues
-    const endDate = new Date(clickedDate);
-    endDate.setHours(clickedDate.getHours() + 1);
+    const endDate = new Date(
+      clickedDate.getFullYear(),
+      clickedDate.getMonth(),
+      clickedDate.getDate(),
+      clickedDate.getHours() + 1,
+      0,
+      0
+    );
     
-    // Ensure we're setting a new object reference for the selectedSlot
+    // Ensure we're setting a completely new date object for the selectedSlot
     setSelectedSlot({ 
-      date: new Date(clickedDate)
+      date: new Date(
+        clickedDate.getFullYear(),
+        clickedDate.getMonth(),
+        clickedDate.getDate(),
+        clickedDate.getHours(),
+        0,
+        0
+      )
     });
+    
+    // Reset event selection and open dialog
     setSelectedEvent(null);
     setIsNewEventDialogOpen(true);
+    
+    // Debug logs to help track the date handling
+    console.log('Clicked date:', date);
+    console.log('Processed date:', clickedDate);
+    console.log('Selected slot:', selectedSlot);
   };
 
   const checkTimeSlotAvailability = (
@@ -82,9 +106,14 @@ export const useEventDialog = ({
     try {
       const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
       
-      // Ensure we're creating new Date objects from the strings
+      // Create new Date objects with explicit components
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
+
+      console.log('Creating event with dates:', {
+        start: startDate,
+        end: endDate
+      });
 
       const { available, conflictingEvent } = checkTimeSlotAvailability(
         startDate,
