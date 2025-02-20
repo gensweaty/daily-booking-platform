@@ -26,11 +26,37 @@ export const useSignup = () => {
         console.log('Checking redeem code:', redeemCode);
         const trimmedCode = redeemCode.trim();
         
-        // First, lock the redeem code to prevent concurrent usage
+        // First check if code exists and is not used
+        const { data: codeData, error: codeError } = await supabase
+          .from('redeem_codes')
+          .select('*')
+          .eq('code', trimmedCode)
+          .eq('is_used', false)
+          .maybeSingle();
+
+        console.log('Code check result:', { codeData, codeError });
+
+        if (codeError || !codeData) {
+          console.error('Redeem code check error:', codeError);
+          toast({
+            title: "Invalid Redeem Code",
+            description: "This code is invalid or has already been used",
+            variant: "destructive",
+            duration: 5000,
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        // Lock the code immediately
         const { error: lockError } = await supabase
           .from('redeem_codes')
-          .update({ is_used: true })
-          .match({ code: trimmedCode, is_used: false });
+          .update({ 
+            is_used: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', codeData.id)
+          .eq('is_used', false);
 
         if (lockError) {
           console.error('Failed to lock redeem code:', lockError);
@@ -44,24 +70,7 @@ export const useSignup = () => {
           return;
         }
 
-        // Double-check the code status
-        const { data: codeData, error: codeError } = await supabase
-          .from('redeem_codes')
-          .select('*')
-          .eq('code', trimmedCode)
-          .maybeSingle();
-
-        if (codeError || !codeData || codeData.is_used) {
-          toast({
-            title: "Invalid Redeem Code",
-            description: "This code is no longer available",
-            variant: "destructive",
-            duration: 5000,
-          });
-          setIsLoading(false);
-          return;
-        }
-        console.log('Redeem code is valid');
+        console.log('Redeem code is valid and locked');
       }
 
       // Step 2: Create user account
@@ -80,7 +89,10 @@ export const useSignup = () => {
         if (redeemCode) {
           await supabase
             .from('redeem_codes')
-            .update({ is_used: false })
+            .update({ 
+              is_used: false,
+              updated_at: new Date().toISOString()
+            })
             .eq('code', redeemCode.trim());
         }
 
@@ -121,7 +133,10 @@ export const useSignup = () => {
         if (redeemCode) {
           await supabase
             .from('redeem_codes')
-            .update({ is_used: false })
+            .update({ 
+              is_used: false,
+              updated_at: new Date().toISOString()
+            })
             .eq('code', redeemCode.trim());
         }
         throw new Error('Failed to setup subscription: ' + subError.message);
@@ -136,7 +151,8 @@ export const useSignup = () => {
           .from('redeem_codes')
           .update({
             used_by: authData.user.id,
-            used_at: new Date().toISOString()
+            used_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           })
           .eq('code', redeemCode.trim());
 
@@ -164,7 +180,10 @@ export const useSignup = () => {
       if (redeemCode) {
         await supabase
           .from('redeem_codes')
-          .update({ is_used: false })
+          .update({ 
+            is_used: false,
+            updated_at: new Date().toISOString()
+          })
           .eq('code', redeemCode.trim());
       }
       toast({
