@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
-import { isWithinInterval, parseISO, setHours, setMinutes } from "date-fns";
+import { isWithinInterval, parseISO, setHours, setMinutes, startOfDay } from "date-fns";
 import { supabase } from "@/lib/supabase";
 
 interface UseEventDialogProps {
@@ -22,9 +22,9 @@ export const useEventDialog = ({
   const { toast } = useToast();
 
   const handleDayClick = (date: Date, hour?: number, view?: "month" | "week" | "day") => {
-    const clickedDate = new Date(date);
+    // Create a new date object from the clicked date and ensure it's the start of that day
+    const clickedDate = startOfDay(new Date(date));
     
-    // Preserve the clicked date's year, month, and day
     if (hour !== undefined) {
       // If hour is provided (week/day view), use it
       clickedDate.setHours(hour, 0, 0, 0);
@@ -33,11 +33,13 @@ export const useEventDialog = ({
       clickedDate.setHours(9, 0, 0, 0);
     }
     
+    // Create end date as a new Date object to avoid reference issues
     const endDate = new Date(clickedDate);
     endDate.setHours(clickedDate.getHours() + 1);
     
+    // Ensure we're setting a new object reference for the selectedSlot
     setSelectedSlot({ 
-      date: clickedDate
+      date: new Date(clickedDate)
     });
     setSelectedEvent(null);
     setIsNewEventDialogOpen(true);
@@ -80,6 +82,7 @@ export const useEventDialog = ({
     try {
       const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
       
+      // Ensure we're creating new Date objects from the strings
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
 
