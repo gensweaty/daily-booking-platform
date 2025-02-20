@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
-import { parseISO } from "date-fns";
+import { parseISO, setHours, setMinutes } from "date-fns";
 import { supabase } from "@/lib/supabase";
 
 interface UseEventDialogProps {
@@ -20,14 +20,18 @@ export const useEventDialog = ({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    console.log('useEventDialog - selectedDate changed:', selectedDate);
-  }, [selectedDate]);
+  const setDateWithTime = (date: Date | null, hour: number = 9) => {
+    if (!date) return;
+    const newDate = new Date(date);
+    newDate.setHours(hour, 0, 0, 0);
+    setSelectedDate(newDate);
+  };
 
   useEffect(() => {
-    console.log('useEventDialog - dialog open state changed:', isNewEventDialogOpen);
-    console.log('useEventDialog - current selectedDate:', selectedDate);
-  }, [isNewEventDialogOpen]);
+    if (!isNewEventDialogOpen && !selectedEvent) {
+      setSelectedDate(null);
+    }
+  }, [isNewEventDialogOpen, selectedEvent]);
 
   const checkTimeSlotAvailability = (
     startDate: Date,
@@ -90,6 +94,7 @@ export const useEventDialog = ({
 
       const result = await createEvent(data);
       setIsNewEventDialogOpen(false);
+      setSelectedDate(null);
       toast({
         title: "Success",
         description: "Event created successfully",
@@ -135,6 +140,7 @@ export const useEventDialog = ({
 
       const result = await updateEvent(data);
       setSelectedEvent(null);
+      setSelectedDate(null);
       toast({
         title: "Success",
         description: "Event updated successfully",
@@ -231,11 +237,22 @@ export const useEventDialog = ({
 
   return {
     selectedEvent,
-    setSelectedEvent,
+    setSelectedEvent: (event: CalendarEventType | null) => {
+      setSelectedEvent(event);
+      if (event) {
+        setDateWithTime(new Date(event.start_date), new Date(event.start_date).getHours());
+      }
+    },
     isNewEventDialogOpen,
-    setIsNewEventDialogOpen,
+    setIsNewEventDialogOpen: (open: boolean) => {
+      setIsNewEventDialogOpen(open);
+      if (!open) {
+        setSelectedEvent(null);
+        setSelectedDate(null);
+      }
+    },
     selectedDate,
-    setSelectedDate,
+    setSelectedDate: setDateWithTime,
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,

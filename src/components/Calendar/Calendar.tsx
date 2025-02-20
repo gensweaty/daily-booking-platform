@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   startOfWeek,
@@ -122,25 +121,21 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   };
 
   const handleCalendarDayClick = (date: Date, hour?: number) => {
-    const clickedDate = new Date(date);
-    clickedDate.setHours(hour || 9, 0, 0, 0);
-    setSelectedEvent(null); // Reset selected event for new events
-    setDialogSelectedDate(clickedDate);
+    setSelectedEvent(null);
     setIsNewEventDialogOpen(true);
+    setDialogSelectedDate(date, hour || 9);
   };
 
   const handleAddEventClick = () => {
-    const now = new Date();
-    now.setHours(9, 0, 0, 0);
-    setSelectedEvent(null); // Reset selected event for new events
-    setDialogSelectedDate(now);
+    setSelectedEvent(null);
     setIsNewEventDialogOpen(true);
+    setDialogSelectedDate(new Date(), 9);
   };
 
   const handleEventClick = (event: CalendarEventType) => {
     console.log('Event clicked:', event);
+    setIsNewEventDialogOpen(false);
     setSelectedEvent(event);
-    setDialogSelectedDate(new Date(event.start_date)); // Ensure the date is set for editing
   };
 
   if (error) {
@@ -186,7 +181,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
       </div>
 
       <EventDialog
-        key={dialogSelectedDate?.getTime()}
+        key={`new-${dialogSelectedDate?.getTime()}`}
         open={isNewEventDialogOpen}
         onOpenChange={setIsNewEventDialogOpen}
         selectedDate={dialogSelectedDate}
@@ -195,7 +190,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
 
       {selectedEvent && (
         <EventDialog
-          key={selectedEvent.id}
+          key={`edit-${selectedEvent.id}`}
           open={!!selectedEvent}
           onOpenChange={() => setSelectedEvent(null)}
           selectedDate={dialogSelectedDate}
