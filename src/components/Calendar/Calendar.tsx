@@ -16,7 +16,7 @@ import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
 import { CalendarView } from "./CalendarView";
 import { EventDialog } from "./EventDialog";
-import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar"; // Added CalendarEventType
+import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { TimeIndicator } from "./TimeIndicator";
@@ -123,38 +123,23 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
 
   const handleCalendarDayClick = (date: Date, hour?: number) => {
     const clickedDate = new Date(date);
-    // Preserve the exact date and just set the hour
     clickedDate.setHours(hour || 9, 0, 0, 0);
-    
-    console.log('Calendar day click - Original date:', date);
-    console.log('Calendar day click - Adjusted date:', clickedDate);
-    
-    // First set the date
     setDialogSelectedDate(clickedDate);
-    // Then open the dialog
-    setTimeout(() => setIsNewEventDialogOpen(true), 0);
+    setIsNewEventDialogOpen(true);
   };
 
   const handleAddEventClick = () => {
     const now = new Date();
     now.setHours(9, 0, 0, 0);
-    
-    console.log('Add event click - Current date:', now);
-    
-    // First set the date
     setDialogSelectedDate(now);
-    // Then open the dialog
-    setTimeout(() => setIsNewEventDialogOpen(true), 0);
+    setIsNewEventDialogOpen(true);
   };
 
   const handleEventClick = (event: CalendarEventType) => {
-    console.log('Event click - Event data:', event);
-    const eventDate = new Date(event.start_date);
-    console.log('Event click - Event date:', eventDate);
-    
-    // First set the event and date
+    console.log('Event clicked:', event);
     setSelectedEvent(event);
-    setDialogSelectedDate(eventDate);
+    // Ensure the dialog date is set to the event's actual date
+    setDialogSelectedDate(new Date(event.start_date));
   };
 
   if (error) {
@@ -200,7 +185,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
       </div>
 
       <EventDialog
-        key={dialogSelectedDate?.getTime()} // Force re-render when date changes
+        key={dialogSelectedDate?.getTime()}
         open={isNewEventDialogOpen}
         onOpenChange={setIsNewEventDialogOpen}
         selectedDate={dialogSelectedDate}
@@ -209,7 +194,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
 
       {selectedEvent && (
         <EventDialog
-          key={selectedEvent.id} // Force re-render when event changes
+          key={selectedEvent.id}
           open={!!selectedEvent}
           onOpenChange={() => setSelectedEvent(null)}
           selectedDate={dialogSelectedDate}
