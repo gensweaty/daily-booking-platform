@@ -24,11 +24,12 @@ export const useEventDialog = ({
   const handleDayClick = (date: Date, hour?: number, view?: "month" | "week" | "day") => {
     const clickedDate = new Date(date);
     
+    // Preserve the clicked date's year, month, and day
     if (hour !== undefined) {
       // If hour is provided (week/day view), use it
       clickedDate.setHours(hour, 0, 0, 0);
     } else {
-      // For month view or unspecified hour, set to 9 AM
+      // For month view or unspecified hour, set to 9 AM of the clicked date
       clickedDate.setHours(9, 0, 0, 0);
     }
     
