@@ -9,7 +9,6 @@ import {
   endOfMonth,
   addMonths,
   subMonths,
-  addHours,
   setHours,
   startOfDay,
 } from "date-fns";
@@ -76,12 +75,9 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   const getDaysForView = () => {
     switch (view) {
       case "month": {
-        // Get the start of the month and calculate the start of its first week
         const monthStart = startOfMonth(selectedDate);
         const firstWeekStart = startOfWeek(monthStart);
         const monthEnd = endOfMonth(selectedDate);
-        
-        // Get all days from the start of the first week to the end of the month
         return eachDayOfInterval({
           start: firstWeekStart,
           end: monthEnd,
@@ -151,7 +147,18 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
         onPrevious={handlePrevious}
         onNext={handleNext}
         onAddEvent={() => {
-          handleDayClick(new Date());
+          // When clicking "Add Event" button, use current date and time
+          const now = new Date();
+          const startHour = 9;
+          const eventDate = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+            startHour,
+            0,
+            0
+          );
+          handleDayClick(eventDate);
         }}
       />
 
@@ -163,7 +170,18 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
             events={events || []}
             selectedDate={selectedDate}
             view={view}
-            onDayClick={(date: Date, hour?: number) => handleDayClick(date, hour, view)}
+            onDayClick={(date: Date, hour?: number) => {
+              // When clicking a specific day, use that exact date
+              const clickedDate = new Date(
+                date.getFullYear(),
+                date.getMonth(),
+                date.getDate(),
+                hour || 9,
+                0,
+                0
+              );
+              handleDayClick(clickedDate);
+            }}
             onEventClick={setSelectedEvent}
           />
         </div>

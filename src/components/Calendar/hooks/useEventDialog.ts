@@ -1,7 +1,8 @@
+
 import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
-import { isWithinInterval, parseISO, setHours, setMinutes, startOfDay } from "date-fns";
+import { isWithinInterval, parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 
 interface UseEventDialogProps {
@@ -20,7 +21,8 @@ export const useEventDialog = ({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const { toast } = useToast();
 
-  const handleDayClick = (date: Date, hour?: number, view?: "month" | "week" | "day") => {
+  const handleDayClick = (date: Date) => {
+    console.log('Handling day click with date:', date);
     setSelectedDate(date);
     setSelectedEvent(null);
     setIsNewEventDialogOpen(true);
