@@ -22,36 +22,22 @@ export const useSignup = () => {
       let planType: 'monthly' | 'yearly' | 'ultimate' = 'monthly';
       
       if (redeemCode) {
-        // Debug log the exact code being searched
+        // Clean and prepare the code
         const trimmedCode = redeemCode.trim();
-        console.log('Searching for redeem code:', {
-          rawCode: redeemCode,
-          trimmedCode,
-          length: trimmedCode.length
+        
+        console.log('Checking redeem code:', {
+          code: trimmedCode,
+          timestamp: new Date().toISOString()
         });
         
-        // First get all codes to debug
-        const { data: allCodes, error: allCodesError } = await supabase
-          .from('redeem_codes')
-          .select('code, is_used');
-        
-        console.log('All available codes:', allCodes);
-        
-        // Check for the specific code
         const { data: codeData, error: codeError } = await supabase
           .from('redeem_codes')
           .select('*')
           .eq('code', trimmedCode)
           .maybeSingle();
 
-        console.log('Code search result:', {
-          data: codeData,
-          error: codeError,
-          searchedCode: trimmedCode
-        });
-
         if (codeError) {
-          console.error('Database error checking code:', codeError);
+          console.error('Database error while checking code:', codeError);
           toast({
             title: "Error",
             description: "Failed to check redeem code. Please try again.",
@@ -75,7 +61,11 @@ export const useSignup = () => {
         }
 
         if (codeData.is_used) {
-          console.log('Code has already been used');
+          console.log('Code already used:', {
+            code: trimmedCode,
+            usedBy: codeData.used_by,
+            usedAt: codeData.used_at
+          });
           toast({
             title: "Invalid Redeem Code",
             description: "This redeem code has already been used.",
@@ -87,7 +77,10 @@ export const useSignup = () => {
         }
 
         planType = 'ultimate';
-        console.log('Valid code found, proceeding with signup');
+        console.log('Valid code found:', {
+          code: trimmedCode,
+          planType
+        });
       }
 
       // Get subscription plan
@@ -101,6 +94,8 @@ export const useSignup = () => {
         console.error('Error fetching plan:', planError);
         throw new Error('Failed to fetch subscription plan');
       }
+
+      console.log('Found plan:', plans);
 
       // Sign up user
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -138,21 +133,26 @@ export const useSignup = () => {
       }
 
       if (data?.user) {
-        // Create trial subscription first
+        console.log('User created successfully:', data.user.id);
+
         const trialEndDate = new Date();
         trialEndDate.setDate(trialEndDate.getDate() + 14);
 
+        const subscriptionData = {
+          user_id: data.user.id,
+          plan_id: plans.id,
+          plan_type: planType,
+          status: redeemCode ? 'active' : 'trial',
+          trial_end_date: redeemCode ? null : trialEndDate.toISOString(),
+          current_period_start: new Date().toISOString(),
+          current_period_end: redeemCode ? null : trialEndDate.toISOString()
+        };
+
+        console.log('Creating subscription:', subscriptionData);
+
         const { error: subscriptionError } = await supabase
           .from('subscriptions')
-          .insert({
-            user_id: data.user.id,
-            plan_id: plans.id,
-            plan_type: planType,
-            status: redeemCode ? 'active' : 'trial',
-            trial_end_date: redeemCode ? null : trialEndDate.toISOString(),
-            current_period_start: new Date().toISOString(),
-            current_period_end: redeemCode ? null : new Date(trialEndDate.getTime() + (24 * 60 * 60 * 1000)).toISOString()
-          });
+          .insert([subscriptionData]);
 
         if (subscriptionError) {
           console.error('Subscription creation error:', subscriptionError);
@@ -165,10 +165,11 @@ export const useSignup = () => {
           return;
         }
 
+        console.log('Subscription created successfully');
+
         if (redeemCode) {
-          console.log('Activating redeem code for user:', data.user.id);
+          console.log('Updating redeem code status');
           
-          // Mark code as used
           const { error: updateError } = await supabase
             .from('redeem_codes')
             .update({
@@ -188,6 +189,8 @@ export const useSignup = () => {
             });
             return;
           }
+
+          console.log('Redeem code updated successfully');
         }
 
         toast({
