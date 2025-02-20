@@ -47,10 +47,11 @@ export const useSignup = () => {
           return;
         }
 
-        if (!codeCheck?.[0]?.is_valid) {
+        // Important: Check if we got any results back
+        if (!codeCheck || codeCheck.length === 0) {
           toast({
             title: "Invalid Redeem Code",
-            description: codeCheck?.[0]?.error_message || "This code is invalid or has already been used",
+            description: "This code is invalid",
             variant: "destructive",
             duration: 5000,
           });
@@ -58,7 +59,20 @@ export const useSignup = () => {
           return;
         }
 
-        codeId = codeCheck[0].code_id;
+        // Check the validity of the code
+        const codeResult = codeCheck[0];
+        if (!codeResult.is_valid) {
+          toast({
+            title: "Invalid Redeem Code",
+            description: codeResult.error_message || "This code is invalid or has already been used",
+            variant: "destructive",
+            duration: 5000,
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        codeId = codeResult.code_id;
         console.log('Redeem code is valid and locked, ID:', codeId);
       }
 
