@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
-import { isWithinInterval, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 
 interface UseEventDialogProps {
@@ -19,6 +19,15 @@ export const useEventDialog = ({
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    console.log('useEventDialog - selectedDate changed:', selectedDate);
+  }, [selectedDate]);
+
+  useEffect(() => {
+    console.log('useEventDialog - dialog open state changed:', isNewEventDialogOpen);
+    console.log('useEventDialog - current selectedDate:', selectedDate);
+  }, [isNewEventDialogOpen]);
 
   const checkTimeSlotAvailability = (
     startDate: Date,
@@ -53,12 +62,13 @@ export const useEventDialog = ({
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
+      console.log('handleCreateEvent - Received data:', data);
       const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
       
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
 
-      console.log('Creating event with dates:', {
+      console.log('handleCreateEvent - Parsed dates:', {
         start: startDate,
         end: endDate
       });
@@ -86,6 +96,7 @@ export const useEventDialog = ({
       });
       return result;
     } catch (error: any) {
+      console.error('handleCreateEvent - Error:', error);
       if (error.message !== "Time slot conflict") {
         toast({
           title: "Error",
@@ -130,6 +141,7 @@ export const useEventDialog = ({
       });
       return result;
     } catch (error: any) {
+      console.error('handleUpdateEvent - Error:', error);
       if (error.message !== "Time slot conflict") {
         toast({
           title: "Error",
@@ -207,6 +219,7 @@ export const useEventDialog = ({
         description: "Event deleted successfully",
       });
     } catch (error: any) {
+      console.error('handleDeleteEvent - Error:', error);
       toast({
         title: "Error",
         description: error.message,
