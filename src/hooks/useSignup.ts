@@ -19,43 +19,49 @@ export const useSignup = () => {
     setIsLoading(true);
 
     try {
-      // If redeem code is provided, validate it first
       let planType: 'monthly' | 'yearly' | 'ultimate' = 'monthly';
       
       if (redeemCode) {
-        console.log('Validating redeem code:', redeemCode);
+        console.log('Attempting to validate redeem code:', redeemCode.trim());
         
-        // Check if redeem code is valid and unused
-        const { data: redeemData, error: redeemError } = await supabase
+        // First check if code exists without the is_used condition
+        const { data: codeExists, error: codeCheckError } = await supabase
           .from('redeem_codes')
-          .select('*')
+          .select('is_used')
           .eq('code', redeemCode.trim())
-          .is('is_used', false)
-          .single();
+          .maybeSingle();
 
-        console.log('Redeem code query result:', { redeemData, redeemError });
+        console.log('Initial code check:', { codeExists, codeCheckError });
 
-        if (redeemError) {
-          console.error('Redeem code validation error:', redeemError);
-          
-          if (redeemError.code === 'PGRST116') {
-            // No rows returned
-            toast({
-              title: "Invalid Redeem Code",
-              description: "The redeem code is invalid or has already been used.",
-              variant: "destructive",
-              duration: 5000,
-            });
-            setIsLoading(false);
-            return;
-          }
-          throw redeemError;
+        if (codeCheckError) {
+          console.error('Error checking redeem code:', codeCheckError);
+          toast({
+            title: "Error",
+            description: "Failed to validate redeem code. Please try again.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          setIsLoading(false);
+          return;
         }
 
-        if (!redeemData) {
+        if (!codeExists) {
+          console.log('Code not found in database');
           toast({
             title: "Invalid Redeem Code",
-            description: "The redeem code is invalid or has already been used.",
+            description: "The redeem code does not exist.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        if (codeExists.is_used) {
+          console.log('Code exists but has been used');
+          toast({
+            title: "Invalid Redeem Code",
+            description: "This redeem code has already been used.",
             variant: "destructive",
             duration: 5000,
           });
@@ -64,7 +70,7 @@ export const useSignup = () => {
         }
 
         planType = 'ultimate';
-        console.log('Valid redeem code found, setting plan type to:', planType);
+        console.log('Valid unused code found, proceeding with ultimate plan');
       }
 
       // Fetch the subscription plan
@@ -93,7 +99,6 @@ export const useSignup = () => {
       });
 
       if (signUpError) {
-        // Handle rate limit error specifically
         if (signUpError.status === 429) {
           toast({
             title: "Rate Limit Exceeded",
@@ -104,7 +109,6 @@ export const useSignup = () => {
           return;
         }
 
-        // Handle user already registered
         if (signUpError.message?.includes("User already registered")) {
           toast({
             title: "Account Exists",
@@ -122,7 +126,6 @@ export const useSignup = () => {
         if (redeemCode) {
           console.log('Activating redeem code for user:', data.user.id);
           
-          // Use the validate_and_use_redeem_code function
           const { data: validationResult, error: validationError } = await supabase
             .rpc('validate_and_use_redeem_code', {
               p_code: redeemCode.trim(),
@@ -131,11 +134,22 @@ export const useSignup = () => {
 
           console.log('Redeem code validation result:', { validationResult, validationError });
 
-          if (validationError || validationResult === false) {
+          if (validationError) {
             console.error('Error validating redeem code:', validationError);
             toast({
               title: "Error",
-              description: "Failed to validate redeem code. Please contact support.",
+              description: "Failed to activate redeem code. Please contact support.",
+              variant: "destructive",
+              duration: 8000,
+            });
+            return;
+          }
+
+          if (validationResult === false) {
+            console.error('Redeem code validation returned false');
+            toast({
+              title: "Error",
+              description: "Failed to activate redeem code. The code may have been used in the meantime.",
               variant: "destructive",
               duration: 8000,
             });
