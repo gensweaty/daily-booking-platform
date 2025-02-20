@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   startOfWeek,
@@ -121,21 +122,48 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   };
 
   const handleCalendarDayClick = (date: Date, hour?: number) => {
+    const clickedDate = new Date(date);
+    clickedDate.setHours(hour || 9, 0, 0, 0);
+    
+    // Close any open dialogs and reset states
     setSelectedEvent(null);
-    setIsNewEventDialogOpen(true);
-    setDialogSelectedDate(date, hour || 9);
+    setIsNewEventDialogOpen(false);
+
+    // Set new date and open dialog
+    setDialogSelectedDate(clickedDate);
+    setTimeout(() => {
+      setIsNewEventDialogOpen(true);
+    }, 0);
   };
 
   const handleAddEventClick = () => {
+    const now = new Date();
+    now.setHours(9, 0, 0, 0);
+    
+    // Close any open dialogs and reset states
     setSelectedEvent(null);
-    setIsNewEventDialogOpen(true);
-    setDialogSelectedDate(new Date(), 9);
+    setIsNewEventDialogOpen(false);
+
+    // Set new date and open dialog
+    setDialogSelectedDate(now);
+    setTimeout(() => {
+      setIsNewEventDialogOpen(true);
+    }, 0);
   };
 
   const handleEventClick = (event: CalendarEventType) => {
     console.log('Event clicked:', event);
+    
+    // Close any open dialogs and reset states
     setIsNewEventDialogOpen(false);
-    setSelectedEvent(event);
+    setSelectedEvent(null);
+
+    // Set event date and open edit dialog
+    const eventDate = new Date(event.start_date);
+    setDialogSelectedDate(eventDate);
+    setTimeout(() => {
+      setSelectedEvent(event);
+    }, 0);
   };
 
   if (error) {
@@ -180,19 +208,32 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
         </div>
       </div>
 
-      <EventDialog
-        key={`new-${dialogSelectedDate?.getTime()}`}
-        open={isNewEventDialogOpen}
-        onOpenChange={setIsNewEventDialogOpen}
-        selectedDate={dialogSelectedDate}
-        onSubmit={handleCreateEvent}
-      />
+      {/* New Event Dialog */}
+      {isNewEventDialogOpen && (
+        <EventDialog
+          key={`new-${dialogSelectedDate?.getTime()}`}
+          open={isNewEventDialogOpen}
+          onOpenChange={(open) => {
+            setIsNewEventDialogOpen(open);
+            if (!open) {
+              setSelectedEvent(null);
+            }
+          }}
+          selectedDate={dialogSelectedDate}
+          onSubmit={handleCreateEvent}
+        />
+      )}
 
+      {/* Edit Event Dialog */}
       {selectedEvent && (
         <EventDialog
           key={`edit-${selectedEvent.id}`}
           open={!!selectedEvent}
-          onOpenChange={() => setSelectedEvent(null)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedEvent(null);
+            }
+          }}
           selectedDate={dialogSelectedDate}
           event={selectedEvent}
           onSubmit={handleUpdateEvent}
