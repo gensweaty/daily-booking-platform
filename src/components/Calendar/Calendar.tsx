@@ -16,7 +16,7 @@ import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
 import { CalendarView } from "./CalendarView";
 import { EventDialog } from "./EventDialog";
-import { CalendarViewType } from "@/lib/types/calendar";
+import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar"; // Added CalendarEventType
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { TimeIndicator } from "./TimeIndicator";
