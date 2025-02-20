@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -11,18 +12,49 @@ export const useSignup = () => {
     username: string,
     password: string,
     confirmPassword: string,
-    selectedPlan: 'monthly' | 'yearly',
+    redeemCode: string,
     clearForm: () => void
   ) => {
     if (isLoading) return;
     setIsLoading(true);
 
     try {
+      // If redeem code is provided, validate it first
+      let planType: 'monthly' | 'yearly' | 'ultimate' = 'monthly';
+      
+      if (redeemCode) {
+        // Check if redeem code is valid and unused
+        const { data: redeemData, error: redeemError } = await supabase
+          .from('redeem_codes')
+          .select('*')
+          .eq('code', redeemCode)
+          .eq('is_used', false)
+          .single();
+
+        if (redeemError) {
+          if (redeemError.code === 'PGRST116') {
+            // No rows returned
+            toast({
+              title: "Invalid Redeem Code",
+              description: "The redeem code is invalid or has already been used.",
+              variant: "destructive",
+              duration: 5000,
+            });
+            return;
+          }
+          throw redeemError;
+        }
+
+        if (redeemData) {
+          planType = 'ultimate';
+        }
+      }
+
       // Fetch the subscription plan
       const { data: plans, error: planError } = await supabase
         .from('subscription_plans')
         .select('id')
-        .eq('type', selectedPlan)
+        .eq('type', planType)
         .single();
 
       if (planError) {
@@ -68,36 +100,59 @@ export const useSignup = () => {
       }
 
       if (data?.user) {
-        // Calculate trial end date (14 days from now)
-        const trialEndDate = new Date();
-        trialEndDate.setDate(trialEndDate.getDate() + 14);
+        if (redeemCode) {
+          // Use the validate_and_use_redeem_code function
+          const { data: validationResult, error: validationError } = await supabase
+            .rpc('validate_and_use_redeem_code', {
+              p_code: redeemCode,
+              p_user_id: data.user.id
+            });
 
-        // Create subscription
-        const { error: subscriptionError } = await supabase.rpc('create_subscription', {
-          p_user_id: data.user.id,
-          p_plan_id: plans.id,
-          p_plan_type: selectedPlan,
-          p_trial_end_date: trialEndDate.toISOString(),
-          p_current_period_start: new Date().toISOString(),
-          p_current_period_end: new Date(trialEndDate.getTime() + (24 * 60 * 60 * 1000)).toISOString()
-        });
-
-        if (subscriptionError) {
-          console.error('Subscription creation error:', subscriptionError);
-          toast({
-            title: "Account Created",
-            description: "Your account was created but there was an issue with the subscription setup. Please contact support.",
-            variant: "destructive",
-            duration: 8000,
-          });
+          if (validationError || !validationResult) {
+            console.error('Error validating redeem code:', validationError);
+            toast({
+              title: "Error",
+              description: "Failed to validate redeem code. Please contact support.",
+              variant: "destructive",
+              duration: 8000,
+            });
+            return;
+          }
         } else {
-          toast({
-            title: "Success",
-            description: "Please check your email to confirm your account before signing in.",
-            duration: 5000,
+          // Calculate trial end date (14 days from now)
+          const trialEndDate = new Date();
+          trialEndDate.setDate(trialEndDate.getDate() + 14);
+
+          // Create subscription
+          const { error: subscriptionError } = await supabase.rpc('create_subscription', {
+            p_user_id: data.user.id,
+            p_plan_id: plans.id,
+            p_plan_type: planType,
+            p_trial_end_date: trialEndDate.toISOString(),
+            p_current_period_start: new Date().toISOString(),
+            p_current_period_end: new Date(trialEndDate.getTime() + (24 * 60 * 60 * 1000)).toISOString()
           });
-          clearForm();
+
+          if (subscriptionError) {
+            console.error('Subscription creation error:', subscriptionError);
+            toast({
+              title: "Account Created",
+              description: "Your account was created but there was an issue with the subscription setup. Please contact support.",
+              variant: "destructive",
+              duration: 8000,
+            });
+            return;
+          }
         }
+
+        toast({
+          title: "Success",
+          description: redeemCode 
+            ? "Account created successfully with Ultimate plan! Please check your email to confirm your account before signing in."
+            : "Please check your email to confirm your account before signing in.",
+          duration: 5000,
+        });
+        clearForm();
       }
     } catch (error: any) {
       console.error('Signup error:', error);

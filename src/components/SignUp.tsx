@@ -11,6 +11,7 @@ export const SignUp = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [redeemCode, setRedeemCode] = useState("");
   
   const { handleSignup, isLoading } = useSignup();
   const { toast } = useToast();
@@ -21,6 +22,7 @@ export const SignUp = () => {
     setUsername("");
     setPassword("");
     setConfirmPassword("");
+    setRedeemCode("");
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -45,8 +47,7 @@ export const SignUp = () => {
       return;
     }
 
-    // Always use monthly plan as default for free trial
-    await handleSignup(email, username, password, confirmPassword, 'monthly', clearForm);
+    await handleSignup(email, username, password, confirmPassword, redeemCode, clearForm);
   };
 
   return (
@@ -62,6 +63,8 @@ export const SignUp = () => {
           setPassword={setPassword}
           confirmPassword={confirmPassword}
           setConfirmPassword={setConfirmPassword}
+          redeemCode={redeemCode}
+          setRedeemCode={setRedeemCode}
           isLoading={isLoading}
         />
         <Button 
