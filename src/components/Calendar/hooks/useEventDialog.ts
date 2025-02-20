@@ -1,8 +1,7 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
-import { isWithinInterval, parseISO, setHours, setMinutes } from "date-fns";
+import { parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 
 interface UseEventDialogProps {
@@ -18,29 +17,23 @@ export const useEventDialog = ({
 }: UseEventDialogProps) => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<{ date: Date } | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const { toast } = useToast();
 
-  const handleDayClick = (date: Date, hour?: number, view?: "month" | "week" | "day") => {
-    const clickedDate = new Date(date);
-    
-    if (hour !== undefined) {
-      // If hour is provided (week/day view), use it
-      clickedDate.setHours(hour, 0, 0, 0);
-    } else {
-      // For month view or unspecified hour, set to 9 AM
-      clickedDate.setHours(9, 0, 0, 0);
+  useEffect(() => {
+    if (selectedEvent) {
+      setSelectedDate(new Date(selectedEvent.start_date));
     }
-    
-    const endDate = new Date(clickedDate);
-    endDate.setHours(clickedDate.getHours() + 1);
-    
-    setSelectedSlot({ 
-      date: clickedDate
-    });
-    setSelectedEvent(null);
-    setIsNewEventDialogOpen(true);
-  };
+  }, [selectedEvent]);
+
+  useEffect(() => {
+    console.log('useEventDialog - selectedDate changed:', selectedDate);
+  }, [selectedDate]);
+
+  useEffect(() => {
+    console.log('useEventDialog - dialog open state changed:', isNewEventDialogOpen);
+    console.log('useEventDialog - current selectedDate:', selectedDate);
+  }, [isNewEventDialogOpen]);
 
   const checkTimeSlotAvailability = (
     startDate: Date,
@@ -57,12 +50,10 @@ export const useEventDialog = ({
       const eventStart = parseISO(event.start_date).getTime();
       const eventEnd = parseISO(event.end_date).getTime();
 
-      // Allow events to start exactly when another ends
       if (startTime === eventEnd || endTime === eventStart) {
         return false;
       }
 
-      // Check for any overlap
       return (
         (startTime < eventEnd && endTime > eventStart) ||
         (startTime === eventStart && endTime === eventEnd)
@@ -77,10 +68,16 @@ export const useEventDialog = ({
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
+      console.log('handleCreateEvent - Received data:', data);
       const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
       
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
+
+      console.log('handleCreateEvent - Parsed dates:', {
+        start: startDate,
+        end: endDate
+      });
 
       const { available, conflictingEvent } = checkTimeSlotAvailability(
         startDate,
@@ -105,6 +102,7 @@ export const useEventDialog = ({
       });
       return result;
     } catch (error: any) {
+      console.error('handleCreateEvent - Error:', error);
       if (error.message !== "Time slot conflict") {
         toast({
           title: "Error",
@@ -116,14 +114,14 @@ export const useEventDialog = ({
     }
   };
 
-  const handleUpdateEvent = async (updates: Partial<CalendarEventType>) => {
+  const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
     if (!selectedEvent) return;
     
     try {
       const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
       
-      const startDate = new Date(updates.start_date as string);
-      const endDate = new Date(updates.end_date as string);
+      const startDate = new Date(data.start_date as string);
+      const endDate = new Date(data.end_date as string);
 
       const { available, conflictingEvent } = checkTimeSlotAvailability(
         startDate,
@@ -141,7 +139,7 @@ export const useEventDialog = ({
         throw new Error("Time slot conflict");
       }
 
-      const result = await updateEvent(updates);
+      const result = await updateEvent(data);
       setSelectedEvent(null);
       toast({
         title: "Success",
@@ -149,6 +147,7 @@ export const useEventDialog = ({
       });
       return result;
     } catch (error: any) {
+      console.error('handleUpdateEvent - Error:', error);
       if (error.message !== "Time slot conflict") {
         toast({
           title: "Error",
@@ -164,7 +163,6 @@ export const useEventDialog = ({
     if (!selectedEvent) return;
     
     try {
-      // First, find the associated customer
       const { data: customer, error: customerError } = await supabase
         .from('customers')
         .select('*')
@@ -178,7 +176,6 @@ export const useEventDialog = ({
         throw customerError;
       }
 
-      // If customer exists, update it to remove event-related data
       if (customer) {
         const { error: updateError } = await supabase
           .from('customers')
@@ -194,14 +191,12 @@ export const useEventDialog = ({
         }
       }
 
-      // Delete any associated files from storage and database
       const { data: files } = await supabase
         .from('event_files')
         .select('*')
         .eq('event_id', selectedEvent.id);
 
       if (files && files.length > 0) {
-        // Delete files from storage
         for (const file of files) {
           const { error: storageError } = await supabase.storage
             .from('event_attachments')
@@ -212,7 +207,6 @@ export const useEventDialog = ({
           }
         }
 
-        // Delete file records from database
         const { error: filesDeleteError } = await supabase
           .from('event_files')
           .delete()
@@ -224,7 +218,6 @@ export const useEventDialog = ({
         }
       }
 
-      // Finally delete the event
       await deleteEvent(selectedEvent.id);
       setSelectedEvent(null);
       toast({
@@ -232,6 +225,7 @@ export const useEventDialog = ({
         description: "Event deleted successfully",
       });
     } catch (error: any) {
+      console.error('handleDeleteEvent - Error:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -246,9 +240,8 @@ export const useEventDialog = ({
     setSelectedEvent,
     isNewEventDialogOpen,
     setIsNewEventDialogOpen,
-    selectedSlot,
-    setSelectedSlot,
-    handleDayClick,
+    selectedDate,
+    setSelectedDate,
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,

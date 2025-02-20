@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -53,15 +54,19 @@ export const EventDialog = ({
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     } else if (selectedDate) {
-      const start = new Date(selectedDate);
-      const end = new Date(selectedDate);
+      // Create a new date object to prevent mutation
+      const start = new Date(selectedDate.getTime());
+      const end = new Date(selectedDate.getTime());
       
-      if (start.getHours() === 0 && start.getMinutes() === 0) {
-        start.setHours(9, 0, 0, 0);
-        end.setHours(10, 0, 0, 0);
-      } else {
-        end.setTime(start.getTime() + 60 * 60 * 1000);
-      }
+      // Always set to 9 AM for the clicked date
+      start.setHours(9, 0, 0, 0);
+      end.setHours(10, 0, 0, 0);
+      
+      console.log('Setting dialog dates:', {
+        selectedDate,
+        start,
+        end
+      });
       
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));

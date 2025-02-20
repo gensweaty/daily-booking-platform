@@ -8,7 +8,6 @@ import {
   endOfMonth,
   addMonths,
   subMonths,
-  addHours,
   setHours,
   startOfDay,
 } from "date-fns";
@@ -44,9 +43,8 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     setSelectedEvent,
     isNewEventDialogOpen,
     setIsNewEventDialogOpen,
-    selectedSlot,
-    setSelectedSlot,
-    handleDayClick,
+    selectedDate: dialogSelectedDate,
+    setSelectedDate: setDialogSelectedDate,
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
@@ -76,12 +74,9 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   const getDaysForView = () => {
     switch (view) {
       case "month": {
-        // Get the start of the month and calculate the start of its first week
         const monthStart = startOfMonth(selectedDate);
         const firstWeekStart = startOfWeek(monthStart);
         const monthEnd = endOfMonth(selectedDate);
-        
-        // Get all days from the start of the first week to the end of the month
         return eachDayOfInterval({
           start: firstWeekStart,
           end: monthEnd,
@@ -125,6 +120,26 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     }
   };
 
+  const handleCalendarDayClick = (date: Date, hour?: number) => {
+    const clickedDate = new Date(date);
+    clickedDate.setHours(hour || 9, 0, 0, 0);
+    
+    // First set the date
+    setDialogSelectedDate(clickedDate);
+    // Then open the dialog
+    setTimeout(() => setIsNewEventDialogOpen(true), 0);
+  };
+
+  const handleAddEventClick = () => {
+    const now = new Date();
+    now.setHours(9, 0, 0, 0);
+    
+    // First set the date
+    setDialogSelectedDate(now);
+    // Then open the dialog
+    setTimeout(() => setIsNewEventDialogOpen(true), 0);
+  };
+
   if (error) {
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
@@ -150,11 +165,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
         onViewChange={setView}
         onPrevious={handlePrevious}
         onNext={handleNext}
-        onAddEvent={() => {
-          setSelectedSlot({ date: setHours(new Date(), 12) });
-          setSelectedEvent(null);
-          setIsNewEventDialogOpen(true);
-        }}
+        onAddEvent={handleAddEventClick}
       />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
@@ -165,25 +176,26 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
             events={events || []}
             selectedDate={selectedDate}
             view={view}
-            onDayClick={(date: Date, hour?: number) => handleDayClick(date, hour, view)}
+            onDayClick={handleCalendarDayClick}
             onEventClick={setSelectedEvent}
           />
         </div>
       </div>
 
       <EventDialog
+        key={dialogSelectedDate?.getTime()} // Force re-render when date changes
         open={isNewEventDialogOpen}
         onOpenChange={setIsNewEventDialogOpen}
-        selectedDate={selectedSlot?.date || null}
-        defaultEndDate={selectedSlot?.date ? addHours(selectedSlot.date, 1) : null}
+        selectedDate={dialogSelectedDate}
         onSubmit={handleCreateEvent}
       />
 
       {selectedEvent && (
         <EventDialog
+          key={selectedEvent.id} // Force re-render when event changes
           open={!!selectedEvent}
           onOpenChange={() => setSelectedEvent(null)}
-          selectedDate={new Date(selectedEvent.start_date)}
+          selectedDate={new Date(selectedEvent.start_date)} // Use the actual event start date
           event={selectedEvent}
           onSubmit={handleUpdateEvent}
           onDelete={handleDeleteEvent}
