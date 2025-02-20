@@ -246,12 +246,13 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
           }}
           selectedDate={newEventDialog.date}
           onSubmit={async (data) => {
-            await handleCreateEvent(data);
+            const result = await handleCreateEvent(data);
             setNewEventDialog({
               isOpen: false,
               date: null,
               event: null,
             });
+            return result;
           }}
         />
       )}
@@ -271,12 +272,13 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
           selectedDate={editEventDialog.date}
           event={editEventDialog.event}
           onSubmit={async (data) => {
-            await handleUpdateEvent(data);
+            const result = await handleUpdateEvent(data);
             setEditEventDialog({
               isOpen: false,
               date: null,
               event: null,
             });
+            return result;
           }}
           onDelete={async () => {
             if (editEventDialog.event) {
