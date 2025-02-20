@@ -21,6 +21,12 @@ export const useEventDialog = ({
   const { toast } = useToast();
 
   useEffect(() => {
+    if (selectedEvent) {
+      setSelectedDate(new Date(selectedEvent.start_date));
+    }
+  }, [selectedEvent]);
+
+  useEffect(() => {
     console.log('useEventDialog - selectedDate changed:', selectedDate);
   }, [selectedDate]);
 

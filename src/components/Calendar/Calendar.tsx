@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   startOfWeek,
@@ -123,11 +122,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
 
   const handleCalendarDayClick = (date: Date, hour?: number) => {
     const clickedDate = new Date(date);
-    // Preserve the exact date and just set the hour
     clickedDate.setHours(hour || 9, 0, 0, 0);
-    
-    console.log('Calendar day click - Original date:', date);
-    console.log('Calendar day click - Adjusted date:', clickedDate);
     
     // First set the date
     setDialogSelectedDate(clickedDate);
@@ -138,8 +133,6 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   const handleAddEventClick = () => {
     const now = new Date();
     now.setHours(9, 0, 0, 0);
-    
-    console.log('Add event click - Current date:', now);
     
     // First set the date
     setDialogSelectedDate(now);
@@ -202,7 +195,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
           key={selectedEvent.id} // Force re-render when event changes
           open={!!selectedEvent}
           onOpenChange={() => setSelectedEvent(null)}
-          selectedDate={new Date(selectedEvent.start_date)}
+          selectedDate={new Date(selectedEvent.start_date)} // Use the actual event start date
           event={selectedEvent}
           onSubmit={handleUpdateEvent}
           onDelete={handleDeleteEvent}
