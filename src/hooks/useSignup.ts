@@ -41,7 +41,7 @@ export const useSignup = () => {
         const { data: codeData, error: codeError } = await supabase
           .from('redeem_codes')
           .select('*')
-          .ilike('code', trimmedCode)
+          .eq('code', trimmedCode)
           .maybeSingle();
 
         console.log('Code search result:', {
@@ -138,6 +138,33 @@ export const useSignup = () => {
       }
 
       if (data?.user) {
+        // Create trial subscription first
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 14);
+
+        const { error: subscriptionError } = await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: data.user.id,
+            plan_id: plans.id,
+            plan_type: planType,
+            status: redeemCode ? 'active' : 'trial',
+            trial_end_date: redeemCode ? null : trialEndDate.toISOString(),
+            current_period_start: new Date().toISOString(),
+            current_period_end: redeemCode ? null : new Date(trialEndDate.getTime() + (24 * 60 * 60 * 1000)).toISOString()
+          });
+
+        if (subscriptionError) {
+          console.error('Subscription creation error:', subscriptionError);
+          toast({
+            title: "Error",
+            description: "Account created but subscription setup failed. Please contact support.",
+            variant: "destructive",
+            duration: 8000,
+          });
+          return;
+        }
+
         if (redeemCode) {
           console.log('Activating redeem code for user:', data.user.id);
           
@@ -156,53 +183,6 @@ export const useSignup = () => {
             toast({
               title: "Error",
               description: "Failed to activate redeem code. Please contact support.",
-              variant: "destructive",
-              duration: 8000,
-            });
-            return;
-          }
-
-          // Create ultimate subscription
-          const { error: subscriptionError } = await supabase
-            .from('subscriptions')
-            .insert({
-              user_id: data.user.id,
-              plan_id: plans.id,
-              plan_type: 'ultimate',
-              status: 'active',
-              current_period_start: new Date().toISOString(),
-              current_period_end: null // Ultimate plan has no end date
-            });
-
-          if (subscriptionError) {
-            console.error('Subscription creation error:', subscriptionError);
-            toast({
-              title: "Error",
-              description: "Account created but subscription setup failed. Please contact support.",
-              variant: "destructive",
-              duration: 8000,
-            });
-            return;
-          }
-        } else {
-          // Create trial subscription
-          const trialEndDate = new Date();
-          trialEndDate.setDate(trialEndDate.getDate() + 14);
-
-          const { error: subscriptionError } = await supabase.rpc('create_subscription', {
-            p_user_id: data.user.id,
-            p_plan_id: plans.id,
-            p_plan_type: planType,
-            p_trial_end_date: trialEndDate.toISOString(),
-            p_current_period_start: new Date().toISOString(),
-            p_current_period_end: new Date(trialEndDate.getTime() + (24 * 60 * 60 * 1000)).toISOString()
-          });
-
-          if (subscriptionError) {
-            console.error('Trial subscription error:', subscriptionError);
-            toast({
-              title: "Account Created",
-              description: "Your account was created but subscription setup failed. Please contact support.",
               variant: "destructive",
               duration: 8000,
             });
