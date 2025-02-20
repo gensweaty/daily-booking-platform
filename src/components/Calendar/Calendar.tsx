@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   startOfWeek,
@@ -44,8 +45,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     setSelectedEvent,
     isNewEventDialogOpen,
     setIsNewEventDialogOpen,
-    selectedSlot,
-    setSelectedSlot,
+    selectedDate: dialogSelectedDate,
     handleDayClick,
     handleCreateEvent,
     handleUpdateEvent,
@@ -151,9 +151,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
         onPrevious={handlePrevious}
         onNext={handleNext}
         onAddEvent={() => {
-          setSelectedSlot({ date: setHours(new Date(), 12) });
-          setSelectedEvent(null);
-          setIsNewEventDialogOpen(true);
+          handleDayClick(new Date());
         }}
       />
 
@@ -174,8 +172,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
       <EventDialog
         open={isNewEventDialogOpen}
         onOpenChange={setIsNewEventDialogOpen}
-        selectedDate={selectedSlot?.date || null}
-        defaultEndDate={selectedSlot?.date ? addHours(selectedSlot.date, 1) : null}
+        selectedDate={dialogSelectedDate}
         onSubmit={handleCreateEvent}
       />
 
