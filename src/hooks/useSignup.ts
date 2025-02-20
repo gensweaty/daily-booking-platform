@@ -25,21 +25,36 @@ export const useSignup = () => {
       if (redeemCode) {
         console.log('Checking redeem code:', redeemCode);
         const trimmedCode = redeemCode.trim();
+        
+        // First, lock the redeem code to prevent concurrent usage
+        const { error: lockError } = await supabase
+          .from('redeem_codes')
+          .update({ is_used: true })
+          .match({ code: trimmedCode, is_used: false });
+
+        if (lockError) {
+          console.error('Failed to lock redeem code:', lockError);
+          toast({
+            title: "Error",
+            description: "This code is no longer available",
+            variant: "destructive",
+            duration: 5000,
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        // Double-check the code status
         const { data: codeData, error: codeError } = await supabase
           .from('redeem_codes')
           .select('*')
           .eq('code', trimmedCode)
           .maybeSingle();
 
-        if (codeError) {
-          console.error('Redeem code check error:', codeError);
-          throw new Error('Failed to check redeem code');
-        }
-
-        if (!codeData || codeData.is_used) {
+        if (codeError || !codeData || codeData.is_used) {
           toast({
             title: "Invalid Redeem Code",
-            description: codeData ? "This code has already been used" : "Invalid redeem code",
+            description: "This code is no longer available",
             variant: "destructive",
             duration: 5000,
           });
@@ -61,6 +76,14 @@ export const useSignup = () => {
 
       if (signUpError) {
         console.error('Signup error:', signUpError);
+        // If signup fails, unlock the redeem code
+        if (redeemCode) {
+          await supabase
+            .from('redeem_codes')
+            .update({ is_used: false })
+            .eq('code', redeemCode.trim());
+        }
+
         if (signUpError.status === 429) {
           toast({
             title: "Rate Limit Exceeded",
@@ -94,18 +117,24 @@ export const useSignup = () => {
 
       if (subError) {
         console.error('Subscription creation error:', subError);
+        // If subscription creation fails, unlock the redeem code
+        if (redeemCode) {
+          await supabase
+            .from('redeem_codes')
+            .update({ is_used: false })
+            .eq('code', redeemCode.trim());
+        }
         throw new Error('Failed to setup subscription: ' + subError.message);
       }
       
       console.log('Subscription created successfully:', subscription);
 
-      // Step 4: If using redeem code, mark it as used
+      // Step 4: Update redeem code with user details
       if (redeemCode) {
         console.log('Updating redeem code status...');
         const { error: updateError } = await supabase
           .from('redeem_codes')
           .update({
-            is_used: true,
             used_by: authData.user.id,
             used_at: new Date().toISOString()
           })
@@ -131,6 +160,13 @@ export const useSignup = () => {
 
     } catch (error: any) {
       console.error('Signup error:', error);
+      // If any error occurs, make sure to unlock the redeem code
+      if (redeemCode) {
+        await supabase
+          .from('redeem_codes')
+          .update({ is_used: false })
+          .eq('code', redeemCode.trim());
+      }
       toast({
         title: "Error",
         description: error.message || "An error occurred during sign up",
