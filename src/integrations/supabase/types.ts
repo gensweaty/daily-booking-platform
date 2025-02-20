@@ -361,6 +361,33 @@ export type Database = {
         }
         Relationships: []
       }
+      redeem_codes: {
+        Row: {
+          code: string
+          created_at: string | null
+          id: string
+          is_used: boolean | null
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          id?: string
+          is_used?: boolean | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_used?: boolean | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
       subscription_plans: {
         Row: {
           created_at: string | null
@@ -486,6 +513,13 @@ export type Database = {
           p_current_period_end: string
         }
         Returns: undefined
+      }
+      validate_and_use_redeem_code: {
+        Args: {
+          p_code: string
+          p_user_id: string
+        }
+        Returns: boolean
       }
     }
     Enums: {
