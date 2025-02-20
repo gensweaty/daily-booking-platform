@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   startOfWeek,
@@ -137,6 +138,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   const handleEventClick = (event: CalendarEventType) => {
     console.log('Event clicked:', event);
     setSelectedEvent(event);
+    setDialogSelectedDate(new Date(event.start_date)); // Ensure correct date is used
   };
 
   if (error) {
@@ -194,7 +196,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
           key={selectedEvent.id}
           open={!!selectedEvent}
           onOpenChange={() => setSelectedEvent(null)}
-          selectedDate={new Date(selectedEvent.start_date)}
+          selectedDate={dialogSelectedDate}  // Using dialogSelectedDate which is now correctly updated
           event={selectedEvent}
           onSubmit={handleUpdateEvent}
           onDelete={handleDeleteEvent}
