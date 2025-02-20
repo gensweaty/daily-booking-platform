@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   startOfWeek,
@@ -45,7 +44,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     isNewEventDialogOpen,
     setIsNewEventDialogOpen,
     selectedDate: dialogSelectedDate,
-    handleDayClick,
+    setSelectedDate: setDialogSelectedDate,
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
@@ -121,6 +120,24 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     }
   };
 
+  const handleCalendarDayClick = (date: Date, hour?: number) => {
+    // For calendar day clicks, use the exact clicked date
+    const exactDate = new Date(date);
+    exactDate.setHours(hour || 9, 0, 0, 0);
+    console.log('Calendar day click:', exactDate);
+    setDialogSelectedDate(exactDate);
+    setIsNewEventDialogOpen(true);
+  };
+
+  const handleAddEventClick = () => {
+    // For Add Event button, use current date
+    const now = new Date();
+    now.setHours(9, 0, 0, 0);
+    console.log('Add event click:', now);
+    setDialogSelectedDate(now);
+    setIsNewEventDialogOpen(true);
+  };
+
   if (error) {
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
@@ -146,20 +163,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
         onViewChange={setView}
         onPrevious={handlePrevious}
         onNext={handleNext}
-        onAddEvent={() => {
-          // When clicking "Add Event" button, use current date and time
-          const now = new Date();
-          const startHour = 9;
-          const eventDate = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate(),
-            startHour,
-            0,
-            0
-          );
-          handleDayClick(eventDate);
-        }}
+        onAddEvent={handleAddEventClick}
       />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
@@ -170,18 +174,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
             events={events || []}
             selectedDate={selectedDate}
             view={view}
-            onDayClick={(date: Date, hour?: number) => {
-              // When clicking a specific day, use that exact date
-              const clickedDate = new Date(
-                date.getFullYear(),
-                date.getMonth(),
-                date.getDate(),
-                hour || 9,
-                0,
-                0
-              );
-              handleDayClick(clickedDate);
-            }}
+            onDayClick={handleCalendarDayClick}
             onEventClick={setSelectedEvent}
           />
         </div>

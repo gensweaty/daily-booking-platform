@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -20,13 +19,6 @@ export const useEventDialog = ({
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const { toast } = useToast();
-
-  const handleDayClick = (date: Date) => {
-    console.log('Handling day click with date:', date);
-    setSelectedDate(date);
-    setSelectedEvent(null);
-    setIsNewEventDialogOpen(true);
-  };
 
   const checkTimeSlotAvailability = (
     startDate: Date,
@@ -105,14 +97,14 @@ export const useEventDialog = ({
     }
   };
 
-  const handleUpdateEvent = async (updates: Partial<CalendarEventType>) => {
+  const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
     if (!selectedEvent) return;
     
     try {
       const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
       
-      const startDate = new Date(updates.start_date as string);
-      const endDate = new Date(updates.end_date as string);
+      const startDate = new Date(data.start_date as string);
+      const endDate = new Date(data.end_date as string);
 
       const { available, conflictingEvent } = checkTimeSlotAvailability(
         startDate,
@@ -130,7 +122,7 @@ export const useEventDialog = ({
         throw new Error("Time slot conflict");
       }
 
-      const result = await updateEvent(updates);
+      const result = await updateEvent(data);
       setSelectedEvent(null);
       toast({
         title: "Success",
@@ -230,7 +222,7 @@ export const useEventDialog = ({
     isNewEventDialogOpen,
     setIsNewEventDialogOpen,
     selectedDate,
-    handleDayClick,
+    setSelectedDate,
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
