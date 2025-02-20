@@ -137,8 +137,11 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
 
   const handleEventClick = (event: CalendarEventType) => {
     console.log('Event clicked:', event);
+    // Create a new Date object from the event's start_date
+    const eventDate = new Date(event.start_date);
+    console.log('Event date:', eventDate);
+    setDialogSelectedDate(eventDate);
     setSelectedEvent(event);
-    setDialogSelectedDate(new Date(event.start_date)); // Ensure correct date is used
   };
 
   if (error) {
@@ -196,7 +199,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
           key={selectedEvent.id}
           open={!!selectedEvent}
           onOpenChange={() => setSelectedEvent(null)}
-          selectedDate={dialogSelectedDate}  // Using dialogSelectedDate which is now correctly updated
+          selectedDate={dialogSelectedDate}  // Changed this line to use dialogSelectedDate
           event={selectedEvent}
           onSubmit={handleUpdateEvent}
           onDelete={handleDeleteEvent}
