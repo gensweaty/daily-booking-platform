@@ -44,7 +44,7 @@ export const useSignup = () => {
           return;
         }
 
-        // We expect exactly one result
+        // The function always returns exactly one row
         const validationResult = codeResult[0];
         console.log('Code validation result:', validationResult);
 
