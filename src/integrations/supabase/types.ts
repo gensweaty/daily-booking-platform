@@ -514,6 +514,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      create_user_subscription: {
+        Args: {
+          p_user_id: string
+          p_plan_type: string
+          p_is_redeem_code: boolean
+        }
+        Returns: string
+      }
       generate_code_number: {
         Args: {
           n: number
