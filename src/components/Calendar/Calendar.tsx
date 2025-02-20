@@ -16,7 +16,7 @@ import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
 import { CalendarView } from "./CalendarView";
 import { EventDialog } from "./EventDialog";
-import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar"; // Added CalendarEventType
+import { CalendarViewType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { TimeIndicator } from "./TimeIndicator";
@@ -147,16 +147,6 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
-  const handleEventClick = (event: CalendarEventType) => {
-    console.log('Event click - Event data:', event);
-    const eventDate = new Date(event.start_date);
-    console.log('Event click - Event date:', eventDate);
-    
-    // First set the event and date
-    setSelectedEvent(event);
-    setDialogSelectedDate(eventDate);
-  };
-
   if (error) {
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
@@ -194,7 +184,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
             selectedDate={selectedDate}
             view={view}
             onDayClick={handleCalendarDayClick}
-            onEventClick={handleEventClick}
+            onEventClick={setSelectedEvent}
           />
         </div>
       </div>
@@ -212,7 +202,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
           key={selectedEvent.id} // Force re-render when event changes
           open={!!selectedEvent}
           onOpenChange={() => setSelectedEvent(null)}
-          selectedDate={dialogSelectedDate}
+          selectedDate={new Date(selectedEvent.start_date)}
           event={selectedEvent}
           onSubmit={handleUpdateEvent}
           onDelete={handleDeleteEvent}
