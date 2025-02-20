@@ -52,8 +52,7 @@ export const useSignup = () => {
         const { error: lockError } = await supabase
           .from('redeem_codes')
           .update({ 
-            is_used: true,
-            updated_at: new Date().toISOString()
+            is_used: true
           })
           .eq('id', codeData.id)
           .eq('is_used', false);
@@ -62,7 +61,7 @@ export const useSignup = () => {
           console.error('Failed to lock redeem code:', lockError);
           toast({
             title: "Error",
-            description: "This code is no longer available",
+            description: "Error processing redeem code",
             variant: "destructive",
             duration: 5000,
           });
@@ -89,10 +88,7 @@ export const useSignup = () => {
         if (redeemCode) {
           await supabase
             .from('redeem_codes')
-            .update({ 
-              is_used: false,
-              updated_at: new Date().toISOString()
-            })
+            .update({ is_used: false })
             .eq('code', redeemCode.trim());
         }
 
@@ -133,10 +129,7 @@ export const useSignup = () => {
         if (redeemCode) {
           await supabase
             .from('redeem_codes')
-            .update({ 
-              is_used: false,
-              updated_at: new Date().toISOString()
-            })
+            .update({ is_used: false })
             .eq('code', redeemCode.trim());
         }
         throw new Error('Failed to setup subscription: ' + subError.message);
@@ -151,8 +144,7 @@ export const useSignup = () => {
           .from('redeem_codes')
           .update({
             used_by: authData.user.id,
-            used_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            used_at: new Date().toISOString()
           })
           .eq('code', redeemCode.trim());
 
@@ -180,10 +172,7 @@ export const useSignup = () => {
       if (redeemCode) {
         await supabase
           .from('redeem_codes')
-          .update({ 
-            is_used: false,
-            updated_at: new Date().toISOString()
-          })
+          .update({ is_used: false })
           .eq('code', redeemCode.trim());
       }
       toast({
