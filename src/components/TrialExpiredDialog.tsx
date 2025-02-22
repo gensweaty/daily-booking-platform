@@ -9,7 +9,6 @@ import {
 import { SubscriptionPlanSelect } from "./subscription/SubscriptionPlanSelect";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
@@ -54,9 +53,25 @@ export const TrialExpiredDialog = () => {
             />
           </div>
           <div className="pt-4">
-            <PayPalSubscribeButton 
-              planType={selectedPlan}
-              onSuccess={handleSubscriptionSuccess}
+            <div id={`paypal-container-${selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L'}`} 
+                 className="min-h-[45px] w-full" />
+            <script
+              src={`https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&components=hosted-buttons&disable-funding=venmo&currency=USD`}
+              async
+              crossOrigin="anonymous"
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  document.addEventListener("DOMContentLoaded", (event) => {
+                    if (window.paypal) {
+                      paypal.HostedButtons({
+                        hostedButtonId: "${selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L'}"
+                      }).render("#paypal-container-${selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L'}")
+                    }
+                  })
+                `
+              }}
             />
           </div>
         </div>
