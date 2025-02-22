@@ -17,223 +17,206 @@ export const TrialExpiredDialog = () => {
   const [isPayPalLoaded, setIsPayPalLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const paypalButtonRef = useRef<HTMLDivElement>(null);
-  const scriptLoadAttempts = useRef(0);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const loadPayPalScript = () => {
-    return new Promise<void>((resolve, reject) => {
-      if (scriptLoadAttempts.current >= 3) {
-        reject(new Error('Failed to load PayPal after multiple attempts'));
-        return;
-      }
+  const initializePayPal = async () => {
+    try {
+      console.log('Initializing PayPal...');
+      setIsLoading(true);
 
-      scriptLoadAttempts.current += 1;
-      console.log(`Attempting to load PayPal script (attempt ${scriptLoadAttempts.current})`);
-
-      // Clean up any existing PayPal elements
-      if (paypalButtonRef.current) {
-        paypalButtonRef.current.innerHTML = '';
-      }
-
+      // Clean up any existing PayPal script
       const existingScript = document.getElementById('paypal-script');
       if (existingScript) {
+        console.log('Removing existing PayPal script');
         existingScript.remove();
       }
 
+      // Create and load the PayPal script
+      console.log('Creating new PayPal script');
       const script = document.createElement('script');
       script.id = 'paypal-script';
-      script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.VITE_PAYPAL_CLIENT_ID}&currency=USD`;
+      script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.VITE_PAYPAL_CLIENT_ID}&currency=USD&intent=subscription`;
       script.async = true;
 
-      let timeout: NodeJS.Timeout;
-
-      const cleanup = () => {
-        clearTimeout(timeout);
-        script.removeEventListener('load', handleLoad);
-        script.removeEventListener('error', handleError);
-      };
-
-      const handleLoad = () => {
-        console.log('PayPal script loaded successfully');
-        cleanup();
-        resolve();
-      };
-
-      const handleError = (error: any) => {
-        console.error('PayPal script loading error:', error);
-        cleanup();
-        script.remove();
-        setTimeout(() => {
-          loadPayPalScript().then(resolve).catch(reject);
-        }, 2000); // Retry after 2 seconds
-      };
-
-      timeout = setTimeout(() => {
-        cleanup();
-        script.remove();
-        handleError(new Error('PayPal script load timeout'));
-      }, 10000); // 10 second timeout
-
-      script.addEventListener('load', handleLoad);
-      script.addEventListener('error', handleError);
+      const scriptPromise = new Promise<void>((resolve, reject) => {
+        script.onload = () => {
+          console.log('PayPal script loaded successfully');
+          resolve();
+        };
+        script.onerror = () => {
+          console.error('PayPal script failed to load');
+          reject(new Error('Failed to load PayPal SDK'));
+        };
+      });
 
       document.head.appendChild(script);
-    });
+      await scriptPromise;
+
+      return true;
+    } catch (error) {
+      console.error('Error initializing PayPal:', error);
+      return false;
+    }
   };
 
-  useEffect(() => {
-    let isMounted = true;
+  const renderPayPalButtons = async () => {
+    if (!window.paypal) {
+      console.error('PayPal SDK not found');
+      return;
+    }
 
-    const renderPayPalButton = async () => {
-      try {
-        setIsLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        console.log('Current user:', user?.id);
-        
-        if (!user) {
-          throw new Error('No authenticated user found');
-        }
+    if (!paypalButtonRef.current) {
+      console.error('PayPal button container not found');
+      return;
+    }
 
-        await loadPayPalScript();
-        
-        if (!isMounted) return;
-        
-        if (!window.paypal) {
-          throw new Error('PayPal SDK not loaded');
-        }
+    console.log('Rendering PayPal buttons...');
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('No authenticated user found');
+      }
 
-        const buttons = window.paypal.Buttons({
-          createOrder: async () => {
-            const amount = selectedPlan === 'monthly' ? '9.99' : '99.99';
-            
-            try {
-              const { data: { session } } = await supabase.auth.getSession();
-              if (!session) {
-                throw new Error('No active session found');
-              }
+      // Clear existing buttons
+      paypalButtonRef.current.innerHTML = '';
 
-              const response = await fetch(
-                'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-order',
-                {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
-                  },
-                  body: JSON.stringify({
-                    plan_type: selectedPlan,
-                    amount: amount
-                  })
-                }
-              );
+      const buttons = window.paypal.Buttons({
+        createOrder: async () => {
+          console.log('Creating PayPal order...');
+          const amount = selectedPlan === 'monthly' ? '9.99' : '99.99';
+          
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            throw new Error('No active session found');
+          }
 
-              if (!response.ok) {
-                throw new Error('Failed to create PayPal order');
-              }
-
-              const order = await response.json();
-              return order.id;
-            } catch (error: any) {
-              console.error('Error creating order:', error);
-              toast({
-                title: "Error",
-                description: "Failed to create order. Please try again.",
-                variant: "destructive",
-              });
-              throw error;
+          const response = await fetch(
+            'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-order',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({
+                plan_type: selectedPlan,
+                amount: amount
+              })
             }
-          },
-          onApprove: async (data: { orderID: string }) => {
-            console.log('PayPal payment approved. Order ID:', data.orderID);
-            
-            try {
-              const { data: { session } } = await supabase.auth.getSession();
-              if (!session) {
-                throw new Error('No active session found');
-              }
+          );
 
-              const response = await fetch(
-                'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/verify-paypal-payment',
-                {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
-                  },
-                  body: JSON.stringify({
-                    user_id: user.id,
-                    plan_type: selectedPlan,
-                    order_id: data.orderID
-                  })
-                }
-              );
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Create order response:', errorText);
+            throw new Error('Failed to create PayPal order');
+          }
 
-              const result = await response.json();
-              if (!response.ok) {
-                throw new Error(result.error || `Verification failed with status ${response.status}`);
-              }
-
-              toast({
-                title: "Success",
-                description: "Subscription activated successfully!",
-              });
-              
-              navigate('/dashboard');
-              
-            } catch (error: any) {
-              console.error('Payment verification error:', error);
-              toast({
-                title: "Error",
-                description: `Payment verification failed: ${error.message}. Please contact support.`,
-                variant: "destructive",
-              });
+          const order = await response.json();
+          console.log('Order created:', order.id);
+          return order.id;
+        },
+        onApprove: async (data: { orderID: string }) => {
+          console.log('Payment approved. Processing...', data.orderID);
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+              throw new Error('No active session found');
             }
-          },
-          onError: (error: any) => {
-            console.error('PayPal error:', error);
+
+            const response = await fetch(
+              'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/verify-paypal-payment',
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                  user_id: user.id,
+                  plan_type: selectedPlan,
+                  order_id: data.orderID
+                })
+              }
+            );
+
+            const result = await response.json();
+            if (!response.ok) {
+              throw new Error(result.error || `Verification failed with status ${response.status}`);
+            }
+
+            console.log('Payment verified successfully');
+            toast({
+              title: "Success",
+              description: "Subscription activated successfully!",
+            });
+            
+            navigate('/dashboard');
+          } catch (error: any) {
+            console.error('Payment verification error:', error);
             toast({
               title: "Error",
-              description: "Payment failed. Please try again.",
+              description: `Payment verification failed: ${error.message}. Please contact support.`,
               variant: "destructive",
             });
           }
-        });
-
-        if (paypalButtonRef.current && isMounted) {
-          await buttons.render(paypalButtonRef.current);
-          setIsPayPalLoaded(true);
+        },
+        onError: (error: any) => {
+          console.error('PayPal error:', error);
+          toast({
+            title: "Error",
+            description: "Payment failed. Please try again.",
+            variant: "destructive",
+          });
         }
+      });
 
-      } catch (error: any) {
-        console.error('PayPal setup error:', error);
-        if (isMounted) {
+      await buttons.render(paypalButtonRef.current);
+      console.log('PayPal buttons rendered successfully');
+      setIsPayPalLoaded(true);
+    } catch (error: any) {
+      console.error('Error rendering PayPal buttons:', error);
+      toast({
+        title: "Error",
+        description: "Failed to initialize payment system. Please refresh and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadAndRenderPayPal = async () => {
+      try {
+        const initialized = await initializePayPal();
+        if (initialized && mounted) {
+          await renderPayPalButtons();
+        }
+      } catch (error) {
+        console.error('PayPal initialization error:', error);
+        if (mounted) {
+          setIsLoading(false);
           toast({
             title: "Error",
             description: "Failed to load payment system. Please refresh and try again.",
             variant: "destructive",
           });
-          setIsPayPalLoaded(false);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
         }
       }
     };
 
-    renderPayPalButton();
+    loadAndRenderPayPal();
 
     return () => {
-      isMounted = false;
+      mounted = false;
       const script = document.getElementById('paypal-script');
       if (script) {
         script.remove();
       }
-      if (paypalButtonRef.current) {
-        paypalButtonRef.current.innerHTML = '';
-      }
-      setIsPayPalLoaded(false);
     };
   }, [selectedPlan, toast, navigate]);
 
