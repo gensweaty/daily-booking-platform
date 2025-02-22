@@ -78,22 +78,46 @@ export const TrialExpiredDialog = () => {
           onApprove: async (data: { orderID: string }) => {
             console.log('Payment approved:', data);
             
-            // Create the return URL for payment verification
-            const baseUrl = window.location.origin;
-            const verifyEndpoint = `${baseUrl}/functions/v1/verify-paypal-payment`;
-            const params = new URLSearchParams({
-              user_id: user.id,
-              plan_type: selectedPlan,
-              order_id: data.orderID
-            });
+            try {
+              // Get the current session for authentication
+              const { data: { session } } = await supabase.auth.getSession();
+              
+              if (!session) {
+                throw new Error('No active session found');
+              }
 
-            // Redirect to verification endpoint
-            window.location.href = `${verifyEndpoint}?${params.toString()}`;
+              // Call the verification endpoint with proper authentication
+              const response = await supabase.functions.invoke('verify-paypal-payment', {
+                method: 'POST',
+                body: JSON.stringify({
+                  user_id: session.user.id,
+                  plan_type: selectedPlan,
+                  order_id: data.orderID
+                })
+              });
 
-            toast({
-              title: "Processing Payment",
-              description: "Please wait while we verify your payment...",
-            });
+              if (response.error) {
+                throw new Error(response.error.message || 'Failed to verify payment');
+              }
+
+              console.log('Payment verification response:', response.data);
+              
+              toast({
+                title: "Success",
+                description: "Subscription activated successfully!",
+              });
+              
+              // Redirect to dashboard after successful payment
+              navigate('/dashboard');
+              
+            } catch (error) {
+              console.error('Payment verification error:', error);
+              toast({
+                title: "Error",
+                description: "Payment verification failed. Please contact support.",
+                variant: "destructive",
+              });
+            }
           }
         }).render('#paypal-button-container');
 
@@ -121,7 +145,7 @@ export const TrialExpiredDialog = () => {
         paypalButtonRef.current.innerHTML = '';
       }
     };
-  }, [selectedPlan, toast]);
+  }, [selectedPlan, toast, navigate]);
 
   return (
     <Dialog open={true} onOpenChange={() => {}}>
