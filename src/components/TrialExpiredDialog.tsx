@@ -38,7 +38,7 @@ export const TrialExpiredDialog = () => {
         const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
         existingScripts.forEach(script => script.remove());
 
-        // Create and load PayPal script with the user ID appended to the return URL
+        // Create and load PayPal script
         const script = document.createElement('script');
         const buttonId = selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
         
@@ -84,11 +84,23 @@ export const TrialExpiredDialog = () => {
           hostedButtonId: buttonId,
           onApprove: async (data: { orderID: string }) => {
             console.log('Payment approved:', data);
-            // The subscription activation will be handled by the verify-paypal-payment endpoint
-            const returnUrl = new URL(window.location.origin);
-            returnUrl.pathname = '/functions/v1/verify-paypal-payment';
-            returnUrl.searchParams.append('user_id', user.id);
-            window.location.href = returnUrl.toString();
+            
+            // Create the return URL for payment verification
+            const baseUrl = window.location.origin;
+            const verifyEndpoint = `${baseUrl}/functions/v1/verify-paypal-payment`;
+            const params = new URLSearchParams({
+              user_id: user.id,
+              plan_type: selectedPlan,
+              order_id: data.orderID
+            });
+
+            // Redirect to verification endpoint
+            window.location.href = `${verifyEndpoint}?${params.toString()}`;
+
+            toast({
+              title: "Processing Payment",
+              description: "Please wait while we verify your payment...",
+            });
           }
         }).render('#paypal-button-container');
 
