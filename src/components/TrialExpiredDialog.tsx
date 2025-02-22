@@ -35,7 +35,7 @@ export const TrialExpiredDialog = () => {
 
         // Create new script
         scriptElement = document.createElement('script');
-        scriptElement.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+        scriptElement.src = `https://www.paypal.com/sdk/js?client-id=${process.env.VITE_PAYPAL_CLIENT_ID}&currency=USD`;
         scriptElement.async = true;
 
         scriptElement.onload = () => {
@@ -61,22 +61,36 @@ export const TrialExpiredDialog = () => {
           throw new Error('No authenticated user found');
         }
 
-        const buttonId = selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
-        console.log('Selected plan:', selectedPlan, 'Button ID:', buttonId);
-
         await loadPayPalScript();
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        if (!window.paypal?.HostedButtons) {
-          throw new Error('PayPal Hosted Buttons component not available');
+        
+        if (!window.paypal?.Buttons) {
+          throw new Error('PayPal Buttons not available');
         }
 
-        if (!paypalButtonRef.current) {
-          throw new Error('PayPal button container not found');
-        }
+        const buttons = window.paypal.Buttons({
+          createOrder: async () => {
+            const amount = selectedPlan === 'monthly' ? '9.99' : '99.99';
+            
+            const response = await fetch('https://api-m.paypal.com/v2/checkout/orders', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Basic ${btoa(`${process.env.VITE_PAYPAL_CLIENT_ID}:${process.env.VITE_PAYPAL_SECRET_KEY}`)}`,
+              },
+              body: JSON.stringify({
+                intent: 'CAPTURE',
+                purchase_units: [{
+                  amount: {
+                    currency_code: 'USD',
+                    value: amount
+                  }
+                }]
+              })
+            });
 
-        await window.paypal.HostedButtons({
-          hostedButtonId: buttonId,
+            const order = await response.json();
+            return order.id;
+          },
           onApprove: async (data: { orderID: string }) => {
             console.log('PayPal payment approved. Order ID:', data.orderID);
             
@@ -95,7 +109,7 @@ export const TrialExpiredDialog = () => {
                     'Authorization': `Bearer ${session.access_token}`,
                   },
                   body: JSON.stringify({
-                    user_id: session.user.id,
+                    user_id: user.id,
                     plan_type: selectedPlan,
                     order_id: data.orderID
                   })
@@ -122,10 +136,21 @@ export const TrialExpiredDialog = () => {
                 variant: "destructive",
               });
             }
+          },
+          onError: (error: any) => {
+            console.error('PayPal error:', error);
+            toast({
+              title: "Error",
+              description: "Payment failed. Please try again.",
+              variant: "destructive",
+            });
           }
-        }).render('#paypal-button-container');
+        });
 
-        setIsPayPalLoaded(true);
+        if (paypalButtonRef.current) {
+          buttons.render(paypalButtonRef.current);
+          setIsPayPalLoaded(true);
+        }
 
       } catch (error: any) {
         console.error('PayPal setup error:', error);
