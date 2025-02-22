@@ -11,6 +11,7 @@ import { SubscriptionPlanSelect } from "./subscription/SubscriptionPlanSelect";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import '../types/paypal.d.ts';
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
@@ -61,7 +62,8 @@ export const TrialExpiredDialog = () => {
   };
 
   const renderPayPalButtons = async () => {
-    if (!window.paypal) {
+    const paypal = window.paypal;
+    if (!paypal) {
       console.error('PayPal SDK not found');
       return;
     }
@@ -82,7 +84,7 @@ export const TrialExpiredDialog = () => {
       // Clear existing buttons
       paypalButtonRef.current.innerHTML = '';
 
-      const buttons = window.paypal.Buttons({
+      const buttons = paypal.Buttons({
         createOrder: async () => {
           console.log('Creating PayPal order...');
           const amount = selectedPlan === 'monthly' ? '9.99' : '99.99';

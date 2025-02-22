@@ -13,8 +13,10 @@ interface PayPalNamespace {
   Buttons: (options: PayPalButtonsComponentOptions) => PayPalButtonsComponent;
 }
 
-declare interface Window {
-  paypal?: PayPalNamespace;
+declare global {
+  interface Window {
+    paypal?: PayPalNamespace;
+  }
 }
 
 export {};
