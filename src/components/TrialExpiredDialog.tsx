@@ -33,13 +33,24 @@ export const TrialExpiredDialog = () => {
         existingScript.remove();
       }
 
+      // Verify client ID is available
+      const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
+      if (!clientId) {
+        console.error('PayPal client ID is not defined');
+        toast({
+          title: "Error",
+          description: "PayPal configuration is missing. Please contact support.",
+          variant: "destructive",
+        });
+        resolve(false);
+        return;
+      }
+
       // Create and load the PayPal script
       console.log('Creating new PayPal script');
       const script = document.createElement('script');
       script.id = 'paypal-script';
-      const scriptUrl = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&currency=USD&intent=capture`;
-      console.log('PayPal script URL:', scriptUrl);
-      script.src = scriptUrl;
+      script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD&intent=capture`;
       script.async = true;
 
       let retryCount = 0;
@@ -48,17 +59,15 @@ export const TrialExpiredDialog = () => {
 
       const checkPayPal = () => {
         console.log('Checking if PayPal is loaded... Attempt:', retryCount + 1);
-        console.log('window.paypal status:', !!window.paypal);
         
         if (window.paypal) {
           console.log('PayPal SDK loaded successfully');
-          console.log('PayPal SDK object:', window.paypal);
           clearTimeout(timeout);
           resolve(true);
         } else if (retryCount < maxRetries) {
           console.log('PayPal not loaded yet, retrying...');
           retryCount++;
-          timeout = setTimeout(checkPayPal, 1000); // Increased delay between retries
+          timeout = setTimeout(checkPayPal, 500);
         } else {
           console.error('Max retries reached. PayPal failed to load.');
           clearTimeout(timeout);
@@ -68,7 +77,6 @@ export const TrialExpiredDialog = () => {
 
       script.onload = () => {
         console.log('Script onload triggered');
-        console.log('window.paypal immediately after load:', !!window.paypal);
         checkPayPal();
       };
 
@@ -79,14 +87,12 @@ export const TrialExpiredDialog = () => {
       };
 
       document.head.appendChild(script);
-      console.log('PayPal script added to document head');
 
       // Set a maximum timeout of 10 seconds
       setTimeout(() => {
         clearTimeout(timeout);
         if (!window.paypal) {
           console.error('PayPal load timeout after 10 seconds');
-          console.log('Final window.paypal status:', !!window.paypal);
           resolve(false);
         }
       }, 10000);
@@ -95,36 +101,24 @@ export const TrialExpiredDialog = () => {
 
   const renderPayPalButtons = async () => {
     console.log('Attempting to render PayPal buttons...');
-    console.log('window.paypal status at render start:', !!window.paypal);
     
     if (!window.paypal) {
-      console.error('PayPal SDK not found, attempting one more script load...');
-      const retryLoad = await loadPayPalScript();
-      if (!retryLoad || !window.paypal) {
-        console.error('Final attempt to load PayPal failed');
-        return false;
-      }
+      console.error('PayPal SDK not found');
+      return false;
     }
 
     if (!paypalButtonRef.current) {
       console.error('PayPal button container not found');
-      console.log('Button container ref:', paypalButtonRef.current);
       return false;
     }
 
     try {
-      console.log('Getting authenticated user...');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('No authenticated user found');
       }
-      console.log('User authenticated successfully');
 
-      console.log('Clearing existing buttons...');
       paypalButtonRef.current.innerHTML = '';
-
-      console.log('Creating PayPal buttons configuration...');
-      console.log('Current window.paypal object:', window.paypal);
       
       const buttons = window.paypal.Buttons({
         style: {
@@ -142,7 +136,6 @@ export const TrialExpiredDialog = () => {
             throw new Error('No active session found');
           }
 
-          console.log('Making create order API request...');
           const response = await fetch(
             'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-order',
             {
@@ -165,7 +158,6 @@ export const TrialExpiredDialog = () => {
           }
 
           const order = await response.json();
-          console.log('Order created successfully:', order.id);
           return order.id;
         },
         onApprove: async (data: { orderID: string }) => {
@@ -176,7 +168,6 @@ export const TrialExpiredDialog = () => {
               throw new Error('No active session found');
             }
 
-            console.log('Verifying payment...');
             const response = await fetch(
               'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/verify-paypal-payment',
               {
@@ -198,7 +189,6 @@ export const TrialExpiredDialog = () => {
               throw new Error(result.error || `Verification failed with status ${response.status}`);
             }
 
-            console.log('Payment verified successfully');
             toast({
               title: "Success",
               description: "Subscription activated successfully!",
@@ -224,15 +214,8 @@ export const TrialExpiredDialog = () => {
         }
       });
 
-      console.log('Attempting to render PayPal buttons to container:', paypalButtonRef.current);
-      try {
-        await buttons.render(paypalButtonRef.current);
-        console.log('PayPal buttons rendered successfully');
-        return true;
-      } catch (renderError) {
-        console.error('Error during button render:', renderError);
-        return false;
-      }
+      await buttons.render(paypalButtonRef.current);
+      return true;
     } catch (error: any) {
       console.error('Error rendering PayPal buttons:', error);
       toast({
@@ -250,16 +233,13 @@ export const TrialExpiredDialog = () => {
     const initializePayPal = async () => {
       try {
         setIsLoading(true);
-        console.log('Starting PayPal initialization...');
-        console.log('Initial window.paypal status:', !!window.paypal);
-
+        
         const scriptLoaded = await loadPayPalScript();
         if (!scriptLoaded || !mounted) {
-          console.error('Failed to load PayPal script');
+          setIsLoading(false);
           return;
         }
 
-        console.log('Script loaded, attempting to render buttons...');
         const buttonsRendered = await renderPayPalButtons();
         if (mounted) {
           setIsPayPalLoaded(buttonsRendered);
