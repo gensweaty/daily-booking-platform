@@ -20,81 +20,79 @@ export const TrialExpiredDialog = () => {
   const paypalButtonRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
-
-  const getPayPalClientId = () => {
-    const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
-    if (!clientId) {
-      throw new Error('PayPal client ID is not configured');
-    }
-    return clientId;
-  };
+  const scriptLoadAttempts = useRef(0);
 
   const loadPayPalScript = async (): Promise<boolean> => {
     return new Promise((resolve) => {
       try {
-        const clientId = getPayPalClientId();
-        console.log('Starting PayPal script load...');
-
         // Clean up any existing PayPal script
         const existingScript = document.getElementById('paypal-script');
         if (existingScript) {
           existingScript.remove();
         }
 
+        // Reset PayPal global object
+        if (window.paypal) {
+          (window as any).paypal = undefined;
+        }
+
         const script = document.createElement('script');
         script.id = 'paypal-script';
-        script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD&intent=capture`;
+        script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&currency=USD&intent=capture`;
         script.async = true;
 
-        let retryCount = 0;
-        const maxRetries = 3;
-        let timeout: NodeJS.Timeout;
-
-        const checkPayPal = () => {
+        script.addEventListener('load', () => {
           if (window.paypal) {
-            clearTimeout(timeout);
+            console.log('PayPal script loaded successfully');
             resolve(true);
-          } else if (retryCount < maxRetries) {
-            retryCount++;
-            timeout = setTimeout(checkPayPal, 500);
           } else {
-            clearTimeout(timeout);
+            console.error('PayPal script loaded but window.paypal is not defined');
             resolve(false);
           }
-        };
+        });
 
-        script.onload = () => checkPayPal();
-        script.onerror = () => resolve(false);
+        script.addEventListener('error', (error) => {
+          console.error('Error loading PayPal script:', error);
+          resolve(false);
+        });
 
         document.head.appendChild(script);
 
-        // Set a maximum timeout
+        // Set a timeout for script loading
         setTimeout(() => {
-          clearTimeout(timeout);
           if (!window.paypal) {
+            console.error('PayPal script load timeout');
             resolve(false);
           }
-        }, 10000);
+        }, 5000);
       } catch (error) {
-        console.error('Error loading PayPal script:', error);
+        console.error('Error in loadPayPalScript:', error);
         resolve(false);
       }
     });
   };
 
-  const renderPayPalButtons = async () => {
-    if (!window.paypal || !paypalButtonRef.current) {
-      return false;
-    }
-
+  const renderPayPalButtons = async (): Promise<boolean> => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('No authenticated user found');
+      if (!window.paypal) {
+        console.error('PayPal SDK not loaded');
+        return false;
       }
 
+      if (!paypalButtonRef.current) {
+        console.error('Button container not found');
+        return false;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user');
+        return false;
+      }
+
+      // Clear existing buttons
       paypalButtonRef.current.innerHTML = '';
-      
+
       const buttons = window.paypal.Buttons({
         style: {
           layout: 'vertical',
@@ -155,11 +153,11 @@ export const TrialExpiredDialog = () => {
               }
             );
 
-            const result = await response.json();
             if (!response.ok) {
-              throw new Error(result.error || `Verification failed with status ${response.status}`);
+              throw new Error('Payment verification failed');
             }
 
+            const result = await response.json();
             toast({
               title: "Success",
               description: "Subscription activated successfully!",
@@ -170,7 +168,7 @@ export const TrialExpiredDialog = () => {
             console.error('Payment verification error:', error);
             toast({
               title: "Error",
-              description: `Payment verification failed: ${error.message}. Please contact support.`,
+              description: "Payment verification failed. Please contact support.",
               variant: "destructive",
             });
           }
@@ -187,50 +185,48 @@ export const TrialExpiredDialog = () => {
 
       await buttons.render(paypalButtonRef.current);
       return true;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error rendering PayPal buttons:', error);
+      return false;
+    }
+  };
+
+  const initializePayPal = async () => {
+    try {
+      setIsLoading(true);
+      scriptLoadAttempts.current += 1;
+      console.log(`Attempting to load PayPal script (attempt ${scriptLoadAttempts.current})`);
+
+      const scriptLoaded = await loadPayPalScript();
+      if (!scriptLoaded) {
+        if (scriptLoadAttempts.current < 3) {
+          console.log('Retrying PayPal script load...');
+          setTimeout(initializePayPal, 1000); // Retry after 1 second
+          return;
+        }
+        throw new Error('Failed to load PayPal script after multiple attempts');
+      }
+
+      const buttonsRendered = await renderPayPalButtons();
+      setIsPayPalLoaded(buttonsRendered);
+    } catch (error: any) {
+      console.error('PayPal initialization error:', error);
       toast({
         title: "Error",
-        description: "Failed to initialize payment system. Please try again.",
+        description: error.message || "Failed to load payment system. Please refresh and try again.",
         variant: "destructive",
       });
-      return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     let mounted = true;
 
-    const initializePayPal = async () => {
-      try {
-        setIsLoading(true);
-        
-        const scriptLoaded = await loadPayPalScript();
-        if (!scriptLoaded || !mounted) {
-          throw new Error('Failed to load PayPal script');
-        }
-
-        const buttonsRendered = await renderPayPalButtons();
-        if (mounted) {
-          setIsPayPalLoaded(buttonsRendered);
-        }
-      } catch (error: any) {
-        console.error('PayPal initialization error:', error);
-        if (mounted) {
-          toast({
-            title: "Error",
-            description: error.message || "Failed to load payment system. Please refresh and try again.",
-            variant: "destructive",
-          });
-        }
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    initializePayPal();
+    if (mounted) {
+      initializePayPal();
+    }
 
     return () => {
       mounted = false;
@@ -239,7 +235,7 @@ export const TrialExpiredDialog = () => {
         script.remove();
       }
     };
-  }, [selectedPlan, toast, navigate]);
+  }, [selectedPlan]);
 
   return (
     <Dialog open={true} onOpenChange={() => {}}>
