@@ -69,7 +69,7 @@ export const TrialExpiredDialog = () => {
         if (paypalButtonRef.current && window.paypal) {
           window.paypal.HostedButtons({
             hostedButtonId: buttonId,
-          }).render(paypalButtonRef.current);
+          }).render('#paypal-button-container'); // Using the ID instead of the element
         }
 
         setIsPayPalLoaded(true);
@@ -129,6 +129,7 @@ export const TrialExpiredDialog = () => {
               <div className="w-full h-[45px] bg-muted animate-pulse rounded-md" />
             )}
             <div 
+              id="paypal-button-container"
               ref={paypalButtonRef}
               className="min-h-[45px] w-full"
             />
