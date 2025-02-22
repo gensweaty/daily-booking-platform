@@ -20,13 +20,22 @@ serve(async (req) => {
     const amount = url.searchParams.get('amt');
     const transactionId = url.searchParams.get('tx');
     const currency = url.searchParams.get('cc');
+    const userId = url.searchParams.get('user_id'); // Get user ID from URL params
 
     console.log('Payment verification request received:', {
       status: paymentStatus,
       amount,
       transactionId,
-      currency
+      currency,
+      userId
     });
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: "Missing user ID" }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     if (paymentStatus !== 'COMPLETED') {
       return new Response(
@@ -41,7 +50,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Get PayPal access token
+    // Verify payment with PayPal
     const authResponse = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
       method: "POST",
       headers: {
@@ -72,6 +81,7 @@ serve(async (req) => {
     )
 
     const verificationData = await verificationResponse.json()
+    console.log('PayPal verification response:', verificationData)
     
     if (verificationData.status !== "COMPLETED") {
       return new Response(
@@ -80,15 +90,14 @@ serve(async (req) => {
       )
     }
 
-    // Assuming the first payment will activate a monthly subscription
-    // You may want to adjust this based on your payment amounts
+    // Determine subscription type based on amount
     const subscriptionType = parseFloat(amount) >= 100 ? 'yearly' : 'monthly';
 
-    // Call the database function to activate the subscription
+    // Activate the subscription
     const { error: dbError } = await supabaseAdmin.rpc(
       'activate_subscription',
       { 
-        p_user_id: verificationData.custom_id, // You'll need to pass the user ID in the PayPal button setup
+        p_user_id: userId,
         p_subscription_type: subscriptionType
       }
     )
@@ -101,7 +110,7 @@ serve(async (req) => {
       )
     }
 
-    // Redirect to success page
+    // Redirect to dashboard with success message
     return new Response(
       null,
       {
@@ -116,7 +125,7 @@ serve(async (req) => {
   } catch (err) {
     console.error('Verification error:', err)
     return new Response(
-      JSON.stringify({ error: "Internal server error" }),
+      JSON.stringify({ error: "Internal server error", details: err.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
