@@ -16,3 +16,5 @@ interface PayPalNamespace {
 declare interface Window {
   paypal?: PayPalNamespace;
 }
+
+export {};
