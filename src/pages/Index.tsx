@@ -45,10 +45,38 @@ const Index = () => {
   useSubscriptionRedirect()
 
   useEffect(() => {
+    const checkSubscription = async () => {
+      if (user?.email === 'gensweaty@gmail.com') {
+        try {
+          const { data: subscriptionData, error: subError } = await supabase
+            .from('subscriptions')
+            .select('status, current_period_end')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          console.log('Subscription data:', subscriptionData); // Debug log
+
+          if (!subError && subscriptionData) {
+            const currentPeriodEnd = subscriptionData.current_period_end 
+              ? new Date(subscriptionData.current_period_end)
+              : null;
+            
+            // Show dialog if subscription has expired
+            if (subscriptionData.status === 'expired' || 
+                (currentPeriodEnd && currentPeriodEnd < new Date())) {
+              console.log('Setting showTrialExpired to true'); // Debug log
+              setShowTrialExpired(true);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking subscription:', error);
+        }
+      }
+    };
+
     const getProfile = async () => {
       if (user) {
         try {
-          // First get the profile
           const { data, error } = await supabase
             .from('profiles')
             .select('username')
@@ -64,27 +92,9 @@ const Index = () => {
             setUsername(data.username)
           }
 
-          // Check if this is the specific user we want to show the dialog for
-          if (user.email === 'gensweaty@gmail.com') {
-            // Check their subscription status
-            const { data: subscriptionData, error: subError } = await supabase
-              .from('subscriptions')
-              .select('status, current_period_end')
-              .eq('user_id', user.id)
-              .maybeSingle();
-
-            if (!subError && subscriptionData) {
-              const currentPeriodEnd = subscriptionData.current_period_end 
-                ? new Date(subscriptionData.current_period_end)
-                : null;
-              
-              // Show dialog if subscription has expired
-              if (subscriptionData.status === 'expired' || 
-                  (currentPeriodEnd && currentPeriodEnd < new Date())) {
-                setShowTrialExpired(true);
-              }
-            }
-          }
+          // Check subscription immediately after profile
+          await checkSubscription();
+          
         } catch (error: any) {
           console.error('Profile fetch error:', error)
         }

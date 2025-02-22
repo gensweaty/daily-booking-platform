@@ -25,10 +25,13 @@ export const TrialExpiredDialog = () => {
   };
 
   return (
-    <Dialog open={true} onOpenChange={() => {}}>
+    <Dialog 
+      open={true} 
+      onOpenChange={() => {}} // Empty function to prevent closing
+    >
       <DialogContent 
         className="w-[90vw] max-w-[475px] p-4 sm:p-6" 
-        hideCloseButton={true}
+        hideCloseButton={true} // Hide the close button
       >
         <DialogHeader>
           <DialogTitle className="text-center text-xl sm:text-2xl font-bold">
