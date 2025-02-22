@@ -25,7 +25,7 @@ export const TrialExpiredDialog = () => {
   };
 
   return (
-    <Dialog defaultOpen={true}>
+    <Dialog open={true} onOpenChange={() => {}}>
       <DialogContent 
         className="sm:max-w-[500px]"
         onEscapeKeyDown={(e) => e.preventDefault()}
