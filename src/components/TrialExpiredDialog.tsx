@@ -38,11 +38,11 @@ export const TrialExpiredDialog = () => {
         const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
         existingScripts.forEach(script => script.remove());
 
-        // Create and load PayPal script with the user ID appended to the return URL
+        // Create and load PayPal script
         const script = document.createElement('script');
         const buttonId = selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
         
-        script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+        script.src = `https://www.paypal.com/sdk/js?client-id=ASSEeQ2EOkXAmv_QgbwkIXiY_Tg1TPjqXJ71Ox2fy&components=hosted-buttons&disable-funding=venmo&currency=USD`;
         script.crossOrigin = "anonymous";
         
         // Wait for script to load
@@ -84,11 +84,11 @@ export const TrialExpiredDialog = () => {
           hostedButtonId: buttonId,
           onApprove: async (data: { orderID: string }) => {
             console.log('Payment approved:', data);
-            // The subscription activation will be handled by the verify-paypal-payment endpoint
-            const returnUrl = new URL(window.location.origin);
-            returnUrl.pathname = '/functions/v1/verify-paypal-payment';
-            returnUrl.searchParams.append('user_id', user.id);
-            window.location.href = returnUrl.toString();
+            // The subscription activation will be handled by the webhook
+            toast({
+              title: "Processing payment",
+              description: "Please wait while we process your payment..."
+            });
           }
         }).render('#paypal-button-container');
 
