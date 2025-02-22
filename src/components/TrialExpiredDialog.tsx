@@ -24,10 +24,14 @@ export const TrialExpiredDialog = () => {
     navigate("/dashboard");
   };
 
-  // Force the dialog to be modal and prevent any way to close it
   return (
-    <div className="fixed inset-0 bg-black/80 z-50">
-      <div className="fixed left-[50%] top-[50%] z-50 w-[90vw] max-w-[500px] translate-x-[-50%] translate-y-[-50%] bg-background p-6 shadow-lg rounded-lg">
+    <Dialog open={true} onOpenChange={() => {}}>
+      <DialogContent 
+        className="w-[90vw] max-w-[500px]"
+        hideCloseButton={true}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold text-primary">
             Subscription Required
@@ -56,7 +60,7 @@ export const TrialExpiredDialog = () => {
             />
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
