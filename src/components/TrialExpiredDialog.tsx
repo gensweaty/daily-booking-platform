@@ -63,8 +63,8 @@ export const TrialExpiredDialog = () => {
 
         await loadPayPalScript();
         
-        if (!window.paypal?.Buttons) {
-          throw new Error('PayPal Buttons not available');
+        if (!window.paypal) {
+          throw new Error('PayPal SDK not loaded');
         }
 
         const buttons = window.paypal.Buttons({
@@ -136,19 +136,11 @@ export const TrialExpiredDialog = () => {
                 variant: "destructive",
               });
             }
-          },
-          onError: (error: any) => {
-            console.error('PayPal error:', error);
-            toast({
-              title: "Error",
-              description: "Payment failed. Please try again.",
-              variant: "destructive",
-            });
           }
         });
 
         if (paypalButtonRef.current) {
-          buttons.render(paypalButtonRef.current);
+          await buttons.render(paypalButtonRef.current);
           setIsPayPalLoaded(true);
         }
 
