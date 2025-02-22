@@ -1,5 +1,4 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -7,32 +6,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
-  // Handle CORS preflight requests
+Deno.serve(async (req) => {
+  console.log('PayPal webhook received:', new Date().toISOString());
+  
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    console.log('Creating Supabase client...');
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
     const rawBody = await req.text();
     console.log('Raw webhook payload:', rawBody);
     
-    // Verify webhook signature
-    const webhookId = Deno.env.get('PAYPAL_WEBHOOK_ID');
-    const transmissionId = req.headers.get('paypal-transmission-id');
-    const timestamp = req.headers.get('paypal-transmission-time');
-    const webhookSignature = req.headers.get('paypal-transmission-sig');
-    const certUrl = req.headers.get('paypal-cert-url');
-
-    console.log('Webhook verification details:', {
-      webhookId,
-      transmissionId,
-      timestamp,
-      webhookSignature,
-      certUrl
-    });
-
-    // Parse webhook payload
     let payload;
     try {
       payload = JSON.parse(rawBody);
@@ -45,92 +36,134 @@ serve(async (req) => {
       );
     }
 
-    // Get PayPal access token
-    const authResponse = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: "Basic " + btoa(`${Deno.env.get('PAYPAL_CLIENT_ID')}:${Deno.env.get('PAYPAL_SECRET_KEY')}`),
-      },
-      body: "grant_type=client_credentials",
+    // Extract plan type and user email from payload
+    const planType = payload.plan_type;
+    const payerEmail = payload.resource?.payer?.email_address;
+    const orderId = payload.resource?.id;
+
+    console.log('Processing payment:', {
+      planType,
+      payerEmail,
+      orderId
     });
 
-    const authData = await authResponse.json();
-    if (!authData.access_token) {
-      console.error('PayPal auth error:', authData);
+    if (!planType || !['monthly', 'yearly'].includes(planType)) {
+      console.error('Invalid or missing plan type:', planType);
       return new Response(
-        JSON.stringify({ error: 'Failed to authenticate with PayPal' }),
+        JSON.stringify({ error: 'Invalid plan type' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (!payerEmail) {
+      console.error('No payer email found in payload');
+      return new Response(
+        JSON.stringify({ error: 'No payer email found' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Get user by email
+    const { data: userData, error: userError } = await supabaseClient
+      .from('auth.users')
+      .select('id, email')
+      .eq('email', payerEmail)
+      .maybeSingle();
+
+    if (userError) {
+      console.error('Error finding user:', userError);
+      return new Response(
+        JSON.stringify({ error: 'Database error while finding user' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      )
     }
 
-    // Create Supabase client
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // Handle different webhook events
-    const eventType = payload.event_type;
-    const resourceId = payload.resource.id;
-    
-    console.log('Processing webhook event:', eventType);
-
-    switch (eventType) {
-      case 'CHECKOUT.ORDER.APPROVED':
-      case 'PAYMENT.CAPTURE.COMPLETED': {
-        const userEmail = payload.resource.payer.email_address;
-        const amount = parseFloat(payload.resource.amount.value);
-
-        // Get user by email
-        const { data: userData, error: userError } = await supabaseAdmin
-          .from('profiles')
-          .select('id')
-          .eq('email', userEmail)
-          .single();
-
-        if (userError || !userData) {
-          console.error('Error finding user:', userError);
-          return new Response(
-            JSON.stringify({ error: 'User not found' }),
-            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        // Determine subscription type based on amount
-        const subscriptionType = amount >= 100 ? 'yearly' : 'monthly';
-
-        // Activate subscription
-        const { error: subscriptionError } = await supabaseAdmin.rpc(
-          'activate_subscription',
-          { 
-            p_user_id: userData.id,
-            p_subscription_type: subscriptionType
-          }
-        );
-
-        if (subscriptionError) {
-          console.error('Error activating subscription:', subscriptionError);
-          return new Response(
-            JSON.stringify({ error: 'Failed to activate subscription' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        break;
-      }
+    if (!userData) {
+      console.error('User not found for email:', payerEmail);
+      return new Response(
+        JSON.stringify({ error: 'User not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
+
+    console.log('Found user:', userData);
+
+    // Calculate subscription dates
+    const currentDate = new Date();
+    const nextPeriodEnd = new Date(currentDate);
+    if (planType === 'monthly') {
+      nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1);
+    } else {
+      nextPeriodEnd.setFullYear(nextPeriodEnd.getFullYear() + 1);
+    }
+
+    console.log('Updating subscription for user:', userData.id);
+    console.log('New subscription period:', {
+      start: currentDate.toISOString(),
+      end: nextPeriodEnd.toISOString()
+    });
+
+    // Get the subscription plan ID
+    const { data: planData, error: planError } = await supabaseClient
+      .from('subscription_plans')
+      .select('id')
+      .eq('type', planType)
+      .single();
+
+    if (planError || !planData) {
+      console.error('Error finding subscription plan:', planError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to find subscription plan' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Update subscription with RETURNING * to get the updated record
+    const { data: subscriptionData, error: updateError } = await supabaseClient
+      .from('subscriptions')
+      .upsert({
+        user_id: userData.id,
+        plan_id: planData.id,
+        status: 'active',
+        plan_type: planType,
+        current_period_start: currentDate.toISOString(),
+        current_period_end: nextPeriodEnd.toISOString(),
+        last_payment_id: orderId,
+        trial_end_date: null // Clear trial end date when subscription is activated
+      }, {
+        onConflict: 'user_id'
+      })
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating subscription:', updateError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to update subscription' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    console.log('Successfully processed webhook and updated subscription:', subscriptionData);
 
     return new Response(
-      JSON.stringify({ success: true }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
+      JSON.stringify({ 
+        success: true,
+        message: 'Subscription updated successfully',
+        subscription: subscriptionData
+      }),
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    )
   } catch (error) {
-    console.error('Webhook processing error:', error);
+    console.error('Error processing webhook:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    )
   }
-});
+})

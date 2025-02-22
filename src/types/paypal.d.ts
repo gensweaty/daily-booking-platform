@@ -1,4 +1,3 @@
-
 declare interface Window {
   paypal: {
     HostedButtons: (config: {

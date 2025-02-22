@@ -22,8 +22,6 @@ export const TrialExpiredDialog = () => {
   useEffect(() => {
     const loadAndRenderPayPalButton = async () => {
       try {
-        console.log('Starting PayPal button initialization...');
-        
         // Get current user
         const { data: { user } } = await supabase.auth.getUser();
         
@@ -40,46 +38,57 @@ export const TrialExpiredDialog = () => {
         const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
         existingScripts.forEach(script => script.remove());
 
-        // Create and load PayPal script
+        // Create and load PayPal script with the user ID appended to the return URL
         const script = document.createElement('script');
         const buttonId = selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
-        const clientId = 'ASSEeQ2EOkXAmv_QgbwkIXiY_Tg1TPjqXJ71Ox2fy';
         
-        // Format the URL properly with decoded parameters
-        script.src = 'https://www.paypal.com/sdk/js' +
-          '?client-id=' + clientId +
-          '&components=hosted-buttons' +
-          '&currency=USD';
-          
-        script.async = true;
-        
-        // Create a promise to handle script loading
-        const scriptLoaded = new Promise((resolve, reject) => {
-          script.addEventListener('load', resolve);
-          script.addEventListener('error', () => reject(new Error('Failed to load PayPal SDK')));
-        });
-        
-        // Add script to document
-        document.body.appendChild(script);
+        script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+        script.crossOrigin = "anonymous";
         
         // Wait for script to load
-        await scriptLoaded;
-        
-        console.log('PayPal script loaded, initializing button...');
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = (error) => {
+            console.error('PayPal script loading error:', error);
+            reject(error);
+          };
+          document.body.appendChild(script);
+        });
 
-        // Initialize PayPal button
+        // Wait for PayPal to be ready
+        await new Promise<void>((resolve, reject) => {
+          const maxAttempts = 50;
+          let attempts = 0;
+
+          const checkPayPal = () => {
+            if (window.paypal) {
+              resolve();
+            } else if (attempts >= maxAttempts) {
+              reject(new Error('PayPal SDK failed to load after multiple attempts'));
+            } else {
+              attempts++;
+              setTimeout(checkPayPal, 100);
+            }
+          };
+          checkPayPal();
+        });
+
+        // Ensure PayPal object exists
         if (!window.paypal?.HostedButtons) {
-          throw new Error('PayPal SDK hosted-buttons component not available');
+          throw new Error('PayPal Hosted Buttons component not available');
         }
 
+        console.log('Rendering PayPal button with ID:', buttonId);
+        
         await window.paypal.HostedButtons({
           hostedButtonId: buttonId,
           onApprove: async (data: { orderID: string }) => {
             console.log('Payment approved:', data);
-            toast({
-              title: "Processing payment",
-              description: "Please wait while we process your payment..."
-            });
+            // The subscription activation will be handled by the verify-paypal-payment endpoint
+            const returnUrl = new URL(window.location.origin);
+            returnUrl.pathname = '/functions/v1/verify-paypal-payment';
+            returnUrl.searchParams.append('user_id', user.id);
+            window.location.href = returnUrl.toString();
           }
         }).render('#paypal-button-container');
 
