@@ -20,20 +20,22 @@ export const TrialExpiredDialog = () => {
   const paypalButtonRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
 
-  const loadScript = () => {
-    return new Promise((resolve) => {
-      // First, remove any existing PayPal scripts to ensure clean state
+  const loadPayPalScript = () => {
+    return new Promise<boolean>((resolve) => {
+      // Clean up any existing PayPal scripts
       const existingScripts = document.querySelectorAll('[data-paypal-script]');
       existingScripts.forEach(script => script.remove());
       
+      // Reset PayPal global object
       if (window.paypal) {
         delete (window as any).paypal;
       }
 
       const script = document.createElement('script');
       script.setAttribute('data-paypal-script', '');
-      script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&currency=USD&intent=capture`;
+      script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD`;
       
       let resolved = false;
       
@@ -67,6 +69,15 @@ export const TrialExpiredDialog = () => {
   };
 
   const initializePayPal = async () => {
+    if (!clientId) {
+      toast({
+        title: "Error",
+        description: "PayPal configuration is missing",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       // Clean up any existing buttons
@@ -74,13 +85,11 @@ export const TrialExpiredDialog = () => {
         paypalButtonRef.current.innerHTML = '';
       }
 
-      // Load the PayPal script
-      const scriptLoaded = await loadScript();
+      const scriptLoaded = await loadPayPalScript();
       if (!scriptLoaded || !window.paypal) {
         throw new Error('Failed to load PayPal SDK');
       }
 
-      // Only proceed if we have a container and PayPal is loaded
       if (!paypalButtonRef.current) {
         throw new Error('Button container not found');
       }
@@ -100,6 +109,11 @@ export const TrialExpiredDialog = () => {
             throw new Error('No active session found');
           }
 
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            throw new Error('No authenticated user found');
+          }
+
           const response = await fetch(
             'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-order',
             {
@@ -110,7 +124,8 @@ export const TrialExpiredDialog = () => {
               },
               body: JSON.stringify({
                 plan_type: selectedPlan,
-                amount: amount
+                amount: amount,
+                user_id: user.id
               })
             }
           );
@@ -129,6 +144,11 @@ export const TrialExpiredDialog = () => {
               throw new Error('No active session found');
             }
 
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+              throw new Error('No authenticated user found');
+            }
+
             const response = await fetch(
               'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/verify-paypal-payment',
               {
@@ -139,7 +159,8 @@ export const TrialExpiredDialog = () => {
                 },
                 body: JSON.stringify({
                   order_id: data.orderID,
-                  plan_type: selectedPlan
+                  plan_type: selectedPlan,
+                  user_id: user.id
                 })
               }
             );
