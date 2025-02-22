@@ -1,12 +1,13 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   console.log('PayPal webhook received:', new Date().toISOString());
   
   if (req.method === 'OPTIONS') {
@@ -36,134 +37,88 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Extract plan type and user email from payload
-    const planType = payload.plan_type;
-    const payerEmail = payload.resource?.payer?.email_address;
-    const orderId = payload.resource?.id;
+    // Verify webhook signature
+    const webhookId = Deno.env.get('PAYPAL_WEBHOOK_ID');
+    const paypalHeaders = {
+      'PAYPAL-AUTH-ALGO': req.headers.get('PAYPAL-AUTH-ALGO'),
+      'PAYPAL-CERT-URL': req.headers.get('PAYPAL-CERT-URL'),
+      'PAYPAL-TRANSMISSION-ID': req.headers.get('PAYPAL-TRANSMISSION-ID'),
+      'PAYPAL-TRANSMISSION-SIG': req.headers.get('PAYPAL-TRANSMISSION-SIG'),
+      'PAYPAL-TRANSMISSION-TIME': req.headers.get('PAYPAL-TRANSMISSION-TIME'),
+    };
 
-    console.log('Processing payment:', {
-      planType,
-      payerEmail,
-      orderId
-    });
+    console.log('PayPal headers:', paypalHeaders);
+    console.log('Webhook ID:', webhookId);
 
-    if (!planType || !['monthly', 'yearly'].includes(planType)) {
-      console.error('Invalid or missing plan type:', planType);
-      return new Response(
-        JSON.stringify({ error: 'Invalid plan type' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+    // Extract plan type from payment description or custom field
+    const paymentDetails = payload.resource;
+    console.log('Payment details:', paymentDetails);
 
+    // Get the payer's email
+    const payerEmail = paymentDetails?.payer?.email_address;
     if (!payerEmail) {
-      console.error('No payer email found in payload');
+      console.error('No payer email found in webhook payload');
       return new Response(
-        JSON.stringify({ error: 'No payer email found' }),
+        JSON.stringify({ error: 'Missing payer email' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      );
     }
 
-    // Get user by email
+    // Find user by email
     const { data: userData, error: userError } = await supabaseClient
       .from('auth.users')
-      .select('id, email')
+      .select('id')
       .eq('email', payerEmail)
-      .maybeSingle();
+      .single();
 
-    if (userError) {
+    if (userError || !userData) {
       console.error('Error finding user:', userError);
-      return new Response(
-        JSON.stringify({ error: 'Database error while finding user' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    if (!userData) {
-      console.error('User not found for email:', payerEmail);
       return new Response(
         JSON.stringify({ error: 'User not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      );
     }
 
-    console.log('Found user:', userData);
+    // Determine subscription type from payment amount
+    // Assuming monthly is less expensive than yearly
+    const amount = parseFloat(paymentDetails?.amount?.value || '0');
+    const planType = amount <= 10 ? 'monthly' : 'yearly';
 
-    // Calculate subscription dates
-    const currentDate = new Date();
-    const nextPeriodEnd = new Date(currentDate);
-    if (planType === 'monthly') {
-      nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1);
-    } else {
-      nextPeriodEnd.setFullYear(nextPeriodEnd.getFullYear() + 1);
-    }
-
-    console.log('Updating subscription for user:', userData.id);
-    console.log('New subscription period:', {
-      start: currentDate.toISOString(),
-      end: nextPeriodEnd.toISOString()
+    console.log('Activating subscription:', {
+      userId: userData.id,
+      planType,
+      amount
     });
 
-    // Get the subscription plan ID
-    const { data: planData, error: planError } = await supabaseClient
-      .from('subscription_plans')
-      .select('id')
-      .eq('type', planType)
-      .single();
+    // Call the activate_subscription function
+    const { data: subscriptionData, error: subscriptionError } = await supabaseClient.rpc(
+      'activate_subscription',
+      {
+        p_user_id: userData.id,
+        p_subscription_type: planType
+      }
+    );
 
-    if (planError || !planData) {
-      console.error('Error finding subscription plan:', planError);
+    if (subscriptionError) {
+      console.error('Error activating subscription:', subscriptionError);
       return new Response(
-        JSON.stringify({ error: 'Failed to find subscription plan' }),
+        JSON.stringify({ error: 'Failed to activate subscription' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      );
     }
 
-    // Update subscription with RETURNING * to get the updated record
-    const { data: subscriptionData, error: updateError } = await supabaseClient
-      .from('subscriptions')
-      .upsert({
-        user_id: userData.id,
-        plan_id: planData.id,
-        status: 'active',
-        plan_type: planType,
-        current_period_start: currentDate.toISOString(),
-        current_period_end: nextPeriodEnd.toISOString(),
-        last_payment_id: orderId,
-        trial_end_date: null // Clear trial end date when subscription is activated
-      }, {
-        onConflict: 'user_id'
-      })
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error('Error updating subscription:', updateError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to update subscription' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    console.log('Successfully processed webhook and updated subscription:', subscriptionData);
+    console.log('Subscription activated successfully:', subscriptionData);
 
     return new Response(
-      JSON.stringify({ 
-        success: true,
-        message: 'Subscription updated successfully',
-        subscription: subscriptionData
-      }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
-      }
-    )
+      JSON.stringify({ success: true }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
   } catch (error) {
-    console.error('Error processing webhook:', error);
+    console.error('Webhook processing error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    );
   }
 })
