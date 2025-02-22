@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -33,10 +33,8 @@ serve(async (req) => {
     );
 
     // Parse request body
-    const requestBody = await req.json();
-    console.log('Request body:', requestBody);
-
-    const { user_id, plan_type, order_id } = requestBody;
+    const { user_id, plan_type, order_id } = await req.json();
+    console.log('Request payload:', { user_id, plan_type, order_id });
 
     if (!user_id || !plan_type || !order_id) {
       console.error('Missing required fields:', { user_id, plan_type, order_id });
@@ -94,9 +92,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Activating subscription for user:', user_id);
-
-    // Activate subscription
+    // Call the activate_subscription function
     const { data: subscriptionData, error: subscriptionError } = await supabaseAdmin.rpc(
       'activate_subscription',
       {
