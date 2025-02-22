@@ -1,10 +1,11 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { SubscriptionPlanSelect } from "./subscription/SubscriptionPlanSelect";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +13,8 @@ import { useNavigate } from "react-router-dom";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
+  const [isPayPalLoaded, setIsPayPalLoaded] = useState(false);
+  const paypalButtonRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -24,45 +27,73 @@ export const TrialExpiredDialog = () => {
   };
 
   useEffect(() => {
-    // Remove any existing PayPal script
-    const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
-    if (existingScript) {
-      existingScript.remove();
-    }
+    const loadAndRenderPayPalButton = async () => {
+      // Clear any existing PayPal elements
+      if (paypalButtonRef.current) {
+        paypalButtonRef.current.innerHTML = '';
+      }
 
-    // Create new script element
-    const script = document.createElement('script');
-    script.src = "https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD";
-    script.crossOrigin = "anonymous";
-    script.async = true;
+      // Remove any existing PayPal scripts
+      const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
+      if (existingScript) {
+        existingScript.remove();
+      }
 
-    // Add the initialization script
-    const initScript = document.createElement('script');
-    initScript.textContent = `
-      document.addEventListener("DOMContentLoaded", (event) => {
-        if (window.paypal) {
-          paypal.HostedButtons({
-            hostedButtonId: "SZHF9WLR5RQWU"
-          }).render("#paypal-container-SZHF9WLR5RQWU")
+      try {
+        // Create and load PayPal script
+        const script = document.createElement('script');
+        script.src = "https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD";
+        script.async = true;
+        
+        // Wait for script to load
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = reject;
+          document.body.appendChild(script);
+        });
+
+        // Wait for PayPal to be ready
+        await new Promise<void>((resolve) => {
+          const checkPayPal = () => {
+            if (window.paypal) {
+              resolve();
+            } else {
+              setTimeout(checkPayPal, 100);
+            }
+          };
+          checkPayPal();
+        });
+
+        // Render the button
+        const buttonId = selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
+        if (paypalButtonRef.current && window.paypal) {
+          window.paypal.HostedButtons({
+            hostedButtonId: buttonId,
+          }).render(paypalButtonRef.current);
         }
-      })
-    `;
 
-    // Add scripts to document
-    document.body.appendChild(script);
-    document.body.appendChild(initScript);
+        setIsPayPalLoaded(true);
+      } catch (error) {
+        console.error('PayPal loading error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load payment system. Please try again.",
+          variant: "destructive",
+        });
+      }
+    };
 
-    // Cleanup function
+    loadAndRenderPayPalButton();
+
+    // Cleanup
     return () => {
       const scripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
       scripts.forEach(script => script.remove());
-      initScript.remove();
-      const container = document.getElementById('paypal-container-SZHF9WLR5RQWU');
-      if (container) {
-        container.innerHTML = '';
+      if (paypalButtonRef.current) {
+        paypalButtonRef.current.innerHTML = '';
       }
     };
-  }, []); // Run only once on mount
+  }, [selectedPlan, toast]); // Reload when plan changes or toast changes
 
   return (
     <Dialog open={true} onOpenChange={() => {}}>
@@ -76,14 +107,14 @@ export const TrialExpiredDialog = () => {
           <DialogTitle className="text-center text-2xl font-bold text-primary">
             Subscription Required
           </DialogTitle>
+          <DialogDescription className="text-center">
+            To continue using our services, please select a subscription plan below.
+          </DialogDescription>
         </DialogHeader>
         <div className="mt-6 space-y-6">
           <div className="text-center space-y-2">
             <p className="text-lg font-medium text-foreground">
               Your access has expired
-            </p>
-            <p className="text-sm text-muted-foreground">
-              To continue using our services, please select a subscription plan below.
             </p>
           </div>
           <div className="p-4 bg-muted/50 rounded-lg">
@@ -94,7 +125,13 @@ export const TrialExpiredDialog = () => {
             />
           </div>
           <div className="pt-4">
-            <div id="paypal-container-SZHF9WLR5RQWU" className="min-h-[45px] w-full" />
+            {!isPayPalLoaded && (
+              <div className="w-full h-[45px] bg-muted animate-pulse rounded-md" />
+            )}
+            <div 
+              ref={paypalButtonRef}
+              className="min-h-[45px] w-full"
+            />
           </div>
         </div>
       </DialogContent>
