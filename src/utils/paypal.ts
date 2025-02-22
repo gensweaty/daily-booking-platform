@@ -1,3 +1,4 @@
+
 export const loadPayPalScript = async (clientId: string): Promise<void> => {
   console.log('Starting PayPal script load...');
   
@@ -10,7 +11,7 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
 
     const script = document.createElement('script');
     script.id = 'paypal-script';
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD`;
     script.async = true;
 
     script.onload = () => {
@@ -29,10 +30,12 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
 
 export const renderPayPalButton = async (
   containerId: string,
-  buttonId: string,
-  onSuccess: (data: { orderID: string }) => Promise<void>
+  options: {
+    createOrder: () => Promise<string>;
+    onApprove: (data: { orderID: string }) => Promise<void>;
+  }
 ): Promise<void> => {
-  console.log('Rendering PayPal button...', { containerId, buttonId });
+  console.log('Rendering PayPal button...', { containerId });
   
   if (!window.paypal) {
     throw new Error('PayPal SDK not loaded');
@@ -47,19 +50,12 @@ export const renderPayPalButton = async (
   container.innerHTML = '';
 
   try {
-    await window.paypal.HostedButtons({
-      hostedButtonId: buttonId,
-      onApprove: async (data: { orderID: string }) => {
-        console.log('Payment approved:', data);
-        try {
-          await onSuccess(data);
-        } catch (error) {
-          console.error('Error in onSuccess callback:', error);
-          throw error;
-        }
-      }
-    }).render(`#${containerId}`);
+    const buttons = window.paypal.Buttons({
+      createOrder: options.createOrder,
+      onApprove: options.onApprove
+    });
     
+    await buttons.render(container);
     console.log('PayPal button rendered successfully');
   } catch (error) {
     console.error('Error rendering PayPal button:', error);
