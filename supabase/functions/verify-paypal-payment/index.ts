@@ -1,132 +1,134 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Parse URL parameters
-    const url = new URL(req.url);
-    const paymentStatus = url.searchParams.get('st');
-    const amount = url.searchParams.get('amt');
-    const transactionId = url.searchParams.get('tx');
-    const currency = url.searchParams.get('cc');
-    const userId = url.searchParams.get('user_id'); // Get user ID from URL params
+    console.log('Payment verification request received');
 
-    console.log('Payment verification request received:', {
-      status: paymentStatus,
-      amount,
-      transactionId,
-      currency,
-      userId
-    });
-
-    if (!userId) {
+    // Verify authorization header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      console.error('Missing authorization header');
       return new Response(
-        JSON.stringify({ error: "Missing user ID" }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    if (paymentStatus !== 'COMPLETED') {
-      return new Response(
-        JSON.stringify({ error: "Payment not completed" }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Create Supabase client using service role key for admin access
+    // Create Supabase client
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    );
 
-    // Verify payment with PayPal
-    const authResponse = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: "Basic " + btoa(`${Deno.env.get('PAYPAL_CLIENT_ID')}:${Deno.env.get('PAYPAL_SECRET_KEY')}`),
-      },
-      body: "grant_type=client_credentials",
-    })
+    // Parse request body
+    const requestBody = await req.json();
+    console.log('Request body:', requestBody);
 
-    const authData = await authResponse.json()
-    
-    if (!authData.access_token) {
-      console.error('PayPal auth error:', authData)
+    const { user_id, plan_type, order_id } = requestBody;
+
+    if (!user_id || !plan_type || !order_id) {
+      console.error('Missing required fields:', { user_id, plan_type, order_id });
       return new Response(
-        JSON.stringify({ error: "Failed to authenticate with PayPal" }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+        JSON.stringify({ error: 'Missing required fields' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Verify transaction with PayPal
-    const verificationResponse = await fetch(
-      `https://api-m.paypal.com/v2/payments/captures/${transactionId}`,
+    // Get PayPal access token
+    const tokenResponse = await fetch('https://api-m.paypal.com/v1/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Accept-Language': 'en_US',
+        'Authorization': 'Basic ' + btoa(`${Deno.env.get('PAYPAL_CLIENT_ID')}:${Deno.env.get('PAYPAL_SECRET_KEY')}`),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials'
+    });
+
+    const tokenData = await tokenResponse.json();
+    console.log('PayPal token response status:', tokenResponse.status);
+
+    if (!tokenResponse.ok) {
+      console.error('Failed to get PayPal access token:', tokenData);
+      return new Response(
+        JSON.stringify({ error: 'Failed to authenticate with PayPal' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify order with PayPal
+    const orderResponse = await fetch(
+      `https://api-m.paypal.com/v2/checkout/orders/${order_id}`,
       {
         headers: {
-          Authorization: `Bearer ${authData.access_token}`,
+          'Authorization': `Bearer ${tokenData.access_token}`,
+          'Content-Type': 'application/json',
         },
       }
-    )
+    );
 
-    const verificationData = await verificationResponse.json()
-    console.log('PayPal verification response:', verificationData)
-    
-    if (verificationData.status !== "COMPLETED") {
+    const orderData = await orderResponse.json();
+    console.log('PayPal order verification response:', {
+      status: orderResponse.status,
+      order: orderData
+    });
+
+    if (!orderResponse.ok || orderData.status !== 'COMPLETED') {
+      console.error('Invalid PayPal order:', orderData);
       return new Response(
-        JSON.stringify({ error: "Transaction verification failed" }),
+        JSON.stringify({ error: 'Invalid PayPal order' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      );
     }
 
-    // Determine subscription type based on amount
-    const subscriptionType = parseFloat(amount) >= 100 ? 'yearly' : 'monthly';
+    console.log('Activating subscription for user:', user_id);
 
-    // Activate the subscription
-    const { error: dbError } = await supabaseAdmin.rpc(
+    // Activate subscription
+    const { data: subscriptionData, error: subscriptionError } = await supabaseAdmin.rpc(
       'activate_subscription',
-      { 
-        p_user_id: userId,
-        p_subscription_type: subscriptionType
+      {
+        p_user_id: user_id,
+        p_subscription_type: plan_type
       }
-    )
+    );
 
-    if (dbError) {
-      console.error('Database error:', dbError)
+    if (subscriptionError) {
+      console.error('Failed to activate subscription:', subscriptionError);
       return new Response(
-        JSON.stringify({ error: "Failed to activate subscription" }),
+        JSON.stringify({ error: 'Failed to activate subscription', details: subscriptionError }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      );
     }
 
-    // Redirect to dashboard with success message
-    return new Response(
-      null,
-      {
-        status: 302,
-        headers: {
-          ...corsHeaders,
-          'Location': '/dashboard?payment=success'
-        }
-      }
-    )
+    console.log('Subscription activated successfully:', subscriptionData);
 
-  } catch (err) {
-    console.error('Verification error:', err)
     return new Response(
-      JSON.stringify({ error: "Internal server error", details: err.message }),
+      JSON.stringify({ 
+        success: true,
+        message: 'Payment verified and subscription activated',
+        data: subscriptionData
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Payment verification error:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    );
   }
-})
+});

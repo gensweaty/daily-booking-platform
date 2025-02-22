@@ -22,25 +22,23 @@ export const TrialExpiredDialog = () => {
   useEffect(() => {
     const loadAndRenderPayPalButton = async () => {
       try {
-        // Get current user
         const { data: { user } } = await supabase.auth.getUser();
+        console.log('Current user:', user?.id);
         
         if (!user) {
           throw new Error('No authenticated user found');
         }
 
-        // Clear any existing PayPal elements
         if (paypalButtonRef.current) {
           paypalButtonRef.current.innerHTML = '';
         }
 
-        // Remove any existing PayPal scripts
         const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
         existingScripts.forEach(script => script.remove());
 
-        // Create and load PayPal script
         const script = document.createElement('script');
         const buttonId = selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
+        console.log('Selected plan:', selectedPlan, 'Button ID:', buttonId);
         
         script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
         script.crossOrigin = "anonymous";
@@ -66,25 +64,27 @@ export const TrialExpiredDialog = () => {
         if (!window.paypal?.HostedButtons) {
           throw new Error('PayPal Hosted Buttons component not available');
         }
-
-        console.log('Rendering PayPal button with ID:', buttonId);
         
         await window.paypal.HostedButtons({
           hostedButtonId: buttonId,
           onApprove: async (data: { orderID: string }) => {
-            console.log('Payment approved:', data);
+            console.log('PayPal payment approved. Order ID:', data.orderID);
             
             try {
-              // Get the current session for authentication
+              console.log('Getting current session...');
               const { data: { session } } = await supabase.auth.getSession();
               
               if (!session) {
+                console.error('No active session found');
                 throw new Error('No active session found');
               }
 
-              console.log('Verifying payment with session token:', session.access_token);
+              console.log('Verifying payment...', {
+                userId: session.user.id,
+                planType: selectedPlan,
+                orderId: data.orderID
+              });
 
-              // Call the verification endpoint with explicit authorization
               const response = await fetch(
                 'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/verify-paypal-payment',
                 {
@@ -101,13 +101,21 @@ export const TrialExpiredDialog = () => {
                 }
               );
 
+              console.log('Verification response status:', response.status);
               const result = await response.json();
-              console.log('Payment verification response:', result);
+              console.log('Verification response body:', result);
 
               if (!response.ok) {
-                throw new Error(result.error || 'Failed to verify payment');
+                console.error('Payment verification failed:', {
+                  status: response.status,
+                  statusText: response.statusText,
+                  result
+                });
+                throw new Error(result.error || `Verification failed with status ${response.status}`);
               }
 
+              console.log('Payment verified successfully:', result);
+              
               toast({
                 title: "Success",
                 description: "Subscription activated successfully!",
@@ -119,7 +127,7 @@ export const TrialExpiredDialog = () => {
               console.error('Payment verification error:', error);
               toast({
                 title: "Error",
-                description: "Payment verification failed. Please contact support.",
+                description: `Payment verification failed: ${error.message}. Please contact support.`,
                 variant: "destructive",
               });
             }
