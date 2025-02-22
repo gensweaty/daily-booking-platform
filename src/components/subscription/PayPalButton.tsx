@@ -36,7 +36,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         // @ts-ignore
         if (!window.paypal) {
           const script = document.createElement('script');
-          script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&vault=true&intent=subscription`;
+          script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+          script.crossOrigin = "anonymous";
           script.async = true;
           
           await new Promise((resolve, reject) => {
@@ -56,72 +57,15 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         // @ts-ignore
-        if (!window.paypal?.Buttons) {
-          throw new Error('PayPal Buttons not available');
+        if (!window.paypal?.HostedButtons) {
+          throw new Error('PayPal HostedButtons not available');
         }
 
         console.log('Initializing PayPal button');
 
         // @ts-ignore
-        window.paypal.Buttons({
-          style: {
-            shape: 'rect',
-            color: 'gold',
-            layout: 'vertical',
-            label: 'subscribe'
-          },
-          createSubscription: (data: any, actions: any) => {
-            return actions.subscription.create({
-              'plan_id': planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L'
-            });
-          },
-          onApprove: async (data: any) => {
-            console.log('Subscription approved:', data);
-            
-            try {
-              const { error: verificationError } = await supabase.functions.invoke(
-                'verify-paypal-payment',
-                {
-                  body: { 
-                    userId: user?.id,
-                    subscription: data.subscriptionID
-                  }
-                }
-              );
-
-              if (verificationError) {
-                throw verificationError;
-              }
-
-              toast({
-                title: "Success",
-                description: "Your subscription has been activated!",
-              });
-
-              if (onSuccess) {
-                onSuccess(data.subscriptionID);
-              }
-
-              // Reload the page to update subscription state
-              window.location.reload();
-
-            } catch (error) {
-              console.error('Subscription verification error:', error);
-              toast({
-                title: "Error",
-                description: "Failed to verify subscription. Please contact support.",
-                variant: "destructive",
-              });
-            }
-          },
-          onError: (err: any) => {
-            console.error('PayPal error:', err);
-            toast({
-              title: "Error",
-              description: "There was a problem with the payment. Please try again.",
-              variant: "destructive",
-            });
-          }
+        window.paypal.HostedButtons({
+          hostedButtonId: planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L'
         }).render(`#${containerId}`);
 
         console.log('PayPal button rendered successfully');
@@ -153,7 +97,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         buttonRef.current.innerHTML = '';
       }
     };
-  }, [user, planType, onSuccess, containerId, toast]);
+  }, [user, planType, containerId, toast]);
 
   return <div id={containerId} ref={buttonRef} />;
 };
