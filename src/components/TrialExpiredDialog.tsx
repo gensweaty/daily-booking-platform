@@ -10,6 +10,7 @@ import {
 import { SubscriptionPlanSelect } from "./subscription/SubscriptionPlanSelect";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
@@ -29,6 +30,13 @@ export const TrialExpiredDialog = () => {
   useEffect(() => {
     const loadAndRenderPayPalButton = async () => {
       try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          throw new Error('No authenticated user found');
+        }
+
         // Clear any existing PayPal elements
         if (paypalButtonRef.current) {
           paypalButtonRef.current.innerHTML = '';
@@ -87,7 +95,7 @@ export const TrialExpiredDialog = () => {
         
         await window.paypal.HostedButtons({
           hostedButtonId: buttonId,
-          onApprove: (data: { orderID: string }) => {
+          onApprove: async (data: { orderID: string }) => {
             console.log('Payment approved:', data);
             handleSubscriptionSuccess(data.orderID);
           }

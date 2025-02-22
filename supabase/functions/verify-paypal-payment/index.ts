@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -7,19 +8,38 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { userId, subscription } = await req.json()
+    // Parse URL parameters
+    const url = new URL(req.url);
+    const paymentStatus = url.searchParams.get('st');
+    const amount = url.searchParams.get('amt');
+    const transactionId = url.searchParams.get('tx');
+    const currency = url.searchParams.get('cc');
 
-    if (!userId || !subscription) {
+    console.log('Payment verification request received:', {
+      status: paymentStatus,
+      amount,
+      transactionId,
+      currency
+    });
+
+    if (paymentStatus !== 'COMPLETED') {
       return new Response(
-        JSON.stringify({ error: "Missing userId or subscription" }),
+        JSON.stringify({ error: "Payment not completed" }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    // Create Supabase client using service role key for admin access
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
 
     // Get PayPal access token
     const authResponse = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
@@ -41,9 +61,9 @@ serve(async (req) => {
       )
     }
 
-    // Verify subscription with PayPal
-    const subscriptionResponse = await fetch(
-      `https://api-m.paypal.com/v1/billing/subscriptions/${subscription}`,
+    // Verify transaction with PayPal
+    const verificationResponse = await fetch(
+      `https://api-m.paypal.com/v2/payments/captures/${transactionId}`,
       {
         headers: {
           Authorization: `Bearer ${authData.access_token}`,
@@ -51,43 +71,46 @@ serve(async (req) => {
       }
     )
 
-    const subscriptionData = await subscriptionResponse.json()
+    const verificationData = await verificationResponse.json()
     
-    if (subscriptionData.status !== "ACTIVE") {
+    if (verificationData.status !== "COMPLETED") {
       return new Response(
-        JSON.stringify({ error: "Subscription is not active" }),
+        JSON.stringify({ error: "Transaction verification failed" }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Create Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    // Assuming the first payment will activate a monthly subscription
+    // You may want to adjust this based on your payment amounts
+    const subscriptionType = parseFloat(amount) >= 100 ? 'yearly' : 'monthly';
 
-    // Update subscription in database
-    const { error: dbError } = await supabaseClient
-      .from('subscriptions')
-      .update({
-        status: 'active',
-        current_period_start: new Date().toISOString(),
-        current_period_end: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString(),
-        last_payment_id: subscription
-      })
-      .eq('user_id', userId)
+    // Call the database function to activate the subscription
+    const { error: dbError } = await supabaseAdmin.rpc(
+      'activate_subscription',
+      { 
+        p_user_id: verificationData.custom_id, // You'll need to pass the user ID in the PayPal button setup
+        p_subscription_type: subscriptionType
+      }
+    )
 
     if (dbError) {
       console.error('Database error:', dbError)
       return new Response(
-        JSON.stringify({ error: "Failed to update subscription" }),
+        JSON.stringify({ error: "Failed to activate subscription" }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    // Redirect to success page
     return new Response(
-      JSON.stringify({ message: "Subscription verified and activated" }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      null,
+      {
+        status: 302,
+        headers: {
+          ...corsHeaders,
+          'Location': '/dashboard?payment=success'
+        }
+      }
     )
 
   } catch (err) {
