@@ -24,35 +24,39 @@ export const TrialExpiredDialog = () => {
     navigate("/dashboard");
   };
 
+  // Force the dialog to be modal and prevent any way to close it
   return (
-    <Dialog 
-      open={true} 
-      onOpenChange={() => {}} // Empty function to prevent closing
-    >
-      <DialogContent 
-        className="w-[90vw] max-w-[475px] p-4 sm:p-6" 
-        hideCloseButton={true} // Hide the close button
-      >
+    <div className="fixed inset-0 bg-black/80 z-50">
+      <div className="fixed left-[50%] top-[50%] z-50 w-[90vw] max-w-[500px] translate-x-[-50%] translate-y-[-50%] bg-background p-6 shadow-lg rounded-lg">
         <DialogHeader>
-          <DialogTitle className="text-center text-xl sm:text-2xl font-bold">
+          <DialogTitle className="text-center text-2xl font-bold text-primary">
             Subscription Required
           </DialogTitle>
         </DialogHeader>
-        <div className="mt-4 space-y-6 px-2 sm:px-4">
-          <p className="text-center text-sm sm:text-base text-muted-foreground">
-            Your subscription has expired. Please select a plan to continue using our services.
-          </p>
-          <SubscriptionPlanSelect
-            selectedPlan={selectedPlan}
-            setSelectedPlan={setSelectedPlan}
-            isLoading={false}
-          />
-          <PayPalSubscribeButton 
-            planType={selectedPlan}
-            onSuccess={handleSubscriptionSuccess}
-          />
+        <div className="mt-6 space-y-6">
+          <div className="text-center space-y-2">
+            <p className="text-lg font-medium text-foreground">
+              Your access has expired
+            </p>
+            <p className="text-sm text-muted-foreground">
+              To continue using our services, please select a subscription plan below.
+            </p>
+          </div>
+          <div className="p-4 bg-muted/50 rounded-lg">
+            <SubscriptionPlanSelect
+              selectedPlan={selectedPlan}
+              setSelectedPlan={setSelectedPlan}
+              isLoading={false}
+            />
+          </div>
+          <div className="pt-4">
+            <PayPalSubscribeButton 
+              planType={selectedPlan}
+              onSuccess={handleSubscriptionSuccess}
+            />
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 };

@@ -45,34 +45,11 @@ const Index = () => {
   useSubscriptionRedirect()
 
   useEffect(() => {
-    const checkSubscription = async () => {
-      if (user?.email === 'gensweaty@gmail.com') {
-        try {
-          const { data: subscriptionData, error: subError } = await supabase
-            .from('subscriptions')
-            .select('status, current_period_end')
-            .eq('user_id', user.id)
-            .maybeSingle();
-
-          console.log('Subscription data:', subscriptionData); // Debug log
-
-          if (!subError && subscriptionData) {
-            const currentPeriodEnd = subscriptionData.current_period_end 
-              ? new Date(subscriptionData.current_period_end)
-              : null;
-            
-            // Show dialog if subscription has expired
-            if (subscriptionData.status === 'expired' || 
-                (currentPeriodEnd && currentPeriodEnd < new Date())) {
-              console.log('Setting showTrialExpired to true'); // Debug log
-              setShowTrialExpired(true);
-            }
-          }
-        } catch (error) {
-          console.error('Error checking subscription:', error);
-        }
-      }
-    };
+    // Immediately check if this is our target user
+    if (user?.email === 'gensweaty@gmail.com') {
+      console.log('Target user detected, showing subscription dialog');
+      setShowTrialExpired(true);
+    }
 
     const getProfile = async () => {
       if (user) {
@@ -91,10 +68,6 @@ const Index = () => {
           if (data) {
             setUsername(data.username)
           }
-
-          // Check subscription immediately after profile
-          await checkSubscription();
-          
         } catch (error: any) {
           console.error('Profile fetch error:', error)
         }
@@ -111,15 +84,7 @@ const Index = () => {
       initial="hidden"
       animate="visible"
     >
-      {showTrialExpired && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-        >
-          <TrialExpiredDialog />
-        </motion.div>
-      )}
+      {showTrialExpired && <TrialExpiredDialog />}
       <motion.div variants={childVariants}>
         <DashboardHeader username={username} />
       </motion.div>
