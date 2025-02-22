@@ -87,13 +87,9 @@ export const TrialExpiredDialog = () => {
         
         await window.paypal.HostedButtons({
           hostedButtonId: buttonId,
-          onError: (err: any) => {
-            console.error('PayPal button error:', err);
-            toast({
-              title: "Error",
-              description: "Failed to load payment button. Please try again.",
-              variant: "destructive",
-            });
+          onApprove: (data: { orderID: string }) => {
+            console.log('Payment approved:', data);
+            handleSubscriptionSuccess(data.orderID);
           }
         }).render('#paypal-button-container');
 
@@ -121,7 +117,7 @@ export const TrialExpiredDialog = () => {
         paypalButtonRef.current.innerHTML = '';
       }
     };
-  }, [selectedPlan, toast]);
+  }, [selectedPlan, toast, navigate]);
 
   return (
     <Dialog open={true} onOpenChange={() => {}}>
