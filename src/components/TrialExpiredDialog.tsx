@@ -42,13 +42,11 @@ export const TrialExpiredDialog = () => {
         const script = document.createElement('script');
         const buttonId = selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
         
-        // Set proper script attributes for CORS
         script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
         script.crossOrigin = "anonymous";
         script.async = true;
         script.defer = true;
         
-        // Wait for script to load with proper error handling
         await new Promise((resolve, reject) => {
           script.addEventListener('load', () => {
             console.log('PayPal script loaded successfully');
@@ -63,10 +61,8 @@ export const TrialExpiredDialog = () => {
           document.head.appendChild(script);
         });
 
-        // Short delay to ensure PayPal object is initialized
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Ensure PayPal object exists
         if (!window.paypal?.HostedButtons) {
           throw new Error('PayPal Hosted Buttons component not available');
         }
@@ -86,28 +82,37 @@ export const TrialExpiredDialog = () => {
                 throw new Error('No active session found');
               }
 
-              // Call the verification endpoint with proper authentication
-              const response = await supabase.functions.invoke('verify-paypal-payment', {
-                method: 'POST',
-                body: JSON.stringify({
-                  user_id: session.user.id,
-                  plan_type: selectedPlan,
-                  order_id: data.orderID
-                })
-              });
+              console.log('Verifying payment with session token:', session.access_token);
 
-              if (response.error) {
-                throw new Error(response.error.message || 'Failed to verify payment');
+              // Call the verification endpoint with explicit authorization
+              const response = await fetch(
+                'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/verify-paypal-payment',
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                  },
+                  body: JSON.stringify({
+                    user_id: session.user.id,
+                    plan_type: selectedPlan,
+                    order_id: data.orderID
+                  })
+                }
+              );
+
+              const result = await response.json();
+              console.log('Payment verification response:', result);
+
+              if (!response.ok) {
+                throw new Error(result.error || 'Failed to verify payment');
               }
 
-              console.log('Payment verification response:', response.data);
-              
               toast({
                 title: "Success",
                 description: "Subscription activated successfully!",
               });
               
-              // Redirect to dashboard after successful payment
               navigate('/dashboard');
               
             } catch (error) {
@@ -137,7 +142,6 @@ export const TrialExpiredDialog = () => {
 
     loadAndRenderPayPalButton();
 
-    // Cleanup
     return () => {
       const scripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
       scripts.forEach(script => script.remove());
