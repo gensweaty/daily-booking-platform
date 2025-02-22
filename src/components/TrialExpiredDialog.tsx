@@ -16,12 +16,43 @@ export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
   const [isPayPalLoaded, setIsPayPalLoaded] = useState(false);
   const paypalButtonRef = useRef<HTMLDivElement>(null);
-  const scriptLoadedRef = useRef(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const loadAndRenderPayPalButton = async () => {
+    let scriptElement: HTMLScriptElement | null = null;
+
+    const loadPayPalScript = () => {
+      return new Promise<void>((resolve, reject) => {
+        // Remove any existing PayPal buttons
+        if (paypalButtonRef.current) {
+          paypalButtonRef.current.innerHTML = '';
+        }
+
+        // Remove any existing PayPal scripts
+        const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
+        existingScripts.forEach(script => script.remove());
+
+        // Create new script
+        scriptElement = document.createElement('script');
+        scriptElement.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+        scriptElement.async = true;
+
+        scriptElement.onload = () => {
+          console.log('PayPal script loaded successfully');
+          resolve();
+        };
+
+        scriptElement.onerror = (error) => {
+          console.error('PayPal script loading error:', error);
+          reject(error);
+        };
+
+        document.head.appendChild(scriptElement);
+      });
+    };
+
+    const renderPayPalButton = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         console.log('Current user:', user?.id);
@@ -30,69 +61,30 @@ export const TrialExpiredDialog = () => {
           throw new Error('No authenticated user found');
         }
 
-        // Clear existing PayPal button
-        if (paypalButtonRef.current) {
-          paypalButtonRef.current.innerHTML = '';
-        }
-
         const buttonId = selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
         console.log('Selected plan:', selectedPlan, 'Button ID:', buttonId);
 
-        // Only load the script once
-        if (!scriptLoadedRef.current) {
-          // Remove any existing PayPal scripts first
-          const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
-          existingScripts.forEach(script => script.remove());
-
-          const script = document.createElement('script');
-          script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
-          script.crossOrigin = "anonymous";
-          script.async = true;
-          script.defer = true;
-
-          await new Promise((resolve, reject) => {
-            script.addEventListener('load', () => {
-              console.log('PayPal script loaded successfully');
-              scriptLoadedRef.current = true;
-              resolve(undefined);
-            });
-            
-            script.addEventListener('error', (error) => {
-              console.error('PayPal script loading error:', error);
-              reject(error);
-            });
-            
-            document.head.appendChild(script);
-          });
-
-          // Give PayPal time to initialize
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+        await loadPayPalScript();
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         if (!window.paypal?.HostedButtons) {
           throw new Error('PayPal Hosted Buttons component not available');
         }
 
-        // Render the PayPal button
+        if (!paypalButtonRef.current) {
+          throw new Error('PayPal button container not found');
+        }
+
         await window.paypal.HostedButtons({
           hostedButtonId: buttonId,
           onApprove: async (data: { orderID: string }) => {
             console.log('PayPal payment approved. Order ID:', data.orderID);
             
             try {
-              console.log('Getting current session...');
               const { data: { session } } = await supabase.auth.getSession();
-              
               if (!session) {
-                console.error('No active session found');
                 throw new Error('No active session found');
               }
-
-              console.log('Verifying payment...', {
-                userId: session.user.id,
-                planType: selectedPlan,
-                orderId: data.orderID
-              });
 
               const response = await fetch(
                 'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/verify-paypal-payment',
@@ -110,16 +102,11 @@ export const TrialExpiredDialog = () => {
                 }
               );
 
-              console.log('Verification response status:', response.status);
               const result = await response.json();
-              console.log('Verification response body:', result);
-
               if (!response.ok) {
                 throw new Error(result.error || `Verification failed with status ${response.status}`);
               }
 
-              console.log('Payment verified successfully:', result);
-              
               toast({
                 title: "Success",
                 description: "Subscription activated successfully!",
@@ -127,7 +114,7 @@ export const TrialExpiredDialog = () => {
               
               navigate('/dashboard');
               
-            } catch (error) {
+            } catch (error: any) {
               console.error('Payment verification error:', error);
               toast({
                 title: "Error",
@@ -139,9 +126,8 @@ export const TrialExpiredDialog = () => {
         }).render('#paypal-button-container');
 
         setIsPayPalLoaded(true);
-        console.log('PayPal button rendered successfully');
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('PayPal setup error:', error);
         toast({
           title: "Error",
@@ -152,13 +138,17 @@ export const TrialExpiredDialog = () => {
       }
     };
 
-    loadAndRenderPayPalButton();
+    renderPayPalButton();
 
     // Cleanup function
     return () => {
+      if (scriptElement) {
+        scriptElement.remove();
+      }
       if (paypalButtonRef.current) {
         paypalButtonRef.current.innerHTML = '';
       }
+      setIsPayPalLoaded(false);
     };
   }, [selectedPlan, toast, navigate]);
 
