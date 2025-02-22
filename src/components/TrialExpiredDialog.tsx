@@ -48,8 +48,8 @@ export const TrialExpiredDialog = () => {
         
         console.log('Loading PayPal SDK with button ID:', buttonId);
 
-        // Simplified SDK loading with only essential parameters
-        script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent('ASSEeQ2EOkXAmv_QgbwkIXiY_Tg1TPjqXJ71Ox2fy')}&currency=USD`;
+        // Load PayPal SDK with hosted-buttons component
+        script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent('ASSEeQ2EOkXAmv_QgbwkIXiY_Tg1TPjqXJ71Ox2fy')}&components=hosted-buttons&currency=USD`;
         script.async = true;
         
         // Wait for script to load
@@ -66,7 +66,7 @@ export const TrialExpiredDialog = () => {
         });
 
         // Check if PayPal object exists
-        if (!window.paypal) {
+        if (!window.paypal?.HostedButtons) {
           throw new Error('PayPal SDK not loaded');
         }
 
@@ -74,44 +74,16 @@ export const TrialExpiredDialog = () => {
         if (paypalButtonRef.current) {
           paypalButtonRef.current.innerHTML = '';
           
-          window.paypal.Buttons({
-            createOrder: (data: any, actions: any) => {
-              const amount = selectedPlan === 'monthly' ? '10.00' : '100.00';
-              return actions.order.create({
-                purchase_units: [{
-                  amount: {
-                    value: amount
-                  }
-                }]
-              });
-            },
-            onApprove: async (data: any, actions: any) => {
+          await window.paypal.HostedButtons({
+            hostedButtonId: buttonId,
+            onApprove: async (data: { orderID: string }) => {
               console.log('Payment approved:', data);
               toast({
                 title: "Processing payment",
                 description: "Please wait while we process your payment..."
               });
-
-              const order = await actions.order.capture();
-              console.log('Order captured:', order);
-
-              // Handle successful payment
-              if (order.status === 'COMPLETED') {
-                toast({
-                  title: "Success",
-                  description: "Your payment has been processed successfully."
-                });
-              }
-            },
-            onError: (err: any) => {
-              console.error('PayPal error:', err);
-              toast({
-                title: "Error",
-                description: "There was a problem processing your payment.",
-                variant: "destructive"
-              });
             }
-          }).render(paypalButtonRef.current);
+          }).render('#paypal-button-container');
 
           setIsPayPalLoaded(true);
           console.log('PayPal button rendered successfully');
