@@ -48,69 +48,74 @@ export const TrialExpiredDialog = () => {
         
         console.log('Loading PayPal SDK with button ID:', buttonId);
 
-        script.src = `https://www.paypal.com/sdk/js?client-id=ASSEeQ2EOkXAmv_QgbwkIXiY_Tg1TPjqXJ71Ox2fy&components=buttons,hosted-buttons&disable-funding=venmo&currency=USD`;
+        // Simplified SDK loading with only essential parameters
+        script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent('ASSEeQ2EOkXAmv_QgbwkIXiY_Tg1TPjqXJ71Ox2fy')}&currency=USD`;
         script.async = true;
-        script.crossOrigin = "anonymous";
         
         // Wait for script to load
-        await new Promise((resolve, reject) => {
+        await new Promise<void>((resolve, reject) => {
           script.onload = () => {
-            console.log('PayPal SDK script loaded');
-            resolve(undefined);
+            console.log('PayPal SDK script loaded successfully');
+            resolve();
           };
-          script.onerror = (error) => {
-            console.error('PayPal script loading error:', error);
-            reject(error);
+          script.onerror = () => {
+            console.error('Failed to load PayPal SDK');
+            reject(new Error('Failed to load PayPal SDK'));
           };
           document.body.appendChild(script);
         });
 
-        // Wait for PayPal to be ready
-        await new Promise<void>((resolve, reject) => {
-          const maxAttempts = 50;
-          let attempts = 0;
+        // Check if PayPal object exists
+        if (!window.paypal) {
+          throw new Error('PayPal SDK not loaded');
+        }
 
-          const checkPayPal = () => {
-            if (window.paypal) {
-              console.log('PayPal object ready');
-              resolve();
-            } else if (attempts >= maxAttempts) {
-              reject(new Error('PayPal SDK failed to load after multiple attempts'));
-            } else {
-              attempts++;
-              setTimeout(checkPayPal, 100);
+        // Render PayPal button
+        if (paypalButtonRef.current) {
+          paypalButtonRef.current.innerHTML = '';
+          
+          window.paypal.Buttons({
+            createOrder: (data: any, actions: any) => {
+              const amount = selectedPlan === 'monthly' ? '10.00' : '100.00';
+              return actions.order.create({
+                purchase_units: [{
+                  amount: {
+                    value: amount
+                  }
+                }]
+              });
+            },
+            onApprove: async (data: any, actions: any) => {
+              console.log('Payment approved:', data);
+              toast({
+                title: "Processing payment",
+                description: "Please wait while we process your payment..."
+              });
+
+              const order = await actions.order.capture();
+              console.log('Order captured:', order);
+
+              // Handle successful payment
+              if (order.status === 'COMPLETED') {
+                toast({
+                  title: "Success",
+                  description: "Your payment has been processed successfully."
+                });
+              }
+            },
+            onError: (err: any) => {
+              console.error('PayPal error:', err);
+              toast({
+                title: "Error",
+                description: "There was a problem processing your payment.",
+                variant: "destructive"
+              });
             }
-          };
-          checkPayPal();
-        });
+          }).render(paypalButtonRef.current);
 
-        // Ensure PayPal object exists
-        if (!window.paypal?.HostedButtons) {
-          throw new Error('PayPal Hosted Buttons component not available');
+          setIsPayPalLoaded(true);
+          console.log('PayPal button rendered successfully');
         }
-
-        console.log('Rendering PayPal button...');
-
-        // Create a temporary div if the ref isn't ready
-        if (!paypalButtonRef.current) {
-          const tempDiv = document.createElement('div');
-          tempDiv.id = 'paypal-button-container';
-          document.body.appendChild(tempDiv);
-        }
-        
-        await window.paypal.HostedButtons({
-          hostedButtonId: buttonId,
-          onApprove: async (data: { orderID: string }) => {
-            console.log('Payment approved:', data);
-            toast({
-              title: "Processing payment",
-              description: "Please wait while we process your payment..."
-            });
-          }
-        }).render('#paypal-button-container');
-
-        setIsPayPalLoaded(true);
-        console.log('PayPal button rendered successfully');
 
       } catch (error) {
         console.error('PayPal setup error:', error);
