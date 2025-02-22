@@ -28,58 +28,86 @@ export const TrialExpiredDialog = () => {
 
   useEffect(() => {
     const loadAndRenderPayPalButton = async () => {
-      // Clear any existing PayPal elements
-      if (paypalButtonRef.current) {
-        paypalButtonRef.current.innerHTML = '';
-      }
-
-      // Remove any existing PayPal scripts
-      const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
-      if (existingScript) {
-        existingScript.remove();
-      }
-
       try {
+        // Clear any existing PayPal elements
+        if (paypalButtonRef.current) {
+          paypalButtonRef.current.innerHTML = '';
+        }
+
+        // Remove any existing PayPal scripts
+        const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
+        existingScripts.forEach(script => script.remove());
+
         // Create and load PayPal script
         const script = document.createElement('script');
-        script.src = "https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD";
-        script.async = true;
+        script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+        script.crossOrigin = "anonymous";
         
         // Wait for script to load
         await new Promise((resolve, reject) => {
           script.onload = resolve;
-          script.onerror = reject;
+          script.onerror = (error) => {
+            console.error('PayPal script loading error:', error);
+            reject(error);
+          };
           document.body.appendChild(script);
         });
 
+        // Add error event listener to window
+        window.addEventListener('error', (event) => {
+          console.error('Global error caught:', event);
+        });
+
         // Wait for PayPal to be ready
-        await new Promise<void>((resolve) => {
+        await new Promise<void>((resolve, reject) => {
+          const maxAttempts = 50; // 5 seconds maximum wait
+          let attempts = 0;
+
           const checkPayPal = () => {
             if (window.paypal) {
               resolve();
+            } else if (attempts >= maxAttempts) {
+              reject(new Error('PayPal SDK failed to load after multiple attempts'));
             } else {
+              attempts++;
               setTimeout(checkPayPal, 100);
             }
           };
           checkPayPal();
         });
 
-        // Render the button
-        const buttonId = selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
-        if (paypalButtonRef.current && window.paypal) {
-          window.paypal.HostedButtons({
-            hostedButtonId: buttonId,
-          }).render('#paypal-button-container'); // Using the ID instead of the element
+        // Ensure PayPal object exists
+        if (!window.paypal?.HostedButtons) {
+          throw new Error('PayPal Hosted Buttons component not available');
         }
 
+        // Render the button
+        const buttonId = selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
+        console.log('Rendering PayPal button with ID:', buttonId);
+        
+        await window.paypal.HostedButtons({
+          hostedButtonId: buttonId,
+          onError: (err: any) => {
+            console.error('PayPal button error:', err);
+            toast({
+              title: "Error",
+              description: "Failed to load payment button. Please try again.",
+              variant: "destructive",
+            });
+          }
+        }).render('#paypal-button-container');
+
         setIsPayPalLoaded(true);
+        console.log('PayPal button rendered successfully');
+
       } catch (error) {
-        console.error('PayPal loading error:', error);
+        console.error('PayPal setup error:', error);
         toast({
           title: "Error",
-          description: "Failed to load payment system. Please try again.",
+          description: "Failed to load payment system. Please refresh and try again.",
           variant: "destructive",
         });
+        setIsPayPalLoaded(false);
       }
     };
 
@@ -93,7 +121,7 @@ export const TrialExpiredDialog = () => {
         paypalButtonRef.current.innerHTML = '';
       }
     };
-  }, [selectedPlan, toast]); // Reload when plan changes or toast changes
+  }, [selectedPlan, toast]);
 
   return (
     <Dialog open={true} onOpenChange={() => {}}>
