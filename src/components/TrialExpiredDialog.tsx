@@ -15,45 +15,79 @@ import { supabase } from "@/lib/supabase";
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
   const [isPayPalLoaded, setIsPayPalLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const paypalButtonRef = useRef<HTMLDivElement>(null);
+  const scriptLoadAttempts = useRef(0);
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const loadPayPalScript = () => {
+    return new Promise<void>((resolve, reject) => {
+      if (scriptLoadAttempts.current >= 3) {
+        reject(new Error('Failed to load PayPal after multiple attempts'));
+        return;
+      }
+
+      scriptLoadAttempts.current += 1;
+      console.log(`Attempting to load PayPal script (attempt ${scriptLoadAttempts.current})`);
+
+      // Clean up any existing PayPal elements
+      if (paypalButtonRef.current) {
+        paypalButtonRef.current.innerHTML = '';
+      }
+
+      const existingScript = document.getElementById('paypal-script');
+      if (existingScript) {
+        existingScript.remove();
+      }
+
+      const script = document.createElement('script');
+      script.id = 'paypal-script';
+      script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.VITE_PAYPAL_CLIENT_ID}&currency=USD`;
+      script.async = true;
+
+      let timeout: NodeJS.Timeout;
+
+      const cleanup = () => {
+        clearTimeout(timeout);
+        script.removeEventListener('load', handleLoad);
+        script.removeEventListener('error', handleError);
+      };
+
+      const handleLoad = () => {
+        console.log('PayPal script loaded successfully');
+        cleanup();
+        resolve();
+      };
+
+      const handleError = (error: any) => {
+        console.error('PayPal script loading error:', error);
+        cleanup();
+        script.remove();
+        setTimeout(() => {
+          loadPayPalScript().then(resolve).catch(reject);
+        }, 2000); // Retry after 2 seconds
+      };
+
+      timeout = setTimeout(() => {
+        cleanup();
+        script.remove();
+        handleError(new Error('PayPal script load timeout'));
+      }, 10000); // 10 second timeout
+
+      script.addEventListener('load', handleLoad);
+      script.addEventListener('error', handleError);
+
+      document.head.appendChild(script);
+    });
+  };
+
   useEffect(() => {
-    let scriptElement: HTMLScriptElement | null = null;
-
-    const loadPayPalScript = () => {
-      return new Promise<void>((resolve, reject) => {
-        // Remove any existing PayPal buttons
-        if (paypalButtonRef.current) {
-          paypalButtonRef.current.innerHTML = '';
-        }
-
-        // Remove any existing PayPal scripts
-        const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
-        existingScripts.forEach(script => script.remove());
-
-        // Create new script
-        scriptElement = document.createElement('script');
-        scriptElement.src = `https://www.paypal.com/sdk/js?client-id=${process.env.VITE_PAYPAL_CLIENT_ID}&currency=USD`;
-        scriptElement.async = true;
-
-        scriptElement.onload = () => {
-          console.log('PayPal script loaded successfully');
-          resolve();
-        };
-
-        scriptElement.onerror = (error) => {
-          console.error('PayPal script loading error:', error);
-          reject(error);
-        };
-
-        document.head.appendChild(scriptElement);
-      });
-    };
+    let isMounted = true;
 
     const renderPayPalButton = async () => {
       try {
+        setIsLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
         console.log('Current user:', user?.id);
         
@@ -63,6 +97,8 @@ export const TrialExpiredDialog = () => {
 
         await loadPayPalScript();
         
+        if (!isMounted) return;
+        
         if (!window.paypal) {
           throw new Error('PayPal SDK not loaded');
         }
@@ -71,25 +107,42 @@ export const TrialExpiredDialog = () => {
           createOrder: async () => {
             const amount = selectedPlan === 'monthly' ? '9.99' : '99.99';
             
-            const response = await fetch('https://api-m.paypal.com/v2/checkout/orders', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Basic ${btoa(`${process.env.VITE_PAYPAL_CLIENT_ID}:${process.env.VITE_PAYPAL_SECRET_KEY}`)}`,
-              },
-              body: JSON.stringify({
-                intent: 'CAPTURE',
-                purchase_units: [{
-                  amount: {
-                    currency_code: 'USD',
-                    value: amount
-                  }
-                }]
-              })
-            });
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (!session) {
+                throw new Error('No active session found');
+              }
 
-            const order = await response.json();
-            return order.id;
+              const response = await fetch(
+                'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-order',
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                  },
+                  body: JSON.stringify({
+                    plan_type: selectedPlan,
+                    amount: amount
+                  })
+                }
+              );
+
+              if (!response.ok) {
+                throw new Error('Failed to create PayPal order');
+              }
+
+              const order = await response.json();
+              return order.id;
+            } catch (error: any) {
+              console.error('Error creating order:', error);
+              toast({
+                title: "Error",
+                description: "Failed to create order. Please try again.",
+                variant: "destructive",
+              });
+              throw error;
+            }
           },
           onApprove: async (data: { orderID: string }) => {
             console.log('PayPal payment approved. Order ID:', data.orderID);
@@ -136,31 +189,46 @@ export const TrialExpiredDialog = () => {
                 variant: "destructive",
               });
             }
+          },
+          onError: (error: any) => {
+            console.error('PayPal error:', error);
+            toast({
+              title: "Error",
+              description: "Payment failed. Please try again.",
+              variant: "destructive",
+            });
           }
         });
 
-        if (paypalButtonRef.current) {
+        if (paypalButtonRef.current && isMounted) {
           await buttons.render(paypalButtonRef.current);
           setIsPayPalLoaded(true);
         }
 
       } catch (error: any) {
         console.error('PayPal setup error:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load payment system. Please refresh and try again.",
-          variant: "destructive",
-        });
-        setIsPayPalLoaded(false);
+        if (isMounted) {
+          toast({
+            title: "Error",
+            description: "Failed to load payment system. Please refresh and try again.",
+            variant: "destructive",
+          });
+          setIsPayPalLoaded(false);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     renderPayPalButton();
 
-    // Cleanup function
     return () => {
-      if (scriptElement) {
-        scriptElement.remove();
+      isMounted = false;
+      const script = document.getElementById('paypal-script');
+      if (script) {
+        script.remove();
       }
       if (paypalButtonRef.current) {
         paypalButtonRef.current.innerHTML = '';
@@ -195,7 +263,7 @@ export const TrialExpiredDialog = () => {
             <SubscriptionPlanSelect
               selectedPlan={selectedPlan}
               setSelectedPlan={setSelectedPlan}
-              isLoading={false}
+              isLoading={isLoading}
             />
           </div>
           <div className="pt-4">
