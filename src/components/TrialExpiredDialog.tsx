@@ -42,36 +42,29 @@ export const TrialExpiredDialog = () => {
         const script = document.createElement('script');
         const buttonId = selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
         
+        // Set proper script attributes for CORS
         script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
         script.crossOrigin = "anonymous";
+        script.async = true;
+        script.defer = true;
         
-        // Wait for script to load
+        // Wait for script to load with proper error handling
         await new Promise((resolve, reject) => {
-          script.onload = resolve;
-          script.onerror = (error) => {
+          script.addEventListener('load', () => {
+            console.log('PayPal script loaded successfully');
+            resolve(undefined);
+          });
+          
+          script.addEventListener('error', (error) => {
             console.error('PayPal script loading error:', error);
             reject(error);
-          };
-          document.body.appendChild(script);
+          });
+          
+          document.head.appendChild(script);
         });
 
-        // Wait for PayPal to be ready
-        await new Promise<void>((resolve, reject) => {
-          const maxAttempts = 50;
-          let attempts = 0;
-
-          const checkPayPal = () => {
-            if (window.paypal) {
-              resolve();
-            } else if (attempts >= maxAttempts) {
-              reject(new Error('PayPal SDK failed to load after multiple attempts'));
-            } else {
-              attempts++;
-              setTimeout(checkPayPal, 100);
-            }
-          };
-          checkPayPal();
-        });
+        // Short delay to ensure PayPal object is initialized
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         // Ensure PayPal object exists
         if (!window.paypal?.HostedButtons) {
