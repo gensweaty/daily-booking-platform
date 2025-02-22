@@ -22,12 +22,16 @@ export const TrialExpiredDialog = () => {
   useEffect(() => {
     const loadAndRenderPayPalButton = async () => {
       try {
+        console.log('Starting PayPal button initialization...');
+        
         // Get current user
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
           throw new Error('No authenticated user found');
         }
+
+        console.log('User authenticated, cleaning up existing PayPal elements...');
 
         // Clear any existing PayPal elements
         if (paypalButtonRef.current) {
@@ -42,12 +46,18 @@ export const TrialExpiredDialog = () => {
         const script = document.createElement('script');
         const buttonId = selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
         
-        script.src = `https://www.paypal.com/sdk/js?client-id=ASSEeQ2EOkXAmv_QgbwkIXiY_Tg1TPjqXJ71Ox2fy&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+        console.log('Loading PayPal SDK with button ID:', buttonId);
+
+        script.src = `https://www.paypal.com/sdk/js?client-id=ASSEeQ2EOkXAmv_QgbwkIXiY_Tg1TPjqXJ71Ox2fy&components=buttons,hosted-buttons&disable-funding=venmo&currency=USD`;
+        script.async = true;
         script.crossOrigin = "anonymous";
         
         // Wait for script to load
         await new Promise((resolve, reject) => {
-          script.onload = resolve;
+          script.onload = () => {
+            console.log('PayPal SDK script loaded');
+            resolve(undefined);
+          };
           script.onerror = (error) => {
             console.error('PayPal script loading error:', error);
             reject(error);
@@ -62,6 +72,7 @@ export const TrialExpiredDialog = () => {
 
           const checkPayPal = () => {
             if (window.paypal) {
+              console.log('PayPal object ready');
               resolve();
             } else if (attempts >= maxAttempts) {
               reject(new Error('PayPal SDK failed to load after multiple attempts'));
@@ -78,13 +89,19 @@ export const TrialExpiredDialog = () => {
           throw new Error('PayPal Hosted Buttons component not available');
         }
 
-        console.log('Rendering PayPal button with ID:', buttonId);
+        console.log('Rendering PayPal button...');
+
+        // Create a temporary div if the ref isn't ready
+        if (!paypalButtonRef.current) {
+          const tempDiv = document.createElement('div');
+          tempDiv.id = 'paypal-button-container';
+          document.body.appendChild(tempDiv);
+        }
         
         await window.paypal.HostedButtons({
           hostedButtonId: buttonId,
           onApprove: async (data: { orderID: string }) => {
             console.log('Payment approved:', data);
-            // The subscription activation will be handled by the webhook
             toast({
               title: "Processing payment",
               description: "Please wait while we process your payment..."
