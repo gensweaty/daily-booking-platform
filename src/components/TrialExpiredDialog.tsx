@@ -16,6 +16,7 @@ export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
   const [isPayPalLoaded, setIsPayPalLoaded] = useState(false);
   const paypalButtonRef = useRef<HTMLDivElement>(null);
+  const scriptLoadedRef = useRef(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -29,42 +30,50 @@ export const TrialExpiredDialog = () => {
           throw new Error('No authenticated user found');
         }
 
+        // Clear existing PayPal button
         if (paypalButtonRef.current) {
           paypalButtonRef.current.innerHTML = '';
         }
 
-        const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
-        existingScripts.forEach(script => script.remove());
-
-        const script = document.createElement('script');
         const buttonId = selectedPlan === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
         console.log('Selected plan:', selectedPlan, 'Button ID:', buttonId);
-        
-        script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
-        script.crossOrigin = "anonymous";
-        script.async = true;
-        script.defer = true;
-        
-        await new Promise((resolve, reject) => {
-          script.addEventListener('load', () => {
-            console.log('PayPal script loaded successfully');
-            resolve(undefined);
-          });
-          
-          script.addEventListener('error', (error) => {
-            console.error('PayPal script loading error:', error);
-            reject(error);
-          });
-          
-          document.head.appendChild(script);
-        });
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Only load the script once
+        if (!scriptLoadedRef.current) {
+          // Remove any existing PayPal scripts first
+          const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
+          existingScripts.forEach(script => script.remove());
+
+          const script = document.createElement('script');
+          script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+          script.crossOrigin = "anonymous";
+          script.async = true;
+          script.defer = true;
+
+          await new Promise((resolve, reject) => {
+            script.addEventListener('load', () => {
+              console.log('PayPal script loaded successfully');
+              scriptLoadedRef.current = true;
+              resolve(undefined);
+            });
+            
+            script.addEventListener('error', (error) => {
+              console.error('PayPal script loading error:', error);
+              reject(error);
+            });
+            
+            document.head.appendChild(script);
+          });
+
+          // Give PayPal time to initialize
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
 
         if (!window.paypal?.HostedButtons) {
           throw new Error('PayPal Hosted Buttons component not available');
         }
-        
+
+        // Render the PayPal button
         await window.paypal.HostedButtons({
           hostedButtonId: buttonId,
           onApprove: async (data: { orderID: string }) => {
@@ -106,11 +115,6 @@ export const TrialExpiredDialog = () => {
               console.log('Verification response body:', result);
 
               if (!response.ok) {
-                console.error('Payment verification failed:', {
-                  status: response.status,
-                  statusText: response.statusText,
-                  result
-                });
                 throw new Error(result.error || `Verification failed with status ${response.status}`);
               }
 
@@ -150,9 +154,8 @@ export const TrialExpiredDialog = () => {
 
     loadAndRenderPayPalButton();
 
+    // Cleanup function
     return () => {
-      const scripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
-      scripts.forEach(script => script.remove());
       if (paypalButtonRef.current) {
         paypalButtonRef.current.innerHTML = '';
       }
