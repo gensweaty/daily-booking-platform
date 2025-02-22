@@ -1,6 +1,7 @@
+
 import { useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 
 interface PayPalButtonProps {
@@ -13,6 +14,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
   const buttonRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const scriptLoadAttempts = useRef(0);
+  const maxAttempts = 3;
 
   useEffect(() => {
     const loadPayPalScript = async () => {
@@ -24,6 +27,12 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           buttonRef.current.innerHTML = '';
         }
 
+        // Clean up any existing PayPal script
+        const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
+        if (existingScript) {
+          existingScript.remove();
+        }
+
         // @ts-ignore
         if (!window.paypal) {
           const script = document.createElement('script');
@@ -31,13 +40,27 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
           script.async = true;
           
           await new Promise((resolve, reject) => {
-            script.onload = resolve;
-            script.onerror = reject;
+            script.onload = () => {
+              console.log('PayPal script loaded successfully');
+              resolve(true);
+            };
+            script.onerror = (error) => {
+              console.error('PayPal script load error:', error);
+              reject(error);
+            };
             document.body.appendChild(script);
           });
         }
 
-        console.log('PayPal script loaded successfully');
+        // Wait a short moment to ensure PayPal is fully initialized
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // @ts-ignore
+        if (!window.paypal?.Buttons) {
+          throw new Error('PayPal Buttons not available');
+        }
+
+        console.log('Initializing PayPal button');
 
         // @ts-ignore
         window.paypal.Buttons({
@@ -105,11 +128,18 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
 
       } catch (error) {
         console.error('PayPal initialization error:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load payment system. Please try again.",
-          variant: "destructive",
-        });
+        scriptLoadAttempts.current += 1;
+        
+        if (scriptLoadAttempts.current < maxAttempts) {
+          console.log(`Retrying PayPal script load (attempt ${scriptLoadAttempts.current + 1}/${maxAttempts})...`);
+          setTimeout(loadPayPalScript, 2000); // Retry after 2 seconds
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to load payment system. Please refresh the page and try again.",
+            variant: "destructive",
+          });
+        }
       }
     };
 
@@ -123,7 +153,7 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         buttonRef.current.innerHTML = '';
       }
     };
-  }, [user, planType, onSuccess, containerId]);
+  }, [user, planType, onSuccess, containerId, toast]);
 
   return <div id={containerId} ref={buttonRef} />;
 };
