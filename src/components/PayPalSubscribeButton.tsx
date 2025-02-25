@@ -3,18 +3,18 @@ import { PayPalButton } from './subscription/PayPalButton';
 
 interface PayPalSubscribeButtonProps {
   planType: 'monthly' | 'yearly';
-  onSuccess?: (subscriptionId: string) => void;
+  onSuccess: (subscriptionId: string) => void;
 }
 
 export const PayPalSubscribeButton = ({ planType, onSuccess }: PayPalSubscribeButtonProps) => {
-  const buttonContainerId = `paypal-container-${planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L'}`;
+  const amount = planType === 'monthly' ? '9.99' : '99.99';
 
   return (
     <div className="w-full">
       <PayPalButton
         planType={planType}
+        amount={amount}
         onSuccess={onSuccess}
-        containerId={buttonContainerId}
       />
     </div>
   );
