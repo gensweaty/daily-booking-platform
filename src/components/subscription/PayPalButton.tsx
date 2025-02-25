@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from '../ui/loading-spinner';
+import { loadPayPalScript, renderPayPalButton } from '@/utils/paypal';
 
 interface PayPalButtonProps {
   amount: string;
@@ -16,65 +17,20 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
 
   useEffect(() => {
     let isMounted = true;
-    let paypalScript: HTMLScriptElement | null = null;
-    const scriptId = 'paypal-script';
-
-    const loadPayPalScript = async () => {
-      return new Promise<void>((resolve, reject) => {
-        try {
-          // Remove any existing PayPal script
-          const existingScript = document.getElementById(scriptId);
-          if (existingScript) {
-            document.body.removeChild(existingScript);
-          }
-
-          // Create new PayPal script with setup intent
-          paypalScript = document.createElement('script');
-          paypalScript.id = scriptId;
-          paypalScript.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&currency=USD&intent=subscription&vault=true`;
-          
-          paypalScript.onload = () => {
-            console.log('PayPal script loaded successfully');
-            resolve();
-          };
-          
-          paypalScript.onerror = (error) => {
-            console.error('PayPal script loading error:', error);
-            reject(new Error('Failed to load PayPal script'));
-          };
-          
-          document.body.appendChild(paypalScript);
-        } catch (error) {
-          console.error('Error in loadPayPalScript:', error);
-          reject(error);
-        }
-      });
-    };
 
     const initializePayPal = async () => {
       try {
         console.log('Initializing PayPal...');
-        await loadPayPalScript();
         
         if (!buttonContainerRef.current) {
           throw new Error('PayPal container not found');
         }
 
-        if (!window.paypal) {
-          throw new Error('PayPal SDK not loaded');
-        }
+        // Load PayPal SDK
+        await loadPayPalScript(import.meta.env.VITE_PAYPAL_CLIENT_ID);
 
-        // Clear any existing buttons
-        buttonContainerRef.current.innerHTML = '';
-
-        // Render PayPal button with subscription configuration
-        await window.paypal.Buttons({
-          style: {
-            layout: 'vertical',
-            color: 'gold',
-            shape: 'rect',
-            label: 'subscribe'
-          },
+        // Render PayPal button
+        await renderPayPalButton(buttonContainerRef.current.id || 'paypal-button', {
           createSubscription: async () => {
             try {
               console.log('Creating subscription...', { planType, amount });
@@ -103,13 +59,13 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
               throw error;
             }
           },
-          onApprove: async (data: { orderID?: string; subscriptionID?: string }) => {
+          onApprove: async (data) => {
             try {
               console.log('PayPal subscription approved:', data);
-              const subscriptionId = data.subscriptionID || data.orderID;
+              const subscriptionId = data.subscriptionID;
               
               if (!subscriptionId) {
-                throw new Error('No subscription or order ID received');
+                throw new Error('No subscription ID received');
               }
 
               const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/verify-paypal-subscription', {
@@ -140,24 +96,8 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
                 variant: "destructive"
               });
             }
-          },
-          onError: (err: any) => {
-            console.error('PayPal error:', err);
-            toast({
-              title: "Error",
-              description: "There was a problem processing your subscription. Please try again.",
-              variant: "destructive"
-            });
-          },
-          onCancel: () => {
-            console.log('Payment cancelled');
-            toast({
-              title: "Cancelled",
-              description: "Payment was cancelled. Please try again if you wish to subscribe.",
-              variant: "default"
-            });
           }
-        }).render(buttonContainerRef.current);
+        });
 
         if (isMounted) {
           setIsLoading(false);
@@ -179,15 +119,16 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
 
     return () => {
       isMounted = false;
-      if (paypalScript && document.body.contains(paypalScript)) {
-        document.body.removeChild(paypalScript);
-      }
     };
   }, [amount, planType, onSuccess, toast]);
 
   return (
     <div className="w-full">
-      <div ref={buttonContainerRef} className="min-h-[45px]">
+      <div 
+        ref={buttonContainerRef} 
+        id="paypal-button"
+        className="min-h-[45px]"
+      >
         {isLoading && <LoadingSpinner />}
       </div>
     </div>
