@@ -68,12 +68,11 @@ export const renderPayPalButton = async (
 
   try {
     // Using specific container ID format required by PayPal
-    const paypalContainerId = `paypal-container-SZHF9WLR5RQWU`;
-    container.id = paypalContainerId;
-
+    container.innerHTML = '<div id="paypal-container-SZHF9WLR5RQWU"></div>';
+    
     await window.paypal.HostedButtons({
       hostedButtonId: 'SZHF9WLR5RQWU'
-    }).render(`#${paypalContainerId}`);
+    }).render('#paypal-container-SZHF9WLR5RQWU');
     
     console.log('PayPal hosted button rendered successfully');
   } catch (error) {

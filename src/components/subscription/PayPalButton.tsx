@@ -24,8 +24,8 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
           throw new Error('PayPal container not found');
         }
 
-        await loadPayPalScript('');  // We're using hardcoded client ID in loadPayPalScript
-        await renderPayPalButton('paypal-button', {
+        await loadPayPalScript('BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q');
+        await renderPayPalButton('paypal-outer-container', {
           planType,
           amount
         });
@@ -57,9 +57,8 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
     <div className="w-full">
       <div 
         ref={buttonContainerRef} 
-        id="paypal-button"
-        className="min-h-[45px] flex justify-center items-center bg-transparent"
-        style={{ minHeight: '200px' }}  // Ensure enough space for the PayPal button
+        id="paypal-outer-container"
+        className="min-h-[200px] flex justify-center items-center bg-transparent"
       >
         {isLoading && <LoadingSpinner />}
       </div>
