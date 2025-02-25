@@ -1,37 +1,50 @@
 
 export const loadPayPalScript = async (clientId: string): Promise<void> => {
-  console.log('Starting PayPal script load...');
+  console.log('Starting PayPal script load...', { clientId });
 
   return new Promise((resolve, reject) => {
-    if (window.paypal) {
-      console.log('PayPal SDK already loaded');
-      return resolve();
-    }
+    try {
+      if (!clientId) {
+        throw new Error('PayPal client ID is required');
+      }
 
-    const existingScript = document.getElementById('paypal-script');
-    if (existingScript) {
-      console.log('Removing existing PayPal script...');
-      existingScript.remove();
-    }
+      if (window.paypal) {
+        console.log('PayPal SDK already loaded');
+        return resolve();
+      }
 
-    const script = document.createElement('script');
-    script.id = 'paypal-script';
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&components=hosted-buttons&disable-funding=venmo&currency=USD`;
-    script.crossOrigin = "anonymous";
-    script.async = true;
+      const existingScript = document.getElementById('paypal-script');
+      if (existingScript) {
+        console.log('Removing existing PayPal script...');
+        existingScript.remove();
+      }
 
-    script.onload = () => {
-      console.log('PayPal script loaded successfully');
-      resolve();
-    };
+      const script = document.createElement('script');
+      script.id = 'paypal-script';
+      script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+      script.crossOrigin = "anonymous";
+      script.async = true;
 
-    script.onerror = (error) => {
-      console.error('Error loading PayPal script:', error);
+      script.onload = () => {
+        console.log('PayPal script loaded successfully');
+        if (window.paypal) {
+          resolve();
+        } else {
+          reject(new Error('PayPal SDK not initialized after script load'));
+        }
+      };
+
+      script.onerror = (error) => {
+        console.error('Error loading PayPal script:', error);
+        reject(error);
+      };
+
+      console.log('Appending PayPal script to document body...');
+      document.body.appendChild(script);
+    } catch (error) {
+      console.error('Error in loadPayPalScript:', error);
       reject(error);
-    };
-
-    console.log('Appending PayPal script to document body...');
-    document.body.appendChild(script);
+    }
   });
 };
 
@@ -54,11 +67,13 @@ export const renderPayPalButton = async (
   }
 
   try {
-    const hostedButtonId = options.planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YOUR_YEARLY_BUTTON_ID';
-    
+    // Using specific container ID format required by PayPal
+    const paypalContainerId = `paypal-container-SZHF9WLR5RQWU`;
+    container.id = paypalContainerId;
+
     await window.paypal.HostedButtons({
-      hostedButtonId: hostedButtonId
-    }).render('#' + containerId);
+      hostedButtonId: 'SZHF9WLR5RQWU'
+    }).render(`#${paypalContainerId}`);
     
     console.log('PayPal hosted button rendered successfully');
   } catch (error) {
