@@ -20,12 +20,12 @@ export const TrialExpiredDialog = () => {
   const paypalButtonRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
+  const clientId = 'AYmN8pJKiP646o4xp6KaMyEa3_TPIGL4KqYc_dPLD4JXulCW6-tJKn-4QAYPv98m1JPj57Yvf1mV8lP_';
 
   const loadPayPalScript = () => {
     return new Promise<boolean>((resolve) => {
       // Clean up any existing PayPal scripts
-      const existingScripts = document.querySelectorAll('[data-paypal-script]');
+      const existingScripts = document.querySelectorAll('script[src*="paypal"]');
       existingScripts.forEach(script => script.remove());
       
       // Reset PayPal global object
@@ -34,8 +34,8 @@ export const TrialExpiredDialog = () => {
       }
 
       const script = document.createElement('script');
-      script.setAttribute('data-paypal-script', '');
-      script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD`;
+      script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD&intent=capture`;
+      script.async = true;
       
       let resolved = false;
       
@@ -69,15 +69,6 @@ export const TrialExpiredDialog = () => {
   };
 
   const initializePayPal = async () => {
-    if (!clientId) {
-      toast({
-        title: "Error",
-        description: "PayPal configuration is missing",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsLoading(true);
     try {
       // Clean up any existing buttons
@@ -208,7 +199,7 @@ export const TrialExpiredDialog = () => {
 
   useEffect(() => {
     const cleanup = () => {
-      const scripts = document.querySelectorAll('[data-paypal-script]');
+      const scripts = document.querySelectorAll('script[src*="paypal"]');
       scripts.forEach(script => script.remove());
       if (window.paypal) {
         delete (window as any).paypal;
