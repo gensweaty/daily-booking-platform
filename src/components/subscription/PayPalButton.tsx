@@ -6,7 +6,7 @@ import { LoadingSpinner } from '../ui/loading-spinner';
 interface PayPalButtonProps {
   amount: string;
   planType: 'monthly' | 'yearly';
-  onSuccess: () => void;
+  onSuccess: (subscriptionId: string) => void;
 }
 
 export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps) => {
@@ -83,8 +83,10 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
               throw new Error('Payment verification failed');
             }
 
+            const result = await response.json();
+
             if (isMounted) {
-              onSuccess();
+              onSuccess(result.subscriptionId || data.orderID);
             }
           } catch (error) {
             toast({

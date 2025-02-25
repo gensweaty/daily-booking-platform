@@ -17,7 +17,7 @@ export const TrialExpiredDialog = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleSubscriptionSuccess = () => {
+  const handleSubscriptionSuccess = (subscriptionId: string) => {
     toast({
       title: "Success",
       description: "Your subscription has been activated successfully!",
