@@ -46,6 +46,8 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
 export const renderPayPalButton = async (
   containerId: string,
   options: {
+    planType: 'monthly' | 'yearly';
+    amount: string;
     createSubscription: () => Promise<string>;
     onApprove: (data: { subscriptionID?: string }) => Promise<void>;
   }
