@@ -20,13 +20,17 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
     script.async = true;
 
     script.onload = () => {
-      if (window.paypal) {
-        console.log('PayPal script loaded successfully');
-        resolve();
-      } else {
-        console.error('PayPal script loaded but window.paypal is undefined');
-        reject(new Error('PayPal SDK failed to initialize'));
-      }
+      console.log('PayPal script loaded. Checking window.paypal...');
+      setTimeout(() => {
+        console.log('window.paypal:', window.paypal);
+        if (window.paypal) {
+          console.log('PayPal script loaded successfully');
+          resolve();
+        } else {
+          console.error('PayPal script loaded but window.paypal is undefined');
+          reject(new Error('PayPal SDK failed to initialize'));
+        }
+      }, 1000); // Add a delay to ensure PayPal initializes
     };
 
     script.onerror = (error) => {
@@ -34,6 +38,7 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
       reject(error);
     };
 
+    console.log('Appending PayPal script to document body...');
     document.body.appendChild(script);
   });
 };
@@ -47,17 +52,22 @@ export const renderPayPalButton = async (
 ): Promise<void> => {
   console.log('Rendering PayPal button...', { containerId });
 
-  // Wait for PayPal SDK with retry
-  if (!window.paypal) {
-    console.warn('PayPal SDK not loaded yet. Retrying in 500ms...');
-    await new Promise(resolve => setTimeout(resolve, 500));
+  // Wait for PayPal SDK with retries
+  let retries = 5;
+  while (!window.paypal && retries > 0) {
+    console.warn(`Waiting for PayPal SDK... (${retries} retries left)`);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    retries--;
   }
 
   if (!window.paypal) {
-    throw new Error('PayPal SDK still not loaded');
+    throw new Error('PayPal SDK failed to load after retries');
   }
 
+  console.log('Looking for container:', containerId);
   const container = document.getElementById(containerId);
+  console.log('Container found:', container);
+
   if (!container) {
     throw new Error(`Container ${containerId} not found`);
   }
@@ -73,7 +83,35 @@ export const renderPayPalButton = async (
         shape: 'rect',
         label: 'subscribe'
       },
-      createSubscription: options.createSubscription,
+      createSubscription: async () => {
+        try {
+          console.log('Creating subscription...', { options });
+          const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-subscription', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              plan_type: options.planType,
+              amount: options.amount
+            })
+          });
+          console.log('Response status:', response.status);
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Subscription creation failed:', errorData);
+            throw new Error('Failed to create subscription');
+          }
+
+          const data = await response.json();
+          console.log('Subscription API response:', data);
+          return data.subscriptionId;
+        } catch (error) {
+          console.error('Error in createSubscription:', error);
+          throw error;
+        }
+      },
       onApprove: options.onApprove
     });
 
