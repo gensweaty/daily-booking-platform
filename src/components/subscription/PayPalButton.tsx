@@ -1,110 +1,132 @@
 
-import { useEffect, useRef, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useRef } from 'react';
+import { useToast } from "@/hooks/use-toast";
+import { LoadingSpinner } from '../ui/loading-spinner';
 
 interface PayPalButtonProps {
+  amount: string;
   planType: 'monthly' | 'yearly';
-  onSuccess?: (subscriptionId: string) => void;
-  containerId: string;
+  onSuccess: () => void;
 }
 
-export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
-  const buttonRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth();
+export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps) => {
+  const buttonContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
+    let isMounted = true;
+    let paypalScript: HTMLScriptElement | null = null;
 
-    const loadPayPalScript = async () => {
-      try {
-        console.log('Starting PayPal script load...');
-        setIsLoading(true);
+    const initializePayPal = async () => {
+      if (!window.paypal) {
+        // Create and load PayPal script
+        paypalScript = document.createElement('script');
+        paypalScript.src = 'https://www.paypal.com/sdk/js?client-id=AYmN8pJKiP646o4xp6KaMyEa3_TPIGL4KqYc_dPLD4JXulCW6-tJKn-4QAYPv98m1JPj57Yvf1mV8lP_&currency=USD&intent=capture';
         
-        // Clean up any existing PayPal buttons
-        if (buttonRef.current) {
-          buttonRef.current.innerHTML = '';
-        }
-
-        // Remove any existing PayPal scripts
-        const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
-        existingScripts.forEach(script => script.remove());
-
-        // Create and load new PayPal script
-        const script = document.createElement('script');
-        script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&components=hosted-buttons&disable-funding=venmo&currency=USD`;
-        script.crossOrigin = "anonymous";
-        script.async = true;
-
-        // Wait for script to load
         await new Promise((resolve, reject) => {
-          script.onload = resolve;
-          script.onerror = reject;
-          document.body.appendChild(script);
+          if (paypalScript) {
+            paypalScript.onload = resolve;
+            paypalScript.onerror = reject;
+            document.body.appendChild(paypalScript);
+          }
         });
+      }
 
-        console.log('PayPal script loaded, waiting for initialization...');
+      if (!buttonContainerRef.current || !window.paypal) {
+        return;
+      }
 
-        // Wait for PayPal to be available
-        await new Promise<void>((resolve) => {
-          const checkPayPal = () => {
-            // @ts-ignore
-            if (window.paypal?.HostedButtons) {
-              resolve();
-            } else {
-              setTimeout(checkPayPal, 100);
+      // Clear any existing buttons
+      buttonContainerRef.current.innerHTML = '';
+
+      // Render PayPal button
+      window.paypal.Buttons({
+        style: {
+          layout: 'vertical',
+          color: 'gold',
+          shape: 'rect',
+          label: 'pay'
+        },
+        createOrder: async () => {
+          const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-order', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              plan_type: planType,
+              amount: amount
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to create order');
+          }
+
+          const order = await response.json();
+          return order.id;
+        },
+        onApprove: async (data) => {
+          try {
+            const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/verify-paypal-payment', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                order_id: data.orderID,
+                plan_type: planType
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error('Payment verification failed');
             }
-          };
-          checkPayPal();
-        });
 
-        if (!mounted) return;
-
-        console.log('PayPal initialized, rendering button...');
-
-        // @ts-ignore
-        await window.paypal.HostedButtons({
-          hostedButtonId: planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L'
-        }).render(`#${containerId}`);
-
-        console.log('PayPal button rendered successfully');
-        setIsLoading(false);
-
-      } catch (error) {
-        console.error('PayPal initialization error:', error);
-        if (mounted) {
-          setIsLoading(false);
+            if (isMounted) {
+              onSuccess();
+            }
+          } catch (error) {
+            toast({
+              title: "Error",
+              description: "Payment verification failed. Please try again.",
+              variant: "destructive"
+            });
+          }
+        },
+        onError: () => {
           toast({
             title: "Error",
-            description: "Failed to load payment system. Please refresh the page and try again.",
-            variant: "destructive",
+            description: "There was a problem processing your payment. Please try again.",
+            variant: "destructive"
           });
         }
-      }
+      }).render(buttonContainerRef.current);
     };
 
-    if (user) {
-      loadPayPalScript();
-    }
+    initializePayPal().catch(() => {
+      if (isMounted) {
+        toast({
+          title: "Error",
+          description: "Failed to load payment system. Please refresh and try again.",
+          variant: "destructive"
+        });
+      }
+    });
 
     return () => {
-      mounted = false;
-      const scripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
-      scripts.forEach(script => script.remove());
-      if (buttonRef.current) {
-        buttonRef.current.innerHTML = '';
+      isMounted = false;
+      if (paypalScript && document.body.contains(paypalScript)) {
+        document.body.removeChild(paypalScript);
       }
     };
-  }, [user, planType, containerId, toast]);
+  }, [amount, planType, onSuccess, toast]);
 
   return (
-    <>
-      <div id={containerId} ref={buttonRef} className="min-h-[45px] w-full" />
-      {isLoading && (
-        <div className="w-full h-[45px] bg-muted animate-pulse rounded-md" />
-      )}
-    </>
+    <div className="w-full">
+      <div ref={buttonContainerRef} className="min-h-[45px]">
+        <LoadingSpinner />
+      </div>
+    </div>
   );
 };
