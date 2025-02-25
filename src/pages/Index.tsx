@@ -38,45 +38,50 @@ const Index = () => {
   const [username, setUsername] = useState("")
   const [showTrialExpired, setShowTrialExpired] = useState(false)
   const { user } = useAuth()
-  const { toast } = useToast()
 
   useSubscriptionRedirect()
 
   useEffect(() => {
-    // Immediately check if this is our target user
-    if (user?.email === 'gensweaty@gmail.com') {
-      console.log('Target user detected, showing subscription dialog');
-      setShowTrialExpired(true);
-    }
-
-    const getProfile = async () => {
+    const checkSubscription = async () => {
       if (!user) return;
 
       try {
-        const { data, error } = await supabase
+        // Get profile data
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('username, subscription_status')
+          .select('username')
           .eq('id', user.id)
+          .single()
+
+        if (profileError) throw profileError;
+        if (profileData) {
+          setUsername(profileData.username);
+        }
+
+        // Check subscription status
+        const { data: subscription, error: subscriptionError } = await supabase
+          .from('subscriptions')
+          .select('status')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
           .maybeSingle()
-        
-        if (error) {
-          console.error('Error fetching profile:', error)
-          return
+
+        if (subscriptionError) throw subscriptionError;
+
+        // Show trial expired dialog if no active subscription
+        if (!subscription) {
+          console.log('No active subscription found, showing dialog');
+          setShowTrialExpired(true);
+        } else {
+          console.log('Active subscription found, hiding dialog');
+          setShowTrialExpired(false);
         }
-        
-        if (data) {
-          setUsername(data.username)
-          // Close the dialog if user has active subscription
-          if (data.subscription_status === 'active') {
-            setShowTrialExpired(false)
-          }
-        }
-      } catch (error: any) {
-        console.error('Profile fetch error:', error)
+      } catch (error) {
+        console.error('Error checking subscription status:', error)
       }
     }
 
-    getProfile()
+    checkSubscription()
   }, [user])
 
   const content = user ? (
