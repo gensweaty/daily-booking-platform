@@ -11,7 +11,7 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
 
     const script = document.createElement('script');
     script.id = 'paypal-script';
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD&intent=subscription&vault=true`;
     script.async = true;
 
     script.onload = () => {
@@ -31,8 +31,8 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
 export const renderPayPalButton = async (
   containerId: string,
   options: {
-    createOrder: () => Promise<string>;
-    onApprove: (data: { orderID: string }) => Promise<void>;
+    createSubscription: () => Promise<string>;
+    onApprove: (data: { subscriptionID?: string }) => Promise<void>;
   }
 ): Promise<void> => {
   console.log('Rendering PayPal button...', { containerId });
@@ -51,7 +51,13 @@ export const renderPayPalButton = async (
 
   try {
     const buttons = window.paypal.Buttons({
-      createOrder: options.createOrder,
+      style: {
+        layout: 'vertical',
+        color: 'gold',
+        shape: 'rect',
+        label: 'subscribe'
+      },
+      createSubscription: options.createSubscription,
       onApprove: options.onApprove
     });
     
