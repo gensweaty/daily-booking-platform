@@ -28,10 +28,10 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
             document.body.removeChild(existingScript);
           }
 
-          // Create new PayPal script
+          // Create new PayPal script with setup intent
           paypalScript = document.createElement('script');
           paypalScript.id = scriptId;
-          paypalScript.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&currency=USD&intent=subscription`;
+          paypalScript.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&currency=USD&intent=subscription&vault=true`;
           
           paypalScript.onload = () => {
             console.log('PayPal script loaded successfully');
@@ -67,15 +67,15 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         // Clear any existing buttons
         buttonContainerRef.current.innerHTML = '';
 
-        // Render PayPal button
+        // Render PayPal button with subscription configuration
         await window.paypal.Buttons({
           style: {
             layout: 'vertical',
             color: 'gold',
             shape: 'rect',
-            label: 'pay'
+            label: 'subscribe'
           },
-          createOrder: async () => {
+          createSubscription: async () => {
             try {
               console.log('Creating subscription...', { planType, amount });
               const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-subscription', {
@@ -99,7 +99,7 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
               console.log('Subscription created:', data);
               return data.subscriptionId;
             } catch (error) {
-              console.error('Error in createOrder:', error);
+              console.error('Error in createSubscription:', error);
               throw error;
             }
           },
