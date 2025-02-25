@@ -52,12 +52,12 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         buttonContainerRef.current.innerHTML = '';
 
         // Render PayPal button
-        const buttons = window.paypal.Buttons({
+        window.paypal.Buttons({
           style: {
             layout: 'vertical',
             color: 'gold',
             shape: 'rect',
-            label: 'subscribe'
+            label: 'pay'
           },
           createSubscription: async () => {
             const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-subscription', {
@@ -78,16 +78,22 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
             const data = await response.json();
             return data.subscriptionId;
           },
-          onApprove: async (data) => {
+          onApprove: async (data: { orderID?: string; subscriptionID?: string }) => {
             try {
               console.log('PayPal subscription approved:', data);
+              const subscriptionId = data.subscriptionID || data.orderID;
+              
+              if (!subscriptionId) {
+                throw new Error('No subscription or order ID received');
+              }
+
               const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/verify-paypal-subscription', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                  subscriptionId: data.subscriptionID,
+                  subscriptionId: subscriptionId,
                   plan_type: planType
                 })
               });
@@ -98,7 +104,7 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
 
               const result = await response.json();
               if (isMounted) {
-                onSuccess(data.subscriptionID);
+                onSuccess(subscriptionId);
               }
             } catch (error) {
               console.error('PayPal verification error:', error);
@@ -117,14 +123,17 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
               variant: "destructive"
             });
           }
-        });
-
-        const canRender = await buttons.isEligible();
-        if (canRender) {
-          await buttons.render(buttonContainerRef.current);
-        } else {
-          throw new Error('PayPal Buttons are not eligible to render');
-        }
+        }).render(buttonContainerRef.current)
+          .catch((err: Error) => {
+            console.error('PayPal render error:', err);
+            if (isMounted) {
+              toast({
+                title: "Error",
+                description: "Failed to load payment system. Please refresh and try again.",
+                variant: "destructive"
+              });
+            }
+          });
 
         if (isMounted) {
           setIsLoading(false);
