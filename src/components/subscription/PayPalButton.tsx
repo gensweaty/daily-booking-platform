@@ -31,6 +31,8 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
 
         // Render PayPal button
         await renderPayPalButton(buttonContainerRef.current.id || 'paypal-button', {
+          planType,
+          amount,
           createSubscription: async () => {
             try {
               console.log('Creating subscription...', { planType, amount });
