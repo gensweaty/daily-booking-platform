@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from '../ui/loading-spinner';
 
@@ -11,110 +11,138 @@ interface PayPalButtonProps {
 
 export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps) => {
   const buttonContainerRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     let isMounted = true;
     let paypalScript: HTMLScriptElement | null = null;
+    const scriptId = 'paypal-script';
+
+    const loadPayPalScript = async () => {
+      return new Promise<void>((resolve, reject) => {
+        // Remove any existing PayPal script
+        const existingScript = document.getElementById(scriptId);
+        if (existingScript) {
+          document.body.removeChild(existingScript);
+        }
+
+        // Create new PayPal script
+        paypalScript = document.createElement('script');
+        paypalScript.id = scriptId;
+        paypalScript.src = `https://www.paypal.com/sdk/js?client-id=AYmN8pJKiP646o4xp6KaMyEa3_TPIGL4KqYc_dPLD4JXulCW6-tJKn-4QAYPv98m1JPj57Yvf1mV8lP_&currency=USD&intent=subscription`;
+        
+        paypalScript.onload = () => resolve();
+        paypalScript.onerror = () => reject(new Error('Failed to load PayPal script'));
+        
+        document.body.appendChild(paypalScript);
+      });
+    };
 
     const initializePayPal = async () => {
-      if (!window.paypal) {
-        // Create and load PayPal script
-        paypalScript = document.createElement('script');
-        paypalScript.src = 'https://www.paypal.com/sdk/js?client-id=AYmN8pJKiP646o4xp6KaMyEa3_TPIGL4KqYc_dPLD4JXulCW6-tJKn-4QAYPv98m1JPj57Yvf1mV8lP_&currency=USD&intent=capture';
+      try {
+        console.log('Initializing PayPal...');
+        await loadPayPalScript();
         
-        await new Promise((resolve, reject) => {
-          if (paypalScript) {
-            paypalScript.onload = resolve;
-            paypalScript.onerror = reject;
-            document.body.appendChild(paypalScript);
-          }
-        });
-      }
+        if (!buttonContainerRef.current || !window.paypal) {
+          throw new Error('PayPal container or SDK not available');
+        }
 
-      if (!buttonContainerRef.current || !window.paypal) {
-        return;
-      }
+        // Clear any existing buttons
+        buttonContainerRef.current.innerHTML = '';
 
-      // Clear any existing buttons
-      buttonContainerRef.current.innerHTML = '';
-
-      // Render PayPal button
-      window.paypal.Buttons({
-        style: {
-          layout: 'vertical',
-          color: 'gold',
-          shape: 'rect',
-          label: 'pay'
-        },
-        createOrder: async () => {
-          const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-order', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              plan_type: planType,
-              amount: amount
-            })
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to create order');
-          }
-
-          const order = await response.json();
-          return order.id;
-        },
-        onApprove: async (data) => {
-          try {
-            const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/verify-paypal-payment', {
+        // Render PayPal button
+        const buttons = window.paypal.Buttons({
+          style: {
+            layout: 'vertical',
+            color: 'gold',
+            shape: 'rect',
+            label: 'subscribe'
+          },
+          createSubscription: async () => {
+            const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-subscription', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                order_id: data.orderID,
-                plan_type: planType
+                plan_type: planType,
+                amount: amount
               })
             });
 
             if (!response.ok) {
-              throw new Error('Payment verification failed');
+              throw new Error('Failed to create subscription');
             }
 
-            const result = await response.json();
+            const data = await response.json();
+            return data.subscriptionId;
+          },
+          onApprove: async (data) => {
+            try {
+              console.log('PayPal subscription approved:', data);
+              const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/verify-paypal-subscription', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  subscriptionId: data.subscriptionID,
+                  plan_type: planType
+                })
+              });
 
-            if (isMounted) {
-              onSuccess(result.subscriptionId || data.orderID);
+              if (!response.ok) {
+                throw new Error('Subscription verification failed');
+              }
+
+              const result = await response.json();
+              if (isMounted) {
+                onSuccess(data.subscriptionID);
+              }
+            } catch (error) {
+              console.error('PayPal verification error:', error);
+              toast({
+                title: "Error",
+                description: "Subscription verification failed. Please try again.",
+                variant: "destructive"
+              });
             }
-          } catch (error) {
+          },
+          onError: (err: any) => {
+            console.error('PayPal error:', err);
             toast({
               title: "Error",
-              description: "Payment verification failed. Please try again.",
+              description: "There was a problem processing your subscription. Please try again.",
               variant: "destructive"
             });
           }
-        },
-        onError: () => {
+        });
+
+        const canRender = await buttons.isEligible();
+        if (canRender) {
+          await buttons.render(buttonContainerRef.current);
+        } else {
+          throw new Error('PayPal Buttons are not eligible to render');
+        }
+
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('PayPal initialization error:', error);
+        if (isMounted) {
+          setIsLoading(false);
           toast({
             title: "Error",
-            description: "There was a problem processing your payment. Please try again.",
+            description: "Failed to load payment system. Please refresh and try again.",
             variant: "destructive"
           });
         }
-      }).render(buttonContainerRef.current);
+      }
     };
 
-    initializePayPal().catch(() => {
-      if (isMounted) {
-        toast({
-          title: "Error",
-          description: "Failed to load payment system. Please refresh and try again.",
-          variant: "destructive"
-        });
-      }
-    });
+    initializePayPal();
 
     return () => {
       isMounted = false;
@@ -127,7 +155,7 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
   return (
     <div className="w-full">
       <div ref={buttonContainerRef} className="min-h-[45px]">
-        <LoadingSpinner />
+        {isLoading && <LoadingSpinner />}
       </div>
     </div>
   );
