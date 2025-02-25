@@ -20,29 +20,14 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
 
     const initializePayPal = async () => {
       try {
-        console.log('Initializing PayPal...');
-        
         if (!buttonContainerRef.current) {
           throw new Error('PayPal container not found');
         }
 
-        // Load PayPal SDK
         await loadPayPalScript(import.meta.env.VITE_PAYPAL_CLIENT_ID);
-
-        // Render PayPal button
         await renderPayPalButton(buttonContainerRef.current.id || 'paypal-button', {
           planType,
-          amount,
-          createSubscription: async () => {
-            // This won't be called with hosted buttons, but kept for type compatibility
-            return '';
-          },
-          onApprove: async (data) => {
-            // This won't be called with hosted buttons, but kept for type compatibility
-            if (isMounted) {
-              onSuccess('subscription_created');
-            }
-          }
+          amount
         });
 
         if (isMounted) {
@@ -66,14 +51,14 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
     return () => {
       isMounted = false;
     };
-  }, [amount, planType, onSuccess, toast]);
+  }, [amount, planType, toast]);
 
   return (
     <div className="w-full">
       <div 
         ref={buttonContainerRef} 
         id="paypal-button"
-        className="min-h-[45px]"
+        className="min-h-[45px] flex justify-center items-center"
       >
         {isLoading && <LoadingSpinner />}
       </div>

@@ -21,17 +21,8 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
     script.async = true;
 
     script.onload = () => {
-      console.log('PayPal script loaded. Checking window.paypal...');
-      setTimeout(() => {
-        console.log('window.paypal:', window.paypal);
-        if (window.paypal) {
-          console.log('PayPal script loaded successfully');
-          resolve();
-        } else {
-          console.error('PayPal script loaded but window.paypal is undefined');
-          reject(new Error('PayPal SDK failed to initialize'));
-        }
-      }, 1000); // Add a delay to ensure PayPal initializes
+      console.log('PayPal script loaded successfully');
+      resolve();
     };
 
     script.onerror = (error) => {
@@ -49,34 +40,20 @@ export const renderPayPalButton = async (
   options: {
     planType: 'monthly' | 'yearly';
     amount: string;
-    createSubscription: () => Promise<string>;
-    onApprove: (data: { subscriptionID?: string }) => Promise<void>;
   }
 ): Promise<void> => {
-  console.log('Rendering PayPal button...', { containerId });
-
-  // Wait for PayPal SDK with retries
-  let retries = 5;
-  while (!window.paypal && retries > 0) {
-    console.warn(`Waiting for PayPal SDK... (${retries} retries left)`);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    retries--;
-  }
+  console.log('Rendering PayPal button...', { containerId, options });
 
   if (!window.paypal) {
-    throw new Error('PayPal SDK failed to load after retries');
+    throw new Error('PayPal SDK not loaded');
   }
 
-  console.log('Looking for container:', containerId);
   const container = document.getElementById(containerId);
-  console.log('Container found:', container);
-
   if (!container) {
     throw new Error(`Container ${containerId} not found`);
   }
 
   try {
-    // Use the hosted button ID based on plan type
     const hostedButtonId = options.planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YOUR_YEARLY_BUTTON_ID';
     
     await window.paypal.HostedButtons({
