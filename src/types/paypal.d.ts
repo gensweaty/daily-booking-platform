@@ -6,11 +6,18 @@ interface PayPalButtonStyle {
   label?: 'paypal' | 'checkout' | 'buynow' | 'pay';
 }
 
+interface PayPalFunding {
+  PAYPAL: string;
+}
+
 interface PayPalButtonsComponentOptions {
   style?: PayPalButtonStyle;
-  createOrder: () => Promise<string>;
-  onApprove: (data: { orderID: string }) => Promise<void>;
+  createOrder?: () => Promise<string>;
+  onApprove?: (data: { orderID?: string; subscriptionID?: string }) => Promise<void>;
   onError?: (error: any) => void;
+  onCancel?: () => void;
+  onClick?: () => Promise<void>;
+  onInit?: () => Promise<void>;
 }
 
 interface PayPalButtonsComponent {
@@ -19,6 +26,7 @@ interface PayPalButtonsComponent {
 
 interface PayPalNamespace {
   Buttons: (options: PayPalButtonsComponentOptions) => PayPalButtonsComponent;
+  FUNDING: PayPalFunding;
 }
 
 declare global {

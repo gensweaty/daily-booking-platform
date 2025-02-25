@@ -53,18 +53,17 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
 
         // Render PayPal button
         window.paypal.Buttons({
-          fundingSource: window.paypal.FUNDING.PAYPAL,
           style: {
             layout: 'vertical',
             color: 'gold',
             shape: 'rect',
             label: 'pay'
           },
-          async onClick() {
+          onClick: async () => {
             // Validate or prepare anything before payment if needed
             console.log('Button clicked, preparing payment...');
           },
-          async onInit() {
+          onInit: async () => {
             console.log('PayPal button initialized');
           },
           createOrder: async () => {
