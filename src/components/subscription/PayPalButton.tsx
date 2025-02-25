@@ -34,69 +34,13 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
           planType,
           amount,
           createSubscription: async () => {
-            try {
-              console.log('Creating subscription...', { planType, amount });
-              const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-subscription', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  plan_type: planType,
-                  amount: amount
-                })
-              });
-
-              if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Subscription creation failed:', errorData);
-                throw new Error('Failed to create subscription');
-              }
-
-              const data = await response.json();
-              console.log('Subscription created:', data);
-              return data.subscriptionId;
-            } catch (error) {
-              console.error('Error in createSubscription:', error);
-              throw error;
-            }
+            // This won't be called with hosted buttons, but kept for type compatibility
+            return '';
           },
           onApprove: async (data) => {
-            try {
-              console.log('PayPal subscription approved:', data);
-              const subscriptionId = data.subscriptionID;
-              
-              if (!subscriptionId) {
-                throw new Error('No subscription ID received');
-              }
-
-              const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/verify-paypal-subscription', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  subscriptionId: subscriptionId,
-                  plan_type: planType
-                })
-              });
-
-              if (!response.ok) {
-                throw new Error('Subscription verification failed');
-              }
-
-              const result = await response.json();
-              console.log('Subscription verified:', result);
-              if (isMounted) {
-                onSuccess(subscriptionId);
-              }
-            } catch (error) {
-              console.error('PayPal verification error:', error);
-              toast({
-                title: "Error",
-                description: "Subscription verification failed. Please try again.",
-                variant: "destructive"
-              });
+            // This won't be called with hosted buttons, but kept for type compatibility
+            if (isMounted) {
+              onSuccess('subscription_created');
             }
           }
         });

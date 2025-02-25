@@ -16,7 +16,8 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
 
     const script = document.createElement('script');
     script.id = 'paypal-script';
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD&intent=subscription&vault=true`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+    script.crossOrigin = "anonymous";
     script.async = true;
 
     script.onload = () => {
@@ -74,51 +75,15 @@ export const renderPayPalButton = async (
     throw new Error(`Container ${containerId} not found`);
   }
 
-  // Clear existing content
-  container.innerHTML = '';
-
   try {
-    const buttons = window.paypal.Buttons({
-      style: {
-        layout: 'vertical',
-        color: 'gold',
-        shape: 'rect',
-        label: 'subscribe'
-      },
-      createSubscription: async () => {
-        try {
-          console.log('Creating subscription...', { options });
-          const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-subscription', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              plan_type: options.planType,
-              amount: options.amount
-            })
-          });
-          console.log('Response status:', response.status);
-          
-          if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Subscription creation failed:', errorData);
-            throw new Error('Failed to create subscription');
-          }
-
-          const data = await response.json();
-          console.log('Subscription API response:', data);
-          return data.subscriptionId;
-        } catch (error) {
-          console.error('Error in createSubscription:', error);
-          throw error;
-        }
-      },
-      onApprove: options.onApprove
-    });
-
-    await buttons.render(container);
-    console.log('PayPal button rendered successfully');
+    // Use the hosted button ID based on plan type
+    const hostedButtonId = options.planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YOUR_YEARLY_BUTTON_ID';
+    
+    await window.paypal.HostedButtons({
+      hostedButtonId: hostedButtonId
+    }).render('#' + containerId);
+    
+    console.log('PayPal hosted button rendered successfully');
   } catch (error) {
     console.error('Error rendering PayPal button:', error);
     throw error;
