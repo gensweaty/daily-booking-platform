@@ -27,10 +27,10 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
           document.body.removeChild(existingScript);
         }
 
-        // Create new PayPal script
+        // Create new PayPal script with additional parameters
         paypalScript = document.createElement('script');
         paypalScript.id = scriptId;
-        paypalScript.src = `https://www.paypal.com/sdk/js?client-id=AYmN8pJKiP646o4xp6KaMyEa3_TPIGL4KqYc_dPLD4JXulCW6-tJKn-4QAYPv98m1JPj57Yvf1mV8lP_&currency=USD&intent=subscription`;
+        paypalScript.src = `https://www.paypal.com/sdk/js?client-id=AYmN8pJKiP646o4xp6KaMyEa3_TPIGL4KqYc_dPLD4JXulCW6-tJKn-4QAYPv98m1JPj57Yvf1mV8lP_&currency=USD&intent=subscription&vault=true&components=buttons`;
         
         paypalScript.onload = () => resolve();
         paypalScript.onerror = () => reject(new Error('Failed to load PayPal script'));
@@ -53,30 +53,47 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
 
         // Render PayPal button
         window.paypal.Buttons({
+          fundingSource: window.paypal.FUNDING.PAYPAL,
           style: {
             layout: 'vertical',
             color: 'gold',
             shape: 'rect',
             label: 'pay'
           },
+          async onClick() {
+            // Validate or prepare anything before payment if needed
+            console.log('Button clicked, preparing payment...');
+          },
+          async onInit() {
+            console.log('PayPal button initialized');
+          },
           createOrder: async () => {
-            const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-subscription', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                plan_type: planType,
-                amount: amount
-              })
-            });
+            try {
+              console.log('Creating subscription...', { planType, amount });
+              const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-subscription', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  plan_type: planType,
+                  amount: amount
+                })
+              });
 
-            if (!response.ok) {
-              throw new Error('Failed to create subscription');
+              if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Subscription creation failed:', errorData);
+                throw new Error('Failed to create subscription');
+              }
+
+              const data = await response.json();
+              console.log('Subscription created:', data);
+              return data.subscriptionId;
+            } catch (error) {
+              console.error('Error in createOrder:', error);
+              throw error;
             }
-
-            const data = await response.json();
-            return data.subscriptionId;
           },
           onApprove: async (data: { orderID?: string; subscriptionID?: string }) => {
             try {
@@ -103,6 +120,7 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
               }
 
               const result = await response.json();
+              console.log('Subscription verified:', result);
               if (isMounted) {
                 onSuccess(subscriptionId);
               }
@@ -121,6 +139,14 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
               title: "Error",
               description: "There was a problem processing your subscription. Please try again.",
               variant: "destructive"
+            });
+          },
+          onCancel: () => {
+            console.log('Payment cancelled');
+            toast({
+              title: "Cancelled",
+              description: "Payment was cancelled. Please try again if you wish to subscribe.",
+              variant: "default"
             });
           }
         }).render(buttonContainerRef.current)
