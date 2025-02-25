@@ -59,7 +59,7 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
             shape: 'rect',
             label: 'pay'
           },
-          createSubscription: async () => {
+          createOrder: async () => {
             const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/create-paypal-subscription', {
               method: 'POST',
               headers: {
