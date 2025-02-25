@@ -6,10 +6,6 @@ interface PayPalButtonStyle {
   label?: 'paypal' | 'checkout' | 'buynow' | 'pay';
 }
 
-interface PayPalFunding {
-  PAYPAL: string;
-}
-
 interface PayPalButtonsComponentOptions {
   style?: PayPalButtonStyle;
   createOrder?: () => Promise<string>;
@@ -26,7 +22,6 @@ interface PayPalButtonsComponent {
 
 interface PayPalNamespace {
   Buttons: (options: PayPalButtonsComponentOptions) => PayPalButtonsComponent;
-  FUNDING: PayPalFunding;
 }
 
 declare global {

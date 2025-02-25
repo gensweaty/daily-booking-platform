@@ -21,21 +21,33 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
 
     const loadPayPalScript = async () => {
       return new Promise<void>((resolve, reject) => {
-        // Remove any existing PayPal script
-        const existingScript = document.getElementById(scriptId);
-        if (existingScript) {
-          document.body.removeChild(existingScript);
-        }
+        try {
+          // Remove any existing PayPal script
+          const existingScript = document.getElementById(scriptId);
+          if (existingScript) {
+            document.body.removeChild(existingScript);
+          }
 
-        // Create new PayPal script with additional parameters
-        paypalScript = document.createElement('script');
-        paypalScript.id = scriptId;
-        paypalScript.src = `https://www.paypal.com/sdk/js?client-id=AYmN8pJKiP646o4xp6KaMyEa3_TPIGL4KqYc_dPLD4JXulCW6-tJKn-4QAYPv98m1JPj57Yvf1mV8lP_&currency=USD&intent=subscription&vault=true&components=buttons`;
-        
-        paypalScript.onload = () => resolve();
-        paypalScript.onerror = () => reject(new Error('Failed to load PayPal script'));
-        
-        document.body.appendChild(paypalScript);
+          // Create new PayPal script
+          paypalScript = document.createElement('script');
+          paypalScript.id = scriptId;
+          paypalScript.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&currency=USD&intent=subscription`;
+          
+          paypalScript.onload = () => {
+            console.log('PayPal script loaded successfully');
+            resolve();
+          };
+          
+          paypalScript.onerror = (error) => {
+            console.error('PayPal script loading error:', error);
+            reject(new Error('Failed to load PayPal script'));
+          };
+          
+          document.body.appendChild(paypalScript);
+        } catch (error) {
+          console.error('Error in loadPayPalScript:', error);
+          reject(error);
+        }
       });
     };
 
@@ -44,27 +56,24 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         console.log('Initializing PayPal...');
         await loadPayPalScript();
         
-        if (!buttonContainerRef.current || !window.paypal) {
-          throw new Error('PayPal container or SDK not available');
+        if (!buttonContainerRef.current) {
+          throw new Error('PayPal container not found');
+        }
+
+        if (!window.paypal) {
+          throw new Error('PayPal SDK not loaded');
         }
 
         // Clear any existing buttons
         buttonContainerRef.current.innerHTML = '';
 
         // Render PayPal button
-        window.paypal.Buttons({
+        await window.paypal.Buttons({
           style: {
             layout: 'vertical',
             color: 'gold',
             shape: 'rect',
             label: 'pay'
-          },
-          onClick: async () => {
-            // Validate or prepare anything before payment if needed
-            console.log('Button clicked, preparing payment...');
-          },
-          onInit: async () => {
-            console.log('PayPal button initialized');
           },
           createOrder: async () => {
             try {
@@ -148,17 +157,7 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
               variant: "default"
             });
           }
-        }).render(buttonContainerRef.current)
-          .catch((err: Error) => {
-            console.error('PayPal render error:', err);
-            if (isMounted) {
-              toast({
-                title: "Error",
-                description: "Failed to load payment system. Please refresh and try again.",
-                variant: "destructive"
-              });
-            }
-          });
+        }).render(buttonContainerRef.current);
 
         if (isMounted) {
           setIsLoading(false);
