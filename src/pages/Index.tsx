@@ -55,7 +55,7 @@ const Index = () => {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('username')
+          .select('username, subscription_status')
           .eq('id', user.id)
           .maybeSingle()
         
@@ -66,6 +66,10 @@ const Index = () => {
         
         if (data) {
           setUsername(data.username)
+          // Close the dialog if user has active subscription
+          if (data.subscription_status === 'active') {
+            setShowTrialExpired(false)
+          }
         }
       } catch (error: any) {
         console.error('Profile fetch error:', error)
@@ -82,12 +86,10 @@ const Index = () => {
       initial="hidden"
       animate="visible"
     >
-      {showTrialExpired && (
-        <TrialExpiredDialog 
-          open={showTrialExpired} 
-          onOpenChange={setShowTrialExpired}
-        />
-      )}
+      <TrialExpiredDialog 
+        open={showTrialExpired} 
+        onOpenChange={setShowTrialExpired}
+      />
       <motion.div variants={childVariants}>
         <DashboardHeader username={username} />
       </motion.div>

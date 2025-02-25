@@ -12,7 +12,12 @@ import { PayPalButton } from "./subscription/PayPalButton";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
-export const TrialExpiredDialog = () => {
+interface TrialExpiredDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export const TrialExpiredDialog = ({ open = true, onOpenChange }: TrialExpiredDialogProps) => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -22,13 +27,18 @@ export const TrialExpiredDialog = () => {
       title: "Success",
       description: "Your subscription has been activated successfully!",
     });
+    
+    if (onOpenChange) {
+      onOpenChange(false);
+    }
+    
     navigate('/dashboard');
   };
 
   const amount = selectedPlan === 'monthly' ? '9.99' : '99.99';
 
   return (
-    <Dialog open={true} onOpenChange={() => {}}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
         className="sm:max-w-[500px]"
         onEscapeKeyDown={(e) => e.preventDefault()}

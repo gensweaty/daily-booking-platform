@@ -18,21 +18,22 @@ export const useSubscriptionRedirect = () => {
       if (!subscriptionType || !user) return
 
       try {
-        console.log('Processing subscription redirect:', subscriptionType)
+        console.log('Processing subscription redirect:', { subscriptionType, userId: user.id })
         
-        const response = await supabase.functions.invoke('handle-subscription-redirect', {
-          body: { subscription: subscriptionType },
-          headers: { 'x-user-id': user.id }
-        })
-
-        if (response.error) {
-          console.error('Subscription activation error:', response.error)
-          toast({
-            title: 'Error',
-            description: 'Failed to activate subscription. Please try again.',
-            variant: 'destructive'
+        // Update the user's subscription status in the database
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            subscription_type: subscriptionType,
+            subscription_status: 'active',
+            subscription_start_date: new Date().toISOString(),
+            subscription_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
           })
-          return
+          .eq('id', user.id)
+
+        if (updateError) {
+          console.error('Error updating subscription:', updateError)
+          throw updateError
         }
 
         console.log('Subscription activated successfully')
@@ -42,7 +43,7 @@ export const useSubscriptionRedirect = () => {
         })
 
         // Remove subscription parameter from URL
-        navigate('/dashboard')
+        navigate('/dashboard', { replace: true })
       } catch (error) {
         console.error('Error handling subscription redirect:', error)
         toast({
