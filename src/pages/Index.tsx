@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
-import { useSearchParams, useNavigate } from "react-router-dom"
+import { useSearchParams } from "react-router-dom"
 import { AuthUI } from "@/components/AuthUI"
 import { DashboardHeader } from "@/components/DashboardHeader"
 import { TrialExpiredDialog } from "@/components/TrialExpiredDialog"
@@ -39,9 +39,7 @@ const Index = () => {
   const [showTrialExpired, setShowTrialExpired] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
-  const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
-  
+
   useSubscriptionRedirect()
 
   useEffect(() => {
@@ -52,25 +50,25 @@ const Index = () => {
     }
 
     const getProfile = async () => {
-      if (user) {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', user.id)
-            .maybeSingle()
-          
-          if (error) {
-            console.error('Error fetching profile:', error)
-            return
-          }
-          
-          if (data) {
-            setUsername(data.username)
-          }
-        } catch (error: any) {
-          console.error('Profile fetch error:', error)
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .maybeSingle()
+        
+        if (error) {
+          console.error('Error fetching profile:', error)
+          return
         }
+        
+        if (data) {
+          setUsername(data.username)
+        }
+      } catch (error: any) {
+        console.error('Profile fetch error:', error)
       }
     }
 
@@ -84,7 +82,12 @@ const Index = () => {
       initial="hidden"
       animate="visible"
     >
-      {showTrialExpired && <TrialExpiredDialog />}
+      {showTrialExpired && (
+        <TrialExpiredDialog 
+          open={showTrialExpired} 
+          onOpenChange={setShowTrialExpired}
+        />
+      )}
       <motion.div variants={childVariants}>
         <DashboardHeader username={username} />
       </motion.div>
