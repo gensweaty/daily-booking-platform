@@ -73,7 +73,7 @@ export const renderPayPalButton = async (
     
     const instance = await window.paypal.HostedButtons({
       hostedButtonId: 'SZHF9WLR5RQWU',
-      onApprove: (data: any) => {
+      onApprove: function(data: { orderID: string }) {
         console.log('PayPal payment approved:', data);
         if (data.orderID) {
           onSuccess(data.orderID);

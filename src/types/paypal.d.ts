@@ -1,10 +1,15 @@
 
+interface PayPalHostedButtonsConfig {
+  hostedButtonId: string;
+  onApprove?: (data: { orderID: string }) => void;
+}
+
 interface PayPalHostedButtons {
   render: (containerId: string) => Promise<void>;
 }
 
 interface PayPalNamespace {
-  HostedButtons: (config: { hostedButtonId: string }) => PayPalHostedButtons;
+  HostedButtons: (config: PayPalHostedButtonsConfig) => PayPalHostedButtons;
 }
 
 declare global {
