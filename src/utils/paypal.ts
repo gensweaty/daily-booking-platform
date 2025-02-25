@@ -53,7 +53,8 @@ export const renderPayPalButton = async (
   options: {
     planType: 'monthly' | 'yearly';
     amount: string;
-  }
+  },
+  onSuccess: (orderId: string) => void
 ): Promise<void> => {
   console.log('Rendering PayPal button...', { containerId, options });
 
@@ -70,9 +71,17 @@ export const renderPayPalButton = async (
     // Using specific container ID format required by PayPal
     container.innerHTML = '<div id="paypal-container-SZHF9WLR5RQWU"></div>';
     
-    await window.paypal.HostedButtons({
-      hostedButtonId: 'SZHF9WLR5RQWU'
-    }).render('#paypal-container-SZHF9WLR5RQWU');
+    const instance = await window.paypal.HostedButtons({
+      hostedButtonId: 'SZHF9WLR5RQWU',
+      onApprove: (data: any) => {
+        console.log('PayPal payment approved:', data);
+        if (data.orderID) {
+          onSuccess(data.orderID);
+        }
+      }
+    });
+
+    await instance.render('#paypal-container-SZHF9WLR5RQWU');
     
     console.log('PayPal hosted button rendered successfully');
   } catch (error) {

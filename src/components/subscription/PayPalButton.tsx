@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { loadPayPalScript, renderPayPalButton } from '@/utils/paypal';
+import { useNavigate } from 'react-router-dom';
 
 interface PayPalButtonProps {
   amount: string;
@@ -14,6 +15,17 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
   const buttonContainerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const handlePaymentSuccess = async (orderId: string) => {
+    console.log('Payment successful, order ID:', orderId);
+    
+    // Add subscription parameter to URL to trigger subscription activation
+    navigate(`/dashboard?subscription=${planType}`);
+    
+    // Call the onSuccess callback
+    onSuccess(orderId);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -28,7 +40,7 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         await renderPayPalButton('paypal-outer-container', {
           planType,
           amount
-        });
+        }, handlePaymentSuccess);
 
         if (isMounted) {
           setIsLoading(false);
@@ -51,7 +63,7 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
     return () => {
       isMounted = false;
     };
-  }, [amount, planType, toast]);
+  }, [amount, planType, toast, handlePaymentSuccess]);
 
   return (
     <div className="w-full">
