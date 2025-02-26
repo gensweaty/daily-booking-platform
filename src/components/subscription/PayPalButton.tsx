@@ -3,8 +3,9 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { loadPayPalScript, renderPayPalButton } from '@/utils/paypal';
-import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PayPalButtonProps {
   amount: string;
@@ -15,25 +16,30 @@ interface PayPalButtonProps {
 export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps) => {
   const buttonContainerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const activateSubscription = async (orderId: string) => {
-    if (!user) {
-      console.error('No user found when trying to activate subscription');
-      return false;
-    }
+    if (!user) return false;
 
     try {
+      console.log('Activating subscription with order ID:', orderId);
+
+      // Get the subscription plan ID
       const { data: planData, error: planError } = await supabase
         .from('subscription_plans')
         .select('id')
         .eq('type', planType)
         .single();
 
-      if (planError || !planData?.id) {
+      if (planError) {
         console.error('Error fetching plan:', planError);
+        return false;
+      }
+
+      if (!planData?.id) {
+        console.error('Subscription plan not found');
         return false;
       }
 
@@ -41,12 +47,19 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + (planType === 'yearly' ? 12 : 1));
 
-      await supabase
+      // First delete any existing subscriptions
+      const { error: deleteError } = await supabase
         .from('subscriptions')
         .delete()
         .eq('user_id', user.id);
 
-      const { data: subscription, error: subscriptionError } = await supabase
+      if (deleteError) {
+        console.error('Error deleting existing subscription:', deleteError);
+        return false;
+      }
+
+      // Create new subscription
+      const { error: subscriptionError } = await supabase
         .from('subscriptions')
         .insert({
           user_id: user.id,
@@ -56,15 +69,14 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
           current_period_start: currentDate.toISOString(),
           current_period_end: endDate.toISOString(),
           last_payment_id: orderId
-        })
-        .select()
-        .single();
+        });
 
       if (subscriptionError) {
         console.error('Error creating subscription:', subscriptionError);
         return false;
       }
 
+      console.log('Subscription activated successfully');
       return true;
     } catch (error) {
       console.error('Error in activateSubscription:', error);
@@ -83,9 +95,12 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         description: "Your subscription has been activated successfully!",
       });
       
+      // Call the onSuccess callback if provided
       if (onSuccess) {
         onSuccess(orderId);
       }
+
+      // Refresh the page to update the UI
       window.location.reload();
     } else {
       toast({
@@ -97,66 +112,55 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
   }, [planType, onSuccess, toast, user]);
 
   useEffect(() => {
-    let mounted = true;
+    let isMounted = true;
 
-    const initPayPal = async () => {
-      if (!buttonContainerRef.current) return;
-      
+    const initializePayPal = async () => {
       try {
+        if (!buttonContainerRef.current) {
+          throw new Error('PayPal container not found');
+        }
+
         await loadPayPalScript('BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q');
         
-        if (!mounted) return;
+        if (!isMounted) return;
 
-        const container = buttonContainerRef.current;
-        container.innerHTML = '<div id="paypal-button-container"></div>';
-        
         await renderPayPalButton(
-          'paypal-button-container',
+          'paypal-outer-container', 
           { planType, amount },
           handlePaymentSuccess
         );
 
-        if (mounted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       } catch (error) {
         console.error('PayPal initialization error:', error);
-        if (mounted) {
+        if (isMounted) {
           setIsLoading(false);
-          setError('Failed to load payment system. Please try again.');
           toast({
             title: "Error",
-            description: "Failed to load payment system. Please try again.",
+            description: "Failed to load payment system. Please refresh and try again.",
             variant: "destructive"
           });
         }
       }
     };
 
-    initPayPal();
+    initializePayPal();
 
     return () => {
-      mounted = false;
-      // Clean up PayPal button container
-      if (buttonContainerRef.current) {
-        buttonContainerRef.current.innerHTML = '';
-      }
+      isMounted = false;
     };
-  }, [amount, planType, handlePaymentSuccess, toast]);
+  }, [amount, planType, toast, handlePaymentSuccess]);
 
-  if (error) {
-    return (
-      <div className="w-full p-4 text-center">
-        <p className="text-red-500">{error}</p>
-      </div>
-    );
+  if (!buttonContainerRef.current && isLoading) {
+    return <LoadingSpinner />;
   }
 
   return (
     <div className="w-full">
       <div 
-        ref={buttonContainerRef}
-        className="min-h-[150px] w-full flex justify-center items-center bg-background"
+        ref={buttonContainerRef} 
+        id="paypal-outer-container"
+        className="min-h-[150px] flex justify-center items-center bg-transparent"
       >
         {isLoading && <LoadingSpinner />}
       </div>

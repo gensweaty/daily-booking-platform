@@ -8,16 +8,22 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
         throw new Error('PayPal client ID is required');
       }
 
-      // If PayPal is already loaded, resolve immediately
       if (window.paypal) {
         console.log('PayPal SDK already loaded');
         return resolve();
       }
 
+      const existingScript = document.getElementById('paypal-script');
+      if (existingScript) {
+        console.log('Removing existing PayPal script...');
+        existingScript.remove();
+      }
+
       const script = document.createElement('script');
-      script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD&intent=capture`;
-      script.async = true;
+      script.id = 'paypal-script';
+      script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
       script.crossOrigin = "anonymous";
+      script.async = true;
 
       script.onload = () => {
         console.log('PayPal script loaded successfully');
@@ -33,6 +39,7 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
         reject(error);
       };
 
+      console.log('Appending PayPal script to document body...');
       document.body.appendChild(script);
     } catch (error) {
       console.error('Error in loadPayPalScript:', error);
@@ -61,41 +68,24 @@ export const renderPayPalButton = async (
   }
 
   try {
-    await window.paypal.Buttons({
-      style: {
-        layout: 'vertical',
-        color: 'blue',
-        shape: 'rect',
-        label: 'paypal'
-      },
-      createOrder: async (_data: any, actions: any) => {
-        console.log('Creating order for amount:', options.amount);
-        return actions.order.create({
-          purchase_units: [{
-            amount: {
-              value: options.amount,
-              currency_code: 'USD'
-            },
-            description: `${options.planType} subscription`
-          }]
-        });
-      },
-      onApprove: async (data: any, actions: any) => {
-        console.log('Order approved:', data);
-        try {
-          const orderDetails = await actions.order.capture();
-          console.log('Order captured:', orderDetails);
-          onSuccess(orderDetails.id);
-        } catch (error) {
-          console.error('Capture failed:', error);
-          throw error;
+    // Using specific container ID format required by PayPal
+    container.innerHTML = '<div id="paypal-container-SZHF9WLR5RQWU"></div>';
+    
+    const instance = await window.paypal.HostedButtons({
+      hostedButtonId: 'SZHF9WLR5RQWU',
+      onApprove: function(data: { orderID: string }) {
+        console.log('PayPal payment approved:', data);
+        if (data.orderID) {
+          onSuccess(data.orderID);
         }
       }
-    }).render(`#${containerId}`);
+    });
+
+    await instance.render('#paypal-container-SZHF9WLR5RQWU');
     
-    console.log('PayPal button rendered successfully');
+    console.log('PayPal hosted button rendered successfully');
   } catch (error) {
-    console.error('Failed to render PayPal button:', error);
+    console.error('Error rendering PayPal button:', error);
     throw error;
   }
 };
