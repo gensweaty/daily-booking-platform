@@ -43,27 +43,36 @@ const Index = () => {
       if (!user) return
 
       try {
-        const { data: activeSubscription } = await supabase
+        const { data: activeSubscription, error: subError } = await supabase
           .from('subscriptions')
           .select('status')
           .eq('user_id', user.id)
           .eq('status', 'active')
           .maybeSingle()
 
-        console.log('Subscription check result:', { activeSubscription })
+        if (subError) {
+          console.error('Error checking subscription:', subError)
+          return
+        }
+
         setShowTrialExpired(!activeSubscription)
 
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('username')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
+
+        if (profileError) {
+          console.error('Error fetching profile:', profileError)
+          return
+        }
 
         if (profile?.username) {
           setUsername(profile.username)
         }
       } catch (error) {
-        console.error('Error checking subscription:', error)
+        console.error('Error in subscription check:', error)
       }
     }
 
@@ -86,9 +95,7 @@ const Index = () => {
       initial="hidden"
       animate="visible"
     >
-      {showTrialExpired && (
-        <TrialExpiredDialog open={true} />
-      )}
+      {showTrialExpired && <TrialExpiredDialog open={true} />}
       <motion.div variants={childVariants}>
         <DashboardHeader username={username} />
       </motion.div>
