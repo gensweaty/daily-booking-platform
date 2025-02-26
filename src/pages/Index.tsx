@@ -42,53 +42,56 @@ const Index = () => {
   useSubscriptionRedirect()
 
   useEffect(() => {
+    let isMounted = true;
+
     const checkSubscription = async () => {
       if (!user) {
-        setIsLoading(false)
-        return
+        if (isMounted) {
+          setIsLoading(false);
+          setShowTrialExpired(false);
+        }
+        return;
       }
 
       try {
-        // Get profile data
-        const { data: profileData, error: profileError } = await supabase
+        const { data: profileData } = await supabase
           .from('profiles')
           .select('username')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
 
-        if (profileError) throw profileError
-        if (profileData) {
-          setUsername(profileData.username)
+        if (isMounted && profileData?.username) {
+          setUsername(profileData.username);
         }
 
-        // Check subscription status
-        const { data: subscription, error: subscriptionError } = await supabase
+        const { data: subscription } = await supabase
           .from('subscriptions')
           .select('status, plan_type')
           .eq('user_id', user.id)
           .eq('status', 'active')
           .maybeSingle()
 
-        if (subscriptionError) throw subscriptionError
-
-        // Only show dialog if there's no active subscription
-        setShowTrialExpired(!subscription)
-        
-        console.log('Subscription check:', {
-          hasActiveSubscription: !!subscription,
-          subscription
-        })
-
+        if (isMounted) {
+          setShowTrialExpired(!subscription);
+          console.log('Subscription status:', { hasActiveSubscription: !!subscription });
+        }
       } catch (error) {
-        console.error('Error checking subscription status:', error)
-        // Don't show the dialog if there's an error checking subscription
-        setShowTrialExpired(false)
+        console.error('Error checking subscription:', error);
+        if (isMounted) {
+          setShowTrialExpired(false);
+        }
       } finally {
-        setIsLoading(false)
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
 
-    checkSubscription()
+    checkSubscription();
+
+    return () => {
+      isMounted = false;
+    }
   }, [user])
 
   const content = user ? (
@@ -98,9 +101,9 @@ const Index = () => {
       initial="hidden"
       animate="visible"
     >
-      {!isLoading && (
+      {!isLoading && showTrialExpired && (
         <TrialExpiredDialog 
-          open={showTrialExpired} 
+          open={true}
           onOpenChange={setShowTrialExpired}
         />
       )}
@@ -129,3 +132,4 @@ const Index = () => {
 }
 
 export default Index
+
