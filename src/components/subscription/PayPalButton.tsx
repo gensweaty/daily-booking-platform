@@ -58,12 +58,10 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
       }
 
       // Force close PayPal popup if needed
-      if (window.paypal) {
+      if (window.paypal?.close) {
         console.log('Closing PayPal popup...');
         setTimeout(() => {
-          if (window.paypal?.closeFlow) {
-            window.paypal.closeFlow();
-          }
+          window.paypal?.close();
         }, 500);
       }
 
