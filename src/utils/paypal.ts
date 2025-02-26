@@ -8,17 +8,16 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
         throw new Error('PayPal client ID is required');
       }
 
-      const existingScript = document.getElementById('paypal-script');
-      if (existingScript) {
-        console.log('Removing existing PayPal script...');
-        existingScript.remove();
+      // If PayPal is already loaded, resolve immediately
+      if (window.paypal) {
+        console.log('PayPal SDK already loaded');
+        return resolve();
       }
 
       const script = document.createElement('script');
-      script.id = 'paypal-script';
       script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD&intent=capture`;
-      script.crossOrigin = "anonymous";
       script.async = true;
+      script.crossOrigin = "anonymous";
 
       script.onload = () => {
         console.log('PayPal script loaded successfully');

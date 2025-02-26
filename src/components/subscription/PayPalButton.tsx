@@ -15,6 +15,7 @@ interface PayPalButtonProps {
 export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps) => {
   const buttonContainerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -98,6 +99,8 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
 
   useEffect(() => {
     let mounted = true;
+    setIsLoading(true);
+    setError(null);
 
     const initPayPal = async () => {
       if (!buttonContainerRef.current) return;
@@ -108,7 +111,7 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         if (!mounted) return;
 
         await renderPayPalButton(
-          'paypal-button-container',
+          buttonContainerRef.current.id,
           { planType, amount },
           handlePaymentSuccess
         );
@@ -120,6 +123,7 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         console.error('PayPal initialization error:', error);
         if (mounted) {
           setIsLoading(false);
+          setError('Failed to load payment system. Please try again.');
           toast({
             title: "Error",
             description: "Failed to load payment system. Please try again.",
@@ -129,6 +133,11 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
       }
     };
 
+    const uniqueId = `paypal-button-container-${Math.random().toString(36).substring(7)}`;
+    if (buttonContainerRef.current) {
+      buttonContainerRef.current.id = uniqueId;
+    }
+
     initPayPal();
 
     return () => {
@@ -136,14 +145,23 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
     };
   }, [amount, planType, handlePaymentSuccess, toast]);
 
+  if (error) {
+    return (
+      <div className="w-full p-4 text-center">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
       <div 
         ref={buttonContainerRef}
-        id="paypal-button-container"
-        className="min-h-[150px] w-full flex justify-center items-center bg-transparent"
+        className="min-h-[150px] w-full flex justify-center items-center bg-background"
       >
-        {isLoading && <LoadingSpinner />}
+        {isLoading ? (
+          <LoadingSpinner />
+        ) : null}
       </div>
     </div>
   );
