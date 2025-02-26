@@ -18,8 +18,6 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
-  const retryCountRef = useRef(0);
-  const maxRetries = 3;
 
   const handlePaymentSuccess = useCallback(async (data: any) => {
     console.log('PayPal payment approved:', data);
@@ -59,14 +57,6 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         onSuccess(data.orderID);
       }
 
-      // Force close PayPal popup if needed
-      if (window.paypal?.close) {
-        console.log('Closing PayPal popup...');
-        setTimeout(() => {
-          window.paypal?.close();
-        }, 500);
-      }
-
       window.location.reload();
     } catch (error) {
       console.error('PayPal verification error:', error);
@@ -86,11 +76,15 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
     
     try {
       setError(null);
+      setIsLoading(true);
+
+      // Create the container before loading PayPal
+      buttonContainerRef.current.innerHTML = '<div id="paypal-button-container"></div>';
+
+      // Load PayPal script
       await loadPayPalScript('BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q');
       
-      const container = buttonContainerRef.current;
-      container.innerHTML = '<div id="paypal-button-container"></div>';
-      
+      // Render PayPal button
       await renderPayPalButton(
         'paypal-button-container',
         { planType, amount },
@@ -98,23 +92,15 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
       );
 
       setIsLoading(false);
-      retryCountRef.current = 0; // Reset retry count on success
     } catch (error) {
       console.error('PayPal initialization error:', error);
-      
-      if (retryCountRef.current < maxRetries) {
-        console.log(`Retrying PayPal initialization (${retryCountRef.current + 1}/${maxRetries})...`);
-        retryCountRef.current += 1;
-        setTimeout(initPayPal, 2000); // Retry after 2 seconds
-      } else {
-        setIsLoading(false);
-        setError('Failed to load payment system. Please try refreshing the page.');
-        toast({
-          title: "Error",
-          description: "Failed to load payment system. Please try refreshing the page.",
-          variant: "destructive"
-        });
-      }
+      setIsLoading(false);
+      setError('Failed to load payment system. Please try refreshing the page.');
+      toast({
+        title: "Error",
+        description: "Failed to load payment system. Please try refreshing the page.",
+        variant: "destructive"
+      });
     }
   }, [amount, planType, handlePaymentSuccess, toast]);
 
@@ -134,20 +120,20 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
       }
     };
 
+    // Only initialize if component is mounted
     if (mounted) {
-      initPayPal();
+      // Clean up any existing PayPal instances first
+      cleanup();
+      // Initialize PayPal after a short delay to ensure DOM is ready
+      setTimeout(() => {
+        if (mounted) {
+          initPayPal();
+        }
+      }, 100);
     }
 
     return cleanup;
   }, [initPayPal]);
-
-  if (error) {
-    return (
-      <div className="w-full p-4 text-center">
-        <p className="text-red-500">{error}</p>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full">
@@ -157,6 +143,11 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
       >
         {isLoading && <LoadingSpinner />}
       </div>
+      {error && (
+        <div className="mt-2 text-center text-red-500">
+          {error}
+        </div>
+      )}
     </div>
   );
 };

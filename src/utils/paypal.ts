@@ -87,28 +87,19 @@ export const renderPayPalButton = async (
   console.log('Rendering PayPal button...', { containerId, options });
   console.log('Current PayPal SDK status:', window.paypal);
 
-  // Verify PayPal SDK is loaded
-  if (!window.paypal?.Buttons) {
-    console.error('PayPal SDK not loaded or not functional. Retrying in 3 seconds...');
-    return new Promise((resolve) => {
-      setTimeout(async () => {
-        try {
-          await renderPayPalButton(containerId, options, onSuccess);
-          resolve();
-        } catch (error) {
-          console.error('Retry failed:', error);
-        }
-      }, 3000);
-    });
-  }
-
-  // Verify container exists
+  // Verify container exists before proceeding
   const container = document.getElementById(containerId);
   console.log('Container check:', container);
   console.log('Current document body:', document.body.innerHTML);
   
   if (!container) {
     throw new Error(`Container #${containerId} not found. Current HTML: ${document.body.innerHTML}`);
+  }
+
+  // Verify PayPal SDK is loaded
+  if (!window.paypal?.Buttons) {
+    console.error('PayPal SDK not loaded or not functional');
+    throw new Error('PayPal SDK not initialized');
   }
 
   try {
