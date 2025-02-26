@@ -18,6 +18,8 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
 
   const handlePaymentSuccess = useCallback(async (data: any) => {
     console.log('PayPal payment approved:', data);
@@ -76,52 +78,68 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
     }
   }, [planType, onSuccess, toast]);
 
+  const initPayPal = useCallback(async () => {
+    if (!buttonContainerRef.current) {
+      console.error('Button container ref not found');
+      return;
+    }
+    
+    try {
+      setError(null);
+      await loadPayPalScript('BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q');
+      
+      const container = buttonContainerRef.current;
+      container.innerHTML = '<div id="paypal-button-container"></div>';
+      
+      await renderPayPalButton(
+        'paypal-button-container',
+        { planType, amount },
+        handlePaymentSuccess
+      );
+
+      setIsLoading(false);
+      retryCountRef.current = 0; // Reset retry count on success
+    } catch (error) {
+      console.error('PayPal initialization error:', error);
+      
+      if (retryCountRef.current < maxRetries) {
+        console.log(`Retrying PayPal initialization (${retryCountRef.current + 1}/${maxRetries})...`);
+        retryCountRef.current += 1;
+        setTimeout(initPayPal, 2000); // Retry after 2 seconds
+      } else {
+        setIsLoading(false);
+        setError('Failed to load payment system. Please try refreshing the page.');
+        toast({
+          title: "Error",
+          description: "Failed to load payment system. Please try refreshing the page.",
+          variant: "destructive"
+        });
+      }
+    }
+  }, [amount, planType, handlePaymentSuccess, toast]);
+
   useEffect(() => {
     let mounted = true;
 
-    const initPayPal = async () => {
-      if (!buttonContainerRef.current) return;
-      
-      try {
-        await loadPayPalScript('BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q');
-        
-        if (!mounted) return;
-
-        const container = buttonContainerRef.current;
-        container.innerHTML = '<div id="paypal-button-container"></div>';
-        
-        await renderPayPalButton(
-          'paypal-button-container',
-          { planType, amount },
-          handlePaymentSuccess
-        );
-
-        if (mounted) {
-          setIsLoading(false);
-        }
-      } catch (error) {
-        console.error('PayPal initialization error:', error);
-        if (mounted) {
-          setIsLoading(false);
-          setError('Failed to load payment system. Please try again.');
-          toast({
-            title: "Error",
-            description: "Failed to load payment system. Please try again.",
-            variant: "destructive"
-          });
-        }
-      }
-    };
-
-    initPayPal();
-
-    return () => {
+    // Clean up function that will run when component unmounts
+    const cleanup = () => {
       mounted = false;
       if (buttonContainerRef.current) {
         buttonContainerRef.current.innerHTML = '';
       }
+      // Clean up PayPal script
+      const paypalScript = document.getElementById('paypal-script');
+      if (paypalScript) {
+        paypalScript.remove();
+      }
     };
-  }, [amount, planType, handlePaymentSuccess, toast]);
+
+    if (mounted) {
+      initPayPal();
+    }
+
+    return cleanup;
+  }, [initPayPal]);
 
   if (error) {
     return (
