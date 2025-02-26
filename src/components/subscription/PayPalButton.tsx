@@ -16,6 +16,7 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const scriptLoadAttempts = useRef(0);
 
   const handlePaymentSuccess = useCallback((orderId: string) => {
     console.log('Payment successful, order ID:', orderId);
@@ -31,6 +32,7 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
 
   useEffect(() => {
     let isMounted = true;
+    let retryTimeout: NodeJS.Timeout;
 
     const initializePayPal = async () => {
       try {
@@ -48,30 +50,51 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
           handlePaymentSuccess
         );
 
-        setIsLoading(false);
-      } catch (error) {
-        console.error('PayPal initialization error:', { _type: error.constructor.name, value: error });
         if (isMounted) {
           setIsLoading(false);
-          toast({
-            title: "Error",
-            description: "Failed to load payment system. Please refresh and try again.",
-            variant: "destructive"
-          });
+          scriptLoadAttempts.current = 0; // Reset attempts on success
+        }
+      } catch (error) {
+        console.error('PayPal initialization error:', error);
+        if (isMounted) {
+          if (scriptLoadAttempts.current < 3) { // Try up to 3 times
+            scriptLoadAttempts.current += 1;
+            console.log(`Retrying PayPal initialization (attempt ${scriptLoadAttempts.current})`);
+            retryTimeout = setTimeout(initializePayPal, 2000); // Retry after 2 seconds
+          } else {
+            setIsLoading(false);
+            toast({
+              title: "Error",
+              description: "Failed to load payment system. Please refresh and try again.",
+              variant: "destructive"
+            });
+          }
         }
       }
     };
 
+    // Clean up any existing PayPal elements before initializing
+    const cleanup = () => {
+      if (buttonContainerRef.current) {
+        buttonContainerRef.current.innerHTML = '';
+      }
+      const existingScript = document.getElementById('paypal-script');
+      if (existingScript) {
+        existingScript.remove();
+      }
+    };
+
+    cleanup();
     initializePayPal();
 
     return () => {
       isMounted = false;
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+      cleanup();
     };
   }, [amount, planType, toast, handlePaymentSuccess]);
-
-  if (!buttonContainerRef.current && isLoading) {
-    return <LoadingSpinner />;
-  }
 
   return (
     <div className="w-full">
