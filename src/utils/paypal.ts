@@ -65,7 +65,6 @@ export const renderPayPalButton = async (
     container.innerHTML = '';
     
     await window.paypal.Buttons({
-      fundingSource: window.paypal.FUNDING.PAYPAL,
       style: {
         layout: 'vertical',
         color: 'blue',

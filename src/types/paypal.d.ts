@@ -6,6 +6,7 @@ interface PayPalButtonsConfig {
     shape?: 'rect' | 'pill';
     label?: 'pay' | 'buynow' | 'paypal';
   };
+  fundingSource?: string;
   createOrder: (data: any, actions: any) => Promise<string>;
   onApprove: (data: any, actions: any) => Promise<void>;
   onError?: (err: any) => void;
@@ -15,8 +16,16 @@ interface PayPalButtons {
   render: (containerId: string) => Promise<void>;
 }
 
+interface PayPalFunding {
+  PAYPAL: string;
+  CARD: string;
+  CREDIT: string;
+  VENMO: string;
+}
+
 interface PayPalNamespace {
   Buttons: (config: PayPalButtonsConfig) => PayPalButtons;
+  FUNDING: PayPalFunding;
 }
 
 declare global {
