@@ -3,9 +3,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { loadPayPalScript, renderPayPalButton } from '@/utils/paypal';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface PayPalButtonProps {
   amount: string;
@@ -17,7 +16,6 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
   const buttonContainerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   const activateSubscription = async (orderId: string) => {
@@ -27,54 +25,26 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
     }
 
     try {
-      console.log('Starting subscription activation for user:', user.id);
-      console.log('Order ID:', orderId);
-      console.log('Plan Type:', planType);
-
-      // Get the subscription plan ID
       const { data: planData, error: planError } = await supabase
         .from('subscription_plans')
         .select('id')
         .eq('type', planType)
         .single();
 
-      if (planError) {
+      if (planError || !planData?.id) {
         console.error('Error fetching plan:', planError);
         return false;
       }
-
-      if (!planData?.id) {
-        console.error('Subscription plan not found');
-        return false;
-      }
-
-      console.log('Found plan ID:', planData.id);
 
       const currentDate = new Date();
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + (planType === 'yearly' ? 12 : 1));
 
       // First delete any existing subscriptions
-      console.log('Deleting existing subscriptions for user:', user.id);
-      const { error: deleteError } = await supabase
+      await supabase
         .from('subscriptions')
         .delete()
         .eq('user_id', user.id);
-
-      if (deleteError) {
-        console.error('Error deleting existing subscription:', deleteError);
-        return false;
-      }
-
-      // Create new subscription
-      console.log('Creating new subscription with params:', {
-        user_id: user.id,
-        plan_id: planData.id,
-        plan_type: planType,
-        current_period_start: currentDate.toISOString(),
-        current_period_end: endDate.toISOString(),
-        orderId
-      });
 
       const { data: subscription, error: subscriptionError } = await supabase
         .from('subscriptions')
@@ -95,7 +65,6 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         return false;
       }
 
-      console.log('Subscription created successfully:', subscription);
       return true;
     } catch (error) {
       console.error('Error in activateSubscription:', error);
@@ -117,8 +86,6 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
       if (onSuccess) {
         onSuccess(orderId);
       }
-
-      // Force reload to update subscription state
       window.location.reload();
     } else {
       toast({
@@ -130,55 +97,51 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
   }, [planType, onSuccess, toast, user]);
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
-    const initializePayPal = async () => {
+    const initPayPal = async () => {
+      if (!buttonContainerRef.current) return;
+      
       try {
-        if (!buttonContainerRef.current) {
-          throw new Error('PayPal container not found');
-        }
-
         await loadPayPalScript('BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q');
         
-        if (!isMounted) return;
+        if (!mounted) return;
 
         await renderPayPalButton(
-          'paypal-outer-container', 
+          'paypal-button-container',
           { planType, amount },
           handlePaymentSuccess
         );
 
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       } catch (error) {
         console.error('PayPal initialization error:', error);
-        if (isMounted) {
+        if (mounted) {
           setIsLoading(false);
           toast({
             title: "Error",
-            description: "Failed to load payment system. Please refresh and try again.",
+            description: "Failed to load payment system. Please try again.",
             variant: "destructive"
           });
         }
       }
     };
 
-    initializePayPal();
+    initPayPal();
 
     return () => {
-      isMounted = false;
+      mounted = false;
     };
-  }, [amount, planType, toast, handlePaymentSuccess]);
-
-  if (!buttonContainerRef.current && isLoading) {
-    return <LoadingSpinner />;
-  }
+  }, [amount, planType, handlePaymentSuccess, toast]);
 
   return (
     <div className="w-full">
       <div 
-        ref={buttonContainerRef} 
-        id="paypal-outer-container"
-        className="min-h-[150px] flex justify-center items-center bg-transparent"
+        ref={buttonContainerRef}
+        id="paypal-button-container"
+        className="min-h-[150px] w-full flex justify-center items-center bg-transparent"
       >
         {isLoading && <LoadingSpinner />}
       </div>

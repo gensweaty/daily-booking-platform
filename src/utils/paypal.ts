@@ -8,11 +8,6 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
         throw new Error('PayPal client ID is required');
       }
 
-      if (window.paypal) {
-        console.log('PayPal SDK already loaded');
-        return resolve();
-      }
-
       const existingScript = document.getElementById('paypal-script');
       if (existingScript) {
         console.log('Removing existing PayPal script...');
@@ -39,7 +34,6 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
         reject(error);
       };
 
-      console.log('Appending PayPal script to document body...');
       document.body.appendChild(script);
     } catch (error) {
       console.error('Error in loadPayPalScript:', error);
@@ -70,48 +64,42 @@ export const renderPayPalButton = async (
   try {
     container.innerHTML = '';
     
-    const buttons = window.paypal.Buttons({
+    await window.paypal.Buttons({
+      fundingSource: window.paypal.FUNDING.PAYPAL,
       style: {
         layout: 'vertical',
         color: 'blue',
         shape: 'rect',
         label: 'paypal'
       },
-      createOrder: async function(data: any, actions: any) {
-        console.log('Creating PayPal order...');
-        return await actions.order.create({
-          intent: 'CAPTURE',
+      createOrder: async (_data: any, actions: any) => {
+        console.log('Creating order for amount:', options.amount);
+        return actions.order.create({
           purchase_units: [{
             amount: {
-              currency_code: 'USD',
-              value: options.amount
+              value: options.amount,
+              currency_code: 'USD'
             },
             description: `${options.planType} subscription`
           }]
         });
       },
-      onApprove: async function(data: any, actions: any) {
+      onApprove: async (data: any, actions: any) => {
+        console.log('Order approved:', data);
         try {
-          console.log('Payment approved, capturing order...', data);
           const orderDetails = await actions.order.capture();
-          console.log('Order captured successfully:', orderDetails);
+          console.log('Order captured:', orderDetails);
           onSuccess(orderDetails.id);
         } catch (error) {
-          console.error('Error capturing order:', error);
+          console.error('Capture failed:', error);
           throw error;
         }
-      },
-      onError: function(err: any) {
-        console.error('PayPal button error:', err);
-        throw err;
       }
-    });
-
-    console.log('PayPal button configuration created, rendering...');
-    await buttons.render(`#${containerId}`);
+    }).render(`#${containerId}`);
+    
     console.log('PayPal button rendered successfully');
   } catch (error) {
-    console.error('Error rendering PayPal button:', error);
+    console.error('Failed to render PayPal button:', error);
     throw error;
   }
 };
