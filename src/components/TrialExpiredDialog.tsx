@@ -13,7 +13,6 @@ import { useToast } from "@/hooks/use-toast";
 
 interface TrialExpiredDialogProps {
   open?: boolean;
-  onOpenChange?: (open: boolean) => void;
 }
 
 export const TrialExpiredDialog = ({ open = true }: TrialExpiredDialogProps) => {
@@ -25,15 +24,16 @@ export const TrialExpiredDialog = ({ open = true }: TrialExpiredDialogProps) => 
       title: "Success",
       description: "Your subscription has been activated successfully!",
     });
-    
-    // Refresh the page to update subscription status
     window.location.reload();
   };
 
   const amount = selectedPlan === 'monthly' ? '9.99' : '99.99';
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
+    <Dialog 
+      open={open} 
+      onOpenChange={() => {}}
+    >
       <DialogContent 
         className="sm:max-w-[500px]"
         hideCloseButton
