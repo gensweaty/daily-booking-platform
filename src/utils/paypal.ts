@@ -1,6 +1,7 @@
 
 export const loadPayPalScript = async (clientId: string): Promise<void> => {
   console.log('Starting PayPal script load...', { clientId });
+  console.log('Current PayPal SDK status:', window.paypal);
 
   return new Promise((resolve, reject) => {
     try {
@@ -29,21 +30,38 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
 
       // Add timeout for script loading
       const timeoutId = setTimeout(() => {
+        clearInterval(retryLoadInterval);
         reject(new Error('PayPal script load timeout'));
-      }, 10000); // 10 second timeout
+      }, 20000); // 20 second timeout
+
+      // Setup retry interval to check for PayPal SDK
+      const retryLoadInterval = setInterval(() => {
+        console.log('Checking PayPal SDK status:', window.paypal);
+        if (window.paypal?.Buttons) {
+          console.log('PayPal SDK detected through retry check');
+          clearInterval(retryLoadInterval);
+          clearTimeout(timeoutId);
+          resolve();
+        }
+      }, 1000);
 
       script.onload = () => {
-        clearTimeout(timeoutId);
-        console.log('PayPal script loaded successfully');
-        // Verify PayPal object is properly initialized
-        if (window.paypal?.Buttons) {
-          resolve();
-        } else {
-          reject(new Error('PayPal SDK not properly initialized after script load'));
-        }
+        console.log('PayPal script onload triggered');
+        console.log('PayPal SDK status after load:', window.paypal);
+        
+        // Give the SDK a moment to initialize
+        setTimeout(() => {
+          if (window.paypal?.Buttons) {
+            console.log('PayPal SDK initialized successfully');
+            clearInterval(retryLoadInterval);
+            clearTimeout(timeoutId);
+            resolve();
+          }
+        }, 1000);
       };
 
       script.onerror = (error) => {
+        clearInterval(retryLoadInterval);
         clearTimeout(timeoutId);
         console.error('Error loading PayPal script:', error);
         reject(error);
@@ -67,6 +85,7 @@ export const renderPayPalButton = async (
   onSuccess: (data: any) => void
 ): Promise<void> => {
   console.log('Rendering PayPal button...', { containerId, options });
+  console.log('Current PayPal SDK status:', window.paypal);
 
   // Verify PayPal SDK is loaded
   if (!window.paypal?.Buttons) {
@@ -85,11 +104,15 @@ export const renderPayPalButton = async (
 
   // Verify container exists
   const container = document.getElementById(containerId);
+  console.log('Container check:', container);
+  console.log('Current document body:', document.body.innerHTML);
+  
   if (!container) {
     throw new Error(`Container #${containerId} not found. Current HTML: ${document.body.innerHTML}`);
   }
 
   try {
+    console.log('Creating PayPal buttons...');
     const PayPalButtons = await window.paypal.Buttons({
       style: {
         layout: 'vertical',
@@ -128,10 +151,12 @@ export const renderPayPalButton = async (
     });
 
     // Verify buttons were created successfully
+    console.log('PayPal buttons created:', PayPalButtons);
     if (!PayPalButtons) {
       throw new Error('Failed to create PayPal buttons');
     }
 
+    console.log('Rendering PayPal buttons to container:', containerId);
     await PayPalButtons.render(`#${containerId}`);
     console.log('PayPal button rendered successfully');
   } catch (error) {
