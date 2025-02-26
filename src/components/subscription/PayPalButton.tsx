@@ -3,9 +3,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { loadPayPalScript, renderPayPalButton } from '@/utils/paypal';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface PayPalButtonProps {
   amount: string;
@@ -16,151 +15,129 @@ interface PayPalButtonProps {
 export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps) => {
   const buttonContainerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const navigate = useNavigate();
   const { user } = useAuth();
 
-  const activateSubscription = async (orderId: string) => {
-    if (!user) return false;
-
+  const handlePaymentSuccess = useCallback(async (data: any) => {
+    console.log('PayPal payment approved:', data);
     try {
-      console.log('Activating subscription with order ID:', orderId);
-
-      // Get the subscription plan ID
-      const { data: planData, error: planError } = await supabase
-        .from('subscription_plans')
-        .select('id')
-        .eq('type', planType)
-        .single();
-
-      if (planError) {
-        console.error('Error fetching plan:', planError);
-        return false;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('No auth session found');
       }
 
-      if (!planData?.id) {
-        console.error('Subscription plan not found');
-        return false;
+      const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/verify-paypal-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          subscriptionId: data.orderID,
+          plan_type: planType
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Subscription verification failed:', errorText);
+        throw new Error('Subscription verification failed');
       }
 
-      const currentDate = new Date();
-      const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + (planType === 'yearly' ? 12 : 1));
+      const result = await response.json();
+      console.log('Subscription verified:', result);
 
-      // First delete any existing subscriptions
-      const { error: deleteError } = await supabase
-        .from('subscriptions')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (deleteError) {
-        console.error('Error deleting existing subscription:', deleteError);
-        return false;
-      }
-
-      // Create new subscription
-      const { error: subscriptionError } = await supabase
-        .from('subscriptions')
-        .insert({
-          user_id: user.id,
-          plan_id: planData.id,
-          plan_type: planType,
-          status: 'active',
-          current_period_start: currentDate.toISOString(),
-          current_period_end: endDate.toISOString(),
-          last_payment_id: orderId
-        });
-
-      if (subscriptionError) {
-        console.error('Error creating subscription:', subscriptionError);
-        return false;
-      }
-
-      console.log('Subscription activated successfully');
-      return true;
-    } catch (error) {
-      console.error('Error in activateSubscription:', error);
-      return false;
-    }
-  };
-
-  const handlePaymentSuccess = useCallback(async (orderId: string) => {
-    console.log('Payment successful, order ID:', orderId);
-    
-    const success = await activateSubscription(orderId);
-    
-    if (success) {
       toast({
         title: "Success",
         description: "Your subscription has been activated successfully!",
       });
       
-      // Call the onSuccess callback if provided
       if (onSuccess) {
-        onSuccess(orderId);
+        onSuccess(data.orderID);
       }
 
-      // Refresh the page to update the UI
+      // Force close PayPal popup if needed
+      if (window.paypal) {
+        console.log('Closing PayPal popup...');
+        setTimeout(() => {
+          if (window.paypal?.closeFlow) {
+            window.paypal.closeFlow();
+          }
+        }, 500);
+      }
+
       window.location.reload();
-    } else {
+    } catch (error) {
+      console.error('PayPal verification error:', error);
       toast({
         title: "Error",
-        description: "Failed to activate subscription. Please contact support.",
+        description: "Failed to verify subscription. Please try again or contact support.",
         variant: "destructive"
       });
     }
-  }, [planType, onSuccess, toast, user]);
+  }, [planType, onSuccess, toast]);
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
-    const initializePayPal = async () => {
+    const initPayPal = async () => {
+      if (!buttonContainerRef.current) return;
+      
       try {
-        if (!buttonContainerRef.current) {
-          throw new Error('PayPal container not found');
-        }
-
         await loadPayPalScript('BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q');
         
-        if (!isMounted) return;
+        if (!mounted) return;
 
+        const container = buttonContainerRef.current;
+        container.innerHTML = '<div id="paypal-button-container"></div>';
+        
         await renderPayPalButton(
-          'paypal-outer-container', 
+          'paypal-button-container',
           { planType, amount },
           handlePaymentSuccess
         );
 
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       } catch (error) {
         console.error('PayPal initialization error:', error);
-        if (isMounted) {
+        if (mounted) {
           setIsLoading(false);
+          setError('Failed to load payment system. Please try again.');
           toast({
             title: "Error",
-            description: "Failed to load payment system. Please refresh and try again.",
+            description: "Failed to load payment system. Please try again.",
             variant: "destructive"
           });
         }
       }
     };
 
-    initializePayPal();
+    initPayPal();
 
     return () => {
-      isMounted = false;
+      mounted = false;
+      if (buttonContainerRef.current) {
+        buttonContainerRef.current.innerHTML = '';
+      }
     };
-  }, [amount, planType, toast, handlePaymentSuccess]);
+  }, [amount, planType, handlePaymentSuccess, toast]);
 
-  if (!buttonContainerRef.current && isLoading) {
-    return <LoadingSpinner />;
+  if (error) {
+    return (
+      <div className="w-full p-4 text-center">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
   }
 
   return (
     <div className="w-full">
       <div 
-        ref={buttonContainerRef} 
-        id="paypal-outer-container"
-        className="min-h-[150px] flex justify-center items-center bg-transparent"
+        ref={buttonContainerRef}
+        className="min-h-[150px] w-full flex justify-center items-center bg-background"
       >
         {isLoading && <LoadingSpinner />}
       </div>

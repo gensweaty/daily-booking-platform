@@ -21,9 +21,9 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
 
       const script = document.createElement('script');
       script.id = 'paypal-script';
-      script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
-      script.crossOrigin = "anonymous";
+      script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&components=buttons&currency=USD`;
       script.async = true;
+      script.crossOrigin = "anonymous";
 
       script.onload = () => {
         console.log('PayPal script loaded successfully');
@@ -54,7 +54,7 @@ export const renderPayPalButton = async (
     planType: 'monthly' | 'yearly';
     amount: string;
   },
-  onSuccess: (orderId: string) => void
+  onSuccess: (data: any) => void
 ): Promise<void> => {
   console.log('Rendering PayPal button...', { containerId, options });
 
@@ -68,24 +68,41 @@ export const renderPayPalButton = async (
   }
 
   try {
-    // Using specific container ID format required by PayPal
-    container.innerHTML = '<div id="paypal-container-SZHF9WLR5RQWU"></div>';
-    
-    const instance = await window.paypal.HostedButtons({
-      hostedButtonId: 'SZHF9WLR5RQWU',
-      onApprove: function(data: { orderID: string }) {
-        console.log('PayPal payment approved:', data);
-        if (data.orderID) {
-          onSuccess(data.orderID);
+    await window.paypal.Buttons({
+      style: {
+        layout: 'vertical',
+        color: 'blue',
+        shape: 'rect',
+        label: 'paypal'
+      },
+      createOrder: async (data: any, actions: any) => {
+        console.log('Creating order for amount:', options.amount);
+        return actions.order.create({
+          purchase_units: [{
+            amount: {
+              value: options.amount,
+              currency_code: 'USD'
+            },
+            description: `${options.planType} subscription`
+          }]
+        });
+      },
+      onApprove: async (data: any, actions: any) => {
+        console.log('Order approved:', data);
+        try {
+          const orderDetails = await actions.order.capture();
+          console.log('Order captured:', orderDetails);
+          onSuccess(data);
+        } catch (error) {
+          console.error('Capture failed:', error);
+          throw error;
         }
       }
-    });
-
-    await instance.render('#paypal-container-SZHF9WLR5RQWU');
+    }).render(`#${containerId}`);
     
-    console.log('PayPal hosted button rendered successfully');
+    console.log('PayPal button rendered successfully');
   } catch (error) {
-    console.error('Error rendering PayPal button:', error);
+    console.error('Failed to render PayPal button:', error);
     throw error;
   }
 };
