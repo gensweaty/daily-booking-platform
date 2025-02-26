@@ -32,15 +32,17 @@ export const TrialExpiredDialog = ({ open = true, onOpenChange }: TrialExpiredDi
       onOpenChange(false);
     }
     
-    navigate('/dashboard');
+    // Refresh the page to update subscription status
+    window.location.reload();
   };
 
   const amount = selectedPlan === 'monthly' ? '9.99' : '99.99';
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent 
         className="sm:max-w-[500px]"
+        hideCloseButton
         onEscapeKeyDown={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}

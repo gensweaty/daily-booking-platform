@@ -3,7 +3,6 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
-import { useSearchParams } from "react-router-dom"
 import { AuthUI } from "@/components/AuthUI"
 import { DashboardHeader } from "@/components/DashboardHeader"
 import { TrialExpiredDialog } from "@/components/TrialExpiredDialog"
@@ -37,13 +36,17 @@ const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false)
   const [username, setUsername] = useState("")
   const [showTrialExpired, setShowTrialExpired] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
 
   useSubscriptionRedirect()
 
   useEffect(() => {
     const checkSubscription = async () => {
-      if (!user) return;
+      if (!user) {
+        setIsLoading(false)
+        return
+      }
 
       try {
         // Get profile data
@@ -53,31 +56,35 @@ const Index = () => {
           .eq('id', user.id)
           .single()
 
-        if (profileError) throw profileError;
+        if (profileError) throw profileError
         if (profileData) {
-          setUsername(profileData.username);
+          setUsername(profileData.username)
         }
 
         // Check subscription status
         const { data: subscription, error: subscriptionError } = await supabase
           .from('subscriptions')
-          .select('status')
+          .select('status, plan_type')
           .eq('user_id', user.id)
           .eq('status', 'active')
           .maybeSingle()
 
-        if (subscriptionError) throw subscriptionError;
+        if (subscriptionError) throw subscriptionError
 
-        // Show trial expired dialog if no active subscription
-        if (!subscription) {
-          console.log('No active subscription found, showing dialog');
-          setShowTrialExpired(true);
-        } else {
-          console.log('Active subscription found, hiding dialog');
-          setShowTrialExpired(false);
-        }
+        // Only show dialog if there's no active subscription
+        setShowTrialExpired(!subscription)
+        
+        console.log('Subscription check:', {
+          hasActiveSubscription: !!subscription,
+          subscription
+        })
+
       } catch (error) {
         console.error('Error checking subscription status:', error)
+        // Don't show the dialog if there's an error checking subscription
+        setShowTrialExpired(false)
+      } finally {
+        setIsLoading(false)
       }
     }
 
@@ -91,10 +98,12 @@ const Index = () => {
       initial="hidden"
       animate="visible"
     >
-      <TrialExpiredDialog 
-        open={showTrialExpired} 
-        onOpenChange={setShowTrialExpired}
-      />
+      {!isLoading && (
+        <TrialExpiredDialog 
+          open={showTrialExpired} 
+          onOpenChange={setShowTrialExpired}
+        />
+      )}
       <motion.div variants={childVariants}>
         <DashboardHeader username={username} />
       </motion.div>
@@ -110,13 +119,13 @@ const Index = () => {
       <CursorFollower />
       <AuthUI />
     </>
-  );
+  )
 
   return (
     <LanguageProvider>
       {content}
     </LanguageProvider>
-  );
+  )
 }
 
-export default Index;
+export default Index
