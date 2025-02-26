@@ -21,10 +21,15 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
   const { user } = useAuth();
 
   const activateSubscription = async (orderId: string) => {
-    if (!user) return false;
+    if (!user) {
+      console.error('No user found when trying to activate subscription');
+      return false;
+    }
 
     try {
-      console.log('Activating subscription with order ID:', orderId);
+      console.log('Starting subscription activation for user:', user.id);
+      console.log('Order ID:', orderId);
+      console.log('Plan Type:', planType);
 
       // Get the subscription plan ID
       const { data: planData, error: planError } = await supabase
@@ -43,11 +48,14 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         return false;
       }
 
+      console.log('Found plan ID:', planData.id);
+
       const currentDate = new Date();
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + (planType === 'yearly' ? 12 : 1));
 
       // First delete any existing subscriptions
+      console.log('Deleting existing subscriptions for user:', user.id);
       const { error: deleteError } = await supabase
         .from('subscriptions')
         .delete()
@@ -59,7 +67,16 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
       }
 
       // Create new subscription
-      const { error: subscriptionError } = await supabase
+      console.log('Creating new subscription with params:', {
+        user_id: user.id,
+        plan_id: planData.id,
+        plan_type: planType,
+        current_period_start: currentDate.toISOString(),
+        current_period_end: endDate.toISOString(),
+        orderId
+      });
+
+      const { data: subscription, error: subscriptionError } = await supabase
         .from('subscriptions')
         .insert({
           user_id: user.id,
@@ -69,14 +86,16 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
           current_period_start: currentDate.toISOString(),
           current_period_end: endDate.toISOString(),
           last_payment_id: orderId
-        });
+        })
+        .select()
+        .single();
 
       if (subscriptionError) {
         console.error('Error creating subscription:', subscriptionError);
         return false;
       }
 
-      console.log('Subscription activated successfully');
+      console.log('Subscription created successfully:', subscription);
       return true;
     } catch (error) {
       console.error('Error in activateSubscription:', error);
@@ -95,12 +114,11 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         description: "Your subscription has been activated successfully!",
       });
       
-      // Call the onSuccess callback if provided
       if (onSuccess) {
         onSuccess(orderId);
       }
 
-      // Refresh the page to update the UI
+      // Force reload to update subscription state
       window.location.reload();
     } else {
       toast({

@@ -21,7 +21,7 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
 
       const script = document.createElement('script');
       script.id = 'paypal-script';
-      script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
+      script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD`;
       script.crossOrigin = "anonymous";
       script.async = true;
 
@@ -68,22 +68,35 @@ export const renderPayPalButton = async (
   }
 
   try {
-    // Using specific container ID format required by PayPal
-    container.innerHTML = '<div id="paypal-container-SZHF9WLR5RQWU"></div>';
+    container.innerHTML = '';
     
-    const instance = await window.paypal.HostedButtons({
-      hostedButtonId: 'SZHF9WLR5RQWU',
-      onApprove: function(data: { orderID: string }) {
-        console.log('PayPal payment approved:', data);
-        if (data.orderID) {
-          onSuccess(data.orderID);
-        }
+    await window.paypal.Buttons({
+      style: {
+        layout: 'vertical',
+        color: 'blue',
+        shape: 'rect',
+        label: 'pay'
+      },
+      createOrder: (data: any, actions: any) => {
+        return actions.order.create({
+          purchase_units: [{
+            amount: {
+              value: options.amount,
+              currency_code: 'USD'
+            },
+            description: `${options.planType} subscription`
+          }]
+        });
+      },
+      onApprove: async (data: any, actions: any) => {
+        console.log('Payment approved:', data);
+        const order = await actions.order.capture();
+        console.log('Payment captured:', order);
+        onSuccess(order.id);
       }
-    });
-
-    await instance.render('#paypal-container-SZHF9WLR5RQWU');
+    }).render(`#${containerId}`);
     
-    console.log('PayPal hosted button rendered successfully');
+    console.log('PayPal button rendered successfully');
   } catch (error) {
     console.error('Error rendering PayPal button:', error);
     throw error;
