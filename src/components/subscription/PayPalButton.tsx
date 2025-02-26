@@ -4,6 +4,8 @@ import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { loadPayPalScript, renderPayPalButton } from '@/utils/paypal';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PayPalButtonProps {
   amount: string;
@@ -16,18 +18,75 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const handlePaymentSuccess = useCallback((orderId: string) => {
+  const activateSubscription = async (orderId: string) => {
+    if (!user) return;
+
+    try {
+      // Get the subscription plan ID
+      const { data: planData } = await supabase
+        .from('subscription_plans')
+        .select('id')
+        .eq('type', planType)
+        .single();
+
+      if (!planData?.id) {
+        throw new Error('Subscription plan not found');
+      }
+
+      const currentDate = new Date();
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + (planType === 'yearly' ? 12 : 1));
+
+      // Update or create subscription
+      const { error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .upsert({
+          user_id: user.id,
+          plan_id: planData.id,
+          plan_type: planType,
+          status: 'active',
+          current_period_start: currentDate.toISOString(),
+          current_period_end: endDate.toISOString(),
+          last_payment_id: orderId
+        });
+
+      if (subscriptionError) throw subscriptionError;
+
+      return true;
+    } catch (error) {
+      console.error('Error activating subscription:', error);
+      return false;
+    }
+  };
+
+  const handlePaymentSuccess = useCallback(async (orderId: string) => {
     console.log('Payment successful, order ID:', orderId);
     
-    // Add subscription parameter to URL to trigger subscription activation
-    navigate(`/dashboard?subscription=${planType}`);
+    const success = await activateSubscription(orderId);
     
-    // Call the onSuccess callback if provided
-    if (onSuccess) {
-      onSuccess(orderId);
+    if (success) {
+      toast({
+        title: "Success",
+        description: "Your subscription has been activated successfully!",
+      });
+      
+      // Call the onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess(orderId);
+      }
+
+      // Refresh the page to update the UI
+      window.location.reload();
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to activate subscription. Please contact support.",
+        variant: "destructive"
+      });
     }
-  }, [navigate, planType, onSuccess]);
+  }, [planType, onSuccess, toast, user]);
 
   useEffect(() => {
     let isMounted = true;
@@ -50,7 +109,7 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
 
         setIsLoading(false);
       } catch (error) {
-        console.error('PayPal initialization error:', { _type: error.constructor.name, value: error });
+        console.error('PayPal initialization error:', error);
         if (isMounted) {
           setIsLoading(false);
           toast({
