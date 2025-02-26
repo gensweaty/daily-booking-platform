@@ -21,28 +21,47 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
   const { user } = useAuth();
 
   const activateSubscription = async (orderId: string) => {
-    if (!user) return;
+    if (!user) return false;
 
     try {
+      console.log('Activating subscription with order ID:', orderId);
+
       // Get the subscription plan ID
-      const { data: planData } = await supabase
+      const { data: planData, error: planError } = await supabase
         .from('subscription_plans')
         .select('id')
         .eq('type', planType)
         .single();
 
+      if (planError) {
+        console.error('Error fetching plan:', planError);
+        return false;
+      }
+
       if (!planData?.id) {
-        throw new Error('Subscription plan not found');
+        console.error('Subscription plan not found');
+        return false;
       }
 
       const currentDate = new Date();
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + (planType === 'yearly' ? 12 : 1));
 
-      // Update or create subscription
+      // First delete any existing subscriptions
+      const { error: deleteError } = await supabase
+        .from('subscriptions')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (deleteError) {
+        console.error('Error deleting existing subscription:', deleteError);
+        return false;
+      }
+
+      // Create new subscription
       const { error: subscriptionError } = await supabase
         .from('subscriptions')
-        .upsert({
+        .insert({
           user_id: user.id,
           plan_id: planData.id,
           plan_type: planType,
@@ -52,11 +71,15 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
           last_payment_id: orderId
         });
 
-      if (subscriptionError) throw subscriptionError;
+      if (subscriptionError) {
+        console.error('Error creating subscription:', subscriptionError);
+        return false;
+      }
 
+      console.log('Subscription activated successfully');
       return true;
     } catch (error) {
-      console.error('Error activating subscription:', error);
+      console.error('Error in activateSubscription:', error);
       return false;
     }
   };

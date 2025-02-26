@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { AuthUI } from "@/components/AuthUI"
 import { DashboardHeader } from "@/components/DashboardHeader"
 import { TrialExpiredDialog } from "@/components/TrialExpiredDialog"
@@ -10,7 +10,6 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
-import { LanguageProvider } from "@/contexts/LanguageContext"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -38,6 +37,7 @@ const Index = () => {
   const [showTrialExpired, setShowTrialExpired] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
+  const { toast } = useToast()
 
   useSubscriptionRedirect()
 
@@ -49,54 +49,71 @@ const Index = () => {
     }
 
     try {
-      const { data: activeSubscription } = await supabase
+      console.log('Checking subscription for user:', user.id)
+      
+      const { data: subscriptionData, error: subError } = await supabase
         .from('subscriptions')
-        .select('status')
+        .select('*')
         .eq('user_id', user.id)
         .eq('status', 'active')
-        .maybeSingle()
+        .single()
 
-      console.log('Subscription check result:', { activeSubscription })
+      console.log('Subscription check result:', { subscriptionData, subError })
 
-      setShowTrialExpired(!activeSubscription)
+      if (subError && subError.code !== 'PGRST116') {
+        console.error('Subscription check error:', subError)
+        toast({
+          title: "Error",
+          description: "Failed to check subscription status",
+          variant: "destructive"
+        })
+        return
+      }
 
-      // Only fetch username if we need it
+      setShowTrialExpired(!subscriptionData)
+
+      // Only fetch username if needed
       if (!username) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('username')
           .eq('id', user.id)
-          .maybeSingle()
+          .single()
 
         if (profile?.username) {
           setUsername(profile.username)
         }
       }
     } catch (error) {
-      console.error('Error checking subscription:', error)
-      setShowTrialExpired(false)
+      console.error('Error in subscription check:', error)
     } finally {
       setIsLoading(false)
     }
-  }, [user, username])
+  }, [user, username, toast])
 
   useEffect(() => {
     checkSubscription()
   }, [checkSubscription])
 
-  const content = user ? (
+  if (!user) {
+    return (
+      <>
+        <CursorFollower />
+        <AuthUI />
+      </>
+    )
+  }
+
+  return (
     <motion.div 
       className="min-h-screen bg-background p-4"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      {!isLoading && showTrialExpired ? (
-        <TrialExpiredDialog 
-          key="subscription-dialog"
-          open={true}
-        />
-      ) : null}
+      {!isLoading && showTrialExpired && (
+        <TrialExpiredDialog open={true} />
+      )}
       <motion.div variants={childVariants}>
         <DashboardHeader username={username} />
       </motion.div>
@@ -107,17 +124,6 @@ const Index = () => {
         />
       </motion.div>
     </motion.div>
-  ) : (
-    <>
-      <CursorFollower />
-      <AuthUI />
-    </>
-  )
-
-  return (
-    <LanguageProvider>
-      {content}
-    </LanguageProvider>
   )
 }
 
