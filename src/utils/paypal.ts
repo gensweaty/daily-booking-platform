@@ -1,7 +1,6 @@
 
 export const loadPayPalScript = async (clientId: string): Promise<void> => {
   console.log('Starting PayPal script load...', { clientId });
-  console.log('Current PayPal SDK status:', window.paypal);
 
   return new Promise((resolve, reject) => {
     try {
@@ -9,13 +8,11 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
         throw new Error('PayPal client ID is required');
       }
 
-      // Check if PayPal is already loaded and working
-      if (window.paypal?.Buttons) {
-        console.log('PayPal SDK already loaded and functional');
+      if (window.paypal) {
+        console.log('PayPal SDK already loaded');
         return resolve();
       }
 
-      // Clean up any existing PayPal scripts
       const existingScript = document.getElementById('paypal-script');
       if (existingScript) {
         console.log('Removing existing PayPal script...');
@@ -24,45 +21,20 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
 
       const script = document.createElement('script');
       script.id = 'paypal-script';
-      script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&components=buttons&currency=USD`;
-      script.async = true;
+      script.src = `https://www.paypal.com/sdk/js?client-id=BAAlwpFrqvuXEZGXZH7jc6dlt2dJ109CJK2FBo79HD8OaKcGL5Qr8FQilvteW7BkjgYo9Jah5aXcRICk3Q&components=hosted-buttons&disable-funding=venmo&currency=USD`;
       script.crossOrigin = "anonymous";
-
-      // Add timeout for script loading
-      const timeoutId = setTimeout(() => {
-        clearInterval(retryLoadInterval);
-        reject(new Error('PayPal script load timeout'));
-      }, 20000); // 20 second timeout
-
-      // Setup retry interval to check for PayPal SDK
-      const retryLoadInterval = setInterval(() => {
-        console.log('Checking PayPal SDK status:', window.paypal);
-        if (window.paypal?.Buttons) {
-          console.log('PayPal SDK detected through retry check');
-          clearInterval(retryLoadInterval);
-          clearTimeout(timeoutId);
-          resolve();
-        }
-      }, 1000);
+      script.async = true;
 
       script.onload = () => {
-        console.log('PayPal script onload triggered');
-        console.log('PayPal SDK status after load:', window.paypal);
-        
-        // Give the SDK a moment to initialize
-        setTimeout(() => {
-          if (window.paypal?.Buttons) {
-            console.log('PayPal SDK initialized successfully');
-            clearInterval(retryLoadInterval);
-            clearTimeout(timeoutId);
-            resolve();
-          }
-        }, 1000);
+        console.log('PayPal script loaded successfully');
+        if (window.paypal) {
+          resolve();
+        } else {
+          reject(new Error('PayPal SDK not initialized after script load'));
+        }
       };
 
       script.onerror = (error) => {
-        clearInterval(retryLoadInterval);
-        clearTimeout(timeoutId);
         console.error('Error loading PayPal script:', error);
         reject(error);
       };
@@ -82,76 +54,38 @@ export const renderPayPalButton = async (
     planType: 'monthly' | 'yearly';
     amount: string;
   },
-  onSuccess: (data: any) => void
+  onSuccess: (orderId: string) => void
 ): Promise<void> => {
   console.log('Rendering PayPal button...', { containerId, options });
-  console.log('Current PayPal SDK status:', window.paypal);
 
-  // Verify container exists before proceeding
-  const container = document.getElementById(containerId);
-  console.log('Container check:', container);
-  console.log('Current document body:', document.body.innerHTML);
-  
-  if (!container) {
-    throw new Error(`Container #${containerId} not found. Current HTML: ${document.body.innerHTML}`);
+  if (!window.paypal) {
+    throw new Error('PayPal SDK not loaded');
   }
 
-  // Verify PayPal SDK is loaded
-  if (!window.paypal?.Buttons) {
-    console.error('PayPal SDK not loaded or not functional');
-    throw new Error('PayPal SDK not initialized');
+  const container = document.getElementById(containerId);
+  if (!container) {
+    throw new Error(`Container ${containerId} not found`);
   }
 
   try {
-    console.log('Creating PayPal buttons...');
-    const PayPalButtons = await window.paypal.Buttons({
-      style: {
-        layout: 'vertical',
-        color: 'blue',
-        shape: 'rect',
-        label: 'paypal'
-      },
-      createOrder: async (_data: any, actions: any) => {
-        console.log('Creating PayPal order for amount:', options.amount);
-        try {
-          return actions.order.create({
-            purchase_units: [{
-              amount: {
-                value: options.amount,
-                currency_code: 'USD'
-              },
-              description: `${options.planType} subscription`
-            }]
-          });
-        } catch (error) {
-          console.error('Error creating PayPal order:', error);
-          throw error;
-        }
-      },
-      onApprove: async (data: any, actions: any) => {
-        console.log('PayPal order approved:', data);
-        try {
-          const orderDetails = await actions.order.capture();
-          console.log('PayPal order captured:', orderDetails);
-          onSuccess(data);
-        } catch (error) {
-          console.error('PayPal capture failed:', error);
-          throw error;
+    // Using specific container ID format required by PayPal
+    container.innerHTML = '<div id="paypal-container-SZHF9WLR5RQWU"></div>';
+    
+    const instance = await window.paypal.HostedButtons({
+      hostedButtonId: 'SZHF9WLR5RQWU',
+      onApprove: function(data: { orderID: string }) {
+        console.log('PayPal payment approved:', data);
+        if (data.orderID) {
+          onSuccess(data.orderID);
         }
       }
     });
 
-    // Verify buttons were created successfully
-    console.log('PayPal buttons created:', PayPalButtons);
-    if (!PayPalButtons) {
-      throw new Error('Failed to create PayPal buttons');
-    }
-
-    console.log('Rendering PayPal buttons to container:', containerId);
-    await PayPalButtons.render(`#${containerId}`);
-    console.log('PayPal button rendered successfully');
+    await instance.render('#paypal-container-SZHF9WLR5RQWU');
+    
+    console.log('PayPal hosted button rendered successfully');
   } catch (error) {
-    console.error('Failed to render PayPal button:', error);
+    console.error('Error rendering PayPal button:', error);
     throw error;
   }
 };
