@@ -70,14 +70,14 @@ export const renderPayPalButton = async (
   try {
     container.innerHTML = '';
     
-    await window.paypal.Buttons({
+    const buttons = window.paypal.Buttons({
       style: {
         layout: 'vertical',
         color: 'blue',
         shape: 'rect',
         label: 'pay'
       },
-      createOrder: (data: any, actions: any) => {
+      createOrder: (_data: any, actions: any) => {
         return actions.order.create({
           purchase_units: [{
             amount: {
@@ -94,8 +94,9 @@ export const renderPayPalButton = async (
         console.log('Payment captured:', order);
         onSuccess(order.id);
       }
-    }).render(`#${containerId}`);
+    });
     
+    await buttons.render(`#${containerId}`);
     console.log('PayPal button rendered successfully');
   } catch (error) {
     console.error('Error rendering PayPal button:', error);

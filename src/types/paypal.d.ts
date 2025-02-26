@@ -1,15 +1,21 @@
 
-interface PayPalHostedButtonsConfig {
-  hostedButtonId: string;
-  onApprove?: (data: { orderID: string }) => void;
+interface PayPalButtonsConfig {
+  style?: {
+    layout?: 'vertical' | 'horizontal';
+    color?: 'gold' | 'blue' | 'silver' | 'black' | 'white';
+    shape?: 'rect' | 'pill';
+    label?: 'pay' | 'buynow' | 'paypal';
+  };
+  createOrder: (data: any, actions: any) => Promise<string>;
+  onApprove: (data: any, actions: any) => Promise<void>;
 }
 
-interface PayPalHostedButtons {
+interface PayPalButtons {
   render: (containerId: string) => Promise<void>;
 }
 
 interface PayPalNamespace {
-  HostedButtons: (config: PayPalHostedButtonsConfig) => PayPalHostedButtons;
+  Buttons: (config: PayPalButtonsConfig) => PayPalButtons;
 }
 
 declare global {
