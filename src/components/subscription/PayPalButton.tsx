@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from '../ui/loading-spinner';
@@ -107,11 +108,10 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         if (!mounted) return;
 
         const container = buttonContainerRef.current;
-        const containerId = 'paypal-button-container';
-        container.id = containerId;
+        container.innerHTML = '<div id="paypal-button-container"></div>';
         
         await renderPayPalButton(
-          containerId,
+          'paypal-button-container',
           { planType, amount },
           handlePaymentSuccess
         );
@@ -137,6 +137,10 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
 
     return () => {
       mounted = false;
+      // Clean up PayPal button container
+      if (buttonContainerRef.current) {
+        buttonContainerRef.current.innerHTML = '';
+      }
     };
   }, [amount, planType, handlePaymentSuccess, toast]);
 

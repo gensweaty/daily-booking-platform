@@ -61,8 +61,6 @@ export const renderPayPalButton = async (
   }
 
   try {
-    container.innerHTML = '';
-    
     await window.paypal.Buttons({
       style: {
         layout: 'vertical',
