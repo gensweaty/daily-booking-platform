@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from '../ui/loading-spinner';
@@ -41,7 +40,6 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + (planType === 'yearly' ? 12 : 1));
 
-      // First delete any existing subscriptions
       await supabase
         .from('subscriptions')
         .delete()
@@ -99,8 +97,6 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
 
   useEffect(() => {
     let mounted = true;
-    setIsLoading(true);
-    setError(null);
 
     const initPayPal = async () => {
       if (!buttonContainerRef.current) return;
@@ -110,8 +106,12 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         
         if (!mounted) return;
 
+        const container = buttonContainerRef.current;
+        const containerId = 'paypal-button-container';
+        container.id = containerId;
+        
         await renderPayPalButton(
-          buttonContainerRef.current.id,
+          containerId,
           { planType, amount },
           handlePaymentSuccess
         );
@@ -132,11 +132,6 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         }
       }
     };
-
-    const uniqueId = `paypal-button-container-${Math.random().toString(36).substring(7)}`;
-    if (buttonContainerRef.current) {
-      buttonContainerRef.current.id = uniqueId;
-    }
 
     initPayPal();
 
@@ -159,9 +154,7 @@ export const PayPalButton = ({ amount, planType, onSuccess }: PayPalButtonProps)
         ref={buttonContainerRef}
         className="min-h-[150px] w-full flex justify-center items-center bg-background"
       >
-        {isLoading ? (
-          <LoadingSpinner />
-        ) : null}
+        {isLoading && <LoadingSpinner />}
       </div>
     </div>
   );
