@@ -32,12 +32,16 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
       script.onload = () => {
         clearTimeout(timeoutId);
         console.log('PayPal script loaded successfully');
-        // @ts-ignore
-        if (window.paypal) {
-          resolve();
-        } else {
-          reject(new Error('PayPal SDK not initialized after script load'));
-        }
+        
+        // Give PayPal SDK time to initialize
+        setTimeout(() => {
+          // @ts-ignore
+          if (window.paypal) {
+            resolve();
+          } else {
+            reject(new Error('PayPal SDK not initialized after script load'));
+          }
+        }, 1000);
       };
 
       script.onerror = (error) => {
@@ -49,7 +53,7 @@ export const loadPayPalScript = async (clientId: string): Promise<void> => {
       // Set a timeout for script loading
       timeoutId = setTimeout(() => {
         reject(new Error('PayPal script load timeout'));
-      }, 10000); // 10 second timeout
+      }, 10000);
 
       console.log('Appending PayPal script to document body...');
       document.body.appendChild(script);
@@ -70,36 +74,46 @@ export const renderPayPalButton = async (
 ): Promise<void> => {
   console.log('Rendering PayPal button...', { containerId, options });
 
-  // @ts-ignore
-  if (!window.paypal) {
-    throw new Error('PayPal SDK not loaded');
-  }
-
-  const container = document.getElementById(containerId);
-  if (!container) {
-    throw new Error(`Container ${containerId} not found`);
-  }
-
-  try {
-    // Clean up any existing PayPal buttons
-    container.innerHTML = '<div id="paypal-container-SZHF9WLR5RQWU"></div>';
-    
-    // @ts-ignore
-    const instance = await window.paypal.HostedButtons({
-      hostedButtonId: 'SZHF9WLR5RQWU',
-      onApprove: function(data: { orderID: string }) {
-        console.log('PayPal payment approved:', data);
-        if (data.orderID) {
-          onSuccess(data.orderID);
-        }
+  return new Promise((resolve, reject) => {
+    try {
+      // @ts-ignore
+      if (!window.paypal) {
+        throw new Error('PayPal SDK not loaded');
       }
-    });
 
-    await instance.render('#paypal-container-SZHF9WLR5RQWU');
-    
-    console.log('PayPal hosted button rendered successfully');
-  } catch (error) {
-    console.error('Error rendering PayPal button:', error);
-    throw error;
-  }
+      const container = document.getElementById(containerId);
+      if (!container) {
+        throw new Error(`Container ${containerId} not found`);
+      }
+
+      // Clean up any existing PayPal buttons
+      container.innerHTML = '<div id="paypal-container-SZHF9WLR5RQWU"></div>';
+
+      // Short delay to ensure DOM is ready
+      setTimeout(async () => {
+        try {
+          // @ts-ignore
+          const instance = await window.paypal.HostedButtons({
+            hostedButtonId: 'SZHF9WLR5RQWU',
+            onApprove: function(data: { orderID: string }) {
+              console.log('PayPal payment approved:', data);
+              if (data.orderID) {
+                onSuccess(data.orderID);
+              }
+            }
+          });
+
+          await instance.render('#paypal-container-SZHF9WLR5RQWU');
+          console.log('PayPal hosted button rendered successfully');
+          resolve();
+        } catch (error) {
+          console.error('Error rendering PayPal button:', error);
+          reject(error);
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Error in renderPayPalButton:', error);
+      reject(error);
+    }
+  });
 };
