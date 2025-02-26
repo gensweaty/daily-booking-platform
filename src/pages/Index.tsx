@@ -51,16 +51,18 @@ const Index = () => {
     try {
       console.log('Checking subscription for user:', user.id)
       
+      // First check for any active subscription
       const { data: subscriptionData, error: subError } = await supabase
         .from('subscriptions')
         .select('*')
         .eq('user_id', user.id)
-        .eq('status', 'active')
-        .single()
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-      console.log('Subscription check result:', { subscriptionData, subError })
+      console.log('Latest subscription data:', subscriptionData)
 
-      if (subError && subError.code !== 'PGRST116') {
+      if (subError) {
         console.error('Subscription check error:', subError)
         toast({
           title: "Error",
@@ -70,10 +72,17 @@ const Index = () => {
         return
       }
 
-      setShowTrialExpired(!subscriptionData)
+      // Check if subscription is active and not expired
+      const isActive = subscriptionData && 
+                      subscriptionData.status === 'active' &&
+                      (!subscriptionData.current_period_end || 
+                       new Date(subscriptionData.current_period_end) > new Date())
+
+      console.log('Subscription active status:', isActive)
+      setShowTrialExpired(!isActive)
 
       // Only fetch username if needed
-      if (!username) {
+      if (!username && user) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('username')
@@ -91,8 +100,18 @@ const Index = () => {
     }
   }, [user, username, toast])
 
+  // Check subscription on mount and when user changes
   useEffect(() => {
     checkSubscription()
+  }, [checkSubscription])
+
+  // Check subscription every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      checkSubscription()
+    }, 60000)
+
+    return () => clearInterval(interval)
   }, [checkSubscription])
 
   if (!user) {
