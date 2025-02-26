@@ -124,10 +124,6 @@ export const renderPayPalButton = async (
           console.error('PayPal capture failed:', error);
           throw error;
         }
-      },
-      onError: (error: Error) => {
-        console.error('PayPal button error:', error);
-        throw error;
       }
     });
 
