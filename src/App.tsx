@@ -1,120 +1,57 @@
 
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { ThemeProvider } from "next-themes";
-import { LanguageProvider } from "@/contexts/LanguageContext";
-import Index from "./pages/Index";
-import Landing from "./pages/Landing";
-import Contact from "./pages/Contact";
-import Legal from "./pages/Legal";
-import { AuthUI } from "./components/AuthUI";
-import { ForgotPassword } from "./components/ForgotPassword";
-import { ResetPassword } from "./components/ResetPassword";
-import { AnimatePresence, motion } from "framer-motion";
+import { Landing } from "@/pages/Landing";
+import { Index } from "@/pages/Index";
+import { Contact } from "@/pages/Contact";
+import { Legal } from "@/pages/Legal";
+import { ForgotPassword } from "@/components/ForgotPassword";
+import { ResetPassword } from "@/components/ResetPassword";
+import { AuthUI } from "@/components/AuthUI";
+import { useEffect } from 'react';
 
-const queryClient = new QueryClient();
+import './App.css';
 
-// Protected routes - require authentication
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-  
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return <>{children}</>;
-};
-
-// Auth routes - redirect to dashboard if logged in
-const AuthRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
-  
-  if (user) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
-  return <>{children}</>;
-};
-
-const AnimatedRoutes = () => {
-  const location = useLocation();
+function App() {
+  // Handle password reset URLs for direct access from email links
+  useEffect(() => {
+    // Special handling for reset password links
+    // This is needed because Supabase may redirect with auth params
+    const currentUrl = window.location.href;
+    const hasResetParams = 
+      currentUrl.includes('#access_token=') || 
+      currentUrl.includes('?token_hash=') || 
+      currentUrl.includes('type=recovery');
+    
+    // If we detect reset params but we're not on the reset page, redirect to it
+    if (hasResetParams && !window.location.pathname.includes('/reset-password')) {
+      console.log('Detected password reset parameters, redirecting to reset password page');
+      // Preserve the full URL including hash and query params
+      window.location.href = `${window.location.origin}/reset-password${window.location.search}${window.location.hash}`;
+    }
+  }, []);
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={location.pathname}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        transition={{ duration: 0.3 }}
-      >
-        <Routes location={location}>
-          {/* Public routes - accessible to everyone */}
-          <Route path="/" element={<Landing />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/legal" element={<Legal />} />
-          
-          {/* Auth routes - redirect to dashboard if logged in */}
-          <Route path="/login" element={
-            <AuthRoute>
-              <AuthUI defaultTab="signin" />
-            </AuthRoute>
-          } />
-          <Route path="/signup" element={
-            <AuthRoute>
-              <AuthUI defaultTab="signup" />
-            </AuthRoute>
-          } />
-          <Route path="/forgot-password" element={
-            <AuthRoute>
-              <ForgotPassword />
-            </AuthRoute>
-          } />
-          <Route path="/reset-password" element={
-            <AuthRoute>
-              <ResetPassword />
-            </AuthRoute>
-          } />
-          
-          {/* Protected routes - require authentication */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Index />
-            </ProtectedRoute>
-          } />
-          
-          {/* Fallback route */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </motion.div>
-    </AnimatePresence>
+    <>
+      <Routes>
+        {/* Auth routes */}
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/login" element={<AuthUI defaultTab="signin" />} />
+        <Route path="/signup" element={<AuthUI defaultTab="signup" />} />
+        
+        {/* Main routes */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/dashboard" element={<Index />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/legal" element={<Legal />} />
+        
+        {/* Fallback redirect */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <Toaster />
+    </>
   );
-};
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <LanguageProvider>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <AuthProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <AnimatedRoutes />
-            </TooltipProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </LanguageProvider>
-    </BrowserRouter>
-  </QueryClientProvider>
-);
+}
 
 export default App;
