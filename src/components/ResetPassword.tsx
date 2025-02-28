@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, Link, useSearchParams, useLocation } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useTheme } from "next-themes";
@@ -24,18 +24,21 @@ export const ResetPassword = () => {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
 
   // Debug utility to log all URL parameters for troubleshooting
   const logUrlParams = () => {
     const fullUrl = window.location.href;
-    const hashParams = window.location.hash;
+    const path = window.location.pathname;
     const searchParamsString = window.location.search;
+    const hashString = window.location.hash;
     const parsedSearchParams = Object.fromEntries(searchParams.entries());
     
     console.log("===== PASSWORD RESET DEBUG INFO =====");
     console.log("Full URL:", fullUrl);
-    console.log("Hash params:", hashParams);
+    console.log("Path:", path);
     console.log("Search params string:", searchParamsString);
+    console.log("Hash string:", hashString);
     console.log("Parsed search params:", parsedSearchParams);
     console.log("Code parameter:", searchParams.get('code'));
     console.log("Type parameter:", searchParams.get('type'));
@@ -43,10 +46,41 @@ export const ResetPassword = () => {
     
     return {
       fullUrl,
-      hashParams,
+      path,
       searchParamsString,
+      hashString,
       parsedSearchParams
     };
+  };
+
+  // Function to extract code from URL (trying all possible locations)
+  const extractResetCode = () => {
+    // First try from search params
+    const codeFromSearch = searchParams.get('code');
+    if (codeFromSearch) {
+      return codeFromSearch;
+    }
+    
+    // Try to extract from hash
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const codeFromHash = hashParams.get('code');
+    if (codeFromHash) {
+      return codeFromHash;
+    }
+    
+    // If we have an access_token in the URL, we might be in a different auth flow
+    if (hashParams.has('access_token')) {
+      console.log("Found access_token in URL, may be using different auth flow");
+    }
+    
+    // Try to extract directly from URL path for cases where routing is failing
+    const pathMatch = window.location.pathname.match(/\/reset-password\/(.+)$/);
+    if (pathMatch && pathMatch[1]) {
+      console.log("Found potential code in URL path:", pathMatch[1]);
+      return pathMatch[1];
+    }
+    
+    return null;
   };
 
   useEffect(() => {
@@ -57,12 +91,11 @@ export const ResetPassword = () => {
         setVerificationError(null);
         
         // Log URL parameters for debugging
-        const params = logUrlParams();
+        logUrlParams();
         
         // First, we need to handle the reset properly
         // Check for the presence of a code parameter
-        const code = searchParams.get('code');
-        const type = searchParams.get('type');
+        const code = extractResetCode();
         
         if (!code) {
           console.error("No code found in URL parameters");
@@ -71,13 +104,13 @@ export const ResetPassword = () => {
           return;
         }
         
-        // Supabase now recommends using exchangeCodeForSession for password reset flows
+        // Supabase recommends using exchangeCodeForSession for password reset flows
         console.log("Attempting to exchange code for session...");
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         
         if (error) {
           console.error("Error exchanging code for session:", error);
-          setVerificationError(error.message);
+          setVerificationError(`Error: ${error.message}`);
           setVerificationInProgress(false);
           return;
         }
@@ -91,14 +124,14 @@ export const ResetPassword = () => {
         }
       } catch (error: any) {
         console.error("Password reset verification error:", error);
-        setVerificationError(error.message || "An unexpected error occurred");
+        setVerificationError(`Unexpected error: ${error.message || "Unknown error"}`);
       } finally {
         setVerificationInProgress(false);
       }
     };
     
     handlePasswordReset();
-  }, [searchParams]);
+  }, [location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
