@@ -45,12 +45,14 @@ export const ForgotPassword = () => {
       const origin = window.location.origin;
       console.log("Current origin:", origin);
       
-      // IMPORTANT: Let Supabase handle the redirect URL itself
-      // We will NOT specify redirectTo, so Supabase will use its default URL configuration
-      // This ensures consistency between manually triggered emails and our app's emails
-      
-      // Request password reset WITHOUT specifying redirectTo
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email);
+      // Add type=recovery to the redirect URL
+      const redirectTo = `${origin}/reset-password?type=recovery`;
+      console.log("Using redirect URL:", redirectTo);
+
+      // Request password reset
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
 
       console.log("Reset password response:", { data, error });
 
