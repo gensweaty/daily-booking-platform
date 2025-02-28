@@ -41,12 +41,6 @@ supabase.auth.onAuthStateChange((event, session) => {
     console.log('Token refreshed');
   } else if (event === 'PASSWORD_RECOVERY') {
     console.log('Password recovery initiated');
-    
-    // When password recovery event is detected, ensure we're on the reset password page
-    if (!window.location.pathname.includes('/reset-password')) {
-      console.log('Redirecting to reset password page from auth callback');
-      window.location.href = `${window.location.origin}/reset-password${window.location.search}${window.location.hash}`;
-    }
   }
 });
 
