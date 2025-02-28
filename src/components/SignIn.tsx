@@ -72,7 +72,7 @@ export const SignIn = () => {
         <Input
           id="password"
           type="password"
-          placeholder={t("auth.enterPassword")}
+          placeholder="Enter your password" // Using a direct string instead of missing translation key
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -80,7 +80,7 @@ export const SignIn = () => {
         />
       </div>
       <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? t("auth.signingIn") : t("auth.signInButton")}
+        {loading ? "Signing in..." : t("auth.signInButton")} {/* Using a direct string instead of missing translation key */}
       </Button>
     </form>
   );
