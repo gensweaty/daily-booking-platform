@@ -81,19 +81,25 @@ const hasEmailConfirmParams = () => {
       ((searchParams.has('error_code') && searchParams.get('error_code') === 'otp_expired') ||
        (hashParams.has('error_code') && hashParams.get('error_code') === 'otp_expired'));
     
-    // Log for debugging
-    const result = isConfirmationFlow || hasType || isEmailConfirmError;
+    // Check for the direct code parameter on dashboard route
+    // This is a common format for email confirmation redirects
+    const hasDashboardCode = window.location.pathname === '/dashboard' && searchParams.has('code');
     
-    if (result || hasError) {
+    // Log for debugging
+    const result = isConfirmationFlow || hasType || isEmailConfirmError || hasDashboardCode;
+    
+    if (result || hasError || hasDashboardCode) {
       console.log("Checking for email confirmation parameters:", {
         hasAccessToken,
         hasType,
         hasError,
         isEmailConfirmError,
         isConfirmationFlow,
+        hasDashboardCode,
         type: searchParams.get('type') || hashParams.get('type'),
         errorCode: searchParams.get('error_code') || hashParams.get('error_code'),
         currentPath: window.location.pathname,
+        searchParams: window.location.search
       });
     }
     
@@ -176,12 +182,39 @@ const PasswordResetRoute = ({ children }: { children: React.ReactNode }) => {
 const AnimatedRoutes = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
   // Global handler for special links that runs on initial mount
   useEffect(() => {
     // Handle email confirmation links first
     if (hasEmailConfirmParams()) {
       console.log("Email confirmation parameters detected, letting auth provider handle the flow");
+      
+      // Special handling for the code parameter on dashboard route
+      // This is a specific format for email confirmation links
+      if (location.pathname === '/dashboard' && searchParams.has('code')) {
+        console.log("Found code parameter on dashboard route, handling email confirmation");
+        
+        // Exchange the code for a session
+        (async () => {
+          try {
+            const { data, error } = await supabase.auth.exchangeCodeForSession(
+              searchParams.get('code') || ''
+            );
+            
+            if (error) {
+              console.error("Error exchanging code for session:", error);
+              navigate('/login', { replace: true });
+            } else if (data.session) {
+              console.log("Successfully exchanged code for session");
+              navigate('/dashboard', { replace: true });
+            }
+          } catch (err) {
+            console.error("Exception exchanging code:", err);
+            navigate('/login', { replace: true });
+          }
+        })();
+      }
       
       // If on dashboard with error params, redirect to login
       if (location.pathname === '/dashboard' && location.search.includes('error=')) {
@@ -197,7 +230,7 @@ const AnimatedRoutes = () => {
       console.log("Redirecting to reset password page with params");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
     }
-  }, [location.pathname, navigate]);
+  }, [location.pathname, navigate, searchParams]);
 
   return (
     <AnimatePresence mode="wait">

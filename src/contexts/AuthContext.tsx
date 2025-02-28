@@ -37,7 +37,9 @@ const hasEmailConfirmParams = () => {
     (window.location.hash.includes('access_token=') && 
      !window.location.hash.includes('type=recovery')) ||
     (window.location.search.includes('type=') && 
-     !window.location.search.includes('type=recovery'))
+     !window.location.search.includes('type=recovery')) ||
+    (window.location.pathname === '/dashboard' && 
+     window.location.search.includes('code='))
   );
 };
 
@@ -138,6 +140,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const initSession = async () => {
       try {
+        // Handle dashboard with code parameter (email confirmation)
+        if (location.pathname === '/dashboard' && searchParams.has('code')) {
+          console.log("Found code parameter on dashboard route, handling email confirmation");
+          setLoading(false);
+          
+          try {
+            // Exchange the code for a session
+            const { data, error } = await supabase.auth.exchangeCodeForSession(
+              searchParams.get('code') || ''
+            );
+            
+            if (error) {
+              console.error("Error exchanging code for session:", error);
+              navigate('/login', { replace: true });
+              toast({
+                title: "Error",
+                description: "There was an error confirming your email. Please try again.",
+                variant: "destructive",
+              });
+              return;
+            }
+            
+            if (data.session) {
+              console.log("Successfully exchanged code for session:", data);
+              setSession(data.session);
+              setUser(data.session.user);
+              
+              navigate('/dashboard', { replace: true });
+              toast({
+                title: "Success",
+                description: "Your email has been confirmed!",
+              });
+              return;
+            }
+          } catch (e) {
+            console.error("Exception exchanging code:", e);
+            navigate('/login', { replace: true });
+          }
+          return;
+        }
+        
         // First check for email confirmation links
         if (hasEmailConfirmParams()) {
           console.log("Email confirmation link detected in initSession", {
@@ -243,6 +286,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event, newSession ? 'Session exists' : 'No session');
+      
+      // Handle dashboard with code parameter (email confirmation)
+      if (location.pathname === '/dashboard' && searchParams.has('code')) {
+        console.log("Code parameter detected on dashboard route during auth state change");
+        
+        try {
+          // Exchange the code for a session
+          const { data, error } = await supabase.auth.exchangeCodeForSession(
+            searchParams.get('code') || ''
+          );
+          
+          if (error) {
+            console.error("Error exchanging code for session:", error);
+            navigate('/login', { replace: true });
+          } else if (data.session) {
+            console.log("Successfully exchanged code for session:", data);
+            setSession(data.session);
+            setUser(data.session.user);
+            
+            navigate('/dashboard', { replace: true });
+            toast({
+              title: "Success",
+              description: "Your email has been confirmed!",
+            });
+          }
+        } catch (e) {
+          console.error("Exception exchanging code:", e);
+        }
+        return;
+      }
       
       // Handle email confirmation specifically
       if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && hasEmailConfirmParams()) {
