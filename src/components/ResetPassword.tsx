@@ -61,11 +61,16 @@ export const ResetPassword = () => {
   };
 
   useEffect(() => {
-    const verifyRecoveryToken = async () => {
+    // Always sign out first to ensure a clean state for password reset
+    const signOutAndVerify = async () => {
       try {
         setVerificationInProgress(true);
-        console.log("Verifying recovery token...");
+        console.log("Signing out before verifying recovery token...");
         
+        // Sign out to clear any existing session
+        await supabase.auth.signOut();
+        
+        console.log("Verifying recovery token...");
         const { accessToken, refreshToken, tokenHash, type } = extractTokenParams();
         
         // If we don't have any recovery parameters, just show the error
@@ -73,16 +78,6 @@ export const ResetPassword = () => {
           console.error("No recovery parameters found in URL");
           setVerificationInProgress(false);
           return;
-        }
-        
-        // First, check if we already have a valid session
-        const { data: sessionData } = await supabase.auth.getSession();
-        console.log("Current session:", sessionData.session ? "Active" : "None");
-        
-        // Clear any existing session to prevent conflicts
-        if (sessionData.session) {
-          console.log("Signing out to handle recovery token properly");
-          await supabase.auth.signOut();
         }
         
         // Try to verify using different methods based on what we have
@@ -159,8 +154,8 @@ export const ResetPassword = () => {
       }
     };
 
-    verifyRecoveryToken();
-  }, [navigate, toast]);
+    signOutAndVerify();
+  }, [toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -19,6 +19,15 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 });
 
+// Helper to check if URL has recovery parameters
+const hasRecoveryParams = () => {
+  return (
+    window.location.hash.includes('access_token=') || 
+    window.location.search.includes('token_hash=') || 
+    window.location.search.includes('type=recovery')
+  );
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -52,6 +61,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshSession = useCallback(async () => {
     try {
+      // If we have recovery parameters, don't refresh session as we're in password reset flow
+      if (hasRecoveryParams()) {
+        console.log("Recovery parameters detected, skipping session refresh");
+        setLoading(false);
+        return;
+      }
+
       const { data: { session: currentSession }, error } = await supabase.auth.getSession();
       if (error) {
         if (error.message.includes('token_refresh_failed') || 
@@ -85,6 +101,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const initSession = async () => {
       try {
+        // If we detect password reset parameters, don't initialize session
+        if (hasRecoveryParams() && location.pathname === '/reset-password') {
+          console.log("Password reset flow detected, skipping session initialization");
+          setLoading(false);
+          return;
+        }
+        
         await refreshSession();
       } catch (error) {
         console.error('Session initialization error:', error);
@@ -124,6 +147,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event, newSession);
       
+      // If we're in the password reset flow, handle differently
+      if (hasRecoveryParams() && location.pathname === '/reset-password') {
+        console.log("Auth state change during password reset flow, not redirecting");
+        return;
+      }
+      
       if (event === 'SIGNED_IN') {
         setSession(newSession);
         setUser(newSession?.user ?? null);
@@ -147,6 +176,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else if (event === 'USER_UPDATED') {
         setSession(newSession);
         setUser(newSession?.user ?? null);
+      } else if (event === 'PASSWORD_RECOVERY') {
+        console.log('Password recovery event detected');
+        
+        // Redirect to reset-password page if not already there
+        if (location.pathname !== '/reset-password') {
+          navigate('/reset-password' + location.search + location.hash);
+        }
       }
     });
 
@@ -156,7 +192,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('online', handleOnline);
     };
-  }, [navigate, handleTokenError, refreshSession, location.pathname]);
+  }, [navigate, handleTokenError, refreshSession, location.pathname, location.search, location.hash]);
 
   const signOut = async () => {
     try {
