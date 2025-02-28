@@ -12,6 +12,10 @@ import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
 
+type RouteParams = {
+  code?: string;
+};
+
 export const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -25,7 +29,7 @@ export const ResetPassword = () => {
   const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const params = useParams();
+  const routeParams = useParams<RouteParams>();
 
   // Debug utility to log all URL parameters for troubleshooting
   const logUrlParams = () => {
@@ -34,7 +38,6 @@ export const ResetPassword = () => {
     const searchParamsString = window.location.search;
     const hashString = window.location.hash;
     const parsedSearchParams = Object.fromEntries(searchParams.entries());
-    const routeParams = params;
     
     console.log("===== PASSWORD RESET DEBUG INFO =====");
     console.log("Full URL:", fullUrl);
@@ -44,7 +47,7 @@ export const ResetPassword = () => {
     console.log("Parsed search params:", parsedSearchParams);
     console.log("Route params:", routeParams);
     console.log("Code from URL query:", searchParams.get('code'));
-    console.log("Code from URL route param:", params && 'code' in params ? params.code : null);
+    console.log("Code from URL route param:", routeParams.code);
     console.log("Type parameter:", searchParams.get('type'));
     console.log("Access token:", searchParams.get('access_token') || (hashString.includes('access_token=') ? 'Present in hash' : 'Not present'));
     console.log("Refresh token:", searchParams.get('refresh_token') || (hashString.includes('refresh_token=') ? 'Present in hash' : 'Not present'));
@@ -80,9 +83,9 @@ export const ResetPassword = () => {
     }
     
     // Try from route params (/reset-password/:code)
-    if (params && 'code' in params && params.code) {
-      console.log("Found code in route params:", params.code);
-      return params.code;
+    if (routeParams.code) {
+      console.log("Found code in route params:", routeParams.code);
+      return routeParams.code;
     }
     
     // Try to extract directly from URL path for cases where routing is failing
@@ -180,7 +183,7 @@ export const ResetPassword = () => {
     };
     
     handlePasswordReset();
-  }, [location, params]);
+  }, [location, routeParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
