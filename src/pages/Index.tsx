@@ -1,8 +1,9 @@
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
+import { useSearchParams, useNavigate } from "react-router-dom"
 import { AuthUI } from "@/components/AuthUI"
 import { DashboardHeader } from "@/components/DashboardHeader"
 import { TrialExpiredDialog } from "@/components/TrialExpiredDialog"
@@ -10,6 +11,7 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
+import { LanguageProvider } from "@/contexts/LanguageContext"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -35,103 +37,55 @@ const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false)
   const [username, setUsername] = useState("")
   const [showTrialExpired, setShowTrialExpired] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
   const { toast } = useToast()
-
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  
   useSubscriptionRedirect()
 
-  const checkSubscription = useCallback(async () => {
-    if (!user) {
-      setIsLoading(false)
-      setShowTrialExpired(false)
-      return
-    }
-
-    try {
-      console.log('Checking subscription for user:', user.id)
-      
-      // First check for any active subscription
-      const { data: subscriptionData, error: subError } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      console.log('Latest subscription data:', subscriptionData)
-
-      if (subError) {
-        console.error('Subscription check error:', subError)
-        toast({
-          title: "Error",
-          description: "Failed to check subscription status",
-          variant: "destructive"
-        })
-        return
-      }
-
-      // Check if subscription is active and not expired
-      const isActive = subscriptionData && 
-                      subscriptionData.status === 'active' &&
-                      (!subscriptionData.current_period_end || 
-                       new Date(subscriptionData.current_period_end) > new Date())
-
-      console.log('Subscription active status:', isActive)
-      setShowTrialExpired(!isActive)
-
-      // Only fetch username if needed
-      if (!username && user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', user.id)
-          .single()
-
-        if (profile?.username) {
-          setUsername(profile.username)
+  useEffect(() => {
+    const getProfile = async () => {
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', user.id)
+            .maybeSingle()
+          
+          if (error) {
+            console.error('Error fetching profile:', error)
+            return
+          }
+          
+          if (data) {
+            setUsername(data.username)
+          }
+        } catch (error: any) {
+          console.error('Profile fetch error:', error)
         }
       }
-    } catch (error) {
-      console.error('Error in subscription check:', error)
-    } finally {
-      setIsLoading(false)
     }
-  }, [user, username, toast])
 
-  // Check subscription on mount and when user changes
-  useEffect(() => {
-    checkSubscription()
-  }, [checkSubscription])
+    getProfile()
+  }, [user])
 
-  // Check subscription every minute
-  useEffect(() => {
-    const interval = setInterval(() => {
-      checkSubscription()
-    }, 60000)
-
-    return () => clearInterval(interval)
-  }, [checkSubscription])
-
-  if (!user) {
-    return (
-      <>
-        <CursorFollower />
-        <AuthUI />
-      </>
-    )
-  }
-
-  return (
+  const content = user ? (
     <motion.div 
       className="min-h-screen bg-background p-4"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      {!isLoading && showTrialExpired && (
-        <TrialExpiredDialog open={true} />
+      {showTrialExpired && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+        >
+          <TrialExpiredDialog />
+        </motion.div>
       )}
       <motion.div variants={childVariants}>
         <DashboardHeader username={username} />
@@ -143,7 +97,18 @@ const Index = () => {
         />
       </motion.div>
     </motion.div>
-  )
+  ) : (
+    <>
+      <CursorFollower />
+      <AuthUI />
+    </>
+  );
+
+  return (
+    <LanguageProvider>
+      {content}
+    </LanguageProvider>
+  );
 }
 
-export default Index
+export default Index;

@@ -497,7 +497,7 @@ export type Database = {
           p_user_id: string
           p_subscription_type: string
         }
-        Returns: Json
+        Returns: undefined
       }
       check_and_lock_redeem_code: {
         Args: {

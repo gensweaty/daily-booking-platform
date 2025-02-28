@@ -5,70 +5,49 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { SubscriptionPlanSelect } from "./subscription/SubscriptionPlanSelect";
-import { PayPalButton } from "./subscription/PayPalButton";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
 
-interface TrialExpiredDialogProps {
-  open?: boolean;
-}
-
-export const TrialExpiredDialog = ({ open = true }: TrialExpiredDialogProps) => {
+export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const handleSubscriptionSuccess = () => {
+  const handleSubscriptionSuccess = (subscriptionId: string) => {
     toast({
       title: "Success",
-      description: "Your subscription has been activated successfully!",
+      description: `Successfully subscribed with ID: ${subscriptionId}`,
     });
-    window.location.reload();
+    navigate("/dashboard");
   };
 
-  const amount = selectedPlan === 'monthly' ? '9.99' : '99.99';
-
   return (
-    <Dialog 
-      open={open} 
-      onOpenChange={() => {}}
-    >
+    <Dialog open={true} onOpenChange={() => {}}>
       <DialogContent 
-        className="sm:max-w-[500px]"
-        hideCloseButton
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
+        className="w-[90vw] max-w-[475px] p-4 sm:p-6" 
+        hideCloseButton={true}
       >
         <DialogHeader>
-          <DialogTitle className="text-center text-2xl font-bold text-primary">
+          <DialogTitle className="text-center text-xl sm:text-2xl font-bold">
             Subscription Required
           </DialogTitle>
-          <DialogDescription className="text-center">
-            To continue using our services, please select a subscription plan below.
-          </DialogDescription>
         </DialogHeader>
-        <div className="mt-6 space-y-6">
-          <div className="text-center space-y-2">
-            <p className="text-lg font-medium text-foreground">
-              Your access has expired
-            </p>
-          </div>
-          <div className="p-4 bg-muted/50 rounded-lg">
-            <SubscriptionPlanSelect
-              selectedPlan={selectedPlan}
-              setSelectedPlan={setSelectedPlan}
-              isLoading={false}
-            />
-          </div>
-          <div className="pt-4">
-            <PayPalButton
-              amount={amount}
-              planType={selectedPlan}
-              onSuccess={handleSubscriptionSuccess}
-            />
-          </div>
+        <div className="mt-4 space-y-6 px-2 sm:px-4">
+          <p className="text-center text-sm sm:text-base text-muted-foreground">
+            Your subscription has expired. Please select a plan to continue using our services.
+          </p>
+          <SubscriptionPlanSelect
+            selectedPlan={selectedPlan}
+            setSelectedPlan={setSelectedPlan}
+            isLoading={false}
+          />
+          <PayPalSubscribeButton 
+            planType={selectedPlan}
+            onSuccess={handleSubscriptionSuccess}
+          />
         </div>
       </DialogContent>
     </Dialog>

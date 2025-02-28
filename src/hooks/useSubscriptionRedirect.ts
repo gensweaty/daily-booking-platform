@@ -1,12 +1,12 @@
-
 import { useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/ui/use-toast'
 
 export const useSubscriptionRedirect = () => {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { toast } = useToast()
 
@@ -17,67 +17,41 @@ export const useSubscriptionRedirect = () => {
       if (!subscriptionType || !user) return
 
       try {
-        console.log('Processing subscription redirect:', { subscriptionType, userId: user.id })
+        console.log('Processing subscription redirect:', subscriptionType)
+        
+        const response = await supabase.functions.invoke('handle-subscription-redirect', {
+          body: { subscription: subscriptionType },
+          headers: { 'x-user-id': user.id }
+        })
 
-        // First get the plan ID for the subscription type
-        const { data: planData, error: planError } = await supabase
-          .from('subscription_plans')
-          .select('id')
-          .eq('type', subscriptionType)
-          .single()
-
-        if (planError) {
-          console.error('Error fetching plan:', planError)
-          throw planError
-        }
-
-        // Get current subscription status
-        const { data: currentSub } = await supabase
-          .from('subscriptions')
-          .select('status')
-          .eq('user_id', user.id)
-          .single()
-
-        // Only update if not already active
-        if (currentSub?.status !== 'active') {
-          const currentDate = new Date()
-          const endDate = new Date()
-          endDate.setMonth(endDate.getMonth() + (subscriptionType === 'yearly' ? 12 : 1))
-
-          // Create or update the subscription
-          const { error: subscriptionError } = await supabase
-            .from('subscriptions')
-            .upsert({
-              user_id: user.id,
-              plan_id: planData.id,
-              plan_type: subscriptionType,
-              status: 'active',
-              current_period_start: currentDate.toISOString(),
-              current_period_end: endDate.toISOString(),
-            })
-
-          if (subscriptionError) {
-            throw subscriptionError
-          }
-
+        if (response.error) {
+          console.error('Subscription activation error:', response.error)
           toast({
-            title: 'Success',
-            description: 'Your subscription has been activated!'
+            title: 'Error',
+            description: 'Failed to activate subscription. Please try again.',
+            variant: 'destructive'
           })
-
-          // Force reload to update UI
-          window.location.reload()
+          return
         }
+
+        console.log('Subscription activated successfully')
+        toast({
+          title: 'Success',
+          description: 'Your subscription has been activated!'
+        })
+
+        // Remove subscription parameter from URL
+        navigate('/dashboard')
       } catch (error) {
         console.error('Error handling subscription redirect:', error)
         toast({
           title: 'Error',
-          description: 'An error occurred activating your subscription. Please try again.',
+          description: 'An error occurred. Please try again.',
           variant: 'destructive'
         })
       }
     }
 
     handleSubscriptionRedirect()
-  }, [searchParams, user, toast])
+  }, [searchParams, user, navigate, toast])
 }
