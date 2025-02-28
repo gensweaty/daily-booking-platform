@@ -1,10 +1,10 @@
 
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
-import { Landing } from "@/pages/Landing";
-import { Index } from "@/pages/Index";
-import { Contact } from "@/pages/Contact";
-import { Legal } from "@/pages/Legal";
+import Landing from "@/pages/Landing";
+import Index from "@/pages/Index";
+import Contact from "@/pages/Contact";
+import Legal from "@/pages/Legal";
 import { ForgotPassword } from "@/components/ForgotPassword";
 import { ResetPassword } from "@/components/ResetPassword";
 import { AuthUI } from "@/components/AuthUI";
