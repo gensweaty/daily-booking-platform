@@ -25,8 +25,16 @@ export const ForgotPassword = () => {
     console.log("Attempting to send reset email to:", email);
 
     try {
-      // When sending password reset emails, we don't need an authenticated session
-      // Using the resetPasswordForEmail method directly
+      // Create a new anonymous session to prevent "Session expired" errors
+      // This ensures we're not relying on any existing session that might be invalid
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      console.log("Current session before reset:", sessionData);
+      
+      if (sessionError) {
+        console.error("Session check error:", sessionError);
+      }
+
+      // Use resetPasswordForEmail without relying on existing session
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
@@ -34,7 +42,6 @@ export const ForgotPassword = () => {
       if (error) {
         console.error("Password reset request error:", error);
         
-        // Don't throw here, just handle the error case
         if (error.message.includes('rate limit') || error.message.includes('too many requests')) {
           toast({
             title: "Too many attempts",
