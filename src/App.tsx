@@ -15,6 +15,8 @@ import { AuthUI } from "./components/AuthUI";
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +42,24 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   if (user) {
     return <Navigate to="/dashboard" replace />;
   }
+  
+  return <>{children}</>;
+};
+
+// Special route for password reset to ensure we don't redirect even with an active session
+const PasswordResetRoute = ({ children }: { children: React.ReactNode }) => {
+  // Check if we have recovery token parameters in the URL
+  const hasRecoveryParams = 
+    window.location.hash.includes('access_token=') || 
+    window.location.search.includes('token_hash=') || 
+    window.location.search.includes('type=recovery');
+  
+  useEffect(() => {
+    // If this is a password reset flow, execute this once
+    if (hasRecoveryParams) {
+      console.log("Recovery parameters detected, keeping user on reset password page");
+    }
+  }, [hasRecoveryParams]);
   
   return <>{children}</>;
 };
@@ -78,10 +98,12 @@ const AnimatedRoutes = () => {
               <ForgotPassword />
             </AuthRoute>
           } />
+          
+          {/* Password reset route - special handling */}
           <Route path="/reset-password" element={
-            <AuthRoute>
+            <PasswordResetRoute>
               <ResetPassword />
-            </AuthRoute>
+            </PasswordResetRoute>
           } />
           
           {/* Protected routes - require authentication */}

@@ -24,12 +24,36 @@ export const ResetPassword = () => {
   useEffect(() => {
     const handleRecoveryToken = async () => {
       try {
-        // Log the full URL for debugging
+        // Check if we're in recovery mode by parsing URL parameters
         console.log("Full URL:", window.location.href);
         
-        // Try different approaches to getting the token
+        // 1. First - if we have come from a recovery flow, we might already have a recovery session
+        // Let's check if we have a valid session, and if that session is from a recovery flow
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session) {
+          console.log("Found existing session");
+          
+          // Special case - if we can tell this session is from a recovery email,
+          // we should allow the user to reset their password
+          if (window.location.search.includes('type=recovery') || 
+              window.location.hash.includes('type=recovery')) {
+            console.log("Session is from a recovery flow - enabling password reset");
+            setTokenVerified(true);
+            return;
+          }
+          
+          // If we have a session but can't confirm it's a recovery flow,
+          // let's check if we need to sign out to handle the reset properly
+          // This prevents auto-login from interfering with password reset
+          if (window.location.search.includes('token_hash') || 
+              window.location.hash.includes('access_token')) {
+            console.log("Found token parameters but already have a session - signing out to handle recovery");
+            await supabase.auth.signOut();
+            // After signing out, we'll process the token parameters below
+          }
+        }
         
-        // 1. Check hash fragment (#access_token=...)
+        // 2. Check for hash fragment (#access_token=...)
         const hashFragment = window.location.hash;
         if (hashFragment) {
           console.log("Found hash fragment:", hashFragment);
@@ -42,6 +66,7 @@ export const ResetPassword = () => {
           
           if (accessToken && type === 'recovery') {
             try {
+              // Set the session with the recovery token
               const { error } = await supabase.auth.setSession({
                 access_token: accessToken,
                 refresh_token: refreshToken || '',
@@ -58,7 +83,7 @@ export const ResetPassword = () => {
           }
         }
         
-        // 2. Check query parameters (?token_hash=...)
+        // 3. Check query parameters (?token_hash=...)
         const searchParams = new URLSearchParams(window.location.search);
         const tokenHash = searchParams.get('token_hash');
         const type = searchParams.get('type');
@@ -68,52 +93,34 @@ export const ResetPassword = () => {
           
           // For token_hash, we don't need to manually set the session
           // Supabase JS client should handle this automatically
-          
-          // Check if we have a session
-          const { data, error } = await supabase.auth.getSession();
-          
-          if (error) {
-            console.error("Error getting session after token_hash:", error);
-            throw error;
-          }
-          
-          if (data.session) {
-            console.log("Session exists after token_hash processing");
+          try {
+            // Explicitly verify the OTP
+            const { error } = await supabase.auth.verifyOtp({
+              token_hash: tokenHash,
+              type: 'recovery',
+            });
+            
+            if (error) {
+              console.error("Error verifying OTP:", error);
+              throw error;
+            }
+            
+            console.log("Successfully verified OTP");
             setTokenVerified(true);
             return;
-          } else {
-            console.log("No session found after token_hash processing");
-            // Try to verify the token_hash directly
-            try {
-              // This is a special case - we'll try to verify the token directly
-              const { error } = await supabase.auth.verifyOtp({
-                token_hash: tokenHash,
-                type: 'recovery',
-              });
-              
-              if (error) throw error;
-              console.log("Successfully verified OTP");
+          } catch (e) {
+            console.error("Error in OTP verification:", e);
+            // Let's try one more approach - checking for a session that might have been created
+            const { data } = await supabase.auth.getSession();
+            if (data.session) {
+              console.log("Session exists after token_hash processing");
               setTokenVerified(true);
               return;
-            } catch (e) {
-              console.error("Error verifying OTP:", e);
-              // Continue to try other methods
             }
           }
         }
         
-        // 3. If the URL doesn't have explicit tokens but we're on the reset password page,
-        // check if we already have a valid session
-        const { data } = await supabase.auth.getSession();
-        if (data.session) {
-          console.log("User already has a valid session");
-          setTokenVerified(true);
-          return;
-        }
-        
-        // If we've tried all approaches and still don't have a valid token,
-        // the recovery link is probably invalid or expired
-        console.log("No valid recovery token found after trying all approaches");
+        // If none of the above worked, the token might be invalid or expired
         toast({
           title: "Invalid Recovery Link",
           description: "The password reset link is invalid or has expired. Please request a new one.",
