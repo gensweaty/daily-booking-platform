@@ -43,21 +43,22 @@ export const SignIn = () => {
 
   return (
     <form onSubmit={handleSignIn} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="email">{t("auth.emailLabel")}</Label>
+      <div className="mb-4">
+        <Label htmlFor="email" className="block text-sm font-medium mb-1">Email</Label>
         <Input
           id="email"
           type="email"
-          placeholder={t("auth.enterEmail")}
+          placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
           disabled={loading}
+          className="w-full"
         />
       </div>
-      <div className="space-y-2">
-        <div className="flex justify-between items-center">
-          <Label htmlFor="password">{t("auth.passwordLabel")}</Label>
+      <div className="mb-4">
+        <div className="flex justify-between items-center mb-1">
+          <Label htmlFor="password" className="block text-sm font-medium">Password</Label>
           <Link 
             to="/forgot-password"
             className="text-xs text-primary hover:underline"
@@ -66,21 +67,26 @@ export const SignIn = () => {
               e.stopPropagation();
             }}
           >
-            {t("auth.forgotPassword")}
+            Forgot password?
           </Link>
         </div>
         <Input
           id="password"
           type="password"
-          placeholder="Enter your password" // Using a direct string instead of missing translation key
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
           disabled={loading}
+          className="w-full"
         />
       </div>
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? "Signing in..." : t("auth.signInButton")} {/* Using a direct string instead of missing translation key */}
+      <Button 
+        type="submit" 
+        className="w-full bg-primary text-white font-medium"
+        disabled={loading}
+      >
+        {loading ? "Signing In..." : "Sign In"}
       </Button>
     </form>
   );
