@@ -12,34 +12,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true, // Enable this to help with automatic recovery token detection
-    storage: localStorage,
-    storageKey: 'supabase.auth.token',
+    detectSessionInUrl: false, // Changed to false to manually handle the code parameter
     flowType: 'pkce',
   },
-  global: {
-    fetch: (input: RequestInfo | URL, init?: RequestInit) => {
-      return fetch(input, init).catch(error => {
-        console.error('Supabase fetch error:', error);
-        throw error;
-      });
-    }
-  }
 });
 
-// Listen for auth state changes
+// Debug listener for auth events - helpful for troubleshooting
 supabase.auth.onAuthStateChange((event, session) => {
-  console.log('Auth state changed:', event, session ? 'Session exists' : 'No session');
-  
-  if (event === 'SIGNED_OUT') {
-    console.log('User signed out');
-  } else if (event === 'USER_UPDATED') {
-    console.log('User updated');
-  } else if (event === 'SIGNED_IN') {
-    console.log('User signed in');
-  } else if (event === 'TOKEN_REFRESHED') {
-    console.log('Token refreshed');
-  } else if (event === 'PASSWORD_RECOVERY') {
-    console.log('Password recovery initiated');
-  }
+  console.log(`Auth state changed: ${event}`, session ? 'Session exists' : 'No session');
 });
