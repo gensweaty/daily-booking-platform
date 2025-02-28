@@ -55,7 +55,7 @@ export const ResetPassword = () => {
       refreshToken: !!refreshToken, 
       tokenHash: !!tokenHash, 
       type: type || typeFromQuery,
-      code: code
+      code: !!code
     });
     
     return { 
@@ -134,16 +134,13 @@ export const ResetPassword = () => {
         if (!verified && code) {
           console.log("Using code parameter method");
           try {
-            // Attempt to use the code directly
-            const { error } = await supabase.auth.verifyOtp({
-              token_hash: code,
-              type: 'recovery',
-            });
+            // Attempt to exchange the code for a session
+            const { error } = await supabase.auth.exchangeCodeForSession(code);
             
             if (error) {
-              console.error("Error verifying OTP with code:", error);
+              console.error("Error exchanging code for session:", error);
             } else {
-              console.log("Successfully verified token using code parameter");
+              console.log("Successfully verified token using code exchange");
               verified = true;
             }
           } catch (error) {

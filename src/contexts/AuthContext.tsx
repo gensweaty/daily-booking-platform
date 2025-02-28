@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/components/ui/use-toast";
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
@@ -24,7 +24,8 @@ const hasRecoveryParams = () => {
   return (
     window.location.hash.includes('access_token=') || 
     window.location.search.includes('token_hash=') || 
-    window.location.search.includes('type=recovery')
+    window.location.search.includes('type=recovery') ||
+    window.location.search.includes('code=')
   );
 };
 
@@ -35,6 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
 
   const handleTokenError = useCallback(async () => {
     console.log('Handling token error - clearing session');
@@ -45,7 +47,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem('supabase.auth.token');
     
     // Don't show session expired error if we're handling a password reset
-    if (hasRecoveryParams()) {
+    if (hasRecoveryParams() || searchParams.has('code')) {
       console.log("Recovery parameters detected, not showing session expired error");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
       return;
@@ -64,12 +66,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         variant: "destructive",
       });
     }
-  }, [navigate, toast, location.pathname]);
+  }, [navigate, toast, location.pathname, searchParams]);
 
   const refreshSession = useCallback(async () => {
     try {
       // If we have recovery parameters, don't refresh session as we're in password reset flow
-      if (hasRecoveryParams()) {
+      if (hasRecoveryParams() || searchParams.has('code')) {
         console.log("Recovery parameters detected, skipping session refresh");
         setLoading(false);
         
@@ -111,13 +113,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [handleTokenError, location.pathname, navigate, location.search, location.hash]);
+  }, [handleTokenError, location.pathname, navigate, location.search, location.hash, searchParams]);
 
   useEffect(() => {
     const initSession = async () => {
       try {
         // If we detect password reset parameters, handle specifically
-        if (hasRecoveryParams()) {
+        if (hasRecoveryParams() || searchParams.has('code')) {
           console.log("Password reset flow detected in initSession");
           setLoading(false);
           
@@ -169,7 +171,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('Auth state changed:', event, newSession ? 'Session exists' : 'No session');
       
       // Check if this is a password reset flow regardless of event type
-      if (hasRecoveryParams()) {
+      if (hasRecoveryParams() || searchParams.has('code')) {
         console.log("Recovery parameters detected during auth state change");
         if (location.pathname !== '/reset-password') {
           console.log("Redirecting to reset password page from auth state change");
@@ -217,12 +219,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('online', handleOnline);
     };
-  }, [navigate, handleTokenError, refreshSession, location.pathname, location.search, location.hash]);
+  }, [navigate, handleTokenError, refreshSession, location.pathname, location.search, location.hash, searchParams]);
 
   const signOut = async () => {
     try {
       // Don't sign out if we're in the password reset flow
-      if (hasRecoveryParams() && location.pathname === '/reset-password') {
+      if ((hasRecoveryParams() || searchParams.has('code')) && location.pathname === '/reset-password') {
         console.log('Skipping sign out during password reset flow');
         return;
       }
