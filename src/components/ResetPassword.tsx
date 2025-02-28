@@ -104,7 +104,7 @@ export const ResetPassword = () => {
         }
         
         // 2. Try token_hash method (query parameter)
-        if (!verified && tokenHash && (type === 'recovery' || typeFromQuery === 'recovery')) {
+        if (!verified && tokenHash && type === 'recovery') {
           console.log("Using token_hash method");
           try {
             const { error } = await supabase.auth.verifyOtp({
