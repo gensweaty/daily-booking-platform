@@ -10,136 +10,129 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { ArrowLeft } from "lucide-react";
 
 export const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [tokenVerified, setTokenVerified] = useState(false);
+  const [verificationInProgress, setVerificationInProgress] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { theme } = useTheme();
   const { t } = useLanguage();
 
+  // Extract recovery token parameters from URL
+  const extractTokenParams = () => {
+    const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
+    const queryParams = new URLSearchParams(window.location.search);
+    
+    const accessToken = hashParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token');
+    const tokenHash = queryParams.get('token_hash');
+    const type = hashParams.get('type') || queryParams.get('type');
+    
+    return { accessToken, refreshToken, tokenHash, type };
+  };
+
   useEffect(() => {
-    const handleRecoveryToken = async () => {
+    const verifyRecoveryToken = async () => {
       try {
-        // Check if we're in recovery mode by parsing URL parameters
-        console.log("Full URL:", window.location.href);
+        setVerificationInProgress(true);
+        console.log("Verifying recovery token...");
+        console.log("Current URL:", window.location.href);
         
-        // 1. First - if we have come from a recovery flow, we might already have a recovery session
-        // Let's check if we have a valid session, and if that session is from a recovery flow
+        const { accessToken, refreshToken, tokenHash, type } = extractTokenParams();
+        console.log("Extracted params:", { accessToken: !!accessToken, tokenHash: !!tokenHash, type });
+        
+        // First, check if we already have a valid session
         const { data: sessionData } = await supabase.auth.getSession();
+        console.log("Session check:", sessionData.session ? "Has session" : "No session");
+        
+        // Clear any existing session to prevent conflicts
         if (sessionData.session) {
-          console.log("Found existing session");
-          
-          // Special case - if we can tell this session is from a recovery email,
-          // we should allow the user to reset their password
-          if (window.location.search.includes('type=recovery') || 
-              window.location.hash.includes('type=recovery')) {
-            console.log("Session is from a recovery flow - enabling password reset");
-            setTokenVerified(true);
-            return;
-          }
-          
-          // If we have a session but can't confirm it's a recovery flow,
-          // let's check if we need to sign out to handle the reset properly
-          // This prevents auto-login from interfering with password reset
-          if (window.location.search.includes('token_hash') || 
-              window.location.hash.includes('access_token')) {
-            console.log("Found token parameters but already have a session - signing out to handle recovery");
-            await supabase.auth.signOut();
-            // After signing out, we'll process the token parameters below
-          }
+          console.log("Signing out to handle recovery token properly");
+          await supabase.auth.signOut();
         }
         
-        // 2. Check for hash fragment (#access_token=...)
-        const hashFragment = window.location.hash;
-        if (hashFragment) {
-          console.log("Found hash fragment:", hashFragment);
-          const params = new URLSearchParams(hashFragment.substring(1));
-          const accessToken = params.get('access_token');
-          const refreshToken = params.get('refresh_token');
-          const type = params.get('type');
-          
-          console.log("Hash params:", { type, hasToken: !!accessToken });
-          
-          if (accessToken && type === 'recovery') {
-            try {
-              // Set the session with the recovery token
-              const { error } = await supabase.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken || '',
-              });
-              
-              if (error) throw error;
-              console.log("Successfully set session from hash fragment");
-              setTokenVerified(true);
-              return;
-            } catch (error) {
-              console.error("Error setting session from hash:", error);
-              // Continue to try other methods
-            }
-          }
-        }
+        // Try to verify using different methods based on what we have
+        let verified = false;
         
-        // 3. Check query parameters (?token_hash=...)
-        const searchParams = new URLSearchParams(window.location.search);
-        const tokenHash = searchParams.get('token_hash');
-        const type = searchParams.get('type');
-        
-        if (tokenHash && type === 'recovery') {
-          console.log("Found token_hash in URL parameters");
-          
-          // For token_hash, we don't need to manually set the session
-          // Supabase JS client should handle this automatically
+        // 1. Try access_token method (hash fragment)
+        if (accessToken && type === 'recovery') {
+          console.log("Using access_token method");
           try {
-            // Explicitly verify the OTP
+            const { error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || '',
+            });
+            
+            if (error) {
+              console.error("Error setting session with access token:", error);
+            } else {
+              console.log("Successfully verified token using access_token");
+              verified = true;
+            }
+          } catch (error) {
+            console.error("Error in access_token verification:", error);
+          }
+        }
+        
+        // 2. Try token_hash method (query parameter)
+        if (!verified && tokenHash && type === 'recovery') {
+          console.log("Using token_hash method");
+          try {
             const { error } = await supabase.auth.verifyOtp({
               token_hash: tokenHash,
               type: 'recovery',
             });
             
             if (error) {
-              console.error("Error verifying OTP:", error);
-              throw error;
+              console.error("Error verifying OTP with token_hash:", error);
+            } else {
+              console.log("Successfully verified token using token_hash");
+              verified = true;
             }
-            
-            console.log("Successfully verified OTP");
-            setTokenVerified(true);
-            return;
-          } catch (e) {
-            console.error("Error in OTP verification:", e);
-            // Let's try one more approach - checking for a session that might have been created
-            const { data } = await supabase.auth.getSession();
-            if (data.session) {
-              console.log("Session exists after token_hash processing");
-              setTokenVerified(true);
-              return;
-            }
+          } catch (error) {
+            console.error("Error in token_hash verification:", error);
           }
         }
         
-        // If none of the above worked, the token might be invalid or expired
-        toast({
-          title: "Invalid Recovery Link",
-          description: "The password reset link is invalid or has expired. Please request a new one.",
-          variant: "destructive",
-        });
-        navigate("/forgot-password");
+        // 3. Final check - see if we have a session after our attempts
+        if (!verified) {
+          const { data } = await supabase.auth.getSession();
+          if (data.session) {
+            console.log("Session exists after verification attempts");
+            verified = true;
+          }
+        }
         
+        if (verified) {
+          setTokenVerified(true);
+        } else {
+          console.error("All verification methods failed");
+          toast({
+            title: "Password Reset Link Invalid",
+            description: "Your password reset link has expired or is invalid. Please request a new one.",
+            variant: "destructive",
+          });
+          navigate("/forgot-password");
+        }
       } catch (error) {
-        console.error("Recovery token handling error:", error);
+        console.error("Token verification error:", error);
         toast({
-          title: "Error",
-          description: "An error occurred while processing your password reset link. Please try requesting a new one.",
+          title: "Error Processing Reset Link",
+          description: "There was a problem with your password reset link. Please try again.",
           variant: "destructive",
         });
         navigate("/forgot-password");
+      } finally {
+        setVerificationInProgress(false);
       }
     };
 
-    handleRecoveryToken();
+    verifyRecoveryToken();
   }, [navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -149,8 +142,8 @@ export const ResetPassword = () => {
     try {
       if (password !== confirmPassword) {
         toast({
-          title: "Error",
-          description: t("auth.passwordsDoNotMatch"),
+          title: "Passwords Don't Match",
+          description: "Please make sure your passwords match.",
           variant: "destructive",
         });
         setIsLoading(false);
@@ -159,15 +152,15 @@ export const ResetPassword = () => {
 
       if (password.length < 6) {
         toast({
-          title: "Error",
-          description: t("auth.passwordTooShort"),
+          title: "Password Too Short",
+          description: "Your password must be at least 6 characters long.",
           variant: "destructive",
         });
         setIsLoading(false);
         return;
       }
 
-      console.log("Attempting to update password");
+      console.log("Updating password...");
       const { error: updateError } = await supabase.auth.updateUser({
         password: password
       });
@@ -179,8 +172,8 @@ export const ResetPassword = () => {
 
       console.log("Password updated successfully");
       toast({
-        title: "Success",
-        description: "Password updated successfully. Please sign in with your new password.",
+        title: "Password Updated",
+        description: "Your password has been updated successfully. You can now log in with your new password.",
       });
 
       // Sign out and redirect to login
@@ -189,8 +182,8 @@ export const ResetPassword = () => {
     } catch (error: any) {
       console.error("Password update error:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to update password. Please try again.",
+        title: "Error Updating Password",
+        description: error.message || "There was a problem updating your password. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -202,16 +195,22 @@ export const ResetPassword = () => {
     <div className="min-h-screen bg-background p-4">
       <header className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <Link to="/" className="flex items-center gap-2">
-            <img 
-              src={theme === 'dark' 
-                ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
-                : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
-              }
-              alt="SmartBookly Logo" 
-              className="h-8 md:h-10 w-auto"
-            />
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link to="/login" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Login
+            </Link>
+            <Link to="/" className="flex items-center gap-2">
+              <img 
+                src={theme === 'dark' 
+                  ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                  : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+                }
+                alt="SmartBookly Logo" 
+                className="h-8 md:h-10 w-auto"
+              />
+            </Link>
+          </div>
           <div className="flex items-center gap-4">
             <LanguageSwitcher />
             <ThemeToggle />
@@ -219,14 +218,15 @@ export const ResetPassword = () => {
         </div>
       </header>
       
-      <div className="w-full max-w-md mx-auto p-4 sm:p-6">
-        <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Set New Password</h2>
+      <div className="w-full max-w-md mx-auto p-4 sm:p-6 bg-card border rounded-lg shadow-sm">
+        <h2 className="text-2xl font-bold mb-6 text-center">Reset Your Password</h2>
         
-        {!tokenVerified ? (
-          <div className="text-center">
-            <p className="mb-4">Verifying your reset link...</p>
+        {verificationInProgress ? (
+          <div className="text-center py-8">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent mb-4"></div>
+            <p className="text-muted-foreground">Verifying your reset link...</p>
           </div>
-        ) : (
+        ) : tokenVerified ? (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">New Password</Label>
@@ -242,7 +242,7 @@ export const ResetPassword = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">{t("auth.confirmPasswordLabel")}</Label>
+              <Label htmlFor="confirmPassword">Confirm New Password</Label>
               <Input
                 id="confirmPassword"
                 type="password"
@@ -262,6 +262,13 @@ export const ResetPassword = () => {
               {isLoading ? "Updating..." : "Update Password"}
             </Button>
           </form>
+        ) : (
+          <div className="text-center py-4">
+            <p className="text-destructive mb-4">Your password reset link is invalid or has expired.</p>
+            <Button asChild variant="outline">
+              <Link to="/forgot-password">Request a new link</Link>
+            </Button>
+          </div>
         )}
       </div>
     </div>

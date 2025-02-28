@@ -15,6 +15,7 @@ import { useTheme } from "next-themes";
 export const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const { toast } = useToast();
   const { t } = useLanguage();
   const { theme } = useTheme();
@@ -25,20 +26,16 @@ export const ForgotPassword = () => {
     console.log("Attempting to send reset email to:", email);
 
     try {
-      // Create a new anonymous session to prevent "Session expired" errors
-      // This ensures we're not relying on any existing session that might be invalid
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      console.log("Current session before reset:", sessionData);
+      // Sign out first to clear any existing sessions
+      await supabase.auth.signOut();
+      console.log("Signed out any existing sessions");
       
-      if (sessionError) {
-        console.error("Session check error:", sessionError);
-      }
-      
-      // Get the current origin for the redirect URL
-      const redirectUrl = `${window.location.origin}/reset-password`;
+      // Get the absolute URL for redirection
+      const origin = window.location.origin;
+      const redirectUrl = `${origin}/reset-password`;
       console.log("Using redirect URL:", redirectUrl);
 
-      // Use resetPasswordForEmail without relying on existing session
+      // Request password reset
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
       });
@@ -53,30 +50,28 @@ export const ForgotPassword = () => {
             variant: "destructive"
           });
         } else {
-          // Still show success message to prevent email enumeration
-          toast({
-            title: t("auth.resetLinkSent"),
-            description: t("auth.resetLinkSentDescription"),
-          });
+          // Still show success message for security
+          handleSuccess();
         }
       } else {
         console.log("Reset password email sent successfully");
-        toast({
-          title: t("auth.resetLinkSent"),
-          description: t("auth.resetLinkSentDescription"),
-        });
-        setEmail("");
+        handleSuccess();
       }
     } catch (error: any) {
       console.error("Password reset request error:", error);
-      // Still show success message to prevent email enumeration
-      toast({
-        title: t("auth.resetLinkSent"),
-        description: t("auth.resetLinkSentDescription"),
-      });
+      // Still show success message for security
+      handleSuccess();
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSuccess = () => {
+    toast({
+      title: "Reset link sent",
+      description: "If an account exists with this email, you'll receive a password reset link shortly",
+    });
+    setEmailSent(true);
   };
 
   return (
@@ -106,30 +101,49 @@ export const ForgotPassword = () => {
         </div>
       </header>
       
-      <div className="w-full max-w-md mx-auto p-4 sm:p-6">
-        <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">{t("auth.resetPassword")}</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">{t("auth.emailLabel")}</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder={t("auth.enterEmail")}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+      <div className="w-full max-w-md mx-auto p-4 sm:p-6 bg-card border rounded-lg shadow-sm">
+        <h2 className="text-2xl font-bold mb-6 text-center">{t("auth.resetPassword")}</h2>
+        
+        {emailSent ? (
+          <div className="text-center space-y-4">
+            <p className="text-muted-foreground mb-4">
+              Please check your email for a reset link. The link will expire in 1 hour.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Don't see the email? Check your spam folder or request another link.
+            </p>
+            <Button 
+              variant="outline" 
+              className="mt-2"
+              onClick={() => setEmailSent(false)}
+            >
+              Send another link
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">{t("auth.emailLabel")}</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder={t("auth.enterEmail")}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full"
+                disabled={isLoading}
+              />
+            </div>
+            <Button 
+              type="submit" 
               className="w-full"
               disabled={isLoading}
-            />
-          </div>
-          <Button 
-            type="submit" 
-            className="w-full"
-            disabled={isLoading}
-          >
-            {isLoading ? t("auth.sending") : t("auth.sendResetLink")}
-          </Button>
-        </form>
+            >
+              {isLoading ? t("auth.sending") : t("auth.sendResetLink")}
+            </Button>
+          </form>
+        )}
       </div>
     </div>
   );
