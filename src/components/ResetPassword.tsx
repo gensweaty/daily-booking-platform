@@ -37,6 +37,7 @@ export const ResetPassword = () => {
     console.log("Hash params:", hashParams);
     console.log("Search params string:", searchParamsString);
     console.log("Parsed search params:", parsedSearchParams);
+    console.log("Code parameter:", searchParams.get('code'));
     console.log("=====================================");
     
     return {
@@ -248,7 +249,7 @@ export const ResetPassword = () => {
             </div>
             <p className="text-destructive font-medium">Password reset link is invalid or has expired</p>
             {verificationError && (
-              <p className="text-sm text-muted-foreground border p-2 rounded bg-muted">
+              <p className="text-sm text-muted-foreground border p-2 rounded bg-muted mt-2">
                 Error details: {verificationError}
               </p>
             )}
