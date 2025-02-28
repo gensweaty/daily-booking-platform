@@ -75,18 +75,29 @@ const hasEmailConfirmParams = () => {
     const hasType = searchParams.has('type') && searchParams.get('type') !== 'recovery';
     const isConfirmationFlow = hasAccessToken && !hashParams.get('type')?.includes('recovery');
     
+    // Check for error parameters (common in email confirmation flows)
+    const hasError = searchParams.has('error') || hashParams.has('error');
+    const isEmailConfirmError = hasError && 
+      ((searchParams.has('error_code') && searchParams.get('error_code') === 'otp_expired') ||
+       (hashParams.has('error_code') && hashParams.get('error_code') === 'otp_expired'));
+    
     // Log for debugging
-    if (hasAccessToken || hasType) {
+    const result = isConfirmationFlow || hasType || isEmailConfirmError;
+    
+    if (result || hasError) {
       console.log("Checking for email confirmation parameters:", {
         hasAccessToken,
         hasType,
+        hasError,
+        isEmailConfirmError,
         isConfirmationFlow,
         type: searchParams.get('type') || hashParams.get('type'),
+        errorCode: searchParams.get('error_code') || hashParams.get('error_code'),
         currentPath: window.location.pathname,
       });
     }
     
-    return isConfirmationFlow || hasType;
+    return result;
   } catch (error) {
     console.error("Error checking for email confirmation params:", error);
     return false;
@@ -171,6 +182,12 @@ const AnimatedRoutes = () => {
     // Handle email confirmation links first
     if (hasEmailConfirmParams()) {
       console.log("Email confirmation parameters detected, letting auth provider handle the flow");
+      
+      // If on dashboard with error params, redirect to login
+      if (location.pathname === '/dashboard' && location.search.includes('error=')) {
+        console.log("Error in email confirmation, redirecting to login");
+        navigate('/login', { replace: true });
+      }
       return;
     }
     

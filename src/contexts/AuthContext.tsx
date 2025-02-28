@@ -32,11 +32,20 @@ const hasRecoveryParams = () => {
 
 // Helper to check if URL has email confirmation parameters
 const hasEmailConfirmParams = () => {
+  // For email confirmation, we typically have access_token but no recovery type
   return (
     (window.location.hash.includes('access_token=') && 
      !window.location.hash.includes('type=recovery')) ||
     (window.location.search.includes('type=') && 
      !window.location.search.includes('type=recovery'))
+  );
+};
+
+// Helper to check if URL has error parameters
+const hasErrorParams = () => {
+  return (
+    window.location.search.includes('error=') ||
+    window.location.hash.includes('error=')
   );
 };
 
@@ -142,6 +151,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             if (error) {
               console.error("Error processing email confirmation:", error);
+              // If there's an error, check if it's due to OTP expiry
+              if (hasErrorParams() && (location.search.includes('error_code=otp_expired') || 
+                                    location.hash.includes('error_code=otp_expired'))) {
+                // Handle expired email confirmation link error
+                console.log("Email confirmation link has expired");
+                navigate('/login', { replace: true });
+                toast({
+                  title: "Email confirmation link expired",
+                  description: "Please request a new confirmation email or contact support",
+                  variant: "destructive",
+                });
+                return;
+              }
+              
+              // Handle other errors
               navigate('/login');
               toast({
                 title: "Error",
@@ -230,7 +254,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (newSession) {
           setSession(newSession);
           setUser(newSession.user);
-          navigate('/dashboard', { replace: true });
+          
+          // Remove any error parameters from the URL
+          if (hasErrorParams()) {
+            navigate('/dashboard', { replace: true });
+          } else {
+            navigate('/dashboard', { replace: true });
+          }
+          
           toast({
             title: "Success", 
             description: "Your email has been confirmed!"
