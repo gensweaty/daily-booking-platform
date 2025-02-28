@@ -81,8 +81,7 @@ const hasEmailConfirmParams = () => {
       ((searchParams.has('error_code') && searchParams.get('error_code') === 'otp_expired') ||
        (hashParams.has('error_code') && hashParams.get('error_code') === 'otp_expired'));
     
-    // Check for the direct code parameter on dashboard route
-    // This is a common format for email confirmation redirects
+    // Check for the direct code parameter on dashboard route (email confirmation format)
     const hasDashboardCode = window.location.pathname === '/dashboard' && searchParams.has('code');
     
     // Log for debugging
@@ -115,10 +114,40 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   
-  // Check if we're coming from an email confirmation flow
+  // Process email confirmation code if present
   useEffect(() => {
-    if (hasEmailConfirmParams()) {
+    if (location.pathname === '/dashboard' && searchParams.has('code')) {
+      console.log("Email confirmation code detected in protected route:", searchParams.get('code'));
+      
+      (async () => {
+        try {
+          // Exchange the code for a session
+          const { data, error } = await supabase.auth.exchangeCodeForSession(
+            searchParams.get('code') || ''
+          );
+          
+          if (error) {
+            console.error("Error exchanging code for session:", error);
+            navigate('/login', { replace: true });
+          } else if (data.session) {
+            console.log("Successfully exchanged code for session in protected route");
+            // Refresh page to update auth state with new session
+            window.location.href = '/dashboard';
+          }
+        } catch (err) {
+          console.error("Exception exchanging code in protected route:", err);
+          navigate('/login', { replace: true });
+        }
+      })();
+      
+      // Show loading while processing the code
+      return;
+    }
+    
+    // Check if we're coming from an email confirmation flow
+    if (hasEmailConfirmParams() && !searchParams.has('code')) {
       console.log("Email confirmation parameters detected in protected route");
       // We'll let the auth provider handle this
       return;
@@ -129,7 +158,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       console.log("Recovery parameters detected in protected route, redirecting to reset password");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
     }
-  }, [navigate, location]);
+  }, [navigate, location, searchParams]);
   
   if (loading) {
     return <div>Loading...</div>;
@@ -147,10 +176,36 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   
-  // Check if we're coming from an email confirmation flow
+  // Handle email confirmation code if present
   useEffect(() => {
-    if (hasEmailConfirmParams()) {
+    if (location.pathname === '/login' && searchParams.has('code')) {
+      console.log("Email confirmation code detected in auth route:", searchParams.get('code'));
+      
+      (async () => {
+        try {
+          // Exchange the code for a session
+          const { data, error } = await supabase.auth.exchangeCodeForSession(
+            searchParams.get('code') || ''
+          );
+          
+          if (error) {
+            console.error("Error exchanging code for session:", error);
+            // Stay on login page but show an error toast
+          } else if (data.session) {
+            console.log("Successfully exchanged code for session in auth route");
+            // Redirect to dashboard on successful confirmation
+            navigate('/dashboard', { replace: true });
+          }
+        } catch (err) {
+          console.error("Exception exchanging code in auth route:", err);
+        }
+      })();
+    }
+    
+    // Check if we're coming from an email confirmation flow
+    if (hasEmailConfirmParams() && !searchParams.has('code')) {
       console.log("Email confirmation parameters detected in auth route, letting auth provider handle it");
       return;
     }
@@ -161,7 +216,7 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
       return;
     }
-  }, [navigate, location]);
+  }, [navigate, location, searchParams]);
   
   if (loading) {
     return <div>Loading...</div>;
@@ -186,35 +241,38 @@ const AnimatedRoutes = () => {
   
   // Global handler for special links that runs on initial mount
   useEffect(() => {
-    // Handle email confirmation links first
-    if (hasEmailConfirmParams()) {
-      console.log("Email confirmation parameters detected, letting auth provider handle the flow");
+    // Handle email confirmation code - this is the primary handler for dashboard route with code parameter
+    if (location.pathname === '/dashboard' && searchParams.has('code')) {
+      console.log("Email confirmation code detected on dashboard route:", searchParams.get('code'));
       
-      // Special handling for the code parameter on dashboard route
-      // This is a specific format for email confirmation links
-      if (location.pathname === '/dashboard' && searchParams.has('code')) {
-        console.log("Found code parameter on dashboard route, handling email confirmation");
-        
-        // Exchange the code for a session
-        (async () => {
-          try {
-            const { data, error } = await supabase.auth.exchangeCodeForSession(
-              searchParams.get('code') || ''
-            );
-            
-            if (error) {
-              console.error("Error exchanging code for session:", error);
-              navigate('/login', { replace: true });
-            } else if (data.session) {
-              console.log("Successfully exchanged code for session");
-              navigate('/dashboard', { replace: true });
-            }
-          } catch (err) {
-            console.error("Exception exchanging code:", err);
+      // Exchange the code for a session
+      (async () => {
+        try {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(
+            searchParams.get('code') || ''
+          );
+          
+          if (error) {
+            console.error("Error exchanging code for session:", error);
+            // If there's an error with the code, redirect to login
             navigate('/login', { replace: true });
+          } else if (data.session) {
+            console.log("Successfully exchanged code for session on dashboard route");
+            // Refresh the dashboard page with clean URL after successful exchange
+            window.location.href = '/dashboard';
           }
-        })();
-      }
+        } catch (err) {
+          console.error("Exception exchanging code on dashboard route:", err);
+          navigate('/login', { replace: true });
+        }
+      })();
+      
+      return;
+    }
+    
+    // Handle other email confirmation links 
+    if (hasEmailConfirmParams() && !searchParams.has('code')) {
+      console.log("Email confirmation parameters detected, letting auth provider handle the flow");
       
       // If on dashboard with error params, redirect to login
       if (location.pathname === '/dashboard' && location.search.includes('error=')) {

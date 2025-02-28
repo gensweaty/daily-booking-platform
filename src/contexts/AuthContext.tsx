@@ -32,14 +32,20 @@ const hasRecoveryParams = () => {
 
 // Helper to check if URL has email confirmation parameters
 const hasEmailConfirmParams = () => {
+  const searchParams = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.substring(1));
+  
+  // Check if it has the code parameter on dashboard path (new confirmation format)
+  const hasDashboardCode = window.location.pathname === '/dashboard' && searchParams.has('code');
+  
   // For email confirmation, we typically have access_token but no recovery type
+  // or we have the newer format with just a code parameter
   return (
+    hasDashboardCode ||
     (window.location.hash.includes('access_token=') && 
      !window.location.hash.includes('type=recovery')) ||
     (window.location.search.includes('type=') && 
-     !window.location.search.includes('type=recovery')) ||
-    (window.location.pathname === '/dashboard' && 
-     window.location.search.includes('code='))
+     !window.location.search.includes('type=recovery'))
   );
 };
 

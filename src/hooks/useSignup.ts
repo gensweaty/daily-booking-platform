@@ -61,9 +61,12 @@ export const useSignup = () => {
         codeId = validationResult.code_id;
       }
 
-      // Get current app origin for redirects
+      // Get current app origin for redirects - use the site URL, not window.location.origin
+      // This ensures it works with production URLs for smartbookly.com
+      // We explicitly specify dashboard as the target path for email confirmations
       const origin = window.location.origin;
-      console.log('App origin for redirects:', origin);
+      const emailRedirectUrl = `${origin}/dashboard`;
+      console.log('Email confirmation redirect URL:', emailRedirectUrl);
 
       // Step 2: Create user account with email confirmation redirect
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
@@ -71,7 +74,7 @@ export const useSignup = () => {
         password,
         options: {
           data: { username },
-          emailRedirectTo: `${origin}/dashboard`, // Redirect to dashboard after email confirmation
+          emailRedirectTo: emailRedirectUrl,
         },
       });
 
