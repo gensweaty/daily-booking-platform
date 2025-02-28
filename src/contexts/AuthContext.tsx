@@ -35,7 +35,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem('app-auth-token');
     localStorage.removeItem('supabase.auth.token');
     
-    if (!location.pathname.match(/^(\/$|\/login$|\/signup$|\/contact$)/)) {
+    // Don't show session expired error on auth-related paths
+    const authPaths = ['/login', '/signup', '/forgot-password', '/reset-password'];
+    const isAuthPath = authPaths.some(path => location.pathname.startsWith(path));
+    const isPublicPath = ['/', '/contact'].includes(location.pathname);
+    
+    if (!isAuthPath && !isPublicPath) {
       navigate('/login');
       toast({
         title: "Session expired",
@@ -59,7 +64,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (!currentSession) {
-        await handleTokenError();
+        // Only handle as error if not on auth-related path
+        const authPaths = ['/login', '/signup', '/forgot-password', '/reset-password'];
+        const isAuthPath = authPaths.some(path => location.pathname.startsWith(path));
+        
+        if (!isAuthPath) {
+          await handleTokenError();
+        }
         return;
       }
 
@@ -69,7 +80,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.error('Session refresh error:', error);
       await handleTokenError();
     }
-  }, [handleTokenError]);
+  }, [handleTokenError, location.pathname]);
 
   useEffect(() => {
     const initSession = async () => {
@@ -77,7 +88,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await refreshSession();
       } catch (error) {
         console.error('Session initialization error:', error);
-        await handleTokenError();
+        
+        // Don't treat session errors as fatal on auth pages
+        const authPaths = ['/login', '/signup', '/forgot-password', '/reset-password'];
+        const isAuthPath = authPaths.some(path => location.pathname.startsWith(path));
+        
+        if (!isAuthPath) {
+          await handleTokenError();
+        }
       } finally {
         setLoading(false);
       }
@@ -115,7 +133,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(null);
         localStorage.removeItem('app-auth-token');
         localStorage.removeItem('supabase.auth.token');
-        if (!location.pathname.match(/^(\/$|\/login$|\/signup$|\/contact$)/)) {
+        
+        // Don't navigate away if already on public routes
+        const publicPaths = ['/', '/login', '/signup', '/contact', '/forgot-password', '/reset-password'];
+        const isPublicPath = publicPaths.some(path => location.pathname === path);
+        
+        if (!isPublicPath) {
           navigate('/login');
         }
       } else if (event === 'TOKEN_REFRESHED') {
