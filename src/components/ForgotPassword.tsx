@@ -41,10 +41,11 @@ export const ForgotPassword = () => {
     console.log("Attempting to send reset email to:", email);
 
     try {
-      // Get the deployed domain (or local development URL)
+      // Get the current origin (domain)
       const origin = window.location.origin;
+      console.log("Current origin:", origin);
       
-      // Create the redirect URL - including the exact path but NO trailing slash
+      // Simple redirect URL - just the base path
       const redirectTo = `${origin}/reset-password`;
       console.log("Using redirect URL:", redirectTo);
 

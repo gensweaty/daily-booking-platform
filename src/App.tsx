@@ -22,19 +22,25 @@ const queryClient = new QueryClient();
 
 // Helper to check if URL has recovery parameters
 const hasRecoveryParams = () => {
-  const hasCode = window.location.search.includes('code=');
-  const hasAccessToken = window.location.hash.includes('access_token=');
-  const hasTokenHash = window.location.search.includes('token_hash=');
-  const hasRecoveryType = window.location.search.includes('type=recovery');
+  // Get both search and hash parameters
+  const searchParams = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.substring(1));
   
-  const result = hasCode || hasAccessToken || hasTokenHash || hasRecoveryType;
+  // Check for all possible recovery parameters in both search and hash
+  const hasCode = searchParams.has('code');
+  const hasAccessToken = hashParams.has('access_token');
+  const hasRefreshToken = hashParams.has('refresh_token');
+  const hasType = searchParams.get('type') === 'recovery';
+  
+  const result = hasCode || hasAccessToken || hasRefreshToken || hasType;
   
   if (result) {
     console.log("Password reset parameters detected:", {
       hasCode,
       hasAccessToken,
-      hasTokenHash,
-      hasRecoveryType
+      hasRefreshToken,
+      hasType,
+      currentPath: window.location.pathname
     });
   }
   
@@ -45,15 +51,15 @@ const hasRecoveryParams = () => {
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
   
   // Check if we're coming from a password reset flow
   useEffect(() => {
-    if (hasRecoveryParams() || searchParams.has('code')) {
+    if (hasRecoveryParams()) {
       console.log("Recovery parameters detected in protected route, redirecting to reset password");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
     }
-  }, [navigate, searchParams]);
+  }, [navigate, location]);
   
   if (loading) {
     return <div>Loading...</div>;
@@ -68,20 +74,24 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Auth routes - redirect to dashboard if logged in
 const AuthRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
   
   // Check if we're coming from a password reset flow
   useEffect(() => {
-    if (hasRecoveryParams() || searchParams.has('code')) {
+    if (hasRecoveryParams()) {
       console.log("Recovery parameters detected in auth route, redirecting to reset password");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
       return;
     }
-  }, [navigate, searchParams]);
+  }, [navigate, location]);
   
-  if (user && !hasRecoveryParams() && !searchParams.has('code')) {
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  
+  if (user && !hasRecoveryParams()) {
     return <Navigate to="/dashboard" replace />;
   }
   
@@ -96,16 +106,16 @@ const PasswordResetRoute = ({ children }: { children: React.ReactNode }) => {
 const AnimatedRoutes = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   
-  // Global handler for recovery links
+  // Global handler for recovery links that runs on initial mount
   useEffect(() => {
-    // Run this once on initial load
-    if ((hasRecoveryParams() || searchParams.has('code')) && location.pathname !== '/reset-password') {
-      console.log("Recovery parameters detected, redirecting to reset password page");
+    // Check if the current URL has recovery parameters but isn't already on the reset page
+    if (hasRecoveryParams() && location.pathname !== '/reset-password') {
+      console.log("Recovery parameters detected on path:", location.pathname);
+      console.log("Redirecting to reset password page with params");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
     }
-  }, [location.pathname, navigate, searchParams]);
+  }, [location.pathname, navigate]);
 
   return (
     <AnimatePresence mode="wait">
@@ -151,6 +161,13 @@ const AnimatedRoutes = () => {
             <ProtectedRoute>
               <Index />
             </ProtectedRoute>
+          } />
+          
+          {/* Important: Allow direct access to reset-password with any parameters */}
+          <Route path="/reset-password/*" element={
+            <PasswordResetRoute>
+              <ResetPassword />
+            </PasswordResetRoute>
           } />
           
           {/* Fallback route */}
