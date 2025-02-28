@@ -30,4 +30,33 @@ supabase.auth.onAuthStateChange((event, session) => {
     search: window.location.search,
     hash: window.location.hash,
   });
+  
+  // Log the user ID if session exists - helps with debugging
+  if (session?.user) {
+    console.log(`User authenticated: ${session.user.id.slice(0, 8)}...`);
+  }
 });
+
+// Add this helper function to handle email confirmation links
+export const handleEmailConfirmation = async (code: string) => {
+  console.log("Processing email confirmation code via helper function:", code);
+  
+  try {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    
+    if (error) {
+      console.error("Error exchanging email confirmation code:", error);
+      return { success: false, error };
+    }
+    
+    if (data.session) {
+      console.log("Email confirmation successful:", data.session.user?.id);
+      return { success: true, session: data.session };
+    }
+    
+    return { success: false, error: new Error("No session returned") };
+  } catch (err) {
+    console.error("Exception in handleEmailConfirmation:", err);
+    return { success: false, error: err };
+  }
+};
