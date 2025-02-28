@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Don't show session expired error if we're handling a password reset
     if (hasRecoveryParams()) {
       console.log("Recovery parameters detected, not showing session expired error");
-      navigate('/reset-password' + window.location.search + window.location.hash);
+      navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
       return;
     }
     
@@ -75,6 +75,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         // Redirect to reset password page
         if (location.pathname !== '/reset-password') {
+          console.log("Redirecting to reset password page from refreshSession");
           navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
         }
         return;
@@ -117,12 +118,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         // If we detect password reset parameters, handle specifically
         if (hasRecoveryParams()) {
-          console.log("Password reset flow detected");
+          console.log("Password reset flow detected in initSession");
           setLoading(false);
           
           // Redirect to reset password page if not already there
           if (location.pathname !== '/reset-password') {
-            console.log("Redirecting to reset password page");
+            console.log("Redirecting to reset password page from initSession");
             navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
           }
           return;
@@ -165,13 +166,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     window.addEventListener('online', handleOnline);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      console.log('Auth state changed:', event, newSession);
+      console.log('Auth state changed:', event, newSession ? 'Session exists' : 'No session');
       
       // Check if this is a password reset flow regardless of event type
       if (hasRecoveryParams()) {
         console.log("Recovery parameters detected during auth state change");
         if (location.pathname !== '/reset-password') {
-          console.log("Redirecting to reset password page");
+          console.log("Redirecting to reset password page from auth state change");
           navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
         }
         return;

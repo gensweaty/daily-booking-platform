@@ -63,16 +63,11 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
     if (hasRecoveryParams()) {
       console.log("Recovery parameters detected in auth route, redirecting to reset password");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+      return;
     }
   }, [navigate]);
   
-  if (user) {
-    // Don't redirect if this is a reset password flow
-    if (hasRecoveryParams()) {
-      console.log("User is logged in but has recovery params, redirecting to reset password");
-      navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
-      return null;
-    }
+  if (user && !hasRecoveryParams()) {
     return <Navigate to="/dashboard" replace />;
   }
   
