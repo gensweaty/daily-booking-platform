@@ -23,17 +23,41 @@ export const ResetPassword = () => {
   const { theme } = useTheme();
   const { t } = useLanguage();
 
+  // Debug function to log URL parameters
+  const logUrlParams = () => {
+    console.log("Full URL:", window.location.href);
+    console.log("Hash:", window.location.hash);
+    console.log("Search params:", window.location.search);
+  };
+
   // Extract recovery token parameters from URL
   const extractTokenParams = () => {
-    const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
-    const queryParams = new URLSearchParams(window.location.search);
+    logUrlParams();
     
+    // Check hash parameters (new auth flow)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1)); // Remove # before parsing
     const accessToken = hashParams.get('access_token');
     const refreshToken = hashParams.get('refresh_token');
-    const tokenHash = queryParams.get('token_hash');
-    const type = hashParams.get('type') || queryParams.get('type');
+    const type = hashParams.get('type');
     
-    return { accessToken, refreshToken, tokenHash, type };
+    // Check query parameters (old auth flow)
+    const queryParams = new URLSearchParams(window.location.search);
+    const tokenHash = queryParams.get('token_hash');
+    const typeFromQuery = queryParams.get('type');
+    
+    console.log("Extracted params:", { 
+      accessToken: !!accessToken, 
+      refreshToken: !!refreshToken, 
+      tokenHash: !!tokenHash, 
+      type: type || typeFromQuery 
+    });
+    
+    return { 
+      accessToken, 
+      refreshToken, 
+      tokenHash, 
+      type: type || typeFromQuery 
+    };
   };
 
   useEffect(() => {
@@ -41,14 +65,19 @@ export const ResetPassword = () => {
       try {
         setVerificationInProgress(true);
         console.log("Verifying recovery token...");
-        console.log("Current URL:", window.location.href);
         
         const { accessToken, refreshToken, tokenHash, type } = extractTokenParams();
-        console.log("Extracted params:", { accessToken: !!accessToken, tokenHash: !!tokenHash, type });
+        
+        // If we don't have any recovery parameters, just show the error
+        if (!accessToken && !tokenHash) {
+          console.error("No recovery parameters found in URL");
+          setVerificationInProgress(false);
+          return;
+        }
         
         // First, check if we already have a valid session
         const { data: sessionData } = await supabase.auth.getSession();
-        console.log("Session check:", sessionData.session ? "Has session" : "No session");
+        console.log("Current session:", sessionData.session ? "Active" : "None");
         
         // Clear any existing session to prevent conflicts
         if (sessionData.session) {
@@ -80,7 +109,7 @@ export const ResetPassword = () => {
         }
         
         // 2. Try token_hash method (query parameter)
-        if (!verified && tokenHash && type === 'recovery') {
+        if (!verified && tokenHash && (type === 'recovery' || typeFromQuery === 'recovery')) {
           console.log("Using token_hash method");
           try {
             const { error } = await supabase.auth.verifyOtp({
@@ -108,16 +137,15 @@ export const ResetPassword = () => {
           }
         }
         
-        if (verified) {
-          setTokenVerified(true);
-        } else {
+        setTokenVerified(verified);
+        
+        if (!verified) {
           console.error("All verification methods failed");
           toast({
             title: "Password Reset Link Invalid",
             description: "Your password reset link has expired or is invalid. Please request a new one.",
             variant: "destructive",
           });
-          navigate("/forgot-password");
         }
       } catch (error) {
         console.error("Token verification error:", error);
@@ -126,7 +154,6 @@ export const ResetPassword = () => {
           description: "There was a problem with your password reset link. Please try again.",
           variant: "destructive",
         });
-        navigate("/forgot-password");
       } finally {
         setVerificationInProgress(false);
       }
