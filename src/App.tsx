@@ -22,12 +22,23 @@ const queryClient = new QueryClient();
 
 // Helper to check if URL has recovery parameters
 const hasRecoveryParams = () => {
-  return (
-    window.location.hash.includes('access_token=') || 
-    window.location.search.includes('token_hash=') || 
-    window.location.search.includes('type=recovery') ||
-    window.location.search.includes('code=')
-  );
+  const hasCode = window.location.search.includes('code=');
+  const hasAccessToken = window.location.hash.includes('access_token=');
+  const hasTokenHash = window.location.search.includes('token_hash=');
+  const hasRecoveryType = window.location.search.includes('type=recovery');
+  
+  const result = hasCode || hasAccessToken || hasTokenHash || hasRecoveryType;
+  
+  if (result) {
+    console.log("Password reset parameters detected:", {
+      hasCode,
+      hasAccessToken,
+      hasTokenHash,
+      hasRecoveryType
+    });
+  }
+  
+  return result;
 };
 
 // Protected routes - require authentication

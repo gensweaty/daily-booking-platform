@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
 
 export const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -18,175 +18,106 @@ export const ResetPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [tokenVerified, setTokenVerified] = useState(false);
   const [verificationInProgress, setVerificationInProgress] = useState(true);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { theme } = useTheme();
   const { t } = useLanguage();
   const [searchParams] = useSearchParams();
 
-  // Debug function to log URL parameters
+  // Debug utility to log all URL parameters for troubleshooting
   const logUrlParams = () => {
-    console.log("Full URL:", window.location.href);
-    console.log("Hash:", window.location.hash);
-    console.log("Search params:", window.location.search);
-    console.log("Search params parsed:", Object.fromEntries(searchParams.entries()));
-  };
-
-  // Extract recovery token parameters from URL
-  const extractTokenParams = () => {
-    logUrlParams();
+    const fullUrl = window.location.href;
+    const hashParams = window.location.hash;
+    const searchParamsString = window.location.search;
+    const parsedSearchParams = Object.fromEntries(searchParams.entries());
     
-    // Check hash parameters (new auth flow)
-    const hashParams = new URLSearchParams(window.location.hash.substring(1)); // Remove # before parsing
-    const accessToken = hashParams.get('access_token');
-    const refreshToken = hashParams.get('refresh_token');
-    const type = hashParams.get('type');
+    console.log("===== PASSWORD RESET DEBUG INFO =====");
+    console.log("Full URL:", fullUrl);
+    console.log("Hash params:", hashParams);
+    console.log("Search params string:", searchParamsString);
+    console.log("Parsed search params:", parsedSearchParams);
+    console.log("=====================================");
     
-    // Check query parameters (old auth flow)
-    const queryParams = new URLSearchParams(window.location.search);
-    const tokenHash = queryParams.get('token_hash');
-    const typeFromQuery = queryParams.get('type');
-    
-    // Check for direct code parameter (another possible format)
-    const code = searchParams.get('code');
-    
-    console.log("Extracted params:", { 
-      accessToken: !!accessToken, 
-      refreshToken: !!refreshToken, 
-      tokenHash: !!tokenHash, 
-      type: type || typeFromQuery,
-      code: !!code
-    });
-    
-    return { 
-      accessToken, 
-      refreshToken, 
-      tokenHash, 
-      type: type || typeFromQuery,
-      code
+    return {
+      fullUrl,
+      hashParams,
+      searchParamsString,
+      parsedSearchParams
     };
   };
 
   useEffect(() => {
-    // Always sign out first to ensure a clean state for password reset
-    const signOutAndVerify = async () => {
+    const verifyResetToken = async () => {
       try {
         setVerificationInProgress(true);
-        console.log("Signing out before verifying recovery token...");
+        setVerificationError(null);
         
-        // Sign out to clear any existing session
+        // 1. First, clear any existing sessions
+        console.log("Signing out before verifying reset token...");
         await supabase.auth.signOut();
         
-        console.log("Verifying recovery token...");
-        const { accessToken, refreshToken, tokenHash, type, code } = extractTokenParams();
+        // 2. Log URL parameters for debugging
+        logUrlParams();
         
-        // If we don't have any recovery parameters, just show the error
-        if (!accessToken && !tokenHash && !code) {
-          console.error("No recovery parameters found in URL");
+        // 3. Check for reset code in the URL
+        const code = searchParams.get('code');
+        
+        if (!code) {
+          console.error("No reset code found in URL");
+          setVerificationError("No password reset code was found in the URL");
           setVerificationInProgress(false);
           return;
         }
         
-        // Try to verify using different methods based on what we have
-        let verified = false;
+        console.log("Found reset code in URL, attempting to verify...");
         
-        // 1. Try access_token method (hash fragment)
-        if (accessToken && type === 'recovery') {
-          console.log("Using access_token method");
-          try {
-            const { error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken || '',
-            });
-            
-            if (error) {
-              console.error("Error setting session with access token:", error);
-            } else {
-              console.log("Successfully verified token using access_token");
-              verified = true;
-            }
-          } catch (error) {
-            console.error("Error in access_token verification:", error);
-          }
-        }
+        // 4. Try to exchange the code for a session
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         
-        // 2. Try token_hash method (query parameter)
-        if (!verified && tokenHash && type === 'recovery') {
-          console.log("Using token_hash method");
-          try {
-            const { error } = await supabase.auth.verifyOtp({
-              token_hash: tokenHash,
-              type: 'recovery',
-            });
-            
-            if (error) {
-              console.error("Error verifying OTP with token_hash:", error);
-            } else {
-              console.log("Successfully verified token using token_hash");
-              verified = true;
-            }
-          } catch (error) {
-            console.error("Error in token_hash verification:", error);
-          }
-        }
-        
-        // 3. Try code parameter (direct URL param)
-        if (!verified && code) {
-          console.log("Using code parameter method");
-          try {
-            // Attempt to exchange the code for a session
-            const { error } = await supabase.auth.exchangeCodeForSession(code);
-            
-            if (error) {
-              console.error("Error exchanging code for session:", error);
-            } else {
-              console.log("Successfully verified token using code exchange");
-              verified = true;
-            }
-          } catch (error) {
-            console.error("Error in code verification:", error);
-          }
-        }
-        
-        // 4. Final check - see if we have a session after our attempts
-        if (!verified) {
-          const { data } = await supabase.auth.getSession();
-          if (data.session) {
-            console.log("Session exists after verification attempts");
-            verified = true;
-          }
-        }
-        
-        setTokenVerified(verified);
-        
-        if (!verified) {
-          console.error("All verification methods failed");
+        if (error) {
+          console.error("Error exchanging code for session:", error);
+          setVerificationError(error.message);
           toast({
-            title: "Password Reset Link Invalid",
-            description: "Your password reset link has expired or is invalid. Please request a new one.",
-            variant: "destructive",
+            title: "Reset Link Error",
+            description: `Failed to verify reset link: ${error.message}`,
+            variant: "destructive"
           });
+          setVerificationInProgress(false);
+          return;
         }
-      } catch (error) {
-        console.error("Token verification error:", error);
+        
+        if (!data.session) {
+          console.error("No session returned after code exchange");
+          setVerificationError("Password reset verification failed - no session");
+          setVerificationInProgress(false);
+          return;
+        }
+        
+        console.log("Successfully verified reset token!");
+        setTokenVerified(true);
+      } catch (err: any) {
+        console.error("Unexpected error during reset verification:", err);
+        setVerificationError(err.message || "An unexpected error occurred");
         toast({
-          title: "Error Processing Reset Link",
-          description: "There was a problem with your password reset link. Please try again.",
-          variant: "destructive",
+          title: "Error",
+          description: "There was a problem verifying your reset link. Please try again.",
+          variant: "destructive"
         });
       } finally {
         setVerificationInProgress(false);
       }
     };
 
-    signOutAndVerify();
-  }, [toast, searchParams]);
+    verifyResetToken();
+  }, [searchParams, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      // Validate passwords match
       if (password !== confirmPassword) {
         toast({
           title: "Passwords Don't Match",
@@ -197,6 +128,7 @@ export const ResetPassword = () => {
         return;
       }
 
+      // Validate password length
       if (password.length < 6) {
         toast({
           title: "Password Too Short",
@@ -208,13 +140,13 @@ export const ResetPassword = () => {
       }
 
       console.log("Updating password...");
-      const { error: updateError } = await supabase.auth.updateUser({
+      const { error } = await supabase.auth.updateUser({
         password: password
       });
 
-      if (updateError) {
-        console.error("Password update error:", updateError);
-        throw updateError;
+      if (error) {
+        console.error("Password update error:", error);
+        throw error;
       }
 
       console.log("Password updated successfully");
@@ -310,10 +242,18 @@ export const ResetPassword = () => {
             </Button>
           </form>
         ) : (
-          <div className="text-center py-4">
-            <p className="text-destructive mb-4">Your password reset link is invalid or has expired.</p>
-            <Button asChild variant="outline">
-              <Link to="/forgot-password">Request a new link</Link>
+          <div className="text-center py-4 space-y-4">
+            <div className="flex justify-center">
+              <AlertTriangle className="h-12 w-12 text-destructive" />
+            </div>
+            <p className="text-destructive font-medium">Password reset link is invalid or has expired</p>
+            {verificationError && (
+              <p className="text-sm text-muted-foreground border p-2 rounded bg-muted">
+                Error details: {verificationError}
+              </p>
+            )}
+            <Button asChild variant="outline" className="mt-4">
+              <Link to="/forgot-password">Request a new reset link</Link>
             </Button>
           </div>
         )}
