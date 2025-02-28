@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase, handleEmailConfirmation } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 
@@ -35,13 +35,13 @@ const hasEmailConfirmParams = () => {
   const searchParams = new URLSearchParams(window.location.search);
   const hashParams = new URLSearchParams(window.location.hash.substring(1));
   
-  // Check if it has the code parameter (new confirmation format)
-  const hasCode = searchParams.has('code');
+  // Check if it has the code parameter on dashboard path (new confirmation format)
+  const hasDashboardCode = window.location.pathname === '/dashboard' && searchParams.has('code');
   
   // For email confirmation, we typically have access_token but no recovery type
   // or we have the newer format with just a code parameter
   return (
-    hasCode ||
+    hasDashboardCode ||
     (window.location.hash.includes('access_token=') && 
      !window.location.hash.includes('type=recovery')) ||
     (window.location.search.includes('type=') && 
@@ -146,53 +146,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const initSession = async () => {
       try {
-        // Handle confirmation code parameter
-        const confirmationCode = searchParams.get('code');
-        if (confirmationCode) {
-          console.log("Code parameter detected:", confirmationCode);
-          setLoading(true);
+        // Handle dashboard with code parameter (email confirmation)
+        if (location.pathname === '/dashboard' && searchParams.has('code')) {
+          console.log("Found code parameter on dashboard route, handling email confirmation");
+          setLoading(false);
           
           try {
             // Exchange the code for a session
-            const result = await handleEmailConfirmation(confirmationCode);
+            const { data, error } = await supabase.auth.exchangeCodeForSession(
+              searchParams.get('code') || ''
+            );
             
-            if (!result.success) {
-              console.error("Error exchanging code for session:", result.error);
-              
+            if (error) {
+              console.error("Error exchanging code for session:", error);
+              navigate('/login', { replace: true });
               toast({
                 title: "Error",
                 description: "There was an error confirming your email. Please try again.",
                 variant: "destructive",
               });
-              
-              navigate('/login', { replace: true });
-              setLoading(false);
               return;
             }
             
-            if (result.session) {
-              console.log("Successfully exchanged code for session");
-              setSession(result.session);
-              setUser(result.session.user);
+            if (data.session) {
+              console.log("Successfully exchanged code for session:", data);
+              setSession(data.session);
+              setUser(data.session.user);
               
-              // Clean URL by removing the code parameter
-              const cleanUrl = '/dashboard';
-              navigate(cleanUrl, { replace: true });
-              
+              navigate('/dashboard', { replace: true });
               toast({
                 title: "Success",
                 description: "Your email has been confirmed!",
               });
-              
-              setLoading(false);
               return;
             }
           } catch (e) {
             console.error("Exception exchanging code:", e);
             navigate('/login', { replace: true });
-            setLoading(false);
-            return;
           }
+          return;
         }
         
         // First check for email confirmation links
@@ -301,39 +293,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event, newSession ? 'Session exists' : 'No session');
       
-      // Special handling for confirmation code
-      const confirmationCode = searchParams.get('code');
-      if (confirmationCode) {
-        console.log("Confirmation code detected during auth state change:", confirmationCode);
+      // Handle dashboard with code parameter (email confirmation)
+      if (location.pathname === '/dashboard' && searchParams.has('code')) {
+        console.log("Code parameter detected on dashboard route during auth state change");
         
         try {
-          const result = await handleEmailConfirmation(confirmationCode);
+          // Exchange the code for a session
+          const { data, error } = await supabase.auth.exchangeCodeForSession(
+            searchParams.get('code') || ''
+          );
           
-          if (!result.success) {
-            console.error("Error exchanging code during auth state change:", result.error);
+          if (error) {
+            console.error("Error exchanging code for session:", error);
             navigate('/login', { replace: true });
-            return;
-          }
-          
-          if (result.session) {
-            console.log("Successfully exchanged confirmation code for session during auth state change");
-            setSession(result.session);
-            setUser(result.session.user);
+          } else if (data.session) {
+            console.log("Successfully exchanged code for session:", data);
+            setSession(data.session);
+            setUser(data.session.user);
             
-            // Redirect to dashboard after successful confirmation
             navigate('/dashboard', { replace: true });
-            
             toast({
               title: "Success",
               description: "Your email has been confirmed!",
             });
-            return;
           }
         } catch (e) {
-          console.error("Exception exchanging confirmation code during auth state change:", e);
-          navigate('/login', { replace: true });
-          return;
+          console.error("Exception exchanging code:", e);
         }
+        return;
       }
       
       // Handle email confirmation specifically
