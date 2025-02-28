@@ -143,7 +143,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       })();
       
       // Show loading while processing the code
-      return <div>Loading...</div>;
+      return;
     }
     
     // Check if we're coming from an email confirmation flow
