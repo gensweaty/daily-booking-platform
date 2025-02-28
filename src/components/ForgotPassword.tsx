@@ -44,8 +44,7 @@ export const ForgotPassword = () => {
       // Get the deployed domain (or local development URL)
       const origin = window.location.origin;
       
-      // Use a simple redirect URL with only the path (no trailing slash)
-      // Supabase will append necessary query parameters
+      // Create the redirect URL - including the exact path but NO trailing slash
       const redirectTo = `${origin}/reset-password`;
       console.log("Using redirect URL:", redirectTo);
 

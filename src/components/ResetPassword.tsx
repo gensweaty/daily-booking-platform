@@ -38,6 +38,7 @@ export const ResetPassword = () => {
     console.log("Search params string:", searchParamsString);
     console.log("Parsed search params:", parsedSearchParams);
     console.log("Code parameter:", searchParams.get('code'));
+    console.log("Type parameter:", searchParams.get('type'));
     console.log("=====================================");
     
     return {
@@ -49,69 +50,55 @@ export const ResetPassword = () => {
   };
 
   useEffect(() => {
-    const verifyResetToken = async () => {
+    // Handle password reset when component mounts
+    const handlePasswordReset = async () => {
       try {
         setVerificationInProgress(true);
         setVerificationError(null);
         
-        // 1. First, clear any existing sessions
-        console.log("Signing out before verifying reset token...");
-        await supabase.auth.signOut();
+        // Log URL parameters for debugging
+        const params = logUrlParams();
         
-        // 2. Log URL parameters for debugging
-        logUrlParams();
-        
-        // 3. Check for reset code in the URL
+        // First, we need to handle the reset properly
+        // Check for the presence of a code parameter
         const code = searchParams.get('code');
+        const type = searchParams.get('type');
         
         if (!code) {
-          console.error("No reset code found in URL");
-          setVerificationError("No password reset code was found in the URL");
+          console.error("No code found in URL parameters");
+          setVerificationError("No password reset code was found in the URL. Please request a new reset link.");
           setVerificationInProgress(false);
           return;
         }
         
-        console.log("Found reset code in URL, attempting to verify...");
-        
-        // 4. Try to exchange the code for a session
+        // Supabase now recommends using exchangeCodeForSession for password reset flows
+        console.log("Attempting to exchange code for session...");
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         
         if (error) {
           console.error("Error exchanging code for session:", error);
           setVerificationError(error.message);
-          toast({
-            title: "Reset Link Error",
-            description: `Failed to verify reset link: ${error.message}`,
-            variant: "destructive"
-          });
           setVerificationInProgress(false);
           return;
         }
         
-        if (!data.session) {
+        if (data?.session) {
+          console.log("Session obtained successfully");
+          setTokenVerified(true);
+        } else {
           console.error("No session returned after code exchange");
-          setVerificationError("Password reset verification failed - no session");
-          setVerificationInProgress(false);
-          return;
+          setVerificationError("Failed to verify the reset link. Please request a new one.");
         }
-        
-        console.log("Successfully verified reset token!");
-        setTokenVerified(true);
-      } catch (err: any) {
-        console.error("Unexpected error during reset verification:", err);
-        setVerificationError(err.message || "An unexpected error occurred");
-        toast({
-          title: "Error",
-          description: "There was a problem verifying your reset link. Please try again.",
-          variant: "destructive"
-        });
+      } catch (error: any) {
+        console.error("Password reset verification error:", error);
+        setVerificationError(error.message || "An unexpected error occurred");
       } finally {
         setVerificationInProgress(false);
       }
     };
-
-    verifyResetToken();
-  }, [searchParams, toast]);
+    
+    handlePasswordReset();
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
