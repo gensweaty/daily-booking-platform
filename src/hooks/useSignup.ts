@@ -61,12 +61,17 @@ export const useSignup = () => {
         codeId = validationResult.code_id;
       }
 
-      // Step 2: Create user account
+      // Get current app origin for redirects
+      const origin = window.location.origin;
+      console.log('App origin for redirects:', origin);
+
+      // Step 2: Create user account with email confirmation redirect
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { username },
+          emailRedirectTo: `${origin}/dashboard`, // Redirect to dashboard after email confirmation
         },
       });
 

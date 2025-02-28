@@ -31,7 +31,7 @@ const hasRecoveryParams = () => {
     const hasCode = searchParams.has('code');
     const hasAccessToken = hashParams.has('access_token');
     const hasRefreshToken = hashParams.has('refresh_token');
-    const hasType = searchParams.get('type') === 'recovery';
+    const hasType = searchParams.get('type') === 'recovery' || hashParams.get('type') === 'recovery';
     
     // Special check for query parameters that contain reset codes
     const isResetPasswordPath = window.location.pathname.startsWith('/reset-password');
@@ -63,14 +63,51 @@ const hasRecoveryParams = () => {
   }
 };
 
+// Helper to check if URL has email confirmation parameters
+const hasEmailConfirmParams = () => {
+  try {
+    // Get both search and hash parameters
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    
+    // Check for confirmation specific parameters
+    const hasAccessToken = hashParams.has('access_token');
+    const hasType = searchParams.has('type') && searchParams.get('type') !== 'recovery';
+    const isConfirmationFlow = hasAccessToken && !hashParams.get('type')?.includes('recovery');
+    
+    // Log for debugging
+    if (hasAccessToken || hasType) {
+      console.log("Checking for email confirmation parameters:", {
+        hasAccessToken,
+        hasType,
+        isConfirmationFlow,
+        type: searchParams.get('type') || hashParams.get('type'),
+        currentPath: window.location.pathname,
+      });
+    }
+    
+    return isConfirmationFlow || hasType;
+  } catch (error) {
+    console.error("Error checking for email confirmation params:", error);
+    return false;
+  }
+};
+
 // Protected routes - require authentication
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Check if we're coming from a password reset flow
+  // Check if we're coming from an email confirmation flow
   useEffect(() => {
+    if (hasEmailConfirmParams()) {
+      console.log("Email confirmation parameters detected in protected route");
+      // We'll let the auth provider handle this
+      return;
+    }
+    
+    // Check if we're coming from a password reset flow
     if (hasRecoveryParams()) {
       console.log("Recovery parameters detected in protected route, redirecting to reset password");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
@@ -94,8 +131,14 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Check if we're coming from a password reset flow
+  // Check if we're coming from an email confirmation flow
   useEffect(() => {
+    if (hasEmailConfirmParams()) {
+      console.log("Email confirmation parameters detected in auth route, letting auth provider handle it");
+      return;
+    }
+    
+    // Check if we're coming from a password reset flow
     if (hasRecoveryParams()) {
       console.log("Recovery parameters detected in auth route, redirecting to reset password");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
@@ -123,9 +166,15 @@ const AnimatedRoutes = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Global handler for recovery links that runs on initial mount
+  // Global handler for special links that runs on initial mount
   useEffect(() => {
-    // Check if the current URL has recovery parameters but isn't already on the reset page
+    // Handle email confirmation links first
+    if (hasEmailConfirmParams()) {
+      console.log("Email confirmation parameters detected, letting auth provider handle the flow");
+      return;
+    }
+    
+    // Then handle password reset links
     if (hasRecoveryParams() && !location.pathname.startsWith('/reset-password')) {
       console.log("Recovery parameters detected on path:", location.pathname);
       console.log("Redirecting to reset password page with params");

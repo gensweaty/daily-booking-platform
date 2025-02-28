@@ -12,12 +12,22 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true, // Enable this to let Supabase detect auth tokens in the URL
+    detectSessionInUrl: true,
     flowType: 'pkce',
   },
 });
 
-// Debug listener for auth events - helpful for troubleshooting
+// Enhanced debug listener for auth events with more detailed information
 supabase.auth.onAuthStateChange((event, session) => {
-  console.log(`Auth state changed: ${event}`, session ? 'Session exists' : 'No session');
+  console.log(`Auth state changed: ${event}`, {
+    hasSession: !!session,
+    event,
+    // Log token type if session exists to help debug 
+    tokenType: session?.token_type,
+    // Add URL info to debug redirects
+    currentUrl: window.location.href,
+    pathname: window.location.pathname,
+    search: window.location.search,
+    hash: window.location.hash,
+  });
 });

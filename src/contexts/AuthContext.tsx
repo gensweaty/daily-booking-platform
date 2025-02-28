@@ -22,10 +22,21 @@ const AuthContext = createContext<AuthContextType>({
 // Helper to check if URL has recovery parameters
 const hasRecoveryParams = () => {
   return (
-    window.location.hash.includes('access_token=') || 
+    window.location.hash.includes('access_token=') && 
+    window.location.hash.includes('type=recovery') ||
     window.location.search.includes('token_hash=') || 
     window.location.search.includes('type=recovery') ||
     window.location.search.includes('code=')
+  );
+};
+
+// Helper to check if URL has email confirmation parameters
+const hasEmailConfirmParams = () => {
+  return (
+    (window.location.hash.includes('access_token=') && 
+     !window.location.hash.includes('type=recovery')) ||
+    (window.location.search.includes('type=') && 
+     !window.location.search.includes('type=recovery'))
   );
 };
 
@@ -118,7 +129,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const initSession = async () => {
       try {
-        // If we detect password reset parameters, handle specifically
+        // First check for email confirmation links
+        if (hasEmailConfirmParams()) {
+          console.log("Email confirmation link detected in initSession", {
+            search: location.search,
+            hash: location.hash
+          });
+          
+          try {
+            // Let Supabase process the email confirmation
+            const { data, error } = await supabase.auth.getSession();
+            
+            if (error) {
+              console.error("Error processing email confirmation:", error);
+              navigate('/login');
+              toast({
+                title: "Error",
+                description: "There was an error confirming your email. Please try again.",
+                variant: "destructive",
+              });
+              return;
+            }
+            
+            if (data.session) {
+              setSession(data.session);
+              setUser(data.session.user);
+              
+              // Email confirmed successfully, redirect to dashboard
+              navigate('/dashboard', { replace: true });
+              toast({
+                title: "Success",
+                description: "Your email has been confirmed!",
+              });
+              return;
+            }
+          } catch (e) {
+            console.error("Error in email confirmation flow:", e);
+          }
+        }
+        
+        // Then check for password reset links
         if (hasRecoveryParams() || searchParams.has('code')) {
           console.log("Password reset flow detected in initSession");
           setLoading(false);
@@ -170,6 +220,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event, newSession ? 'Session exists' : 'No session');
       
+      // Handle email confirmation specifically
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && hasEmailConfirmParams()) {
+        console.log("Email confirmation completed", {
+          event,
+          hasSession: !!newSession
+        });
+        
+        if (newSession) {
+          setSession(newSession);
+          setUser(newSession.user);
+          navigate('/dashboard', { replace: true });
+          toast({
+            title: "Success", 
+            description: "Your email has been confirmed!"
+          });
+        }
+        return;
+      }
+      
       // Check if this is a password reset flow regardless of event type
       if (hasRecoveryParams() || searchParams.has('code')) {
         console.log("Recovery parameters detected during auth state change");
@@ -219,7 +288,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('online', handleOnline);
     };
-  }, [navigate, handleTokenError, refreshSession, location.pathname, location.search, location.hash, searchParams]);
+  }, [navigate, handleTokenError, refreshSession, location.pathname, location.search, location.hash, searchParams, toast]);
 
   const signOut = async () => {
     try {
