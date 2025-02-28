@@ -32,7 +32,10 @@ const hasRecoveryParams = () => {
   const hasRefreshToken = hashParams.has('refresh_token');
   const hasType = searchParams.get('type') === 'recovery';
   
-  const result = hasCode || hasAccessToken || hasRefreshToken || hasType;
+  // Check for code in the URL path itself (format: /reset-password/CODE)
+  const pathHasCode = window.location.pathname.match(/\/reset-password[\/:](.+)$/);
+  
+  const result = hasCode || hasAccessToken || hasRefreshToken || hasType || pathHasCode;
   
   if (result) {
     console.log("Password reset parameters detected:", {
@@ -40,6 +43,7 @@ const hasRecoveryParams = () => {
       hasAccessToken,
       hasRefreshToken,
       hasType,
+      pathHasCode: pathHasCode ? true : false,
       currentPath: window.location.pathname
     });
   }
@@ -110,7 +114,7 @@ const AnimatedRoutes = () => {
   // Global handler for recovery links that runs on initial mount
   useEffect(() => {
     // Check if the current URL has recovery parameters but isn't already on the reset page
-    if (hasRecoveryParams() && location.pathname !== '/reset-password') {
+    if (hasRecoveryParams() && !location.pathname.startsWith('/reset-password')) {
       console.log("Recovery parameters detected on path:", location.pathname);
       console.log("Redirecting to reset password page with params");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
@@ -149,8 +153,18 @@ const AnimatedRoutes = () => {
             </AuthRoute>
           } />
           
-          {/* Password reset route - special handling */}
+          {/* Password reset routes - special handling for all possible URL formats */}
           <Route path="/reset-password" element={
+            <PasswordResetRoute>
+              <ResetPassword />
+            </PasswordResetRoute>
+          } />
+          <Route path="/reset-password/:code" element={
+            <PasswordResetRoute>
+              <ResetPassword />
+            </PasswordResetRoute>
+          } />
+          <Route path="/reset-password/:code/:restOfPath" element={
             <PasswordResetRoute>
               <ResetPassword />
             </PasswordResetRoute>
@@ -161,13 +175,6 @@ const AnimatedRoutes = () => {
             <ProtectedRoute>
               <Index />
             </ProtectedRoute>
-          } />
-          
-          {/* Important: Allow direct access to reset-password with any parameters */}
-          <Route path="/reset-password/*" element={
-            <PasswordResetRoute>
-              <ResetPassword />
-            </PasswordResetRoute>
           } />
           
           {/* Fallback route */}

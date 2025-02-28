@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { useNavigate, Link, useSearchParams, useLocation } from "react-router-dom";
+import { useNavigate, Link, useSearchParams, useLocation, useParams } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useTheme } from "next-themes";
@@ -25,6 +25,7 @@ export const ResetPassword = () => {
   const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const params = useParams();
 
   // Debug utility to log all URL parameters for troubleshooting
   const logUrlParams = () => {
@@ -33,6 +34,7 @@ export const ResetPassword = () => {
     const searchParamsString = window.location.search;
     const hashString = window.location.hash;
     const parsedSearchParams = Object.fromEntries(searchParams.entries());
+    const routeParams = params;
     
     console.log("===== PASSWORD RESET DEBUG INFO =====");
     console.log("Full URL:", fullUrl);
@@ -40,7 +42,9 @@ export const ResetPassword = () => {
     console.log("Search params string:", searchParamsString);
     console.log("Hash string:", hashString);
     console.log("Parsed search params:", parsedSearchParams);
-    console.log("Code parameter:", searchParams.get('code'));
+    console.log("Route params:", routeParams);
+    console.log("Code from URL query:", searchParams.get('code'));
+    console.log("Code from URL route param:", params.code);
     console.log("Type parameter:", searchParams.get('type'));
     console.log("=====================================");
     
@@ -49,22 +53,31 @@ export const ResetPassword = () => {
       path,
       searchParamsString,
       hashString,
-      parsedSearchParams
+      parsedSearchParams,
+      routeParams
     };
   };
 
   // Function to extract code from URL (trying all possible locations)
   const extractResetCode = () => {
-    // First try from search params
+    // First try from search params (most common)
     const codeFromSearch = searchParams.get('code');
     if (codeFromSearch) {
+      console.log("Found code in search params:", codeFromSearch);
       return codeFromSearch;
     }
     
-    // Try to extract from hash
+    // Try from route params (/reset-password/:code)
+    if (params.code) {
+      console.log("Found code in route params:", params.code);
+      return params.code;
+    }
+    
+    // Try to extract from hash fragment
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const codeFromHash = hashParams.get('code');
     if (codeFromHash) {
+      console.log("Found code in hash fragment:", codeFromHash);
       return codeFromHash;
     }
     
@@ -74,10 +87,18 @@ export const ResetPassword = () => {
     }
     
     // Try to extract directly from URL path for cases where routing is failing
-    const pathMatch = window.location.pathname.match(/\/reset-password\/(.+)$/);
+    // This handles formats like /reset-password/CODE or /reset-password:CODE
+    const pathMatch = window.location.pathname.match(/\/reset-password[\/:](.+)$/);
     if (pathMatch && pathMatch[1]) {
       console.log("Found potential code in URL path:", pathMatch[1]);
       return pathMatch[1];
+    }
+    
+    // Try to find it embedded in the path any other way
+    const fallbackCodeMatch = window.location.pathname.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
+    if (fallbackCodeMatch) {
+      console.log("Found UUID-like code in URL path:", fallbackCodeMatch[0]);
+      return fallbackCodeMatch[0];
     }
     
     return null;
@@ -131,7 +152,7 @@ export const ResetPassword = () => {
     };
     
     handlePasswordReset();
-  }, [location]);
+  }, [location, params]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
