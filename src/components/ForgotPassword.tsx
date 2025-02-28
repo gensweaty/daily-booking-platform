@@ -33,10 +33,14 @@ export const ForgotPassword = () => {
       if (sessionError) {
         console.error("Session check error:", sessionError);
       }
+      
+      // Get the current origin for the redirect URL
+      const redirectUrl = `${window.location.origin}/reset-password`;
+      console.log("Using redirect URL:", redirectUrl);
 
       // Use resetPasswordForEmail without relying on existing session
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: redirectUrl,
       });
 
       if (error) {

@@ -15,6 +15,7 @@ export const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [tokenVerified, setTokenVerified] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -23,55 +24,108 @@ export const ResetPassword = () => {
   useEffect(() => {
     const handleRecoveryToken = async () => {
       try {
-        // Get the hash fragment from the URL
+        // Log the full URL for debugging
+        console.log("Full URL:", window.location.href);
+        
+        // Try different approaches to getting the token
+        
+        // 1. Check hash fragment (#access_token=...)
         const hashFragment = window.location.hash;
-        if (!hashFragment) {
-          console.log("No hash fragment found in URL");
-          toast({
-            title: "Error",
-            description: "Invalid or expired recovery link. Please request a new one.",
-            variant: "destructive",
-          });
-          navigate("/forgot-password");
+        if (hashFragment) {
+          console.log("Found hash fragment:", hashFragment);
+          const params = new URLSearchParams(hashFragment.substring(1));
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+          const type = params.get('type');
+          
+          console.log("Hash params:", { type, hasToken: !!accessToken });
+          
+          if (accessToken && type === 'recovery') {
+            try {
+              const { error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken || '',
+              });
+              
+              if (error) throw error;
+              console.log("Successfully set session from hash fragment");
+              setTokenVerified(true);
+              return;
+            } catch (error) {
+              console.error("Error setting session from hash:", error);
+              // Continue to try other methods
+            }
+          }
+        }
+        
+        // 2. Check query parameters (?token_hash=...)
+        const searchParams = new URLSearchParams(window.location.search);
+        const tokenHash = searchParams.get('token_hash');
+        const type = searchParams.get('type');
+        
+        if (tokenHash && type === 'recovery') {
+          console.log("Found token_hash in URL parameters");
+          
+          // For token_hash, we don't need to manually set the session
+          // Supabase JS client should handle this automatically
+          
+          // Check if we have a session
+          const { data, error } = await supabase.auth.getSession();
+          
+          if (error) {
+            console.error("Error getting session after token_hash:", error);
+            throw error;
+          }
+          
+          if (data.session) {
+            console.log("Session exists after token_hash processing");
+            setTokenVerified(true);
+            return;
+          } else {
+            console.log("No session found after token_hash processing");
+            // Try to verify the token_hash directly
+            try {
+              // This is a special case - we'll try to verify the token directly
+              const { error } = await supabase.auth.verifyOtp({
+                token_hash: tokenHash,
+                type: 'recovery',
+              });
+              
+              if (error) throw error;
+              console.log("Successfully verified OTP");
+              setTokenVerified(true);
+              return;
+            } catch (e) {
+              console.error("Error verifying OTP:", e);
+              // Continue to try other methods
+            }
+          }
+        }
+        
+        // 3. If the URL doesn't have explicit tokens but we're on the reset password page,
+        // check if we already have a valid session
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          console.log("User already has a valid session");
+          setTokenVerified(true);
           return;
         }
-
-        // Parse the hash fragment
-        const params = new URLSearchParams(hashFragment.substring(1));
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-        const type = params.get('type');
-
-        console.log("URL params:", { type, hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken });
-
-        if (!accessToken || type !== 'recovery') {
-          console.log("Invalid recovery parameters");
-          toast({
-            title: "Error",
-            description: "Invalid or expired recovery link. Please request a new one.",
-            variant: "destructive",
-          });
-          navigate("/forgot-password");
-          return;
-        }
-
-        // Set the session with the recovery token
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken || '',
+        
+        // If we've tried all approaches and still don't have a valid token,
+        // the recovery link is probably invalid or expired
+        console.log("No valid recovery token found after trying all approaches");
+        toast({
+          title: "Invalid Recovery Link",
+          description: "The password reset link is invalid or has expired. Please request a new one.",
+          variant: "destructive",
         });
-
-        if (sessionError) {
-          console.error("Session error:", sessionError);
-          throw sessionError;
-        }
-
-        console.log("Recovery session set successfully");
+        navigate("/forgot-password");
+        
       } catch (error) {
         console.error("Recovery token handling error:", error);
         toast({
           title: "Error",
-          description: "An error occurred. Please try requesting a new password reset link.",
+          description: "An error occurred while processing your password reset link. Please try requesting a new one.",
           variant: "destructive",
         });
         navigate("/forgot-password");
@@ -106,12 +160,17 @@ export const ResetPassword = () => {
         return;
       }
 
+      console.log("Attempting to update password");
       const { error: updateError } = await supabase.auth.updateUser({
         password: password
       });
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("Password update error:", updateError);
+        throw updateError;
+      }
 
+      console.log("Password updated successfully");
       toast({
         title: "Success",
         description: "Password updated successfully. Please sign in with your new password.",
@@ -155,41 +214,48 @@ export const ResetPassword = () => {
       
       <div className="w-full max-w-md mx-auto p-4 sm:p-6">
         <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Set New Password</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="password">New Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Enter new password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+        
+        {!tokenVerified ? (
+          <div className="text-center">
+            <p className="mb-4">Verifying your reset link...</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="password">New Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter new password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full"
+                disabled={isLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">{t("auth.confirmPasswordLabel")}</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="w-full"
+                disabled={isLoading}
+              />
+            </div>
+            <Button 
+              type="submit" 
               className="w-full"
               disabled={isLoading}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">{t("auth.confirmPasswordLabel")}</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="Confirm new password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              className="w-full"
-              disabled={isLoading}
-            />
-          </div>
-          <Button 
-            type="submit" 
-            className="w-full"
-            disabled={isLoading}
-          >
-            {isLoading ? "Updating..." : "Update Password"}
-          </Button>
-        </form>
+            >
+              {isLoading ? "Updating..." : "Update Password"}
+            </Button>
+          </form>
+        )}
       </div>
     </div>
   );
