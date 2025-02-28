@@ -44,6 +44,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem('app-auth-token');
     localStorage.removeItem('supabase.auth.token');
     
+    // Don't show session expired error if we're handling a password reset
+    if (hasRecoveryParams()) {
+      console.log("Recovery parameters detected, not showing session expired error");
+      navigate('/reset-password' + window.location.search + window.location.hash);
+      return;
+    }
+    
     // Don't show session expired error on auth-related paths
     const authPaths = ['/login', '/signup', '/forgot-password', '/reset-password'];
     const isAuthPath = authPaths.some(path => location.pathname.startsWith(path));
@@ -65,6 +72,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (hasRecoveryParams()) {
         console.log("Recovery parameters detected, skipping session refresh");
         setLoading(false);
+        
+        // Redirect to reset password page
+        if (location.pathname !== '/reset-password') {
+          navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+        }
         return;
       }
 
@@ -95,16 +107,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.error('Session refresh error:', error);
       await handleTokenError();
+    } finally {
+      setLoading(false);
     }
-  }, [handleTokenError, location.pathname]);
+  }, [handleTokenError, location.pathname, navigate, location.search, location.hash]);
 
   useEffect(() => {
     const initSession = async () => {
       try {
-        // If we detect password reset parameters, don't initialize session
-        if (hasRecoveryParams() && location.pathname === '/reset-password') {
-          console.log("Password reset flow detected, skipping session initialization");
+        // If we detect password reset parameters, handle specifically
+        if (hasRecoveryParams()) {
+          console.log("Password reset flow detected");
           setLoading(false);
+          
+          // Redirect to reset password page if not already there
+          if (location.pathname !== '/reset-password') {
+            console.log("Redirecting to reset password page");
+            navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+          }
           return;
         }
         
@@ -147,9 +167,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event, newSession);
       
-      // If we're in the password reset flow, handle differently
-      if (hasRecoveryParams() && location.pathname === '/reset-password') {
-        console.log("Auth state change during password reset flow, not redirecting");
+      // Check if this is a password reset flow regardless of event type
+      if (hasRecoveryParams()) {
+        console.log("Recovery parameters detected during auth state change");
+        if (location.pathname !== '/reset-password') {
+          console.log("Redirecting to reset password page");
+          navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+        }
         return;
       }
       
@@ -181,7 +205,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         // Redirect to reset-password page if not already there
         if (location.pathname !== '/reset-password') {
-          navigate('/reset-password' + location.search + location.hash);
+          navigate('/reset-password' + location.search + location.hash, { replace: true });
         }
       }
     });
@@ -196,6 +220,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
+      // Don't sign out if we're in the password reset flow
+      if (hasRecoveryParams() && location.pathname === '/reset-password') {
+        console.log('Skipping sign out during password reset flow');
+        return;
+      }
+      
       console.log('Starting sign out process...');
       localStorage.removeItem('app-auth-token');
       localStorage.removeItem('supabase.auth.token');

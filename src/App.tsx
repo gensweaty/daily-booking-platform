@@ -38,7 +38,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (hasRecoveryParams()) {
       console.log("Recovery parameters detected in protected route, redirecting to reset password");
-      navigate('/reset-password' + window.location.search + window.location.hash);
+      navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
     }
   }, [navigate]);
   
@@ -62,15 +62,16 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (hasRecoveryParams()) {
       console.log("Recovery parameters detected in auth route, redirecting to reset password");
-      navigate('/reset-password' + window.location.search + window.location.hash);
+      navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
     }
   }, [navigate]);
   
   if (user) {
     // Don't redirect if this is a reset password flow
     if (hasRecoveryParams()) {
-      console.log("User is logged in but has recovery params, staying on current page");
-      return <>{children}</>;
+      console.log("User is logged in but has recovery params, redirecting to reset password");
+      navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+      return null;
     }
     return <Navigate to="/dashboard" replace />;
   }
@@ -80,31 +81,6 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Special route for password reset to ensure we don't redirect even with an active session
 const PasswordResetRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  
-  useEffect(() => {
-    const checkRecoveryFlow = async () => {
-      if (hasRecoveryParams()) {
-        console.log("Recovery parameters detected in password reset route");
-        
-        // Always sign out first to ensure we can process the reset properly
-        try {
-          await supabase.auth.signOut();
-          console.log("Signed out to process password reset");
-        } catch (error) {
-          console.error("Error signing out:", error);
-        }
-      } else if (user) {
-        // If no recovery parameters but user is logged in, redirect to dashboard
-        console.log("No recovery parameters but user is logged in, redirecting to dashboard");
-        navigate('/dashboard');
-      }
-    };
-    
-    checkRecoveryFlow();
-  }, [user, navigate]);
-  
   return <>{children}</>;
 };
 
