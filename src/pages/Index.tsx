@@ -37,12 +37,61 @@ const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false)
   const [username, setUsername] = useState("")
   const [showTrialExpired, setShowTrialExpired] = useState(false)
+  const [processingCode, setProcessingCode] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   
   useSubscriptionRedirect()
+
+  // Handle email confirmation code if present
+  useEffect(() => {
+    // This is a special handler for email confirmation codes on the dashboard route
+    const code = searchParams.get('code');
+    
+    if (code && !processingCode) {
+      setProcessingCode(true);
+      console.log('Index: Email confirmation code detected, processing...');
+      
+      (async () => {
+        try {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (error) {
+            console.error('Error exchanging confirmation code:', error);
+            toast({
+              title: "Confirmation Error",
+              description: "Could not confirm your email. Please try again or contact support.",
+              variant: "destructive",
+            });
+            navigate('/login', { replace: true });
+          } else {
+            console.log('Email confirmation successful:', data.session ? 'Session created' : 'No session');
+            if (data.session) {
+              toast({
+                title: "Email Confirmed",
+                description: "Your email has been successfully confirmed!",
+              });
+              
+              // Refresh the page without the code parameter
+              navigate('/dashboard', { replace: true });
+            }
+          }
+        } catch (err) {
+          console.error('Exception during code exchange in Index:', err);
+          toast({
+            title: "System Error",
+            description: "An unexpected error occurred. Please try again later.",
+            variant: "destructive",
+          });
+          navigate('/login', { replace: true });
+        } finally {
+          setProcessingCode(false);
+        }
+      })();
+    }
+  }, [searchParams, navigate, toast, processingCode]);
 
   useEffect(() => {
     const getProfile = async () => {
@@ -70,6 +119,19 @@ const Index = () => {
 
     getProfile()
   }, [user])
+
+  // Show a loading state when processing confirmation code
+  if (processingCode) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold">Confirming your email...</h2>
+          <p className="text-muted-foreground">Please wait while we complete this process.</p>
+        </div>
+      </div>
+    );
+  }
 
   const content = user ? (
     <motion.div 
