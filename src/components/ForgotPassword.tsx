@@ -45,13 +45,11 @@ export const ForgotPassword = () => {
       const origin = window.location.origin;
       console.log("Current origin:", origin);
       
-      // Add type=recovery to the redirect URL
-      const redirectTo = `${origin}/reset-password?type=recovery`;
-      console.log("Using redirect URL:", redirectTo);
-
-      // Request password reset
+      // Request password reset with the correct redirect URL
+      // This is the key change - we're simply using the site origin without any path
+      // Supabase will handle the routing based on its site settings
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo,
+        redirectTo: origin,
       });
 
       console.log("Reset password response:", { data, error });
