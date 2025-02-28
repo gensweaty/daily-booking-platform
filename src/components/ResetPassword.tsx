@@ -5,16 +5,12 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { useNavigate, Link, useSearchParams, useLocation, useParams } from "react-router-dom";
+import { useNavigate, Link, useSearchParams, useLocation } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
-
-type RouteParams = {
-  code?: string;
-};
 
 export const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -29,161 +25,102 @@ export const ResetPassword = () => {
   const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const routeParams = useParams<RouteParams>();
 
-  // Debug utility to log all URL parameters for troubleshooting
-  const logUrlParams = () => {
-    const fullUrl = window.location.href;
-    const path = window.location.pathname;
-    const searchParamsString = window.location.search;
-    const hashString = window.location.hash;
-    const parsedSearchParams = Object.fromEntries(searchParams.entries());
-    
-    console.log("===== PASSWORD RESET DEBUG INFO =====");
-    console.log("Full URL:", fullUrl);
-    console.log("Path:", path);
-    console.log("Search params string:", searchParamsString);
-    console.log("Hash string:", hashString);
-    console.log("Parsed search params:", parsedSearchParams);
-    console.log("Route params:", routeParams);
-    console.log("Code from URL query:", searchParams.get('code'));
-    console.log("Code from URL route param:", routeParams.code);
-    console.log("Type parameter:", searchParams.get('type'));
-    console.log("Access token:", searchParams.get('access_token') || (hashString.includes('access_token=') ? 'Present in hash' : 'Not present'));
-    console.log("Refresh token:", searchParams.get('refresh_token') || (hashString.includes('refresh_token=') ? 'Present in hash' : 'Not present'));
-    console.log("=====================================");
-    
-    return {
-      fullUrl,
-      path,
-      searchParamsString,
-      hashString,
-      parsedSearchParams,
-      routeParams
-    };
-  };
-
-  // Function to extract code from URL (trying all possible locations)
-  const extractResetCode = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    
-    // Check query parameters first
-    const codeFromSearch = urlParams.get('code');
-    if (codeFromSearch) {
-      console.log("Found code in search params:", codeFromSearch);
-      return codeFromSearch;
-    }
-    
-    // Check hash parameters
-    const codeFromHash = hashParams.get('code');
-    if (codeFromHash) {
-      console.log("Found code in hash fragment:", codeFromHash);
-      return codeFromHash;
-    }
-    
-    // Try from route params (/reset-password/:code)
-    if (routeParams.code) {
-      console.log("Found code in route params:", routeParams.code);
-      return routeParams.code;
-    }
-    
-    // Try to extract directly from URL path for cases where routing is failing
-    // This handles formats like /reset-password/CODE or /reset-password:CODE
-    const pathMatch = window.location.pathname.match(/\/reset-password[\/:](.+)$/);
-    if (pathMatch && pathMatch[1]) {
-      console.log("Found potential code in URL path:", pathMatch[1]);
-      return pathMatch[1];
-    }
-    
-    // Try to find it embedded in the path any other way
-    const fallbackCodeMatch = window.location.pathname.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
-    if (fallbackCodeMatch) {
-      console.log("Found UUID-like code in URL path:", fallbackCodeMatch[0]);
-      return fallbackCodeMatch[0];
-    }
-    
-    return null;
+  // Debug utility to log URL information
+  const logUrlInfo = () => {
+    console.log("URL Debug Info:");
+    console.log("- Full URL:", window.location.href);
+    console.log("- Hash:", window.location.hash);
+    console.log("- Path:", window.location.pathname);
+    console.log("- Search:", window.location.search);
   };
 
   useEffect(() => {
-    // Handle password reset when component mounts
-    const handlePasswordReset = async () => {
+    // Log URL information for debugging
+    logUrlInfo();
+    
+    // Verify the password reset session
+    const verifySession = async () => {
       try {
         setVerificationInProgress(true);
         setVerificationError(null);
         
-        // Log URL parameters for debugging
-        logUrlParams();
+        // Check if we have a session from the URL (Supabase should have processed tokens already)
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        // Check for tokens in hash fragment (Supabase magic link format)
+        if (session) {
+          console.log("Session found via URL tokens:", session);
+          setTokenVerified(true);
+          setVerificationInProgress(false);
+          return;
+        }
+        
+        if (sessionError) {
+          console.error("Error getting session:", sessionError);
+        }
+        
+        // If we have a hash with access_token, try to manually handle it
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         
         if (accessToken && refreshToken) {
-          console.log("Using access token for session");
+          console.log("Found tokens in URL hash, setting session manually");
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
           
+          if (error) {
+            console.error("Error setting session from hash params:", error);
+            throw error;
+          }
+          
+          if (data.session) {
+            console.log("Session set successfully from hash params");
+            setTokenVerified(true);
+            setVerificationInProgress(false);
+            return;
+          }
+        }
+        
+        // If we have a recovery token in the URL query
+        const token = searchParams.get('token');
+        if (token) {
+          console.log("Found recovery token in URL query");
           try {
-            const { data, error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken
+            // Try to verify with token
+            const { error } = await supabase.auth.verifyOtp({
+              token_hash: token,
+              type: 'recovery'
             });
             
             if (error) {
-              console.error("Error setting session with tokens:", error);
+              console.error("Token verification error:", error);
               throw error;
             }
             
-            console.log("Session set successfully using tokens");
+            console.log("Token verified successfully");
             setTokenVerified(true);
             setVerificationInProgress(false);
             return;
           } catch (err) {
-            console.error("Failed to use access token:", err);
-            // Continue to try code-based authentication
-          }
-        }
-        
-        // If tokens didn't work, try code-based auth
-        const code = extractResetCode();
-        
-        if (code) {
-          console.log("Exchanging code for session...");
-          
-          try {
-            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-            
-            if (error) {
-              console.error("Error exchanging code for session:", error);
-              throw error;
-            }
-            
-            if (data?.session) {
-              console.log("Session obtained successfully via code exchange");
-              setTokenVerified(true);
-              setVerificationInProgress(false);
-              return;
-            } else {
-              throw new Error("No session returned after code exchange");
-            }
-          } catch (err) {
-            console.error("Failed to exchange code:", err);
+            console.error("Error verifying token:", err);
             throw err;
           }
         }
         
-        // If we get here, neither method worked
-        throw new Error("No valid authentication token found in URL");
+        // If we get here, we couldn't verify the session
+        throw new Error("Could not verify password reset session from URL");
       } catch (error: any) {
-        console.error("Password reset verification error:", error);
-        setVerificationError(`Error: ${error.message || "Unknown error"}`);
+        console.error("Password reset verification failed:", error);
+        setVerificationError(error.message || "Invalid or expired password reset link");
         setVerificationInProgress(false);
       }
     };
     
-    handlePasswordReset();
-  }, [location, routeParams]);
+    verifySession();
+  }, [location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
