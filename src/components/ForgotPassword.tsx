@@ -46,7 +46,7 @@ export const ForgotPassword = () => {
       console.log("Current origin:", origin);
       
       // Add type=recovery to the redirect URL
-      const redirectTo = `${origin}/reset-password?type=recovery`;
+      const redirectTo = `${window.location.origin}/reset-password?type=recovery`;
       console.log("Using redirect URL:", redirectTo);
 
       // Request password reset
