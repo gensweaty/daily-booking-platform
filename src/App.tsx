@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
 import { LanguageProvider } from "@/contexts/LanguageContext";
@@ -25,7 +25,8 @@ const hasRecoveryParams = () => {
   return (
     window.location.hash.includes('access_token=') || 
     window.location.search.includes('token_hash=') || 
-    window.location.search.includes('type=recovery')
+    window.location.search.includes('type=recovery') ||
+    window.location.search.includes('code=')
   );
 };
 
@@ -33,14 +34,15 @@ const hasRecoveryParams = () => {
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
   // Check if we're coming from a password reset flow
   useEffect(() => {
-    if (hasRecoveryParams()) {
+    if (hasRecoveryParams() || searchParams.has('code')) {
       console.log("Recovery parameters detected in protected route, redirecting to reset password");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
     }
-  }, [navigate]);
+  }, [navigate, searchParams]);
   
   if (loading) {
     return <div>Loading...</div>;
@@ -57,17 +59,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
   // Check if we're coming from a password reset flow
   useEffect(() => {
-    if (hasRecoveryParams()) {
+    if (hasRecoveryParams() || searchParams.has('code')) {
       console.log("Recovery parameters detected in auth route, redirecting to reset password");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
       return;
     }
-  }, [navigate]);
+  }, [navigate, searchParams]);
   
-  if (user && !hasRecoveryParams()) {
+  if (user && !hasRecoveryParams() && !searchParams.has('code')) {
     return <Navigate to="/dashboard" replace />;
   }
   
@@ -82,15 +85,16 @@ const PasswordResetRoute = ({ children }: { children: React.ReactNode }) => {
 const AnimatedRoutes = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
   // Global handler for recovery links
   useEffect(() => {
     // Run this once on initial load
-    if (hasRecoveryParams() && location.pathname !== '/reset-password') {
+    if ((hasRecoveryParams() || searchParams.has('code')) && location.pathname !== '/reset-password') {
       console.log("Recovery parameters detected, redirecting to reset password page");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
     }
-  }, [location.pathname, navigate]);
+  }, [location.pathname, navigate, searchParams]);
 
   return (
     <AnimatePresence mode="wait">
