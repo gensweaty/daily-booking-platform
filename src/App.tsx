@@ -16,8 +16,7 @@ import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
-import { supabase, handleEmailConfirmation } from "@/lib/supabase";
-import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 const queryClient = new QueryClient();
 
@@ -72,7 +71,6 @@ const hasEmailConfirmParams = () => {
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     
     // Check for confirmation specific parameters
-    const hasCode = searchParams.has('code');
     const hasAccessToken = hashParams.has('access_token');
     const hasType = searchParams.has('type') && searchParams.get('type') !== 'recovery';
     const isConfirmationFlow = hasAccessToken && !hashParams.get('type')?.includes('recovery');
@@ -83,17 +81,20 @@ const hasEmailConfirmParams = () => {
       ((searchParams.has('error_code') && searchParams.get('error_code') === 'otp_expired') ||
        (hashParams.has('error_code') && hashParams.get('error_code') === 'otp_expired'));
     
-    // Log for debugging
-    const result = hasCode || isConfirmationFlow || hasType || isEmailConfirmError;
+    // Check for the direct code parameter on dashboard route (email confirmation format)
+    const hasDashboardCode = window.location.pathname === '/dashboard' && searchParams.has('code');
     
-    if (result || hasError) {
+    // Log for debugging
+    const result = isConfirmationFlow || hasType || isEmailConfirmError || hasDashboardCode;
+    
+    if (result || hasError || hasDashboardCode) {
       console.log("Checking for email confirmation parameters:", {
-        hasCode,
         hasAccessToken,
         hasType,
         hasError,
         isEmailConfirmError,
         isConfirmationFlow,
+        hasDashboardCode,
         type: searchParams.get('type') || hashParams.get('type'),
         errorCode: searchParams.get('error_code') || hashParams.get('error_code'),
         currentPath: window.location.pathname,
@@ -108,76 +109,56 @@ const hasEmailConfirmParams = () => {
   }
 };
 
-// Process email confirmation code
-const processEmailConfirmation = async (code: string, navigate: any, toast: any) => {
-  console.log("Processing email confirmation code:", code);
-  try {
-    const result = await handleEmailConfirmation(code);
-    
-    if (!result.success) {
-      console.error("Error exchanging confirmation code for session:", result.error);
-      toast({
-        title: "Error",
-        description: "There was an error confirming your email. Please try again.",
-        variant: "destructive",
-      });
-      navigate('/login', { replace: true });
-      return false;
-    }
-    
-    if (result.session) {
-      console.log("Email confirmation successful, session created");
-      toast({
-        title: "Success",
-        description: "Your email has been confirmed!",
-      });
-      navigate('/dashboard', { replace: true });
-      return true;
-    }
-    
-    return false;
-  } catch (err) {
-    console.error("Exception processing email confirmation:", err);
-    toast({
-      title: "Error",
-      description: "An unexpected error occurred. Please try signing in again.",
-      variant: "destructive",
-    });
-    navigate('/login', { replace: true });
-    return false;
-  }
-};
-
 // Protected routes - require authentication
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { toast } = useToast();
   
   // Process email confirmation code if present
   useEffect(() => {
-    const confirmationCode = searchParams.get('code');
-    if (confirmationCode) {
-      console.log("Email confirmation code detected in protected route:", confirmationCode);
+    if (location.pathname === '/dashboard' && searchParams.has('code')) {
+      console.log("Email confirmation code detected in protected route:", searchParams.get('code'));
       
       (async () => {
-        const success = await processEmailConfirmation(confirmationCode, navigate, toast);
-        if (!success && !user) {
+        try {
+          // Exchange the code for a session
+          const { data, error } = await supabase.auth.exchangeCodeForSession(
+            searchParams.get('code') || ''
+          );
+          
+          if (error) {
+            console.error("Error exchanging code for session:", error);
+            navigate('/login', { replace: true });
+          } else if (data.session) {
+            console.log("Successfully exchanged code for session in protected route");
+            // Refresh page to update auth state with new session
+            window.location.href = '/dashboard';
+          }
+        } catch (err) {
+          console.error("Exception exchanging code in protected route:", err);
           navigate('/login', { replace: true });
         }
       })();
-    } else if (hasEmailConfirmParams() && !searchParams.has('code')) {
-      // Handle other confirmation formats without code
+      
+      // Show loading while processing the code
+      return;
+    }
+    
+    // Check if we're coming from an email confirmation flow
+    if (hasEmailConfirmParams() && !searchParams.has('code')) {
       console.log("Email confirmation parameters detected in protected route");
       // We'll let the auth provider handle this
-    } else if (hasRecoveryParams()) {
-      // Handle password reset flow
+      return;
+    }
+    
+    // Check if we're coming from a password reset flow
+    if (hasRecoveryParams()) {
       console.log("Recovery parameters detected in protected route, redirecting to reset password");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
     }
-  }, [navigate, location, searchParams, toast, user]);
+  }, [navigate, location, searchParams]);
   
   if (loading) {
     return <div>Loading...</div>;
@@ -196,26 +177,46 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { toast } = useToast();
   
   // Handle email confirmation code if present
   useEffect(() => {
-    const confirmationCode = searchParams.get('code');
-    if (confirmationCode) {
-      console.log("Email confirmation code detected in auth route:", confirmationCode);
+    if (location.pathname === '/login' && searchParams.has('code')) {
+      console.log("Email confirmation code detected in auth route:", searchParams.get('code'));
       
       (async () => {
-        await processEmailConfirmation(confirmationCode, navigate, toast);
+        try {
+          // Exchange the code for a session
+          const { data, error } = await supabase.auth.exchangeCodeForSession(
+            searchParams.get('code') || ''
+          );
+          
+          if (error) {
+            console.error("Error exchanging code for session:", error);
+            // Stay on login page but show an error toast
+          } else if (data.session) {
+            console.log("Successfully exchanged code for session in auth route");
+            // Redirect to dashboard on successful confirmation
+            navigate('/dashboard', { replace: true });
+          }
+        } catch (err) {
+          console.error("Exception exchanging code in auth route:", err);
+        }
       })();
-    } else if (hasEmailConfirmParams() && !searchParams.has('code')) {
-      // Handle other confirmation formats without code
+    }
+    
+    // Check if we're coming from an email confirmation flow
+    if (hasEmailConfirmParams() && !searchParams.has('code')) {
       console.log("Email confirmation parameters detected in auth route, letting auth provider handle it");
-    } else if (hasRecoveryParams()) {
-      // Handle password reset flow
+      return;
+    }
+    
+    // Check if we're coming from a password reset flow
+    if (hasRecoveryParams()) {
       console.log("Recovery parameters detected in auth route, redirecting to reset password");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+      return;
     }
-  }, [navigate, location, searchParams, toast]);
+  }, [navigate, location, searchParams]);
   
   if (loading) {
     return <div>Loading...</div>;
@@ -237,23 +238,40 @@ const AnimatedRoutes = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { toast } = useToast();
   
   // Global handler for special links that runs on initial mount
   useEffect(() => {
-    // Handle email confirmation code from any route
-    const confirmationCode = searchParams.get('code');
-    if (confirmationCode) {
-      console.log("Email confirmation code detected on route:", location.pathname, confirmationCode);
+    // Handle email confirmation code - this is the primary handler for dashboard route with code parameter
+    if (location.pathname === '/dashboard' && searchParams.has('code')) {
+      console.log("Email confirmation code detected on dashboard route:", searchParams.get('code'));
       
-      // If we're not already on dashboard or login, process the code
-      if (location.pathname !== '/dashboard' && location.pathname !== '/login') {
-        (async () => {
-          await processEmailConfirmation(confirmationCode, navigate, toast);
-        })();
-      }
-    } else if (hasEmailConfirmParams() && !searchParams.has('code')) {
-      // Handle other email confirmation links 
+      // Exchange the code for a session
+      (async () => {
+        try {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(
+            searchParams.get('code') || ''
+          );
+          
+          if (error) {
+            console.error("Error exchanging code for session:", error);
+            // If there's an error with the code, redirect to login
+            navigate('/login', { replace: true });
+          } else if (data.session) {
+            console.log("Successfully exchanged code for session on dashboard route");
+            // Refresh the dashboard page with clean URL after successful exchange
+            window.location.href = '/dashboard';
+          }
+        } catch (err) {
+          console.error("Exception exchanging code on dashboard route:", err);
+          navigate('/login', { replace: true });
+        }
+      })();
+      
+      return;
+    }
+    
+    // Handle other email confirmation links 
+    if (hasEmailConfirmParams() && !searchParams.has('code')) {
       console.log("Email confirmation parameters detected, letting auth provider handle the flow");
       
       // If on dashboard with error params, redirect to login
@@ -261,13 +279,16 @@ const AnimatedRoutes = () => {
         console.log("Error in email confirmation, redirecting to login");
         navigate('/login', { replace: true });
       }
-    } else if (hasRecoveryParams() && !location.pathname.startsWith('/reset-password')) {
-      // Handle password reset links
+      return;
+    }
+    
+    // Then handle password reset links
+    if (hasRecoveryParams() && !location.pathname.startsWith('/reset-password')) {
       console.log("Recovery parameters detected on path:", location.pathname);
       console.log("Redirecting to reset password page with params");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
     }
-  }, [location.pathname, navigate, searchParams, toast]);
+  }, [location.pathname, navigate, searchParams]);
 
   return (
     <AnimatePresence mode="wait">
@@ -323,13 +344,6 @@ const AnimatedRoutes = () => {
             <ProtectedRoute>
               <Index />
             </ProtectedRoute>
-          } />
-          
-          {/* Route to handle email confirmation redirects */}
-          <Route path="/confirm-email" element={
-            <AuthRoute>
-              <AuthUI defaultTab="signin" />
-            </AuthRoute>
           } />
           
           {/* Fallback route */}

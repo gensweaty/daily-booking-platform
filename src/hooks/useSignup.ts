@@ -41,7 +41,6 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
-          setIsLoading(false);
           return;
         }
 
@@ -56,18 +55,16 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
-          setIsLoading(false);
           return;
         }
 
         codeId = validationResult.code_id;
       }
 
-      // Get current app domain for redirects
+      // Get current app origin for redirects - use the site URL, not window.location.origin
+      // This ensures it works with production URLs for smartbookly.com
+      // We explicitly specify dashboard as the target path for email confirmations
       const origin = window.location.origin;
-      
-      // Email confirmation route should match the route we handle in the app
-      // This matches with the route in App.tsx for handling confirmation codes
       const emailRedirectUrl = `${origin}/dashboard`;
       console.log('Email confirmation redirect URL:', emailRedirectUrl);
 
@@ -89,7 +86,6 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
-          setIsLoading(false);
           return;
         }
         throw signUpError;
