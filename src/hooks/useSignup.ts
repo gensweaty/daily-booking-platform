@@ -41,6 +41,7 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
+          setIsLoading(false);
           return;
         }
 
@@ -55,6 +56,7 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
+          setIsLoading(false);
           return;
         }
 
@@ -92,6 +94,7 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
+          setIsLoading(false);
           return;
         }
         throw signUpError;
