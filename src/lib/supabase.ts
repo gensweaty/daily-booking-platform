@@ -12,7 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true,
+    detectSessionInUrl: false, // Changed to false - we'll handle recovery tokens manually
     storage: localStorage,
     storageKey: 'supabase.auth.token',
     flowType: 'pkce',
@@ -41,6 +41,13 @@ supabase.auth.onAuthStateChange((event, session) => {
     console.log('Token refreshed');
   } else if (event === 'PASSWORD_RECOVERY') {
     console.log('Password recovery initiated');
+    
+    // Prevent automatic redirection when PASSWORD_RECOVERY event occurs
+    const currentPath = window.location.pathname;
+    if (currentPath !== '/reset-password') {
+      console.log('Redirecting to reset password page');
+      window.location.href = '/reset-password' + window.location.search + window.location.hash;
+    }
   }
 });
 

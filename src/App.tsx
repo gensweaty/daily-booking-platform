@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
 import { LanguageProvider } from "@/contexts/LanguageContext";
@@ -20,9 +20,27 @@ import { supabase } from "@/lib/supabase";
 
 const queryClient = new QueryClient();
 
+// Helper to check if URL has recovery parameters
+const hasRecoveryParams = () => {
+  return (
+    window.location.hash.includes('access_token=') || 
+    window.location.search.includes('token_hash=') || 
+    window.location.search.includes('type=recovery')
+  );
+};
+
 // Protected routes - require authentication
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  
+  // Check if we're coming from a password reset flow
+  useEffect(() => {
+    if (hasRecoveryParams()) {
+      console.log("Recovery parameters detected in protected route, redirecting to reset password");
+      navigate('/reset-password' + window.location.search + window.location.hash);
+    }
+  }, [navigate]);
   
   if (loading) {
     return <div>Loading...</div>;
@@ -38,8 +56,22 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // Auth routes - redirect to dashboard if logged in
 const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  
+  // Check if we're coming from a password reset flow
+  useEffect(() => {
+    if (hasRecoveryParams()) {
+      console.log("Recovery parameters detected in auth route, redirecting to reset password");
+      navigate('/reset-password' + window.location.search + window.location.hash);
+    }
+  }, [navigate]);
   
   if (user) {
+    // Don't redirect if this is a reset password flow
+    if (hasRecoveryParams()) {
+      console.log("User is logged in but has recovery params, staying on current page");
+      return <>{children}</>;
+    }
     return <Navigate to="/dashboard" replace />;
   }
   
@@ -48,24 +80,44 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Special route for password reset to ensure we don't redirect even with an active session
 const PasswordResetRoute = ({ children }: { children: React.ReactNode }) => {
-  // Check if we have recovery token parameters in the URL
-  const hasRecoveryParams = 
-    window.location.hash.includes('access_token=') || 
-    window.location.search.includes('token_hash=') || 
-    window.location.search.includes('type=recovery');
+  const { user } = useAuth();
   
   useEffect(() => {
-    // If this is a password reset flow, execute this once
-    if (hasRecoveryParams) {
-      console.log("Recovery parameters detected, keeping user on reset password page");
-    }
-  }, [hasRecoveryParams]);
+    const checkRecoveryFlow = async () => {
+      if (hasRecoveryParams()) {
+        console.log("Recovery parameters detected in password reset route");
+        
+        // If we have both recovery parameters and an existing session,
+        // sign out first to ensure we can process the reset properly
+        if (user) {
+          console.log("User already logged in during recovery flow - signing out to process reset");
+          try {
+            await supabase.auth.signOut();
+          } catch (error) {
+            console.error("Error signing out:", error);
+          }
+        }
+      }
+    };
+    
+    checkRecoveryFlow();
+  }, [user]);
   
   return <>{children}</>;
 };
 
 const AnimatedRoutes = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Global handler for recovery links
+  useEffect(() => {
+    // Run this once on initial load
+    if (hasRecoveryParams() && location.pathname !== '/reset-password') {
+      console.log("Recovery parameters detected, redirecting to reset password page");
+      navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
   return (
     <AnimatePresence mode="wait">
