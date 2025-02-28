@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useTheme } from "next-themes";
@@ -22,12 +22,14 @@ export const ResetPassword = () => {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const { t } = useLanguage();
+  const [searchParams] = useSearchParams();
 
   // Debug function to log URL parameters
   const logUrlParams = () => {
     console.log("Full URL:", window.location.href);
     console.log("Hash:", window.location.hash);
     console.log("Search params:", window.location.search);
+    console.log("Search params parsed:", Object.fromEntries(searchParams.entries()));
   };
 
   // Extract recovery token parameters from URL
@@ -45,18 +47,23 @@ export const ResetPassword = () => {
     const tokenHash = queryParams.get('token_hash');
     const typeFromQuery = queryParams.get('type');
     
+    // Check for direct code parameter (another possible format)
+    const code = searchParams.get('code');
+    
     console.log("Extracted params:", { 
       accessToken: !!accessToken, 
       refreshToken: !!refreshToken, 
       tokenHash: !!tokenHash, 
-      type: type || typeFromQuery 
+      type: type || typeFromQuery,
+      code: code
     });
     
     return { 
       accessToken, 
       refreshToken, 
       tokenHash, 
-      type: type || typeFromQuery 
+      type: type || typeFromQuery,
+      code
     };
   };
 
@@ -71,10 +78,10 @@ export const ResetPassword = () => {
         await supabase.auth.signOut();
         
         console.log("Verifying recovery token...");
-        const { accessToken, refreshToken, tokenHash, type } = extractTokenParams();
+        const { accessToken, refreshToken, tokenHash, type, code } = extractTokenParams();
         
         // If we don't have any recovery parameters, just show the error
-        if (!accessToken && !tokenHash) {
+        if (!accessToken && !tokenHash && !code) {
           console.error("No recovery parameters found in URL");
           setVerificationInProgress(false);
           return;
@@ -123,7 +130,28 @@ export const ResetPassword = () => {
           }
         }
         
-        // 3. Final check - see if we have a session after our attempts
+        // 3. Try code parameter (direct URL param)
+        if (!verified && code) {
+          console.log("Using code parameter method");
+          try {
+            // Attempt to use the code directly
+            const { error } = await supabase.auth.verifyOtp({
+              token_hash: code,
+              type: 'recovery',
+            });
+            
+            if (error) {
+              console.error("Error verifying OTP with code:", error);
+            } else {
+              console.log("Successfully verified token using code parameter");
+              verified = true;
+            }
+          } catch (error) {
+            console.error("Error in code verification:", error);
+          }
+        }
+        
+        // 4. Final check - see if we have a session after our attempts
         if (!verified) {
           const { data } = await supabase.auth.getSession();
           if (data.session) {
@@ -155,7 +183,7 @@ export const ResetPassword = () => {
     };
 
     signOutAndVerify();
-  }, [toast]);
+  }, [toast, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

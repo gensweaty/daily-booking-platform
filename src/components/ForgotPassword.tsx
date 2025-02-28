@@ -41,8 +41,10 @@ export const ForgotPassword = () => {
     console.log("Attempting to send reset email to:", email);
 
     try {
-      // Get the absolute URL for redirection - using no trailing slash after path
+      // Get the absolute URL for redirection - make sure it's exactly what the production site expects
       const origin = window.location.origin;
+      
+      // Use the exact same path format that's used in production
       const redirectUrl = `${origin}/reset-password`;
       console.log("Using redirect URL:", redirectUrl);
 
