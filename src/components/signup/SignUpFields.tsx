@@ -12,6 +12,8 @@ interface SignUpFieldsProps {
   setPassword: (password: string) => void;
   confirmPassword: string;
   setConfirmPassword: (confirmPassword: string) => void;
+  redeemCode: string;
+  setRedeemCode: (redeemCode: string) => void;
   isLoading: boolean;
 }
 
@@ -24,6 +26,8 @@ export const SignUpFields = ({
   setPassword,
   confirmPassword,
   setConfirmPassword,
+  redeemCode,
+  setRedeemCode,
   isLoading
 }: SignUpFieldsProps) => {
   const { t } = useLanguage();
@@ -79,6 +83,21 @@ export const SignUpFields = ({
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
+          className="w-full"
+          disabled={isLoading}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="redeemCode" className="flex items-center gap-2">
+          Redeem Code
+          <span className="text-sm text-muted-foreground">(Optional)</span>
+        </Label>
+        <Input
+          id="redeemCode"
+          type="text"
+          placeholder="Enter your redeem code"
+          value={redeemCode}
+          onChange={(e) => setRedeemCode(e.target.value)}
           className="w-full"
           disabled={isLoading}
         />

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -11,94 +12,114 @@ export const useSignup = () => {
     username: string,
     password: string,
     confirmPassword: string,
-    selectedPlan: 'monthly' | 'yearly',
+    redeemCode: string,
     clearForm: () => void
   ) => {
     if (isLoading) return;
     setIsLoading(true);
 
     try {
-      // Fetch the subscription plan
-      const { data: plans, error: planError } = await supabase
-        .from('subscription_plans')
-        .select('id')
-        .eq('type', selectedPlan)
-        .single();
+      console.log('Starting signup process...');
+      
+      let codeId: string | null = null;
 
-      if (planError) {
-        console.error('Error fetching subscription plan:', planError);
-        throw new Error('Failed to fetch subscription plan');
+      // Step 1: Validate redeem code if provided
+      if (redeemCode) {
+        const trimmedCode = redeemCode.trim();
+        console.log('Checking redeem code:', trimmedCode);
+
+        const { data: codeResult, error: codeError } = await supabase
+          .rpc('check_and_lock_redeem_code', {
+            p_code: trimmedCode
+          });
+
+        if (codeError) {
+          console.error('Redeem code check error:', codeError);
+          toast({
+            title: "Error",
+            description: "Error checking redeem code",
+            variant: "destructive",
+            duration: 5000,
+          });
+          return;
+        }
+
+        // The function always returns exactly one row
+        const validationResult = codeResult[0];
+        console.log('Code validation result:', validationResult);
+
+        if (!validationResult.is_valid) {
+          toast({
+            title: "Invalid Redeem Code",
+            description: validationResult.error_message,
+            variant: "destructive",
+            duration: 5000,
+          });
+          return;
+        }
+
+        codeId = validationResult.code_id;
       }
 
-      // Sign up the user
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      // Step 2: Create user account
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            username,
-          },
+          data: { username },
         },
       });
 
       if (signUpError) {
-        // Handle rate limit error specifically
         if (signUpError.status === 429) {
           toast({
             title: "Rate Limit Exceeded",
-            description: "Please wait a moment before trying to sign up again.",
+            description: "Please wait a moment before trying again.",
             variant: "destructive",
             duration: 5000,
           });
           return;
         }
-
-        // Handle user already registered
-        if (signUpError.message?.includes("User already registered")) {
-          toast({
-            title: "Account Exists",
-            description: "This email is already registered. Please sign in instead.",
-            variant: "destructive",
-            duration: 5000,
-          });
-          return;
-        }
-
         throw signUpError;
       }
 
-      if (data?.user) {
-        // Calculate trial end date (14 days from now)
-        const trialEndDate = new Date();
-        trialEndDate.setDate(trialEndDate.getDate() + 14);
+      if (!authData?.user) {
+        throw new Error('Failed to create user account');
+      }
 
-        // Create subscription
-        const { error: subscriptionError } = await supabase.rpc('create_subscription', {
-          p_user_id: data.user.id,
-          p_plan_id: plans.id,
-          p_plan_type: selectedPlan,
-          p_trial_end_date: trialEndDate.toISOString(),
-          p_current_period_start: new Date().toISOString(),
-          p_current_period_end: new Date(trialEndDate.getTime() + (24 * 60 * 60 * 1000)).toISOString()
+      // Step 3: Create subscription
+      const { data: subscription, error: subError } = await supabase
+        .rpc('create_user_subscription', {
+          p_user_id: authData.user.id,
+          p_plan_type: redeemCode ? 'ultimate' : 'monthly',
+          p_is_redeem_code: !!redeemCode
         });
 
-        if (subscriptionError) {
-          console.error('Subscription creation error:', subscriptionError);
-          toast({
-            title: "Account Created",
-            description: "Your account was created but there was an issue with the subscription setup. Please contact support.",
-            variant: "destructive",
-            duration: 8000,
-          });
-        } else {
-          toast({
-            title: "Success",
-            description: "Please check your email to confirm your account before signing in.",
-            duration: 5000,
-          });
-          clearForm();
-        }
+      if (subError) {
+        throw new Error('Failed to setup subscription: ' + subError.message);
       }
+
+      // Step 4: If we have a valid code, update it with user details
+      if (codeId) {
+        await supabase
+          .from('redeem_codes')
+          .update({
+            used_by: authData.user.id,
+            used_at: new Date().toISOString()
+          })
+          .eq('id', codeId);
+      }
+
+      toast({
+        title: "Success",
+        description: redeemCode 
+          ? "Account created with Ultimate plan! Please check your email to confirm your account."
+          : "Account created! Please check your email to confirm your account.",
+        duration: 5000,
+      });
+      
+      clearForm();
+
     } catch (error: any) {
       console.error('Signup error:', error);
       toast({

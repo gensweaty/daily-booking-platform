@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
 import { LanguageProvider } from "@/contexts/LanguageContext";
@@ -15,12 +15,32 @@ import { AuthUI } from "./components/AuthUI";
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 const queryClient = new QueryClient();
+
+// Helper to check if URL has recovery parameters
+const hasRecoveryParams = () => {
+  return (
+    window.location.hash.includes('access_token=') || 
+    window.location.search.includes('token_hash=') || 
+    window.location.search.includes('type=recovery')
+  );
+};
 
 // Protected routes - require authentication
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  
+  // Check if we're coming from a password reset flow
+  useEffect(() => {
+    if (hasRecoveryParams()) {
+      console.log("Recovery parameters detected in protected route, redirecting to reset password");
+      navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+    }
+  }, [navigate]);
   
   if (loading) {
     return <div>Loading...</div>;
@@ -36,16 +56,41 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // Auth routes - redirect to dashboard if logged in
 const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   
-  if (user) {
+  // Check if we're coming from a password reset flow
+  useEffect(() => {
+    if (hasRecoveryParams()) {
+      console.log("Recovery parameters detected in auth route, redirecting to reset password");
+      navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+      return;
+    }
+  }, [navigate]);
+  
+  if (user && !hasRecoveryParams()) {
     return <Navigate to="/dashboard" replace />;
   }
   
   return <>{children}</>;
 };
 
+// Special route for password reset to ensure we don't redirect even with an active session
+const PasswordResetRoute = ({ children }: { children: React.ReactNode }) => {
+  return <>{children}</>;
+};
+
 const AnimatedRoutes = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Global handler for recovery links
+  useEffect(() => {
+    // Run this once on initial load
+    if (hasRecoveryParams() && location.pathname !== '/reset-password') {
+      console.log("Recovery parameters detected, redirecting to reset password page");
+      navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
   return (
     <AnimatePresence mode="wait">
@@ -78,10 +123,12 @@ const AnimatedRoutes = () => {
               <ForgotPassword />
             </AuthRoute>
           } />
+          
+          {/* Password reset route - special handling */}
           <Route path="/reset-password" element={
-            <AuthRoute>
+            <PasswordResetRoute>
               <ResetPassword />
-            </AuthRoute>
+            </PasswordResetRoute>
           } />
           
           {/* Protected routes - require authentication */}

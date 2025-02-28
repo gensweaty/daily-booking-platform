@@ -32,7 +32,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
 
   return (
     <div className="min-h-screen bg-background p-4">
-      <header className="mb-8">
+      <header className="mb-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <Button 
@@ -59,13 +59,17 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
             <ThemeToggle />
           </div>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-2 text-center">{t("auth.welcome")}</h1>
-        <p className="text-foreground/80 text-center">{t("auth.description")}</p>
+        <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-1 text-center">
+          {t("auth.welcome")}
+        </h1>
+        <p className="text-foreground/80 text-center text-sm mb-4">
+          {t("auth.description")}
+        </p>
       </header>
 
-      <div className="w-full max-w-md mx-auto">
+      <div className="w-full max-w-sm mx-auto">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "signin" | "signup")} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-8">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="signin">{t("auth.signInButton")}</TabsTrigger>
             <TabsTrigger value="signup">{t("auth.signUpButton")}</TabsTrigger>
           </TabsList>

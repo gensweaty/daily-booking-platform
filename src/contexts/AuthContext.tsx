@@ -19,6 +19,15 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 });
 
+// Helper to check if URL has recovery parameters
+const hasRecoveryParams = () => {
+  return (
+    window.location.hash.includes('access_token=') || 
+    window.location.search.includes('token_hash=') || 
+    window.location.search.includes('type=recovery')
+  );
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -35,7 +44,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem('app-auth-token');
     localStorage.removeItem('supabase.auth.token');
     
-    if (!location.pathname.match(/^(\/$|\/login$|\/signup$|\/contact$)/)) {
+    // Don't show session expired error if we're handling a password reset
+    if (hasRecoveryParams()) {
+      console.log("Recovery parameters detected, not showing session expired error");
+      navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+      return;
+    }
+    
+    // Don't show session expired error on auth-related paths
+    const authPaths = ['/login', '/signup', '/forgot-password', '/reset-password'];
+    const isAuthPath = authPaths.some(path => location.pathname.startsWith(path));
+    const isPublicPath = ['/', '/contact'].includes(location.pathname);
+    
+    if (!isAuthPath && !isPublicPath) {
       navigate('/login');
       toast({
         title: "Session expired",
@@ -47,6 +68,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshSession = useCallback(async () => {
     try {
+      // If we have recovery parameters, don't refresh session as we're in password reset flow
+      if (hasRecoveryParams()) {
+        console.log("Recovery parameters detected, skipping session refresh");
+        setLoading(false);
+        
+        // Redirect to reset password page
+        if (location.pathname !== '/reset-password') {
+          console.log("Redirecting to reset password page from refreshSession");
+          navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+        }
+        return;
+      }
+
       const { data: { session: currentSession }, error } = await supabase.auth.getSession();
       if (error) {
         if (error.message.includes('token_refresh_failed') || 
@@ -59,7 +93,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (!currentSession) {
-        await handleTokenError();
+        // Only handle as error if not on auth-related path
+        const authPaths = ['/login', '/signup', '/forgot-password', '/reset-password'];
+        const isAuthPath = authPaths.some(path => location.pathname.startsWith(path));
+        
+        if (!isAuthPath) {
+          await handleTokenError();
+        }
         return;
       }
 
@@ -68,16 +108,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.error('Session refresh error:', error);
       await handleTokenError();
+    } finally {
+      setLoading(false);
     }
-  }, [handleTokenError]);
+  }, [handleTokenError, location.pathname, navigate, location.search, location.hash]);
 
   useEffect(() => {
     const initSession = async () => {
       try {
+        // If we detect password reset parameters, handle specifically
+        if (hasRecoveryParams()) {
+          console.log("Password reset flow detected in initSession");
+          setLoading(false);
+          
+          // Redirect to reset password page if not already there
+          if (location.pathname !== '/reset-password') {
+            console.log("Redirecting to reset password page from initSession");
+            navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+          }
+          return;
+        }
+        
         await refreshSession();
       } catch (error) {
         console.error('Session initialization error:', error);
-        await handleTokenError();
+        
+        // Don't treat session errors as fatal on auth pages
+        const authPaths = ['/login', '/signup', '/forgot-password', '/reset-password'];
+        const isAuthPath = authPaths.some(path => location.pathname.startsWith(path));
+        
+        if (!isAuthPath) {
+          await handleTokenError();
+        }
       } finally {
         setLoading(false);
       }
@@ -104,7 +166,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     window.addEventListener('online', handleOnline);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      console.log('Auth state changed:', event, newSession);
+      console.log('Auth state changed:', event, newSession ? 'Session exists' : 'No session');
+      
+      // Check if this is a password reset flow regardless of event type
+      if (hasRecoveryParams()) {
+        console.log("Recovery parameters detected during auth state change");
+        if (location.pathname !== '/reset-password') {
+          console.log("Redirecting to reset password page from auth state change");
+          navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+        }
+        return;
+      }
       
       if (event === 'SIGNED_IN') {
         setSession(newSession);
@@ -115,7 +187,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(null);
         localStorage.removeItem('app-auth-token');
         localStorage.removeItem('supabase.auth.token');
-        if (!location.pathname.match(/^(\/$|\/login$|\/signup$|\/contact$)/)) {
+        
+        // Don't navigate away if already on public routes
+        const publicPaths = ['/', '/login', '/signup', '/contact', '/forgot-password', '/reset-password'];
+        const isPublicPath = publicPaths.some(path => location.pathname === path);
+        
+        if (!isPublicPath) {
           navigate('/login');
         }
       } else if (event === 'TOKEN_REFRESHED') {
@@ -124,6 +201,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else if (event === 'USER_UPDATED') {
         setSession(newSession);
         setUser(newSession?.user ?? null);
+      } else if (event === 'PASSWORD_RECOVERY') {
+        console.log('Password recovery event detected');
+        
+        // Redirect to reset-password page if not already there
+        if (location.pathname !== '/reset-password') {
+          navigate('/reset-password' + location.search + location.hash, { replace: true });
+        }
       }
     });
 
@@ -133,10 +217,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('online', handleOnline);
     };
-  }, [navigate, handleTokenError, refreshSession, location.pathname]);
+  }, [navigate, handleTokenError, refreshSession, location.pathname, location.search, location.hash]);
 
   const signOut = async () => {
     try {
+      // Don't sign out if we're in the password reset flow
+      if (hasRecoveryParams() && location.pathname === '/reset-password') {
+        console.log('Skipping sign out during password reset flow');
+        return;
+      }
+      
       console.log('Starting sign out process...');
       localStorage.removeItem('app-auth-token');
       localStorage.removeItem('supabase.auth.token');

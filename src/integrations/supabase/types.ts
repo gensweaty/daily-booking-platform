@@ -361,6 +361,33 @@ export type Database = {
         }
         Relationships: []
       }
+      redeem_codes: {
+        Row: {
+          code: string
+          created_at: string | null
+          id: string
+          is_used: boolean | null
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          id?: string
+          is_used?: boolean | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_used?: boolean | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
       subscription_plans: {
         Row: {
           created_at: string | null
@@ -470,7 +497,17 @@ export type Database = {
           p_user_id: string
           p_subscription_type: string
         }
-        Returns: undefined
+        Returns: Json
+      }
+      check_and_lock_redeem_code: {
+        Args: {
+          p_code: string
+        }
+        Returns: {
+          is_valid: boolean
+          code_id: string
+          error_message: string
+        }[]
       }
       check_trial_status: {
         Args: Record<PropertyKey, never>
@@ -486,6 +523,27 @@ export type Database = {
           p_current_period_end: string
         }
         Returns: undefined
+      }
+      create_user_subscription: {
+        Args: {
+          p_user_id: string
+          p_plan_type: string
+          p_is_redeem_code: boolean
+        }
+        Returns: string
+      }
+      generate_code_number: {
+        Args: {
+          n: number
+        }
+        Returns: string
+      }
+      validate_and_use_redeem_code: {
+        Args: {
+          p_code: string
+          p_user_id: string
+        }
+        Returns: boolean
       }
     }
     Enums: {
