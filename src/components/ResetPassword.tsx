@@ -9,6 +9,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useTheme } from "next-themes";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -17,6 +18,7 @@ export const ResetPassword = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const handleRecoveryToken = async () => {
@@ -25,7 +27,12 @@ export const ResetPassword = () => {
         const hashFragment = window.location.hash;
         if (!hashFragment) {
           console.log("No hash fragment found in URL");
-          navigate("/login");
+          toast({
+            title: "Error",
+            description: "Invalid or expired recovery link. Please request a new one.",
+            variant: "destructive",
+          });
+          navigate("/forgot-password");
           return;
         }
 
@@ -82,18 +89,20 @@ export const ResetPassword = () => {
       if (password !== confirmPassword) {
         toast({
           title: "Error",
-          description: "Passwords do not match",
+          description: t("auth.passwordsDoNotMatch") || "Passwords do not match",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
       if (password.length < 6) {
         toast({
           title: "Error",
-          description: "Password must be at least 6 characters long",
+          description: t("auth.passwordTooShort") || "Password must be at least 6 characters long",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
@@ -105,7 +114,7 @@ export const ResetPassword = () => {
 
       toast({
         title: "Success",
-        description: "Password updated successfully. Please sign in with your new password.",
+        description: t("auth.passwordUpdated") || "Password updated successfully. Please sign in with your new password.",
       });
 
       // Sign out and redirect to login
@@ -115,7 +124,7 @@ export const ResetPassword = () => {
       console.error("Password update error:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update password. Please try again.",
+        description: error.message || t("auth.passwordUpdateFailed") || "Failed to update password. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -145,14 +154,14 @@ export const ResetPassword = () => {
       </header>
       
       <div className="w-full max-w-md mx-auto p-4 sm:p-6">
-        <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Set New Password</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">{t("auth.setNewPassword") || "Set New Password"}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="password">New Password</Label>
+            <Label htmlFor="password">{t("auth.newPassword") || "New Password"}</Label>
             <Input
               id="password"
               type="password"
-              placeholder="Enter new password"
+              placeholder={t("auth.enterNewPassword") || "Enter new password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -161,11 +170,11 @@ export const ResetPassword = () => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Label htmlFor="confirmPassword">{t("auth.confirmPassword") || "Confirm Password"}</Label>
             <Input
               id="confirmPassword"
               type="password"
-              placeholder="Confirm new password"
+              placeholder={t("auth.confirmNewPassword") || "Confirm new password"}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
@@ -178,7 +187,7 @@ export const ResetPassword = () => {
             className="w-full"
             disabled={isLoading}
           >
-            {isLoading ? "Updating..." : "Update Password"}
+            {isLoading ? (t("auth.updating") || "Updating...") : (t("auth.updatePassword") || "Update Password")}
           </Button>
         </form>
       </div>
