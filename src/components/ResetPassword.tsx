@@ -44,7 +44,7 @@ export const ResetPassword = () => {
     console.log("Parsed search params:", parsedSearchParams);
     console.log("Route params:", routeParams);
     console.log("Code from URL query:", searchParams.get('code'));
-    console.log("Code from URL route param:", params.code);
+    console.log("Code from URL route param:", params && 'code' in params ? params.code : null);
     console.log("Type parameter:", searchParams.get('type'));
     console.log("Access token:", searchParams.get('access_token') || (hashString.includes('access_token=') ? 'Present in hash' : 'Not present'));
     console.log("Refresh token:", searchParams.get('refresh_token') || (hashString.includes('refresh_token=') ? 'Present in hash' : 'Not present'));
@@ -62,11 +62,11 @@ export const ResetPassword = () => {
 
   // Function to extract code from URL (trying all possible locations)
   const extractResetCode = () => {
-    const params = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     
     // Check query parameters first
-    const codeFromSearch = params.get('code');
+    const codeFromSearch = urlParams.get('code');
     if (codeFromSearch) {
       console.log("Found code in search params:", codeFromSearch);
       return codeFromSearch;
@@ -80,7 +80,7 @@ export const ResetPassword = () => {
     }
     
     // Try from route params (/reset-password/:code)
-    if (params.code) {
+    if (params && 'code' in params && params.code) {
       console.log("Found code in route params:", params.code);
       return params.code;
     }
