@@ -46,6 +46,8 @@ export const ResetPassword = () => {
     console.log("Code from URL query:", searchParams.get('code'));
     console.log("Code from URL route param:", params.code);
     console.log("Type parameter:", searchParams.get('type'));
+    console.log("Access token:", searchParams.get('access_token') || (hashString.includes('access_token=') ? 'Present in hash' : 'Not present'));
+    console.log("Refresh token:", searchParams.get('refresh_token') || (hashString.includes('refresh_token=') ? 'Present in hash' : 'Not present'));
     console.log("=====================================");
     
     return {
@@ -114,12 +116,40 @@ export const ResetPassword = () => {
         // Log URL parameters for debugging
         logUrlParams();
         
-        // First, we need to handle the reset properly
-        // Check for the presence of a code parameter
+        // First, check for access_token in hash (Supabase magic link format)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        
+        if (accessToken && refreshToken) {
+          console.log("Found access_token and refresh_token in URL hash");
+          
+          // Try to set the session directly with the tokens
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+          
+          if (error) {
+            console.error("Error setting session with tokens:", error);
+            setVerificationError(`Error: ${error.message}`);
+            setVerificationInProgress(false);
+            return;
+          }
+          
+          if (data?.session) {
+            console.log("Session set successfully using tokens");
+            setTokenVerified(true);
+            setVerificationInProgress(false);
+            return;
+          }
+        }
+        
+        // If no access_token found, look for a code parameter
         const code = extractResetCode();
         
         if (!code) {
-          console.error("No code found in URL parameters");
+          console.error("No code or access_token found in URL parameters");
           setVerificationError("No password reset code was found in the URL. Please request a new reset link.");
           setVerificationInProgress(false);
           return;
