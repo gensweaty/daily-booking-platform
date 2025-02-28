@@ -1,12 +1,12 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -19,6 +19,21 @@ export const ForgotPassword = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { theme } = useTheme();
+  const navigate = useNavigate();
+
+  // On component mount, sign out to clear any existing session
+  useEffect(() => {
+    const clearSession = async () => {
+      try {
+        await supabase.auth.signOut();
+        console.log("Successfully signed out on forgot password page load");
+      } catch (error) {
+        console.error("Error signing out:", error);
+      }
+    };
+    
+    clearSession();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,11 +41,7 @@ export const ForgotPassword = () => {
     console.log("Attempting to send reset email to:", email);
 
     try {
-      // Sign out first to clear any existing sessions
-      await supabase.auth.signOut();
-      console.log("Signed out any existing sessions");
-      
-      // Get the absolute URL for redirection
+      // Get the absolute URL for redirection - using no trailing slash after path
       const origin = window.location.origin;
       const redirectUrl = `${origin}/reset-password`;
       console.log("Using redirect URL:", redirectUrl);

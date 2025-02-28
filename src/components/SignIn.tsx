@@ -41,6 +41,20 @@ export const SignIn = () => {
     }
   };
 
+  // Ensure we clear any old recovery tokens when visiting the forgot password page
+  const handleForgotPasswordClick = (e: React.MouseEvent) => {
+    // Prevent default to handle navigation manually
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Clear any existing Supabase session to avoid conflicts with the password reset flow
+    supabase.auth.signOut().then(() => {
+      console.log("Signed out before navigating to forgot password");
+      // Navigate to forgot password page
+      navigate("/forgot-password");
+    });
+  };
+
   return (
     <form onSubmit={handleSignIn} className="space-y-4">
       <div className="mb-4">
@@ -59,16 +73,13 @@ export const SignIn = () => {
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
           <Label htmlFor="password" className="block text-sm font-medium">Password</Label>
-          <Link 
-            to="/forgot-password"
-            className="text-xs text-primary hover:underline"
-            onClick={(e) => {
-              // Prevent the default behavior to avoid any auth context interference
-              e.stopPropagation();
-            }}
+          <button 
+            type="button"
+            className="text-xs text-primary hover:underline focus:outline-none"
+            onClick={handleForgotPasswordClick}
           >
             Forgot password?
-          </Link>
+          </button>
         </div>
         <Input
           id="password"
