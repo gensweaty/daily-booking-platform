@@ -44,8 +44,10 @@ supabase.auth.onAuthStateChange((event, session) => {
   }
 });
 
-// Handle auth errors globally
-supabase.auth.onError((error) => {
+// Use a custom error handler by listening to events 
+// since onError isn't available in this version
+window.addEventListener('supabase.auth.error', (event) => {
+  const error = (event as CustomEvent).detail;
   console.error('Supabase auth error:', error);
   
   // Don't show expired session errors for password reset flow
@@ -56,6 +58,4 @@ supabase.auth.onError((error) => {
     console.log('Ignoring auth error in password reset flow');
     return;
   }
-  
-  // Handle other auth errors here if needed
 });
