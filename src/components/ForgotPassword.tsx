@@ -26,7 +26,7 @@ export const ForgotPassword = () => {
     const clearSession = async () => {
       try {
         await supabase.auth.signOut();
-        console.log("Successfully signed out on forgot password page load");
+        console.log("Signed out before navigating to forgot password");
       } catch (error) {
         console.error("Error signing out:", error);
       }
@@ -45,14 +45,12 @@ export const ForgotPassword = () => {
       const origin = window.location.origin;
       console.log("Current origin:", origin);
       
-      // Add type=recovery to the redirect URL
-      const redirectTo = `${window.location.origin}/reset-password?type=recovery`;
-      console.log("Using redirect URL:", redirectTo);
-
-      // Request password reset
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo,
-      });
+      // IMPORTANT: Let Supabase handle the redirect URL itself
+      // We will NOT specify redirectTo, so Supabase will use its default URL configuration
+      // This ensures consistency between manually triggered emails and our app's emails
+      
+      // Request password reset WITHOUT specifying redirectTo
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email);
 
       console.log("Reset password response:", { data, error });
 
