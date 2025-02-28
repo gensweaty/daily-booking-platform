@@ -20,35 +20,47 @@ import { supabase } from "@/lib/supabase";
 
 const queryClient = new QueryClient();
 
-// Helper to check if URL has recovery parameters
+// Helper to check if URL has recovery parameters - UPDATED for better detection
 const hasRecoveryParams = () => {
-  // Get both search and hash parameters
-  const searchParams = new URLSearchParams(window.location.search);
-  const hashParams = new URLSearchParams(window.location.hash.substring(1));
-  
-  // Check for all possible recovery parameters in both search and hash
-  const hasCode = searchParams.has('code');
-  const hasAccessToken = hashParams.has('access_token');
-  const hasRefreshToken = hashParams.has('refresh_token');
-  const hasType = searchParams.get('type') === 'recovery';
-  
-  // Check for code in the URL path itself (format: /reset-password/CODE)
-  const pathHasCode = window.location.pathname.match(/\/reset-password[\/:](.+)$/);
-  
-  const result = hasCode || hasAccessToken || hasRefreshToken || hasType || pathHasCode;
-  
-  if (result) {
-    console.log("Password reset parameters detected:", {
-      hasCode,
-      hasAccessToken,
-      hasRefreshToken,
-      hasType,
-      pathHasCode: pathHasCode ? true : false,
-      currentPath: window.location.pathname
-    });
+  try {
+    // Get both search and hash parameters
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    
+    // Check for all possible recovery parameters in both search and hash
+    const hasCode = searchParams.has('code');
+    const hasAccessToken = hashParams.has('access_token');
+    const hasRefreshToken = hashParams.has('refresh_token');
+    const hasType = searchParams.get('type') === 'recovery';
+    
+    // Special check for query parameters that contain reset codes
+    const isResetPasswordPath = window.location.pathname.startsWith('/reset-password');
+    const hasResetParams = isResetPasswordPath && (hasCode || window.location.search.includes('code='));
+    
+    // Check for code in the URL path itself (format: /reset-password/CODE)
+    const pathHasCode = window.location.pathname.match(/\/reset-password[\/:](.+)$/);
+    
+    // Debug log for troubleshooting
+    const result = hasCode || hasAccessToken || hasRefreshToken || hasType || pathHasCode || hasResetParams;
+    
+    if (result) {
+      console.log("Password reset parameters detected:", {
+        hasCode,
+        hasAccessToken,
+        hasRefreshToken,
+        hasType,
+        pathHasCode: pathHasCode ? true : false,
+        hasResetParams,
+        currentPath: window.location.pathname,
+        currentSearch: window.location.search
+      });
+    }
+    
+    return result;
+  } catch (error) {
+    console.error("Error checking for recovery params:", error);
+    return false;
   }
-  
-  return result;
 };
 
 // Protected routes - require authentication
