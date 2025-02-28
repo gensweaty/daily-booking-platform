@@ -44,7 +44,7 @@ export const ResetPassword = () => {
     console.log("Parsed search params:", parsedSearchParams);
     console.log("Route params:", routeParams);
     console.log("Code from URL query:", searchParams.get('code'));
-    console.log("Code from URL route param:", params.code);
+    console.log("Code from URL route param:", params && 'code' in params ? params.code : null);
     console.log("Type parameter:", searchParams.get('type'));
     console.log("Access token:", searchParams.get('access_token') || (hashString.includes('access_token=') ? 'Present in hash' : 'Not present'));
     console.log("Refresh token:", searchParams.get('refresh_token') || (hashString.includes('refresh_token=') ? 'Present in hash' : 'Not present'));
@@ -62,30 +62,27 @@ export const ResetPassword = () => {
 
   // Function to extract code from URL (trying all possible locations)
   const extractResetCode = () => {
-    // First try from search params (most common)
-    const codeFromSearch = searchParams.get('code');
+    const urlParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    
+    // Check query parameters first
+    const codeFromSearch = urlParams.get('code');
     if (codeFromSearch) {
       console.log("Found code in search params:", codeFromSearch);
       return codeFromSearch;
     }
     
-    // Try from route params (/reset-password/:code)
-    if (params.code) {
-      console.log("Found code in route params:", params.code);
-      return params.code;
-    }
-    
-    // Try to extract from hash fragment
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    // Check hash parameters
     const codeFromHash = hashParams.get('code');
     if (codeFromHash) {
       console.log("Found code in hash fragment:", codeFromHash);
       return codeFromHash;
     }
     
-    // If we have an access_token in the URL, we might be in a different auth flow
-    if (hashParams.has('access_token')) {
-      console.log("Found access_token in URL, may be using different auth flow");
+    // Try from route params (/reset-password/:code)
+    if (params && 'code' in params && params.code) {
+      console.log("Found code in route params:", params.code);
+      return params.code;
     }
     
     // Try to extract directly from URL path for cases where routing is failing
@@ -116,67 +113,68 @@ export const ResetPassword = () => {
         // Log URL parameters for debugging
         logUrlParams();
         
-        // First, check for access_token in hash (Supabase magic link format)
+        // Check for tokens in hash fragment (Supabase magic link format)
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         
         if (accessToken && refreshToken) {
-          console.log("Found access_token and refresh_token in URL hash");
+          console.log("Using access token for session");
           
-          // Try to set the session directly with the tokens
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          });
-          
-          if (error) {
-            console.error("Error setting session with tokens:", error);
-            setVerificationError(`Error: ${error.message}`);
-            setVerificationInProgress(false);
-            return;
-          }
-          
-          if (data?.session) {
+          try {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            });
+            
+            if (error) {
+              console.error("Error setting session with tokens:", error);
+              throw error;
+            }
+            
             console.log("Session set successfully using tokens");
             setTokenVerified(true);
             setVerificationInProgress(false);
             return;
+          } catch (err) {
+            console.error("Failed to use access token:", err);
+            // Continue to try code-based authentication
           }
         }
         
-        // If no access_token found, look for a code parameter
+        // If tokens didn't work, try code-based auth
         const code = extractResetCode();
         
-        if (!code) {
-          console.error("No code or access_token found in URL parameters");
-          setVerificationError("No password reset code was found in the URL. Please request a new reset link.");
-          setVerificationInProgress(false);
-          return;
+        if (code) {
+          console.log("Exchanging code for session...");
+          
+          try {
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            
+            if (error) {
+              console.error("Error exchanging code for session:", error);
+              throw error;
+            }
+            
+            if (data?.session) {
+              console.log("Session obtained successfully via code exchange");
+              setTokenVerified(true);
+              setVerificationInProgress(false);
+              return;
+            } else {
+              throw new Error("No session returned after code exchange");
+            }
+          } catch (err) {
+            console.error("Failed to exchange code:", err);
+            throw err;
+          }
         }
         
-        // Supabase recommends using exchangeCodeForSession for password reset flows
-        console.log("Attempting to exchange code for session...");
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-        
-        if (error) {
-          console.error("Error exchanging code for session:", error);
-          setVerificationError(`Error: ${error.message}`);
-          setVerificationInProgress(false);
-          return;
-        }
-        
-        if (data?.session) {
-          console.log("Session obtained successfully");
-          setTokenVerified(true);
-        } else {
-          console.error("No session returned after code exchange");
-          setVerificationError("Failed to verify the reset link. Please request a new one.");
-        }
+        // If we get here, neither method worked
+        throw new Error("No valid authentication token found in URL");
       } catch (error: any) {
         console.error("Password reset verification error:", error);
-        setVerificationError(`Unexpected error: ${error.message || "Unknown error"}`);
-      } finally {
+        setVerificationError(`Error: ${error.message || "Unknown error"}`);
         setVerificationInProgress(false);
       }
     };
