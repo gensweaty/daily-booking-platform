@@ -89,7 +89,7 @@ export const ResetPassword = () => {
       if (password !== confirmPassword) {
         toast({
           title: "Error",
-          description: t("auth.passwordsDoNotMatch") || "Passwords do not match",
+          description: t("auth.passwordsDoNotMatch"),
           variant: "destructive",
         });
         setIsLoading(false);
@@ -99,7 +99,7 @@ export const ResetPassword = () => {
       if (password.length < 6) {
         toast({
           title: "Error",
-          description: t("auth.passwordTooShort") || "Password must be at least 6 characters long",
+          description: t("auth.passwordTooShort"),
           variant: "destructive",
         });
         setIsLoading(false);
@@ -114,7 +114,7 @@ export const ResetPassword = () => {
 
       toast({
         title: "Success",
-        description: t("auth.passwordUpdated") || "Password updated successfully. Please sign in with your new password.",
+        description: "Password updated successfully. Please sign in with your new password.",
       });
 
       // Sign out and redirect to login
@@ -124,7 +124,7 @@ export const ResetPassword = () => {
       console.error("Password update error:", error);
       toast({
         title: "Error",
-        description: error.message || t("auth.passwordUpdateFailed") || "Failed to update password. Please try again.",
+        description: error.message || "Failed to update password. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -154,14 +154,14 @@ export const ResetPassword = () => {
       </header>
       
       <div className="w-full max-w-md mx-auto p-4 sm:p-6">
-        <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">{t("auth.setNewPassword") || "Set New Password"}</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center sm:text-left">Set New Password</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="password">{t("auth.newPassword") || "New Password"}</Label>
+            <Label htmlFor="password">New Password</Label>
             <Input
               id="password"
               type="password"
-              placeholder={t("auth.enterNewPassword") || "Enter new password"}
+              placeholder="Enter new password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -170,11 +170,11 @@ export const ResetPassword = () => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">{t("auth.confirmPassword") || "Confirm Password"}</Label>
+            <Label htmlFor="confirmPassword">{t("auth.confirmPasswordLabel")}</Label>
             <Input
               id="confirmPassword"
               type="password"
-              placeholder={t("auth.confirmNewPassword") || "Confirm new password"}
+              placeholder="Confirm new password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
@@ -187,7 +187,7 @@ export const ResetPassword = () => {
             className="w-full"
             disabled={isLoading}
           >
-            {isLoading ? (t("auth.updating") || "Updating...") : (t("auth.updatePassword") || "Update Password")}
+            {isLoading ? "Updating..." : "Update Password"}
           </Button>
         </form>
       </div>
