@@ -37,7 +37,7 @@ supabase.auth.onAuthStateChange((event, session) => {
   }
 });
 
-// Helper function to handle email confirmation links
+// Add this helper function to handle email confirmation links
 export const handleEmailConfirmation = async (code: string) => {
   console.log("Processing email confirmation code via helper function:", code);
   
@@ -58,16 +58,5 @@ export const handleEmailConfirmation = async (code: string) => {
   } catch (err) {
     console.error("Exception in handleEmailConfirmation:", err);
     return { success: false, error: err };
-  }
-};
-
-// Add a function to verify email confirmation status
-export const isEmailConfirmed = async () => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    return user?.email_confirmed_at != null;
-  } catch (error) {
-    console.error("Error checking email confirmation status:", error);
-    return false;
   }
 };

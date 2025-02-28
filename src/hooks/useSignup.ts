@@ -41,7 +41,6 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
-          setIsLoading(false);
           return;
         }
 
@@ -56,7 +55,6 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
-          setIsLoading(false);
           return;
         }
 
@@ -64,10 +62,10 @@ export const useSignup = () => {
       }
 
       // Get current app domain for redirects
+      // We use window.location.origin to ensure it works on all environments (dev & prod)
       const origin = window.location.origin;
-      
-      // Email confirmation route should match the route we handle in the app
-      // This matches with the route in App.tsx for handling confirmation codes
+      // Email confirmation sends user directly to dashboard with code parameter
+      // The AnimatedRoutes component will handle the code exchange
       const emailRedirectUrl = `${origin}/dashboard`;
       console.log('Email confirmation redirect URL:', emailRedirectUrl);
 
@@ -89,7 +87,6 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
-          setIsLoading(false);
           return;
         }
         throw signUpError;

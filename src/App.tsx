@@ -16,7 +16,7 @@ import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
-import { supabase, handleEmailConfirmation } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
 const queryClient = new QueryClient();
@@ -72,7 +72,6 @@ const hasEmailConfirmParams = () => {
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     
     // Check for confirmation specific parameters
-    const hasCode = searchParams.has('code');
     const hasAccessToken = hashParams.has('access_token');
     const hasType = searchParams.has('type') && searchParams.get('type') !== 'recovery';
     const isConfirmationFlow = hasAccessToken && !hashParams.get('type')?.includes('recovery');
@@ -83,17 +82,20 @@ const hasEmailConfirmParams = () => {
       ((searchParams.has('error_code') && searchParams.get('error_code') === 'otp_expired') ||
        (hashParams.has('error_code') && hashParams.get('error_code') === 'otp_expired'));
     
-    // Log for debugging
-    const result = hasCode || isConfirmationFlow || hasType || isEmailConfirmError;
+    // Check for direct code parameter (email confirmation format)
+    const hasDashboardCode = searchParams.has('code');
     
-    if (result || hasError) {
+    // Log for debugging
+    const result = isConfirmationFlow || hasType || isEmailConfirmError || hasDashboardCode;
+    
+    if (result || hasError || hasDashboardCode) {
       console.log("Checking for email confirmation parameters:", {
-        hasCode,
         hasAccessToken,
         hasType,
         hasError,
         isEmailConfirmError,
         isConfirmationFlow,
+        hasDashboardCode,
         type: searchParams.get('type') || hashParams.get('type'),
         errorCode: searchParams.get('error_code') || hashParams.get('error_code'),
         currentPath: window.location.pathname,
@@ -112,10 +114,10 @@ const hasEmailConfirmParams = () => {
 const processEmailConfirmation = async (code: string, navigate: any, toast: any) => {
   console.log("Processing email confirmation code:", code);
   try {
-    const result = await handleEmailConfirmation(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     
-    if (!result.success) {
-      console.error("Error exchanging confirmation code for session:", result.error);
+    if (error) {
+      console.error("Error exchanging confirmation code for session:", error);
       toast({
         title: "Error",
         description: "There was an error confirming your email. Please try again.",
@@ -125,7 +127,7 @@ const processEmailConfirmation = async (code: string, navigate: any, toast: any)
       return false;
     }
     
-    if (result.session) {
+    if (data.session) {
       console.log("Email confirmation successful, session created");
       toast({
         title: "Success",
@@ -168,12 +170,19 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
           navigate('/login', { replace: true });
         }
       })();
-    } else if (hasEmailConfirmParams() && !searchParams.has('code')) {
-      // Handle other confirmation formats without code
+      
+      return;
+    }
+    
+    // Check if we're coming from an email confirmation flow without code
+    if (hasEmailConfirmParams() && !searchParams.has('code')) {
       console.log("Email confirmation parameters detected in protected route");
       // We'll let the auth provider handle this
-    } else if (hasRecoveryParams()) {
-      // Handle password reset flow
+      return;
+    }
+    
+    // Check if we're coming from a password reset flow
+    if (hasRecoveryParams()) {
       console.log("Recovery parameters detected in protected route, redirecting to reset password");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
     }
@@ -207,13 +216,21 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
       (async () => {
         await processEmailConfirmation(confirmationCode, navigate, toast);
       })();
-    } else if (hasEmailConfirmParams() && !searchParams.has('code')) {
-      // Handle other confirmation formats without code
+      
+      return;
+    }
+    
+    // Check if we're coming from an email confirmation flow
+    if (hasEmailConfirmParams() && !searchParams.has('code')) {
       console.log("Email confirmation parameters detected in auth route, letting auth provider handle it");
-    } else if (hasRecoveryParams()) {
-      // Handle password reset flow
+      return;
+    }
+    
+    // Check if we're coming from a password reset flow
+    if (hasRecoveryParams()) {
       console.log("Recovery parameters detected in auth route, redirecting to reset password");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
+      return;
     }
   }, [navigate, location, searchParams, toast]);
   
@@ -252,8 +269,11 @@ const AnimatedRoutes = () => {
           await processEmailConfirmation(confirmationCode, navigate, toast);
         })();
       }
-    } else if (hasEmailConfirmParams() && !searchParams.has('code')) {
-      // Handle other email confirmation links 
+      return;
+    }
+    
+    // Handle other email confirmation links 
+    if (hasEmailConfirmParams() && !searchParams.has('code')) {
       console.log("Email confirmation parameters detected, letting auth provider handle the flow");
       
       // If on dashboard with error params, redirect to login
@@ -261,8 +281,11 @@ const AnimatedRoutes = () => {
         console.log("Error in email confirmation, redirecting to login");
         navigate('/login', { replace: true });
       }
-    } else if (hasRecoveryParams() && !location.pathname.startsWith('/reset-password')) {
-      // Handle password reset links
+      return;
+    }
+    
+    // Then handle password reset links
+    if (hasRecoveryParams() && !location.pathname.startsWith('/reset-password')) {
       console.log("Recovery parameters detected on path:", location.pathname);
       console.log("Redirecting to reset password page with params");
       navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
