@@ -1,4 +1,3 @@
-
 export const esTranslations = {
   // Nav
   "nav.home": "Inicio",
@@ -187,6 +186,7 @@ export const esTranslations = {
   "footer.privacy": "Política de Privacidad",
   "footer.navigation": "Navegación",
   "footer.legal": "Legal",
+  "footer.termsAndPrivacy": "Términos y Privacidad",
   "footer.rights": "Todos los derechos reservados",
   "footer.description": "Tu solución completa para la gestión de eventos y tareas",
 

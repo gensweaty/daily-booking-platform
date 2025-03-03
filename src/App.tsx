@@ -234,6 +234,11 @@ const PasswordResetRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Public route - accessible to anyone
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  return <>{children}</>;
+};
+
 const AnimatedRoutes = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -302,8 +307,8 @@ const AnimatedRoutes = () => {
         <Routes location={location}>
           {/* Public routes - accessible to everyone */}
           <Route path="/" element={<Landing />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/legal" element={<Legal />} />
+          <Route path="/contact" element={<PublicRoute><Contact /></PublicRoute>} />
+          <Route path="/legal" element={<PublicRoute><Legal /></PublicRoute>} />
           
           {/* Auth routes - redirect to dashboard if logged in */}
           <Route path="/login" element={

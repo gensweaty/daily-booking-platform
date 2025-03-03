@@ -57,6 +57,14 @@ const hasErrorParams = () => {
   );
 };
 
+// Define a list of public paths that don't require authentication
+const PUBLIC_PATHS = ['/', '/login', '/signup', '/contact', '/legal', '/forgot-password', '/reset-password'];
+
+// Helper to check if the current path is public
+const isPublicPath = (path: string) => {
+  return PUBLIC_PATHS.some(publicPath => path === publicPath || path.startsWith(publicPath + '/'));
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -81,19 +89,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     
-    // Don't show session expired error on auth-related paths
-    const authPaths = ['/login', '/signup', '/forgot-password', '/reset-password'];
-    const isAuthPath = authPaths.some(path => location.pathname.startsWith(path));
-    const isPublicPath = ['/', '/contact'].includes(location.pathname);
-    
-    if (!isAuthPath && !isPublicPath) {
-      navigate('/login');
-      toast({
-        title: "Session expired",
-        description: "Please sign in again",
-        variant: "destructive",
-      });
+    // Don't show session expired error on public paths
+    if (isPublicPath(location.pathname)) {
+      console.log("Public path detected, not showing session expired error");
+      return;
     }
+    
+    navigate('/login');
+    toast({
+      title: "Session expired",
+      description: "Please sign in again",
+      variant: "destructive",
+    });
   }, [navigate, toast, location.pathname, searchParams]);
 
   const refreshSession = useCallback(async () => {
@@ -123,12 +130,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (!currentSession) {
-        // Only handle as error if not on auth-related path
-        const authPaths = ['/login', '/signup', '/forgot-password', '/reset-password'];
-        const isAuthPath = authPaths.some(path => location.pathname.startsWith(path));
-        
-        if (!isAuthPath) {
+        // Only handle as error if not on public path
+        if (!isPublicPath(location.pathname)) {
           await handleTokenError();
+        } else {
+          // We're on a public path, just update the state
+          setSession(null);
+          setUser(null);
         }
         return;
       }
@@ -258,12 +266,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } catch (error) {
         console.error('Session initialization error:', error);
         
-        // Don't treat session errors as fatal on auth pages
-        const authPaths = ['/login', '/signup', '/forgot-password', '/reset-password'];
-        const isAuthPath = authPaths.some(path => location.pathname.startsWith(path));
-        
-        if (!isAuthPath) {
+        // Don't treat session errors as fatal on public paths
+        if (!isPublicPath(location.pathname)) {
           await handleTokenError();
+        } else {
+          setLoading(false);
         }
       } finally {
         setLoading(false);
@@ -370,10 +377,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.removeItem('supabase.auth.token');
         
         // Don't navigate away if already on public routes
-        const publicPaths = ['/', '/login', '/signup', '/contact', '/forgot-password', '/reset-password'];
-        const isPublicPath = publicPaths.some(path => location.pathname === path);
-        
-        if (!isPublicPath) {
+        if (!isPublicPath(location.pathname)) {
           navigate('/login');
         }
       } else if (event === 'TOKEN_REFRESHED') {

@@ -186,6 +186,7 @@ export const enTranslations = {
   "footer.privacy": "Privacy Policy",
   "footer.navigation": "Navigation",
   "footer.legal": "Legal",
+  "footer.termsAndPrivacy": "Terms and Privacy",
   "footer.rights": "All rights reserved",
   "footer.description": "Your complete solution for event and task management",
 

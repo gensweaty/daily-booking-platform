@@ -12,23 +12,23 @@ export const FooterSection = () => {
   
   const socialLinks = [{
     icon: Facebook,
-    href: "#",
+    href: "https://smartbookly.com/",
     label: "Facebook"
   }, {
     icon: Twitter,
-    href: "#",
+    href: "https://smartbookly.com/",
     label: "Twitter"
   }, {
     icon: Instagram,
-    href: "#",
+    href: "https://smartbookly.com/",
     label: "Instagram"
   }, {
     icon: Linkedin,
-    href: "#",
+    href: "https://smartbookly.com/",
     label: "LinkedIn"
   }, {
     icon: Github,
-    href: "#",
+    href: "https://smartbookly.com/",
     label: "GitHub"
   }];
   
@@ -42,7 +42,7 @@ export const FooterSection = () => {
     label: t('nav.contact'),
     href: "/contact"
   }, {
-    label: t('footer.legal'),
+    label: t('footer.termsAndPrivacy'),
     href: "/legal"
   }];
 

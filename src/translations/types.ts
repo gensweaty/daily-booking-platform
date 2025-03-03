@@ -175,6 +175,7 @@ export type TranslationType = {
   "footer.privacy": string;
   "footer.navigation": string;
   "footer.legal": string;
+  "footer.termsAndPrivacy": string;
   "footer.rights": string;
   "footer.description": string;
 
