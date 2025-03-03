@@ -45,7 +45,7 @@ const Legal = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="bg-card rounded-lg shadow-sm p-8 mb-8">
-            <h1 className="text-3xl font-bold mb-4">Terms of Service & Privacy Policy</h1>
+            <h1 className="text-3xl font-bold mb-4">Terms and Privacy Policy</h1>
             <p className="text-muted-foreground mb-8">Last Updated: 03.03.2025</p>
             
             <section className="mb-10">

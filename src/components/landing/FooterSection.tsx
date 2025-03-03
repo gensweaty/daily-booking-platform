@@ -42,7 +42,7 @@ export const FooterSection = () => {
     label: t('nav.contact'),
     href: "/contact"
   }, {
-    label: t('footer.legal'),
+    label: t('footer.termsAndPrivacy'),
     href: "/legal"
   }];
 
