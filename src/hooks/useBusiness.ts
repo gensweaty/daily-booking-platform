@@ -69,5 +69,8 @@ export const usePublicBusiness = (slug: string) => {
     retry: 3,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+    meta: {
+      skipAuth: true // Special flag to indicate this query should skip auth
+    }
   });
 };

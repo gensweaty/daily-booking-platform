@@ -22,7 +22,8 @@ export default {
     welcome: "Welcome",
     business: "Business",
     statistics: "Statistics",
-    customers: "Customers"
+    customers: "Customers",
+    about: "About"
   },
   nav: {
     signin: "Sign In",
@@ -217,5 +218,63 @@ export default {
     endBeforeStart: "End date cannot be before start date",
     fileSize: "File size exceeds the limit",
     fileType: "File type not supported"
+  },
+  footer: {
+    description: "SmartBookly provides an all-in-one solution for managing your business bookings, appointments, and client information.",
+    navigation: "Navigation",
+    legal: "Legal",
+    rights: "© 2023 SmartBookly. All rights reserved.",
+    termsAndPrivacy: "Terms & Privacy"
+  },
+  cta: {
+    title: "Ready to Grow Your Business?",
+    subtitle: "Join thousands of businesses that use SmartBookly to streamline their operations.",
+    button: "Get Started Today"
+  },
+  booking: {
+    title: "Smart Booking System",
+    description: "Our intuitive booking system makes it easy for clients to schedule appointments and for you to manage your calendar.",
+    feature1: "24/7 online booking for clients",
+    feature2: "Automated reminders and notifications",
+    feature3: "Seamless calendar integration",
+    feature4: "Customizable booking rules and availability"
+  },
+  tasks: {
+    title: "Task Management",
+    description: "Stay organized and on top of your to-do list with our powerful task management system.",
+    feature1: "Create and assign tasks to team members",
+    feature2: "Set priorities and due dates",
+    feature3: "Track progress with visual boards",
+    feature4: "Never miss an important deadline"
+  },
+  crm: {
+    title: "Customer Relationship Management",
+    description: "Build stronger relationships with your clients by keeping track of all their information in one place.",
+    feature1: "Comprehensive client profiles",
+    feature2: "Interaction history and notes",
+    feature3: "Personalized communication",
+    feature4: "Client segmentation and targeting"
+  },
+  analytics: {
+    title: "Insightful Analytics",
+    description: "Make data-driven decisions with our comprehensive analytics and reporting tools.",
+    feature1: "Real-time business performance metrics",
+    feature2: "Customer behavior insights",
+    feature3: "Revenue and growth tracking",
+    feature4: "Customizable reports and dashboards"
+  },
+  business: {
+    events: "Event Planning",
+    health: "Healthcare",
+    sports: "Sports & Fitness",
+    beauty: "Beauty & Wellness",
+    personal: "Personal Services",
+    education: "Education",
+    eventsDesc: "Perfect for event planners and venues",
+    healthDesc: "Ideal for clinics and healthcare providers",
+    sportsDesc: "Great for trainers and sports facilities",
+    beautyDesc: "Designed for salons and spas",
+    personalDesc: "Suitable for consultants and advisors",
+    educationDesc: "Built for tutors and educational centers"
   }
 };

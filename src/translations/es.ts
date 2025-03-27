@@ -22,7 +22,8 @@ export default {
     welcome: "Bienvenido",
     business: "Negocio",
     statistics: "Estadísticas",
-    customers: "Clientes"
+    customers: "Clientes",
+    about: "Acerca de"
   },
   nav: {
     signin: "Iniciar Sesión",
@@ -217,5 +218,63 @@ export default {
     endBeforeStart: "La fecha de finalización no puede ser anterior a la fecha de inicio",
     fileSize: "El tamaño del archivo excede el límite",
     fileType: "Tipo de archivo no soportado"
+  },
+  footer: {
+    description: "SmartBookly proporciona una solución todo en uno para gestionar las reservas, citas e información de clientes de tu negocio.",
+    navigation: "Navegación",
+    legal: "Legal",
+    rights: "© 2023 SmartBookly. Todos los derechos reservados.",
+    termsAndPrivacy: "Términos y Privacidad"
+  },
+  cta: {
+    title: "¿Listo para hacer crecer tu negocio?",
+    subtitle: "Únete a miles de negocios que usan SmartBookly para optimizar sus operaciones.",
+    button: "Comienza Hoy"
+  },
+  booking: {
+    title: "Sistema de Reservas Inteligente",
+    description: "Nuestro sistema de reservas intuitivo facilita que los clientes programen citas y que tú gestiones tu calendario.",
+    feature1: "Reservas en línea 24/7 para clientes",
+    feature2: "Recordatorios y notificaciones automáticos",
+    feature3: "Integración perfecta con el calendario",
+    feature4: "Reglas de reserva y disponibilidad personalizables"
+  },
+  tasks: {
+    title: "Gestión de Tareas",
+    description: "Mantente organizado y al día con tu lista de tareas con nuestro potente sistema de gestión de tareas.",
+    feature1: "Crea y asigna tareas a miembros del equipo",
+    feature2: "Establece prioridades y fechas de vencimiento",
+    feature3: "Sigue el progreso con tableros visuales",
+    feature4: "Nunca pierdas una fecha límite importante"
+  },
+  crm: {
+    title: "Gestión de Relaciones con Clientes",
+    description: "Construye relaciones más sólidas con tus clientes manteniendo un registro de toda su información en un solo lugar.",
+    feature1: "Perfiles completos de clientes",
+    feature2: "Historial de interacciones y notas",
+    feature3: "Comunicación personalizada",
+    feature4: "Segmentación y orientación de clientes"
+  },
+  analytics: {
+    title: "Análisis Perspicaces",
+    description: "Toma decisiones basadas en datos con nuestras herramientas completas de análisis e informes.",
+    feature1: "Métricas de rendimiento empresarial en tiempo real",
+    feature2: "Información sobre el comportamiento del cliente",
+    feature3: "Seguimiento de ingresos y crecimiento",
+    feature4: "Informes y paneles personalizables"
+  },
+  business: {
+    events: "Planificación de Eventos",
+    health: "Salud",
+    sports: "Deportes y Fitness",
+    beauty: "Belleza y Bienestar",
+    personal: "Servicios Personales",
+    education: "Educación",
+    eventsDesc: "Perfecto para planificadores de eventos y lugares",
+    healthDesc: "Ideal para clínicas y proveedores de salud",
+    sportsDesc: "Excelente para entrenadores e instalaciones deportivas",
+    beautyDesc: "Diseñado para salones y spas",
+    personalDesc: "Adecuado para consultores y asesores",
+    educationDesc: "Construido para tutores y centros educativos"
   }
 };

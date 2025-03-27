@@ -7,31 +7,53 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider = ({ children }: { children: React.ReactNode }) => {
   const [language, setLanguage] = useState<Language>(() => {
-    const saved = localStorage.getItem('language');
-    return (saved as Language) || 'en';
+    // Try to get from localStorage, default to 'en'
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('language');
+      return (saved as Language) || 'en';
+    }
+    return 'en';
   });
 
   useEffect(() => {
-    localStorage.setItem('language', language);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('language', language);
+    }
   }, [language]);
 
   const t = (key: string): string => {
     if (!key) return '';
     
-    // Split the key by dots to navigate the translations object
-    const parts = key.split('.');
-    if (parts.length === 1) return key; // If no dots, return the key itself
-    
     try {
+      // Split the key by dots to navigate the translations object
+      const parts = key.split('.');
+      
+      // If no dots or only one part, return the key itself as fallback
+      if (parts.length <= 1) return key;
+      
       // Get the section and the specific key
       const section = parts[0];
       const translationKey = parts[1];
       
-      // Access the translation
-      const translationDict = translations[language] as unknown as TranslationDictionary;
-      if (!translationDict[section]) return key;
+      // Access the translation dictionary for the current language
+      const translationDict = translations[language] as TranslationDictionary;
       
-      return translationDict[section][translationKey] || key;
+      // Check if the section exists in the dictionary
+      if (!translationDict || !translationDict[section]) {
+        console.warn(`Missing translation section: ${section} for language: ${language}`);
+        return key;
+      }
+      
+      // Get the translation from the section
+      const translation = translationDict[section][translationKey];
+      
+      // If no translation found, return the key as fallback
+      if (!translation) {
+        console.warn(`Missing translation: ${key} for language: ${language}`);
+        return key;
+      }
+      
+      return translation;
     } catch (error) {
       console.error(`Translation error for key: ${key}`, error);
       return key;
