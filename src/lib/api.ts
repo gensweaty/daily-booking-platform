@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Note, Task, Reminder } from "@/lib/types";
@@ -164,6 +165,13 @@ export const getUserBusiness = async () => {
 };
 
 export const createBusiness = async (formData: BusinessFormData) => {
+  // Get the current user to ensure we have their ID
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+  
   const slug = formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
   
   const { data, error } = await supabase
@@ -177,12 +185,16 @@ export const createBusiness = async (formData: BusinessFormData) => {
         contact_address: formData.contact_address,
         contact_email: formData.contact_email,
         contact_website: formData.contact_website,
+        user_id: user.id, // Explicitly set the user_id to the current authenticated user
       },
     ])
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error("Error creating business:", error);
+    throw error;
+  }
 
   if (formData.cover_photo) {
     const fileExt = formData.cover_photo.name.split('.').pop();
