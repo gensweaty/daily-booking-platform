@@ -310,8 +310,9 @@ const AnimatedRoutes = () => {
           <Route path="/" element={<Landing />} />
           <Route path="/contact" element={<PublicRoute><Contact /></PublicRoute>} />
           <Route path="/legal" element={<PublicRoute><Legal /></PublicRoute>} />
+          
           {/* Make business page fully public without auth requirement */}
-          <Route path="/:slug" element={<BusinessPage />} />
+          <Route path="/:slug" element={<PublicRoute><BusinessPage /></PublicRoute>} />
           
           {/* Auth routes - redirect to dashboard if logged in */}
           <Route path="/login" element={

@@ -1,4 +1,3 @@
-
 export default {
   common: {
     home: "Home",
@@ -74,7 +73,11 @@ export default {
     month: "Month",
     week: "Week",
     day: "Day",
-    addEvent: "Add Event"
+    addEvent: "Add Event",
+    profile: "Profile",
+    welcome: "Welcome to your dashboard",
+    signOut: "Sign Out",
+    changePassword: "Change Password"
   },
   auth: {
     email: "Email",
@@ -83,6 +86,8 @@ export default {
     resetPassword: "Reset Password",
     passwordConfirm: "Confirm Password",
     name: "Name",
+    emailLabel: "Email Address",
+    usernameLabel: "Username",
     signUpSuccess: "Sign up successful!",
     loginSuccess: "Login successful!",
     logoutSuccess: "Logout successful!",
@@ -90,7 +95,8 @@ export default {
     resetSuccess: "Password reset successful",
     signInButton: "Sign In",
     signUpButton: "Sign Up",
-    description: "Please enter your details to continue"
+    description: "Please enter your details to continue",
+    welcome: "Welcome Back"
   },
   calendar: {
     today: "Today",

@@ -1,235 +1,209 @@
 
-import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
-import { usePublicBusiness } from "@/hooks/useBusiness";
-import { useCalendarEvents } from "@/hooks/useCalendarEvents";
-import { Calendar } from "@/components/Calendar/Calendar";
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import { Business } from "@/lib/types/business";
+import { ArrowLeft, Calendar, Mail, MapPin, Phone, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format } from "date-fns";
-import { Mail, Phone, MapPin, Globe, Calendar as CalendarIcon } from "lucide-react";
 import { BusinessPublicEventDialog } from "@/components/business/BusinessPublicEventDialog";
-import { useToast } from "@/components/ui/use-toast";
-import { LanguageProvider, useLanguage } from "@/contexts/LanguageContext";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "next-themes";
 
-const BusinessPageContent = () => {
-  const { slug } = useParams<{ slug: string }>();
-  const { data: business, isLoading, isError } = usePublicBusiness(slug || "");
-  const { events } = useCalendarEvents();
-  const { toast } = useToast();
-  const { t } = useLanguage();
+const BusinessPage = () => {
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-
-  console.log("Business page loaded with slug:", slug);
-  console.log("Business data loading state:", isLoading);
-  console.log("Business data error state:", isError);
-
-  // If the URL has a date parameter, use it to open the booking dialog
+  const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
+  const { t } = useLanguage();
+  const { theme } = useTheme();
+  
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const dateParam = params.get("date");
-    if (dateParam) {
+    const fetchBusiness = async () => {
       try {
-        const date = new Date(dateParam);
-        if (!isNaN(date.getTime())) {
-          setSelectedDate(date);
-          setIsEventDialogOpen(true);
+        setLoading(true);
+        
+        // Direct database query to get the business by slug
+        const { data, error } = await supabase
+          .from('businesses')
+          .select('*')
+          .eq('slug', slug)
+          .maybeSingle();
+        
+        if (error) {
+          console.error('Error fetching business:', error);
+          return;
+        }
+        
+        if (!data) {
+          console.log('Business not found');
+          return;
+        }
+        
+        setBusiness(data);
+        
+        // Fetch cover photo if it exists
+        if (data.cover_photo_path) {
+          const { data: fileData } = await supabase.storage
+            .from('business_photos')
+            .getPublicUrl(data.cover_photo_path);
+          
+          if (fileData) {
+            setCoverPhotoUrl(fileData.publicUrl);
+          }
         }
       } catch (error) {
-        console.error("Invalid date parameter:", error);
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
       }
+    };
+    
+    if (slug) {
+      fetchBusiness();
     }
-  }, []);
-
-  if (isLoading) {
+  }, [slug]);
+  
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+        <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div>
       </div>
     );
   }
-
-  if (isError || !business) {
-    console.error("Error or no business data");
+  
+  if (!business) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <h1 className="text-2xl font-bold mb-4">{t('errors.businessNotFound')}</h1>
-        <p className="text-muted-foreground mb-8">{t('errors.businessRemoved')}</p>
-        <Link to="/">
-          <Button>{t('common.home')}</Button>
-        </Link>
+        <h1 className="text-2xl font-bold mb-4">{t('business.businessNotFound')}</h1>
+        <p className="text-muted-foreground mb-6">{t('business.businessRemoved')}</p>
+        <Button onClick={() => navigate('/')}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          {t('common.home')}
+        </Button>
       </div>
     );
   }
-
-  console.log("Business data loaded successfully:", business.name);
-
-  const handleDateClick = (date: Date) => {
-    setSelectedDate(date);
-    setIsEventDialogOpen(true);
-  };
-
+  
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="border-b">
-        <div className="container mx-auto flex items-center justify-between p-4">
-          <div className="flex items-center gap-2">
-            <Link to="/" className="flex items-center gap-2">
-              <img 
-                src="/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" 
-                alt="SmartBookly Logo" 
-                className="h-8 w-auto" 
-              />
-            </Link>
-          </div>
-          <div className="flex items-center gap-4">
-            <LanguageSwitcher />
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
-
-      {/* Hero section with cover photo */}
-      {business.cover_photo_path ? (
-        <div className="w-full h-64 relative">
-          <img 
-            src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/business_photos/${business.cover_photo_path}`} 
-            alt={business.name} 
-            className="w-full h-full object-cover" 
+    <div className="min-h-screen bg-background">
+      {/* Cover photo */}
+      <div className="relative h-64 md:h-80 bg-muted">
+        {coverPhotoUrl ? (
+          <img
+            src={coverPhotoUrl}
+            alt={business.name}
+            className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent"></div>
-          <div className="absolute bottom-0 left-0 right-0 container mx-auto p-6">
-            <h1 className="text-3xl font-bold text-white">{business.name}</h1>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-muted">
+            <p className="text-muted-foreground">{t('business.noCoverPhoto')}</p>
           </div>
+        )}
+        <div className="absolute top-4 left-4">
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-background/80 backdrop-blur-sm"
+            onClick={() => navigate('/')}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            {t('common.home')}
+          </Button>
         </div>
-      ) : (
-        <div className="w-full bg-gradient-to-r from-primary/20 to-secondary/20 h-32 flex items-center">
-          <div className="container mx-auto p-6">
-            <h1 className="text-3xl font-bold">{business.name}</h1>
-          </div>
-        </div>
-      )}
-
-      {/* Main content */}
-      <main className="container mx-auto p-4 md:p-6 lg:py-8">
-        <div className="grid md:grid-cols-3 gap-8">
-          {/* Sidebar with business info */}
-          <div className="space-y-6">
+      </div>
+      
+      <div className="container px-4 py-8 max-w-5xl mx-auto">
+        <div className="flex flex-col md:flex-row gap-8">
+          <div className="flex-1 space-y-6">
             <div>
-              <h2 className="text-xl font-semibold mb-4">{t('common.about')}</h2>
-              <p className="text-muted-foreground whitespace-pre-wrap">
+              <h1 className="text-3xl font-bold mb-2">{business.name}</h1>
+              <p className="text-muted-foreground">
                 {business.description || t('business.noDescription')}
               </p>
             </div>
-
-            <div>
-              <h2 className="text-xl font-semibold mb-4">{t('businessSettings.contactInfo')}</h2>
-              <ul className="space-y-3">
+            
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold">{t('common.contact')}</h2>
+              <div className="space-y-2">
                 {business.contact_phone && (
-                  <li className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-primary" />
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
                     <span>{business.contact_phone}</span>
-                  </li>
+                  </div>
                 )}
                 {business.contact_email && (
-                  <li className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-primary" />
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
                     <a 
-                      href={`mailto:${business.contact_email}`} 
-                      className="hover:text-primary transition-colors"
+                      href={`mailto:${business.contact_email}`}
+                      className="text-primary hover:underline"
                     >
                       {business.contact_email}
                     </a>
-                  </li>
+                  </div>
                 )}
                 {business.contact_address && (
-                  <li className="flex items-start gap-2">
-                    <MapPin className="h-4 w-4 text-primary mt-1" />
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-1" />
                     <span>{business.contact_address}</span>
-                  </li>
+                  </div>
                 )}
                 {business.contact_website && (
-                  <li className="flex items-center gap-2">
-                    <Globe className="h-4 w-4 text-primary" />
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-muted-foreground" />
                     <a 
-                      href={business.contact_website.startsWith('http') ? business.contact_website : `https://${business.contact_website}`} 
-                      target="_blank" 
+                      href={business.contact_website.startsWith('http') 
+                        ? business.contact_website 
+                        : `https://${business.contact_website}`}
+                      target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-primary transition-colors"
+                      className="text-primary hover:underline"
                     >
-                      {business.contact_website.replace(/^https?:\/\//, '')}
+                      {business.contact_website}
                     </a>
-                  </li>
+                  </div>
                 )}
-              </ul>
+              </div>
             </div>
-
-            <div>
+          </div>
+          
+          <div className="md:w-1/3 space-y-6">
+            <div className="bg-card rounded-lg p-6 shadow-sm border">
+              <h3 className="font-medium mb-4">{t('common.bookingCalendar')}</h3>
               <Button 
-                className="w-full flex items-center gap-2"
-                onClick={() => {
-                  setSelectedDate(new Date());
-                  setIsEventDialogOpen(true);
-                }}
+                className="w-full flex items-center justify-center gap-2"
+                onClick={() => setIsEventDialogOpen(true)}
               >
-                <CalendarIcon className="h-4 w-4" />
-                {t('events.requestEvent')}
+                <Calendar className="h-4 w-4" />
+                {t('business.bookNow')}
               </Button>
             </div>
-          </div>
-
-          {/* Main content with booking calendar */}
-          <div className="md:col-span-2">
-            <Tabs defaultValue="calendar" className="w-full">
-              <TabsList className="mb-4">
-                <TabsTrigger value="calendar">{t('dashboard.bookingCalendar')}</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="calendar">
-                <div className="border rounded-lg p-4">
-                  <Calendar 
-                    defaultView="month" 
-                    onDateClick={handleDateClick}
-                    publicMode={true}
-                  />
-                </div>
-              </TabsContent>
-            </Tabs>
+            
+            <div className="bg-muted/30 rounded-lg p-4 text-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <img 
+                  src={theme === 'dark' 
+                    ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                    : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+                  }
+                  alt="SmartBookly Logo" 
+                  className="h-5 w-auto"
+                />
+                <span className="text-xs text-muted-foreground">{t('business.poweredBy')} SmartBookly</span>
+              </div>
+            </div>
           </div>
         </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="mt-12 border-t py-8">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-muted-foreground">&copy; {new Date().getFullYear()} {business.name}. {t('footer.rights')}</p>
-          <p className="text-xs text-muted-foreground mt-2">{t('business.poweredBy')} <a href="/" className="text-primary hover:underline">SmartBookly</a></p>
-        </div>
-      </footer>
-
-      {/* Booking dialog */}
-      {isEventDialogOpen && selectedDate && (
-        <BusinessPublicEventDialog
-          open={isEventDialogOpen}
-          onOpenChange={setIsEventDialogOpen}
-          selectedDate={selectedDate}
-          businessId={business.id}
-        />
-      )}
+      </div>
+      
+      <BusinessPublicEventDialog
+        isOpen={isEventDialogOpen}
+        onClose={() => setIsEventDialogOpen(false)}
+        business={business}
+      />
     </div>
-  );
-};
-
-// Wrapper component that provides the LanguageProvider
-const BusinessPage = () => {
-  return (
-    <LanguageProvider>
-      <BusinessPageContent />
-    </LanguageProvider>
   );
 };
 
