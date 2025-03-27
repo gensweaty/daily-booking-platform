@@ -8,11 +8,12 @@ import { useBusiness } from "@/hooks/useBusiness";
 import { ExternalLink, ClipboardCopy, PlusCircle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { supabase } from "@/lib/supabase";
 
 export const BusinessTab = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
-  const { business, isLoading, refetch } = useBusiness();
+  const { business, isLoading, createBusiness, updateBusiness } = useBusiness();
   const { toast } = useToast();
   const { t } = useLanguage();
   
@@ -40,9 +41,7 @@ export const BusinessTab = () => {
   
   const handleDialogClose = (saved: boolean) => {
     setIsDialogOpen(false);
-    if (saved) {
-      refetch();
-    }
+    // No need to call refetch here, as useBusiness is likely using React Query already
   };
   
   const copyLinkToClipboard = () => {
@@ -166,7 +165,7 @@ export const BusinessTab = () => {
       )}
       
       <BusinessDialog 
-        isOpen={isDialogOpen} 
+        open={isDialogOpen} 
         onClose={handleDialogClose} 
         business={business}
       />

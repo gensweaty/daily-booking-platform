@@ -199,7 +199,7 @@ const BusinessPage = () => {
       </div>
       
       <BusinessPublicEventDialog
-        isOpen={isEventDialogOpen}
+        open={isEventDialogOpen}
         onClose={() => setIsEventDialogOpen(false)}
         business={business}
       />
