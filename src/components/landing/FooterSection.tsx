@@ -12,23 +12,23 @@ export const FooterSection = () => {
   
   const socialLinks = [{
     icon: Facebook,
-    href: "https://smartbookly.com/",
+    href: "https://facebook.com/smartbookly",
     label: "Facebook"
   }, {
     icon: Twitter,
-    href: "https://smartbookly.com/",
+    href: "https://twitter.com/smartbookly",
     label: "Twitter"
   }, {
     icon: Instagram,
-    href: "https://smartbookly.com/",
+    href: "https://instagram.com/smartbookly",
     label: "Instagram"
   }, {
     icon: Linkedin,
-    href: "https://smartbookly.com/",
+    href: "https://linkedin.com/company/smartbookly",
     label: "LinkedIn"
   }, {
     icon: Github,
-    href: "https://smartbookly.com/",
+    href: "https://github.com/smartbookly",
     label: "GitHub"
   }];
   

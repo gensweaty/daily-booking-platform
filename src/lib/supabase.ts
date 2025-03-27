@@ -14,7 +14,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: true,
     flowType: 'pkce',
-    storage: localStorage,
   },
 });
 
@@ -34,9 +33,39 @@ supabase.auth.onAuthStateChange((event, session) => {
     userId: session?.user?.id,
     userEmail: session?.user?.email,
   });
+
+  // Special handling for email confirmation code on dashboard
+  if (window.location.pathname === '/dashboard' && window.location.search.includes('code=')) {
+    const searchParams = new URLSearchParams(window.location.search);
+    const code = searchParams.get('code');
+    
+    if (code) {
+      console.log("Dashboard detected with confirmation code:", code.substring(0, 5) + '...');
+      
+      // Process the code to exchange for a session
+      (async () => {
+        try {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (error) {
+            console.error("Error exchanging code for session:", error);
+            // Redirect to login on error
+            window.location.href = '/login?error=confirmation_failed';
+          } else if (data?.session) {
+            console.log("Successfully exchanged code for session on dashboard");
+            // Refresh dashboard without the code parameter
+            window.location.href = '/dashboard';
+          }
+        } catch (err) {
+          console.error("Exception exchanging code:", err);
+          window.location.href = '/login?error=confirmation_failed';
+        }
+      })();
+    }
+  }
 });
 
-// Specific handling for production environment
+// Specific handling for production environment - needed for smartbookly.com
 const isProdEnv = window.location.host === 'smartbookly.com';
 
 if (isProdEnv) {

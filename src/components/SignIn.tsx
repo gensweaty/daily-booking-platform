@@ -28,12 +28,7 @@ export const SignIn = () => {
 
       if (error) throw error;
 
-      toast({
-        title: t("auth.loginSuccess") || "Login successful!",
-        description: t("auth.welcome") || "Welcome back",
-      });
-      
-      // AuthContext will handle the redirect based on redirectAfterLogin
+      // No need to navigate here, AuthContext will handle it
     } catch (error: any) {
       console.error('Login error:', error);
       toast({
@@ -48,6 +43,7 @@ export const SignIn = () => {
 
   // Ensure we clear any old recovery tokens when visiting the forgot password page
   const handleForgotPasswordClick = (e: React.MouseEvent) => {
+    // Prevent default to handle navigation manually
     e.preventDefault();
     e.stopPropagation();
     
@@ -62,11 +58,11 @@ export const SignIn = () => {
   return (
     <form onSubmit={handleSignIn} className="space-y-4">
       <div className="mb-4">
-        <Label htmlFor="email" className="block text-sm font-medium mb-1">{t("auth.email")}</Label>
+        <Label htmlFor="email" className="block text-sm font-medium mb-1">Email</Label>
         <Input
           id="email"
           type="email"
-          placeholder={t("auth.email")}
+          placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -76,19 +72,19 @@ export const SignIn = () => {
       </div>
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
-          <Label htmlFor="password" className="block text-sm font-medium">{t("auth.password")}</Label>
+          <Label htmlFor="password" className="block text-sm font-medium">Password</Label>
           <button 
             type="button"
             className="text-xs text-primary hover:underline focus:outline-none"
             onClick={handleForgotPasswordClick}
           >
-            {t("auth.forgotPassword")}
+            Forgot password?
           </button>
         </div>
         <Input
           id="password"
           type="password"
-          placeholder={t("auth.password")}
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -101,7 +97,7 @@ export const SignIn = () => {
         className="w-full bg-primary text-white font-medium"
         disabled={loading}
       >
-        {loading ? t("common.loading") : t("auth.signInButton")}
+        {loading ? "Signing In..." : "Sign In"}
       </Button>
     </form>
   );

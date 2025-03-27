@@ -6,11 +6,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import Index from "./pages/Index";
 import Landing from "./pages/Landing";
 import Contact from "./pages/Contact";
 import Legal from "./pages/Legal";
-import BusinessPage from "./pages/BusinessPage";
 import { AuthUI } from "./components/AuthUI";
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
@@ -310,9 +310,6 @@ const AnimatedRoutes = () => {
           <Route path="/contact" element={<PublicRoute><Contact /></PublicRoute>} />
           <Route path="/legal" element={<PublicRoute><Legal /></PublicRoute>} />
           
-          {/* Make business page fully public without auth requirement */}
-          <Route path="/:slug" element={<PublicRoute><BusinessPage /></PublicRoute>} />
-          
           {/* Auth routes - redirect to dashboard if logged in */}
           <Route path="/login" element={
             <AuthRoute>
@@ -365,15 +362,17 @@ const AnimatedRoutes = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <AnimatedRoutes />
-          </TooltipProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <LanguageProvider>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <AnimatedRoutes />
+            </TooltipProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </LanguageProvider>
     </BrowserRouter>
   </QueryClientProvider>
 );
