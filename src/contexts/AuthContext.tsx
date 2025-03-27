@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -95,6 +94,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     
+    // Store the current path for redirect after login
+    localStorage.setItem("redirectAfterLogin", location.pathname);
+    
     navigate('/login');
     toast({
       title: "Session expired",
@@ -141,6 +143,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
+      // If we have a session, explicitly set it to ensure persistence
+      await supabase.auth.setSession({
+        access_token: currentSession.access_token,
+        refresh_token: currentSession.refresh_token
+      });
+      
       setSession(currentSession);
       setUser(currentSession.user);
     } catch (error) {
@@ -299,6 +307,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event, newSession ? 'Session exists' : 'No session');
+      
+      // Handle redirection after login
+      if (event === 'SIGNED_IN' && newSession) {
+        const redirectPath = localStorage.getItem("redirectAfterLogin") || '/dashboard';
+        localStorage.removeItem("redirectAfterLogin");
+        
+        console.log(`User signed in, redirecting to: ${redirectPath}`);
+        setSession(newSession);
+        setUser(newSession.user);
+        
+        // Navigate instead of using window.location for React Router compatibility
+        navigate(redirectPath, { replace: true });
+        return;
+      }
       
       // Handle dashboard with code parameter (email confirmation)
       if (location.pathname === '/dashboard' && searchParams.has('code')) {
