@@ -24,7 +24,13 @@ const BusinessPage = () => {
       try {
         setLoading(true);
         
-        // Direct database query to get the business by slug
+        if (!slug) {
+          console.error('No slug provided');
+          setLoading(false);
+          return;
+        }
+        
+        // Direct database query to get the business by slug - explicitly using the public access
         const { data, error } = await supabase
           .from('businesses')
           .select('*')
@@ -33,11 +39,13 @@ const BusinessPage = () => {
         
         if (error) {
           console.error('Error fetching business:', error);
+          setLoading(false);
           return;
         }
         
         if (!data) {
           console.log('Business not found');
+          setLoading(false);
           return;
         }
         
@@ -60,9 +68,7 @@ const BusinessPage = () => {
       }
     };
     
-    if (slug) {
-      fetchBusiness();
-    }
+    fetchBusiness();
   }, [slug]);
   
   if (loading) {

@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -309,8 +310,8 @@ const AnimatedRoutes = () => {
           <Route path="/contact" element={<PublicRoute><Contact /></PublicRoute>} />
           <Route path="/legal" element={<PublicRoute><Legal /></PublicRoute>} />
           
-          {/* Make business page fully public without auth requirement */}
-          <Route path="/:slug" element={<PublicRoute><BusinessPage /></PublicRoute>} />
+          {/* Business page - EXPLICITLY PUBLIC without auth protection */}
+          <Route path="/:slug" element={<BusinessPage />} />
           
           {/* Auth routes - redirect to dashboard if logged in */}
           <Route path="/login" element={
