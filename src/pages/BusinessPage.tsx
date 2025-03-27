@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -57,17 +56,13 @@ const BusinessPage = () => {
           console.log("Cover photo path:", data.cover_photo_path);
           
           // Get public URL for the image
-          const { data: fileData, error: storageError } = supabase.storage
+          const { data: fileData } = supabase.storage
             .from('business_photos')
             .getPublicUrl(data.cover_photo_path);
           
-          if (storageError) {
-            console.error("Error fetching public URL:", storageError);
-          } else {
-            console.log("Public URL response:", fileData);
-            if (fileData && fileData.publicUrl) {
-              setCoverPhotoUrl(fileData.publicUrl);
-            }
+          console.log("Public URL response:", fileData);
+          if (fileData && fileData.publicUrl) {
+            setCoverPhotoUrl(fileData.publicUrl);
           }
           
           // If getPublicUrl fails, try a fallback approach with signed URLs
