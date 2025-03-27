@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -6,17 +5,7 @@ import { Calendar } from "@/components/Calendar/Calendar";
 import { Loader2, ChevronLeft, Globe, Phone, Mail, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
-
-interface Business {
-  id: string;
-  name: string;
-  description?: string;
-  contact_phone?: string;
-  contact_address?: string;
-  contact_email?: string;
-  contact_website?: string;
-  cover_photo_path?: string;
-}
+import { Business } from "@/lib/types";
 
 export const BusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -37,13 +26,13 @@ export const BusinessPage = () => {
           return;
         }
         
-        const { data, error } = await supabase
+        const { data, error: fetchError } = await supabase
           .from("businesses")
           .select("*")
           .eq("slug", slug)
           .maybeSingle();
 
-        if (error) throw error;
+        if (fetchError) throw fetchError;
         
         if (!data) {
           setError("Business not found");
@@ -53,17 +42,18 @@ export const BusinessPage = () => {
         setBusiness(data);
         
         // Fetch cover photo if available
-        if (data.cover_photo_path) {
-          const { data: fileData, error: fileError } = await supabase.storage
-            .from('business-photos')
-            .getPublicUrl(data.cover_photo_path);
+        if (data.cover_photo) {
+          const photoResult = await supabase.storage
+            .from('business-images')
+            .getPublicUrl(data.cover_photo);
           
-          if (fileError) throw fileError;
-          setCoverPhotoUrl(fileData.publicUrl);
+          if (photoResult.data) {
+            setCoverPhotoUrl(photoResult.data.publicUrl);
+          }
         }
-      } catch (error: any) {
-        console.error("Error fetching business:", error);
-        setError(error.message || "Failed to load business information");
+      } catch (err: any) {
+        console.error("Error fetching business:", err);
+        setError(err.message || "Failed to load business information");
       } finally {
         setIsLoading(false);
       }

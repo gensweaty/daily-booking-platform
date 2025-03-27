@@ -1,6 +1,7 @@
-
-import { Calendar, ChartBar, ListTodo, Users } from "lucide-react";
-import { useLanguage } from "@/contexts/LanguageContext";
+import React from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { motion } from 'framer-motion';
+import FeatureCard from './FeatureCard';
 
 const calendarViews = [
   {
@@ -16,8 +17,6 @@ const calendarViews = [
     alt: "Day View",
   },
 ];
-
-import { FeatureCard } from "./FeatureCard";
 
 export const FeatureSection = () => {
   const { t } = useLanguage();

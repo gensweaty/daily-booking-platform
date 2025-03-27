@@ -5,11 +5,12 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { BusinessButton } from "@/components/business/BusinessButton";
-import { BusinessDialog, BusinessData } from "@/components/business/BusinessDialog";
+import { BusinessDialog } from "@/components/business/BusinessDialog";
 import { BusinessCard } from "@/components/business/BusinessCard";
 import { UnconfirmedEventsList } from "@/components/business/UnconfirmedEventsList";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
+import { Business } from "@/lib/types";
 
 export const BusinessDashboard = () => {
   const { user } = useAuth();
@@ -17,7 +18,7 @@ export const BusinessDashboard = () => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
-  const [business, setBusiness] = useState<BusinessData | null>(null);
+  const [business, setBusiness] = useState<Business | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [refreshEvents, setRefreshEvents] = useState(0);
 
@@ -53,8 +54,17 @@ export const BusinessDashboard = () => {
     fetchBusiness();
   }, [user, navigate, toast, t]);
 
-  const handleBusinessCreated = (newBusiness: BusinessData) => {
+  const handleBusinessCreated = (newBusiness: Business) => {
     setBusiness(newBusiness);
+  };
+  
+  const handleBusinessDelete = (id: string) => {
+    // Add a delete handler
+    toast({
+      title: t("business.deleted"),
+      description: t("business.businessDeleted"),
+    });
+    setBusiness(null);
   };
 
   if (isLoading) {
@@ -74,7 +84,11 @@ export const BusinessDashboard = () => {
 
       {business ? (
         <div className="grid grid-cols-1 gap-6">
-          <BusinessCard business={business} onEdit={() => setIsDialogOpen(true)} />
+          <BusinessCard 
+            business={business} 
+            onEdit={() => setIsDialogOpen(true)}
+            onDelete={handleBusinessDelete}
+          />
           
           <UnconfirmedEventsList 
             businessId={business.id} 
@@ -91,10 +105,10 @@ export const BusinessDashboard = () => {
       )}
 
       <BusinessDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onBusinessCreated={handleBusinessCreated}
-        existingBusiness={business || undefined}
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onSave={handleBusinessCreated}
+        business={business || undefined}
       />
     </div>
   );

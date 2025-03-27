@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { Business } from '@/lib/types';
+import { Business, BusinessData } from '@/lib/types';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Upload } from 'lucide-react';
 
@@ -233,3 +234,4 @@ export const BusinessDialog: React.FC<BusinessDialogProps> = ({
     </Dialog>
   );
 };
+
