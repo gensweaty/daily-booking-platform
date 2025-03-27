@@ -48,7 +48,8 @@ export default {
     sports: "Deportes y Fitness",
     beauty: "Belleza y Bienestar",
     personal: "Servicios Personales",
-    education: "Educación"
+    education: "Educación",
+    mainTitle: "Características Que Potencian Tu Negocio"
   },
   businessTypes: {
     events: "Planificación de Eventos",
@@ -69,7 +70,11 @@ export default {
     statistics: "Estadísticas",
     tasks: "Tareas",
     crm: "Clientes",
-    subtitle: "Gestiona tu negocio eficientemente"
+    subtitle: "Gestiona tu negocio eficientemente",
+    month: "Mes",
+    week: "Semana",
+    day: "Día",
+    addEvent: "Añadir Evento"
   },
   auth: {
     email: "Correo electrónico",
@@ -239,22 +244,6 @@ export default {
     feature3: "Integración perfecta con el calendario",
     feature4: "Reglas de reserva y disponibilidad personalizables"
   },
-  tasks: {
-    title: "Gestión de Tareas",
-    description: "Mantente organizado y al día con tu lista de tareas con nuestro potente sistema de gestión de tareas.",
-    feature1: "Crea y asigna tareas a miembros del equipo",
-    feature2: "Establece prioridades y fechas de vencimiento",
-    feature3: "Sigue el progreso con tableros visuales",
-    feature4: "Nunca pierdas una fecha límite importante"
-  },
-  crm: {
-    title: "Gestión de Relaciones con Clientes",
-    description: "Construye relaciones más sólidas con tus clientes manteniendo un registro de toda su información en un solo lugar.",
-    feature1: "Perfiles completos de clientes",
-    feature2: "Historial de interacciones y notas",
-    feature3: "Comunicación personalizada",
-    feature4: "Segmentación y orientación de clientes"
-  },
   analytics: {
     title: "Análisis Perspicaces",
     description: "Toma decisiones basadas en datos con nuestras herramientas completas de análisis e informes.",
@@ -263,18 +252,12 @@ export default {
     feature3: "Seguimiento de ingresos y crecimiento",
     feature4: "Informes y paneles personalizables"
   },
-  business: {
-    events: "Planificación de Eventos",
-    health: "Salud",
-    sports: "Deportes y Fitness",
-    beauty: "Belleza y Bienestar",
-    personal: "Servicios Personales",
-    education: "Educación",
-    eventsDesc: "Perfecto para planificadores de eventos y lugares",
-    healthDesc: "Ideal para clínicas y proveedores de salud",
-    sportsDesc: "Excelente para entrenadores e instalaciones deportivas",
-    beautyDesc: "Diseñado para salones y spas",
-    personalDesc: "Adecuado para consultores y asesores",
-    educationDesc: "Construido para tutores y centros educativos"
+  crm: {
+    title: "Gestión de Relaciones con Clientes",
+    description: "Construye relaciones más sólidas con tus clientes manteniendo un registro de toda su información en un solo lugar.",
+    feature1: "Perfiles completos de clientes",
+    feature2: "Historial de interacciones y notas",
+    feature3: "Comunicación personalizada",
+    feature4: "Segmentación y orientación de clientes"
   }
 };

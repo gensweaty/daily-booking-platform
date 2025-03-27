@@ -48,7 +48,8 @@ export default {
     sports: "Sports & Fitness",
     beauty: "Beauty & Wellness",
     personal: "Personal Services",
-    education: "Education"
+    education: "Education",
+    mainTitle: "Features That Power Your Business"
   },
   businessTypes: {
     events: "Event Planning",
@@ -69,7 +70,11 @@ export default {
     statistics: "Statistics",
     tasks: "Tasks",
     crm: "Customers",
-    subtitle: "Manage your business efficiently"
+    subtitle: "Manage your business efficiently",
+    month: "Month",
+    week: "Week",
+    day: "Day",
+    addEvent: "Add Event"
   },
   auth: {
     email: "Email",
@@ -239,22 +244,6 @@ export default {
     feature3: "Seamless calendar integration",
     feature4: "Customizable booking rules and availability"
   },
-  tasks: {
-    title: "Task Management",
-    description: "Stay organized and on top of your to-do list with our powerful task management system.",
-    feature1: "Create and assign tasks to team members",
-    feature2: "Set priorities and due dates",
-    feature3: "Track progress with visual boards",
-    feature4: "Never miss an important deadline"
-  },
-  crm: {
-    title: "Customer Relationship Management",
-    description: "Build stronger relationships with your clients by keeping track of all their information in one place.",
-    feature1: "Comprehensive client profiles",
-    feature2: "Interaction history and notes",
-    feature3: "Personalized communication",
-    feature4: "Client segmentation and targeting"
-  },
   analytics: {
     title: "Insightful Analytics",
     description: "Make data-driven decisions with our comprehensive analytics and reporting tools.",
@@ -263,18 +252,12 @@ export default {
     feature3: "Revenue and growth tracking",
     feature4: "Customizable reports and dashboards"
   },
-  business: {
-    events: "Event Planning",
-    health: "Healthcare",
-    sports: "Sports & Fitness",
-    beauty: "Beauty & Wellness",
-    personal: "Personal Services",
-    education: "Education",
-    eventsDesc: "Perfect for event planners and venues",
-    healthDesc: "Ideal for clinics and healthcare providers",
-    sportsDesc: "Great for trainers and sports facilities",
-    beautyDesc: "Designed for salons and spas",
-    personalDesc: "Suitable for consultants and advisors",
-    educationDesc: "Built for tutors and educational centers"
+  crm: {
+    title: "Customer Relationship Management",
+    description: "Build stronger relationships with your clients by keeping track of all their information in one place.",
+    feature1: "Comprehensive client profiles",
+    feature2: "Interaction history and notes",
+    feature3: "Personalized communication",
+    feature4: "Client segmentation and targeting"
   }
 };

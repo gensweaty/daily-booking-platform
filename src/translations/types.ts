@@ -23,5 +23,10 @@ export interface TranslationDictionary {
   businessSettings: Record<string, string>;
   events: Record<string, string>;
   errors: Record<string, string>;
+  footer: Record<string, string>;
+  cta: Record<string, string>;
+  booking: Record<string, string>;
+  analytics: Record<string, string>;
+  crm: Record<string, string>;
   [key: string]: Record<string, string>;
 }
