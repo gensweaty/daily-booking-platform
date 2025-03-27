@@ -1,101 +1,66 @@
-
-import { LucideIcon } from "lucide-react";
-import { CheckCircle } from "lucide-react";
-import { ImageCarousel } from "./ImageCarousel";
-import { motion } from "framer-motion";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { TranslationType } from "@/translations/types";
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { Card, CardContent } from '@/components/ui/card';
+import Image from '@/components/ui/avatar';
+import { TranslationKey } from '@/translations/types'; // Fixed import
 
 interface FeatureCardProps {
-  icon: LucideIcon;
   title: string;
   description: string;
-  benefits: string[];
-  image?: string;
-  carousel?: {
-    src: string;
-    alt: string;
-    title?: string;
-  }[];
-  reverse?: boolean;
-  translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks';
+  icon: string;
+  features: string[];
+  index: number;
 }
 
-export const FeatureCard = ({
-  icon: Icon,
-  title,
-  description,
-  benefits,
-  image,
-  carousel,
-  reverse,
-  translationPrefix,
-}: FeatureCardProps) => {
+const FeatureCard: React.FC<FeatureCardProps> = ({ title, description, icon, features, index }) => {
   const { t } = useLanguage();
-  
-  const getTranslationKey = (key: string): keyof TranslationType => {
-    return `${translationPrefix}.${key}` as keyof TranslationType;
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 50 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        delay: 0.2 * index,
+        duration: 0.5,
+        type: 'spring',
+        stiffness: 100,
+      },
+    },
   };
-  
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      className="w-full md:w-1/2 lg:w-1/3 px-4 mb-8"
+      variants={cardVariants}
+      initial="hidden"
+      whileInView="visible"
       viewport={{ once: true }}
-      transition={{ duration: 0.5 }}
-      className={`grid md:grid-cols-2 gap-12 items-center mb-20 ${
-        reverse ? 'md:flex-row-reverse' : ''
-      }`}
     >
-      <div className={`space-y-6 ${reverse ? 'md:order-2' : ''} order-1`}>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Icon className="w-6 h-6 text-primary animate-pulse" />
+      <Card className="h-full flex flex-col justify-between">
+        <CardContent className="p-6">
+          <div className="flex items-center mb-4">
+            <Image src={icon} alt={title} className="mr-4 w-12 h-12 rounded-full" />
+            <h3 className="text-xl font-semibold">{t(title)}</h3>
           </div>
-          <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            {t(getTranslationKey('title'))}
-          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{t(description)}</p>
+          <ul>
+            {features.map((feature, featureIndex) => (
+              <li key={featureIndex} className="mb-2 flex items-center">
+                <span className="mr-2 text-green-500">✓</span>
+                {t(feature.toString())}
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+        <div className="p-6">
+          <Button variant="secondary">{t('common.learnMore')}</Button>
         </div>
-        <p className="text-lg text-muted-foreground">{t(getTranslationKey('description'))}</p>
-        <ul className="space-y-3">
-          {benefits.map((benefit, idx) => (
-            <motion.li
-              key={idx}
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.1 }}
-              className="flex items-start gap-2"
-            >
-              <CheckCircle className="w-5 h-5 text-primary mt-1" />
-              <span>{t(getTranslationKey(`feature${idx + 1}` as const))}</span>
-            </motion.li>
-          ))}
-        </ul>
-      </div>
-      <motion.div
-        initial={{ opacity: 0, x: reverse ? -50 : 50 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.5 }}
-        className={`relative ${reverse ? 'md:order-1' : ''} order-2`}
-      >
-        <div className="rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300 bg-white">
-          {carousel ? (
-            <ImageCarousel 
-              images={carousel} 
-              className="mx-[-1rem]"
-              permanentArrows={true}
-            />
-          ) : (
-            <img 
-              src={image} 
-              alt={t(getTranslationKey('title'))} 
-              className="w-full h-[400px] object-contain p-4"
-            />
-          )}
-        </div>
-      </motion.div>
+      </Card>
     </motion.div>
   );
 };
+
+export default FeatureCard;

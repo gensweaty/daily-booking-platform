@@ -1,356 +1,234 @@
-
-import { useState, useEffect } from "react";
-import { useToast } from "@/components/ui/use-toast";
-import { Button } from "@/components/ui/button";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { slugify } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
-
-export interface BusinessData {
-  id: string;
-  name: string;
-  description?: string;
-  contact_phone?: string;
-  contact_address?: string;
-  contact_email?: string;
-  contact_website?: string;
-  slug: string;
-  cover_photo_path?: string;
-}
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { Business } from '@/lib/types';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { Upload } from 'lucide-react';
 
 interface BusinessDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onBusinessCreated: (business: BusinessData) => void;
-  existingBusiness?: BusinessData;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (business: Business) => void;
+  business?: Business;
 }
 
-export const BusinessDialog = ({
-  open,
-  onOpenChange,
-  onBusinessCreated,
-  existingBusiness,
-}: BusinessDialogProps) => {
-  const { t } = useLanguage();
-  const { toast } = useToast();
+export const BusinessDialog: React.FC<BusinessDialogProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  business,
+}) => {
   const { user } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
-  const [contactAddress, setContactAddress] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactWebsite, setContactWebsite] = useState("");
-  const [coverPhoto, setCoverPhoto] = useState<File | null>(null);
-  const [coverPhotoPreview, setCoverPhotoPreview] = useState<string | null>(null);
+  const { toast } = useToast();
+  const { t } = useLanguage();
+  const [loading, setLoading] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [formData, setFormData] = useState<Partial<Business>>({
+    name: '',
+    description: '',
+    contact_phone: '',
+    contact_address: '',
+    contact_email: '',
+    contact_website: '',
+    cover_photo: '',
+    user_id: user?.id,
+  });
 
   useEffect(() => {
-    if (open && existingBusiness) {
-      setName(existingBusiness.name || "");
-      setDescription(existingBusiness.description || "");
-      setContactPhone(existingBusiness.contact_phone || "");
-      setContactAddress(existingBusiness.contact_address || "");
-      setContactEmail(existingBusiness.contact_email || "");
-      setContactWebsite(existingBusiness.contact_website || "");
-      
-      // If there's an existing cover photo, fetch and display it
-      if (existingBusiness.cover_photo_path) {
-        const fetchCoverPhoto = async () => {
-          try {
-            const { data, error } = await supabase.storage
-              .from('business-photos')
-              .getPublicUrl(existingBusiness.cover_photo_path || '');
-            
-            if (error) throw error;
-            setCoverPhotoPreview(data.publicUrl);
-          } catch (error) {
-            console.error("Error fetching cover photo:", error);
-          }
-        };
-        
-        fetchCoverPhoto();
-      } else {
-        setCoverPhotoPreview(null);
-      }
-    } else if (open) {
-      // Reset form when opening for a new business
-      setName("");
-      setDescription("");
-      setContactPhone("");
-      setContactAddress("");
-      setContactEmail("");
-      setContactWebsite("");
-      setCoverPhoto(null);
-      setCoverPhotoPreview(null);
+    if (business) {
+      setFormData({
+        ...business,
+      });
+    } else {
+      setFormData({
+        name: '',
+        description: '',
+        contact_phone: '',
+        contact_address: '',
+        contact_email: '',
+        contact_website: '',
+        cover_photo: '',
+        user_id: user?.id,
+      });
     }
-  }, [open, existingBusiness]);
+  }, [business, user?.id]);
 
-  const handleCoverPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setCoverPhoto(file);
-      
-      // Create a preview
-      const reader = new FileReader();
-      reader.onload = () => {
-        setCoverPhotoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setFile(e.target.files[0]);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!user || !name) return;
-    
+  const handleSubmit = async () => {
     try {
-      setIsSubmitting(true);
-      
-      // Generate a unique slug from the business name
-      const initialSlug = slugify(name);
-      let slug = initialSlug;
-      let suffixNum = 0;
-      
-      // Check if slug exists (for new businesses only)
-      if (!existingBusiness) {
-        let slugExists = true;
-        while (slugExists) {
-          const { data, error } = await supabase
-            .from('businesses')
-            .select('id')
-            .eq('slug', slug)
-            .maybeSingle();
-          
-          if (error) throw error;
-          
-          if (data) {
-            // Slug exists, add a suffix
-            suffixNum++;
-            slug = `${initialSlug}-${suffixNum}`;
-          } else {
-            slugExists = false;
-          }
-        }
-      }
-      
-      let coverPhotoPath = existingBusiness?.cover_photo_path || null;
-      
-      // Upload cover photo if provided
-      if (coverPhoto) {
-        const filePath = `${user.id}/${Date.now()}-${coverPhoto.name}`;
-        
+      setLoading(true);
+      let coverPhotoPath = formData.cover_photo || '';
+
+      if (file) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
         const { error: uploadError } = await supabase.storage
-          .from('business-photos')
-          .upload(filePath, coverPhoto);
-        
-        if (uploadError) throw uploadError;
+          .from('business-images')
+          .upload(filePath, file);
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
         coverPhotoPath = filePath;
       }
-      
-      // Prepare business data
-      const businessData = {
-        name,
-        description,
-        contact_phone: contactPhone,
-        contact_address: contactAddress,
-        contact_email: contactEmail,
-        contact_website: contactWebsite,
-        slug: existingBusiness?.slug || slug,
-        cover_photo_path: coverPhotoPath,
-        user_id: user.id,
+
+      const newBusiness: Partial<Business> = {
+        ...formData,
+        cover_photo: coverPhotoPath,
+        user_id: user?.id,
       };
-      
-      let result;
-      
-      if (existingBusiness) {
-        // Update existing business
-        const { data, error } = await supabase
-          .from('businesses')
-          .update(businessData)
-          .eq('id', existingBusiness.id)
-          .select('*')
-          .single();
-        
-        if (error) throw error;
-        result = data;
-      } else {
-        // Insert new business
-        const { data, error } = await supabase
-          .from('businesses')
-          .insert(businessData)
-          .select('*')
-          .single();
-        
-        if (error) throw error;
-        result = data;
-      }
-      
-      // Call the callback with the new/updated business
-      onBusinessCreated(result);
-      
-      // Close the dialog
-      onOpenChange(false);
-      
-      // Show success message
-      toast({
-        title: t("common.success"),
-        description: existingBusiness 
-          ? "Business updated successfully" 
-          : "Business created successfully",
-      });
-    } catch (error: any) {
+
+      onSave(newBusiness as Business);
+      setFile(null);
+    } catch (error) {
       console.error('Error saving business:', error);
       toast({
-        title: t("common.error"),
-        description: error.message || "Failed to save business",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to save business information',
+        variant: 'destructive',
       });
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
+  const imageUrl = file 
+    ? URL.createObjectURL(file) 
+    : (formData.cover_photo 
+      ? supabase.storage.from('business-images').getPublicUrl(formData.cover_photo).data.publicUrl 
+      : '/placeholder.svg');
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[600px] bg-background">
         <DialogHeader>
-          <DialogTitle>
-            {existingBusiness ? t("common.edit") + " " + existingBusiness.name : t("business.addBusiness")}
-          </DialogTitle>
+          <DialogTitle>{business ? t('business.businessDetails') : t('business.addBusiness')}</DialogTitle>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-6 py-4">
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="name" className="text-base font-semibold">
-                {t("business.businessDetails")}
-              </Label>
-              <div className="mt-3 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">{t("business.businessName")} *</Label>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-1 gap-4">
+            <div className="mb-4">
+              <Label htmlFor="cover_photo">{t('business.coverPhoto')}</Label>
+              <div className="mt-2 flex items-center gap-4">
+                <div
+                  className="h-40 w-full rounded-md border border-input bg-cover bg-center bg-no-repeat"
+                  style={{ backgroundImage: `url(${imageUrl})` }}
+                />
+                <div className="flex flex-col gap-2">
+                  <Label
+                    htmlFor="cover_photo_upload"
+                    className="cursor-pointer inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload
+                  </Label>
                   <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    placeholder="e.g. My Awesome Business"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="description">{t("business.businessDescription")}</Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={3}
-                    placeholder="Describe your business..."
+                    id="cover_photo_upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
                   />
                 </div>
               </div>
             </div>
-            
-            <div className="pt-4">
-              <Label htmlFor="contactPhone" className="text-base font-semibold">
-                {t("business.contactInformation")}
-              </Label>
-              <div className="mt-3 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="contactPhone">{t("business.contactPhone")}</Label>
+
+            <div className="grid gap-2">
+              <Label htmlFor="name">{t('business.businessName')}</Label>
+              <Input
+                id="name"
+                name="name"
+                value={formData.name || ''}
+                onChange={handleChange}
+                placeholder="Your Business Name"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="description">{t('business.businessDescription')}</Label>
+              <Textarea
+                id="description"
+                name="description"
+                value={formData.description || ''}
+                onChange={handleChange}
+                placeholder="Describe your business"
+                rows={3}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>{t('business.contactInformation')}</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="contact_phone">{t('business.contactPhone')}</Label>
                   <Input
-                    id="contactPhone"
-                    value={contactPhone}
-                    onChange={(e) => setContactPhone(e.target.value)}
+                    id="contact_phone"
+                    name="contact_phone"
+                    value={formData.contact_phone || ''}
+                    onChange={handleChange}
                     placeholder="+1 (555) 123-4567"
                   />
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="contactAddress">{t("business.contactAddress")}</Label>
-                  <Textarea
-                    id="contactAddress"
-                    value={contactAddress}
-                    onChange={(e) => setContactAddress(e.target.value)}
-                    rows={2}
-                    placeholder="123 Business St, City, State, ZIP"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="contactEmail">{t("business.contactEmail")}</Label>
+                <div>
+                  <Label htmlFor="contact_email">{t('business.contactEmail')}</Label>
                   <Input
-                    id="contactEmail"
-                    type="email"
-                    value={contactEmail}
-                    onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="contact@mybusiness.com"
+                    id="contact_email"
+                    name="contact_email"
+                    value={formData.contact_email || ''}
+                    onChange={handleChange}
+                    placeholder="your@email.com"
                   />
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="contactWebsite">{t("business.contactWebsite")}</Label>
+                <div>
+                  <Label htmlFor="contact_website">{t('business.contactWebsite')}</Label>
                   <Input
-                    id="contactWebsite"
-                    value={contactWebsite}
-                    onChange={(e) => setContactWebsite(e.target.value)}
-                    placeholder="www.mybusiness.com"
+                    id="contact_website"
+                    name="contact_website"
+                    value={formData.contact_website || ''}
+                    onChange={handleChange}
+                    placeholder="https://yourbusiness.com"
                   />
                 </div>
-              </div>
-            </div>
-            
-            <div className="pt-4">
-              <Label htmlFor="coverPhoto" className="text-base font-semibold">
-                {t("business.coverPhoto")}
-              </Label>
-              <div className="mt-3 space-y-4">
-                {coverPhotoPreview && (
-                  <div className="mt-2">
-                    <img
-                      src={coverPhotoPreview}
-                      alt="Cover preview"
-                      className="w-full max-h-48 object-cover rounded-md"
-                    />
-                  </div>
-                )}
-                
-                <Input
-                  id="coverPhoto"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleCoverPhotoChange}
-                  className="cursor-pointer"
-                />
+                <div>
+                  <Label htmlFor="contact_address">{t('business.contactAddress')}</Label>
+                  <Input
+                    id="contact_address"
+                    name="contact_address"
+                    value={formData.contact_address || ''}
+                    onChange={handleChange}
+                    placeholder="123 Business St, City"
+                  />
+                </div>
               </div>
             </div>
           </div>
-          
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-              {t("common.cancel")}
-            </Button>
-            <Button type="submit" disabled={isSubmitting || !name}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("common.loading")}
-                </>
-              ) : existingBusiness ? (
-                t("common.save")
-              ) : (
-                t("common.create")
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button onClick={handleSubmit} disabled={loading}>
+            {loading ? t('common.loading') : t('common.save')}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

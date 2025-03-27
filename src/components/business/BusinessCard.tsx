@@ -1,134 +1,87 @@
-
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pencil, Globe, Phone, Mail, MapPin, ExternalLink } from "lucide-react";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { supabase } from "@/lib/supabase";
-import { useEffect, useState } from "react";
-
-interface BusinessData {
-  id: string;
-  name: string;
-  description?: string;
-  contact_phone?: string;
-  contact_address?: string;
-  contact_email?: string;
-  contact_website?: string;
-  slug: string;
-  cover_photo_path?: string;
-}
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Business } from '@/lib/types';
+import { supabase } from '@/lib/supabase';
+import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { ExternalLink, Edit, Trash } from 'lucide-react';
 
 interface BusinessCardProps {
-  business: BusinessData;
-  onEdit: () => void;
+  business: Business;
+  onEdit: (business: Business) => void;
+  onDelete: (id: string) => void;
 }
 
-export const BusinessCard = ({ business, onEdit }: BusinessCardProps) => {
+export const BusinessCard = ({ business, onEdit, onDelete }: BusinessCardProps) => {
+  const [coverImageUrl, setCoverImageUrl] = useState<string>('/placeholder.svg');
+  const navigate = useNavigate();
   const { t } = useLanguage();
-  const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchCoverPhoto = async () => {
-      if (business.cover_photo_path) {
-        try {
-          const { data, error } = await supabase.storage
-            .from('business-photos')
-            .getPublicUrl(business.cover_photo_path);
-          
-          if (error) throw error;
-          setCoverPhotoUrl(data.publicUrl);
-        } catch (error) {
-          console.error("Error fetching cover photo:", error);
-        }
+    const fetchCoverImage = async () => {
+      if (business.cover_photo) {
+        const coverImageUrl = business.cover_photo 
+          ? await supabase.storage.from('business-images').getPublicUrl(business.cover_photo).data.publicUrl 
+          : '/placeholder.svg';
+        setCoverImageUrl(coverImageUrl);
       }
     };
 
-    fetchCoverPhoto();
-  }, [business.cover_photo_path]);
-
-  const publicUrl = window.location.origin + '/business/' + business.slug;
+    fetchCoverImage();
+  }, [business.cover_photo]);
 
   return (
-    <Card className="w-full">
-      <CardHeader className="relative pb-0">
-        {coverPhotoUrl && (
-          <div className="absolute inset-0 bg-cover bg-center rounded-t-lg h-40" 
-               style={{ backgroundImage: `url(${coverPhotoUrl})` }}>
-            <div className="absolute inset-0 bg-black/40 rounded-t-lg"></div>
-          </div>
-        )}
-        
-        <div className={`relative ${coverPhotoUrl ? 'text-white pt-16 pb-4' : ''}`}>
-          <CardTitle className="text-2xl">{business.name}</CardTitle>
-          {business.description && <CardDescription className={`mt-2 ${coverPhotoUrl ? 'text-gray-200' : 'text-gray-500'}`}>{business.description}</CardDescription>}
-        </div>
+    <Card className="overflow-hidden">
+      <div className="h-48 overflow-hidden">
+        <img 
+          src={coverImageUrl} 
+          alt={business.name} 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <CardHeader>
+        <CardTitle>{business.name}</CardTitle>
+        <CardDescription className="line-clamp-2">{business.description}</CardDescription>
       </CardHeader>
-      <CardContent className="pt-6 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <CardContent>
+        <div className="space-y-2">
           {business.contact_phone && (
-            <div className="flex items-start gap-2">
-              <Phone className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-              <div>
-                <div className="font-medium text-sm text-muted-foreground">{t("business.contactPhone")}</div>
-                <div>{business.contact_phone}</div>
-              </div>
-            </div>
+            <p className="text-sm">📞 {business.contact_phone}</p>
           )}
-          
           {business.contact_email && (
-            <div className="flex items-start gap-2">
-              <Mail className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-              <div>
-                <div className="font-medium text-sm text-muted-foreground">{t("business.contactEmail")}</div>
-                <div>{business.contact_email}</div>
-              </div>
-            </div>
+            <p className="text-sm">✉️ {business.contact_email}</p>
           )}
-          
-          {business.contact_website && (
-            <div className="flex items-start gap-2">
-              <Globe className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-              <div>
-                <div className="font-medium text-sm text-muted-foreground">{t("business.contactWebsite")}</div>
-                <a href={business.contact_website.startsWith('http') ? business.contact_website : `https://${business.contact_website}`} 
-                   target="_blank" 
-                   rel="noopener noreferrer"
-                   className="text-primary hover:underline">
-                  {business.contact_website}
-                </a>
-              </div>
-            </div>
-          )}
-          
           {business.contact_address && (
-            <div className="flex items-start gap-2">
-              <MapPin className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-              <div>
-                <div className="font-medium text-sm text-muted-foreground">{t("business.contactAddress")}</div>
-                <div>{business.contact_address}</div>
-              </div>
-            </div>
+            <p className="text-sm">📍 {business.contact_address}</p>
           )}
-        </div>
-        
-        <div className="pt-4">
-          <div className="font-medium text-sm text-muted-foreground mb-2">{t("business.publicPage")}</div>
-          <a 
-            href={publicUrl} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-primary hover:underline"
-          >
-            {publicUrl}
-            <ExternalLink className="h-4 w-4" />
-          </a>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-end pt-2">
-        <Button variant="outline" onClick={onEdit} className="flex items-center gap-2">
-          <Pencil className="h-4 w-4" />
-          {t("common.edit")}
+      <CardFooter className="flex justify-between">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => navigate(`/business/${business.slug}`)}
+        >
+          <ExternalLink className="h-4 w-4 mr-2" />
+          {t('business.publicPage')}
         </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => onEdit(business)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => onDelete(business.id)}
+          >
+            <Trash className="h-4 w-4" />
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );
