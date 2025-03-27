@@ -136,6 +136,7 @@ export type TranslationType = {
   "dashboard.statistics": string;
   "dashboard.tasks": string;
   "dashboard.crm": string;
+  "dashboard.business": string;
 
   // CTA
   "cta.title": string;
@@ -231,6 +232,44 @@ export type TranslationType = {
   "business.personalDesc": string;
   "business.education": string;
   "business.educationDesc": string;
+  
+  // Business Feature
+  "business.management": string;
+  "business.addBusiness": string;
+  "business.editBusiness": string;
+  "business.businessName": string;
+  "business.businessDescription": string;
+  "business.contactPhone": string;
+  "business.contactAddress": string;
+  "business.contactEmail": string;
+  "business.contactWebsite": string;
+  "business.coverPhoto": string;
+  "business.createBusiness": string;
+  "business.updateBusiness": string;
+  "business.businessDetails": string;
+  "business.eventRequests": string;
+  "business.pendingRequests": string;
+  "business.noBusinessYet": string;
+  "business.addBusinessDesc": string;
+  "business.publicPagePreview": string;
+  "business.noCoverPhoto": string;
+  "business.publicPageAvailable": string;
+  "business.copyLink": string;
+  "business.linkCopied": string;
+  "business.noEventRequests": string;
+  "business.noEventRequestsDesc": string;
+  "business.bookNow": string;
+  "business.requestEvent": string;
+  "business.submitRequest": string;
+  "business.eventTitle": string;
+  "business.yourName": string;
+  "business.eventType": string;
+  "business.notes": string;
+  "business.requestSubmitted": string;
+  "business.approveRequest": string;
+  "business.rejectRequest": string;
+  "business.requestApproved": string;
+  "business.requestRejected": string;
 
   // Legal
   "legal.termsAndPrivacy": string;

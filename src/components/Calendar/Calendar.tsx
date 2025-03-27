@@ -1,204 +1,157 @@
-import { useState } from "react";
-import {
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
-  addDays,
-  startOfMonth,
-  endOfMonth,
-  addMonths,
-  subMonths,
-  setHours,
-  startOfDay,
-} from "date-fns";
-import { useCalendarEvents } from "@/hooks/useCalendarEvents";
-import { CalendarHeader } from "./CalendarHeader";
+
+import { useState, useEffect } from "react";
 import { CalendarView } from "./CalendarView";
+import { CalendarHeader } from "./CalendarHeader";
+import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
+import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { EventDialog } from "./EventDialog";
-import { CalendarViewType } from "@/lib/types/calendar";
-import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { TimeIndicator } from "./TimeIndicator";
-import { useEventDialog } from "./hooks/useEventDialog";
-import { Skeleton } from "@/components/ui/skeleton";
+import { EventRequestDialog } from "./EventRequestDialog";
+import { useEventRequests } from "@/hooks/useEventRequests";
+import { useBusiness } from "@/hooks/useBusiness";
+import { EventRequest } from "@/lib/types/business";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
+  onDateClick?: (date: Date) => void;
+  publicMode?: boolean;
 }
 
-export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
-  const [selectedDate, setSelectedDate] = useState(new Date());
+export const Calendar = ({
+  defaultView = "month",
+  onDateClick,
+  publicMode = false
+}: CalendarProps) => {
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [visibleDate, setVisibleDate] = useState<Date>(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
-  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
-  const { user } = useAuth();
-  const navigate = useNavigate();
-
-  // Make events available globally for the useEventDialog hook
-  if (typeof window !== 'undefined') {
-    (window as any).__CALENDAR_EVENTS__ = events;
-  }
-
-  const {
-    selectedEvent,
-    setSelectedEvent,
-    isNewEventDialogOpen,
-    setIsNewEventDialogOpen,
-    selectedDate: dialogSelectedDate,
-    setSelectedDate: setDialogSelectedDate,
-    handleCreateEvent,
-    handleUpdateEvent,
-    handleDeleteEvent,
-  } = useEventDialog({
-    createEvent: async (data) => {
-      const result = await createEvent(data);
-      return result;
-    },
-    updateEvent: async (data) => {
-      if (!selectedEvent) throw new Error("No event selected");
-      const result = await updateEvent({
-        id: selectedEvent.id,
-        updates: data,
-      });
-      return result;
-    },
-    deleteEvent: async (id) => {
-      await deleteEvent(id);
+  const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState<boolean>(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
+  const [selectedEventRequest, setSelectedEventRequest] = useState<EventRequest | null>(null);
+  const { events, createEvent, updateEvent, deleteEvent, isLoading } = useCalendarEvents();
+  const { business } = useBusiness();
+  const { eventRequests, pendingRequests } = useEventRequests(business?.id);
+  
+  // Make global events available to other components for time slot checking
+  useEffect(() => {
+    if (events) {
+      (window as any).__CALENDAR_EVENTS__ = events;
     }
-  });
-
-  if (!user) {
-    navigate("/signin");
-    return null;
-  }
-
-  const getDaysForView = () => {
-    switch (view) {
-      case "month": {
-        const monthStart = startOfMonth(selectedDate);
-        const firstWeekStart = startOfWeek(monthStart);
-        const monthEnd = endOfMonth(selectedDate);
-        return eachDayOfInterval({
-          start: firstWeekStart,
-          end: monthEnd,
-        });
-      }
-      case "week":
-        return eachDayOfInterval({
-          start: startOfWeek(selectedDate),
-          end: endOfWeek(selectedDate),
-        });
-      case "day":
-        return [startOfDay(selectedDate)];
+  }, [events]);
+  
+  const handleDateSelect = (date: Date) => {
+    if (onDateClick) {
+      onDateClick(date);
+    } else {
+      setSelectedDate(date);
+      setIsNewEventDialogOpen(true);
     }
   };
-
-  const handlePrevious = () => {
-    switch (view) {
-      case "month":
-        setSelectedDate(subMonths(selectedDate, 1));
-        break;
-      case "week":
-        setSelectedDate(addDays(selectedDate, -7));
-        break;
-      case "day":
-        setSelectedDate(addDays(selectedDate, -1));
-        break;
-    }
+  
+  const handleEventSelect = (event: CalendarEventType) => {
+    setSelectedEvent(event);
   };
-
-  const handleNext = () => {
-    switch (view) {
-      case "month":
-        setSelectedDate(addMonths(selectedDate, 1));
-        break;
-      case "week":
-        setSelectedDate(addDays(selectedDate, 7));
-        break;
-      case "day":
-        setSelectedDate(addDays(selectedDate, 1));
-        break;
-    }
+  
+  const handleEventRequestSelect = (request: EventRequest) => {
+    setSelectedEventRequest(request);
   };
-
-  const handleCalendarDayClick = (date: Date, hour?: number) => {
-    const clickedDate = new Date(date);
-    clickedDate.setHours(hour || 9, 0, 0, 0);
-    
-    // First set the date
-    setDialogSelectedDate(clickedDate);
-    // Then open the dialog
-    setTimeout(() => setIsNewEventDialogOpen(true), 0);
+  
+  const handleEventCreate = async (data: Partial<CalendarEventType>) => {
+    return await createEvent(data);
   };
-
-  const handleAddEventClick = () => {
-    const now = new Date();
-    now.setHours(9, 0, 0, 0);
-    
-    // First set the date
-    setDialogSelectedDate(now);
-    // Then open the dialog
-    setTimeout(() => setIsNewEventDialogOpen(true), 0);
+  
+  const handleEventUpdate = async (data: Partial<CalendarEventType>) => {
+    if (!selectedEvent) return null;
+    return await updateEvent({ id: selectedEvent.id, updates: data });
   };
-
-  if (error) {
-    return <div className="text-red-500">Error loading calendar: {error.message}</div>;
+  
+  const handleEventDelete = async () => {
+    if (!selectedEvent) return;
+    await deleteEvent(selectedEvent.id);
+    setSelectedEvent(null);
+  };
+  
+  // Combine regular events and pending event requests for display
+  const allEvents = [...(events || [])];
+  
+  // Add pending event requests if not in public mode
+  if (!publicMode && pendingRequests) {
+    pendingRequests.forEach(request => {
+      allEvents.push({
+        id: request.id,
+        title: `[REQUEST] ${request.title}`,
+        start_date: request.start_date,
+        end_date: request.end_date,
+        type: request.type as any || 'private_party',
+        created_at: request.created_at,
+        user_surname: request.user_surname,
+        user_number: request.user_number,
+        social_network_link: request.social_network_link,
+        event_notes: request.event_notes,
+        payment_status: request.payment_status,
+        payment_amount: request.payment_amount,
+        // Add a special property to identify requests
+        __isRequest: true
+      } as any);
+    });
   }
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
-        <div className="grid grid-cols-7 gap-px">
-          {Array.from({ length: 35 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
+  
   return (
-    <div className="h-full flex flex-col gap-4">
+    <div className="flex flex-col h-full">
       <CalendarHeader
-        selectedDate={selectedDate}
         view={view}
         onViewChange={setView}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        onAddEvent={handleAddEventClick}
+        visibleDate={visibleDate}
+        onVisibleDateChange={setVisibleDate}
+        onAddEvent={publicMode ? undefined : () => setIsNewEventDialogOpen(true)}
       />
-
-      <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
-        {view !== 'month' && <TimeIndicator />}
-        <div className="flex-1">
-          <CalendarView
-            days={getDaysForView()}
-            events={events || []}
-            selectedDate={selectedDate}
-            view={view}
-            onDayClick={handleCalendarDayClick}
-            onEventClick={setSelectedEvent}
-          />
-        </div>
+      
+      <div className="flex-1 overflow-auto">
+        <CalendarView
+          view={view}
+          events={allEvents}
+          visibleDate={visibleDate}
+          onDateSelect={handleDateSelect}
+          onEventSelect={(event) => {
+            // Check if the event is actually a request
+            if ((event as any).__isRequest) {
+              const request = pendingRequests?.find(req => req.id === event.id);
+              if (request) {
+                handleEventRequestSelect(request);
+              }
+            } else {
+              handleEventSelect(event);
+            }
+          }}
+          isLoading={isLoading}
+          publicMode={publicMode}
+        />
       </div>
-
-      <EventDialog
-        key={dialogSelectedDate?.getTime()} // Force re-render when date changes
-        open={isNewEventDialogOpen}
-        onOpenChange={setIsNewEventDialogOpen}
-        selectedDate={dialogSelectedDate}
-        onSubmit={handleCreateEvent}
-      />
-
+      
+      {isNewEventDialogOpen && (
+        <EventDialog
+          open={isNewEventDialogOpen}
+          onOpenChange={setIsNewEventDialogOpen}
+          selectedDate={selectedDate}
+          onSubmit={handleEventCreate}
+        />
+      )}
+      
       {selectedEvent && (
         <EventDialog
-          key={selectedEvent.id} // Force re-render when event changes
           open={!!selectedEvent}
           onOpenChange={() => setSelectedEvent(null)}
-          selectedDate={new Date(selectedEvent.start_date)} // Use the actual event start date
+          selectedDate={new Date(selectedEvent.start_date)}
           event={selectedEvent}
-          onSubmit={handleUpdateEvent}
-          onDelete={handleDeleteEvent}
+          onSubmit={handleEventUpdate}
+          onDelete={handleEventDelete}
+        />
+      )}
+      
+      {selectedEventRequest && (
+        <EventRequestDialog
+          open={!!selectedEventRequest}
+          onOpenChange={() => setSelectedEventRequest(null)}
+          eventRequest={selectedEventRequest}
         />
       )}
     </div>

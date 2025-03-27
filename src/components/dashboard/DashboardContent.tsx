@@ -2,13 +2,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
-import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users } from "lucide-react"
+import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Building2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TaskList } from "@/components/TaskList"
 import { Calendar } from "@/components/Calendar/Calendar"
 import { AddTaskForm } from "@/components/AddTaskForm"
 import { Statistics } from "@/components/Statistics"
 import { CustomerList } from "@/components/crm/CustomerList"
+import { BusinessTab } from "@/components/business/BusinessTab"
 import { motion, AnimatePresence } from "framer-motion"
 import { useLanguage } from "@/contexts/LanguageContext"
 
@@ -48,7 +49,7 @@ export const DashboardContent = ({
 
   return (
     <Tabs defaultValue="calendar" className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
-      <TabsList className="grid w-full grid-cols-4 mb-2">
+      <TabsList className="grid w-full grid-cols-5 mb-2">
         <TabsTrigger 
           value="calendar" 
           className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95"
@@ -96,6 +97,18 @@ export const DashboardContent = ({
             <Users className="w-4 h-4" />
           </motion.div>
           <span className="hidden sm:inline">{t("dashboard.crm")}</span>
+        </TabsTrigger>
+        <TabsTrigger 
+          value="business" 
+          className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95"
+        >
+          <motion.div
+            whileHover={{ rotate: 15 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Building2 className="w-4 h-4" />
+          </motion.div>
+          <span className="hidden sm:inline">Business</span>
         </TabsTrigger>
       </TabsList>
 
@@ -214,6 +227,23 @@ export const DashboardContent = ({
                 </motion.div>
               </CardContent>
             </Card>
+          </motion.div>
+        </TabsContent>
+
+        <TabsContent value="business">
+          <motion.div
+            variants={tabVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+          >
+            <motion.div
+              variants={cardVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <BusinessTab />
+            </motion.div>
           </motion.div>
         </TabsContent>
       </AnimatePresence>
