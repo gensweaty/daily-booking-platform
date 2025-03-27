@@ -1,10 +1,9 @@
-
 import React, { useState } from "react";
 import { BarChart3, CheckSquare, Users, Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/Calendar/Calendar";
-import { TaskList } from "@/components/TaskList"; // Fixed import path
+import { TaskList } from "@/components/TaskList"; // Import from root components directory
 import { CustomerList } from "@/components/crm/CustomerList"; 
 import { useLanguage } from "@/contexts/LanguageContext";
 import { motion } from "framer-motion";
@@ -29,10 +28,7 @@ export const DashboardContent = ({
         return <Statistics />;
       case "tasks":
         return (
-          <TaskList
-            isTaskDialogOpen={isTaskDialogOpen}
-            setIsTaskDialogOpen={setIsTaskDialogOpen}
-          />
+          <TaskList />
         );
       case "crm":
         return <CustomerList />;

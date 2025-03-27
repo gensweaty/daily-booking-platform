@@ -4,8 +4,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent } from '@/components/ui/card';
-import { Avatar } from '@/components/ui/avatar';
-import { TranslationKey } from '@/translations/types';
+import { Avatar, AvatarImage } from '@/components/ui/avatar';
 
 interface FeatureCardProps {
   title: string;
@@ -44,7 +43,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ title, description, icon, fea
         <CardContent className="p-6">
           <div className="flex items-center mb-4">
             <Avatar className="mr-4 w-12 h-12">
-              <img src={icon} alt={title} className="rounded-full" />
+              <AvatarImage src={icon} alt={title} className="rounded-full" />
             </Avatar>
             <h3 className="text-xl font-semibold">{t(title)}</h3>
           </div>
