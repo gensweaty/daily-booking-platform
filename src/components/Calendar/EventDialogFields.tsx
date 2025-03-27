@@ -1,41 +1,45 @@
 
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { FileUploadField } from "@/components/shared/FileUploadField";
-import { FileDisplay } from "@/components/shared/FileDisplay";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Dispatch, SetStateAction } from "react";
 
-interface EventDialogFieldsProps {
+export interface EventDialogFieldsProps {
   title: string;
-  setTitle: (value: string) => void;
+  setTitle: Dispatch<SetStateAction<string>>;
   userSurname: string;
-  setUserSurname: (value: string) => void;
+  setUserSurname: Dispatch<SetStateAction<string>>;
   userNumber: string;
-  setUserNumber: (value: string) => void;
+  setUserNumber: Dispatch<SetStateAction<string>>;
   socialNetworkLink: string;
-  setSocialNetworkLink: (value: string) => void;
+  setSocialNetworkLink: Dispatch<SetStateAction<string>>;
   eventNotes: string;
-  setEventNotes: (value: string) => void;
-  startDate: string;
-  setStartDate: (value: string) => void;
-  endDate: string;
-  setEndDate: (value: string) => void;
+  setEventNotes: Dispatch<SetStateAction<string>>;
+  startDate: Date | null;
+  setStartDate: Dispatch<SetStateAction<Date | null>>;
+  endDate: Date | null;
+  setEndDate: Dispatch<SetStateAction<Date | null>>;
+  eventType: "birthday" | "private_party";
+  setEventType: Dispatch<SetStateAction<"birthday" | "private_party">>;
   paymentStatus: string;
-  setPaymentStatus: (value: string) => void;
-  paymentAmount: string;
-  setPaymentAmount: (value: string) => void;
-  selectedFile: File | null;
-  setSelectedFile: (file: File | null) => void;
+  setPaymentStatus: Dispatch<SetStateAction<string>>;
+  paymentAmount: number;
+  setPaymentAmount: Dispatch<SetStateAction<number>>;
+  file: File | null;
+  setFile: Dispatch<SetStateAction<File | null>>;
   fileError: string;
-  setFileError: (error: string) => void;
-  eventId?: string;
-  onFileDeleted?: (fileId: string) => void;
+  setFileError: Dispatch<SetStateAction<string>>;
+  isEditingDisabled?: boolean;
+  isPublic?: boolean;
 }
 
 export const EventDialogFields = ({
@@ -53,264 +57,220 @@ export const EventDialogFields = ({
   setStartDate,
   endDate,
   setEndDate,
+  eventType,
+  setEventType,
   paymentStatus,
   setPaymentStatus,
   paymentAmount,
   setPaymentAmount,
-  selectedFile,
-  setSelectedFile,
+  file,
+  setFile,
   fileError,
   setFileError,
-  eventId,
-  onFileDeleted,
+  isEditingDisabled = false,
+  isPublic = false,
 }: EventDialogFieldsProps) => {
-  const { t, language } = useLanguage();
-
-  useEffect(() => {
-    // Set default times if no startDate or endDate is provided
-    if (!startDate || !endDate) {
-      const now = new Date();
-      now.setHours(9, 0, 0, 0);
-      const end = new Date(now);
-      end.setHours(10, 0, 0, 0);
-      
-      setStartDate(format(now, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-    }
-  }, []);
-
-  useEffect(() => {
-    const formData = {
-      title,
-      userSurname,
-      userNumber,
-      socialNetworkLink,
-      eventNotes,
-      startDate,
-      endDate,
-      paymentStatus,
-      paymentAmount,
-    };
-    sessionStorage.setItem('eventFormData', JSON.stringify(formData));
-  }, [title, userSurname, userNumber, socialNetworkLink, eventNotes, startDate, endDate, paymentStatus, paymentAmount]);
-
-  useEffect(() => {
-    const savedFormData = sessionStorage.getItem('eventFormData');
-    if (savedFormData && !title) {
-      const parsedData = JSON.parse(savedFormData);
-      setTitle(parsedData.title || '');
-      setUserSurname(parsedData.userSurname || '');
-      setUserNumber(parsedData.userNumber || '');
-      setSocialNetworkLink(parsedData.socialNetworkLink || '');
-      setEventNotes(parsedData.eventNotes || '');
-      if (parsedData.startDate) setStartDate(parsedData.startDate);
-      if (parsedData.endDate) setEndDate(parsedData.endDate);
-      setPaymentStatus(parsedData.paymentStatus || '');
-      setPaymentAmount(parsedData.paymentAmount || '');
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!eventId) {
-      sessionStorage.removeItem('eventFormData');
-    }
-  }, [eventId]);
-
-  const { data: allFiles = [] } = useQuery({
-    queryKey: ['eventFiles', eventId, title],
-    queryFn: async () => {
-      if (!eventId && !title) return [];
-      
-      try {
-        const uniqueFiles = new Map();
-        console.log('Starting file fetch for eventId:', eventId, 'and title:', title);
-
-        if (eventId) {
-          const { data: eventFiles, error: eventFilesError } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', eventId);
-          
-          if (eventFilesError) throw eventFilesError;
-
-          console.log('Found event files:', eventFiles?.length || 0);
-          eventFiles?.forEach(file => {
-            const uniqueKey = `${file.file_path}_event`;
-            uniqueFiles.set(uniqueKey, {
-              ...file,
-              source: 'event'
-            });
-          });
-        }
-
-        if (title) {
-          const { data: customer, error: customerError } = await supabase
-            .from('customers')
-            .select(`
-              id,
-              customer_files_new (*)
-            `)
-            .eq('title', title)
-            .maybeSingle();
-
-          if (!customerError && customer?.customer_files_new) {
-            console.log('Found customer files:', customer.customer_files_new.length);
-            customer.customer_files_new.forEach(file => {
-              const uniqueKey = `${file.file_path}_customer`;
-              const eventFileKey = `${file.file_path}_event`;
-              if (!uniqueFiles.has(eventFileKey)) {
-                uniqueFiles.set(uniqueKey, {
-                  ...file,
-                  source: 'customer'
-                });
-              }
-            });
-          }
-        }
-
-        const files = Array.from(uniqueFiles.values());
-        console.log('Final unique files count:', files.length);
-        return files;
-      } catch (error) {
-        console.error('Error in file fetching:', error);
-        return [];
-      }
-    },
-    enabled: !!(eventId || title),
-  });
+  const { t } = useLanguage();
 
   return (
-    <div className="space-y-4">
+    <>
       <div className="space-y-2">
-        <Label htmlFor="title">{t("events.fullNameRequired")}</Label>
+        <Label htmlFor="title">{t("events.title")}</Label>
         <Input
           id="title"
-          placeholder={t("events.fullName")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
+          disabled={isEditingDisabled}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="number">{t("events.phoneNumber")}</Label>
+        <Label htmlFor="userSurname">{t("events.clientName")}</Label>
         <Input
-          id="number"
-          type="tel"
-          placeholder={t("events.phoneNumber")}
+          id="userSurname"
+          value={userSurname}
+          onChange={(e) => setUserSurname(e.target.value)}
+          disabled={isEditingDisabled}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="userNumber">{t("events.contactNumber")}</Label>
+        <Input
+          id="userNumber"
           value={userNumber}
           onChange={(e) => setUserNumber(e.target.value)}
+          disabled={isEditingDisabled}
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="socialNetwork">{t("events.socialLinkEmail")}</Label>
-        <Input
-          id="socialNetwork"
-          type="text"
-          placeholder={t("events.socialLinkEmail")}
-          value={socialNetworkLink}
-          onChange={(e) => setSocialNetworkLink(e.target.value)}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label>{t("events.dateAndTime")}</Label>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="startDate" className="text-sm text-muted-foreground mb-1">
-              {t("events.startDateTime")}
-            </Label>
-            <Input
-              id="startDate"
-              type="datetime-local"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-              className="bg-background border-input"
-            />
-          </div>
-          <div>
-            <Label htmlFor="endDate" className="text-sm text-muted-foreground mb-1">
-              {t("events.endDateTime")}
-            </Label>
-            <Input
-              id="endDate"
-              type="datetime-local"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required
-              className="bg-background border-input"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>{t("events.paymentStatus")}</Label>
-        <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-          <SelectTrigger className="w-full bg-background border-input">
-            <SelectValue placeholder={t("events.selectPaymentStatus")} />
-          </SelectTrigger>
-          <SelectContent className="bg-background border border-input shadow-md">
-            <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">
-              {t("crm.notPaid")}
-            </SelectItem>
-            <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">
-              {t("crm.paidPartly")}
-            </SelectItem>
-            <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">
-              {t("crm.paidFully")}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {paymentStatus && paymentStatus !== 'not_paid' && (
+      {/* On public view, hide social media link */}
+      {!isPublic && (
         <div className="space-y-2">
-          <Label htmlFor="amount">
-            {t("events.paymentAmount")} ({language === 'es' ? '€' : '$'})
-          </Label>
+          <Label htmlFor="socialNetworkLink">{t("events.socialMediaLink")}</Label>
           <Input
-            id="amount"
-            type="number"
-            step="0.01"
-            placeholder={`${t("events.paymentAmount")} ${language === 'es' ? '(€)' : '($)'}`}
-            value={paymentAmount}
-            onChange={(e) => setPaymentAmount(e.target.value)}
-            required
-            className="bg-background border-input"
+            id="socialNetworkLink"
+            value={socialNetworkLink}
+            onChange={(e) => setSocialNetworkLink(e.target.value)}
+            disabled={isEditingDisabled}
           />
         </div>
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="notes">{t("events.eventNotes")}</Label>
+        <Label htmlFor="event_notes">{t("events.eventNotes")}</Label>
         <Textarea
-          id="notes"
-          placeholder={t("events.addEventNotes")}
+          id="event_notes"
           value={eventNotes}
           onChange={(e) => setEventNotes(e.target.value)}
-          className="bg-background border-input"
+          className="h-20"
+          disabled={isEditingDisabled}
         />
       </div>
 
-      {(eventId || title) && allFiles && allFiles.length > 0 && (
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <FileDisplay 
-            files={allFiles} 
-            bucketName="event_attachments"
-            allowDelete
-            onFileDeleted={onFileDeleted}
-          />
+          <Label>{t("events.startDate")}</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !startDate && "text-muted-foreground"
+                )}
+                disabled={isEditingDisabled}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {startDate ? format(startDate, "PPP p") : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={startDate || undefined}
+                onSelect={setStartDate}
+                initialFocus
+              />
+              <div className="p-3 border-t border-border">
+                <Label>{t("events.startTime")}</Label>
+                <Input
+                  type="time"
+                  value={startDate ? format(startDate, "HH:mm") : ""}
+                  onChange={(e) => {
+                    if (startDate) {
+                      const [hours, minutes] = e.target.value.split(":");
+                      const newDate = new Date(startDate);
+                      newDate.setHours(Number(hours), Number(minutes));
+                      setStartDate(newDate);
+                    }
+                  }}
+                  className="mt-2"
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
-      )}
 
-      <FileUploadField 
-        onFileChange={setSelectedFile}
-        fileError={fileError}
-        setFileError={setFileError}
-      />
-    </div>
+        <div className="space-y-2">
+          <Label>{t("events.endDate")}</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !endDate && "text-muted-foreground"
+                )}
+                disabled={isEditingDisabled}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {endDate ? format(endDate, "PPP p") : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={endDate || undefined}
+                onSelect={setEndDate}
+                initialFocus
+              />
+              <div className="p-3 border-t border-border">
+                <Label>{t("events.endTime")}</Label>
+                <Input
+                  type="time"
+                  value={endDate ? format(endDate, "HH:mm") : ""}
+                  onChange={(e) => {
+                    if (endDate) {
+                      const [hours, minutes] = e.target.value.split(":");
+                      const newDate = new Date(endDate);
+                      newDate.setHours(Number(hours), Number(minutes));
+                      setEndDate(newDate);
+                    }
+                  }}
+                  className="mt-2"
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>{t("events.eventType")}</Label>
+        <RadioGroup
+          value={eventType}
+          onValueChange={(value) => setEventType(value as "birthday" | "private_party")}
+          className="flex space-x-4"
+          disabled={isEditingDisabled}
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="birthday" id="birthday" />
+            <Label htmlFor="birthday" className="cursor-pointer">
+              {t("events.birthday")}
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="private_party" id="private_party" />
+            <Label htmlFor="private_party" className="cursor-pointer">
+              {t("events.privateParty")}
+            </Label>
+          </div>
+        </RadioGroup>
+      </div>
+
+      {/* Hide payment fields in public view */}
+      {!isPublic && (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="paymentStatus">{t("events.paymentStatus")}</Label>
+            <Input
+              id="paymentStatus"
+              value={paymentStatus}
+              onChange={(e) => setPaymentStatus(e.target.value)}
+              disabled={isEditingDisabled}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="paymentAmount">{t("events.paymentAmount")}</Label>
+            <Input
+              id="paymentAmount"
+              type="number"
+              value={paymentAmount || ""}
+              onChange={(e) => setPaymentAmount(Number(e.target.value))}
+              disabled={isEditingDisabled}
+            />
+          </div>
+
+          <FileUploadField
+            onFileChange={setFile}
+            fileError={fileError}
+            setFileError={setFileError}
+          />
+        </>
+      )}
+    </>
   );
 };

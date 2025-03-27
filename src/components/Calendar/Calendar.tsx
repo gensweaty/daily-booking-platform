@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   startOfWeek,
@@ -24,12 +25,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
+  isPublic?: boolean;
+  businessId?: string;
 }
 
-export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
+export const Calendar = ({ defaultView = "week", isPublic = false, businessId }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
-  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
+  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(isPublic ? { businessId } : undefined);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -48,8 +51,17 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
+    handleApproveEvent,
   } = useEventDialog({
     createEvent: async (data) => {
+      // For public calendars, set the status to 'unconfirmed'
+      if (isPublic) {
+        data.status = 'unconfirmed';
+      }
+      // Add business ID if provided
+      if (businessId) {
+        data.business_id = businessId;
+      }
       const result = await createEvent(data);
       return result;
     },
@@ -63,10 +75,18 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     },
     deleteEvent: async (id) => {
       await deleteEvent(id);
-    }
+    },
+    approveEvent: async (id) => {
+      await updateEvent({
+        id,
+        updates: { status: 'confirmed' }
+      });
+    },
+    isPublic
   });
 
-  if (!user) {
+  // Don't require authentication for public calendars
+  if (!isPublic && !user) {
     navigate("/signin");
     return null;
   }
@@ -166,6 +186,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
         onPrevious={handlePrevious}
         onNext={handleNext}
         onAddEvent={handleAddEventClick}
+        isPublic={isPublic}
       />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
@@ -178,6 +199,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
             view={view}
             onDayClick={handleCalendarDayClick}
             onEventClick={setSelectedEvent}
+            isPublic={isPublic}
           />
         </div>
       </div>
@@ -188,6 +210,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
         onOpenChange={setIsNewEventDialogOpen}
         selectedDate={dialogSelectedDate}
         onSubmit={handleCreateEvent}
+        isPublic={isPublic}
       />
 
       {selectedEvent && (
@@ -199,6 +222,8 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
           event={selectedEvent}
           onSubmit={handleUpdateEvent}
           onDelete={handleDeleteEvent}
+          onApprove={handleApproveEvent}
+          isPublic={isPublic}
         />
       )}
     </div>
