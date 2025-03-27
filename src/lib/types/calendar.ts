@@ -1,4 +1,3 @@
-
 export type CalendarViewType = 'month' | 'week' | 'day';
 
 export interface CalendarEventType {
@@ -15,6 +14,4 @@ export interface CalendarEventType {
   payment_amount?: number;
   created_at: string;
   user_id?: string;
-  status?: 'confirmed' | 'unconfirmed';
-  business_id?: string;
 }

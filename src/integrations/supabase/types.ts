@@ -9,51 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      businesses: {
-        Row: {
-          contact_address: string | null
-          contact_email: string | null
-          contact_phone: string | null
-          contact_website: string | null
-          cover_photo_path: string | null
-          created_at: string
-          description: string | null
-          id: string
-          name: string
-          slug: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          contact_address?: string | null
-          contact_email?: string | null
-          contact_phone?: string | null
-          contact_website?: string | null
-          cover_photo_path?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          name: string
-          slug: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          contact_address?: string | null
-          contact_email?: string | null
-          contact_phone?: string | null
-          contact_website?: string | null
-          cover_photo_path?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          name?: string
-          slug?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       customer_files: {
         Row: {
           content_type: string | null
@@ -224,68 +179,6 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      event_requests: {
-        Row: {
-          business_id: string
-          created_at: string
-          end_date: string
-          event_notes: string | null
-          id: string
-          payment_amount: number | null
-          payment_status: string | null
-          social_network_link: string | null
-          start_date: string
-          status: string
-          title: string
-          type: string | null
-          updated_at: string
-          user_number: string | null
-          user_surname: string | null
-        }
-        Insert: {
-          business_id: string
-          created_at?: string
-          end_date: string
-          event_notes?: string | null
-          id?: string
-          payment_amount?: number | null
-          payment_status?: string | null
-          social_network_link?: string | null
-          start_date: string
-          status?: string
-          title: string
-          type?: string | null
-          updated_at?: string
-          user_number?: string | null
-          user_surname?: string | null
-        }
-        Update: {
-          business_id?: string
-          created_at?: string
-          end_date?: string
-          event_notes?: string | null
-          id?: string
-          payment_amount?: number | null
-          payment_status?: string | null
-          social_network_link?: string | null
-          start_date?: string
-          status?: string
-          title?: string
-          type?: string | null
-          updated_at?: string
-          user_number?: string | null
-          user_surname?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "event_requests_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]

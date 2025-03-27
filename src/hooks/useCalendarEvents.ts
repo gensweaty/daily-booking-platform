@@ -3,44 +3,26 @@ import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 
-interface UseCalendarEventsOptions {
-  businessId?: string;
-}
-
-export const useCalendarEvents = (options?: UseCalendarEventsOptions) => {
+export const useCalendarEvents = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { businessId } = options || {};
 
   const getEvents = async () => {
-    let query = supabase
+    const { data, error } = await supabase
       .from('events')
       .select('*')
       .order('start_date', { ascending: true });
-
-    if (businessId) {
-      query = query.eq('business_id', businessId);
-    } 
-    else if (user) {
-      query = query.eq('user_id', user.id);
-    }
-
-    const { data, error } = await query;
 
     if (error) throw error;
     return data;
   };
 
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
-    const eventData = { ...event };
-    
-    if (user && !eventData.user_id) {
-      eventData.user_id = user.id;
-    }
+    if (!user) throw new Error("User must be authenticated to create events");
     
     const { data, error } = await supabase
       .from('events')
-      .insert([eventData])
+      .insert([{ ...event, user_id: user.id }])
       .select()
       .single();
 
@@ -49,16 +31,13 @@ export const useCalendarEvents = (options?: UseCalendarEventsOptions) => {
   };
 
   const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
-    let query = supabase
+    if (!user) throw new Error("User must be authenticated to update events");
+    
+    const { data, error } = await supabase
       .from('events')
       .update(updates)
-      .eq('id', id);
-    
-    if (user && !businessId) {
-      query = query.eq('user_id', user.id);
-    }
-    
-    const { data, error } = await query
+      .eq('id', id)
+      .eq('user_id', user.id)
       .select()
       .single();
 
@@ -67,63 +46,41 @@ export const useCalendarEvents = (options?: UseCalendarEventsOptions) => {
   };
 
   const deleteEvent = async (id: string): Promise<void> => {
-    let query = supabase
+    if (!user) throw new Error("User must be authenticated to delete events");
+    
+    const { error } = await supabase
       .from('events')
       .delete()
-      .eq('id', id);
-    
-    if (user && !businessId) {
-      query = query.eq('user_id', user.id);
-    }
-
-    const { error } = await query;
-
-    if (error) throw error;
-  };
-
-  const approveEvent = async (id: string): Promise<CalendarEventType> => {
-    const { data, error } = await supabase
-      .from('events')
-      .update({ status: 'confirmed' })
       .eq('id', id)
-      .select()
-      .single();
+      .eq('user_id', user.id);
 
     if (error) throw error;
-    return data;
   };
 
   const { data: events = [], isLoading, error } = useQuery({
-    queryKey: ['events', user?.id, businessId],
+    queryKey: ['events', user?.id],
     queryFn: getEvents,
-    enabled: true,
+    enabled: !!user,
   });
 
   const createEventMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id, businessId] });
+      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
     },
   });
 
   const updateEventMutation = useMutation({
     mutationFn: updateEvent,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id, businessId] });
+      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
     },
   });
 
   const deleteEventMutation = useMutation({
     mutationFn: deleteEvent,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id, businessId] });
-    },
-  });
-
-  const approveEventMutation = useMutation({
-    mutationFn: approveEvent,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id, businessId] });
+      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
     },
   });
 
@@ -134,6 +91,5 @@ export const useCalendarEvents = (options?: UseCalendarEventsOptions) => {
     createEvent: createEventMutation.mutateAsync,
     updateEvent: updateEventMutation.mutateAsync,
     deleteEvent: deleteEventMutation.mutateAsync,
-    approveEvent: approveEventMutation.mutateAsync,
   };
 };

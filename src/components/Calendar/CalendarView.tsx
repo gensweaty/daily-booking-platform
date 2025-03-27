@@ -11,7 +11,6 @@ interface CalendarViewProps {
   view: "month" | "week" | "day";
   onDayClick: (date: Date, hour?: number) => void;
   onEventClick: (event: CalendarEventType) => void;
-  isPublic?: boolean;
 }
 
 export const CalendarView = ({
@@ -21,7 +20,6 @@ export const CalendarView = ({
   view,
   onDayClick,
   onEventClick,
-  isPublic = false,
 }: CalendarViewProps) => {
   const { language } = useLanguage();
   const locale = language === 'es' ? es : undefined;
@@ -44,16 +42,6 @@ export const CalendarView = ({
   // Function to convert actual hour to display position
   const actualHourToDisplayPosition = (actualHour: number) => {
     return ((actualHour - 6 + 24) % 24) * 80; // 80px is the height of each hour slot
-  };
-
-  // Function to get event background color based on status
-  const getEventColor = (event: CalendarEventType) => {
-    if (event.status === 'unconfirmed') {
-      return "bg-yellow-500 text-yellow-50";
-    }
-    return event.type === "birthday"
-      ? "bg-primary text-primary-foreground"
-      : "bg-secondary text-secondary-foreground";
   };
 
   if (view === "month") {
@@ -91,7 +79,9 @@ export const CalendarView = ({
                   <div
                     key={event.id}
                     className={`text-xs sm:text-sm p-1 rounded ${
-                      getEventColor(event)
+                      event.type === "birthday"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-secondary-foreground"
                     } cursor-pointer truncate hover:opacity-80 transition-opacity ${
                       !isCurrentMonth ? 'opacity-60' : ''
                     }`}
@@ -165,7 +155,9 @@ export const CalendarView = ({
                   <div
                     key={event.id}
                     className={`absolute left-0.5 right-0.5 rounded px-0.5 sm:px-2 py-1 text-[10px] sm:text-sm ${
-                      getEventColor(event)
+                      event.type === "birthday"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-secondary-foreground"
                     } cursor-pointer overflow-hidden hover:opacity-80 transition-opacity`}
                     style={{
                       top: `${top}px`,

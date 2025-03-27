@@ -1,78 +1,7 @@
+
 export type Language = 'en' | 'es';
 
 export type TranslationType = {
-  // Common translations
-  "common.home": string;
-  "common.dashboard": string;
-  "common.save": string;
-  "common.cancel": string;
-  "common.delete": string;
-  "common.edit": string;
-  "common.saving": string;
-  "common.loading": string;
-  "common.submit": string;
-  "common.success": string;
-  "common.error": string;
-  "common.backToHome": string;
-
-  // Dashboard translations
-  "dashboard.home": string;
-  "dashboard.dashboard": string;
-  "dashboard.signOut": string;
-  "dashboard.bookingCalendar": string;
-  "dashboard.statistics": string;
-  "dashboard.tasks": string;
-  "dashboard.crm": string;
-  "dashboard.addEvent": string;
-
-  // Calendar translations
-  "calendar.day": string;
-  "calendar.week": string;
-  "calendar.month": string;
-  "calendar.addEvent": string;
-
-  // Event translations
-  "events.addNewEvent": string;
-  "events.editEvent": string;
-  "events.deleteEvent": string;
-  "events.createEvent": string;
-  "events.updateEvent": string;
-  "events.title": string;
-  "events.startDate": string;
-  "events.endDate": string;
-  "events.customerInfo": string;
-  "events.userSurname": string;
-  "events.userNumber": string;
-  "events.socialNetworkLink": string;
-  "events.eventNotes": string;
-  "events.paymentStatus": string;
-  "events.paymentAmount": string;
-  "events.attachments": string;
-  "events.addFile": string;
-  "events.pendingBooking": string;
-  "events.approveBooking": string;
-  "events.requestBooking": string;
-  "events.sendRequest": string;
-
-  // Business translations
-  "business.addBusiness": string;
-  "business.loading": string;
-  "business.viewBusiness": string;
-  "business.name": string;
-  "business.description": string;
-  "business.contactPhone": string;
-  "business.contactEmail": string;
-  "business.contactWebsite": string;
-  "business.contactAddress": string;
-  "business.coverPhoto": string;
-  "business.aboutUs": string;
-  "business.contactInfo": string;
-  "business.book": string;
-  "business.calendar": string;
-  "business.businessNotFound": string;
-  "business.businessNotFoundDesc": string;
-  "business.errorLoadingBusiness": string;
-
   // Nav
   "nav.home": string;
   "nav.features": string;
