@@ -12,7 +12,6 @@ interface CalendarHeaderProps {
   onPrevious: () => void;
   onNext: () => void;
   onAddEvent: () => void;
-  isPublic?: boolean;
 }
 
 export const CalendarHeader = ({
@@ -22,7 +21,6 @@ export const CalendarHeader = ({
   onPrevious,
   onNext,
   onAddEvent,
-  isPublic = false,
 }: CalendarHeaderProps) => {
   const { language, t } = useLanguage();
 
@@ -64,7 +62,7 @@ export const CalendarHeader = ({
           </Button>
         </div>
         <Button onClick={onAddEvent} className="whitespace-nowrap">
-          {isPublic ? t("business.bookNow") : t("dashboard.addEvent")}
+          {t("dashboard.addEvent")}
         </Button>
       </div>
     </div>

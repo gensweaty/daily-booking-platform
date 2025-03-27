@@ -1,4 +1,3 @@
-
 export type CalendarViewType = 'month' | 'week' | 'day';
 
 export interface CalendarEventType {
@@ -11,10 +10,8 @@ export interface CalendarEventType {
   start_date: string;
   end_date: string;
   type: 'birthday' | 'private_party';
-  status?: 'confirmed' | 'unconfirmed';
   payment_status?: string;
   payment_amount?: number;
   created_at: string;
   user_id?: string;
-  business_id?: string;
 }

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -9,16 +8,12 @@ interface UseEventDialogProps {
   createEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   updateEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   deleteEvent: (id: string) => Promise<void>;
-  approveEvent?: (id: string) => Promise<void>;
-  isPublic?: boolean;
 }
 
 export const useEventDialog = ({
   createEvent,
   updateEvent,
   deleteEvent,
-  approveEvent,
-  isPublic = false,
 }: UseEventDialogProps) => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
@@ -101,14 +96,9 @@ export const useEventDialog = ({
 
       const result = await createEvent(data);
       setIsNewEventDialogOpen(false);
-      
-      const successMessage = isPublic
-        ? "Booking request submitted successfully"
-        : "Event created successfully";
-      
       toast({
         title: "Success",
-        description: successMessage,
+        description: "Event created successfully",
       });
       return result;
     } catch (error: any) {
@@ -245,27 +235,6 @@ export const useEventDialog = ({
     }
   };
 
-  const handleApproveEvent = async () => {
-    if (!selectedEvent || !approveEvent) return;
-    
-    try {
-      await approveEvent(selectedEvent.id);
-      setSelectedEvent(null);
-      toast({
-        title: "Success",
-        description: "Event approved successfully",
-      });
-    } catch (error: any) {
-      console.error('handleApproveEvent - Error:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
   return {
     selectedEvent,
     setSelectedEvent,
@@ -276,6 +245,5 @@ export const useEventDialog = ({
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
-    handleApproveEvent,
   };
 };
