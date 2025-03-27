@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Note, Task, Reminder } from "@/lib/types";
@@ -262,14 +261,22 @@ export const updateBusiness = async (id: string, formData: BusinessFormData) => 
 };
 
 export const getBusinessBySlug = async (slug: string) => {
-  const { data, error } = await supabase
-    .from("businesses")
-    .select("*")
-    .eq("slug", slug)
-    .single();
+  try {
+    // Use anon client for public access
+    const { data, error } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('slug', slug)
+      .maybeSingle();
 
-  if (error) throw error;
-  return data;
+    if (error) throw error;
+    if (!data) throw new Error('Business not found');
+    
+    return data;
+  } catch (error: any) {
+    console.error('Error fetching business by slug:', error);
+    throw new Error(error.message || 'Failed to fetch business');
+  }
 };
 
 export const getEventRequests = async (businessId: string) => {

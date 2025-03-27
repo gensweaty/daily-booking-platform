@@ -10,11 +10,11 @@ import { format } from "date-fns";
 import { Mail, Phone, MapPin, Globe, Calendar as CalendarIcon } from "lucide-react";
 import { BusinessPublicEventDialog } from "@/components/business/BusinessPublicEventDialog";
 import { useToast } from "@/components/ui/use-toast";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageProvider, useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-const BusinessPage = () => {
+const BusinessPageContent = () => {
   const { slug } = useParams<{ slug: string }>();
   const { data: business, isLoading, isError } = usePublicBusiness(slug || "");
   const { events } = useCalendarEvents();
@@ -113,14 +113,14 @@ const BusinessPage = () => {
           {/* Sidebar with business info */}
           <div className="space-y-6">
             <div>
-              <h2 className="text-xl font-semibold mb-4">About</h2>
+              <h2 className="text-xl font-semibold mb-4">{t('common.about')}</h2>
               <p className="text-muted-foreground whitespace-pre-wrap">
                 {business.description || "No description provided."}
               </p>
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold mb-4">Contact Information</h2>
+              <h2 className="text-xl font-semibold mb-4">{t('businessSettings.contactInfo')}</h2>
               <ul className="space-y-3">
                 {business.contact_phone && (
                   <li className="flex items-center gap-2">
@@ -170,7 +170,7 @@ const BusinessPage = () => {
                 }}
               >
                 <CalendarIcon className="h-4 w-4" />
-                Book Now
+                {t('events.requestEvent')}
               </Button>
             </div>
           </div>
@@ -179,7 +179,7 @@ const BusinessPage = () => {
           <div className="md:col-span-2">
             <Tabs defaultValue="calendar" className="w-full">
               <TabsList className="mb-4">
-                <TabsTrigger value="calendar">Booking Calendar</TabsTrigger>
+                <TabsTrigger value="calendar">{t('dashboard.bookingCalendar')}</TabsTrigger>
               </TabsList>
               
               <TabsContent value="calendar">
@@ -214,6 +214,15 @@ const BusinessPage = () => {
         />
       )}
     </div>
+  );
+};
+
+// Wrapper component that provides the LanguageProvider
+const BusinessPage = () => {
+  return (
+    <LanguageProvider>
+      <BusinessPageContent />
+    </LanguageProvider>
   );
 };
 
