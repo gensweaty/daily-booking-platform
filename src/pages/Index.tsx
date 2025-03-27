@@ -11,7 +11,6 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
-import { LanguageProvider } from "@/contexts/LanguageContext"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -133,43 +132,41 @@ const Index = () => {
     );
   }
 
-  const content = user ? (
-    <motion.div 
-      className="min-h-screen bg-background p-4"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {showTrialExpired && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-        >
-          <TrialExpiredDialog />
+  if (user) {
+    return (
+      <motion.div 
+        className="min-h-screen bg-background p-4"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {showTrialExpired && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+          >
+            <TrialExpiredDialog />
+          </motion.div>
+        )}
+        <motion.div variants={childVariants}>
+          <DashboardHeader username={username} />
         </motion.div>
-      )}
-      <motion.div variants={childVariants}>
-        <DashboardHeader username={username} />
+        <motion.div variants={childVariants}>
+          <DashboardContent 
+            isTaskDialogOpen={isTaskDialogOpen}
+            setIsTaskDialogOpen={setIsTaskDialogOpen}
+          />
+        </motion.div>
       </motion.div>
-      <motion.div variants={childVariants}>
-        <DashboardContent 
-          isTaskDialogOpen={isTaskDialogOpen}
-          setIsTaskDialogOpen={setIsTaskDialogOpen}
-        />
-      </motion.div>
-    </motion.div>
-  ) : (
+    );
+  }
+  
+  return (
     <>
       <CursorFollower />
       <AuthUI />
     </>
-  );
-
-  return (
-    <LanguageProvider>
-      {content}
-    </LanguageProvider>
   );
 }
 
