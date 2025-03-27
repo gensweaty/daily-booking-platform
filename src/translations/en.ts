@@ -208,7 +208,8 @@ export default {
     confirmApprove: "Are you sure you want to approve this request?",
     confirmReject: "Are you sure you want to reject this request?",
     approveSuccess: "Request approved successfully",
-    rejectSuccess: "Request rejected successfully"
+    rejectSuccess: "Request rejected successfully",
+    from: "From"
   },
   errors: {
     required: "This field is required",
@@ -267,6 +268,17 @@ export default {
     poweredBy: "Powered by",
     viewDetails: "View Details",
     contactUs: "Contact Us",
-    bookNow: "Book Now"
+    bookNow: "Book Now",
+    management: "Business Management",
+    manageDesc: "Manage your business details and event requests",
+    details: "Business Details",
+    created: "Created on:",
+    publicPagePreview: "Public Page Preview",
+    publicPageAvailable: "Your business page is publicly available at:",
+    noCoverPhoto: "No cover photo uploaded",
+    addBusinessDesc: "Add your business details to start accepting bookings",
+    eventRequestsDesc: "You'll see booking requests from clients here",
+    noName: "No name provided",
+    viewAll: "View All"
   }
 };

@@ -26,12 +26,13 @@ export const BusinessTab = () => {
   const handleCopyLink = () => {
     if (!business) return;
     
+    // Create an absolute URL without authentication
     const url = `${window.location.origin}/${business.slug}`;
     navigator.clipboard.writeText(url);
     
     toast({
       title: t('businessSettings.linkCopied'),
-      description: t('businessSettings.publicLink'),
+      description: url,
     });
   };
   
@@ -155,9 +156,9 @@ export const BusinessTab = () => {
                   {t('business.publicPageAvailable')}
                 </p>
                 <div className="flex mt-2">
-                  <code className="flex-1 bg-muted p-2 rounded text-sm overflow-x-auto">
+                  <div className="flex-1 bg-muted p-2 rounded text-sm overflow-x-auto">
                     {window.location.origin}/{business?.slug}
-                  </code>
+                  </div>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -167,6 +168,14 @@ export const BusinessTab = () => {
                     <Share2 className="h-4 w-4" />
                   </Button>
                 </div>
+              </div>
+              
+              <div className="mt-4 text-center">
+                <a href={`/${business?.slug}`} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="w-full">
+                    {t('businessSettings.viewPublicPage')}
+                  </Button>
+                </a>
               </div>
             </div>
           </div>

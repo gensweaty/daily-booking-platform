@@ -208,7 +208,8 @@ export default {
     confirmApprove: "¿Está seguro de que desea aprobar esta solicitud?",
     confirmReject: "¿Está seguro de que desea rechazar esta solicitud?",
     approveSuccess: "Solicitud aprobada con éxito",
-    rejectSuccess: "Solicitud rechazada con éxito"
+    rejectSuccess: "Solicitud rechazada con éxito",
+    from: "De"
   },
   errors: {
     required: "Este campo es obligatorio",
@@ -222,13 +223,15 @@ export default {
     invalidDate: "Fecha inválida",
     endBeforeStart: "La fecha de finalización no puede ser anterior a la fecha de inicio",
     fileSize: "El tamaño del archivo excede el límite",
-    fileType: "Tipo de archivo no soportado"
+    fileType: "Tipo de archivo no soportado",
+    businessNotFound: "Negocio No Encontrado",
+    businessRemoved: "El negocio que estás buscando no existe o ha sido eliminado."
   },
   footer: {
     description: "SmartBookly proporciona una solución todo en uno para gestionar las reservas, citas e información de clientes de tu negocio.",
     navigation: "Navegación",
     legal: "Legal",
-    rights: "© 2023 SmartBookly. Todos los derechos reservados.",
+    rights: "Todos los derechos reservados.",
     termsAndPrivacy: "Términos y Privacidad"
   },
   cta: {
@@ -259,5 +262,23 @@ export default {
     feature2: "Historial de interacciones y notas",
     feature3: "Comunicación personalizada",
     feature4: "Segmentación y orientación de clientes"
+  },
+  business: {
+    noDescription: "No se proporcionó descripción.",
+    poweredBy: "Desarrollado por",
+    viewDetails: "Ver Detalles",
+    contactUs: "Contáctanos",
+    bookNow: "Reservar Ahora",
+    management: "Gestión de Negocio",
+    manageDesc: "Administra los detalles de tu negocio y solicitudes de eventos",
+    details: "Detalles del Negocio",
+    created: "Creado el:",
+    publicPagePreview: "Vista Previa de Página Pública",
+    publicPageAvailable: "La página de tu negocio está disponible públicamente en:",
+    noCoverPhoto: "No se ha subido foto de portada",
+    addBusinessDesc: "Agrega los detalles de tu negocio para comenzar a aceptar reservas",
+    eventRequestsDesc: "Aquí verás las solicitudes de reserva de los clientes",
+    noName: "No se proporcionó nombre",
+    viewAll: "Ver Todo"
   }
 };
