@@ -20,7 +20,7 @@ import { CalendarViewType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { TimeIndicator } from "./TimeIndicator";
-import { useEventDialog } from "./hooks/useEventDialog";
+import { useEventDialog } from "@/hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface CalendarProps {
@@ -177,8 +177,8 @@ export const Calendar = ({ defaultView = "week", isPublic = false, businessId }:
         selectedDate={selectedDate}
         view={view}
         onViewChange={setView}
-        onPrevious={() => handlePrevious()}
-        onNext={() => handleNext()}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
         onAddEvent={handleAddEventClick}
         isPublic={isPublic}
       />
@@ -222,33 +222,4 @@ export const Calendar = ({ defaultView = "week", isPublic = false, businessId }:
       )}
     </div>
   );
-
-  // Helper functions
-  function handlePrevious() {
-    switch (view) {
-      case "month":
-        setSelectedDate(subMonths(selectedDate, 1));
-        break;
-      case "week":
-        setSelectedDate(addDays(selectedDate, -7));
-        break;
-      case "day":
-        setSelectedDate(addDays(selectedDate, -1));
-        break;
-    }
-  }
-
-  function handleNext() {
-    switch (view) {
-      case "month":
-        setSelectedDate(addMonths(selectedDate, 1));
-        break;
-      case "week":
-        setSelectedDate(addDays(selectedDate, 7));
-        break;
-      case "day":
-        setSelectedDate(addDays(selectedDate, 1));
-        break;
-    }
-  }
 };

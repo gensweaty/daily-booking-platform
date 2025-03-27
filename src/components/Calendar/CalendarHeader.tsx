@@ -70,7 +70,7 @@ export const CalendarHeader = ({
             onClick={() => onViewChange("day")}
             className="rounded-none"
           >
-            {t("calendar.day")}
+            {language === 'es' ? 'Día' : 'Day'}
           </Button>
           <Button
             variant={view === "week" ? "default" : "ghost"}
@@ -78,7 +78,7 @@ export const CalendarHeader = ({
             onClick={() => onViewChange("week")}
             className="rounded-none"
           >
-            {t("calendar.week")}
+            {language === 'es' ? 'Semana' : 'Week'}
           </Button>
           <Button
             variant={view === "month" ? "default" : "ghost"}
@@ -86,14 +86,14 @@ export const CalendarHeader = ({
             onClick={() => onViewChange("month")}
             className="rounded-none"
           >
-            {t("calendar.month")}
+            {language === 'es' ? 'Mes' : 'Month'}
           </Button>
         </div>
         
         {!isPublic && (
           <Button size="sm" onClick={onAddEvent} className="ml-2">
             <Plus className="mr-1 h-4 w-4" />
-            {t("calendar.addEvent")}
+            {language === 'es' ? 'Añadir Evento' : 'Add Event'}
           </Button>
         )}
       </div>
