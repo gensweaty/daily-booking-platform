@@ -166,7 +166,7 @@ export const BusinessTab = () => {
       
       <BusinessDialog 
         open={isDialogOpen} 
-        onClose={handleDialogClose} 
+        onOpenChange={setIsDialogOpen} 
         business={business}
       />
     </div>

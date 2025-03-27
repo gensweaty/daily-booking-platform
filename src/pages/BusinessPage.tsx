@@ -200,8 +200,9 @@ const BusinessPage = () => {
       
       <BusinessPublicEventDialog
         open={isEventDialogOpen}
-        onClose={() => setIsEventDialogOpen(false)}
-        business={business}
+        onOpenChange={setIsEventDialogOpen}
+        selectedDate={new Date()}
+        businessId={business.id}
       />
     </div>
   );
