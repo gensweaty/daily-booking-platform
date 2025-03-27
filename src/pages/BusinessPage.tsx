@@ -15,7 +15,7 @@ export const BusinessPage = () => {
   const { getBusinessBySlug } = useBusiness();
   const [business, setBusiness] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const { t } = useLanguage();
+  const { language } = useLanguage();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -29,16 +29,16 @@ export const BusinessPage = () => {
           setBusiness(data);
         } else {
           toast({
-            title: t("business.businessNotFound"),
-            description: t("business.businessNotFoundDesc"),
+            title: language === 'es' ? 'Negocio No Encontrado' : 'Business Not Found',
+            description: language === 'es' ? 'El negocio que estás buscando no existe o ha sido eliminado.' : 'The business you\'re looking for doesn\'t exist or has been removed.',
             variant: "destructive",
           });
         }
       } catch (error) {
         console.error("Error fetching business:", error);
         toast({
-          title: t("common.error"),
-          description: t("business.errorLoadingBusiness"),
+          title: language === 'es' ? 'Error' : 'Error',
+          description: language === 'es' ? 'Hubo un error al cargar la información del negocio.' : 'There was an error loading the business information.',
           variant: "destructive",
         });
       } finally {
@@ -47,7 +47,7 @@ export const BusinessPage = () => {
     };
 
     fetchBusiness();
-  }, [slug, getBusinessBySlug, t, toast]);
+  }, [slug, getBusinessBySlug, language, toast]);
 
   if (loading) {
     return (
@@ -60,10 +60,14 @@ export const BusinessPage = () => {
   if (!business) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen px-4">
-        <h1 className="text-2xl font-bold mb-4">{t("business.businessNotFound")}</h1>
-        <p className="text-muted-foreground mb-6">{t("business.businessNotFoundDesc")}</p>
+        <h1 className="text-2xl font-bold mb-4">
+          {language === 'es' ? 'Negocio No Encontrado' : 'Business Not Found'}
+        </h1>
+        <p className="text-muted-foreground mb-6">
+          {language === 'es' ? 'El negocio que estás buscando no existe o ha sido eliminado.' : 'The business you\'re looking for doesn\'t exist or has been removed.'}
+        </p>
         <Button onClick={() => window.location.href = "/"}>
-          {t("common.backToHome")}
+          {language === 'es' ? 'Volver al Inicio' : 'Back to Home'}
         </Button>
       </div>
     );
@@ -91,14 +95,18 @@ export const BusinessPage = () => {
         <CardContent>
           {business.description && (
             <div className="mb-6">
-              <h2 className="text-lg font-semibold mb-2">{t("business.aboutUs")}</h2>
+              <h2 className="text-lg font-semibold mb-2">
+                {language === 'es' ? 'Sobre Nosotros' : 'About Us'}
+              </h2>
               <p className="text-muted-foreground whitespace-pre-wrap">{business.description}</p>
             </div>
           )}
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h2 className="text-lg font-semibold mb-4">{t("business.contactInfo")}</h2>
+              <h2 className="text-lg font-semibold mb-4">
+                {language === 'es' ? 'Información de Contacto' : 'Contact Information'}
+              </h2>
               <ul className="space-y-3">
                 {business.contact_phone && (
                   <li className="flex items-center">
@@ -141,12 +149,14 @@ export const BusinessPage = () => {
       
       <Card>
         <CardHeader>
-          <CardTitle>{t("business.book")}</CardTitle>
+          <CardTitle>{language === 'es' ? 'Reservar Ahora' : 'Book Now'}</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="calendar">
             <TabsList className="mb-4">
-              <TabsTrigger value="calendar">{t("business.calendar")}</TabsTrigger>
+              <TabsTrigger value="calendar">
+                {language === 'es' ? 'Calendario' : 'Calendar'}
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="calendar">
               <Calendar 

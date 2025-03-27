@@ -25,7 +25,7 @@ export const CalendarHeader = ({
   onAddEvent,
   isPublic = false,
 }: CalendarHeaderProps) => {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const locale = language === 'es' ? es : undefined;
 
   const formatTitle = () => {

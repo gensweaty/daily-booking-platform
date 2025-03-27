@@ -16,7 +16,7 @@ interface BusinessFormProps {
 }
 
 export const BusinessForm = ({ open, onOpenChange }: BusinessFormProps) => {
-  const { t } = useLanguage();
+  const { language } = useLanguage();
   const { toast } = useToast();
   const { createBusiness, uploadCoverPhoto } = useBusiness();
   
@@ -105,11 +105,11 @@ export const BusinessForm = ({ open, onOpenChange }: BusinessFormProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>{t("business.addBusiness")}</DialogTitle>
+          <DialogTitle>{language === 'es' ? 'Añadir Negocio' : 'Add Business'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="name">{t("business.name")}*</Label>
+            <Label htmlFor="name">{language === 'es' ? 'Nombre del Negocio' : 'Business Name'}*</Label>
             <Input 
               id="name" 
               value={name} 
@@ -119,7 +119,7 @@ export const BusinessForm = ({ open, onOpenChange }: BusinessFormProps) => {
           </div>
           
           <div className="grid gap-2">
-            <Label htmlFor="description">{t("business.description")}</Label>
+            <Label htmlFor="description">{language === 'es' ? 'Descripción' : 'Description'}</Label>
             <Textarea 
               id="description" 
               value={description} 
@@ -130,7 +130,7 @@ export const BusinessForm = ({ open, onOpenChange }: BusinessFormProps) => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="contactPhone">{t("business.contactPhone")}</Label>
+              <Label htmlFor="contactPhone">{language === 'es' ? 'Teléfono de Contacto' : 'Contact Phone'}</Label>
               <Input 
                 id="contactPhone" 
                 value={contactPhone} 
@@ -139,7 +139,7 @@ export const BusinessForm = ({ open, onOpenChange }: BusinessFormProps) => {
             </div>
             
             <div className="grid gap-2">
-              <Label htmlFor="contactEmail">{t("business.contactEmail")}</Label>
+              <Label htmlFor="contactEmail">{language === 'es' ? 'Email de Contacto' : 'Contact Email'}</Label>
               <Input 
                 id="contactEmail"
                 type="email" 
@@ -151,7 +151,7 @@ export const BusinessForm = ({ open, onOpenChange }: BusinessFormProps) => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="contactWebsite">{t("business.contactWebsite")}</Label>
+              <Label htmlFor="contactWebsite">{language === 'es' ? 'Sitio Web' : 'Website'}</Label>
               <Input 
                 id="contactWebsite" 
                 value={contactWebsite} 
@@ -160,7 +160,7 @@ export const BusinessForm = ({ open, onOpenChange }: BusinessFormProps) => {
             </div>
             
             <div className="grid gap-2">
-              <Label htmlFor="coverPhoto">{t("business.coverPhoto")}</Label>
+              <Label htmlFor="coverPhoto">{language === 'es' ? 'Foto de Portada' : 'Cover Photo'}</Label>
               <Input 
                 id="coverPhoto"
                 type="file"
@@ -171,7 +171,7 @@ export const BusinessForm = ({ open, onOpenChange }: BusinessFormProps) => {
           </div>
           
           <div className="grid gap-2">
-            <Label htmlFor="contactAddress">{t("business.contactAddress")}</Label>
+            <Label htmlFor="contactAddress">{language === 'es' ? 'Dirección' : 'Address'}</Label>
             <Textarea 
               id="contactAddress" 
               value={contactAddress} 
@@ -186,13 +186,13 @@ export const BusinessForm = ({ open, onOpenChange }: BusinessFormProps) => {
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              {t("common.cancel")}
+              {language === 'es' ? 'Cancelar' : 'Cancel'}
             </Button>
             <Button 
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? t("common.saving") : t("common.save")}
+              {isSubmitting ? (language === 'es' ? 'Guardando...' : 'Saving...') : (language === 'es' ? 'Guardar' : 'Save')}
             </Button>
           </div>
         </form>

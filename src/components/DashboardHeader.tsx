@@ -15,7 +15,7 @@ interface DashboardHeaderProps {
 
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { signOut } = useAuth()
-  const { t } = useLanguage()
+  const { language } = useLanguage()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
@@ -36,10 +36,10 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           <SheetContent side="left" className="w-[250px] sm:w-[300px]">
             <nav className="flex flex-col gap-4 mt-8">
               <Button variant="ghost" asChild>
-                <a href="/">{t("dashboard.home")}</a>
+                <a href="/">{language === 'es' ? 'Inicio' : 'Home'}</a>
               </Button>
               <Button variant="ghost" asChild>
-                <a href="/dashboard">{t("dashboard.dashboard")}</a>
+                <a href="/dashboard">{language === 'es' ? 'Panel' : 'Dashboard'}</a>
               </Button>
             </nav>
           </SheetContent>
@@ -52,10 +52,10 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         </a>
         <nav className="hidden md:flex items-center gap-4 mr-4">
           <Button variant="ghost" asChild>
-            <a href="/">{t("dashboard.home")}</a>
+            <a href="/">{language === 'es' ? 'Inicio' : 'Home'}</a>
           </Button>
           <Button variant="ghost" asChild>
-            <a href="/dashboard">{t("dashboard.dashboard")}</a>
+            <a href="/dashboard">{language === 'es' ? 'Panel' : 'Dashboard'}</a>
           </Button>
           <BusinessButton />
         </nav>
@@ -65,7 +65,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           <div className="hidden md:flex items-center gap-2 ml-2">
             <span className="text-sm font-medium">{username || 'User'}</span>
             <Button variant="outline" size="sm" onClick={handleSignOut}>
-              {t("dashboard.signOut")}
+              {language === 'es' ? 'Cerrar Sesión' : 'Sign Out'}
             </Button>
           </div>
         </div>
