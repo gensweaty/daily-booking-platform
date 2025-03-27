@@ -49,7 +49,7 @@ export default {
     personal: "Personal Services",
     education: "Education"
   },
-  business: {
+  businessTypes: {
     events: "Event Planning",
     health: "Healthcare",
     sports: "Sports & Fitness",
@@ -81,7 +81,10 @@ export default {
     loginSuccess: "Login successful!",
     logoutSuccess: "Logout successful!",
     resetEmailSent: "Password reset email sent",
-    resetSuccess: "Password reset successful"
+    resetSuccess: "Password reset successful",
+    signInButton: "Sign In",
+    signUpButton: "Sign Up",
+    description: "Please enter your details to continue"
   },
   calendar: {
     today: "Today",
@@ -136,7 +139,7 @@ export default {
     confirmDelete: "Are you sure you want to delete this note?",
     noNotes: "No notes available"
   },
-  business: {
+  businessSettings: {
     createBusiness: "Create Business",
     editBusiness: "Edit Business",
     businessInfo: "Business Information",

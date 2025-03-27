@@ -49,7 +49,7 @@ export default {
     personal: "Servicios Personales",
     education: "Educación"
   },
-  business: {
+  businessTypes: {
     events: "Planificación de Eventos",
     health: "Salud",
     sports: "Deportes y Fitness",
@@ -81,7 +81,10 @@ export default {
     loginSuccess: "¡Inicio de sesión exitoso!",
     logoutSuccess: "¡Cierre de sesión exitoso!",
     resetEmailSent: "Correo de restablecimiento enviado",
-    resetSuccess: "Contraseña restablecida con éxito"
+    resetSuccess: "Contraseña restablecida con éxito",
+    signInButton: "Iniciar Sesión",
+    signUpButton: "Registrarse",
+    description: "Por favor ingrese sus datos para continuar"
   },
   calendar: {
     today: "Hoy",
@@ -136,7 +139,7 @@ export default {
     confirmDelete: "¿Está seguro de que desea eliminar esta nota?",
     noNotes: "No hay notas disponibles"
   },
-  business: {
+  businessSettings: {
     createBusiness: "Crear Negocio",
     editBusiness: "Editar Negocio",
     businessInfo: "Información del Negocio",
