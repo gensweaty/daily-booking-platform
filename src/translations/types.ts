@@ -1,5 +1,5 @@
 
-import { Translations } from "./index";
+import { translations } from "./index";
 
 export type Language = "en" | "es";
 
@@ -10,4 +10,5 @@ export interface LanguageContextType {
   getLocalizedPath: (path: string) => string;
 }
 
-export type TranslationKey = keyof Translations;
+export type TranslationKey = keyof typeof translations.en;
+export type TranslationType = Record<string, string>;

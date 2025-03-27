@@ -1,7 +1,6 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { translations } from '@/translations';
-import { Language, LanguageContextType, TranslationType } from '@/translations/types';
+import { Language, LanguageContextType } from '@/translations/types';
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
@@ -15,12 +14,22 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     localStorage.setItem('language', language);
   }, [language]);
 
-  const t = (key: keyof TranslationType): string => {
+  const t = (key: string): string => {
     return translations[language][key] || key;
   };
 
+  const getLocalizedPath = (path: string): string => {
+    if (language !== 'en') {
+      if (path.startsWith('/')) {
+        return `/${language}${path}`;
+      }
+      return `${language}/${path}`;
+    }
+    return path;
+  };
+
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t, getLocalizedPath }}>
       {children}
     </LanguageContext.Provider>
   );

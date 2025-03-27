@@ -4,7 +4,6 @@ import { CheckCircle } from "lucide-react";
 import { ImageCarousel } from "./ImageCarousel";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { TranslationType } from "@/translations/types";
 
 interface FeatureCardProps {
   icon: LucideIcon;
@@ -33,8 +32,8 @@ export const FeatureCard = ({
 }: FeatureCardProps) => {
   const { t } = useLanguage();
   
-  const getTranslationKey = (key: string): keyof TranslationType => {
-    return `${translationPrefix}.${key}` as keyof TranslationType;
+  const getTranslationKey = (key: string): string => {
+    return `${translationPrefix}.${key}`;
   };
   
   return (
@@ -68,7 +67,7 @@ export const FeatureCard = ({
               className="flex items-start gap-2"
             >
               <CheckCircle className="w-5 h-5 text-primary mt-1" />
-              <span>{t(getTranslationKey(`feature${idx + 1}` as const))}</span>
+              <span>{t(getTranslationKey(`feature${idx + 1}`))}</span>
             </motion.li>
           ))}
         </ul>
