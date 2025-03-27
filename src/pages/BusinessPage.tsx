@@ -1,30 +1,42 @@
 
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useToast } from "@/components/ui/use-toast";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/Calendar/Calendar";
-import { BusinessData } from "@/components/business/BusinessDialog";
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { Building, Phone, Mail, Globe, MapPin, ArrowLeft, Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/Calendar/Calendar";
+import { Loader2, ChevronLeft, Globe, Phone, Mail, MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
+
+interface Business {
+  id: string;
+  name: string;
+  description?: string;
+  contact_phone?: string;
+  contact_address?: string;
+  contact_email?: string;
+  contact_website?: string;
+  cover_photo_path?: string;
+}
 
 export const BusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
-  const navigate = useNavigate();
-  const { toast } = useToast();
   const { t } = useLanguage();
-  const [business, setBusiness] = useState<BusinessData | null>(null);
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchBusiness = async () => {
-      if (!slug) return;
-      
       try {
         setIsLoading(true);
+        setError(null);
+        
+        if (!slug) {
+          setError("Business not found");
+          return;
+        }
+        
         const { data, error } = await supabase
           .from("businesses")
           .select("*")
@@ -34,163 +46,141 @@ export const BusinessPage = () => {
         if (error) throw error;
         
         if (!data) {
-          navigate("/");
+          setError("Business not found");
           return;
         }
         
         setBusiness(data);
+        
+        // Fetch cover photo if available
+        if (data.cover_photo_path) {
+          const { data: fileData, error: fileError } = await supabase.storage
+            .from('business-photos')
+            .getPublicUrl(data.cover_photo_path);
+          
+          if (fileError) throw fileError;
+          setCoverPhotoUrl(fileData.publicUrl);
+        }
       } catch (error: any) {
         console.error("Error fetching business:", error);
-        toast({
-          title: t("business.error"),
-          description: t("business.errorLoadingBusiness"),
-          variant: "destructive",
-        });
-        navigate("/");
+        setError(error.message || "Failed to load business information");
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchBusiness();
-  }, [slug, navigate, toast, t]);
+  }, [slug]);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (!business) {
-    return null;
+  if (error || !business) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <h1 className="text-2xl font-bold mb-4">Business Not Found</h1>
+        <p className="text-muted-foreground mb-8">The business you're looking for doesn't exist or has been removed.</p>
+        <Link to="/">
+          <Button>
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Return to Home
+          </Button>
+        </Link>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
-        <div className="container mx-auto py-4 px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/")}
-              className="mr-4"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Building className="h-5 w-5" />
-              {business.name}
-            </h1>
+    <div className="min-h-screen bg-background">
+      {/* Hero section with cover photo */}
+      <div className="relative h-64 md:h-80 w-full bg-gradient-to-r from-primary/90 to-primary/40">
+        {coverPhotoUrl ? (
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${coverPhotoUrl})` }}>
+            <div className="absolute inset-0 bg-black/40"></div>
           </div>
+        ) : null}
+        
+        <div className="container mx-auto px-4 h-full flex flex-col justify-end pb-8 relative">
+          <h1 className="text-3xl md:text-4xl font-bold text-white">{business.name}</h1>
+          {business.description && (
+            <p className="mt-2 text-white/90 max-w-2xl">{business.description}</p>
+          )}
         </div>
       </div>
-
-      <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      
+      {/* Main content */}
+      <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1 space-y-6">
-            <Card>
-              <CardContent className="pt-6">
-                {business.cover_photo_path && (
-                  <div className="mb-6 rounded-md overflow-hidden">
-                    <img
-                      src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/business-photos/${business.cover_photo_path}`}
-                      alt={business.name}
-                      className="w-full h-48 object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/placeholder.svg";
-                      }}
-                    />
+          {/* Sidebar with business info */}
+          <div className="order-2 lg:order-1">
+            <div className="bg-card rounded-lg shadow-sm p-6 sticky top-8">
+              <h2 className="text-xl font-semibold mb-4">Contact Information</h2>
+              <div className="space-y-4">
+                {business.contact_phone && (
+                  <div className="flex items-center gap-3">
+                    <Phone className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <p>{business.contact_phone}</p>
+                    </div>
                   </div>
                 )}
-
-                <div className="space-y-4">
-                  <div>
-                    <Badge className="mb-2">{t("business.businessInfo")}</Badge>
-                    {business.description && (
-                      <p className="text-gray-600 mb-4">{business.description}</p>
-                    )}
+                
+                {business.contact_email && (
+                  <div className="flex items-center gap-3">
+                    <Mail className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Email</p>
+                      <p>{business.contact_email}</p>
+                    </div>
                   </div>
-
-                  <div className="space-y-3">
-                    {business.contact_phone && (
-                      <div className="flex items-start gap-3">
-                        <Phone className="h-5 w-5 text-gray-500 mt-0.5" />
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-900">
-                            {t("business.contactPhone")}
-                          </h3>
-                          <p className="text-sm text-gray-600">{business.contact_phone}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {business.contact_email && (
-                      <div className="flex items-start gap-3">
-                        <Mail className="h-5 w-5 text-gray-500 mt-0.5" />
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-900">
-                            {t("business.contactEmail")}
-                          </h3>
-                          <a
-                            href={`mailto:${business.contact_email}`}
-                            className="text-sm text-blue-600 hover:text-blue-800"
-                          >
-                            {business.contact_email}
-                          </a>
-                        </div>
-                      </div>
-                    )}
-
-                    {business.contact_website && (
-                      <div className="flex items-start gap-3">
-                        <Globe className="h-5 w-5 text-gray-500 mt-0.5" />
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-900">
-                            {t("business.contactWebsite")}
-                          </h3>
-                          <a
-                            href={business.contact_website.startsWith('http') ? business.contact_website : `https://${business.contact_website}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-blue-600 hover:text-blue-800"
-                          >
-                            {business.contact_website}
-                          </a>
-                        </div>
-                      </div>
-                    )}
-
-                    {business.contact_address && (
-                      <div className="flex items-start gap-3">
-                        <MapPin className="h-5 w-5 text-gray-500 mt-0.5" />
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-900">
-                            {t("business.contactAddress")}
-                          </h3>
-                          <p className="text-sm text-gray-600 whitespace-pre-line">
-                            {business.contact_address}
-                          </p>
-                        </div>
-                      </div>
-                    )}
+                )}
+                
+                {business.contact_website && (
+                  <div className="flex items-center gap-3">
+                    <Globe className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Website</p>
+                      <a 
+                        href={business.contact_website.startsWith('http') ? business.contact_website : `https://${business.contact_website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {business.contact_website}
+                      </a>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                )}
+                
+                {business.contact_address && (
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-5 w-5 text-primary shrink-0 mt-1" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Address</p>
+                      <p>{business.contact_address}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-
-          <div className="lg:col-span-2">
-            <Card className="h-full">
-              <CardContent className="p-4 h-full">
-                <h2 className="text-xl font-semibold mb-4">{t("business.bookingCalendar")}</h2>
-                <div className="h-[700px]">
-                  <Calendar isPublic={true} businessId={business.id} />
-                </div>
-              </CardContent>
-            </Card>
+          
+          {/* Booking calendar */}
+          <div className="order-1 lg:order-2 lg:col-span-2">
+            <h2 className="text-2xl font-bold mb-6">Book an Appointment</h2>
+            <div className="bg-card rounded-lg shadow-sm p-4 md:p-6">
+              <Calendar
+                defaultView="week"
+                isPublic={true}
+                businessId={business.id}
+              />
+            </div>
           </div>
         </div>
       </div>

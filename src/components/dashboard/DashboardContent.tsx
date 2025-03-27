@@ -1,13 +1,15 @@
+
 import React, { useState } from "react";
-import { Calendar, BarChart3, CheckSquare, Users, Building } from "lucide-react";
+import { BarChart3, CheckSquare, Users, Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/Calendar/Calendar";
-import { Statistics } from "@/components/Statistics/Statistics";
 import { TaskList } from "@/components/Tasks/TaskList";
-import { CustomerList } from "@/components/CRM/CustomerList";
+import { CustomerList } from "@/components/crm/CustomerList"; 
 import { useLanguage } from "@/contexts/LanguageContext";
 import { motion } from "framer-motion";
 import { BusinessDashboard } from "@/pages/BusinessDashboard";
+import { Statistics } from "@/components/Statistics";
 
 export const DashboardContent = ({
   isTaskDialogOpen,
@@ -50,7 +52,7 @@ export const DashboardContent = ({
             className="gap-2"
             onClick={() => setActiveTab("calendar")}
           >
-            <Calendar className="h-4 w-4" />
+            <CalendarIcon className="h-4 w-4" />
             {t("dashboard.bookingCalendar")}
           </Button>
           <Button

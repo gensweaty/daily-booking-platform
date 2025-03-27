@@ -1,52 +1,49 @@
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { CalendarEventType } from "@/lib/types/calendar";
-import { format, parseISO } from "date-fns";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/components/ui/use-toast";
-import { CheckCircle2, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
+import { CalendarEventType } from "@/lib/types/calendar";
 
 interface UnconfirmedEventsListProps {
   businessId: string;
   onEventApproved: () => void;
 }
 
-export const UnconfirmedEventsList = ({
-  businessId,
-  onEventApproved,
-}: UnconfirmedEventsListProps) => {
+export const UnconfirmedEventsList = ({ businessId, onEventApproved }: UnconfirmedEventsListProps) => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [events, setEvents] = useState<CalendarEventType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [approvingEvent, setApprovingEvent] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [approvingEventId, setApprovingEventId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUnconfirmedEvents = async () => {
       try {
-        setLoading(true);
+        setIsLoading(true);
         const { data, error } = await supabase
-          .from("events")
-          .select("*")
-          .eq("business_id", businessId)
-          .eq("status", "unconfirmed")
-          .order("start_date", { ascending: true });
+          .from('events')
+          .select('*')
+          .eq('business_id', businessId)
+          .eq('status', 'unconfirmed')
+          .order('start_date', { ascending: true });
 
         if (error) throw error;
         setEvents(data || []);
       } catch (error: any) {
-        console.error("Error fetching unconfirmed events:", error);
+        console.error('Error fetching unconfirmed events:', error);
         toast({
-          title: t("business.error"),
-          description: error.message,
+          title: t("common.error"),
+          description: error.message || "Failed to load unconfirmed events",
           variant: "destructive",
         });
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
@@ -55,47 +52,58 @@ export const UnconfirmedEventsList = ({
     }
   }, [businessId, toast, t]);
 
-  const handleApprove = async (eventId: string) => {
+  const approveEvent = async (eventId: string) => {
     try {
-      setApprovingEvent(eventId);
+      setApprovingEventId(eventId);
       
       const { error } = await supabase
-        .from("events")
-        .update({ status: "confirmed" })
-        .eq("id", eventId);
+        .from('events')
+        .update({ status: 'confirmed' })
+        .eq('id', eventId)
+        .eq('business_id', businessId);
 
       if (error) throw error;
-
-      toast({
-        title: t("business.eventApproved"),
-        description: t("business.eventApprovedDescription"),
-      });
       
       // Remove the approved event from the list
-      setEvents((prev) => prev.filter((event) => event.id !== eventId));
+      setEvents(events.filter(event => event.id !== eventId));
+      
+      toast({
+        title: t("common.success"),
+        description: "Event approved successfully",
+      });
+      
+      // Notify parent component
       onEventApproved();
     } catch (error: any) {
-      console.error("Error approving event:", error);
+      console.error('Error approving event:', error);
       toast({
-        title: t("business.error"),
-        description: error.message,
+        title: t("common.error"),
+        description: error.message || "Failed to approve event",
         variant: "destructive",
       });
     } finally {
-      setApprovingEvent(null);
+      setApprovingEventId(null);
     }
   };
 
-  if (loading) {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return format(date, 'PPP', { locale: language === 'es' ? es : undefined });
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return format(date, 'p', { locale: language === 'es' ? es : undefined });
+  };
+
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>{t("business.unconfirmedEvents")}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+        <CardContent className="flex justify-center items-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </CardContent>
       </Card>
     );
@@ -106,11 +114,12 @@ export const UnconfirmedEventsList = ({
       <Card>
         <CardHeader>
           <CardTitle>{t("business.unconfirmedEvents")}</CardTitle>
+          <CardDescription>
+            Booking requests from customers will appear here
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-center py-4">
-            {t("business.noUnconfirmedEvents")}
-          </p>
+        <CardContent className="text-center py-8 text-muted-foreground">
+          No unconfirmed bookings at this time
         </CardContent>
       </Card>
     );
@@ -120,67 +129,44 @@ export const UnconfirmedEventsList = ({
     <Card>
       <CardHeader>
         <CardTitle>{t("business.unconfirmedEvents")}</CardTitle>
+        <CardDescription>
+          Approve pending booking requests from customers
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {events.map((event) => (
-            <div
-              key={event.id}
-              className="flex flex-col sm:flex-row justify-between gap-4 p-4 border rounded-md bg-yellow-50"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold">{event.title}</h3>
-                  <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
-                    {t("business.unconfirmed")}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {format(parseISO(event.start_date), "PPP", {
-                    locale: language === "es" ? es : undefined,
-                  })}
-                  {" • "}
-                  {format(parseISO(event.start_date), "p", {
-                    locale: language === "es" ? es : undefined,
-                  })}
-                  {" - "}
-                  {format(parseISO(event.end_date), "p", {
-                    locale: language === "es" ? es : undefined,
-                  })}
-                </p>
-                {event.user_surname && (
-                  <p className="text-sm">
-                    <span className="font-medium">{t("events.clientName")}:</span>{" "}
-                    {event.user_surname}
-                  </p>
-                )}
-                {event.user_number && (
-                  <p className="text-sm">
-                    <span className="font-medium">{t("events.contactNumber")}:</span>{" "}
-                    {event.user_number}
-                  </p>
-                )}
-                {event.event_notes && (
-                  <p className="text-sm">
-                    <span className="font-medium">{t("events.eventNotes")}:</span>{" "}
-                    {event.event_notes}
-                  </p>
-                )}
-              </div>
-              <div className="flex sm:flex-col justify-end gap-2">
-                <Button
-                  onClick={() => handleApprove(event.id)}
-                  disabled={approvingEvent === event.id}
-                  className="flex items-center gap-2"
-                >
-                  {approvingEvent === event.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
+            <div key={event.id} className="flex items-start justify-between border-b pb-4">
+              <div className="space-y-1">
+                <div className="font-medium">{event.title}</div>
+                <div className="text-sm text-muted-foreground">
+                  {event.user_surname && <div><span className="font-medium">Name:</span> {event.user_surname}</div>}
+                  {event.user_number && <div><span className="font-medium">Phone:</span> {event.user_number}</div>}
+                  <div>
+                    <span className="font-medium">Date:</span> {formatDate(event.start_date)}
+                  </div>
+                  <div>
+                    <span className="font-medium">Time:</span> {formatTime(event.start_date)} - {formatTime(event.end_date)}
+                  </div>
+                  {event.event_notes && (
+                    <div>
+                      <span className="font-medium">Notes:</span> {event.event_notes}
+                    </div>
                   )}
-                  {t("business.approve")}
-                </Button>
+                </div>
               </div>
+              <Button 
+                onClick={() => approveEvent(event.id)}
+                disabled={approvingEventId === event.id}
+                className="text-green-50 bg-green-600 hover:bg-green-700"
+              >
+                {approvingEventId === event.id ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                )}
+                {t("business.approve")}
+              </Button>
             </div>
           ))}
         </div>
