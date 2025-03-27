@@ -53,14 +53,50 @@ const BusinessPage = () => {
         setBusiness(data);
         
         // Fetch cover photo if it exists
-        if (data.cover_photo_path) {
-          const { data: fileData } = await supabase.storage
+        if (data.cover_photo_path && typeof data.cover_photo_path === 'string') {
+          console.log("Cover photo path:", data.cover_photo_path);
+          
+          // Get public URL for the image
+          const { data: fileData, error: storageError } = supabase.storage
             .from('business_photos')
             .getPublicUrl(data.cover_photo_path);
           
-          if (fileData && fileData.publicUrl) {
-            setCoverPhotoUrl(fileData.publicUrl);
+          if (storageError) {
+            console.error("Error fetching public URL:", storageError);
+          } else {
+            console.log("Public URL response:", fileData);
+            if (fileData && fileData.publicUrl) {
+              setCoverPhotoUrl(fileData.publicUrl);
+            }
           }
+          
+          // If getPublicUrl fails, try a fallback approach with signed URLs
+          if (!fileData || !fileData.publicUrl) {
+            console.log("Attempting to use signed URL as fallback");
+            const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+              .from('business_photos')
+              .createSignedUrl(data.cover_photo_path, 3600); // URL valid for 1 hour
+              
+            if (signedUrlError) {
+              console.error("Error generating signed URL:", signedUrlError);
+              
+              // Last resort - list files to debug
+              const { data: files, error: listError } = await supabase.storage
+                .from('business_photos')
+                .list();
+                
+              if (listError) {
+                console.error("Error listing files:", listError);
+              } else {
+                console.log("Available files in bucket:", files);
+              }
+            } else if (signedUrlData) {
+              console.log("Using signed URL:", signedUrlData);
+              setCoverPhotoUrl(signedUrlData.signedUrl);
+            }
+          }
+        } else {
+          console.log("No cover photo path available for this business");
         }
       } catch (error) {
         console.error('Error:', error);
@@ -100,7 +136,7 @@ const BusinessPage = () => {
         {coverPhotoUrl ? (
           <img
             src={coverPhotoUrl}
-            alt={business.name}
+            alt={business?.name || 'Business cover photo'}
             className="w-full h-full object-cover"
           />
         ) : (
@@ -125,22 +161,22 @@ const BusinessPage = () => {
         <div className="flex flex-col md:flex-row gap-8">
           <div className="flex-1 space-y-6">
             <div>
-              <h1 className="text-3xl font-bold mb-2">{business.name}</h1>
+              <h1 className="text-3xl font-bold mb-2">{business?.name}</h1>
               <p className="text-muted-foreground">
-                {business.description || t('business.noDescription')}
+                {business?.description || t('business.noDescription')}
               </p>
             </div>
             
             <div className="space-y-4">
               <h2 className="text-xl font-semibold">{t('common.contact')}</h2>
               <div className="space-y-2">
-                {business.contact_phone && (
+                {business?.contact_phone && (
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
                     <span>{business.contact_phone}</span>
                   </div>
                 )}
-                {business.contact_email && (
+                {business?.contact_email && (
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-muted-foreground" />
                     <a 
@@ -151,13 +187,13 @@ const BusinessPage = () => {
                     </a>
                   </div>
                 )}
-                {business.contact_address && (
+                {business?.contact_address && (
                   <div className="flex items-start gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground mt-1" />
                     <span>{business.contact_address}</span>
                   </div>
                 )}
-                {business.contact_website && (
+                {business?.contact_website && (
                   <div className="flex items-center gap-2">
                     <Globe className="h-4 w-4 text-muted-foreground" />
                     <a 
@@ -205,12 +241,14 @@ const BusinessPage = () => {
         </div>
       </div>
       
-      <BusinessPublicEventDialog
-        open={isEventDialogOpen}
-        onOpenChange={setIsEventDialogOpen}
-        selectedDate={new Date()}
-        businessId={business.id}
-      />
+      {business && (
+        <BusinessPublicEventDialog
+          open={isEventDialogOpen}
+          onOpenChange={setIsEventDialogOpen}
+          selectedDate={new Date()}
+          businessId={business.id}
+        />
+      )}
     </div>
   );
 };
