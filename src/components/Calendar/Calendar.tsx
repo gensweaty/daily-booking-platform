@@ -9,6 +9,7 @@ import { EventRequestDialog } from "./EventRequestDialog";
 import { useEventRequests } from "@/hooks/useEventRequests";
 import { useBusiness } from "@/hooks/useBusiness";
 import { EventRequest } from "@/lib/types/business";
+import { addDays, addMonths, addWeeks, endOfWeek, startOfWeek, startOfDay, endOfDay } from "date-fns";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -31,12 +32,45 @@ export const Calendar = ({
   const { business } = useBusiness();
   const { eventRequests, pendingRequests } = useEventRequests(business?.id);
   
+  // Calculate visible days based on the current view
+  const [visibleDays, setVisibleDays] = useState<Date[]>([]);
+  
+  useEffect(() => {
+    if (view === 'week') {
+      const start = startOfWeek(visibleDate);
+      const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+      setVisibleDays(days);
+    } else if (view === 'day') {
+      setVisibleDays([visibleDate]);
+    }
+  }, [view, visibleDate]);
+
   // Make global events available to other components for time slot checking
   useEffect(() => {
     if (events) {
       (window as any).__CALENDAR_EVENTS__ = events;
     }
   }, [events]);
+  
+  const handlePrevious = () => {
+    if (view === 'month') {
+      setVisibleDate(prev => addMonths(prev, -1));
+    } else if (view === 'week') {
+      setVisibleDate(prev => addWeeks(prev, -1));
+    } else {
+      setVisibleDate(prev => addDays(prev, -1));
+    }
+  };
+  
+  const handleNext = () => {
+    if (view === 'month') {
+      setVisibleDate(prev => addMonths(prev, 1));
+    } else if (view === 'week') {
+      setVisibleDate(prev => addWeeks(prev, 1));
+    } else {
+      setVisibleDate(prev => addDays(prev, 1));
+    }
+  };
   
   const handleDateSelect = (date: Date) => {
     if (onDateClick) {
@@ -100,8 +134,10 @@ export const Calendar = ({
       <CalendarHeader
         view={view}
         onViewChange={setView}
+        selectedDate={selectedDate}
         visibleDate={visibleDate}
-        onVisibleDateChange={setVisibleDate}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
         onAddEvent={publicMode ? undefined : () => setIsNewEventDialogOpen(true)}
       />
       
@@ -109,7 +145,9 @@ export const Calendar = ({
         <CalendarView
           view={view}
           events={allEvents}
+          selectedDate={selectedDate}
           visibleDate={visibleDate}
+          days={visibleDays}
           onDateSelect={handleDateSelect}
           onEventSelect={(event) => {
             // Check if the event is actually a request

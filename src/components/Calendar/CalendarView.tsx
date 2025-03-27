@@ -5,24 +5,35 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarViewProps {
-  days: Date[];
+  days?: Date[];
   events: CalendarEventType[];
-  selectedDate: Date;
+  selectedDate?: Date;
   view: "month" | "week" | "day";
-  onDayClick: (date: Date, hour?: number) => void;
-  onEventClick: (event: CalendarEventType) => void;
+  onDayClick?: (date: Date, hour?: number) => void;
+  onEventClick?: (event: CalendarEventType) => void;
+  onDateSelect?: (date: Date) => void;
+  onEventSelect?: (event: CalendarEventType) => void;
+  visibleDate?: Date;
+  isLoading?: boolean;
+  publicMode?: boolean;
 }
 
 export const CalendarView = ({
   days,
-  events,
-  selectedDate,
+  events = [],
+  selectedDate = new Date(),
   view,
   onDayClick,
   onEventClick,
+  onDateSelect,
+  onEventSelect,
+  visibleDate,
+  isLoading = false,
+  publicMode = false,
 }: CalendarViewProps) => {
   const { language } = useLanguage();
   const locale = language === 'es' ? es : undefined;
+  const dateToUse = visibleDate || selectedDate;
 
   const weekDays = language === 'es' 
     ? ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
@@ -44,10 +55,14 @@ export const CalendarView = ({
     return ((actualHour - 6 + 24) % 24) * 80; // 80px is the height of each hour slot
   };
 
+  // Handle clicks
+  const handleDayClick = onDayClick || onDateSelect || (() => {});
+  const handleEventClick = onEventClick || onEventSelect || (() => {});
+
   if (view === "month") {
     // Get the start and end of the month view
-    const monthStart = startOfMonth(selectedDate);
-    const monthEnd = endOfMonth(selectedDate);
+    const monthStart = startOfMonth(dateToUse);
+    const monthEnd = endOfMonth(dateToUse);
     const calendarStart = startOfWeek(monthStart);
     const calendarEnd = endOfWeek(monthEnd);
 
@@ -61,7 +76,7 @@ export const CalendarView = ({
           const dayEvents = events.filter((event) => 
             isSameDay(parseISO(event.start_date), day)
           );
-          const isCurrentMonth = isSameMonth(day, selectedDate);
+          const isCurrentMonth = isSameMonth(day, dateToUse);
 
           return (
             <div
@@ -69,7 +84,7 @@ export const CalendarView = ({
               className={`relative bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted border border-border transition-colors ${
                 !isCurrentMonth ? 'bg-opacity-50' : ''
               }`}
-              onClick={() => onDayClick(day)}
+              onClick={() => handleDayClick(day)}
             >
               <div className={`font-medium ${!isCurrentMonth ? 'text-muted-foreground' : 'text-foreground'}`}>
                 {format(day, "d")}
@@ -87,7 +102,7 @@ export const CalendarView = ({
                     }`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEventClick(event);
+                      handleEventClick(event);
                     }}
                   >
                     {event.title}
@@ -102,11 +117,13 @@ export const CalendarView = ({
   }
 
   // Week/Day view with time slots starting from 6 AM
+  const daysToShow = days || [dateToUse];
+  
   return (
     <div className="flex-1 grid bg-background rounded-lg overflow-y-auto" 
          style={{ gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` }}>
       <div className="contents">
-        {days.map((day) => (
+        {daysToShow.map((day) => (
           <div 
             key={day.toISOString()} 
             className="bg-background px-0.5 sm:px-4 py-2 text-center border-b border-border h-20"
@@ -122,7 +139,7 @@ export const CalendarView = ({
       </div>
       
       <div className="contents">
-        {days.map((day) => (
+        {daysToShow.map((day) => (
           <div 
             key={day.toISOString()} 
             className="relative bg-background border-r border-l border-border min-w-[35px]"
@@ -136,7 +153,7 @@ export const CalendarView = ({
                 <div
                   key={actualHour}
                   className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
-                  onClick={() => onDayClick(hourDate, actualHour)}
+                  onClick={() => handleDayClick(hourDate, actualHour)}
                 />
               );
             })}
@@ -165,7 +182,7 @@ export const CalendarView = ({
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEventClick(event);
+                      handleEventClick(event);
                     }}
                   >
                     <div className="font-semibold truncate">{event.title}</div>
