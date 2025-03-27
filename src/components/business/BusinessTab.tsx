@@ -1,16 +1,20 @@
+
 import { useBusiness } from "@/hooks/useBusiness";
 import { useEventRequests } from "@/hooks/useEventRequests";
 import { Business, EventRequest } from "@/lib/types/business";
 import { Button } from "../ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Building2, Share2, CalendarDays } from "lucide-react";
 import { BusinessDialog } from "./BusinessDialog";
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format } from "date-fns";
 import { EventRequestDialog } from "../Calendar/EventRequestDialog";
+import { Badge } from "../ui/badge";
+import { Separator } from "../ui/separator";
+import { useToast } from "@/components/ui/use-toast";
 
 export const BusinessTab = () => {
   const { t } = useLanguage();
