@@ -24,20 +24,28 @@ const BusinessPage = () => {
       try {
         setLoading(true);
         
+        if (!slug) {
+          console.error('No slug provided');
+          setLoading(false);
+          return;
+        }
+        
         // Direct database query to get the business by slug
         const { data, error } = await supabase
           .from('businesses')
           .select('*')
           .eq('slug', slug)
-          .maybeSingle();
+          .single();
         
         if (error) {
           console.error('Error fetching business:', error);
+          setLoading(false);
           return;
         }
         
         if (!data) {
           console.log('Business not found');
+          setLoading(false);
           return;
         }
         
@@ -60,9 +68,7 @@ const BusinessPage = () => {
       }
     };
     
-    if (slug) {
-      fetchBusiness();
-    }
+    fetchBusiness();
   }, [slug]);
   
   if (loading) {
