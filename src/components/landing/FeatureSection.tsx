@@ -3,7 +3,6 @@ import React from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { motion } from 'framer-motion';
 import FeatureCard from './FeatureCard';
-import { Calendar, BarChart, Users, ListTodo } from 'lucide-react';
 
 const calendarViews = [
   {

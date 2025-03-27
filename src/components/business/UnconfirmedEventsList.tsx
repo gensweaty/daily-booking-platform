@@ -115,11 +115,11 @@ export const UnconfirmedEventsList = ({ businessId, onEventApproved }: Unconfirm
         <CardHeader>
           <CardTitle>{t("business.unconfirmedEvents")}</CardTitle>
           <CardDescription>
-            Booking requests from customers will appear here
+            {t("business.noUnconfirmedBookings")}
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center py-8 text-muted-foreground">
-          No unconfirmed bookings at this time
+          {t("business.noBookingsMessage")}
         </CardContent>
       </Card>
     );
@@ -130,7 +130,7 @@ export const UnconfirmedEventsList = ({ businessId, onEventApproved }: Unconfirm
       <CardHeader>
         <CardTitle>{t("business.unconfirmedEvents")}</CardTitle>
         <CardDescription>
-          Approve pending booking requests from customers
+          {t("business.approveBookingsPrompt")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -140,17 +140,17 @@ export const UnconfirmedEventsList = ({ businessId, onEventApproved }: Unconfirm
               <div className="space-y-1">
                 <div className="font-medium">{event.title}</div>
                 <div className="text-sm text-muted-foreground">
-                  {event.user_surname && <div><span className="font-medium">Name:</span> {event.user_surname}</div>}
-                  {event.user_number && <div><span className="font-medium">Phone:</span> {event.user_number}</div>}
+                  {event.user_surname && <div><span className="font-medium">{t("business.nameLabel")}:</span> {event.user_surname}</div>}
+                  {event.user_number && <div><span className="font-medium">{t("business.phoneLabel")}:</span> {event.user_number}</div>}
                   <div>
-                    <span className="font-medium">Date:</span> {formatDate(event.start_date)}
+                    <span className="font-medium">{t("business.dateLabel")}:</span> {formatDate(event.start_date)}
                   </div>
                   <div>
-                    <span className="font-medium">Time:</span> {formatTime(event.start_date)} - {formatTime(event.end_date)}
+                    <span className="font-medium">{t("business.timeLabel")}:</span> {formatTime(event.start_date)} - {formatTime(event.end_date)}
                   </div>
                   {event.event_notes && (
                     <div>
-                      <span className="font-medium">Notes:</span> {event.event_notes}
+                      <span className="font-medium">{t("business.notesLabel")}:</span> {event.event_notes}
                     </div>
                   )}
                 </div>

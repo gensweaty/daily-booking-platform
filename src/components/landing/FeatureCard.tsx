@@ -52,7 +52,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ title, description, icon, fea
             {features.map((feature, featureIndex) => (
               <li key={featureIndex} className="mb-2 flex items-center">
                 <span className="mr-2 text-green-500">✓</span>
-                {t(feature.toString())}
+                {t(feature)}
               </li>
             ))}
           </ul>

@@ -10,7 +10,7 @@ import { BusinessCard } from "@/components/business/BusinessCard";
 import { UnconfirmedEventsList } from "@/components/business/UnconfirmedEventsList";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
-import { Business } from "@/lib/types";
+import { Business, BusinessData } from "@/lib/types";
 
 export const BusinessDashboard = () => {
   const { user } = useAuth();
@@ -56,15 +56,32 @@ export const BusinessDashboard = () => {
 
   const handleBusinessCreated = (newBusiness: Business) => {
     setBusiness(newBusiness);
+    setIsDialogOpen(false);
   };
   
-  const handleBusinessDelete = (id: string) => {
-    // Add a delete handler
-    toast({
-      title: t("business.deleted"),
-      description: t("business.businessDeleted"),
-    });
-    setBusiness(null);
+  const handleBusinessDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("businesses")
+        .delete()
+        .eq("id", id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: t("business.deleted"),
+        description: t("business.businessDeleted"),
+      });
+      
+      setBusiness(null);
+    } catch (error: any) {
+      console.error("Error deleting business:", error);
+      toast({
+        title: t("business.error"),
+        description: error.message || t("business.errorDeletingBusiness"),
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {

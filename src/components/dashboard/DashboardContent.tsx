@@ -27,9 +27,7 @@ export const DashboardContent = ({
       case "statistics":
         return <Statistics />;
       case "tasks":
-        return (
-          <TaskList />
-        );
+        return <TaskList />;
       case "crm":
         return <CustomerList />;
       case "business":

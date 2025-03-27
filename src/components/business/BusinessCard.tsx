@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,10 +22,13 @@ export const BusinessCard = ({ business, onEdit, onDelete }: BusinessCardProps) 
   useEffect(() => {
     const fetchCoverImage = async () => {
       if (business.cover_photo) {
-        const coverImageUrl = business.cover_photo 
-          ? await supabase.storage.from('business-images').getPublicUrl(business.cover_photo).data.publicUrl 
-          : '/placeholder.svg';
-        setCoverImageUrl(coverImageUrl);
+        try {
+          const { data } = await supabase.storage.from('business-images').getPublicUrl(business.cover_photo);
+          setCoverImageUrl(data.publicUrl);
+        } catch (err) {
+          console.error("Error fetching cover image:", err);
+          setCoverImageUrl('/placeholder.svg');
+        }
       }
     };
 
