@@ -222,13 +222,15 @@ export default {
     invalidDate: "Invalid date",
     endBeforeStart: "End date cannot be before start date",
     fileSize: "File size exceeds the limit",
-    fileType: "File type not supported"
+    fileType: "File type not supported",
+    businessNotFound: "Business Not Found",
+    businessRemoved: "The business you're looking for doesn't exist or has been removed."
   },
   footer: {
     description: "SmartBookly provides an all-in-one solution for managing your business bookings, appointments, and client information.",
     navigation: "Navigation",
     legal: "Legal",
-    rights: "© 2023 SmartBookly. All rights reserved.",
+    rights: "All rights reserved.",
     termsAndPrivacy: "Terms & Privacy"
   },
   cta: {
@@ -259,5 +261,12 @@ export default {
     feature2: "Interaction history and notes",
     feature3: "Personalized communication",
     feature4: "Client segmentation and targeting"
+  },
+  business: {
+    noDescription: "No description provided.",
+    poweredBy: "Powered by",
+    viewDetails: "View Details",
+    contactUs: "Contact Us",
+    bookNow: "Book Now"
   }
 };

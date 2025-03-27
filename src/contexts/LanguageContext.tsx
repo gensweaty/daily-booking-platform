@@ -29,7 +29,10 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
       const parts = key.split('.');
       
       // If no dots or only one part, return the key itself as fallback
-      if (parts.length <= 1) return key;
+      if (parts.length <= 1) {
+        console.warn(`Invalid translation key format (missing section): ${key}`);
+        return key;
+      }
       
       // Get the section and the specific key
       const section = parts[0];
@@ -47,9 +50,9 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
       // Get the translation from the section
       const translation = translationDict[section][translationKey];
       
-      // If no translation found, return the key as fallback
+      // If no translation found, return the key as fallback and log warning
       if (!translation) {
-        console.warn(`Missing translation: ${key} for language: ${language}`);
+        console.warn(`Missing translation: ${key} for language: ${language}, section: ${section}, key: ${translationKey}`);
         return key;
       }
       

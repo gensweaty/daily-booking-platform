@@ -28,5 +28,6 @@ export interface TranslationDictionary {
   booking: Record<string, string>;
   analytics: Record<string, string>;
   crm: Record<string, string>;
+  business: Record<string, string>;
   [key: string]: Record<string, string>;
 }

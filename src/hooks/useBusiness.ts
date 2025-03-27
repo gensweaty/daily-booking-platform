@@ -65,7 +65,6 @@ export const usePublicBusiness = (slug: string) => {
     queryKey: ["public-business", slug],
     queryFn: () => getBusinessBySlug(slug),
     enabled: !!slug,
-    // Make sure we don't require authentication for public business pages
     retry: 3,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes

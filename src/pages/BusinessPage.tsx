@@ -23,6 +23,10 @@ const BusinessPageContent = () => {
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
+  console.log("Business page loaded with slug:", slug);
+  console.log("Business data loading state:", isLoading);
+  console.log("Business data error state:", isError);
+
   // If the URL has a date parameter, use it to open the booking dialog
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -49,16 +53,19 @@ const BusinessPageContent = () => {
   }
 
   if (isError || !business) {
+    console.error("Error or no business data");
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <h1 className="text-2xl font-bold mb-4">Business Not Found</h1>
-        <p className="text-muted-foreground mb-8">The business you're looking for doesn't exist or has been removed.</p>
+        <h1 className="text-2xl font-bold mb-4">{t('errors.businessNotFound')}</h1>
+        <p className="text-muted-foreground mb-8">{t('errors.businessRemoved')}</p>
         <Link to="/">
-          <Button>Return Home</Button>
+          <Button>{t('common.home')}</Button>
         </Link>
       </div>
     );
   }
+
+  console.log("Business data loaded successfully:", business.name);
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
@@ -115,7 +122,7 @@ const BusinessPageContent = () => {
             <div>
               <h2 className="text-xl font-semibold mb-4">{t('common.about')}</h2>
               <p className="text-muted-foreground whitespace-pre-wrap">
-                {business.description || "No description provided."}
+                {business.description || t('business.noDescription')}
               </p>
             </div>
 
@@ -199,8 +206,8 @@ const BusinessPageContent = () => {
       {/* Footer */}
       <footer className="mt-12 border-t py-8">
         <div className="container mx-auto px-4 text-center">
-          <p className="text-muted-foreground">&copy; {new Date().getFullYear()} {business.name}. All rights reserved.</p>
-          <p className="text-xs text-muted-foreground mt-2">Powered by <a href="/" className="text-primary hover:underline">SmartBookly</a></p>
+          <p className="text-muted-foreground">&copy; {new Date().getFullYear()} {business.name}. {t('footer.rights')}</p>
+          <p className="text-xs text-muted-foreground mt-2">{t('business.poweredBy')} <a href="/" className="text-primary hover:underline">SmartBookly</a></p>
         </div>
       </footer>
 

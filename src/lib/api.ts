@@ -262,16 +262,25 @@ export const updateBusiness = async (id: string, formData: BusinessFormData) => 
 
 export const getBusinessBySlug = async (slug: string) => {
   try {
-    // Use anon client for public access
+    console.log("Fetching business with slug:", slug);
+    // Use anon client for public access - this should not require authentication
     const { data, error } = await supabase
       .from('businesses')
       .select('*')
       .eq('slug', slug)
       .maybeSingle();
 
-    if (error) throw error;
-    if (!data) throw new Error('Business not found');
+    if (error) {
+      console.error('Error fetching business by slug:', error);
+      throw error;
+    }
     
+    if (!data) {
+      console.error('Business not found with slug:', slug);
+      throw new Error('Business not found');
+    }
+    
+    console.log("Successfully fetched business:", data.name);
     return data;
   } catch (error: any) {
     console.error('Error fetching business by slug:', error);

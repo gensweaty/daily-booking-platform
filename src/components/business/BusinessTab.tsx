@@ -30,8 +30,8 @@ export const BusinessTab = () => {
     navigator.clipboard.writeText(url);
     
     toast({
-      title: "Link Copied",
-      description: "Business page link copied to clipboard!",
+      title: t('businessSettings.linkCopied'),
+      description: t('businessSettings.publicLink'),
     });
   };
   
@@ -48,12 +48,12 @@ export const BusinessTab = () => {
       return (
         <div className="flex flex-col items-center justify-center py-12 space-y-4 text-center">
           <Building2 className="h-16 w-16 text-muted-foreground" />
-          <h3 className="text-xl font-semibold">No Business Added Yet</h3>
+          <h3 className="text-xl font-semibold">{t('businessSettings.noBusiness')}</h3>
           <p className="text-muted-foreground max-w-md">
-            Add your business to create a public booking page where clients can request appointments.
+            {t('business.addBusinessDesc')}
           </p>
           <Button onClick={() => setIsDialogOpen(true)}>
-            Add Business
+            {t('businessSettings.addBusiness')}
           </Button>
         </div>
       );
@@ -62,9 +62,9 @@ export const BusinessTab = () => {
     return (
       <Tabs defaultValue="details" className="w-full">
         <TabsList className="mb-4">
-          <TabsTrigger value="details">Business Details</TabsTrigger>
+          <TabsTrigger value="details">{t('business.details')}</TabsTrigger>
           <TabsTrigger value="requests">
-            Event Requests
+            {t('events.eventRequests')}
             {pendingRequests?.length > 0 && (
               <Badge variant="destructive" className="ml-2">
                 {pendingRequests.length}
@@ -78,7 +78,7 @@ export const BusinessTab = () => {
             <div>
               <h2 className="text-2xl font-bold">{business?.name}</h2>
               <p className="text-muted-foreground">
-                Created {format(new Date(business?.created_at), "PPP")}
+                {t('business.created')} {format(new Date(business?.created_at || new Date()), "PPP")}
               </p>
             </div>
             <div className="flex gap-2">
@@ -89,13 +89,13 @@ export const BusinessTab = () => {
                 className="flex items-center gap-1"
               >
                 <Share2 className="h-4 w-4" />
-                Copy Link
+                {t('businessSettings.copyLink')}
               </Button>
               <Button
                 size="sm"
                 onClick={() => setIsDialogOpen(true)}
               >
-                Edit Business
+                {t('businessSettings.editBusiness')}
               </Button>
             </div>
           </div>
@@ -105,29 +105,29 @@ export const BusinessTab = () => {
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-semibold">Description</h3>
+                <h3 className="text-lg font-semibold">{t('businessSettings.description')}</h3>
                 <p className="text-muted-foreground whitespace-pre-wrap">
-                  {business?.description || "No description provided"}
+                  {business?.description || t('business.noDescription')}
                 </p>
               </div>
               
               <div>
-                <h3 className="text-lg font-semibold">Contact Information</h3>
+                <h3 className="text-lg font-semibold">{t('businessSettings.contactInfo')}</h3>
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <div>
-                    <p className="text-sm font-medium">Phone</p>
+                    <p className="text-sm font-medium">{t('businessSettings.phone')}</p>
                     <p className="text-sm">{business?.contact_phone || "N/A"}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Email</p>
+                    <p className="text-sm font-medium">{t('businessSettings.email')}</p>
                     <p className="text-sm">{business?.contact_email || "N/A"}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Address</p>
+                    <p className="text-sm font-medium">{t('businessSettings.address')}</p>
                     <p className="text-sm">{business?.contact_address || "N/A"}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Website</p>
+                    <p className="text-sm font-medium">{t('businessSettings.website')}</p>
                     <p className="text-sm">{business?.contact_website || "N/A"}</p>
                   </div>
                 </div>
@@ -135,7 +135,7 @@ export const BusinessTab = () => {
             </div>
             
             <div>
-              <h3 className="text-lg font-semibold mb-4">Public Page Preview</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('business.publicPagePreview')}</h3>
               {business?.cover_photo_path ? (
                 <div className="relative h-48 rounded-lg overflow-hidden mb-4">
                   <img
@@ -146,13 +146,13 @@ export const BusinessTab = () => {
                 </div>
               ) : (
                 <div className="h-48 bg-muted rounded-lg flex items-center justify-center mb-4">
-                  <p className="text-muted-foreground">No cover photo</p>
+                  <p className="text-muted-foreground">{t('business.noCoverPhoto')}</p>
                 </div>
               )}
               
               <div className="border rounded-lg p-4 bg-muted/30">
                 <p className="text-sm">
-                  Your public page is available at:
+                  {t('business.publicPageAvailable')}
                 </p>
                 <div className="flex mt-2">
                   <code className="flex-1 bg-muted p-2 rounded text-sm overflow-x-auto">
@@ -175,11 +175,11 @@ export const BusinessTab = () => {
         <TabsContent value="requests">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Event Requests</h2>
+              <h2 className="text-xl font-semibold">{t('events.eventRequests')}</h2>
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-5 w-5 text-muted-foreground" />
                 <span className="text-muted-foreground">
-                  {pendingRequests?.length || 0} pending requests
+                  {pendingRequests?.length || 0} {t('events.pendingRequests')}
                 </span>
               </div>
             </div>
@@ -187,16 +187,16 @@ export const BusinessTab = () => {
             {eventRequests?.length === 0 ? (
               <div className="bg-muted/30 border rounded-lg p-6 text-center">
                 <CalendarDays className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                <h3 className="font-medium text-lg">No Event Requests Yet</h3>
+                <h3 className="font-medium text-lg">{t('events.noRequests')}</h3>
                 <p className="text-muted-foreground max-w-md mx-auto mt-1">
-                  When clients request events from your public page, they will appear here.
+                  {t('business.eventRequestsDesc')}
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
                 {pendingRequests?.length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="font-medium">Pending Requests</h3>
+                    <h3 className="font-medium">{t('events.pendingRequests')}</h3>
                     <div className="grid gap-2">
                       {pendingRequests.map((request) => (
                         <RequestCard
@@ -221,14 +221,14 @@ export const BusinessTab = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Business Management</CardTitle>
+              <CardTitle>{t('business.management')}</CardTitle>
               <CardDescription>
-                Manage your business and event requests
+                {t('business.manageDesc')}
               </CardDescription>
             </div>
             {!hasBusiness && (
               <Button onClick={() => setIsDialogOpen(true)}>
-                Add Business
+                {t('businessSettings.addBusiness')}
               </Button>
             )}
           </div>
@@ -253,6 +253,7 @@ interface RequestCardProps {
 
 const RequestCard = ({ request }: RequestCardProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { t } = useLanguage();
   
   return (
     <>
@@ -265,12 +266,12 @@ const RequestCard = ({ request }: RequestCardProps) => {
                 {format(new Date(request.start_date), "PPP p")} - {format(new Date(request.end_date), "p")}
               </p>
               <p className="text-sm mt-1">
-                From: {request.user_surname || "No name"} 
+                {t('events.from')}: {request.user_surname || t('business.noName')} 
                 {request.user_number && ` • ${request.user_number}`}
               </p>
             </div>
             <Button size="sm" onClick={() => setIsDialogOpen(true)}>
-              View Details
+              {t('business.viewDetails')}
             </Button>
           </div>
         </CardContent>
