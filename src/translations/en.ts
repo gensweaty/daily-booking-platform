@@ -24,6 +24,52 @@ export default {
     statistics: "Statistics",
     customers: "Customers"
   },
+  nav: {
+    signin: "Sign In",
+    signup: "Sign Up",
+    startJourney: "Get Started",
+    contact: "Contact Us"
+  },
+  hero: {
+    title: "Streamline Your Business Bookings",
+    subtitle: "All-in-one booking and management system",
+    description: "Manage appointments, track clients, and grow your business with our powerful yet simple platform."
+  },
+  features: {
+    title: "Everything You Need",
+    booking: "Simple Booking",
+    tasks: "Task Management",
+    crm: "Customer Management",
+    analytics: "Advanced Analytics",
+    businessTitle: "Perfect for Any Business",
+    events: "Event Planning",
+    health: "Healthcare",
+    sports: "Sports & Fitness",
+    beauty: "Beauty & Wellness",
+    personal: "Personal Services",
+    education: "Education"
+  },
+  business: {
+    events: "Event Planning",
+    health: "Healthcare",
+    sports: "Sports & Fitness",
+    beauty: "Beauty & Wellness",
+    personal: "Personal Services",
+    education: "Education",
+    eventsDesc: "Perfect for event planners and venues",
+    healthDesc: "Ideal for clinics and healthcare providers",
+    sportsDesc: "Great for trainers and sports facilities",
+    beautyDesc: "Designed for salons and spas",
+    personalDesc: "Suitable for consultants and advisors",
+    educationDesc: "Built for tutors and educational centers"
+  },
+  dashboard: {
+    bookingCalendar: "Booking Calendar",
+    statistics: "Statistics",
+    tasks: "Tasks",
+    crm: "Customers",
+    subtitle: "Manage your business efficiently"
+  },
   auth: {
     email: "Email",
     password: "Password",

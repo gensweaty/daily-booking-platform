@@ -24,6 +24,52 @@ export default {
     statistics: "Estadísticas",
     customers: "Clientes"
   },
+  nav: {
+    signin: "Iniciar Sesión",
+    signup: "Registrarse",
+    startJourney: "Comenzar",
+    contact: "Contacto"
+  },
+  hero: {
+    title: "Simplifica tus Reservas de Negocio",
+    subtitle: "Sistema todo en uno para reservas y gestión",
+    description: "Gestiona citas, haz seguimiento de clientes y haz crecer tu negocio con nuestra plataforma potente pero sencilla."
+  },
+  features: {
+    title: "Todo lo que Necesitas",
+    booking: "Reservas Simples",
+    tasks: "Gestión de Tareas",
+    crm: "Gestión de Clientes",
+    analytics: "Análisis Avanzados",
+    businessTitle: "Perfecto para Cualquier Negocio",
+    events: "Planificación de Eventos",
+    health: "Salud",
+    sports: "Deportes y Fitness",
+    beauty: "Belleza y Bienestar",
+    personal: "Servicios Personales",
+    education: "Educación"
+  },
+  business: {
+    events: "Planificación de Eventos",
+    health: "Salud",
+    sports: "Deportes y Fitness",
+    beauty: "Belleza y Bienestar",
+    personal: "Servicios Personales",
+    education: "Educación",
+    eventsDesc: "Perfecto para planificadores de eventos y lugares",
+    healthDesc: "Ideal para clínicas y proveedores de salud",
+    sportsDesc: "Excelente para entrenadores e instalaciones deportivas",
+    beautyDesc: "Diseñado para salones y spas",
+    personalDesc: "Adecuado para consultores y asesores",
+    educationDesc: "Construido para tutores y centros educativos"
+  },
+  dashboard: {
+    bookingCalendar: "Calendario de Reservas",
+    statistics: "Estadísticas",
+    tasks: "Tareas",
+    crm: "Clientes",
+    subtitle: "Gestiona tu negocio eficientemente"
+  },
   auth: {
     email: "Correo electrónico",
     password: "Contraseña",
