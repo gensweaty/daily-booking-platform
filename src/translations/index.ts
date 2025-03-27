@@ -1,11 +1,8 @@
 
-import { enTranslations } from './en';
-import { esTranslations } from './es';
-import { Language, TranslationType } from './types';
+import en from './en';
+import es from './es';
 
-export const translations: Record<Language, TranslationType> = {
-  en: enTranslations,
-  es: esTranslations,
-} as const;
-
-export * from './types';
+export const translations = {
+  en,
+  es
+};
