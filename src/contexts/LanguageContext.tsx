@@ -10,7 +10,7 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     // Try to get from localStorage, default to 'en'
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('language');
-      return (saved as Language) || 'en';
+      return saved && Object.keys(translations).includes(saved) ? (saved as Language) : 'en';
     }
     return 'en';
   });
@@ -39,7 +39,7 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
       const translationKey = parts[1];
       
       // Access the translation dictionary for the current language
-      const translationDict = translations[language] as unknown as TranslationDictionary;
+      const translationDict = translations[language] as TranslationDictionary;
       
       // Check if the section exists in the dictionary
       if (!translationDict || !translationDict[section]) {
@@ -74,7 +74,7 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
       if (path.startsWith('/')) {
         return `/${language}${path}`;
       }
-      return `${language}/${path}`;
+      return `/${language}/${path}`;
     }
     return path;
   };

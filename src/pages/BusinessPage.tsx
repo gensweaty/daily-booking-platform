@@ -58,7 +58,7 @@ const BusinessPage = () => {
             .from('business_photos')
             .getPublicUrl(data.cover_photo_path);
           
-          if (fileData) {
+          if (fileData && fileData.publicUrl) {
             setCoverPhotoUrl(fileData.publicUrl);
           }
         }
