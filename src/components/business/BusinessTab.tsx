@@ -39,11 +39,6 @@ export const BusinessTab = () => {
     }
   }, [business]);
   
-  const handleDialogClose = (saved: boolean) => {
-    setIsDialogOpen(false);
-    // No need to call refetch here, as useBusiness is likely using React Query already
-  };
-  
   const copyLinkToClipboard = () => {
     if (business?.slug) {
       // Generate absolute URL to the business page
@@ -165,8 +160,8 @@ export const BusinessTab = () => {
       )}
       
       <BusinessDialog 
-        open={isDialogOpen} 
-        onOpenChange={setIsDialogOpen} 
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
         business={business}
       />
     </div>
