@@ -1,17 +1,19 @@
 
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CalendarViewType } from "@/lib/types/calendar";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarHeaderProps {
   selectedDate: Date;
-  view: "month" | "week" | "day";
-  onViewChange: (view: "month" | "week" | "day") => void;
+  view: CalendarViewType;
+  onViewChange: (view: CalendarViewType) => void;
   onPrevious: () => void;
   onNext: () => void;
   onAddEvent: () => void;
+  isPublic?: boolean;
 }
 
 export const CalendarHeader = ({
@@ -21,49 +23,79 @@ export const CalendarHeader = ({
   onPrevious,
   onNext,
   onAddEvent,
+  isPublic = false,
 }: CalendarHeaderProps) => {
-  const { language, t } = useLanguage();
+  const { t, language } = useLanguage();
+  const locale = language === 'es' ? es : undefined;
+
+  const formatTitle = () => {
+    const formatOptions: Record<CalendarViewType, string> = {
+      day: "EEEE, MMMM d, yyyy",
+      week: "MMMM d, yyyy",
+      month: "MMMM yyyy",
+    };
+
+    return format(selectedDate, formatOptions[view], { locale });
+  };
 
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-      <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-        <Button variant="outline" size="icon" onClick={onPrevious}>
+    <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onPrevious}
+          className="h-8 w-8"
+        >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <h2 className="text-lg sm:text-xl font-semibold">
-          {format(selectedDate, "MMMM yyyy", { locale: language === 'es' ? es : undefined })}
+        <h2 className="text-lg font-semibold min-w-[150px] text-center">
+          {formatTitle()}
         </h2>
-        <Button variant="outline" size="icon" onClick={onNext}>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onNext}
+          className="h-8 w-8"
+        >
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
-      <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-        <div className="flex rounded-lg border border-input overflow-hidden flex-1 sm:flex-none">
+
+      <div className="flex items-center gap-2">
+        <div className="flex border bg-muted rounded-md overflow-hidden">
           <Button
-            variant={view === "month" ? "default" : "ghost"}
-            className="rounded-none px-2 sm:px-4 text-sm flex-1"
-            onClick={() => onViewChange("month")}
+            variant={view === "day" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onViewChange("day")}
+            className="rounded-none"
           >
-            {t("dashboard.month")}
+            {t("calendar.day")}
           </Button>
           <Button
             variant={view === "week" ? "default" : "ghost"}
-            className="rounded-none px-2 sm:px-4 text-sm flex-1"
+            size="sm"
             onClick={() => onViewChange("week")}
+            className="rounded-none"
           >
-            {t("dashboard.week")}
+            {t("calendar.week")}
           </Button>
           <Button
-            variant={view === "day" ? "default" : "ghost"}
-            className="rounded-none px-2 sm:px-4 text-sm flex-1"
-            onClick={() => onViewChange("day")}
+            variant={view === "month" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onViewChange("month")}
+            className="rounded-none"
           >
-            {t("dashboard.day")}
+            {t("calendar.month")}
           </Button>
         </div>
-        <Button onClick={onAddEvent} className="whitespace-nowrap">
-          {t("dashboard.addEvent")}
-        </Button>
+        
+        {!isPublic && (
+          <Button size="sm" onClick={onAddEvent} className="ml-2">
+            <Plus className="mr-1 h-4 w-4" />
+            {t("calendar.addEvent")}
+          </Button>
+        )}
       </div>
     </div>
   );

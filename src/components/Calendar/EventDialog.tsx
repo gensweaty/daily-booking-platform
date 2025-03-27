@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
-import { Trash2 } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,7 +19,9 @@ interface EventDialogProps {
   defaultEndDate?: Date | null;
   onSubmit: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   onDelete?: () => void;
+  onApprove?: () => void;
   event?: CalendarEventType;
+  isPublic?: boolean;
 }
 
 export const EventDialog = ({
@@ -28,7 +30,9 @@ export const EventDialog = ({
   selectedDate,
   onSubmit,
   onDelete,
+  onApprove,
   event,
+  isPublic = false,
 }: EventDialogProps) => {
   const [title, setTitle] = useState(event?.title || "");
   const [userSurname, setUserSurname] = useState(event?.user_surname || "");
@@ -46,6 +50,7 @@ export const EventDialog = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (event) {
@@ -75,23 +80,25 @@ export const EventDialog = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    const startDateTime = new Date(startDate);
-    const endDateTime = new Date(endDate);
-    
-    const eventData = {
-      title,
-      user_surname: userSurname,
-      user_number: userNumber,
-      social_network_link: socialNetworkLink,
-      event_notes: eventNotes,
-      start_date: startDateTime.toISOString(),
-      end_date: endDateTime.toISOString(),
-      payment_status: paymentStatus || null,
-      payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-    };
-
     try {
+      const startDateTime = new Date(startDate);
+      const endDateTime = new Date(endDate);
+      
+      const eventData = {
+        title,
+        user_surname: userSurname,
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        start_date: startDateTime.toISOString(),
+        end_date: endDateTime.toISOString(),
+        payment_status: paymentStatus || null,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+        type: 'private_party'
+      };
+
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
 
@@ -157,7 +164,7 @@ export const EventDialog = ({
         console.log('Updated existing customer:', customerId);
       }
 
-      if (selectedFile && createdEvent?.id && user) {
+      if (selectedFile && createdEvent?.id) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
@@ -177,7 +184,7 @@ export const EventDialog = ({
           file_path: filePath,
           content_type: selectedFile.type,
           size: selectedFile.size,
-          user_id: user.id
+          user_id: user?.id
         };
 
         const filePromises = [];
@@ -222,7 +229,6 @@ export const EventDialog = ({
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      
     } catch (error: any) {
       console.error('Error handling event submission:', error);
       toast({
@@ -230,6 +236,8 @@ export const EventDialog = ({
         description: error.message || "Failed to save changes",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -237,10 +245,21 @@ export const EventDialog = ({
     setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
   };
 
+  const isUnconfirmedEvent = event?.status === 'unconfirmed';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle>{event ? t("events.editEvent") : t("events.addNewEvent")}</DialogTitle>
+        <DialogTitle>
+          {isUnconfirmedEvent 
+            ? t("events.pendingBooking")
+            : event 
+              ? t("events.editEvent") 
+              : isPublic 
+                ? t("events.requestBooking")
+                : t("events.addNewEvent")
+          }
+        </DialogTitle>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <EventDialogFields
             title={title}
@@ -267,21 +286,62 @@ export const EventDialog = ({
             setFileError={setFileError}
             eventId={event?.id}
             onFileDeleted={handleFileDeleted}
+            isPublic={isPublic}
+            isEditingDisabled={isPublic && !!event}
           />
           
           <div className="flex justify-between gap-4">
-            <Button type="submit" className="flex-1">
-              {event ? t("events.updateEvent") : t("events.createEvent")}
-            </Button>
-            {event && onDelete && (
-              <Button
-                type="button"
-                variant="destructive"
-                size="icon"
-                onClick={onDelete}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+            {!isPublic && isUnconfirmedEvent && onApprove ? (
+              <>
+                <Button 
+                  type="button" 
+                  onClick={onApprove}
+                  className="flex-1"
+                  variant="default"
+                >
+                  <Check className="mr-2 h-4 w-4" />
+                  {t("events.approveBooking")}
+                </Button>
+                
+                {onDelete && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </>
+            ) : (
+              <>
+                <Button 
+                  type="submit" 
+                  className="flex-1"
+                  disabled={isSubmitting || (isPublic && !!event)}
+                >
+                  {isSubmitting 
+                    ? t("common.saving") 
+                    : event 
+                      ? t("events.updateEvent") 
+                      : isPublic 
+                        ? t("events.sendRequest")
+                        : t("events.createEvent")
+                  }
+                </Button>
+                
+                {!isPublic && event && onDelete && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </form>
