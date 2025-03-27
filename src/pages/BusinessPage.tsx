@@ -49,6 +49,7 @@ const BusinessPage = () => {
           return;
         }
         
+        console.log('Business data loaded:', data);
         setBusiness(data);
         
         // Fetch cover photo if it exists

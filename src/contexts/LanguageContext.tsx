@@ -39,7 +39,7 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
       const translationKey = parts[1];
       
       // Access the translation dictionary for the current language
-      const translationDict = translations[language] as TranslationDictionary;
+      const translationDict = translations[language] as unknown as TranslationDictionary;
       
       // Check if the section exists in the dictionary
       if (!translationDict || !translationDict[section]) {
@@ -48,7 +48,13 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
       }
       
       // Get the translation from the section
-      const translation = translationDict[section][translationKey];
+      const sectionData = translationDict[section];
+      if (!sectionData) {
+        console.warn(`Section is undefined: ${section} for language: ${language}`);
+        return key;
+      }
+      
+      const translation = sectionData[translationKey];
       
       // If no translation found, return the key as fallback and log warning
       if (!translation) {
