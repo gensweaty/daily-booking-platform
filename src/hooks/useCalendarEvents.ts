@@ -134,12 +134,16 @@ export const useCalendarEvents = () => {
       
       console.log("[useCalendarEvents] Event created successfully:", data);
       
-      // Immediately invalidate relevant queries to ensure sync
+      // FIX: Immediately invalidate ALL relevant queries to ensure sync
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['events', user.id] });
+      
+      // FIX: Also invalidate specific business ID query
       if (eventData.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', eventData.business_id] });
       }
       
-      // Also invalidate all public events queries to ensure complete sync
+      // FIX: Also invalidate all public events queries to ensure complete sync
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       return data;
@@ -202,6 +206,10 @@ export const useCalendarEvents = () => {
       
       console.log("[useCalendarEvents] Event updated successfully:", data);
       
+      // FIX: Invalidate ALL relevant queries
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['events', user.id] });
+      
       // Invalidate queries for both the old and new business_id
       if (currentBusinessId) {
         queryClient.invalidateQueries({ queryKey: ['public-events', currentBusinessId] });
@@ -211,7 +219,7 @@ export const useCalendarEvents = () => {
         queryClient.invalidateQueries({ queryKey: ['public-events', cleanUpdates.business_id] });
       }
       
-      // Also invalidate all public events queries to ensure complete sync
+      // FIX: Also invalidate all public events queries to ensure complete sync
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       return data;
@@ -252,12 +260,16 @@ export const useCalendarEvents = () => {
       
       console.log("[useCalendarEvents] Event deleted successfully");
       
+      // FIX: Invalidate ALL relevant queries
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['events', user.id] });
+      
       // Invalidate public events query if the event had a business_id
       if (currentBusinessId) {
         queryClient.invalidateQueries({ queryKey: ['public-events', currentBusinessId] });
       }
       
-      // Also invalidate all public events queries to ensure complete sync
+      // FIX: Also invalidate all public events queries to ensure complete sync
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
     } catch (err) {
       console.error("[useCalendarEvents] Failed to delete event:", err);
@@ -383,8 +395,8 @@ export const useCalendarEvents = () => {
   const { data: events = [], isLoading, error } = useQuery({
     queryKey: ['events', user?.id],
     queryFn: getEvents,
-    enabled: true, // Always enable to support both authenticated and public modes
-    staleTime: 1000 * 60, // 1 minute
+    enabled: true, // FIX: Always enable to support both authenticated and public modes
+    staleTime: 0, // FIX: Reduce stale time to ensure fresh data
     refetchOnMount: true,
     refetchOnWindowFocus: true
   });
@@ -393,11 +405,15 @@ export const useCalendarEvents = () => {
   const createEventMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: (data) => {
+      // FIX: Invalidate ALL relevant queries
+      queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      
       // Also invalidate public events query if the event has a business_id
       if (data?.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
       }
+      
       // Additionally invalidate all public events to ensure complete sync
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
     },
@@ -410,6 +426,7 @@ export const useCalendarEvents = () => {
       if (data?.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
       }
+      
       // Additionally invalidate all public events to ensure complete sync
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
     },
@@ -418,11 +435,15 @@ export const useCalendarEvents = () => {
   const updateEventMutation = useMutation({
     mutationFn: updateEvent,
     onSuccess: (data) => {
+      // FIX: Invalidate ALL relevant queries
+      queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      
       // Also invalidate public events queries for any business this event might belong to
       if (data?.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
       }
+      
       // Additionally invalidate all public events to ensure complete sync
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
     },
@@ -431,7 +452,10 @@ export const useCalendarEvents = () => {
   const deleteEventMutation = useMutation({
     mutationFn: deleteEvent,
     onSuccess: () => {
+      // FIX: Invalidate ALL relevant queries
+      queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      
       // Also invalidate public events queries for all businesses
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
     },

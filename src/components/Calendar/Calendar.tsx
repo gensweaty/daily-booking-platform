@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -60,11 +59,12 @@ export const Calendar = ({
     }
   }, [publicMode, externalEvents, events]);
 
-  // Invalidate public events query whenever related events get updated
+  // FIX: Invalidate public events query whenever related events get updated
   useEffect(() => {
     // When events change in dashboard mode, invalidate public events query
     if (!publicMode && events?.length > 0 && businessId) {
       queryClient.invalidateQueries({ queryKey: ['public-events', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
     }
   }, [events, publicMode, businessId, queryClient]);
 
@@ -97,8 +97,9 @@ export const Calendar = ({
             description: "Your booking request has been sent to the business owner for approval.",
           });
           
-          // Invalidate queries to ensure both calendars stay in sync
+          // FIX: Invalidate queries to ensure both calendars stay in sync
           queryClient.invalidateQueries({ queryKey: ['public-events', businessId] });
+          queryClient.invalidateQueries({ queryKey: ['public-events'] });
           
           return result;
         } else {
@@ -106,18 +107,22 @@ export const Calendar = ({
           console.log("Creating regular event:", 
             businessId ? "with business_id: " + businessId : "without business_id");
           
-          // Only include business_id if it's provided and not null/undefined
+          // FIX: Only include business_id if it's provided and not null/undefined
           const eventData = { ...data };
           if (businessId) {
             eventData.business_id = businessId;
           }
           
+          // FIX: CRITICAL - Ensure business_id is set
+          if (!eventData.business_id) {
+            throw new Error("Business ID is required to create an event");
+          }
+          
           const result = await createEvent(eventData);
           
-          // Invalidate public events query to ensure sync
-          if (businessId) {
-            queryClient.invalidateQueries({ queryKey: ['public-events', businessId] });
-          }
+          // FIX: Invalidate public events query to ensure sync
+          queryClient.invalidateQueries({ queryKey: ['public-events', eventData.business_id] });
+          queryClient.invalidateQueries({ queryKey: ['public-events'] });
           
           return result;
         }
@@ -129,26 +134,41 @@ export const Calendar = ({
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
       
+      // FIX: Ensure business_id is set for update
+      if (!data.business_id && selectedEvent.business_id) {
+        data.business_id = selectedEvent.business_id;
+      }
+      
+      if (!data.business_id && businessId) {
+        data.business_id = businessId;
+      }
+      
+      if (!data.business_id) {
+        throw new Error("Business ID is required to update an event");
+      }
+      
       const result = await updateEvent(data);
       
-      // Invalidate public events query to ensure sync
+      // FIX: Invalidate public events query to ensure sync
       if (businessId || selectedEvent.business_id) {
         queryClient.invalidateQueries({ 
           queryKey: ['public-events', businessId || selectedEvent.business_id] 
         });
       }
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       return result;
     },
     deleteEvent: async (id) => {
       await deleteEvent(id);
       
-      // Invalidate public events query to ensure sync
+      // FIX: Invalidate public events query to ensure sync
       if (businessId || selectedEvent?.business_id) {
         queryClient.invalidateQueries({ 
           queryKey: ['public-events', businessId || selectedEvent?.business_id] 
         });
       }
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
     }
   });
 

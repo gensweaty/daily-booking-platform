@@ -46,7 +46,7 @@ export const useEventDialog = ({
         delete cleanData.business_id;
       } 
       
-      // CRITICAL: Throw error if business_id is missing
+      // FIX: CRITICAL - Throw error if business_id is missing
       if (!cleanData.business_id) {
         console.error("Business ID is required for event creation");
         throw new Error("Business ID is required to create an event");
@@ -90,7 +90,7 @@ export const useEventDialog = ({
         delete cleanData.business_id;
       } 
       
-      // CRITICAL: Ensure business_id is set properly for updates
+      // FIX: CRITICAL - Ensure business_id is set properly for updates
       if (!cleanData.business_id) {
         // Preserve the existing business_id if it's not being explicitly updated
         if (selectedEvent.business_id) {
