@@ -114,6 +114,11 @@ export const useCalendarEvents = () => {
       // Set user_id for the event
       eventData.user_id = user.id;
       
+      // CRITICAL: Validate business_id existence
+      if (!eventData.business_id) {
+        throw new Error("Business ID is required for creating events");
+      }
+      
       console.log("[useCalendarEvents] Creating event with full data:", JSON.stringify(eventData));
       
       const { data, error } = await supabase
@@ -133,6 +138,9 @@ export const useCalendarEvents = () => {
       if (eventData.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', eventData.business_id] });
       }
+      
+      // Also invalidate all public events queries to ensure complete sync
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       return data;
     } catch (err) {
@@ -169,6 +177,16 @@ export const useCalendarEvents = () => {
       const currentBusinessId = currentEvent?.business_id;
       console.log("[useCalendarEvents] Current business_id:", currentBusinessId);
       
+      // CRITICAL: Ensure business_id is present for update
+      if (!cleanUpdates.business_id && currentBusinessId) {
+        cleanUpdates.business_id = currentBusinessId;
+        console.log("[useCalendarEvents] Using existing business_id for update:", currentBusinessId);
+      }
+      
+      if (!cleanUpdates.business_id) {
+        throw new Error("Business ID is required for event updates");
+      }
+      
       const { data, error } = await supabase
         .from('events')
         .update(cleanUpdates)
@@ -192,6 +210,9 @@ export const useCalendarEvents = () => {
       if (cleanUpdates.business_id && cleanUpdates.business_id !== currentBusinessId) {
         queryClient.invalidateQueries({ queryKey: ['public-events', cleanUpdates.business_id] });
       }
+      
+      // Also invalidate all public events queries to ensure complete sync
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       return data;
     } catch (err) {
@@ -235,6 +256,9 @@ export const useCalendarEvents = () => {
       if (currentBusinessId) {
         queryClient.invalidateQueries({ queryKey: ['public-events', currentBusinessId] });
       }
+      
+      // Also invalidate all public events queries to ensure complete sync
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
     } catch (err) {
       console.error("[useCalendarEvents] Failed to delete event:", err);
       throw err;
@@ -287,6 +311,9 @@ export const useCalendarEvents = () => {
       if (event.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', event.business_id] });
       }
+      
+      // Also invalidate all public events queries to ensure complete sync
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       return data;
     } catch (error) {
@@ -371,6 +398,8 @@ export const useCalendarEvents = () => {
       if (data?.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
       }
+      // Additionally invalidate all public events to ensure complete sync
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
     },
   });
 
@@ -381,6 +410,8 @@ export const useCalendarEvents = () => {
       if (data?.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
       }
+      // Additionally invalidate all public events to ensure complete sync
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
     },
   });
 
@@ -392,6 +423,8 @@ export const useCalendarEvents = () => {
       if (data?.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
       }
+      // Additionally invalidate all public events to ensure complete sync
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
     },
   });
 

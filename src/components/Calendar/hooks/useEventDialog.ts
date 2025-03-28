@@ -40,17 +40,21 @@ export const useEventDialog = ({
       // Create a clean copy of the data to avoid modifying the original
       const cleanData = { ...data };
       
-      console.log('handleCreateEvent - Business ID in event data:', cleanData.business_id);
-      
-      // Make sure we're passing the business_id properly
+      // Make sure business_id is properly set and not an empty string
       if (typeof cleanData.business_id === 'string' && cleanData.business_id.trim() === '') {
         console.log("Business ID is empty string, removing it");
         delete cleanData.business_id;
-      } else if (cleanData.business_id) {
-        console.log("Business ID included in event data:", cleanData.business_id);
+      } 
+      
+      // CRITICAL: Throw error if business_id is missing
+      if (!cleanData.business_id) {
+        console.error("Business ID is required for event creation");
+        throw new Error("Business ID is required to create an event");
       }
-
+      
+      console.log('handleCreateEvent - Business ID in event data:', cleanData.business_id);
       console.log('handleCreateEvent - Data for submission:', JSON.stringify(cleanData));
+      
       const result = await createEvent(cleanData);
       
       setIsNewEventDialogOpen(false);
@@ -80,18 +84,22 @@ export const useEventDialog = ({
       // Ensure the ID is included for the update operation
       cleanData.id = selectedEvent.id;
       
-      // Handle business_id properly
+      // Make sure business_id is properly set and not an empty string
       if (typeof cleanData.business_id === 'string' && cleanData.business_id.trim() === '') {
         console.log("Business ID is empty string, removing it");
         delete cleanData.business_id;
-      } else if (cleanData.business_id) {
-        console.log("Business ID included in update data:", cleanData.business_id);
-      }
-
-      // Preserve the existing business_id if it's not being explicitly updated
-      if (selectedEvent.business_id && !cleanData.hasOwnProperty('business_id')) {
-        cleanData.business_id = selectedEvent.business_id;
-        console.log("Preserving existing business_id:", selectedEvent.business_id);
+      } 
+      
+      // CRITICAL: Ensure business_id is set properly for updates
+      if (!cleanData.business_id) {
+        // Preserve the existing business_id if it's not being explicitly updated
+        if (selectedEvent.business_id) {
+          cleanData.business_id = selectedEvent.business_id;
+          console.log("Preserving existing business_id:", selectedEvent.business_id);
+        } else {
+          console.error("Business ID is required for event updates");
+          throw new Error("Business ID is required to update an event");
+        }
       }
       
       console.log("Updating event with data:", JSON.stringify(cleanData));
