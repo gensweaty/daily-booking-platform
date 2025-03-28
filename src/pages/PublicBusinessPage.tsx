@@ -1,27 +1,42 @@
-
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useBusinessBySlug } from "@/hooks/useBusiness";
 import { Calendar } from "@/components/Calendar/Calendar";
 import { EventDialog } from "@/components/Calendar/EventDialog";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Button } from "@/components/ui/button";
 import { createEventRequest } from "@/lib/api";
-import { ExternalLink, Mail, MapPin, Phone, Globe, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { ExternalLink, ArrowLeft, Mail, MapPin, Phone, Globe, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { FileUploadField } from "@/components/shared/FileUploadField";
+import { EventDialogFields } from "@/components/Calendar/EventDialogFields";
 
 const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const { data: business, isLoading, error } = useBusinessBySlug(slug);
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
+  
+  // Form state
+  const [title, setTitle] = useState("");
+  const [userSurname, setUserSurname] = useState("");
+  const [userNumber, setUserNumber] = useState("");
+  const [socialNetworkLink, setSocialNetworkLink] = useState("");
+  const [eventNotes, setEventNotes] = useState("");
+  const [type, setType] = useState("private");
+  const [paymentStatus, setPaymentStatus] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   
   // Fetch public events for this business
   const { data: publicEvents = [] } = useQuery({
@@ -98,7 +113,7 @@ const PublicBusinessPage = () => {
     if (!business) return;
     
     try {
-      await createEventRequest({
+      const requestData = {
         business_id: business.id,
         title: data.title || "",
         user_surname: data.user_surname,
@@ -110,7 +125,33 @@ const PublicBusinessPage = () => {
         type: data.type,
         payment_status: data.payment_status,
         payment_amount: data.payment_amount
-      });
+      };
+      
+      await createEventRequest(requestData);
+      
+      // Handle file upload if a file is selected
+      if (selectedFile && business) {
+        // Create event_files record in the database
+        try {
+          // First upload the file to Supabase storage
+          const fileExt = selectedFile.name.split('.').pop();
+          const fileName = `${crypto.randomUUID()}.${fileExt}`;
+          const filePath = `${fileName}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('event_attachments')
+            .upload(filePath, selectedFile);
+            
+          if (uploadError) {
+            console.error("Error uploading file:", uploadError);
+            throw uploadError;
+          }
+          
+          console.log("File uploaded successfully:", filePath);
+        } catch (error) {
+          console.error("Error in file upload process:", error);
+        }
+      }
       
       toast({
         title: "Booking request sent",
@@ -118,6 +159,19 @@ const PublicBusinessPage = () => {
       });
       
       setIsBookingDialogOpen(false);
+      // Reset form
+      setTitle("");
+      setUserSurname("");
+      setUserNumber("");
+      setSocialNetworkLink("");
+      setEventNotes("");
+      setType("private");
+      setPaymentStatus("");
+      setPaymentAmount("");
+      setStartDate("");
+      setEndDate("");
+      setSelectedFile(null);
+      
       return {} as CalendarEventType; // Return empty object to satisfy the promise
     } catch (error: any) {
       toast({
@@ -169,9 +223,9 @@ const PublicBusinessPage = () => {
       <div className="min-h-screen bg-background pb-12">
         <header className="w-full">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <Button asChild variant="ghost" size="sm">
+            <Button asChild variant="ghost" size="sm" onClick={() => navigate(-1)}>
               <Link to="/">
-                ← Back to Home
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Link>
             </Button>
           </div>
@@ -217,6 +271,7 @@ const PublicBusinessPage = () => {
                     defaultView="month" 
                     publicMode={true}
                     externalEvents={publicEvents}
+                    businessId={business.id}
                   />
                 </div>
               </div>
@@ -295,12 +350,15 @@ const PublicBusinessPage = () => {
           </div>
         </div>
         
-        <EventDialog
-          open={isBookingDialogOpen}
-          onOpenChange={setIsBookingDialogOpen}
-          selectedDate={selectedDate || new Date()}
-          onSubmit={handleBookingSubmit}
-        />
+        {isBookingDialogOpen && selectedDate && (
+          <EventDialog
+            open={isBookingDialogOpen}
+            onOpenChange={setIsBookingDialogOpen}
+            selectedDate={selectedDate || new Date()}
+            onSubmit={handleBookingSubmit}
+            businessId={business.id}
+          />
+        )}
       </div>
     </LanguageProvider>
   );

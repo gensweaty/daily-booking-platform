@@ -68,10 +68,10 @@ export const CalendarView = ({
           return (
             <div
               key={day.toISOString()}
-              className={`relative bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] ${!publicMode ? 'cursor-pointer hover:bg-muted' : ''} border border-border transition-colors ${
+              className={`relative bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted border border-border transition-colors ${
                 !isCurrentMonth ? 'bg-opacity-50' : ''
               }`}
-              onClick={!publicMode ? () => onDayClick(day) : undefined}
+              onClick={() => onDayClick(day)}
             >
               <div className={`font-medium ${!isCurrentMonth ? 'text-muted-foreground' : 'text-foreground'}`}>
                 {format(day, "d")}
@@ -138,8 +138,8 @@ export const CalendarView = ({
               return (
                 <div
                   key={actualHour}
-                  className={`h-20 border-b border-border ${!publicMode ? 'hover:bg-muted transition-colors cursor-pointer' : ''} relative`}
-                  onClick={!publicMode ? () => onDayClick(hourDate, actualHour) : undefined}
+                  className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
+                  onClick={() => onDayClick(hourDate, actualHour)}
                 />
               );
             })}

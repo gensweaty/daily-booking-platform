@@ -1,6 +1,5 @@
 
 // We only need to update a small part of this file to pass business_id to the events
-// Since it's a large file, I'm only showing the relevant change:
 
 import { useState } from "react";
 import {
@@ -134,8 +133,6 @@ export const Calendar = ({
   };
 
   const handleCalendarDayClick = (date: Date, hour?: number) => {
-    if (publicMode) return; // Disable clicking on days in public mode
-    
     const clickedDate = new Date(date);
     clickedDate.setHours(hour || 9, 0, 0, 0);
     
@@ -146,8 +143,6 @@ export const Calendar = ({
   };
 
   const handleAddEventClick = () => {
-    if (publicMode) return; // Disable adding events in public mode
-    
     const now = new Date();
     now.setHours(9, 0, 0, 0);
     
@@ -211,6 +206,7 @@ export const Calendar = ({
             onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
             onSubmit={handleCreateEvent}
+            businessId={businessId}
           />
 
           {selectedEvent && (
@@ -222,9 +218,21 @@ export const Calendar = ({
               event={selectedEvent}
               onSubmit={handleUpdateEvent}
               onDelete={handleDeleteEvent}
+              businessId={businessId}
             />
           )}
         </>
+      )}
+      
+      {publicMode && isNewEventDialogOpen && dialogSelectedDate && (
+        <EventDialog
+          key={dialogSelectedDate?.getTime()} // Force re-render when date changes
+          open={isNewEventDialogOpen}
+          onOpenChange={setIsNewEventDialogOpen}
+          selectedDate={dialogSelectedDate}
+          onSubmit={handleCreateEvent}
+          businessId={businessId}
+        />
       )}
     </div>
   );

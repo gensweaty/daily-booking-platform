@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -7,19 +8,11 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarEventType } from "@/lib/types/calendar";
+import { EventDialogFields } from "./EventDialogFields";
+import { format } from "date-fns";
 
-// Add businessId to the component props
 interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -45,11 +38,14 @@ export const EventDialog = ({
   const [socialNetworkLink, setSocialNetworkLink] = useState("");
   const [eventNotes, setEventNotes] = useState("");
   const [type, setType] = useState("private");
-  const [paymentStatus, setPaymentStatus] = useState("pending");
-  const [paymentAmount, setPaymentAmount] = useState<number | undefined>(undefined);
-  const [startDate, setStartDate] = useState(selectedDate);
-  const [endDate, setEndDate] = useState(selectedDate);
+  const [paymentStatus, setPaymentStatus] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
+  
   const isUpdateMode = !!event;
 
   useEffect(() => {
@@ -60,10 +56,14 @@ export const EventDialog = ({
       setSocialNetworkLink(event.social_network_link || "");
       setEventNotes(event.event_notes || "");
       setType(event.type || "private");
-      setPaymentStatus(event.payment_status || "pending");
-      setPaymentAmount(event.payment_amount);
-      setStartDate(new Date(event.start_date));
-      setEndDate(new Date(event.end_date));
+      setPaymentStatus(event.payment_status || "");
+      setPaymentAmount(event.payment_amount ? event.payment_amount.toString() : "");
+      
+      // Set dates from the event
+      const startDateObj = new Date(event.start_date);
+      const endDateObj = new Date(event.end_date);
+      setStartDate(format(startDateObj, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(endDateObj, "yyyy-MM-dd'T'HH:mm"));
     } else {
       // Reset form when creating a new event
       setTitle("");
@@ -72,19 +72,54 @@ export const EventDialog = ({
       setSocialNetworkLink("");
       setEventNotes("");
       setType("private");
-      setPaymentStatus("pending");
-      setPaymentAmount(undefined);
-      setStartDate(selectedDate);
-      setEndDate(selectedDate);
+      setPaymentStatus("");
+      setPaymentAmount("");
+      
+      // Set dates from selectedDate
+      const start = new Date(selectedDate);
+      start.setHours(9, 0, 0, 0);
+      const end = new Date(selectedDate);
+      end.setHours(10, 0, 0, 0);
+      
+      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     }
   }, [event, selectedDate]);
 
-  const handleSubmit = async (data: Partial<CalendarEventType>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!title) {
+      alert("Title is required");
+      return;
+    }
+    
+    if (!startDate || !endDate) {
+      alert("Start and end dates are required");
+      return;
+    }
+    
     try {
       setIsSubmitting(true);
+      
+      const data: Partial<CalendarEventType> = {
+        title,
+        user_surname: userSurname,
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        start_date: new Date(startDate).toISOString(),
+        end_date: new Date(endDate).toISOString(),
+        type,
+        payment_status: paymentStatus,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : undefined,
+      };
+      
+      // Add business_id if provided
       if (businessId) {
         data.business_id = businessId;
       }
+      
       await onSubmit(data);
       onOpenChange(false);
     } catch (error) {
@@ -96,6 +131,7 @@ export const EventDialog = ({
 
   const handleDelete = async () => {
     if (!event?.id || !onDelete) return;
+    
     try {
       setIsSubmitting(true);
       await onDelete(event.id);
@@ -107,210 +143,77 @@ export const EventDialog = ({
     }
   };
 
-  const onSubmitWrapper = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const data: Partial<CalendarEventType> = {
-      title,
-      user_surname: userSurname,
-      user_number: userNumber,
-      social_network_link: socialNetworkLink,
-      event_notes: eventNotes,
-      start_date: startDate.toISOString(),
-      end_date: endDate.toISOString(),
-      type,
-      payment_status: paymentStatus,
-      payment_amount: paymentAmount,
-    };
-
-    await handleSubmit(data);
+  const onFileDeleted = async (fileId: string) => {
+    console.log(`File with ID ${fileId} deleted`);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-xl overflow-y-auto max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{isUpdateMode ? "Update Event" : "Create New Event"}</DialogTitle>
           <DialogDescription>
-            {isUpdateMode ? "Update your event here." : "Create a new event for your calendar."}
+            {isUpdateMode ? "Update your event details below." : "Fill in the details to create a new event."}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={onSubmitWrapper} className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="title" className="text-right">
-              Title
-            </Label>
-            <Input
-              type="text"
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="userSurname" className="text-right">
-              User Surname
-            </Label>
-            <Input
-              type="text"
-              id="userSurname"
-              value={userSurname}
-              onChange={(e) => setUserSurname(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="userNumber" className="text-right">
-              User Number
-            </Label>
-            <Input
-              type="text"
-              id="userNumber"
-              value={userNumber}
-              onChange={(e) => setUserNumber(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="socialNetworkLink" className="text-right">
-              Social Network Link
-            </Label>
-            <Input
-              type="text"
-              id="socialNetworkLink"
-              value={socialNetworkLink}
-              onChange={(e) => setSocialNetworkLink(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="eventNotes" className="text-right mt-2">
-              Event Notes
-            </Label>
-            <Textarea
-              id="eventNotes"
-              value={eventNotes}
-              onChange={(e) => setEventNotes(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="type" className="text-right">
-              Type
-            </Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="private">Private</SelectItem>
-                <SelectItem value="birthday">Birthday</SelectItem>
-                <SelectItem value="meeting">Meeting</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="paymentStatus" className="text-right">
-              Payment Status
-            </Label>
-            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="refunded">Refunded</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="paymentAmount" className="text-right">
-              Payment Amount
-            </Label>
-            <Input
-              type="number"
-              id="paymentAmount"
-              value={paymentAmount === undefined ? "" : paymentAmount.toString()}
-              onChange={(e) => setPaymentAmount(e.target.value === "" ? undefined : parseFloat(e.target.value))}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="startDate" className="text-right">
-              Start Date
-            </Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-[240px] justify-start text-left font-normal",
-                    !startDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {startDate ? format(startDate, "PPP") : <span>Pick a date</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={startDate}
-                  onSelect={setStartDate}
-                  disabled={(date) => date < new Date()}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="endDate" className="text-right">
-              End Date
-            </Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-[240px] justify-start text-left font-normal",
-                    !endDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={endDate}
-                  onSelect={setEndDate}
-                  disabled={(date) => date < new Date()}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        </form>
-        <DialogFooter>
-          {isUpdateMode && onDelete ? (
+        
+        <form onSubmit={handleSubmit}>
+          <EventDialogFields 
+            title={title}
+            setTitle={setTitle}
+            userSurname={userSurname}
+            setUserSurname={setUserSurname}
+            userNumber={userNumber}
+            setUserNumber={setUserNumber}
+            socialNetworkLink={socialNetworkLink}
+            setSocialNetworkLink={setSocialNetworkLink}
+            eventNotes={eventNotes}
+            setEventNotes={setEventNotes}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
+            paymentStatus={paymentStatus}
+            setPaymentStatus={setPaymentStatus}
+            paymentAmount={paymentAmount}
+            setPaymentAmount={setPaymentAmount}
+            selectedFile={selectedFile}
+            setSelectedFile={setSelectedFile}
+            fileError={fileError}
+            setFileError={setFileError}
+            eventId={event?.id}
+            onFileDeleted={onFileDeleted}
+          />
+          
+          <div className="flex justify-end gap-2 mt-6">
+            {isUpdateMode && onDelete && (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={isSubmitting}
+              >
+                Delete
+              </Button>
+            )}
+            
             <Button
               type="button"
-              variant="destructive"
-              onClick={handleDelete}
+              variant="outline"
+              onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
-              className="mr-2"
             >
-              Delete
+              Cancel
             </Button>
-          ) : null}
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Submitting..." : "Save changes"}
-          </Button>
-        </DialogFooter>
+            
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Saving..." : (isUpdateMode ? "Update" : "Save")}
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
