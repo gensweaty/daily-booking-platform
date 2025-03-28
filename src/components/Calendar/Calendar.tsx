@@ -24,7 +24,6 @@ import { useNavigate } from "react-router-dom";
 import { TimeIndicator } from "./TimeIndicator";
 import { useEventDialog } from "./hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -44,7 +43,6 @@ export const Calendar = ({
   const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   // Make events available globally for the useEventDialog hook
   if (typeof window !== 'undefined') {
@@ -58,34 +56,13 @@ export const Calendar = ({
     setIsNewEventDialogOpen,
     selectedDate: dialogSelectedDate,
     setSelectedDate: setDialogSelectedDate,
-    handleCreateEvent: originalHandleCreateEvent,
+    handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      try {
-        // Handle public booking requests
-        if (publicMode && businessId) {
-          data.business_id = businessId;
-          const result = await createEvent(data);
-          toast({
-            title: "Booking Request Sent",
-            description: "Your booking request has been submitted successfully!",
-          });
-          return result;
-        }
-        
-        // Regular event creation
-        const result = await createEvent(data);
-        return result;
-      } catch (error: any) {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to create event",
-          variant: "destructive",
-        });
-        throw error;
-      }
+      const result = await createEvent(data);
+      return result;
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
@@ -214,7 +191,7 @@ export const Calendar = ({
             events={displayEvents}
             selectedDate={selectedDate}
             view={view}
-            onDayClick={publicMode ? handleCalendarDayClick : handleCalendarDayClick}
+            onDayClick={handleCalendarDayClick}
             onEventClick={!publicMode ? setSelectedEvent : () => {}}
             publicMode={publicMode}
           />
@@ -228,7 +205,7 @@ export const Calendar = ({
             open={isNewEventDialogOpen}
             onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
-            onSubmit={originalHandleCreateEvent}
+            onSubmit={handleCreateEvent}
             businessId={businessId}
           />
 
@@ -253,7 +230,7 @@ export const Calendar = ({
           open={isNewEventDialogOpen}
           onOpenChange={setIsNewEventDialogOpen}
           selectedDate={dialogSelectedDate}
-          onSubmit={originalHandleCreateEvent}
+          onSubmit={handleCreateEvent}
           businessId={businessId}
         />
       )}
