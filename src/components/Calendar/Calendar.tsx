@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -8,7 +9,6 @@ import {
   endOfMonth,
   addMonths,
   subMonths,
-  setHours,
   startOfDay,
 } from "date-fns";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
@@ -22,6 +22,7 @@ import { TimeIndicator } from "./TimeIndicator";
 import { useEventDialog } from "./hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -42,18 +43,12 @@ export const Calendar = ({
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  // Debug the events we're working with
+  // Debug info when events change
   useEffect(() => {
     if (publicMode) {
       console.log("[Calendar] Public mode with external events:", externalEvents?.length || 0, "events");
-      if (externalEvents && externalEvents.length > 0) {
-        console.log("[Calendar] First few external events:", externalEvents.slice(0, 3).map(e => ({ 
-          id: e.id,
-          title: e.title,
-          start: e.start_date
-        })));
-      }
     } else {
       console.log("[Calendar] Private mode with internal events:", events?.length || 0, "events");
     }
@@ -76,9 +71,9 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      // If in public mode and businessId is provided, create an event request instead
-      if (publicMode && businessId) {
-        try {
+      try {
+        // If in public mode and businessId is provided, create an event request instead
+        if (publicMode && businessId) {
           console.log("Creating event request with business_id:", businessId);
           const requestData = {
             ...data,
@@ -94,31 +89,57 @@ export const Calendar = ({
           });
           
           return result;
-        } catch (error: any) {
-          console.error("Error creating event request:", error);
-          toast({
-            title: "Error",
-            description: error.message || "Failed to create booking request. Please try again.",
-            variant: "destructive",
-          });
-          throw error;
+        } else {
+          // For regular event creation in dashboard
+          console.log("Creating regular event:", 
+            businessId ? "with business_id: " + businessId : "without business_id");
+          
+          // Only include business_id if it's provided and not null/undefined
+          const eventData = { ...data };
+          if (businessId) {
+            eventData.business_id = businessId;
+          }
+          
+          const result = await createEvent(eventData);
+          
+          // Invalidate public events query to ensure sync
+          if (businessId) {
+            queryClient.invalidateQueries({ queryKey: ['public-events', businessId] });
+          }
+          
+          return result;
         }
-      } else {
-        // Normal event creation for authenticated users
-        const result = await createEvent(data);
-        return result;
+      } catch (error: any) {
+        console.error("Error creating event:", error);
+        throw error;
       }
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
+      
       const result = await updateEvent({
         id: selectedEvent.id,
         updates: data,
       });
+      
+      // Invalidate public events query to ensure sync
+      if (businessId || selectedEvent.business_id) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['public-events', businessId || selectedEvent.business_id] 
+        });
+      }
+      
       return result;
     },
     deleteEvent: async (id) => {
       await deleteEvent(id);
+      
+      // Invalidate public events query to ensure sync
+      if (businessId || selectedEvent?.business_id) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['public-events', businessId || selectedEvent?.business_id] 
+        });
+      }
     }
   });
 
@@ -253,10 +274,11 @@ export const Calendar = ({
         </div>
       </div>
 
+      {/* Event dialog for personal dashboard calendar */}
       {!publicMode && (
         <>
           <EventDialog
-            key={dialogSelectedDate?.getTime()} // Force re-render when date changes
+            key={`new-${dialogSelectedDate?.getTime()}`} // Force re-render when date changes
             open={isNewEventDialogOpen}
             onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
@@ -266,7 +288,7 @@ export const Calendar = ({
 
           {selectedEvent && (
             <EventDialog
-              key={selectedEvent.id} // Force re-render when event changes
+              key={`edit-${selectedEvent.id}`} // Force re-render when event changes
               open={!!selectedEvent}
               onOpenChange={() => setSelectedEvent(null)}
               selectedDate={new Date(selectedEvent.start_date)} // Use the actual event start date
@@ -279,9 +301,10 @@ export const Calendar = ({
         </>
       )}
       
+      {/* Event dialog for public calendar */}
       {publicMode && isNewEventDialogOpen && dialogSelectedDate && (
         <EventDialog
-          key={dialogSelectedDate?.getTime()} // Force re-render when date changes
+          key={`public-${dialogSelectedDate?.getTime()}`} // Force re-render when date changes
           open={isNewEventDialogOpen}
           onOpenChange={setIsNewEventDialogOpen}
           selectedDate={dialogSelectedDate}

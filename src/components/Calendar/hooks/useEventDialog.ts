@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { parseISO } from "date-fns";
-import { supabase } from "@/lib/supabase";
 
 interface UseEventDialogProps {
   createEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -36,107 +35,6 @@ export const useEventDialog = ({
     console.log('useEventDialog - current selectedDate:', selectedDate);
   }, [isNewEventDialogOpen]);
 
-  // Enhanced check for time slot availability that considers all event types
-  const checkTimeSlotAvailability = async (
-    startDate: Date,
-    endDate: Date,
-    businessId?: string | null, // Make businessId parameter nullable
-    excludeEventId?: string
-  ): Promise<{ available: boolean; conflictingEvent?: CalendarEventType }> => {
-    const startTime = startDate.getTime();
-    const endTime = endDate.getTime();
-    
-    console.log(`Checking availability for time slot: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-    console.log(`Business ID for availability check: ${businessId || 'none (personal calendar)'}`);
-    
-    try {
-      // Set up the query conditions
-      let query = supabase
-        .from('events')
-        .select('*')
-        .gte('start_date', startDate.toISOString().split('T')[0])
-        .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
-      
-      // Add user-specific or business-specific condition
-      if (window && (window as any).__CURRENT_USER_ID__) {
-        if (businessId) {
-          // For business calendar, check events for this business
-          query = query.eq('business_id', businessId);
-        } else {
-          // For personal calendar, check user's events
-          query = query.eq('user_id', (window as any).__CURRENT_USER_ID__);
-        }
-      }
-      
-      const { data: directEvents, error: directError } = await query;
-        
-      if (directError) {
-        console.error("Error fetching events for conflict check:", directError);
-        throw directError;
-      }
-      
-      // Also fetch approved event requests if we have a business ID
-      let approvedRequests: any[] = [];
-      if (businessId) {
-        const { data: requests, error: requestsError } = await supabase
-          .from('event_requests')
-          .select('*')
-          .eq('business_id', businessId)
-          .eq('status', 'approved')
-          .gte('start_date', startDate.toISOString().split('T')[0])
-          .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
-          
-        if (requestsError) {
-          console.error("Error fetching approved requests for conflict check:", requestsError);
-        } else {
-          approvedRequests = requests || [];
-        }
-      }
-      
-      // Combine all events for checking
-      const allEvents = [...(directEvents || []), ...approvedRequests];
-      console.log(`Found ${allEvents.length} events/requests to check for conflicts`);
-      
-      // Check for conflicts
-      const conflictingEvent = allEvents.find((event) => {
-        if (excludeEventId && event.id === excludeEventId) return false;
-        
-        const eventStart = new Date(event.start_date).getTime();
-        const eventEnd = new Date(event.end_date).getTime();
-        
-        // Exact same time slot
-        if (startTime === eventStart && endTime === eventEnd) {
-          console.log(`Conflict found: exact match with event ${event.id}`);
-          return true;
-        }
-        
-        // Start or end time falls within another event
-        if ((startTime >= eventStart && startTime < eventEnd) || 
-            (endTime > eventStart && endTime <= eventEnd)) {
-          console.log(`Conflict found: overlap with event ${event.id}`);
-          return true;
-        }
-        
-        // Event completely contains the new time slot
-        if (startTime <= eventStart && endTime >= eventEnd) {
-          console.log(`Conflict found: new event contains existing event ${event.id}`);
-          return true;
-        }
-        
-        return false;
-      });
-
-      return {
-        available: !conflictingEvent,
-        conflictingEvent,
-      };
-    } catch (error) {
-      console.error("Error in checkTimeSlotAvailability:", error);
-      // If there's an error, we'll be cautious and say the slot is unavailable
-      return { available: false };
-    }
-  };
-
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
       console.log('handleCreateEvent - Received data:', data);
@@ -149,35 +47,14 @@ export const useEventDialog = ({
         end: endDate
       });
 
-      // Store current user ID in window for conflict checks
-      if (typeof window !== 'undefined' && (window as any).__SUPABASE_AUTH_USER__?.id) {
-        (window as any).__CURRENT_USER_ID__ = (window as any).__SUPABASE_AUTH_USER__.id;
-      }
-
-      // Only perform conflict check if this is for a business calendar
-      if (data.business_id) {
-        const { available, conflictingEvent } = await checkTimeSlotAvailability(
-          startDate,
-          endDate,
-          data.business_id
-        );
-
-        if (!available && conflictingEvent) {
-          toast({
-            title: "Time Slot Unavailable",
-            description: `This time slot conflicts with an existing booking (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
-            variant: "destructive",
-          });
-          throw new Error("Time slot conflict");
-        }
-      }
-
-      // Create a clean copy of the data, without modifying business_id
+      // Create a clean copy of the data to avoid modifying the original
       const cleanData = { ...data };
       
-      // Important: Don't send null UUIDs to the database
-      if (cleanData.business_id === null) {
+      // Only include business_id if it's explicitly provided and not null/undefined
+      if (cleanData.business_id === null || cleanData.business_id === undefined) {
         delete cleanData.business_id;
+      } else {
+        console.log("Business ID included in event data:", cleanData.business_id);
       }
 
       console.log('handleCreateEvent - Data for submission:', cleanData);
@@ -191,13 +68,11 @@ export const useEventDialog = ({
       return result;
     } catch (error: any) {
       console.error('handleCreateEvent - Error:', error);
-      if (error.message !== "Time slot conflict") {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
       throw error;
     }
   };
@@ -206,44 +81,26 @@ export const useEventDialog = ({
     if (!selectedEvent) return;
     
     try {
-      const startDate = new Date(data.start_date as string);
-      const endDate = new Date(data.end_date as string);
-
-      // Store current user ID in window for conflict checks
-      if (typeof window !== 'undefined' && (window as any).__SUPABASE_AUTH_USER__?.id) {
-        (window as any).__CURRENT_USER_ID__ = (window as any).__SUPABASE_AUTH_USER__.id;
-      }
-
-      // Only check conflicts for business calendars
-      if (data.business_id || selectedEvent.business_id) {
-        const businessId = data.business_id || selectedEvent.business_id;
-        
-        const { available, conflictingEvent } = await checkTimeSlotAvailability(
-          startDate,
-          endDate,
-          businessId,
-          selectedEvent.id
-        );
-
-        if (!available && conflictingEvent) {
-          toast({
-            title: "Time Slot Unavailable",
-            description: `This time slot conflicts with an existing booking (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
-            variant: "destructive",
-          });
-          throw new Error("Time slot conflict");
-        }
-      }
-
-      // Create a clean copy of the data, without modifying original business_id
+      // Create a clean copy of the data to avoid modifying the original
       const cleanData = { ...data };
       
-      // Important: Don't send null UUIDs to the database
-      if (cleanData.business_id === null) {
+      // Only include business_id if it's explicitly provided and not null/undefined
+      if (cleanData.business_id === null || cleanData.business_id === undefined) {
         delete cleanData.business_id;
+      } else {
+        console.log("Business ID included in update data:", cleanData.business_id);
       }
 
-      const result = await updateEvent(cleanData);
+      // Preserve the existing business_id if it's not being explicitly updated
+      if (selectedEvent.business_id && !cleanData.hasOwnProperty('business_id')) {
+        cleanData.business_id = selectedEvent.business_id;
+      }
+      
+      const result = await updateEvent({
+        id: selectedEvent.id,
+        updates: cleanData,
+      });
+      
       setSelectedEvent(null);
       toast({
         title: "Success",
@@ -252,13 +109,11 @@ export const useEventDialog = ({
       return result;
     } catch (error: any) {
       console.error('handleUpdateEvent - Error:', error);
-      if (error.message !== "Time slot conflict") {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
       throw error;
     }
   };
@@ -267,61 +122,6 @@ export const useEventDialog = ({
     if (!selectedEvent) return;
     
     try {
-      const { data: customer, error: customerError } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('title', selectedEvent.title)
-        .eq('start_date', selectedEvent.start_date)
-        .eq('end_date', selectedEvent.end_date)
-        .maybeSingle();
-
-      if (customerError) {
-        console.error('Error finding associated customer:', customerError);
-        throw customerError;
-      }
-
-      if (customer) {
-        const { error: updateError } = await supabase
-          .from('customers')
-          .update({
-            start_date: null,
-            end_date: null
-          })
-          .eq('id', customer.id);
-
-        if (updateError) {
-          console.error('Error updating customer:', updateError);
-          throw updateError;
-        }
-      }
-
-      const { data: files } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', selectedEvent.id);
-
-      if (files && files.length > 0) {
-        for (const file of files) {
-          const { error: storageError } = await supabase.storage
-            .from('event_attachments')
-            .remove([file.file_path]);
-
-          if (storageError) {
-            console.error('Error deleting file from storage:', storageError);
-          }
-        }
-
-        const { error: filesDeleteError } = await supabase
-          .from('event_files')
-          .delete()
-          .eq('event_id', selectedEvent.id);
-
-        if (filesDeleteError) {
-          console.error('Error deleting file records:', filesDeleteError);
-          throw filesDeleteError;
-        }
-      }
-
       await deleteEvent(selectedEvent.id);
       setSelectedEvent(null);
       toast({

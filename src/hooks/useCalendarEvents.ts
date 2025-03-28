@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -40,22 +41,24 @@ export const useCalendarEvents = () => {
     console.log("[useCalendarEvents] Fetching public events for business ID:", businessId);
     
     try {
-      // Modified query to get both direct events and approved event requests
+      // Get all events for this business - both direct and from approved requests
+      const eventsPromise = supabase
+        .from('events')
+        .select('*')
+        .eq('business_id', businessId)
+        .order('start_date', { ascending: true });
+      
+      const requestsPromise = supabase
+        .from('event_requests')
+        .select('*')
+        .eq('business_id', businessId)
+        .eq('status', 'approved')
+        .order('start_date', { ascending: true });
+      
+      // Run both queries in parallel
       const [eventsResult, requestsResult] = await Promise.all([
-        // Get direct events with this business_id
-        supabase
-          .from('events')
-          .select('*')
-          .eq('business_id', businessId)
-          .order('start_date', { ascending: true }),
-        
-        // Get approved event requests for this business
-        supabase
-          .from('event_requests')
-          .select('*')
-          .eq('business_id', businessId)
-          .eq('status', 'approved')
-          .order('start_date', { ascending: true })
+        eventsPromise,
+        requestsPromise
       ]);
 
       if (eventsResult.error) {
@@ -78,6 +81,7 @@ export const useCalendarEvents = () => {
         start_date: req.start_date,
         end_date: req.end_date,
         created_at: req.created_at,
+        updated_at: req.updated_at,
         user_surname: req.user_surname,
         user_number: req.user_number,
         social_network_link: req.social_network_link,
@@ -92,11 +96,6 @@ export const useCalendarEvents = () => {
       const combinedEvents = [...events, ...requestEvents];
       
       console.log(`[useCalendarEvents] Retrieved ${events.length} direct events and ${approvedRequests.length} approved requests for business:`, businessId);
-      console.log("[useCalendarEvents] Sample events:", combinedEvents.slice(0, 2).map(e => ({
-        id: e.id,
-        title: e.title,
-        date: e.start_date
-      })));
       
       return combinedEvents;
     } catch (err) {
@@ -109,10 +108,13 @@ export const useCalendarEvents = () => {
     try {
       if (!user) throw new Error("User must be authenticated to create events");
       
-      // Create a clean copy that won't be modified
-      const eventData = { ...event, user_id: user.id };
+      // Create a clean copy of data to avoid modifying the original
+      const eventData = { ...event };
       
-      // Explicitly handle business_id to prevent sending null value
+      // Set user_id for the event
+      eventData.user_id = user.id;
+      
+      // Only include business_id if it's explicitly provided and not null/undefined
       if (eventData.business_id === null || eventData.business_id === undefined) {
         delete eventData.business_id;
       }
@@ -142,10 +144,10 @@ export const useCalendarEvents = () => {
     try {
       if (!user) throw new Error("User must be authenticated to update events");
       
-      // Create a clean copy of updates 
+      // Create a clean copy of updates to avoid modifying the original
       const cleanUpdates = { ...updates };
       
-      // Don't send null business_id to database
+      // Only include business_id if it's explicitly provided and not null/undefined
       if (cleanUpdates.business_id === null || cleanUpdates.business_id === undefined) {
         delete cleanUpdates.business_id;
       }
@@ -211,45 +213,14 @@ export const useCalendarEvents = () => {
       const startDate = new Date(event.start_date as string);
       const endDate = new Date(event.end_date as string);
       
-      // Check existing events for conflicts
-      const { data: existingEvents, error: eventsError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('business_id', event.business_id)
-        .gte('start_date', startDate.toISOString().split('T')[0])
-        .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
-        
-      if (eventsError) {
-        console.error("Error checking for existing events:", eventsError);
-        throw eventsError;
-      }
+      // Check existing events and approved requests for conflicts
+      const { available } = await checkTimeSlotAvailability(
+        startDate,
+        endDate,
+        event.business_id
+      );
       
-      // Check approved requests for conflicts
-      const { data: approvedRequests, error: requestsError } = await supabase
-        .from('event_requests')
-        .select('*')
-        .eq('business_id', event.business_id)
-        .eq('status', 'approved')
-        .gte('start_date', startDate.toISOString().split('T')[0])
-        .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
-        
-      if (requestsError) {
-        console.error("Error checking for approved requests:", requestsError);
-        throw requestsError;
-      }
-      
-      // Check for conflicts
-      const allEvents = [...(existingEvents || []), ...(approvedRequests || [])];
-      const startTime = startDate.getTime();
-      const endTime = endDate.getTime();
-      
-      const conflict = allEvents.find(e => {
-        const eStart = new Date(e.start_date).getTime();
-        const eEnd = new Date(e.end_date).getTime();
-        return (startTime < eEnd && endTime > eStart);
-      });
-      
-      if (conflict) {
+      if (!available) {
         throw new Error("This time slot conflicts with an existing booking");
       }
       
@@ -275,7 +246,65 @@ export const useCalendarEvents = () => {
       throw error;
     }
   };
+  
+  // Helper function to check availability of a time slot
+  const checkTimeSlotAvailability = async (
+    startDate: Date,
+    endDate: Date,
+    businessId: string
+  ): Promise<{ available: boolean; conflictingEvent?: any }> => {
+    const startTime = startDate.getTime();
+    const endTime = endDate.getTime();
+    
+    try {
+      // Check existing events for conflicts
+      const { data: existingEvents, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('business_id', businessId)
+        .gte('start_date', startDate.toISOString().split('T')[0])
+        .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
+        
+      if (eventsError) {
+        console.error("Error checking for existing events:", eventsError);
+        throw eventsError;
+      }
+      
+      // Check approved requests for conflicts
+      const { data: approvedRequests, error: requestsError } = await supabase
+        .from('event_requests')
+        .select('*')
+        .eq('business_id', businessId)
+        .eq('status', 'approved')
+        .gte('start_date', startDate.toISOString().split('T')[0])
+        .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
+        
+      if (requestsError) {
+        console.error("Error checking for approved requests:", requestsError);
+        throw requestsError;
+      }
+      
+      // Check for conflicts
+      const allEvents = [...(existingEvents || []), ...(approvedRequests || [])];
+      
+      const conflict = allEvents.find(e => {
+        const eStart = new Date(e.start_date).getTime();
+        const eEnd = new Date(e.end_date).getTime();
+        return (startTime < eEnd && endTime > eStart);
+      });
+      
+      return {
+        available: !conflict,
+        conflictingEvent: conflict
+      };
+    } catch (error) {
+      console.error("Error in checkTimeSlotAvailability:", error);
+      // If there's an error, we'll be cautious and say the slot is unavailable
+      return { available: false };
+    }
+  };
 
+  // Set up queries to fetch data
   const { data: events = [], isLoading, error } = useQuery({
     queryKey: ['events', user?.id],
     queryFn: getEvents,
@@ -285,6 +314,7 @@ export const useCalendarEvents = () => {
     refetchOnWindowFocus: true
   });
 
+  // Set up mutations for CRUD operations
   const createEventMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: () => {
@@ -304,6 +334,10 @@ export const useCalendarEvents = () => {
     mutationFn: updateEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      // Also invalidate public events queries for any business this event might belong to
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['public-events'] });
+      }
     },
   });
 
@@ -311,6 +345,8 @@ export const useCalendarEvents = () => {
     mutationFn: deleteEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      // Also invalidate public events queries for any business this event might belong to
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
     },
   });
 
@@ -318,10 +354,11 @@ export const useCalendarEvents = () => {
     events,
     isLoading,
     error,
-    getPublicEvents, // Expose the public events getter
+    getPublicEvents,
     createEvent: createEventMutation.mutateAsync,
     createEventRequest: createEventRequestMutation.mutateAsync,
     updateEvent: updateEventMutation.mutateAsync,
     deleteEvent: deleteEventMutation.mutateAsync,
+    checkTimeSlotAvailability,
   };
 };
