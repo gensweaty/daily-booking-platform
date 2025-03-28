@@ -24,6 +24,7 @@ import { useNavigate } from "react-router-dom";
 import { TimeIndicator } from "./TimeIndicator";
 import { useEventDialog } from "./hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/use-toast";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -40,9 +41,10 @@ export const Calendar = ({
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
-  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
+  const { events, isLoading, error, createEvent, updateEvent, deleteEvent, createEventRequest } = useCalendarEvents();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   // Make events available globally for the useEventDialog hook
   if (typeof window !== 'undefined') {
@@ -61,8 +63,36 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      const result = await createEvent(data);
-      return result;
+      // If in public mode and businessId is provided, create an event request instead
+      if (publicMode && businessId) {
+        try {
+          const requestData = {
+            ...data,
+            business_id: businessId,
+            status: 'pending'
+          };
+          
+          const result = await createEventRequest(requestData);
+          
+          toast({
+            title: "Request Sent",
+            description: "Your booking request has been sent to the business owner for approval.",
+          });
+          
+          return result;
+        } catch (error: any) {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
+          throw error;
+        }
+      } else {
+        // Normal event creation for authenticated users
+        const result = await createEvent(data);
+        return result;
+      }
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
@@ -77,7 +107,7 @@ export const Calendar = ({
     }
   });
 
-  // In public mode, we don't require authentication
+  // In private mode, we require authentication
   if (!publicMode && !user) {
     navigate("/signin");
     return null;

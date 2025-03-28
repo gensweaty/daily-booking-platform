@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -8,10 +9,14 @@ export const useCalendarEvents = () => {
   const { user } = useAuth();
 
   const getEvents = async () => {
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .order('start_date', { ascending: true });
+    let query = supabase.from('events').select('*').order('start_date', { ascending: true });
+    
+    // If user is authenticated, filter events by user_id
+    if (user) {
+      query = query.eq('user_id', user.id);
+    }
+    
+    const { data, error } = await query;
 
     if (error) throw error;
     return data;
@@ -57,16 +62,36 @@ export const useCalendarEvents = () => {
     if (error) throw error;
   };
 
+  const createEventRequest = async (event: Partial<CalendarEventType>): Promise<any> => {
+    // No authentication check - anyone can create a request
+    const { data, error } = await supabase
+      .from('event_requests')
+      .insert([event])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  };
+
   const { data: events = [], isLoading, error } = useQuery({
     queryKey: ['events', user?.id],
     queryFn: getEvents,
-    enabled: !!user,
+    enabled: true, // Always enable to support both authenticated and public modes
   });
 
   const createEventMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+    },
+  });
+
+  const createEventRequestMutation = useMutation({
+    mutationFn: createEventRequest,
+    onSuccess: () => {
+      // No need to invalidate queries here as the request won't show in the calendar
+      // until approved by the business owner
     },
   });
 
@@ -89,6 +114,7 @@ export const useCalendarEvents = () => {
     isLoading,
     error,
     createEvent: createEventMutation.mutateAsync,
+    createEventRequest: createEventRequestMutation.mutateAsync,
     updateEvent: updateEventMutation.mutateAsync,
     deleteEvent: deleteEventMutation.mutateAsync,
   };

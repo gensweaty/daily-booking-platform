@@ -1,19 +1,16 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useBusinessBySlug } from "@/hooks/useBusiness";
 import { Calendar } from "@/components/Calendar/Calendar";
-import { EventDialog } from "@/components/Calendar/EventDialog";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Button } from "@/components/ui/button";
-import { createEventRequest } from "@/lib/api";
 import { ExternalLink, ArrowLeft, Mail, MapPin, Phone, Globe, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { FileUploadField } from "@/components/shared/FileUploadField";
-import { EventDialogFields } from "@/components/Calendar/EventDialogFields";
 
 const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -23,20 +20,12 @@ const PublicBusinessPage = () => {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState("");
   
-  // Form state
-  const [title, setTitle] = useState("");
-  const [userSurname, setUserSurname] = useState("");
-  const [userNumber, setUserNumber] = useState("");
-  const [socialNetworkLink, setSocialNetworkLink] = useState("");
-  const [eventNotes, setEventNotes] = useState("");
-  const [type, setType] = useState("private");
-  const [paymentStatus, setPaymentStatus] = useState("");
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  useEffect(() => {
+    // Reset state when slug changes
+    setIsBookingDialogOpen(false);
+    setSelectedDate(null);
+  }, [slug]);
   
   // Fetch public events for this business
   const { data: publicEvents = [] } = useQuery({
@@ -74,12 +63,6 @@ const PublicBusinessPage = () => {
     enabled: !!business?.id
   });
   
-  useEffect(() => {
-    // Reset state when slug changes
-    setIsBookingDialogOpen(false);
-    setSelectedDate(null);
-  }, [slug]);
-  
   // Fetch the cover photo URL if it exists
   useEffect(() => {
     const fetchCoverPhoto = async () => {
@@ -91,7 +74,6 @@ const PublicBusinessPage = () => {
           
           if (data) {
             setCoverPhotoUrl(data.publicUrl);
-            console.log("Cover photo URL:", data.publicUrl);
           }
         } catch (error) {
           console.error("Error fetching cover photo:", error);
@@ -107,80 +89,6 @@ const PublicBusinessPage = () => {
   const handleDayClick = (date: Date) => {
     setSelectedDate(date);
     setIsBookingDialogOpen(true);
-  };
-  
-  const handleBookingSubmit = async (data: Partial<CalendarEventType>) => {
-    if (!business) return;
-    
-    try {
-      const requestData = {
-        business_id: business.id,
-        title: data.title || "",
-        user_surname: data.user_surname,
-        user_number: data.user_number,
-        social_network_link: data.social_network_link,
-        event_notes: data.event_notes,
-        start_date: data.start_date || "",
-        end_date: data.end_date || "",
-        type: data.type,
-        payment_status: data.payment_status,
-        payment_amount: data.payment_amount
-      };
-      
-      await createEventRequest(requestData);
-      
-      // Handle file upload if a file is selected
-      if (selectedFile && business) {
-        // Create event_files record in the database
-        try {
-          // First upload the file to Supabase storage
-          const fileExt = selectedFile.name.split('.').pop();
-          const fileName = `${crypto.randomUUID()}.${fileExt}`;
-          const filePath = `${fileName}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('event_attachments')
-            .upload(filePath, selectedFile);
-            
-          if (uploadError) {
-            console.error("Error uploading file:", uploadError);
-            throw uploadError;
-          }
-          
-          console.log("File uploaded successfully:", filePath);
-        } catch (error) {
-          console.error("Error in file upload process:", error);
-        }
-      }
-      
-      toast({
-        title: "Booking request sent",
-        description: "Your booking request has been sent successfully!",
-      });
-      
-      setIsBookingDialogOpen(false);
-      // Reset form
-      setTitle("");
-      setUserSurname("");
-      setUserNumber("");
-      setSocialNetworkLink("");
-      setEventNotes("");
-      setType("private");
-      setPaymentStatus("");
-      setPaymentAmount("");
-      setStartDate("");
-      setEndDate("");
-      setSelectedFile(null);
-      
-      return {} as CalendarEventType; // Return empty object to satisfy the promise
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send booking request",
-        variant: "destructive",
-      });
-      throw error;
-    }
   };
   
   if (isLoading) {
@@ -223,7 +131,7 @@ const PublicBusinessPage = () => {
       <div className="min-h-screen bg-background pb-12">
         <header className="w-full">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <Button asChild variant="ghost" size="sm" onClick={() => navigate(-1)}>
+            <Button asChild variant="ghost" size="sm">
               <Link to="/">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Link>
@@ -349,16 +257,6 @@ const PublicBusinessPage = () => {
             </div>
           </div>
         </div>
-        
-        {isBookingDialogOpen && selectedDate && (
-          <EventDialog
-            open={isBookingDialogOpen}
-            onOpenChange={setIsBookingDialogOpen}
-            selectedDate={selectedDate || new Date()}
-            onSubmit={handleBookingSubmit}
-            businessId={business.id}
-          />
-        )}
       </div>
     </LanguageProvider>
   );
