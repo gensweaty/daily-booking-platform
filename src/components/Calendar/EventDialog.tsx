@@ -115,7 +115,7 @@ export const EventDialog = ({
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : undefined,
       };
       
-      // Add business_id if provided
+      // Only add business_id if provided and not null
       if (businessId) {
         data.business_id = businessId;
       }

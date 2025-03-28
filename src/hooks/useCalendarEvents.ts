@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -110,58 +109,15 @@ export const useCalendarEvents = () => {
     try {
       if (!user) throw new Error("User must be authenticated to create events");
       
+      // Create a clean copy that won't be modified
       const eventData = { ...event, user_id: user.id };
-      console.log("Creating event:", eventData);
       
-      // First check if there are any conflicts
-      const startDate = new Date(event.start_date as string);
-      const endDate = new Date(event.end_date as string);
-      
-      // Check for conflicts with existing events
-      const { data: existingEvents, error: eventsError } = await supabase
-        .from('events')
-        .select('*')
-        .or(`user_id.eq.${user.id},business_id.eq.${event.business_id || 'null'}`)
-        .gte('start_date', startDate.toISOString().split('T')[0])
-        .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
-        
-      if (eventsError) {
-        console.error("Error checking for existing events:", eventsError);
-        throw eventsError;
+      // Explicitly handle business_id to prevent sending null value
+      if (eventData.business_id === null || eventData.business_id === undefined) {
+        delete eventData.business_id;
       }
       
-      // If we have a business ID, also check approved requests
-      let approvedRequests: any[] = [];
-      if (event.business_id) {
-        const { data: requests, error: requestsError } = await supabase
-          .from('event_requests')
-          .select('*')
-          .eq('business_id', event.business_id)
-          .eq('status', 'approved')
-          .gte('start_date', startDate.toISOString().split('T')[0])
-          .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
-          
-        if (requestsError) {
-          console.error("Error checking for approved requests:", requestsError);
-        } else {
-          approvedRequests = requests || [];
-        }
-      }
-      
-      // Check for conflicts
-      const allEvents = [...(existingEvents || []), ...approvedRequests];
-      const startTime = startDate.getTime();
-      const endTime = endDate.getTime();
-      
-      const conflict = allEvents.find(e => {
-        const eStart = new Date(e.start_date).getTime();
-        const eEnd = new Date(e.end_date).getTime();
-        return (startTime < eEnd && endTime > eStart);
-      });
-      
-      if (conflict) {
-        throw new Error("This time slot conflicts with an existing booking");
-      }
+      console.log("Creating event with data:", eventData);
       
       const { data, error } = await supabase
         .from('events')
@@ -186,76 +142,19 @@ export const useCalendarEvents = () => {
     try {
       if (!user) throw new Error("User must be authenticated to update events");
       
-      console.log(`Updating event ${id} with:`, updates);
+      // Create a clean copy of updates 
+      const cleanUpdates = { ...updates };
       
-      // Check for conflicts if date/time changed
-      if (updates.start_date && updates.end_date) {
-        const startDate = new Date(updates.start_date);
-        const endDate = new Date(updates.end_date);
-        
-        // Get the event to update for its business_id
-        const { data: currentEvent, error: eventError } = await supabase
-          .from('events')
-          .select('*')
-          .eq('id', id)
-          .single();
-          
-        if (eventError) {
-          console.error("Error fetching current event:", eventError);
-          throw eventError;
-        }
-        
-        // Check existing events for conflicts
-        const { data: existingEvents, error: eventsError } = await supabase
-          .from('events')
-          .select('*')
-          .or(`user_id.eq.${user.id},business_id.eq.${currentEvent.business_id || 'null'}`)
-          .neq('id', id) // Exclude the current event
-          .gte('start_date', startDate.toISOString().split('T')[0])
-          .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
-          
-        if (eventsError) {
-          console.error("Error checking for existing events:", eventsError);
-          throw eventsError;
-        }
-        
-        // Check approved requests for conflicts
-        let approvedRequests: any[] = [];
-        if (currentEvent.business_id) {
-          const { data: requests, error: requestsError } = await supabase
-            .from('event_requests')
-            .select('*')
-            .eq('business_id', currentEvent.business_id)
-            .eq('status', 'approved')
-            .gte('start_date', startDate.toISOString().split('T')[0])
-            .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
-            
-          if (requestsError) {
-            console.error("Error checking for approved requests:", requestsError);
-          } else {
-            approvedRequests = requests || [];
-          }
-        }
-        
-        // Check for conflicts
-        const allEvents = [...(existingEvents || []), ...approvedRequests];
-        const startTime = startDate.getTime();
-        const endTime = endDate.getTime();
-        
-        const conflict = allEvents.find(e => {
-          const eStart = new Date(e.start_date).getTime();
-          const eEnd = new Date(e.end_date).getTime();
-          return (startTime < eEnd && endTime > eStart);
-        });
-        
-        if (conflict) {
-          throw new Error("This time slot conflicts with an existing booking");
-        }
+      // Don't send null business_id to database
+      if (cleanUpdates.business_id === null || cleanUpdates.business_id === undefined) {
+        delete cleanUpdates.business_id;
       }
+      
+      console.log(`Updating event ${id} with:`, cleanUpdates);
       
       const { data, error } = await supabase
         .from('events')
-        .update(updates)
+        .update(cleanUpdates)
         .eq('id', id)
         .eq('user_id', user.id)
         .select()

@@ -154,19 +154,12 @@ export const useEventDialog = ({
         (window as any).__CURRENT_USER_ID__ = (window as any).__SUPABASE_AUTH_USER__.id;
       }
 
-      // Check if businessId is explicitly provided (not undefined)
-      let businessId = undefined;
-      if (data.business_id !== undefined) {
-        businessId = data.business_id || null;
-      }
-      console.log('handleCreateEvent - Using business ID:', businessId);
-
-      // Only perform availability check if businessId is provided
-      if (businessId !== undefined) {
+      // Only perform conflict check if this is for a business calendar
+      if (data.business_id) {
         const { available, conflictingEvent } = await checkTimeSlotAvailability(
           startDate,
           endDate,
-          businessId
+          data.business_id
         );
 
         if (!available && conflictingEvent) {
@@ -179,16 +172,15 @@ export const useEventDialog = ({
         }
       }
 
-      // Clean up the data object before submission
+      // Create a clean copy of the data, without modifying business_id
       const cleanData = { ...data };
       
-      // Only delete the business_id if it's null or undefined
-      // This is important to prevent adding a null UUID to the database
-      if (cleanData.business_id === null || cleanData.business_id === undefined) {
+      // Important: Don't send null UUIDs to the database
+      if (cleanData.business_id === null) {
         delete cleanData.business_id;
       }
 
-      console.log('handleCreateEvent - Cleaned data for submission:', cleanData);
+      console.log('handleCreateEvent - Data for submission:', cleanData);
       const result = await createEvent(cleanData);
       
       setIsNewEventDialogOpen(false);
@@ -222,14 +214,10 @@ export const useEventDialog = ({
         (window as any).__CURRENT_USER_ID__ = (window as any).__SUPABASE_AUTH_USER__.id;
       }
 
-      // Handle business_id from data or selected event
-      let businessId = undefined;
-      if (data.business_id !== undefined || selectedEvent.business_id !== undefined) {
-        businessId = data.business_id || selectedEvent.business_id || null;
-      }
-
-      // Only check availability if there's a businessId to check against
-      if (businessId !== undefined) {
+      // Only check conflicts for business calendars
+      if (data.business_id || selectedEvent.business_id) {
+        const businessId = data.business_id || selectedEvent.business_id;
+        
         const { available, conflictingEvent } = await checkTimeSlotAvailability(
           startDate,
           endDate,
@@ -247,9 +235,11 @@ export const useEventDialog = ({
         }
       }
 
-      // Clean up the data object
+      // Create a clean copy of the data, without modifying original business_id
       const cleanData = { ...data };
-      if (cleanData.business_id === null || cleanData.business_id === undefined) {
+      
+      // Important: Don't send null UUIDs to the database
+      if (cleanData.business_id === null) {
         delete cleanData.business_id;
       }
 
