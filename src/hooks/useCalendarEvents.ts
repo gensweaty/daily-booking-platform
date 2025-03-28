@@ -9,57 +9,104 @@ export const useCalendarEvents = () => {
   const { user } = useAuth();
 
   const getEvents = async () => {
-    let query = supabase.from('events').select('*').order('start_date', { ascending: true });
-    
-    // If user is authenticated, filter events by user_id
-    if (user) {
-      query = query.eq('user_id', user.id);
-    }
-    
-    const { data, error } = await query;
+    try {
+      let query = supabase.from('events').select('*').order('start_date', { ascending: true });
+      
+      // If user is authenticated, filter events by user_id
+      if (user) {
+        query = query.eq('user_id', user.id);
+      }
+      
+      const { data, error } = await query;
 
-    if (error) throw error;
-    return data;
+      if (error) {
+        console.error("Error fetching events:", error);
+        throw error;
+      }
+      
+      console.log(`Retrieved ${data?.length || 0} events for user:`, user?.id);
+      return data;
+    } catch (err) {
+      console.error("Failed to fetch events:", err);
+      throw err;
+    }
   };
 
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
-    if (!user) throw new Error("User must be authenticated to create events");
-    
-    const { data, error } = await supabase
-      .from('events')
-      .insert([{ ...event, user_id: user.id }])
-      .select()
-      .single();
+    try {
+      if (!user) throw new Error("User must be authenticated to create events");
+      
+      const eventData = { ...event, user_id: user.id };
+      console.log("Creating event:", eventData);
+      
+      const { data, error } = await supabase
+        .from('events')
+        .insert([eventData])
+        .select()
+        .single();
 
-    if (error) throw error;
-    return data;
+      if (error) {
+        console.error("Error creating event:", error);
+        throw error;
+      }
+      
+      console.log("Event created successfully:", data);
+      return data;
+    } catch (err) {
+      console.error("Failed to create event:", err);
+      throw err;
+    }
   };
 
   const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
-    if (!user) throw new Error("User must be authenticated to update events");
-    
-    const { data, error } = await supabase
-      .from('events')
-      .update(updates)
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
+    try {
+      if (!user) throw new Error("User must be authenticated to update events");
+      
+      console.log(`Updating event ${id} with:`, updates);
+      
+      const { data, error } = await supabase
+        .from('events')
+        .update(updates)
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single();
 
-    if (error) throw error;
-    return data;
+      if (error) {
+        console.error("Error updating event:", error);
+        throw error;
+      }
+      
+      console.log("Event updated successfully:", data);
+      return data;
+    } catch (err) {
+      console.error("Failed to update event:", err);
+      throw err;
+    }
   };
 
   const deleteEvent = async (id: string): Promise<void> => {
-    if (!user) throw new Error("User must be authenticated to delete events");
-    
-    const { error } = await supabase
-      .from('events')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+    try {
+      if (!user) throw new Error("User must be authenticated to delete events");
+      
+      console.log(`Deleting event ${id}`);
+      
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
 
-    if (error) throw error;
+      if (error) {
+        console.error("Error deleting event:", error);
+        throw error;
+      }
+      
+      console.log("Event deleted successfully");
+    } catch (err) {
+      console.error("Failed to delete event:", err);
+      throw err;
+    }
   };
 
   const createEventRequest = async (event: Partial<CalendarEventType>): Promise<any> => {
@@ -70,6 +117,8 @@ export const useCalendarEvents = () => {
         throw new Error("Business ID is required for event requests");
       }
 
+      console.log("Creating event request:", event);
+      
       // No need to attach user_id for anonymous requests
       const { data, error } = await supabase
         .from('event_requests')
@@ -85,6 +134,7 @@ export const useCalendarEvents = () => {
         throw error;
       }
       
+      console.log("Event request created successfully:", data);
       return data;
     } catch (error) {
       console.error("Error in createEventRequest:", error);
@@ -96,6 +146,9 @@ export const useCalendarEvents = () => {
     queryKey: ['events', user?.id],
     queryFn: getEvents,
     enabled: true, // Always enable to support both authenticated and public modes
+    staleTime: 1000 * 60, // 1 minute
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
   });
 
   const createEventMutation = useMutation({

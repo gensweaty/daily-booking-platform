@@ -35,39 +35,52 @@ const PublicBusinessPage = () => {
       
       console.log("Fetching public events for business ID:", business.id);
       
-      // Get events for this business, without showing personal details
-      const { data, error } = await supabase
-        .from('events')
-        .select('id, title, start_date, end_date, type, created_at, business_id')
-        .eq('business_id', business.id);
+      try {
+        // Get events for this business, without showing personal details
+        const { data, error } = await supabase
+          .from('events')
+          .select('id, title, start_date, end_date, type, created_at, business_id')
+          .eq('business_id', business.id);
+          
+        if (error) {
+          console.error("Error fetching public events:", error);
+          throw error;
+        }
         
-      if (error) {
-        console.error("Error fetching public events:", error);
-        throw error;
+        console.log("Fetched public events:", data);
+        
+        if (!data || data.length === 0) {
+          console.log("No events found for business");
+          return [];
+        }
+        
+        // Sanitize the events to remove personal information and ensure all required fields are present
+        return data.map(event => ({
+          id: event.id,
+          title: event.type === 'birthday' ? 'Birthday Event' : 'Private Event',
+          start_date: event.start_date,
+          end_date: event.end_date,
+          type: event.type,
+          created_at: event.created_at,
+          // Add empty values for the other required fields
+          user_surname: undefined,
+          user_number: undefined,
+          social_network_link: undefined,
+          event_notes: undefined,
+          payment_status: undefined,
+          payment_amount: undefined,
+          user_id: undefined,
+          business_id: event.business_id
+        })) as CalendarEventType[];
+      } catch (error) {
+        console.error("Failed to fetch events:", error);
+        return [];
       }
-      
-      console.log("Fetched public events:", data);
-      
-      // Sanitize the events to remove personal information and ensure all required fields are present
-      return data.map(event => ({
-        id: event.id,
-        title: event.type === 'birthday' ? 'Birthday Event' : 'Private Event',
-        start_date: event.start_date,
-        end_date: event.end_date,
-        type: event.type,
-        created_at: event.created_at,
-        // Add empty values for the other required fields
-        user_surname: undefined,
-        user_number: undefined,
-        social_network_link: undefined,
-        event_notes: undefined,
-        payment_status: undefined,
-        payment_amount: undefined,
-        user_id: undefined,
-        business_id: event.business_id
-      })) as CalendarEventType[];
     },
-    enabled: !!business?.id
+    enabled: !!business?.id,
+    staleTime: 1000 * 60, // 1 minute
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
   });
   
   // Fetch the cover photo URL if it exists
