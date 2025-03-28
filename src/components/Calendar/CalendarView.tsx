@@ -46,6 +46,14 @@ export const CalendarView = ({
     return ((actualHour - 6 + 24) % 24) * 80; // 80px is the height of each hour slot
   };
 
+  // Function to get the display title based on public mode
+  const getEventDisplayTitle = (event: CalendarEventType) => {
+    if (publicMode) {
+      return "Booked";
+    }
+    return event.title;
+  };
+
   if (view === "month") {
     // Get the start and end of the month view
     const monthStart = startOfMonth(selectedDate);
@@ -93,7 +101,7 @@ export const CalendarView = ({
                       onEventClick(event);
                     }}
                   >
-                    {publicMode ? (event.type === 'birthday' ? 'Birthday Event' : 'Private Event') : event.title}
+                    {getEventDisplayTitle(event)}
                   </div>
                 ))}
               </div>
@@ -173,7 +181,7 @@ export const CalendarView = ({
                     }}
                   >
                     <div className="font-semibold truncate">
-                      {publicMode ? (event.type === 'birthday' ? 'Birthday Event' : 'Private Event') : event.title}
+                      {getEventDisplayTitle(event)}
                     </div>
                     {height > 40 && (
                       <div className="text-[8px] sm:text-xs truncate">

@@ -183,21 +183,16 @@ export const Calendar = ({
   };
 
   // Choose which events to display based on mode
-  console.log("Internal events:", events);
-  console.log("External events:", externalEvents);
-  console.log("Public mode:", publicMode);
-  console.log("Business ID:", businessId);
-  
   let displayEvents: CalendarEventType[] = [];
   
   // In public mode, use provided external events
   if (publicMode && Array.isArray(externalEvents)) {
     displayEvents = externalEvents;
-    console.log("Using external events in public mode:", displayEvents);
+    console.log("Using external events in public mode:", displayEvents.length);
   } else {
     // In private mode, use internal events
     displayEvents = events || [];
-    console.log("Using internal events in private mode:", displayEvents);
+    console.log("Using internal events in private mode:", displayEvents.length);
   }
 
   if (error && !publicMode) {

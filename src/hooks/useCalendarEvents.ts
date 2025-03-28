@@ -32,6 +32,45 @@ export const useCalendarEvents = () => {
     }
   };
 
+  const getPublicEvents = async (businessId: string) => {
+    if (!businessId) {
+      console.warn("No business ID provided for public events");
+      return [];
+    }
+    
+    try {
+      console.log("Fetching public events for business ID:", businessId);
+      
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('business_id', businessId)
+        .order('start_date', { ascending: true });
+
+      if (error) {
+        console.error("Error fetching public events:", error);
+        throw error;
+      }
+      
+      console.log(`Retrieved ${data?.length || 0} public events for business:`, businessId);
+      
+      // Sanitize events for public display
+      const sanitizedEvents = data.map(event => ({
+        ...event,
+        title: 'Booked', // Generic title for all events
+        user_surname: undefined,
+        user_number: undefined,
+        social_network_link: undefined,
+        event_notes: undefined
+      }));
+      
+      return sanitizedEvents;
+    } catch (err) {
+      console.error("Failed to fetch public events:", err);
+      throw err;
+    }
+  };
+
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     try {
       if (!user) throw new Error("User must be authenticated to create events");
@@ -184,6 +223,7 @@ export const useCalendarEvents = () => {
     events,
     isLoading,
     error,
+    getPublicEvents, // Expose the public events getter
     createEvent: createEventMutation.mutateAsync,
     createEventRequest: createEventRequestMutation.mutateAsync,
     updateEvent: updateEventMutation.mutateAsync,

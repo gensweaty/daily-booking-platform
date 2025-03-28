@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useBusinessBySlug } from "@/hooks/useBusiness";
@@ -11,6 +10,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
+import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 
 const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -20,6 +20,7 @@ const PublicBusinessPage = () => {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
+  const { getPublicEvents } = useCalendarEvents();
   
   useEffect(() => {
     // Reset state when slug changes
@@ -33,47 +34,12 @@ const PublicBusinessPage = () => {
     queryFn: async () => {
       if (!business?.id) return [];
       
-      console.log("Fetching public events for business ID:", business.id);
-      
       try {
-        // Get events for this business, without showing personal details
-        const { data, error } = await supabase
-          .from('events')
-          .select('id, title, start_date, end_date, type, created_at, business_id')
-          .eq('business_id', business.id);
-          
-        if (error) {
-          console.error("Error fetching public events:", error);
-          throw error;
-        }
-        
-        console.log("Fetched public events:", data);
-        
-        if (!data || data.length === 0) {
-          console.log("No events found for business");
-          return [];
-        }
-        
-        // Sanitize the events to remove personal information and ensure all required fields are present
-        return data.map(event => ({
-          id: event.id,
-          title: event.type === 'birthday' ? 'Birthday Event' : 'Private Event',
-          start_date: event.start_date,
-          end_date: event.end_date,
-          type: event.type,
-          created_at: event.created_at,
-          // Add empty values for the other required fields
-          user_surname: undefined,
-          user_number: undefined,
-          social_network_link: undefined,
-          event_notes: undefined,
-          payment_status: undefined,
-          payment_amount: undefined,
-          user_id: undefined,
-          business_id: event.business_id
-        })) as CalendarEventType[];
+        const events = await getPublicEvents(business.id);
+        console.log("Fetched public events:", events);
+        return events;
       } catch (error) {
-        console.error("Failed to fetch events:", error);
+        console.error("Failed to fetch public events:", error);
         return [];
       }
     },
@@ -210,7 +176,7 @@ const PublicBusinessPage = () => {
                       defaultView="month" 
                       publicMode={true}
                       externalEvents={publicEvents}
-                      businessId={business.id}
+                      businessId={business?.id}
                     />
                   )}
                 </div>
