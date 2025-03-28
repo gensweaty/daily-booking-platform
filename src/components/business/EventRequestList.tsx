@@ -142,7 +142,7 @@ export const EventRequestList = ({ eventRequests, isLoading }: EventRequestListP
         event_notes: requestData.event_notes,
         payment_status: requestData.payment_status,
         payment_amount: requestData.payment_amount,
-        business_id: requestData.business_id
+        business_id: requestData.business_id // Make sure business_id is passed correctly
       };
       
       console.log("Creating event with data:", eventData);
