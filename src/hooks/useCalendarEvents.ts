@@ -113,7 +113,6 @@ export const useCalendarEvents = () => {
     }
   };
 
-  // Get all events regardless of user, filtered only by business ID
   const getAllBusinessEvents = async (businessId: string) => {
     if (!businessId) {
       console.warn("No business ID provided for getting all business events");
@@ -303,7 +302,6 @@ export const useCalendarEvents = () => {
     }
   };
 
-  // Helper function to invalidate all event-related queries
   const invalidateAllEventQueries = (businessId?: string) => {
     console.log("[useCalendarEvents] Invalidating all event queries");
     queryClient.invalidateQueries({ queryKey: ['events'] });
@@ -321,14 +319,11 @@ export const useCalendarEvents = () => {
       queryClient.invalidateQueries({ queryKey: ['all-business-events', businessId] });
     }
     
-    // Also refetch all events immediately
     fetchAllEvents();
   };
 
-  // Helper function to force fetch all events when needed
   const fetchAllEvents = async () => {
     try {
-      // Force refetch user events
       if (user?.id) {
         console.log("[useCalendarEvents] Force refetching user events");
         const userEvents = await apiGetEvents();
@@ -336,7 +331,6 @@ export const useCalendarEvents = () => {
         queryClient.setQueryData(['events'], userEvents);
       }
       
-      // Force refetch public events if we can determine the business ID
       const { data: userBusiness } = await supabase
         .from('businesses')
         .select('id')
@@ -346,12 +340,10 @@ export const useCalendarEvents = () => {
       if (userBusiness?.id) {
         console.log(`[useCalendarEvents] Force refetching business events for business: ${userBusiness.id}`);
         
-        // Refetch public events (approved and public events)
         const publicEvents = await getPublicEvents(userBusiness.id);
         queryClient.setQueryData(['public-events', userBusiness.id], publicEvents);
         queryClient.setQueryData(['public-events'], publicEvents);
         
-        // Also fetch ALL business events for internal dashboard view
         const allBusinessEvents = await getAllBusinessEvents(userBusiness.id);
         queryClient.setQueryData(['all-business-events', userBusiness.id], allBusinessEvents);
         queryClient.setQueryData(['all-business-events'], allBusinessEvents);
@@ -362,9 +354,7 @@ export const useCalendarEvents = () => {
   };
 
   const createEventRequest = async (event: Partial<CalendarEventType>): Promise<any> => {
-    // For public booking requests - no auth required
     try {
-      // Make sure event has required fields
       if (!event.business_id) {
         console.error("[useCalendarEvents] Missing business_id when creating event request");
         throw new Error("Business ID is required for event requests");
@@ -372,11 +362,9 @@ export const useCalendarEvents = () => {
 
       console.log("[useCalendarEvents] Creating event request:", event);
       
-      // Check for conflicts before creating the request
       const startDate = new Date(event.start_date as string);
       const endDate = new Date(event.end_date as string);
       
-      // Check existing events and approved requests for conflicts
       const { available } = await checkTimeSlotAvailability(
         startDate,
         endDate,
@@ -387,7 +375,6 @@ export const useCalendarEvents = () => {
         throw new Error("This time slot conflicts with an existing booking");
       }
       
-      // No need to attach user_id for anonymous requests
       const { data, error } = await supabase
         .from('event_requests')
         .insert([{ 
@@ -404,7 +391,6 @@ export const useCalendarEvents = () => {
       
       console.log("[useCalendarEvents] Event request created successfully:", data);
       
-      // Immediately invalidate relevant queries to ensure sync
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       if (event.business_id) {
@@ -418,8 +404,7 @@ export const useCalendarEvents = () => {
       throw error;
     }
   };
-  
-  // Helper function to check availability of a time slot
+
   const checkTimeSlotAvailability = async (
     startDate: Date,
     endDate: Date,
@@ -429,7 +414,6 @@ export const useCalendarEvents = () => {
     const endTime = endDate.getTime();
     
     try {
-      // Check existing events for conflicts
       const { data: existingEvents, error: eventsError } = await supabase
         .from('events')
         .select('*')
@@ -442,7 +426,6 @@ export const useCalendarEvents = () => {
         throw eventsError;
       }
       
-      // Check approved requests for conflicts
       const { data: approvedRequests, error: requestsError } = await supabase
         .from('event_requests')
         .select('*')
@@ -456,7 +439,6 @@ export const useCalendarEvents = () => {
         throw requestsError;
       }
       
-      // Check for conflicts
       const allEvents = [...(existingEvents || []), ...(approvedRequests || [])];
       
       const conflict = allEvents.find(e => {
@@ -471,23 +453,20 @@ export const useCalendarEvents = () => {
       };
     } catch (error) {
       console.error("[useCalendarEvents] Error in checkTimeSlotAvailability:", error);
-      // If there's an error, we'll be cautious and say the slot is unavailable
       return { available: false };
     }
   };
 
-  // Set up queries to fetch data
   const { data: events = [], isLoading, error, refetch } = useQuery({
     queryKey: ['events', user?.id],
     queryFn: getEvents,
     enabled: !!user, 
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 30 * 1000,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    refetchInterval: 30 * 1000, // Refetch every 30 seconds
+    refetchInterval: 30 * 1000,
   });
 
-  // Set up mutations for CRUD operations
   const createEventMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: (data) => {
