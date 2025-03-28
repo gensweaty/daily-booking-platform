@@ -63,20 +63,33 @@ export const useCalendarEvents = () => {
   };
 
   const createEventRequest = async (event: Partial<CalendarEventType>): Promise<any> => {
-    // No authentication check - anyone can create a request
-    // Make sure we're inserting into event_requests table
-    const { data, error } = await supabase
-      .from('event_requests')
-      .insert([event])
-      .select()
-      .single();
+    // For public booking requests - no auth required
+    try {
+      // Make sure event has required fields
+      if (!event.business_id) {
+        throw new Error("Business ID is required for event requests");
+      }
 
-    if (error) {
-      console.error("Error creating event request:", error);
+      // No need to attach user_id for anonymous requests
+      const { data, error } = await supabase
+        .from('event_requests')
+        .insert([{ 
+          ...event,
+          status: 'pending'
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error creating event request:", error);
+        throw error;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error("Error in createEventRequest:", error);
       throw error;
     }
-    
-    return data;
   };
 
   const { data: events = [], isLoading, error } = useQuery({

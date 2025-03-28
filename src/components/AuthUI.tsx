@@ -39,7 +39,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
               variant="ghost" 
               size="icon"
               onClick={() => navigate("/")}
-              className="hover:bg-accent"
+              className="hover:bg-accent flex items-center justify-center"
               aria-label="Back to home"
             >
               <ArrowLeft className="h-5 w-5" />

@@ -68,16 +68,22 @@ const PublicBusinessPage = () => {
     const fetchCoverPhoto = async () => {
       if (business?.cover_photo_path) {
         try {
+          console.log("Fetching cover photo from path:", business.cover_photo_path);
           const { data } = await supabase.storage
             .from('business_covers')
             .getPublicUrl(business.cover_photo_path);
           
           if (data) {
+            console.log("Cover photo public URL:", data.publicUrl);
             setCoverPhotoUrl(data.publicUrl);
+          } else {
+            console.log("No public URL data returned");
           }
         } catch (error) {
           console.error("Error fetching cover photo:", error);
         }
+      } else {
+        console.log("No cover photo path available");
       }
     };
     

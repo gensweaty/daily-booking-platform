@@ -1,6 +1,4 @@
 
-// We only need to update a small part of this file to pass business_id to the events
-
 import { useState } from "react";
 import {
   startOfWeek,
@@ -66,6 +64,7 @@ export const Calendar = ({
       // If in public mode and businessId is provided, create an event request instead
       if (publicMode && businessId) {
         try {
+          console.log("Creating event request with business_id:", businessId);
           const requestData = {
             ...data,
             business_id: businessId,
@@ -81,9 +80,10 @@ export const Calendar = ({
           
           return result;
         } catch (error: any) {
+          console.error("Error creating event request:", error);
           toast({
             title: "Error",
-            description: error.message,
+            description: error.message || "Failed to create booking request. Please try again.",
             variant: "destructive",
           });
           throw error;
