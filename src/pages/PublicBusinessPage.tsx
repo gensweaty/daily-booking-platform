@@ -61,7 +61,7 @@ const PublicBusinessPage = () => {
     staleTime: 1000 * 30, // 30 seconds
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    refetchInterval: 60 * 1000 // Refresh every minute
+    refetchInterval: 5 * 1000 // Refresh every 5 seconds for better sync
   });
   
   // Retry fetching events when business changes

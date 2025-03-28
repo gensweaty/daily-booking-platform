@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -124,19 +123,55 @@ export const useCalendarEvents = () => {
     console.log("[useCalendarEvents] Fetching ALL events for business ID:", businessId);
     
     try {
-      const { data, error } = await supabase
+      // Get direct events from the events table
+      const { data: directEvents, error: eventsError } = await supabase
         .from('events')
         .select('*')
         .eq('business_id', businessId)
         .order('start_date', { ascending: true });
 
-      if (error) {
-        console.error("[useCalendarEvents] Error fetching all business events:", error);
-        throw error;
+      if (eventsError) {
+        console.error("[useCalendarEvents] Error fetching all business events:", eventsError);
+        throw eventsError;
       }
       
-      console.log(`[useCalendarEvents] Retrieved ${data?.length || 0} events for business:`, businessId);
-      return data || [];
+      // Get approved event requests
+      const { data: approvedRequests, error: requestsError } = await supabase
+        .from('event_requests')
+        .select('*')
+        .eq('business_id', businessId)
+        .eq('status', 'approved')
+        .order('start_date', { ascending: true });
+        
+      if (requestsError) {
+        console.error("[useCalendarEvents] Error fetching approved requests:", requestsError);
+        throw requestsError;
+      }
+      
+      // Convert approved requests to event format
+      const requestEvents = (approvedRequests || []).map(req => ({
+        id: req.id,
+        title: req.title,
+        start_date: req.start_date,
+        end_date: req.end_date,
+        created_at: req.created_at,
+        updated_at: req.updated_at,
+        user_surname: req.user_surname,
+        user_number: req.user_number,
+        social_network_link: req.social_network_link,
+        event_notes: req.event_notes,
+        type: req.type,
+        payment_status: req.payment_status,
+        payment_amount: req.payment_amount,
+        business_id: req.business_id
+      }));
+      
+      // Combine direct events and approved requests
+      const allEvents = [...(directEvents || []), ...requestEvents];
+      
+      console.log(`[useCalendarEvents] Retrieved ${allEvents.length} total events (${directEvents?.length || 0} direct, ${approvedRequests?.length || 0} requests) for business:`, businessId);
+      
+      return allEvents;
     } catch (err) {
       console.error("[useCalendarEvents] Failed to fetch all business events:", err);
       throw err;
@@ -449,7 +484,7 @@ export const useCalendarEvents = () => {
     staleTime: 30 * 1000, // 30 seconds
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    refetchInterval: 60 * 1000, // Refetch every minute
+    refetchInterval: 30 * 1000, // Refetch every 30 seconds
   });
 
   // Set up mutations for CRUD operations
