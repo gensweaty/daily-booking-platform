@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
-import { useSearchParams, useNavigate } from "react-router-dom"
+import { useSearchParams, useNavigate, Link } from "react-router-dom"
 import { AuthUI } from "@/components/AuthUI"
 import { DashboardHeader } from "@/components/DashboardHeader"
 import { TrialExpiredDialog } from "@/components/TrialExpiredDialog"
@@ -11,6 +11,8 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
+import { Button } from "@/components/ui/button"
+import { HomeIcon } from "lucide-react"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -134,7 +136,24 @@ const Index = () => {
 
   console.log("User state:", user ? "Authenticated" : "Not authenticated");
 
-  const content = user ? (
+  // Content for non-authenticated users (landing page or auth UI)
+  const nonAuthContent = (
+    <>
+      <CursorFollower />
+      <div className="fixed top-4 left-4 z-10">
+        <Button asChild variant="outline" size="sm" className="flex items-center gap-2">
+          <Link to="/">
+            <HomeIcon className="h-4 w-4" />
+            <span>Home</span>
+          </Link>
+        </Button>
+      </div>
+      <AuthUI />
+    </>
+  );
+
+  // Content for authenticated users (dashboard)
+  const authContent = (
     <motion.div 
       className="min-h-screen bg-background p-4"
       variants={containerVariants}
@@ -160,14 +179,9 @@ const Index = () => {
         />
       </motion.div>
     </motion.div>
-  ) : (
-    <>
-      <CursorFollower />
-      <AuthUI />
-    </>
   );
 
-  return content;
+  return user ? authContent : nonAuthContent;
 }
 
 export default Index;

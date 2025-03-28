@@ -1,4 +1,7 @@
 
+// We only need to update a small part of this file to pass business_id to the events
+// Since it's a large file, I'm only showing the relevant change:
+
 import { useState } from "react";
 import {
   startOfWeek,
@@ -27,12 +30,14 @@ interface CalendarProps {
   defaultView?: CalendarViewType;
   publicMode?: boolean;
   externalEvents?: CalendarEventType[];
+  businessId?: string;
 }
 
 export const Calendar = ({ 
   defaultView = "week", 
   publicMode = false,
-  externalEvents
+  externalEvents,
+  businessId
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
