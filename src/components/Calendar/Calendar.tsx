@@ -44,7 +44,6 @@ export const Calendar = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Debug info when events change
   useEffect(() => {
     if (publicMode) {
       console.log("[Calendar] Public mode with external events:", externalEvents?.length || 0, "events");
@@ -59,9 +58,7 @@ export const Calendar = ({
     }
   }, [publicMode, externalEvents, events]);
 
-  // FIX: Invalidate public events query whenever related events get updated
   useEffect(() => {
-    // When events change in dashboard mode, invalidate public events query
     if (!publicMode && events?.length > 0 && businessId) {
       queryClient.invalidateQueries({ queryKey: ['public-events', businessId] });
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
@@ -81,7 +78,6 @@ export const Calendar = ({
   } = useEventDialog({
     createEvent: async (data) => {
       try {
-        // If in public mode and businessId is provided, create an event request instead
         if (publicMode && businessId) {
           console.log("Creating event request with business_id:", businessId);
           const requestData = {
@@ -97,31 +93,24 @@ export const Calendar = ({
             description: "Your booking request has been sent to the business owner for approval.",
           });
           
-          // FIX: Invalidate queries to ensure both calendars stay in sync
           queryClient.invalidateQueries({ queryKey: ['public-events', businessId] });
           queryClient.invalidateQueries({ queryKey: ['public-events'] });
           
           return result;
         } else {
-          // For regular event creation in dashboard
           console.log("Creating regular event:", 
             businessId ? "with business_id: " + businessId : "without business_id");
           
-          // FIX: Only include business_id if it's provided and not null/undefined
           const eventData = { ...data };
           if (businessId) {
             eventData.business_id = businessId;
           }
           
-          // FIX: CRITICAL - Ensure business_id is set
-          if (!eventData.business_id) {
-            throw new Error("Business ID is required to create an event");
-          }
-          
           const result = await createEvent(eventData);
           
-          // FIX: Invalidate public events query to ensure sync
-          queryClient.invalidateQueries({ queryKey: ['public-events', eventData.business_id] });
+          if (eventData.business_id) {
+            queryClient.invalidateQueries({ queryKey: ['public-events', eventData.business_id] });
+          }
           queryClient.invalidateQueries({ queryKey: ['public-events'] });
           
           return result;
@@ -134,7 +123,6 @@ export const Calendar = ({
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
       
-      // FIX: Ensure business_id is set for update
       if (!data.business_id && selectedEvent.business_id) {
         data.business_id = selectedEvent.business_id;
       }
@@ -143,13 +131,8 @@ export const Calendar = ({
         data.business_id = businessId;
       }
       
-      if (!data.business_id) {
-        throw new Error("Business ID is required to update an event");
-      }
-      
       const result = await updateEvent(data);
       
-      // FIX: Invalidate public events query to ensure sync
       if (businessId || selectedEvent.business_id) {
         queryClient.invalidateQueries({ 
           queryKey: ['public-events', businessId || selectedEvent.business_id] 
@@ -162,7 +145,6 @@ export const Calendar = ({
     deleteEvent: async (id) => {
       await deleteEvent(id);
       
-      // FIX: Invalidate public events query to ensure sync
       if (businessId || selectedEvent?.business_id) {
         queryClient.invalidateQueries({ 
           queryKey: ['public-events', businessId || selectedEvent?.business_id] 
@@ -172,7 +154,6 @@ export const Calendar = ({
     }
   });
 
-  // In private mode, we require authentication
   if (!publicMode && !user) {
     navigate("/signin");
     return null;
@@ -231,9 +212,7 @@ export const Calendar = ({
     const clickedDate = new Date(date);
     clickedDate.setHours(hour || 9, 0, 0, 0);
     
-    // First set the date
     setDialogSelectedDate(clickedDate);
-    // Then open the dialog
     setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
@@ -241,21 +220,16 @@ export const Calendar = ({
     const now = new Date();
     now.setHours(9, 0, 0, 0);
     
-    // First set the date
     setDialogSelectedDate(now);
-    // Then open the dialog
     setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
-  // Choose which events to display based on mode
   let displayEvents: CalendarEventType[] = [];
   
-  // In public mode, use provided external events
   if (publicMode && Array.isArray(externalEvents)) {
     displayEvents = externalEvents;
     console.log(`[Calendar] Using ${displayEvents.length} external events in public mode`);
   } else {
-    // In private mode, use internal events
     displayEvents = events || [];
     console.log(`[Calendar] Using ${displayEvents.length} internal events in private mode`);
   }
@@ -303,11 +277,10 @@ export const Calendar = ({
         </div>
       </div>
 
-      {/* Event dialog for personal dashboard calendar */}
       {!publicMode && (
         <>
           <EventDialog
-            key={`new-${dialogSelectedDate?.getTime()}`} // Force re-render when date changes
+            key={`new-${dialogSelectedDate?.getTime()}`}
             open={isNewEventDialogOpen}
             onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
@@ -317,23 +290,22 @@ export const Calendar = ({
 
           {selectedEvent && (
             <EventDialog
-              key={`edit-${selectedEvent.id}`} // Force re-render when event changes
+              key={`edit-${selectedEvent.id}`}
               open={!!selectedEvent}
               onOpenChange={() => setSelectedEvent(null)}
-              selectedDate={new Date(selectedEvent.start_date)} // Use the actual event start date
+              selectedDate={new Date(selectedEvent.start_date)}
               event={selectedEvent}
               onSubmit={handleUpdateEvent}
               onDelete={handleDeleteEvent}
-              businessId={businessId}
+              businessId={businessId || selectedEvent.business_id}
             />
           )}
         </>
       )}
-      
-      {/* Event dialog for public calendar */}
+
       {publicMode && isNewEventDialogOpen && dialogSelectedDate && (
         <EventDialog
-          key={`public-${dialogSelectedDate?.getTime()}`} // Force re-render when date changes
+          key={`public-${dialogSelectedDate?.getTime()}`}
           open={isNewEventDialogOpen}
           onOpenChange={setIsNewEventDialogOpen}
           selectedDate={dialogSelectedDate}

@@ -46,13 +46,12 @@ export const useEventDialog = ({
         delete cleanData.business_id;
       } 
       
-      // FIX: CRITICAL - Throw error if business_id is missing
+      // If business_id is not provided, we will allow the API layer to handle it
+      // This fixes the issue where we were enforcing business_id too strictly at this layer
       if (!cleanData.business_id) {
-        console.error("Business ID is required for event creation");
-        throw new Error("Business ID is required to create an event");
+        console.log("No business_id provided in form data. Using default if available.");
       }
       
-      console.log('handleCreateEvent - Business ID in event data:', cleanData.business_id);
       console.log('handleCreateEvent - Data for submission:', JSON.stringify(cleanData));
       
       const result = await createEvent(cleanData);
@@ -90,16 +89,10 @@ export const useEventDialog = ({
         delete cleanData.business_id;
       } 
       
-      // FIX: CRITICAL - Ensure business_id is set properly for updates
-      if (!cleanData.business_id) {
-        // Preserve the existing business_id if it's not being explicitly updated
-        if (selectedEvent.business_id) {
-          cleanData.business_id = selectedEvent.business_id;
-          console.log("Preserving existing business_id:", selectedEvent.business_id);
-        } else {
-          console.error("Business ID is required for event updates");
-          throw new Error("Business ID is required to update an event");
-        }
+      // Preserve the existing business_id if it's not being explicitly updated
+      if (!cleanData.business_id && selectedEvent.business_id) {
+        cleanData.business_id = selectedEvent.business_id;
+        console.log("Preserving existing business_id:", selectedEvent.business_id);
       }
       
       console.log("Updating event with data:", JSON.stringify(cleanData));

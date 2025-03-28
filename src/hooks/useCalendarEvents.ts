@@ -114,9 +114,11 @@ export const useCalendarEvents = () => {
       // Set user_id for the event
       eventData.user_id = user.id;
       
-      // CRITICAL: Validate business_id existence
+      // Validate business_id 
+      // For calendar events in dashboard mode, we need to ensure business_id is set
       if (!eventData.business_id) {
-        throw new Error("Business ID is required for creating events");
+        console.error("No business ID provided when creating event");
+        throw new Error("Business ID is required to create an event");
       }
       
       console.log("[useCalendarEvents] Creating event with full data:", JSON.stringify(eventData));
@@ -134,16 +136,16 @@ export const useCalendarEvents = () => {
       
       console.log("[useCalendarEvents] Event created successfully:", data);
       
-      // FIX: Immediately invalidate ALL relevant queries to ensure sync
+      // Invalidate ALL relevant queries to ensure sync
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['events', user.id] });
       
-      // FIX: Also invalidate specific business ID query
+      // Also invalidate specific business ID query
       if (eventData.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', eventData.business_id] });
       }
       
-      // FIX: Also invalidate all public events queries to ensure complete sync
+      // Also invalidate all public events queries to ensure complete sync
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       return data;
@@ -176,18 +178,21 @@ export const useCalendarEvents = () => {
       
       if (fetchError) {
         console.error("[useCalendarEvents] Error fetching current event:", fetchError);
+        throw fetchError;
       }
       
       const currentBusinessId = currentEvent?.business_id;
       console.log("[useCalendarEvents] Current business_id:", currentBusinessId);
       
-      // CRITICAL: Ensure business_id is present for update
+      // Ensure business_id is present for update
       if (!cleanUpdates.business_id && currentBusinessId) {
         cleanUpdates.business_id = currentBusinessId;
         console.log("[useCalendarEvents] Using existing business_id for update:", currentBusinessId);
       }
       
+      // If still no business ID, validate based on the update operation
       if (!cleanUpdates.business_id) {
+        console.error("[useCalendarEvents] No business_id for event update");
         throw new Error("Business ID is required for event updates");
       }
       
@@ -206,7 +211,7 @@ export const useCalendarEvents = () => {
       
       console.log("[useCalendarEvents] Event updated successfully:", data);
       
-      // FIX: Invalidate ALL relevant queries
+      // Invalidate ALL relevant queries
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['events', user.id] });
       
@@ -219,7 +224,7 @@ export const useCalendarEvents = () => {
         queryClient.invalidateQueries({ queryKey: ['public-events', cleanUpdates.business_id] });
       }
       
-      // FIX: Also invalidate all public events queries to ensure complete sync
+      // Also invalidate all public events queries to ensure complete sync
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       return data;
@@ -282,6 +287,7 @@ export const useCalendarEvents = () => {
     try {
       // Make sure event has required fields
       if (!event.business_id) {
+        console.error("[useCalendarEvents] Missing business_id when creating event request");
         throw new Error("Business ID is required for event requests");
       }
 
