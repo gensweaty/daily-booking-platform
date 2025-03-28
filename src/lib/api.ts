@@ -45,12 +45,16 @@ export const getEvents = async () => {
     .order('start_date', { ascending: true });
 
   if (error) throw error;
+  console.log(`API: Retrieved ${data?.length || 0} events`);
   return data;
 };
 
 export const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+  console.log("API createEvent called with:", JSON.stringify(event));
+  
   // Try to get user's business ID if not provided
   if (!event.business_id) {
+    console.log("API: No business_id provided, trying to find user's business");
     const { data: userBusiness } = await supabase
       .from('businesses')
       .select('id')
@@ -60,6 +64,8 @@ export const createEvent = async (event: Partial<CalendarEventType>): Promise<Ca
     if (userBusiness?.id) {
       event.business_id = userBusiness.id;
       console.log("API: Found user's business ID:", userBusiness.id);
+    } else {
+      console.log("API: No business found for user");
     }
   }
 
@@ -69,13 +75,26 @@ export const createEvent = async (event: Partial<CalendarEventType>): Promise<Ca
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error("API: Error creating event:", error);
+    throw error;
+  }
+  
+  console.log("API: Successfully created event with ID:", data.id);
   return data;
 };
 
-export const updateEvent = async (id: string, updates: Partial<CalendarEventType>) => {
+export const updateEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+  console.log("API updateEvent called with:", JSON.stringify(event));
+  const id = event.id;
+  if (!id) throw new Error("Event ID is required");
+  
+  // Remove ID from the updates object
+  const { id: _, ...updates } = event;
+  
   // Try to get user's business ID if not provided
   if (!updates.business_id) {
+    console.log("API: No business_id provided for update, checking existing event");
     // First try to get the event's existing business_id
     const { data: existingEvent } = await supabase
       .from('events')
@@ -85,7 +104,9 @@ export const updateEvent = async (id: string, updates: Partial<CalendarEventType
       
     if (existingEvent?.business_id) {
       updates.business_id = existingEvent.business_id;
+      console.log("API: Using existing business_id:", existingEvent.business_id);
     } else {
+      console.log("API: No existing business_id, trying to find user's business");
       // Try to get user's business
       const { data: userBusiness } = await supabase
         .from('businesses')
@@ -95,6 +116,9 @@ export const updateEvent = async (id: string, updates: Partial<CalendarEventType
         
       if (userBusiness?.id) {
         updates.business_id = userBusiness.id;
+        console.log("API: Found user's business ID for update:", userBusiness.id);
+      } else {
+        console.log("API: No business found for user during update");
       }
     }
   }
@@ -106,7 +130,12 @@ export const updateEvent = async (id: string, updates: Partial<CalendarEventType
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error("API: Error updating event:", error);
+    throw error;
+  }
+  
+  console.log("API: Successfully updated event with ID:", data.id);
   return data;
 };
 

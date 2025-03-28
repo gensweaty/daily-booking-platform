@@ -40,14 +40,11 @@ export const useEventDialog = ({
       // Create a clean copy of the data to avoid modifying the original
       const cleanData = { ...data };
       
-      // Make sure business_id is properly set and not an empty string
+      // Empty string business_id should be null to avoid validation errors
       if (typeof cleanData.business_id === 'string' && cleanData.business_id.trim() === '') {
         console.log("Business ID is empty string, removing it");
         delete cleanData.business_id;
       } 
-      
-      // NOTE: We're not enforcing business_id at this layer anymore
-      // This allows the API layer to handle the default business ID if available
       
       console.log('handleCreateEvent - Data for submission:', JSON.stringify(cleanData));
       
@@ -80,7 +77,7 @@ export const useEventDialog = ({
       // Ensure the ID is included for the update operation
       cleanData.id = selectedEvent.id;
       
-      // Make sure business_id is properly set and not an empty string
+      // Empty string business_id should be null to avoid validation errors
       if (typeof cleanData.business_id === 'string' && cleanData.business_id.trim() === '') {
         console.log("Business ID is empty string, removing it");
         delete cleanData.business_id;

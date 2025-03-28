@@ -1,8 +1,8 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
+import { createEvent as apiCreateEvent, updateEvent as apiUpdateEvent, deleteEvent as apiDeleteEvent, getEvents as apiGetEvents } from "@/lib/api";
 
 export const useCalendarEvents = () => {
   const queryClient = useQueryClient();
@@ -95,7 +95,7 @@ export const useCalendarEvents = () => {
       // Combine both arrays
       const combinedEvents = [...events, ...requestEvents];
       
-      console.log(`[useCalendarEvents] Retrieved ${events.length} direct events and ${approvedRequests.length} approved requests for business:`, businessId);
+      console.log(`[useCalendarEvents] Retrieved ${combinedEvents.length} events (${events.length} direct events, ${approvedRequests.length} approved requests) for business:`, businessId);
       
       return combinedEvents;
     } catch (err) {
@@ -108,51 +108,42 @@ export const useCalendarEvents = () => {
     try {
       if (!user) throw new Error("User must be authenticated to create events");
       
+      console.log("[useCalendarEvents] Creating event:", JSON.stringify(event));
+      
       // Create a clean copy of data to avoid modifying the original
       const eventData = { ...event };
       
       // Set user_id for the event
       eventData.user_id = user.id;
       
-      // Get the user's business if available via Supabase query
+      // Get the user's business if available but don't fail if not found
       if (!eventData.business_id) {
-        // Try to get the first business owned by this user
-        const { data: userBusiness, error: businessError } = await supabase
-          .from('businesses')
-          .select('id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-          
-        if (!businessError && userBusiness) {
-          eventData.business_id = userBusiness.id;
-          console.log("[useCalendarEvents] Found user's business ID:", userBusiness.id);
+        try {
+          // Try to get the first business owned by this user
+          const { data: userBusiness } = await supabase
+            .from('businesses')
+            .select('id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+            
+          if (userBusiness?.id) {
+            eventData.business_id = userBusiness.id;
+            console.log("[useCalendarEvents] Found user's business ID:", userBusiness.id);
+          }
+        } catch (businessError) {
+          console.warn("[useCalendarEvents] Error finding user's business:", businessError);
+          // Continue without business_id
         }
       }
       
-      console.log("[useCalendarEvents] Creating event with full data:", JSON.stringify(eventData));
+      console.log("[useCalendarEvents] Creating event with data:", JSON.stringify(eventData));
       
-      const { data, error } = await supabase
-        .from('events')
-        .insert([eventData])
-        .select()
-        .single();
-
-      if (error) {
-        console.error("[useCalendarEvents] Error creating event:", error);
-        throw error;
-      }
+      const data = await apiCreateEvent(eventData);
       
       console.log("[useCalendarEvents] Event created successfully:", data);
       
       // Invalidate ALL relevant queries to ensure sync
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['events', user.id] });
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
-      
-      // Also invalidate specific business ID query
-      if (data.business_id) {
-        queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
-      }
+      invalidateAllEventQueries(data.business_id);
       
       return data;
     } catch (err) {
@@ -169,75 +160,34 @@ export const useCalendarEvents = () => {
       const id = updates.id;
       if (!id) throw new Error("Event ID is required for updates");
       
-      // Create a clean copy of updates to avoid modifying the original
-      const cleanUpdates = { ...updates };
-      delete cleanUpdates.id; // Remove id from the updates
+      console.log(`[useCalendarEvents] Updating event ${id} with data:`, JSON.stringify(updates));
       
-      console.log(`[useCalendarEvents] Updating event ${id} with full data:`, JSON.stringify(cleanUpdates));
+      // Get the current event's business_id before updating
+      let currentBusinessId = updates.business_id;
       
-      // First, fetch the current event to get its business_id (if any)
-      const { data: currentEvent, error: fetchError } = await supabase
-        .from('events')
-        .select('business_id')
-        .eq('id', id)
-        .single();
-      
-      if (fetchError) {
-        console.error("[useCalendarEvents] Error fetching current event:", fetchError);
-        throw fetchError;
-      }
-      
-      const currentBusinessId = currentEvent?.business_id;
-      console.log("[useCalendarEvents] Current business_id:", currentBusinessId);
-      
-      // Ensure business_id is present for update
-      if (!cleanUpdates.business_id && currentBusinessId) {
-        cleanUpdates.business_id = currentBusinessId;
-        console.log("[useCalendarEvents] Using existing business_id for update:", currentBusinessId);
-      }
-      
-      // If no business ID exists, try to get the user's business
-      if (!cleanUpdates.business_id) {
-        // Try to get the first business owned by this user
-        const { data: userBusiness, error: businessError } = await supabase
-          .from('businesses')
-          .select('id')
-          .eq('user_id', user.id)
-          .maybeSingle();
+      if (!currentBusinessId) {
+        try {
+          const { data: existingEvent } = await supabase
+            .from('events')
+            .select('business_id')
+            .eq('id', id)
+            .single();
           
-        if (!businessError && userBusiness) {
-          cleanUpdates.business_id = userBusiness.id;
-          console.log("[useCalendarEvents] Found user's business ID for update:", userBusiness.id);
+          currentBusinessId = existingEvent?.business_id;
+          console.log("[useCalendarEvents] Current business_id:", currentBusinessId);
+        } catch (fetchError) {
+          console.warn("[useCalendarEvents] Error fetching current event business_id:", fetchError);
         }
       }
       
-      const { data, error } = await supabase
-        .from('events')
-        .update(cleanUpdates)
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error("[useCalendarEvents] Error updating event:", error);
-        throw error;
-      }
+      const data = await apiUpdateEvent(updates);
       
       console.log("[useCalendarEvents] Event updated successfully:", data);
       
-      // Invalidate ALL relevant queries
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['events', user.id] });
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
-      
-      // Invalidate queries for both the old and new business_id
-      if (currentBusinessId) {
-        queryClient.invalidateQueries({ queryKey: ['public-events', currentBusinessId] });
-      }
-      
-      if (cleanUpdates.business_id && cleanUpdates.business_id !== currentBusinessId) {
-        queryClient.invalidateQueries({ queryKey: ['public-events', cleanUpdates.business_id] });
+      // Invalidate ALL relevant queries for both the old and new business IDs
+      invalidateAllEventQueries(currentBusinessId);
+      if (data.business_id && data.business_id !== currentBusinessId) {
+        invalidateAllEventQueries(data.business_id);
       }
       
       return data;
@@ -251,45 +201,80 @@ export const useCalendarEvents = () => {
     try {
       if (!user) throw new Error("User must be authenticated to delete events");
       
-      // First, fetch the current event to get its business_id (if any)
-      const { data: currentEvent, error: fetchError } = await supabase
-        .from('events')
-        .select('business_id')
-        .eq('id', id)
-        .single();
+      // Get the current event's business_id before deleting
+      let currentBusinessId: string | undefined;
       
-      if (fetchError) {
-        console.error("[useCalendarEvents] Error fetching current event:", fetchError);
+      try {
+        const { data: existingEvent } = await supabase
+          .from('events')
+          .select('business_id')
+          .eq('id', id)
+          .single();
+        
+        currentBusinessId = existingEvent?.business_id;
+        console.log(`[useCalendarEvents] Deleting event ${id} with business_id:`, currentBusinessId);
+      } catch (fetchError) {
+        console.warn("[useCalendarEvents] Error fetching current event business_id:", fetchError);
       }
       
-      const currentBusinessId = currentEvent?.business_id;
-      console.log(`[useCalendarEvents] Deleting event ${id} with business_id:`, currentBusinessId);
-      
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error("[useCalendarEvents] Error deleting event:", error);
-        throw error;
-      }
+      await apiDeleteEvent(id);
       
       console.log("[useCalendarEvents] Event deleted successfully");
       
       // Invalidate ALL relevant queries
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['events', user.id] });
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
-      
-      // Invalidate public events query if the event had a business_id
-      if (currentBusinessId) {
-        queryClient.invalidateQueries({ queryKey: ['public-events', currentBusinessId] });
-      }
+      invalidateAllEventQueries(currentBusinessId);
     } catch (err) {
       console.error("[useCalendarEvents] Failed to delete event:", err);
       throw err;
+    }
+  };
+
+  // Helper function to invalidate all event-related queries
+  const invalidateAllEventQueries = (businessId?: string) => {
+    console.log("[useCalendarEvents] Invalidating all event queries");
+    queryClient.invalidateQueries({ queryKey: ['events'] });
+    
+    if (user?.id) {
+      queryClient.invalidateQueries({ queryKey: ['events', user.id] });
+    }
+    
+    queryClient.invalidateQueries({ queryKey: ['public-events'] });
+    
+    if (businessId) {
+      console.log(`[useCalendarEvents] Invalidating business events for ID: ${businessId}`);
+      queryClient.invalidateQueries({ queryKey: ['public-events', businessId] });
+    }
+    
+    // Also refetch all events immediately
+    fetchAllEvents();
+  };
+
+  // Helper function to force fetch all events when needed
+  const fetchAllEvents = async () => {
+    try {
+      // Force refetch user events
+      if (user?.id) {
+        console.log("[useCalendarEvents] Force refetching user events");
+        const userEvents = await apiGetEvents();
+        queryClient.setQueryData(['events', user.id], userEvents);
+        queryClient.setQueryData(['events'], userEvents);
+      }
+      
+      // Force refetch public events if we can determine the business ID
+      const { data: userBusiness } = await supabase
+        .from('businesses')
+        .select('id')
+        .eq('user_id', user?.id || '')
+        .maybeSingle();
+        
+      if (userBusiness?.id) {
+        console.log(`[useCalendarEvents] Force refetching public events for business: ${userBusiness.id}`);
+        const publicEvents = await getPublicEvents(userBusiness.id);
+        queryClient.setQueryData(['public-events', userBusiness.id], publicEvents);
+        queryClient.setQueryData(['public-events'], publicEvents);
+      }
+    } catch (error) {
+      console.error("[useCalendarEvents] Error in fetchAllEvents:", error);
     }
   };
 
@@ -408,50 +393,28 @@ export const useCalendarEvents = () => {
   };
 
   // Set up queries to fetch data
-  const { data: events = [], isLoading, error } = useQuery({
+  const { data: events = [], isLoading, error, refetch } = useQuery({
     queryKey: ['events', user?.id],
     queryFn: getEvents,
-    enabled: true, 
-    staleTime: 0,
+    enabled: !!user, 
+    staleTime: 30 * 1000, // 30 seconds
     refetchOnMount: true,
-    refetchOnWindowFocus: true
+    refetchOnWindowFocus: true,
+    refetchInterval: 60 * 1000, // Refetch every minute
   });
 
   // Set up mutations for CRUD operations
   const createEventMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
-      
-      if (data?.business_id) {
-        queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
-      }
-    },
-  });
-
-  const createEventRequestMutation = useMutation({
-    mutationFn: createEventRequest,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
-      
-      if (data?.business_id) {
-        queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
-      }
+      invalidateAllEventQueries(data?.business_id);
     },
   });
 
   const updateEventMutation = useMutation({
     mutationFn: updateEvent,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
-      
-      if (data?.business_id) {
-        queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
-      }
+      invalidateAllEventQueries(data?.business_id);
     },
   });
 
@@ -468,11 +431,14 @@ export const useCalendarEvents = () => {
     events,
     isLoading,
     error,
+    refetch,
     getPublicEvents,
     createEvent: createEventMutation.mutateAsync,
-    createEventRequest: createEventRequestMutation.mutateAsync,
     updateEvent: updateEventMutation.mutateAsync,
     deleteEvent: deleteEventMutation.mutateAsync,
+    createEventRequest,
     checkTimeSlotAvailability,
+    invalidateAllEventQueries,
+    fetchAllEvents,
   };
 };
