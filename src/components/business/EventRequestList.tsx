@@ -1,142 +1,180 @@
 
-import React from "react";
-import { EventRequest } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { format, parseISO } from "date-fns";
-import { CheckCircle, XCircle, Clock, User, Phone, Calendar } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/lib/supabase";
+import { EventRequest } from "@/lib/types";
+import { useToast } from "@/components/ui/use-toast";
+import { format } from "date-fns";
+import { es } from 'date-fns/locale';
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface EventRequestListProps {
   eventRequests: EventRequest[];
   isLoading: boolean;
-  onApprove: (id: string) => Promise<void>;
-  onReject: (id: string) => Promise<void>;
 }
 
-export const EventRequestList = ({
-  eventRequests,
-  isLoading,
-  onApprove,
-  onReject,
-}: EventRequestListProps) => {
+export const EventRequestList = ({ eventRequests, isLoading }: EventRequestListProps) => {
+  const { toast } = useToast();
   const { t, language } = useLanguage();
-  const locale = language === 'es' ? es : undefined;
-  
+  const queryClient = useQueryClient();
+
+  const formatDate = (date: string) => {
+    const dateObj = new Date(date);
+    return format(dateObj, 'PPP', { locale: language === 'es' ? es : undefined });
+  };
+
+  const formatTime = (date: string) => {
+    const dateObj = new Date(date);
+    return format(dateObj, 'p');
+  };
+
+  const handleApprove = async (requestId: string) => {
+    try {
+      // Get request data
+      const { data: requestData, error: fetchError } = await supabase
+        .from('event_requests')
+        .select('*')
+        .eq('id', requestId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Create calendar event
+      const { error: insertError } = await supabase
+        .from('events')
+        .insert({
+          ...requestData,
+          user_id: requestData.business_id,
+          id: undefined,
+          status: undefined,
+          business_id: undefined,
+        });
+
+      if (insertError) throw insertError;
+
+      // Update request status
+      const { error: updateError } = await supabase
+        .from('event_requests')
+        .update({ status: 'approved' })
+        .eq('id', requestId);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: t("eventRequests.approved"),
+        description: "The booking has been added to your calendar.",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['eventRequests'] });
+    } catch (error: any) {
+      console.error('Error approving request:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Could not approve request",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReject = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('event_requests')
+        .update({ status: 'rejected' })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast({
+        title: t("eventRequests.rejected"),
+        description: "The booking request has been rejected.",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['eventRequests'] });
+    } catch (error: any) {
+      console.error('Error rejecting request:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Could not reject request",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Booking Requests</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[1, 2].map((i) => (
-              <div key={i} className="flex flex-col space-y-3 p-4 border rounded-md">
-                <Skeleton className="h-5 w-2/3" />
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-4 w-3/4" />
-                <div className="flex justify-end gap-2 mt-2">
-                  <Skeleton className="h-10 w-20" />
-                  <Skeleton className="h-10 w-20" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <div className="py-10 text-center">Loading booking requests...</div>;
   }
 
-  const pendingRequests = eventRequests.filter(
-    (request) => request.status === "pending"
-  );
-
-  if (pendingRequests.length === 0) {
+  if (eventRequests.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Booking Requests</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center text-muted-foreground py-8">
-            <Clock className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-            <p>No pending booking requests</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="py-10 text-center text-muted-foreground">
+        {t("eventRequests.noPending")}
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl">Booking Requests</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {pendingRequests.map((request) => (
-            <div
-              key={request.id}
-              className="p-4 border rounded-md bg-muted/30 hover:bg-muted transition-colors"
-            >
-              <div className="flex flex-col space-y-2">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-medium text-lg">{request.title}</h3>
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    Pending
-                  </span>
-                </div>
-                
-                <div className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4" />
-                  {format(parseISO(request.start_date), "PPP p", { locale })} - 
-                  {format(parseISO(request.end_date), "p", { locale })}
-                </div>
-                
-                {request.user_surname && (
-                  <div className="text-sm flex items-center gap-1.5">
-                    <User className="w-4 h-4 text-muted-foreground" />
-                    {request.user_surname}
-                  </div>
-                )}
-                
-                {request.user_number && (
-                  <div className="text-sm flex items-center gap-1.5">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    {request.user_number}
-                  </div>
-                )}
-                
-                {request.event_notes && (
-                  <div className="text-sm mt-2 bg-muted p-2 rounded">
-                    {request.event_notes}
-                  </div>
-                )}
-                
-                <div className="flex justify-end gap-2 mt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onReject(request.id)}
-                  >
-                    <XCircle className="w-4 h-4 mr-1" />
-                    Reject
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => onApprove(request.id)}
-                  >
-                    <CheckCircle className="w-4 h-4 mr-1" />
-                    Approve
-                  </Button>
-                </div>
-              </div>
+    <div className="space-y-4 mt-4">
+      {eventRequests.map((request) => (
+        <Card key={request.id} className="overflow-hidden">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-start">
+              <CardTitle className="text-lg font-medium">
+                {request.title} {request.user_surname}
+              </CardTitle>
+              <Badge variant={request.status === 'pending' ? 'outline' : request.status === 'approved' ? 'success' : 'destructive'}>
+                {request.status}
+              </Badge>
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+            <div className="text-sm text-muted-foreground">
+              {formatDate(request.start_date)} • {formatTime(request.start_date)} - {formatTime(request.end_date)}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm mb-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {request.user_number && (
+                <div>
+                  <span className="font-medium">Phone:</span> {request.user_number}
+                </div>
+              )}
+              {request.social_network_link && (
+                <div>
+                  <span className="font-medium">Email/Social:</span> {request.social_network_link}
+                </div>
+              )}
+            </div>
+            
+            {request.event_notes && (
+              <div className="text-sm mb-4">
+                <span className="font-medium">Notes:</span> {request.event_notes}
+              </div>
+            )}
+            
+            {request.status === 'pending' && (
+              <div className="flex space-x-2 mt-4">
+                <Button 
+                  size="sm" 
+                  onClick={() => handleApprove(request.id)}
+                  className="flex-1"
+                >
+                  {t("eventRequests.approve")}
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => handleReject(request.id)}
+                  className="flex-1"
+                >
+                  {t("eventRequests.reject")}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   );
 };
