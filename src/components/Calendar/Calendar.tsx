@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   startOfWeek,
@@ -15,7 +16,7 @@ import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
 import { CalendarView } from "./CalendarView";
 import { EventDialog } from "./EventDialog";
-import { CalendarViewType } from "@/lib/types/calendar";
+import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { TimeIndicator } from "./TimeIndicator";
@@ -24,9 +25,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
+  publicMode?: boolean;
+  externalEvents?: CalendarEventType[];
 }
 
-export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
+export const Calendar = ({ 
+  defaultView = "week", 
+  publicMode = false,
+  externalEvents
+}: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
@@ -66,7 +73,8 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     }
   });
 
-  if (!user) {
+  // In public mode, we don't require authentication
+  if (!publicMode && !user) {
     navigate("/signin");
     return null;
   }
@@ -121,6 +129,8 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   };
 
   const handleCalendarDayClick = (date: Date, hour?: number) => {
+    if (publicMode) return; // Disable clicking on days in public mode
+    
     const clickedDate = new Date(date);
     clickedDate.setHours(hour || 9, 0, 0, 0);
     
@@ -131,6 +141,8 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   };
 
   const handleAddEventClick = () => {
+    if (publicMode) return; // Disable adding events in public mode
+    
     const now = new Date();
     now.setHours(9, 0, 0, 0);
     
@@ -140,11 +152,14 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
-  if (error) {
+  // Use external events in public mode if provided
+  const displayEvents = publicMode && externalEvents ? externalEvents : events || [];
+
+  if (error && !publicMode) {
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
 
-  if (isLoading) {
+  if (isLoading && !publicMode && !externalEvents) {
     return (
       <div className="space-y-4">
         <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
@@ -165,7 +180,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
         onViewChange={setView}
         onPrevious={handlePrevious}
         onNext={handleNext}
-        onAddEvent={handleAddEventClick}
+        onAddEvent={!publicMode ? handleAddEventClick : undefined}
       />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
@@ -173,33 +188,38 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
         <div className="flex-1">
           <CalendarView
             days={getDaysForView()}
-            events={events || []}
+            events={displayEvents}
             selectedDate={selectedDate}
             view={view}
             onDayClick={handleCalendarDayClick}
-            onEventClick={setSelectedEvent}
+            onEventClick={!publicMode ? setSelectedEvent : () => {}}
+            publicMode={publicMode}
           />
         </div>
       </div>
 
-      <EventDialog
-        key={dialogSelectedDate?.getTime()} // Force re-render when date changes
-        open={isNewEventDialogOpen}
-        onOpenChange={setIsNewEventDialogOpen}
-        selectedDate={dialogSelectedDate}
-        onSubmit={handleCreateEvent}
-      />
+      {!publicMode && (
+        <>
+          <EventDialog
+            key={dialogSelectedDate?.getTime()} // Force re-render when date changes
+            open={isNewEventDialogOpen}
+            onOpenChange={setIsNewEventDialogOpen}
+            selectedDate={dialogSelectedDate}
+            onSubmit={handleCreateEvent}
+          />
 
-      {selectedEvent && (
-        <EventDialog
-          key={selectedEvent.id} // Force re-render when event changes
-          open={!!selectedEvent}
-          onOpenChange={() => setSelectedEvent(null)}
-          selectedDate={new Date(selectedEvent.start_date)} // Use the actual event start date
-          event={selectedEvent}
-          onSubmit={handleUpdateEvent}
-          onDelete={handleDeleteEvent}
-        />
+          {selectedEvent && (
+            <EventDialog
+              key={selectedEvent.id} // Force re-render when event changes
+              open={!!selectedEvent}
+              onOpenChange={() => setSelectedEvent(null)}
+              selectedDate={new Date(selectedEvent.start_date)} // Use the actual event start date
+              event={selectedEvent}
+              onSubmit={handleUpdateEvent}
+              onDelete={handleDeleteEvent}
+            />
+          )}
+        </>
       )}
     </div>
   );

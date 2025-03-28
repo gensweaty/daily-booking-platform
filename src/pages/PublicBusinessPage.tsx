@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
 
 const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -20,6 +21,34 @@ const PublicBusinessPage = () => {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
+  
+  // Fetch public events for this business
+  const { data: publicEvents = [] } = useQuery({
+    queryKey: ['public-events', business?.id],
+    queryFn: async () => {
+      if (!business?.id) return [];
+      
+      // Only get events for this business, without showing personal details
+      const { data, error } = await supabase
+        .from('events')
+        .select('id, title, start_date, end_date, type')
+        .eq('business_id', business.id);
+        
+      if (error) throw error;
+      
+      // Sanitize the events to remove personal information
+      return data.map(event => ({
+        ...event,
+        // Anonymize the title for privacy
+        title: event.type === 'birthday' ? 'Birthday Event' : 'Private Event',
+        user_surname: undefined,
+        user_number: undefined,
+        social_network_link: undefined,
+        event_notes: undefined
+      }));
+    },
+    enabled: !!business?.id
+  });
   
   useEffect(() => {
     // Reset state when slug changes
@@ -152,6 +181,8 @@ const PublicBusinessPage = () => {
                 <div className="bg-background rounded-lg overflow-hidden">
                   <Calendar 
                     defaultView="month" 
+                    publicMode={true}
+                    externalEvents={publicEvents}
                   />
                 </div>
               </div>

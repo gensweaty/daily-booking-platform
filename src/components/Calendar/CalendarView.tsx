@@ -11,6 +11,7 @@ interface CalendarViewProps {
   view: "month" | "week" | "day";
   onDayClick: (date: Date, hour?: number) => void;
   onEventClick: (event: CalendarEventType) => void;
+  publicMode?: boolean;
 }
 
 export const CalendarView = ({
@@ -20,6 +21,7 @@ export const CalendarView = ({
   view,
   onDayClick,
   onEventClick,
+  publicMode = false,
 }: CalendarViewProps) => {
   const { language } = useLanguage();
   const locale = language === 'es' ? es : undefined;
@@ -66,10 +68,10 @@ export const CalendarView = ({
           return (
             <div
               key={day.toISOString()}
-              className={`relative bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted border border-border transition-colors ${
+              className={`relative bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] ${!publicMode ? 'cursor-pointer hover:bg-muted' : ''} border border-border transition-colors ${
                 !isCurrentMonth ? 'bg-opacity-50' : ''
               }`}
-              onClick={() => onDayClick(day)}
+              onClick={!publicMode ? () => onDayClick(day) : undefined}
             >
               <div className={`font-medium ${!isCurrentMonth ? 'text-muted-foreground' : 'text-foreground'}`}>
                 {format(day, "d")}
@@ -82,15 +84,16 @@ export const CalendarView = ({
                       event.type === "birthday"
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground"
-                    } cursor-pointer truncate hover:opacity-80 transition-opacity ${
+                    } ${!publicMode ? 'cursor-pointer' : ''} truncate hover:opacity-80 transition-opacity ${
                       !isCurrentMonth ? 'opacity-60' : ''
                     }`}
                     onClick={(e) => {
+                      if (publicMode) return;
                       e.stopPropagation();
                       onEventClick(event);
                     }}
                   >
-                    {event.title}
+                    {publicMode ? (event.type === 'birthday' ? 'Birthday Event' : 'Private Event') : event.title}
                   </div>
                 ))}
               </div>
@@ -135,8 +138,8 @@ export const CalendarView = ({
               return (
                 <div
                   key={actualHour}
-                  className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
-                  onClick={() => onDayClick(hourDate, actualHour)}
+                  className={`h-20 border-b border-border ${!publicMode ? 'hover:bg-muted transition-colors cursor-pointer' : ''} relative`}
+                  onClick={!publicMode ? () => onDayClick(hourDate, actualHour) : undefined}
                 />
               );
             })}
@@ -158,17 +161,20 @@ export const CalendarView = ({
                       event.type === "birthday"
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground"
-                    } cursor-pointer overflow-hidden hover:opacity-80 transition-opacity`}
+                    } ${!publicMode ? 'cursor-pointer' : ''} overflow-hidden hover:opacity-80 transition-opacity`}
                     style={{
                       top: `${top}px`,
                       height: `${Math.max(height, 20)}px`,
                     }}
                     onClick={(e) => {
+                      if (publicMode) return;
                       e.stopPropagation();
                       onEventClick(event);
                     }}
                   >
-                    <div className="font-semibold truncate">{event.title}</div>
+                    <div className="font-semibold truncate">
+                      {publicMode ? (event.type === 'birthday' ? 'Birthday Event' : 'Private Event') : event.title}
+                    </div>
                     {height > 40 && (
                       <div className="text-[8px] sm:text-xs truncate">
                         {format(start, "h:mm a", { locale })} - {format(end, "h:mm a", { locale })}

@@ -48,7 +48,7 @@ export const getEvents = async () => {
   return data;
 };
 
-export const createEvent = async (event: Partial<CalendarEventType>) => {
+export const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
   const { data, error } = await supabase
     .from('events')
     .insert([event])
