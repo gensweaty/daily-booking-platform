@@ -96,10 +96,9 @@ export const useEventDialog = ({
         cleanData.business_id = selectedEvent.business_id;
       }
       
-      const result = await updateEvent({
-        id: selectedEvent.id,
-        updates: cleanData,
-      });
+      // Fixed: Pass the id directly in the cleanData instead of using a nested updates object
+      cleanData.id = selectedEvent.id;
+      const result = await updateEvent(cleanData);
       
       setSelectedEvent(null);
       toast({
