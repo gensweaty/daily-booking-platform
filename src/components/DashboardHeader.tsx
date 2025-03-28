@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -16,7 +17,6 @@ import { useTheme } from "next-themes";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { MainNavigation, MobileNavigation } from "./ui/navigation";
 
 interface DashboardHeaderProps {
   username: string;
@@ -118,15 +118,18 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   };
 
   return (
-    <header className="border-b">
-      <div className="flex h-16 items-center px-4 gap-4">
-        <div className="flex-1">
-          <h1 className="text-xl font-semibold">Dashboard</h1>
-        </div>
-        
-        <MainNavigation />
-        <MobileNavigation />
-        
+    <header className="mb-4">
+      <div className="flex items-center justify-between mb-3">
+        <Link to="/" className="flex items-center gap-2">
+          <img 
+            src={theme === 'dark' 
+              ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+              : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+            }
+            alt="SmartBookly Logo" 
+            className="h-8 md:h-10 w-auto"
+          />
+        </Link>
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
           <Dialog>
