@@ -32,6 +32,8 @@ export const EventRequestList = ({ eventRequests, isLoading }: EventRequestListP
 
   const handleApprove = async (requestId: string) => {
     try {
+      console.log("Approving request:", requestId);
+      
       // Get request data
       const { data: requestData, error: fetchError } = await supabase
         .from('event_requests')
@@ -39,27 +41,56 @@ export const EventRequestList = ({ eventRequests, isLoading }: EventRequestListP
         .eq('id', requestId)
         .single();
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error("Error fetching request:", fetchError);
+        throw fetchError;
+      }
 
-      // Create calendar event - don't include updated_at to let it use default value
-      const { error: insertError } = await supabase
+      console.log("Request data:", requestData);
+      
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error("Error getting user:", userError);
+        throw userError;
+      }
+      
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+      
+      console.log("Current user:", user.id);
+      
+      // Create calendar event
+      const eventData = {
+        title: requestData.title,
+        start_date: requestData.start_date,
+        end_date: requestData.end_date,
+        type: requestData.type || 'appointment',
+        user_id: user.id,
+        user_surname: requestData.user_surname,
+        user_number: requestData.user_number,
+        social_network_link: requestData.social_network_link,
+        event_notes: requestData.event_notes,
+        payment_status: requestData.payment_status,
+        payment_amount: requestData.payment_amount,
+        business_id: requestData.business_id
+      };
+      
+      console.log("Creating event with data:", eventData);
+
+      const { data: insertedEvent, error: insertError } = await supabase
         .from('events')
-        .insert({
-          title: requestData.title,
-          start_date: requestData.start_date,
-          end_date: requestData.end_date,
-          type: requestData.type || 'appointment',
-          user_id: (await supabase.auth.getUser()).data.user?.id,
-          user_surname: requestData.user_surname,
-          user_number: requestData.user_number,
-          social_network_link: requestData.social_network_link,
-          event_notes: requestData.event_notes,
-          payment_status: requestData.payment_status,
-          payment_amount: requestData.payment_amount,
-          business_id: requestData.business_id
-        });
+        .insert([eventData])
+        .select();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error("Error inserting event:", insertError);
+        throw insertError;
+      }
+      
+      console.log("Event created:", insertedEvent);
 
       // Update request status
       const { error: updateError } = await supabase
@@ -67,7 +98,10 @@ export const EventRequestList = ({ eventRequests, isLoading }: EventRequestListP
         .update({ status: 'approved' })
         .eq('id', requestId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("Error updating request status:", updateError);
+        throw updateError;
+      }
 
       toast({
         title: t("eventRequests.approved"),

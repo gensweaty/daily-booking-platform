@@ -292,6 +292,7 @@ export type Database = {
       }
       events: {
         Row: {
+          business_id: string | null
           created_at: string | null
           deleted_at: string | null
           end_date: string
@@ -308,6 +309,7 @@ export type Database = {
           user_surname: string | null
         }
         Insert: {
+          business_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           end_date: string
@@ -324,6 +326,7 @@ export type Database = {
           user_surname?: string | null
         }
         Update: {
+          business_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           end_date?: string
@@ -339,7 +342,15 @@ export type Database = {
           user_number?: string | null
           user_surname?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       files: {
         Row: {

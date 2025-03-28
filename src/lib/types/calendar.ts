@@ -16,4 +16,5 @@ export interface CalendarEventType {
   payment_amount?: number;
   user_id?: string;
   business_id?: string;
+  updated_at?: string;
 }
