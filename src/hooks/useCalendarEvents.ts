@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -40,19 +41,65 @@ export const useCalendarEvents = () => {
     console.log("[useCalendarEvents] Fetching public events for business ID:", businessId);
     
     try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('business_id', businessId)
-        .order('start_date', { ascending: true });
+      // Modified query to get both direct events and approved event requests
+      const [eventsResult, requestsResult] = await Promise.all([
+        // Get direct events with this business_id
+        supabase
+          .from('events')
+          .select('*')
+          .eq('business_id', businessId)
+          .order('start_date', { ascending: true }),
+        
+        // Get approved event requests for this business
+        supabase
+          .from('event_requests')
+          .select('*')
+          .eq('business_id', businessId)
+          .eq('status', 'approved')
+          .order('start_date', { ascending: true })
+      ]);
 
-      if (error) {
-        console.error("[useCalendarEvents] Error fetching public events:", error);
-        throw error;
+      if (eventsResult.error) {
+        console.error("[useCalendarEvents] Error fetching business events:", eventsResult.error);
+        throw eventsResult.error;
+      }
+
+      if (requestsResult.error) {
+        console.error("[useCalendarEvents] Error fetching approved event requests:", requestsResult.error);
+        throw requestsResult.error;
       }
       
-      console.log(`[useCalendarEvents] Retrieved ${data?.length || 0} public events for business:`, businessId);
-      return data;
+      const events = eventsResult.data || [];
+      const approvedRequests = requestsResult.data || [];
+      
+      // Convert approved requests to event format
+      const requestEvents = approvedRequests.map(req => ({
+        id: req.id,
+        title: req.title,
+        start_date: req.start_date,
+        end_date: req.end_date,
+        created_at: req.created_at,
+        user_surname: req.user_surname,
+        user_number: req.user_number,
+        social_network_link: req.social_network_link,
+        event_notes: req.event_notes,
+        type: req.type,
+        payment_status: req.payment_status,
+        payment_amount: req.payment_amount,
+        business_id: req.business_id
+      }));
+      
+      // Combine both arrays
+      const combinedEvents = [...events, ...requestEvents];
+      
+      console.log(`[useCalendarEvents] Retrieved ${events.length} direct events and ${approvedRequests.length} approved requests for business:`, businessId);
+      console.log("[useCalendarEvents] Sample events:", combinedEvents.slice(0, 2).map(e => ({
+        id: e.id,
+        title: e.title,
+        date: e.start_date
+      })));
+      
+      return combinedEvents;
     } catch (err) {
       console.error("[useCalendarEvents] Failed to fetch public events:", err);
       throw err;

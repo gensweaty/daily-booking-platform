@@ -28,7 +28,7 @@ const PublicBusinessPage = () => {
   }, [slug]);
   
   // Fetch public events for this business
-  const { data: publicEvents = [], isLoading: isLoadingEvents } = useQuery({
+  const { data: publicEvents = [], isLoading: isLoadingEvents, refetch: refetchEvents } = useQuery({
     queryKey: ['public-events', business?.id],
     queryFn: async () => {
       if (!business?.id) return [];
@@ -40,6 +40,8 @@ const PublicBusinessPage = () => {
         
         if (events && events.length > 0) {
           console.log("[PublicBusinessPage] Sample event data:", events[0]);
+        } else {
+          console.log("[PublicBusinessPage] No events found for business");
         }
         
         return events || [];
@@ -54,10 +56,17 @@ const PublicBusinessPage = () => {
       }
     },
     enabled: !!business?.id,
-    staleTime: 1000 * 60, // 1 minute
+    staleTime: 1000 * 30, // 30 seconds
     refetchOnMount: true,
     refetchOnWindowFocus: true
   });
+  
+  // Retry fetching events when business changes
+  useEffect(() => {
+    if (business?.id) {
+      refetchEvents();
+    }
+  }, [business?.id, refetchEvents]);
   
   // Fetch the cover photo URL if it exists
   useEffect(() => {

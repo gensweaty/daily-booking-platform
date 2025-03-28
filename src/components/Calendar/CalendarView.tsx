@@ -76,9 +76,18 @@ export const CalendarView = ({
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
         {weekDays.map(renderDayHeader)}
         {calendarDays.map((day) => {
-          const dayEvents = events.filter((event) => 
-            isSameDay(parseISO(event.start_date), day)
-          );
+          // Make sure we're handling date strings and Date objects correctly
+          const dayEvents = events.filter((event) => {
+            try {
+              const eventDate = typeof event.start_date === 'string' 
+                ? parseISO(event.start_date)
+                : event.start_date;
+              return isSameDay(eventDate, day);
+            } catch (error) {
+              console.error("Error comparing dates:", error, event.start_date, day);
+              return false;
+            }
+          });
           
           console.log(`[CalendarView] Day ${format(day, 'yyyy-MM-dd')} has ${dayEvents.length} events`);
           
@@ -164,7 +173,17 @@ export const CalendarView = ({
             })}
             
             {events
-              .filter((event) => isSameDay(parseISO(event.start_date), day))
+              .filter((event) => {
+                try {
+                  const eventDate = typeof event.start_date === 'string'
+                    ? parseISO(event.start_date)
+                    : event.start_date;
+                  return isSameDay(eventDate, day);
+                } catch (error) {
+                  console.error("Error comparing dates for week view:", error);
+                  return false;
+                }
+              })
               .map((event) => {
                 const start = new Date(event.start_date);
                 const end = new Date(event.end_date);
