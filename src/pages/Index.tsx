@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { AuthUI } from "@/components/AuthUI"
 import { DashboardHeader } from "@/components/DashboardHeader"
@@ -37,7 +37,7 @@ const Index = () => {
   const [username, setUsername] = useState("")
   const [showTrialExpired, setShowTrialExpired] = useState(false)
   const [processingCode, setProcessingCode] = useState(false)
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const { toast } = useToast()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -119,18 +119,20 @@ const Index = () => {
     getProfile()
   }, [user])
 
-  // Show a loading state when processing confirmation code
-  if (processingCode) {
+  // Show a loading state when processing confirmation code or when auth is loading
+  if (processingCode || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold">Confirming your email...</h2>
+          <h2 className="text-xl font-semibold">{processingCode ? "Confirming your email..." : "Loading..."}</h2>
           <p className="text-muted-foreground">Please wait while we complete this process.</p>
         </div>
       </div>
     );
   }
+
+  console.log("User state:", user ? "Authenticated" : "Not authenticated");
 
   const content = user ? (
     <motion.div 

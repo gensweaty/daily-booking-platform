@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export const SignIn = () => {
@@ -19,16 +19,22 @@ export const SignIn = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    console.log("Attempting login with email:", email);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Login error:', error);
+        throw error;
+      }
 
-      // No need to navigate here, AuthContext will handle it
+      console.log("Login successful:", data.session ? "Session created" : "No session");
+      
+      // Navigate is now handled by AuthContext
     } catch (error: any) {
       console.error('Login error:', error);
       toast({
