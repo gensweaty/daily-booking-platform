@@ -183,7 +183,16 @@ export const Calendar = ({
   };
 
   // Use external events in public mode if provided
+  // Log both the events and externalEvents to help with debugging
+  console.log("Internal events:", events);
+  console.log("External events:", externalEvents);
+  console.log("Public mode:", publicMode);
+  console.log("Business ID:", businessId);
+  
+  // Make sure we use the external events when in public mode
   const displayEvents = publicMode && externalEvents ? externalEvents : events || [];
+  
+  console.log("Display events:", displayEvents);
 
   if (error && !publicMode) {
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;

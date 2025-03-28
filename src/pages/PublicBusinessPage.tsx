@@ -28,18 +28,25 @@ const PublicBusinessPage = () => {
   }, [slug]);
   
   // Fetch public events for this business
-  const { data: publicEvents = [] } = useQuery({
+  const { data: publicEvents = [], isLoading: isLoadingEvents } = useQuery({
     queryKey: ['public-events', business?.id],
     queryFn: async () => {
       if (!business?.id) return [];
       
-      // Only get events for this business, without showing personal details
+      console.log("Fetching public events for business ID:", business.id);
+      
+      // Get events for this business, without showing personal details
       const { data, error } = await supabase
         .from('events')
         .select('id, title, start_date, end_date, type, created_at, business_id')
         .eq('business_id', business.id);
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching public events:", error);
+        throw error;
+      }
+      
+      console.log("Fetched public events:", data);
       
       // Sanitize the events to remove personal information and ensure all required fields are present
       return data.map(event => ({
@@ -181,12 +188,18 @@ const PublicBusinessPage = () => {
                   </h2>
                 </div>
                 <div className="bg-background p-4">
-                  <Calendar 
-                    defaultView="month" 
-                    publicMode={true}
-                    externalEvents={publicEvents}
-                    businessId={business.id}
-                  />
+                  {isLoadingEvents ? (
+                    <div className="flex items-center justify-center py-20">
+                      <Skeleton className="h-[400px] w-full" />
+                    </div>
+                  ) : (
+                    <Calendar 
+                      defaultView="month" 
+                      publicMode={true}
+                      externalEvents={publicEvents}
+                      businessId={business.id}
+                    />
+                  )}
                 </div>
               </div>
             </div>
