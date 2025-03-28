@@ -154,29 +154,38 @@ export const useEventDialog = ({
         (window as any).__CURRENT_USER_ID__ = (window as any).__SUPABASE_AUTH_USER__.id;
       }
 
-      // Check for business_id specifically and handle null/undefined case
-      const businessId = data.business_id || null;
+      // Check if businessId is explicitly provided (not undefined)
+      let businessId = undefined;
+      if (data.business_id !== undefined) {
+        businessId = data.business_id || null;
+      }
       console.log('handleCreateEvent - Using business ID:', businessId);
 
-      const { available, conflictingEvent } = await checkTimeSlotAvailability(
-        startDate,
-        endDate,
-        businessId
-      );
+      // Only perform availability check if businessId is provided
+      if (businessId !== undefined) {
+        const { available, conflictingEvent } = await checkTimeSlotAvailability(
+          startDate,
+          endDate,
+          businessId
+        );
 
-      if (!available && conflictingEvent) {
-        toast({
-          title: "Time Slot Unavailable",
-          description: `This time slot conflicts with an existing booking (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
-          variant: "destructive",
-        });
-        throw new Error("Time slot conflict");
+        if (!available && conflictingEvent) {
+          toast({
+            title: "Time Slot Unavailable",
+            description: `This time slot conflicts with an existing booking (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
+            variant: "destructive",
+          });
+          throw new Error("Time slot conflict");
+        }
       }
 
-      // Clean up the data object to ensure no null UUIDs are sent
+      // Clean up the data object before submission
       const cleanData = { ...data };
+      
+      // Only delete the business_id if it's null or undefined
+      // This is important to prevent adding a null UUID to the database
       if (cleanData.business_id === null || cleanData.business_id === undefined) {
-        delete cleanData.business_id; // Remove businessId if it's null or undefined
+        delete cleanData.business_id;
       }
 
       console.log('handleCreateEvent - Cleaned data for submission:', cleanData);
@@ -213,23 +222,29 @@ export const useEventDialog = ({
         (window as any).__CURRENT_USER_ID__ = (window as any).__SUPABASE_AUTH_USER__.id;
       }
 
-      // Handle null/undefined business_id
-      const businessId = data.business_id || selectedEvent.business_id || null;
+      // Handle business_id from data or selected event
+      let businessId = undefined;
+      if (data.business_id !== undefined || selectedEvent.business_id !== undefined) {
+        businessId = data.business_id || selectedEvent.business_id || null;
+      }
 
-      const { available, conflictingEvent } = await checkTimeSlotAvailability(
-        startDate,
-        endDate,
-        businessId,
-        selectedEvent.id
-      );
+      // Only check availability if there's a businessId to check against
+      if (businessId !== undefined) {
+        const { available, conflictingEvent } = await checkTimeSlotAvailability(
+          startDate,
+          endDate,
+          businessId,
+          selectedEvent.id
+        );
 
-      if (!available && conflictingEvent) {
-        toast({
-          title: "Time Slot Unavailable",
-          description: `This time slot conflicts with an existing booking (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
-          variant: "destructive",
-        });
-        throw new Error("Time slot conflict");
+        if (!available && conflictingEvent) {
+          toast({
+            title: "Time Slot Unavailable",
+            description: `This time slot conflicts with an existing booking (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
+            variant: "destructive",
+          });
+          throw new Error("Time slot conflict");
+        }
       }
 
       // Clean up the data object
