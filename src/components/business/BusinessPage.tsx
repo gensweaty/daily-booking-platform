@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Business } from "@/lib/types";
 
 export const BusinessPage = () => {
   const { t } = useLanguage();
@@ -49,15 +50,11 @@ export const BusinessPage = () => {
     }
   };
   
-  const handleUpdateBusiness = async (formData: any, coverPhoto?: File) => {
+  const handleUpdateBusiness = async (formData: Business) => {
     if (!business) return;
     
     try {
       await updateBusiness({ id: business.id, updates: formData });
-      
-      if (coverPhoto) {
-        await uploadCoverPhoto({ file: coverPhoto, businessId: business.id });
-      }
     } catch (error) {
       console.error("Error updating business:", error);
       throw error;
@@ -126,7 +123,7 @@ export const BusinessPage = () => {
   return (
     <BusinessDetails
       business={business}
-      onEdit={handleUpdateBusiness}
+      onUpdate={handleUpdateBusiness}
       onDelete={handleDeleteBusiness}
     />
   );

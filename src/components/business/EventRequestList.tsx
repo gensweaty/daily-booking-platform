@@ -125,7 +125,10 @@ export const EventRequestList = ({ eventRequests, isLoading }: EventRequestListP
               <CardTitle className="text-lg font-medium">
                 {request.title} {request.user_surname}
               </CardTitle>
-              <Badge variant={request.status === 'pending' ? 'outline' : request.status === 'approved' ? 'success' : 'destructive'}>
+              <Badge variant={
+                request.status === 'pending' ? 'outline' : 
+                request.status === 'approved' ? 'secondary' : 'destructive'
+              }>
                 {request.status}
               </Badge>
             </div>

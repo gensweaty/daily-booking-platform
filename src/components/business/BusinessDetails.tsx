@@ -62,7 +62,12 @@ export const BusinessDetails = ({
       <BusinessForm 
         initialData={business}
         onSubmit={(data) => {
-          onUpdate(data);
+          // Create a complete Business object by merging with existing business data
+          const updatedBusiness: Business = {
+            ...business,
+            ...data
+          };
+          onUpdate(updatedBusiness);
           setIsEditing(false);
         }}
         onCancel={() => setIsEditing(false)}
