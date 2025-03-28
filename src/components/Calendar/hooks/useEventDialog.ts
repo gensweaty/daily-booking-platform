@@ -40,14 +40,17 @@ export const useEventDialog = ({
       // Create a clean copy of the data to avoid modifying the original
       const cleanData = { ...data };
       
-      // Only include business_id if it's explicitly provided and not null/undefined
-      if (cleanData.business_id === null || cleanData.business_id === undefined) {
+      console.log('handleCreateEvent - Business ID in event data:', cleanData.business_id);
+      
+      // Make sure we're passing the business_id properly
+      if (typeof cleanData.business_id === 'string' && cleanData.business_id.trim() === '') {
+        console.log("Business ID is empty string, removing it");
         delete cleanData.business_id;
-      } else {
+      } else if (cleanData.business_id) {
         console.log("Business ID included in event data:", cleanData.business_id);
       }
 
-      console.log('handleCreateEvent - Data for submission:', cleanData);
+      console.log('handleCreateEvent - Data for submission:', JSON.stringify(cleanData));
       const result = await createEvent(cleanData);
       
       setIsNewEventDialogOpen(false);
@@ -77,10 +80,11 @@ export const useEventDialog = ({
       // Ensure the ID is included for the update operation
       cleanData.id = selectedEvent.id;
       
-      // Only include business_id if it's explicitly provided and not null/undefined
-      if (cleanData.business_id === null || cleanData.business_id === undefined) {
+      // Handle business_id properly
+      if (typeof cleanData.business_id === 'string' && cleanData.business_id.trim() === '') {
+        console.log("Business ID is empty string, removing it");
         delete cleanData.business_id;
-      } else {
+      } else if (cleanData.business_id) {
         console.log("Business ID included in update data:", cleanData.business_id);
       }
 
@@ -90,7 +94,7 @@ export const useEventDialog = ({
         console.log("Preserving existing business_id:", selectedEvent.business_id);
       }
       
-      console.log("Updating event with data:", cleanData);
+      console.log("Updating event with data:", JSON.stringify(cleanData));
       
       const result = await updateEvent(cleanData);
       

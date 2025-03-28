@@ -114,14 +114,7 @@ export const useCalendarEvents = () => {
       // Set user_id for the event
       eventData.user_id = user.id;
       
-      // Only include business_id if it's explicitly provided and not null/undefined
-      if (eventData.business_id === null || eventData.business_id === undefined) {
-        delete eventData.business_id;
-      } else {
-        console.log("[useCalendarEvents] Creating event with business_id:", eventData.business_id);
-      }
-      
-      console.log("[useCalendarEvents] Creating event with data:", eventData);
+      console.log("[useCalendarEvents] Creating event with full data:", JSON.stringify(eventData));
       
       const { data, error } = await supabase
         .from('events')
@@ -130,14 +123,20 @@ export const useCalendarEvents = () => {
         .single();
 
       if (error) {
-        console.error("Error creating event:", error);
+        console.error("[useCalendarEvents] Error creating event:", error);
         throw error;
       }
       
       console.log("[useCalendarEvents] Event created successfully:", data);
+      
+      // Immediately invalidate relevant queries to ensure sync
+      if (eventData.business_id) {
+        queryClient.invalidateQueries({ queryKey: ['public-events', eventData.business_id] });
+      }
+      
       return data;
     } catch (err) {
-      console.error("Failed to create event:", err);
+      console.error("[useCalendarEvents] Failed to create event:", err);
       throw err;
     }
   };
@@ -154,14 +153,21 @@ export const useCalendarEvents = () => {
       const cleanUpdates = { ...updates };
       delete cleanUpdates.id; // Remove id from the updates
       
-      // Only include business_id if it's explicitly provided and not null/undefined
-      if (cleanUpdates.business_id === null || cleanUpdates.business_id === undefined) {
-        delete cleanUpdates.business_id;
-      } else {
-        console.log("[useCalendarEvents] Updating event with business_id:", cleanUpdates.business_id);
+      console.log(`[useCalendarEvents] Updating event ${id} with full data:`, JSON.stringify(cleanUpdates));
+      
+      // First, fetch the current event to get its business_id (if any)
+      const { data: currentEvent, error: fetchError } = await supabase
+        .from('events')
+        .select('business_id')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) {
+        console.error("[useCalendarEvents] Error fetching current event:", fetchError);
       }
       
-      console.log(`[useCalendarEvents] Updating event ${id} with:`, cleanUpdates);
+      const currentBusinessId = currentEvent?.business_id;
+      console.log("[useCalendarEvents] Current business_id:", currentBusinessId);
       
       const { data, error } = await supabase
         .from('events')
@@ -172,14 +178,24 @@ export const useCalendarEvents = () => {
         .single();
 
       if (error) {
-        console.error("Error updating event:", error);
+        console.error("[useCalendarEvents] Error updating event:", error);
         throw error;
       }
       
       console.log("[useCalendarEvents] Event updated successfully:", data);
+      
+      // Invalidate queries for both the old and new business_id
+      if (currentBusinessId) {
+        queryClient.invalidateQueries({ queryKey: ['public-events', currentBusinessId] });
+      }
+      
+      if (cleanUpdates.business_id && cleanUpdates.business_id !== currentBusinessId) {
+        queryClient.invalidateQueries({ queryKey: ['public-events', cleanUpdates.business_id] });
+      }
+      
       return data;
     } catch (err) {
-      console.error("Failed to update event:", err);
+      console.error("[useCalendarEvents] Failed to update event:", err);
       throw err;
     }
   };
@@ -188,7 +204,19 @@ export const useCalendarEvents = () => {
     try {
       if (!user) throw new Error("User must be authenticated to delete events");
       
-      console.log(`[useCalendarEvents] Deleting event ${id}`);
+      // First, fetch the current event to get its business_id (if any)
+      const { data: currentEvent, error: fetchError } = await supabase
+        .from('events')
+        .select('business_id')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) {
+        console.error("[useCalendarEvents] Error fetching current event:", fetchError);
+      }
+      
+      const currentBusinessId = currentEvent?.business_id;
+      console.log(`[useCalendarEvents] Deleting event ${id} with business_id:`, currentBusinessId);
       
       const { error } = await supabase
         .from('events')
@@ -197,13 +225,18 @@ export const useCalendarEvents = () => {
         .eq('user_id', user.id);
 
       if (error) {
-        console.error("Error deleting event:", error);
+        console.error("[useCalendarEvents] Error deleting event:", error);
         throw error;
       }
       
       console.log("[useCalendarEvents] Event deleted successfully");
+      
+      // Invalidate public events query if the event had a business_id
+      if (currentBusinessId) {
+        queryClient.invalidateQueries({ queryKey: ['public-events', currentBusinessId] });
+      }
     } catch (err) {
-      console.error("Failed to delete event:", err);
+      console.error("[useCalendarEvents] Failed to delete event:", err);
       throw err;
     }
   };
@@ -244,14 +277,20 @@ export const useCalendarEvents = () => {
         .single();
 
       if (error) {
-        console.error("Error creating event request:", error);
+        console.error("[useCalendarEvents] Error creating event request:", error);
         throw error;
       }
       
       console.log("[useCalendarEvents] Event request created successfully:", data);
+      
+      // Immediately invalidate relevant queries to ensure sync
+      if (event.business_id) {
+        queryClient.invalidateQueries({ queryKey: ['public-events', event.business_id] });
+      }
+      
       return data;
     } catch (error) {
-      console.error("Error in createEventRequest:", error);
+      console.error("[useCalendarEvents] Error in createEventRequest:", error);
       throw error;
     }
   };
@@ -275,7 +314,7 @@ export const useCalendarEvents = () => {
         .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
         
       if (eventsError) {
-        console.error("Error checking for existing events:", eventsError);
+        console.error("[useCalendarEvents] Error checking for existing events:", eventsError);
         throw eventsError;
       }
       
@@ -289,7 +328,7 @@ export const useCalendarEvents = () => {
         .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
         
       if (requestsError) {
-        console.error("Error checking for approved requests:", requestsError);
+        console.error("[useCalendarEvents] Error checking for approved requests:", requestsError);
         throw requestsError;
       }
       
@@ -307,7 +346,7 @@ export const useCalendarEvents = () => {
         conflictingEvent: conflict
       };
     } catch (error) {
-      console.error("Error in checkTimeSlotAvailability:", error);
+      console.error("[useCalendarEvents] Error in checkTimeSlotAvailability:", error);
       // If there's an error, we'll be cautious and say the slot is unavailable
       return { available: false };
     }
