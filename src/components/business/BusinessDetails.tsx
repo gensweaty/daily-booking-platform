@@ -15,8 +15,8 @@ import { supabase } from "@/lib/supabase";
 
 interface BusinessDetailsProps {
   business: Business;
-  onUpdate: (business: Business) => void;
-  onDelete: () => void;
+  onUpdate: (business: Business) => Promise<void>;
+  onDelete: () => Promise<void>;
 }
 
 export const BusinessDetails = ({ 
@@ -61,13 +61,13 @@ export const BusinessDetails = ({
     return (
       <BusinessForm 
         initialData={business}
-        onSubmit={(data) => {
+        onSubmit={async (data, coverPhoto) => {
           // Create a complete Business object by merging with existing business data
           const updatedBusiness: Business = {
             ...business,
             ...data
           };
-          onUpdate(updatedBusiness);
+          await onUpdate(updatedBusiness);
           setIsEditing(false);
         }}
         onCancel={() => setIsEditing(false)}

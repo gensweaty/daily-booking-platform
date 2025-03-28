@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -39,10 +38,11 @@ const businessFormSchema = z.object({
 type BusinessFormValues = z.infer<typeof businessFormSchema>;
 
 interface BusinessFormProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   initialData?: Business;
   onSubmit: (data: BusinessFormValues, coverPhoto?: File) => Promise<void>;
+  onCancel?: () => void;
 }
 
 export const BusinessForm = ({
@@ -50,6 +50,7 @@ export const BusinessForm = ({
   onOpenChange,
   initialData,
   onSubmit,
+  onCancel,
 }: BusinessFormProps) => {
   const { t } = useLanguage();
   const [coverPhoto, setCoverPhoto] = useState<File | null>(null);
@@ -77,7 +78,7 @@ export const BusinessForm = ({
     try {
       setIsSubmitting(true);
       await onSubmit(values, coverPhoto || undefined);
-      onOpenChange(false);
+      if (onOpenChange) onOpenChange(false);
     } catch (error) {
       console.error("Error submitting business form:", error);
     } finally {
@@ -85,6 +86,173 @@ export const BusinessForm = ({
     }
   };
 
+  // For inline form (editing mode)
+  if (initialData && !open) {
+    return (
+      <div className="bg-card border rounded-lg p-6">
+        <h2 className="text-xl font-bold mb-4">
+          {initialData ? "Edit Business" : "Add Business"}
+        </h2>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Business Name</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Enter business name" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      placeholder="Enter business description"
+                      rows={3}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="contact_phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contact Phone</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Enter contact phone" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="contact_address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contact Address</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      placeholder="Enter contact address"
+                      rows={2}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="contact_email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contact Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="email"
+                      placeholder="Enter contact email"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="contact_website"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Website</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="Enter website URL (e.g., https://example.com)"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="space-y-2">
+              <FormLabel>Cover Photo</FormLabel>
+              <div className="flex items-center gap-4">
+                {initialData?.cover_photo_path && !coverPhoto && (
+                  <div className="relative w-16 h-16 rounded overflow-hidden bg-gray-100">
+                    <Image className="absolute inset-0 w-full h-full object-cover" />
+                  </div>
+                )}
+                {coverPhoto && (
+                  <div className="relative w-16 h-16 rounded overflow-hidden">
+                    <img
+                      src={URL.createObjectURL(coverPhoto)}
+                      alt="Cover preview"
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <label
+                    htmlFor="cover-photo"
+                    className="flex items-center justify-center w-full h-10 px-3 border border-input bg-background rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    <span>
+                      {coverPhoto
+                        ? coverPhoto.name
+                        : initialData?.cover_photo_path
+                        ? "Change photo"
+                        : "Upload photo"}
+                    </span>
+                    <input
+                      id="cover-photo"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleCoverPhotoChange}
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2 mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting
+                  ? "Saving..."
+                  : initialData
+                  ? "Update"
+                  : "Create"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </div>
+    );
+  }
+
+  // For dialog mode (adding new business)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -238,7 +406,7 @@ export const BusinessForm = ({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => onOpenChange && onOpenChange(false)}
                 disabled={isSubmitting}
               >
                 Cancel
