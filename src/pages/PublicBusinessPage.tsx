@@ -19,7 +19,7 @@ const PublicBusinessPage = () => {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
-  const { getPublicEvents } = useCalendarEvents();
+  const { getPublicEvents, getAllBusinessEvents } = useCalendarEvents();
   
   useEffect(() => {
     // Reset state when slug changes
@@ -27,26 +27,28 @@ const PublicBusinessPage = () => {
     setSelectedDate(null);
   }, [slug]);
   
-  // Fetch public events for this business
-  const { data: publicEvents = [], isLoading: isLoadingEvents, refetch: refetchEvents } = useQuery({
-    queryKey: ['public-events', business?.id],
+  // Fetch ALL events for this business (both user's events and public events)
+  const { data: businessEvents = [], isLoading: isLoadingEvents, refetch: refetchEvents } = useQuery({
+    queryKey: ['all-business-events', business?.id],
     queryFn: async () => {
       if (!business?.id) return [];
       
       try {
-        console.log("[PublicBusinessPage] Fetching public events for business ID:", business.id);
-        const events = await getPublicEvents(business.id);
-        console.log("[PublicBusinessPage] Fetched public events:", events?.length || 0);
+        console.log("[PublicBusinessPage] Fetching ALL events for business ID:", business.id);
+        
+        // Get ALL events for this business ID (without user filtering)
+        const events = await getAllBusinessEvents(business.id);
+        console.log("[PublicBusinessPage] Fetched ALL business events:", events?.length || 0);
         
         if (events && events.length > 0) {
-          console.log("[PublicBusinessPage] Sample event data:", events[0]);
+          console.log("[PublicBusinessPage] Sample business event data:", events[0]);
         } else {
           console.log("[PublicBusinessPage] No events found for business");
         }
         
         return events || [];
       } catch (error) {
-        console.error("[PublicBusinessPage] Failed to fetch public events:", error);
+        console.error("[PublicBusinessPage] Failed to fetch business events:", error);
         toast({
           title: "Error loading calendar",
           description: "Failed to load calendar events. Please try again later.",
@@ -58,7 +60,8 @@ const PublicBusinessPage = () => {
     enabled: !!business?.id,
     staleTime: 1000 * 30, // 30 seconds
     refetchOnMount: true,
-    refetchOnWindowFocus: true
+    refetchOnWindowFocus: true,
+    refetchInterval: 60 * 1000 // Refresh every minute
   });
   
   // Retry fetching events when business changes
@@ -194,7 +197,7 @@ const PublicBusinessPage = () => {
                     <Calendar 
                       defaultView="month" 
                       publicMode={true}
-                      externalEvents={publicEvents}
+                      externalEvents={businessEvents}
                       businessId={business?.id}
                     />
                   )}

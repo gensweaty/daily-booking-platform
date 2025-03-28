@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -74,6 +75,15 @@ export const useCalendarEvents = () => {
       const events = eventsResult.data || [];
       const approvedRequests = requestsResult.data || [];
       
+      // Log detailed info about fetched events
+      console.log("[useCalendarEvents] Business events details:", events.map(e => ({
+        id: e.id,
+        title: e.title,
+        start_date: e.start_date,
+        end_date: e.end_date,
+        business_id: e.business_id
+      })));
+      
       // Convert approved requests to event format
       const requestEvents = approvedRequests.map(req => ({
         id: req.id,
@@ -100,6 +110,35 @@ export const useCalendarEvents = () => {
       return combinedEvents;
     } catch (err) {
       console.error("[useCalendarEvents] Failed to fetch public events:", err);
+      throw err;
+    }
+  };
+
+  // Get all events regardless of user, filtered only by business ID
+  const getAllBusinessEvents = async (businessId: string) => {
+    if (!businessId) {
+      console.warn("No business ID provided for getting all business events");
+      return [];
+    }
+    
+    console.log("[useCalendarEvents] Fetching ALL events for business ID:", businessId);
+    
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('business_id', businessId)
+        .order('start_date', { ascending: true });
+
+      if (error) {
+        console.error("[useCalendarEvents] Error fetching all business events:", error);
+        throw error;
+      }
+      
+      console.log(`[useCalendarEvents] Retrieved ${data?.length || 0} events for business:`, businessId);
+      return data || [];
+    } catch (err) {
+      console.error("[useCalendarEvents] Failed to fetch all business events:", err);
       throw err;
     }
   };
@@ -239,10 +278,12 @@ export const useCalendarEvents = () => {
     }
     
     queryClient.invalidateQueries({ queryKey: ['public-events'] });
+    queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
     
     if (businessId) {
       console.log(`[useCalendarEvents] Invalidating business events for ID: ${businessId}`);
       queryClient.invalidateQueries({ queryKey: ['public-events', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['all-business-events', businessId] });
     }
     
     // Also refetch all events immediately
@@ -268,10 +309,17 @@ export const useCalendarEvents = () => {
         .maybeSingle();
         
       if (userBusiness?.id) {
-        console.log(`[useCalendarEvents] Force refetching public events for business: ${userBusiness.id}`);
+        console.log(`[useCalendarEvents] Force refetching business events for business: ${userBusiness.id}`);
+        
+        // Refetch public events (approved and public events)
         const publicEvents = await getPublicEvents(userBusiness.id);
         queryClient.setQueryData(['public-events', userBusiness.id], publicEvents);
         queryClient.setQueryData(['public-events'], publicEvents);
+        
+        // Also fetch ALL business events for internal dashboard view
+        const allBusinessEvents = await getAllBusinessEvents(userBusiness.id);
+        queryClient.setQueryData(['all-business-events', userBusiness.id], allBusinessEvents);
+        queryClient.setQueryData(['all-business-events'], allBusinessEvents);
       }
     } catch (error) {
       console.error("[useCalendarEvents] Error in fetchAllEvents:", error);
@@ -326,6 +374,7 @@ export const useCalendarEvents = () => {
       
       if (event.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', event.business_id] });
+        queryClient.invalidateQueries({ queryKey: ['all-business-events', event.business_id] });
       }
       
       return data;
@@ -424,6 +473,7 @@ export const useCalendarEvents = () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
+      queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
     },
   });
 
@@ -433,6 +483,7 @@ export const useCalendarEvents = () => {
     error,
     refetch,
     getPublicEvents,
+    getAllBusinessEvents, 
     createEvent: createEventMutation.mutateAsync,
     updateEvent: updateEventMutation.mutateAsync,
     deleteEvent: deleteEventMutation.mutateAsync,
