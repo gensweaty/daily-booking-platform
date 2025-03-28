@@ -226,7 +226,6 @@ export const Calendar = ({
   
   // In public mode, use provided external events
   if (publicMode && Array.isArray(externalEvents)) {
-    // Make sure to preserve the original titles in external events for the business owner's view
     displayEvents = externalEvents;
     console.log(`[Calendar] Using ${displayEvents.length} external events in public mode`);
   } else {

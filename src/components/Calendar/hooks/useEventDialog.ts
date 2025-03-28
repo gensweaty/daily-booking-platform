@@ -25,15 +25,6 @@ export const useEventDialog = ({
     }
   }, [selectedEvent]);
 
-  useEffect(() => {
-    console.log('useEventDialog - selectedDate changed:', selectedDate);
-  }, [selectedDate]);
-
-  useEffect(() => {
-    console.log('useEventDialog - dialog open state changed:', isNewEventDialogOpen);
-    console.log('useEventDialog - current selectedDate:', selectedDate);
-  }, [isNewEventDialogOpen]);
-
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
       console.log('handleCreateEvent - Received data:', data);
@@ -83,6 +74,9 @@ export const useEventDialog = ({
       // Create a clean copy of the data to avoid modifying the original
       const cleanData = { ...data };
       
+      // Ensure the ID is included for the update operation
+      cleanData.id = selectedEvent.id;
+      
       // Only include business_id if it's explicitly provided and not null/undefined
       if (cleanData.business_id === null || cleanData.business_id === undefined) {
         delete cleanData.business_id;
@@ -95,8 +89,8 @@ export const useEventDialog = ({
         cleanData.business_id = selectedEvent.business_id;
       }
       
-      // Fixed: Pass the id directly in the cleanData instead of using a nested updates object
-      cleanData.id = selectedEvent.id;
+      console.log("Updating event with data:", cleanData);
+      
       const result = await updateEvent(cleanData);
       
       setSelectedEvent(null);
