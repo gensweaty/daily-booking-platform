@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
-import { parseISO } from "date-fns";
 
 interface UseEventDialogProps {
   createEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;

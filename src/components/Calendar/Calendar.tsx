@@ -54,10 +54,13 @@ export const Calendar = ({
     }
   }, [publicMode, externalEvents, events]);
 
-  // Make events available globally for the useEventDialog hook
-  if (typeof window !== 'undefined') {
-    (window as any).__CALENDAR_EVENTS__ = events;
-  }
+  // Invalidate public events query whenever related events get updated
+  useEffect(() => {
+    // When events change in dashboard mode, invalidate public events query
+    if (!publicMode && events?.length > 0 && businessId) {
+      queryClient.invalidateQueries({ queryKey: ['public-events', businessId] });
+    }
+  }, [events, publicMode, businessId, queryClient]);
 
   const {
     selectedEvent,
@@ -88,6 +91,9 @@ export const Calendar = ({
             description: "Your booking request has been sent to the business owner for approval.",
           });
           
+          // Invalidate queries to ensure both calendars stay in sync
+          queryClient.invalidateQueries({ queryKey: ['public-events', businessId] });
+          
           return result;
         } else {
           // For regular event creation in dashboard
@@ -117,10 +123,7 @@ export const Calendar = ({
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
       
-      const result = await updateEvent({
-        id: selectedEvent.id,
-        updates: data,
-      });
+      const result = await updateEvent(data);
       
       // Invalidate public events query to ensure sync
       if (businessId || selectedEvent.business_id) {
@@ -223,6 +226,7 @@ export const Calendar = ({
   
   // In public mode, use provided external events
   if (publicMode && Array.isArray(externalEvents)) {
+    // Make sure to preserve the original titles in external events for the business owner's view
     displayEvents = externalEvents;
     console.log(`[Calendar] Using ${displayEvents.length} external events in public mode`);
   } else {

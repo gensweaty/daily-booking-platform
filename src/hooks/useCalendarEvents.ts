@@ -97,7 +97,14 @@ export const useCalendarEvents = () => {
       
       console.log(`[useCalendarEvents] Retrieved ${events.length} direct events and ${approvedRequests.length} approved requests for business:`, businessId);
       
-      return combinedEvents;
+      // Make sure events are properly formatted for the calendar
+      const formattedEvents = combinedEvents.map(event => ({
+        ...event,
+        start_date: event.start_date,
+        end_date: event.end_date
+      }));
+      
+      return formattedEvents;
     } catch (err) {
       console.error("[useCalendarEvents] Failed to fetch public events:", err);
       throw err;
@@ -140,12 +147,17 @@ export const useCalendarEvents = () => {
     }
   };
 
-  const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
+  const updateEvent = async (updates: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     try {
       if (!user) throw new Error("User must be authenticated to update events");
       
+      // Get the ID from the updates object
+      const id = updates.id;
+      if (!id) throw new Error("Event ID is required for updates");
+      
       // Create a clean copy of updates to avoid modifying the original
       const cleanUpdates = { ...updates };
+      delete cleanUpdates.id; // Remove id from the updates
       
       // Only include business_id if it's explicitly provided and not null/undefined
       if (cleanUpdates.business_id === null || cleanUpdates.business_id === undefined) {
@@ -324,19 +336,21 @@ export const useCalendarEvents = () => {
 
   const createEventRequestMutation = useMutation({
     mutationFn: createEventRequest,
-    onSuccess: () => {
-      // No need to invalidate queries here as the request won't show in the calendar
-      // until approved by the business owner
+    onSuccess: (data) => {
+      // After successfully creating a request, invalidate the public events query
+      if (data?.business_id) {
+        queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
+      }
     },
   });
 
   const updateEventMutation = useMutation({
     mutationFn: updateEvent,
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       // Also invalidate public events queries for any business this event might belong to
-      if (user?.id) {
-        queryClient.invalidateQueries({ queryKey: ['public-events'] });
+      if (data?.business_id) {
+        queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
       }
     },
   });
@@ -345,7 +359,7 @@ export const useCalendarEvents = () => {
     mutationFn: deleteEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      // Also invalidate public events queries for any business this event might belong to
+      // Also invalidate public events queries for all businesses
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
     },
   });
