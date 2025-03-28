@@ -149,23 +149,23 @@ const PublicBusinessPage = () => {
           <div className="w-full h-64 md:h-80 relative mb-8">
             <img
               src={coverPhotoUrl}
-              alt={`${business.name} cover`}
+              alt={`${business?.name} cover`}
               className="w-full h-full object-cover absolute inset-0"
             />
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
               <div className="text-white text-center p-4">
-                <h1 className="text-4xl md:text-5xl font-bold mb-2">{business.name}</h1>
-                {business.description && (
-                  <p className="max-w-2xl mx-auto text-lg">{business.description}</p>
+                <h1 className="text-4xl md:text-5xl font-bold mb-2">{business?.name}</h1>
+                {business?.description && (
+                  <p className="max-w-2xl mx-auto text-lg">{business?.description}</p>
                 )}
               </div>
             </div>
           </div>
         ) : (
           <div className="py-12 px-4 sm:px-6 lg:px-8 text-center mb-8 bg-primary/10">
-            <h1 className="text-4xl font-bold mb-2">{business.name}</h1>
-            {business.description && (
-              <p className="max-w-2xl mx-auto text-lg text-muted-foreground">{business.description}</p>
+            <h1 className="text-4xl font-bold mb-2">{business?.name}</h1>
+            {business?.description && (
+              <p className="max-w-2xl mx-auto text-lg text-muted-foreground">{business?.description}</p>
             )}
           </div>
         )}

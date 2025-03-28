@@ -84,4 +84,4 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
       </div>
     </div>
   );
-};
+}

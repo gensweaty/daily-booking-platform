@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS events (
     type VARCHAR(50) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     user_id UUID REFERENCES auth.users(id),
-    business_id UUID REFERENCES businesses(id)
+    business_id UUID REFERENCES businesses(id),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Add RLS policies for events table

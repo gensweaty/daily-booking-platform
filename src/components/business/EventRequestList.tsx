@@ -41,15 +41,22 @@ export const EventRequestList = ({ eventRequests, isLoading }: EventRequestListP
 
       if (fetchError) throw fetchError;
 
-      // Create calendar event
+      // Create calendar event - don't include updated_at to let it use default value
       const { error: insertError } = await supabase
         .from('events')
         .insert({
-          ...requestData,
-          user_id: requestData.business_id,
-          id: undefined,
-          status: undefined,
-          business_id: undefined,
+          title: requestData.title,
+          start_date: requestData.start_date,
+          end_date: requestData.end_date,
+          type: requestData.type || 'appointment',
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+          user_surname: requestData.user_surname,
+          user_number: requestData.user_number,
+          social_network_link: requestData.social_network_link,
+          event_notes: requestData.event_notes,
+          payment_status: requestData.payment_status,
+          payment_amount: requestData.payment_amount,
+          business_id: requestData.business_id
         });
 
       if (insertError) throw insertError;
