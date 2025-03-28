@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -41,7 +42,6 @@ export const useCalendarEvents = () => {
     console.log("[useCalendarEvents] Fetching public events for business ID:", businessId);
     
     try {
-      // Get all events for this business - regardless of source
       // 1. Get direct events (added internally)
       const { data: directEvents, error: directEventsError } = await supabase
         .from('events')
@@ -53,6 +53,8 @@ export const useCalendarEvents = () => {
         console.error("[useCalendarEvents] Error fetching business direct events:", directEventsError);
         throw directEventsError;
       }
+      
+      console.log(`[useCalendarEvents] Retrieved ${directEvents?.length || 0} direct events for business ID:`, businessId);
       
       // 2. Get approved event requests
       const { data: approvedRequests, error: requestsError } = await supabase
@@ -66,6 +68,8 @@ export const useCalendarEvents = () => {
         console.error("[useCalendarEvents] Error fetching approved event requests:", requestsError);
         throw requestsError;
       }
+      
+      console.log(`[useCalendarEvents] Retrieved ${approvedRequests?.length || 0} approved request events for business ID:`, businessId);
       
       // Convert approved requests to event format
       const requestEvents = (approvedRequests || []).map(req => ({
@@ -88,10 +92,15 @@ export const useCalendarEvents = () => {
       // Combine both arrays for public display
       const combinedEvents = [...(directEvents || []), ...requestEvents];
       
-      console.log(`[useCalendarEvents] Retrieved ${combinedEvents.length} public events (${directEvents?.length || 0} direct events, ${approvedRequests?.length || 0} approved requests) for business:`, businessId);
+      console.log(`[useCalendarEvents] Total public events: ${combinedEvents.length} (${directEvents?.length || 0} direct + ${approvedRequests?.length || 0} requests)`);
       
       if (combinedEvents.length > 0) {
-        console.log("[useCalendarEvents] Sample public event:", combinedEvents[0]);
+        console.log("[useCalendarEvents] Sample event data:", {
+          id: combinedEvents[0].id,
+          title: combinedEvents[0].title,
+          start: combinedEvents[0].start_date,
+          type: combinedEvents[0].type || 'standard'
+        });
       }
       
       return combinedEvents;

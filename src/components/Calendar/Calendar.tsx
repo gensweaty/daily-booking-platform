@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -58,6 +59,7 @@ export const Calendar = ({
     }
   }, [publicMode, externalEvents, events]);
 
+  // Invalidate queries when events change
   useEffect(() => {
     if (!publicMode && events?.length > 0 && businessId) {
       queryClient.invalidateQueries({ queryKey: ['public-events', businessId] });
@@ -224,9 +226,10 @@ export const Calendar = ({
     setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
+  // Determine which events to display
   let displayEvents: CalendarEventType[] = [];
   
-  if (publicMode && Array.isArray(externalEvents)) {
+  if (publicMode && Array.isArray(externalEvents) && externalEvents.length > 0) {
     displayEvents = externalEvents;
     console.log(`[Calendar] Using ${displayEvents.length} external events in public mode`);
   } else {
