@@ -163,6 +163,11 @@ export const getBusiness = async () => {
 };
 
 export const createBusiness = async (business: Omit<Business, "id" | "created_at" | "user_id" | "slug">) => {
+  // Get the current user ID
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error("User not authenticated");
+  
   const slug = business.name
     .toLowerCase()
     .replace(/[^\w\s]/gi, '')
@@ -170,11 +175,19 @@ export const createBusiness = async (business: Omit<Business, "id" | "created_at
   
   const { data, error } = await supabase
     .from("businesses")
-    .insert([{ ...business, slug }])
+    .insert([{ 
+      ...business, 
+      slug,
+      user_id: user.id
+    }])
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error("Business creation error:", error);
+    throw error;
+  }
+  
   return data;
 };
 

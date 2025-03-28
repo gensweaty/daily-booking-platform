@@ -11,11 +11,14 @@ import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Business } from "@/lib/types";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabase";
 
 export const BusinessPage = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   
   const {
@@ -39,14 +42,51 @@ export const BusinessPage = () => {
   
   const handleCreateBusiness = async (formData: any, coverPhoto?: File) => {
     try {
+      console.log("Creating business with data:", formData);
       const newBusiness = await createBusiness(formData);
       
       if (coverPhoto && newBusiness) {
+        console.log("Uploading cover photo for business:", newBusiness.id);
+        
+        // Check if business_covers bucket exists
+        const { data: buckets, error: bucketsError } = await supabase
+          .storage
+          .listBuckets();
+        
+        const bucketExists = buckets?.find(b => b.name === 'business_covers');
+        
+        if (!bucketExists) {
+          console.log("Creating business_covers bucket");
+          const { error } = await supabase.storage.createBucket('business_covers', {
+            public: true
+          });
+          
+          if (error) {
+            console.error("Error creating business_covers bucket:", error);
+            toast({
+              title: "Error",
+              description: "Could not create storage for business covers. Please try again.",
+              variant: "destructive",
+            });
+          }
+        }
+        
         await uploadCoverPhoto({ file: coverPhoto, businessId: newBusiness.id });
       }
-    } catch (error) {
+      
+      toast({
+        title: "Success",
+        description: "Business created successfully!",
+      });
+      
+      setIsAddDialogOpen(false);
+    } catch (error: any) {
       console.error("Error creating business:", error);
-      throw error;
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create business. Please try again.",
+        variant: "destructive",
+      });
     }
   };
   
