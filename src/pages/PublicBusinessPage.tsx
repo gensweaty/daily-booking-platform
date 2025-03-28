@@ -31,21 +31,28 @@ const PublicBusinessPage = () => {
       // Only get events for this business, without showing personal details
       const { data, error } = await supabase
         .from('events')
-        .select('id, title, start_date, end_date, type')
+        .select('id, title, start_date, end_date, type, created_at')
         .eq('business_id', business.id);
         
       if (error) throw error;
       
-      // Sanitize the events to remove personal information
+      // Sanitize the events to remove personal information and ensure all required fields are present
       return data.map(event => ({
-        ...event,
-        // Anonymize the title for privacy
+        id: event.id,
         title: event.type === 'birthday' ? 'Birthday Event' : 'Private Event',
+        start_date: event.start_date,
+        end_date: event.end_date,
+        type: event.type,
+        created_at: event.created_at,
+        // Add empty values for the other required fields
         user_surname: undefined,
         user_number: undefined,
         social_network_link: undefined,
-        event_notes: undefined
-      }));
+        event_notes: undefined,
+        payment_status: undefined,
+        payment_amount: undefined,
+        user_id: undefined
+      })) as CalendarEventType[];
     },
     enabled: !!business?.id
   });
