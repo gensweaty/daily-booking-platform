@@ -64,13 +64,18 @@ export const useCalendarEvents = () => {
 
   const createEventRequest = async (event: Partial<CalendarEventType>): Promise<any> => {
     // No authentication check - anyone can create a request
+    // Make sure we're inserting into event_requests table
     const { data, error } = await supabase
       .from('event_requests')
       .insert([event])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error creating event request:", error);
+      throw error;
+    }
+    
     return data;
   };
 
