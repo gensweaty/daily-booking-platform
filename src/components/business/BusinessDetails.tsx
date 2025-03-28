@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -96,7 +97,7 @@ export const BusinessDetails = ({
           {business.cover_photo_path && (
             <div className="mb-4">
               <img 
-                src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/business_covers/${business.cover_photo_path}`}
+                src={`${import.meta.env.VITE_SUPABASE_URL || "https://mrueqpffzauvdxmuwhfa.supabase.co"}/storage/v1/object/public/business_covers/${business.cover_photo_path}`}
                 alt={business.name}
                 className="w-full h-48 object-cover rounded-md"
               />
