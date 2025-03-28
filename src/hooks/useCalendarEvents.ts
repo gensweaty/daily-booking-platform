@@ -37,9 +37,9 @@ export const useCalendarEvents = () => {
       return [];
     }
     
+    console.log("[useCalendarEvents] Fetching public events for business ID:", businessId);
+    
     try {
-      console.log("Fetching public events for business ID:", businessId);
-      
       const { data, error } = await supabase
         .from('events')
         .select('*')
@@ -47,17 +47,14 @@ export const useCalendarEvents = () => {
         .order('start_date', { ascending: true });
 
       if (error) {
-        console.error("Error fetching public events:", error);
+        console.error("[useCalendarEvents] Error fetching public events:", error);
         throw error;
       }
       
-      console.log(`Retrieved ${data?.length || 0} public events for business:`, businessId);
-      
-      // Sanitize events for public display - IMPORTANT: Don't anonymize here
-      // Let the CalendarView handle that based on publicMode prop
+      console.log(`[useCalendarEvents] Retrieved ${data?.length || 0} public events for business:`, businessId);
       return data;
     } catch (err) {
-      console.error("Failed to fetch public events:", err);
+      console.error("[useCalendarEvents] Failed to fetch public events:", err);
       throw err;
     }
   };

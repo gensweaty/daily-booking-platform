@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -47,9 +46,16 @@ export const Calendar = ({
   // Debug the events we're working with
   useEffect(() => {
     if (publicMode) {
-      console.log("Calendar component: Public mode with external events:", externalEvents?.length);
+      console.log("[Calendar] Public mode with external events:", externalEvents?.length || 0, "events");
+      if (externalEvents && externalEvents.length > 0) {
+        console.log("[Calendar] First few external events:", externalEvents.slice(0, 3).map(e => ({ 
+          id: e.id,
+          title: e.title,
+          start: e.start_date
+        })));
+      }
     } else {
-      console.log("Calendar component: Private mode with internal events:", events?.length);
+      console.log("[Calendar] Private mode with internal events:", events?.length || 0, "events");
     }
   }, [publicMode, externalEvents, events]);
 
@@ -197,11 +203,11 @@ export const Calendar = ({
   // In public mode, use provided external events
   if (publicMode && Array.isArray(externalEvents)) {
     displayEvents = externalEvents;
-    console.log(`Calendar is using ${displayEvents.length} external events in public mode`);
+    console.log(`[Calendar] Using ${displayEvents.length} external events in public mode`);
   } else {
     // In private mode, use internal events
     displayEvents = events || [];
-    console.log(`Calendar is using ${displayEvents.length} internal events in private mode`);
+    console.log(`[Calendar] Using ${displayEvents.length} internal events in private mode`);
   }
 
   if (error && !publicMode) {

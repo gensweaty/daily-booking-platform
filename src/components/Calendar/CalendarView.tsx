@@ -54,6 +54,14 @@ export const CalendarView = ({
     return event.title;
   };
 
+  // Log events being rendered
+  console.log(`[CalendarView] Rendering events in ${publicMode ? 'public' : 'private'} mode:`, 
+    events.length > 0 ? events.map(e => ({
+      id: e.id,
+      title: publicMode ? 'Booked' : e.title,
+      start: e.start_date
+    })) : 'No events');
+
   if (view === "month") {
     // Get the start and end of the month view
     const monthStart = startOfMonth(selectedDate);
@@ -63,8 +71,6 @@ export const CalendarView = ({
 
     // Get all days that should be shown in the calendar grid
     const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-    
-    console.log(`CalendarView: Rendering ${events.length} events in ${publicMode ? 'public' : 'private'} mode`);
 
     return (
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
@@ -74,7 +80,7 @@ export const CalendarView = ({
             isSameDay(parseISO(event.start_date), day)
           );
           
-          console.log(`CalendarView: Day ${format(day, 'yyyy-MM-dd')} has ${dayEvents.length} events`);
+          console.log(`[CalendarView] Day ${format(day, 'yyyy-MM-dd')} has ${dayEvents.length} events`);
           
           const isCurrentMonth = isSameMonth(day, selectedDate);
 

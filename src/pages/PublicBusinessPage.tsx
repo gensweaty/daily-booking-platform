@@ -1,5 +1,6 @@
+
 import React, { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useBusinessBySlug } from "@/hooks/useBusiness";
 import { Calendar } from "@/components/Calendar/Calendar";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,6 @@ const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const { data: business, isLoading, error } = useBusinessBySlug(slug);
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
@@ -34,12 +34,22 @@ const PublicBusinessPage = () => {
       if (!business?.id) return [];
       
       try {
-        console.log("PublicBusinessPage: Fetching public events for business ID:", business.id);
+        console.log("[PublicBusinessPage] Fetching public events for business ID:", business.id);
         const events = await getPublicEvents(business.id);
-        console.log("PublicBusinessPage: Fetched public events:", events);
-        return events;
+        console.log("[PublicBusinessPage] Fetched public events:", events?.length || 0);
+        
+        if (events && events.length > 0) {
+          console.log("[PublicBusinessPage] Sample event data:", events[0]);
+        }
+        
+        return events || [];
       } catch (error) {
-        console.error("Failed to fetch public events:", error);
+        console.error("[PublicBusinessPage] Failed to fetch public events:", error);
+        toast({
+          title: "Error loading calendar",
+          description: "Failed to load calendar events. Please try again later.",
+          variant: "destructive",
+        });
         return [];
       }
     },
