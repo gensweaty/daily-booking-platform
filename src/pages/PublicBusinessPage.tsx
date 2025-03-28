@@ -19,7 +19,7 @@ const PublicBusinessPage = () => {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
-  const { getPublicEvents, getAllBusinessEvents } = useCalendarEvents();
+  const { getPublicEvents } = useCalendarEvents();
   
   useEffect(() => {
     // Reset state when slug changes
@@ -27,23 +27,24 @@ const PublicBusinessPage = () => {
     setSelectedDate(null);
   }, [slug]);
   
-  // Fetch ALL events for this business (both user's events and public events)
+  // Fetch ALL events for this business for public display
   const { data: businessEvents = [], isLoading: isLoadingEvents, refetch: refetchEvents } = useQuery({
-    queryKey: ['all-business-events', business?.id],
+    queryKey: ['public-events', business?.id],
     queryFn: async () => {
       if (!business?.id) return [];
       
       try {
-        console.log("[PublicBusinessPage] Fetching ALL events for business ID:", business.id);
+        console.log("[PublicBusinessPage] Fetching ALL public events for business ID:", business.id);
         
-        // Get ALL events for this business ID (without user filtering)
-        const events = await getAllBusinessEvents(business.id);
-        console.log("[PublicBusinessPage] Fetched ALL business events:", events?.length || 0);
+        // Use the getPublicEvents function which now correctly fetches both direct events and approved requests
+        const events = await getPublicEvents(business.id);
+        
+        console.log("[PublicBusinessPage] Fetched public events:", events?.length || 0);
         
         if (events && events.length > 0) {
-          console.log("[PublicBusinessPage] Sample business event data:", events[0]);
+          console.log("[PublicBusinessPage] Sample public event data:", events[0]);
         } else {
-          console.log("[PublicBusinessPage] No events found for business");
+          console.log("[PublicBusinessPage] No events found for public business view");
         }
         
         return events || [];
@@ -58,10 +59,10 @@ const PublicBusinessPage = () => {
       }
     },
     enabled: !!business?.id,
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: 10 * 1000, // 10 seconds
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    refetchInterval: 5 * 1000 // Refresh every 5 seconds for better sync
+    refetchInterval: 15 * 1000 // Refresh every 15 seconds for better sync
   });
   
   // Retry fetching events when business changes

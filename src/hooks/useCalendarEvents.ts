@@ -41,50 +41,34 @@ export const useCalendarEvents = () => {
     console.log("[useCalendarEvents] Fetching public events for business ID:", businessId);
     
     try {
-      // Get all events for this business - both direct and from approved requests
-      const eventsPromise = supabase
+      // Get all events for this business - regardless of source
+      // 1. Get direct events (added internally)
+      const { data: directEvents, error: directEventsError } = await supabase
         .from('events')
         .select('*')
         .eq('business_id', businessId)
         .order('start_date', { ascending: true });
       
-      const requestsPromise = supabase
+      if (directEventsError) {
+        console.error("[useCalendarEvents] Error fetching business direct events:", directEventsError);
+        throw directEventsError;
+      }
+      
+      // 2. Get approved event requests
+      const { data: approvedRequests, error: requestsError } = await supabase
         .from('event_requests')
         .select('*')
         .eq('business_id', businessId)
         .eq('status', 'approved')
         .order('start_date', { ascending: true });
       
-      // Run both queries in parallel
-      const [eventsResult, requestsResult] = await Promise.all([
-        eventsPromise,
-        requestsPromise
-      ]);
-
-      if (eventsResult.error) {
-        console.error("[useCalendarEvents] Error fetching business events:", eventsResult.error);
-        throw eventsResult.error;
+      if (requestsError) {
+        console.error("[useCalendarEvents] Error fetching approved event requests:", requestsError);
+        throw requestsError;
       }
-
-      if (requestsResult.error) {
-        console.error("[useCalendarEvents] Error fetching approved event requests:", requestsResult.error);
-        throw requestsResult.error;
-      }
-      
-      const events = eventsResult.data || [];
-      const approvedRequests = requestsResult.data || [];
-      
-      // Log detailed info about fetched events
-      console.log("[useCalendarEvents] Business events details:", events.map(e => ({
-        id: e.id,
-        title: e.title,
-        start_date: e.start_date,
-        end_date: e.end_date,
-        business_id: e.business_id
-      })));
       
       // Convert approved requests to event format
-      const requestEvents = approvedRequests.map(req => ({
+      const requestEvents = (approvedRequests || []).map(req => ({
         id: req.id,
         title: req.title,
         start_date: req.start_date,
@@ -101,10 +85,14 @@ export const useCalendarEvents = () => {
         business_id: req.business_id
       }));
       
-      // Combine both arrays
-      const combinedEvents = [...events, ...requestEvents];
+      // Combine both arrays for public display
+      const combinedEvents = [...(directEvents || []), ...requestEvents];
       
-      console.log(`[useCalendarEvents] Retrieved ${combinedEvents.length} events (${events.length} direct events, ${approvedRequests.length} approved requests) for business:`, businessId);
+      console.log(`[useCalendarEvents] Retrieved ${combinedEvents.length} public events (${directEvents?.length || 0} direct events, ${approvedRequests?.length || 0} approved requests) for business:`, businessId);
+      
+      if (combinedEvents.length > 0) {
+        console.log("[useCalendarEvents] Sample public event:", combinedEvents[0]);
+      }
       
       return combinedEvents;
     } catch (err) {
@@ -391,6 +379,7 @@ export const useCalendarEvents = () => {
       
       console.log("[useCalendarEvents] Event request created successfully:", data);
       
+      // Make sure to invalidate all relevant queries for immediate UI update
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       if (event.business_id) {
