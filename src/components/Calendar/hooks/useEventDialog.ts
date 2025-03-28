@@ -87,6 +87,7 @@ export const useEventDialog = ({
       // Preserve the existing business_id if it's not being explicitly updated
       if (selectedEvent.business_id && !cleanData.hasOwnProperty('business_id')) {
         cleanData.business_id = selectedEvent.business_id;
+        console.log("Preserving existing business_id:", selectedEvent.business_id);
       }
       
       console.log("Updating event with data:", cleanData);

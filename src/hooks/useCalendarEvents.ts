@@ -117,9 +117,11 @@ export const useCalendarEvents = () => {
       // Only include business_id if it's explicitly provided and not null/undefined
       if (eventData.business_id === null || eventData.business_id === undefined) {
         delete eventData.business_id;
+      } else {
+        console.log("[useCalendarEvents] Creating event with business_id:", eventData.business_id);
       }
       
-      console.log("Creating event with data:", eventData);
+      console.log("[useCalendarEvents] Creating event with data:", eventData);
       
       const { data, error } = await supabase
         .from('events')
@@ -132,7 +134,7 @@ export const useCalendarEvents = () => {
         throw error;
       }
       
-      console.log("Event created successfully:", data);
+      console.log("[useCalendarEvents] Event created successfully:", data);
       return data;
     } catch (err) {
       console.error("Failed to create event:", err);
@@ -155,9 +157,11 @@ export const useCalendarEvents = () => {
       // Only include business_id if it's explicitly provided and not null/undefined
       if (cleanUpdates.business_id === null || cleanUpdates.business_id === undefined) {
         delete cleanUpdates.business_id;
+      } else {
+        console.log("[useCalendarEvents] Updating event with business_id:", cleanUpdates.business_id);
       }
       
-      console.log(`Updating event ${id} with:`, cleanUpdates);
+      console.log(`[useCalendarEvents] Updating event ${id} with:`, cleanUpdates);
       
       const { data, error } = await supabase
         .from('events')
@@ -172,7 +176,7 @@ export const useCalendarEvents = () => {
         throw error;
       }
       
-      console.log("Event updated successfully:", data);
+      console.log("[useCalendarEvents] Event updated successfully:", data);
       return data;
     } catch (err) {
       console.error("Failed to update event:", err);
@@ -184,7 +188,7 @@ export const useCalendarEvents = () => {
     try {
       if (!user) throw new Error("User must be authenticated to delete events");
       
-      console.log(`Deleting event ${id}`);
+      console.log(`[useCalendarEvents] Deleting event ${id}`);
       
       const { error } = await supabase
         .from('events')
@@ -197,7 +201,7 @@ export const useCalendarEvents = () => {
         throw error;
       }
       
-      console.log("Event deleted successfully");
+      console.log("[useCalendarEvents] Event deleted successfully");
     } catch (err) {
       console.error("Failed to delete event:", err);
       throw err;
@@ -212,7 +216,7 @@ export const useCalendarEvents = () => {
         throw new Error("Business ID is required for event requests");
       }
 
-      console.log("Creating event request:", event);
+      console.log("[useCalendarEvents] Creating event request:", event);
       
       // Check for conflicts before creating the request
       const startDate = new Date(event.start_date as string);
@@ -244,7 +248,7 @@ export const useCalendarEvents = () => {
         throw error;
       }
       
-      console.log("Event request created successfully:", data);
+      console.log("[useCalendarEvents] Event request created successfully:", data);
       return data;
     } catch (error) {
       console.error("Error in createEventRequest:", error);
