@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -35,41 +36,97 @@ export const useEventDialog = ({
     console.log('useEventDialog - current selectedDate:', selectedDate);
   }, [isNewEventDialogOpen]);
 
-  const checkTimeSlotAvailability = (
+  // Enhanced check for time slot availability that considers all event types
+  const checkTimeSlotAvailability = async (
     startDate: Date,
     endDate: Date,
-    existingEvents: CalendarEventType[],
+    businessId?: string,
     excludeEventId?: string
-  ): { available: boolean; conflictingEvent?: CalendarEventType } => {
+  ): Promise<{ available: boolean; conflictingEvent?: CalendarEventType }> => {
     const startTime = startDate.getTime();
     const endTime = endDate.getTime();
-
-    const conflictingEvent = existingEvents.find((event) => {
-      if (excludeEventId && event.id === excludeEventId) return false;
-      
-      const eventStart = parseISO(event.start_date).getTime();
-      const eventEnd = parseISO(event.end_date).getTime();
-
-      if (startTime === eventEnd || endTime === eventStart) {
-        return false;
+    
+    console.log(`Checking availability for time slot: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    
+    try {
+      // Fetch all events directly from Supabase to ensure we have the latest data
+      const { data: directEvents, error: directError } = await supabase
+        .from('events')
+        .select('*')
+        .or(`user_id.eq.${(window as any).__CURRENT_USER_ID__},business_id.eq.${businessId || 'null'}`)
+        .gte('start_date', startDate.toISOString().split('T')[0])
+        .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
+        
+      if (directError) {
+        console.error("Error fetching events for conflict check:", directError);
+        throw directError;
       }
+      
+      // Also fetch approved event requests if we have a business ID
+      let approvedRequests: any[] = [];
+      if (businessId) {
+        const { data: requests, error: requestsError } = await supabase
+          .from('event_requests')
+          .select('*')
+          .eq('business_id', businessId)
+          .eq('status', 'approved')
+          .gte('start_date', startDate.toISOString().split('T')[0])
+          .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
+          
+        if (requestsError) {
+          console.error("Error fetching approved requests for conflict check:", requestsError);
+        } else {
+          approvedRequests = requests || [];
+        }
+      }
+      
+      // Combine all events for checking
+      const allEvents = [...(directEvents || []), ...approvedRequests];
+      console.log(`Found ${allEvents.length} events to check for conflicts`);
+      
+      // Check for conflicts
+      const conflictingEvent = allEvents.find((event) => {
+        if (excludeEventId && event.id === excludeEventId) return false;
+        
+        const eventStart = new Date(event.start_date).getTime();
+        const eventEnd = new Date(event.end_date).getTime();
+        
+        // Exact same time slot
+        if (startTime === eventStart && endTime === eventEnd) {
+          console.log(`Conflict found: exact match with event ${event.id}`);
+          return true;
+        }
+        
+        // Start or end time falls within another event
+        if ((startTime >= eventStart && startTime < eventEnd) || 
+            (endTime > eventStart && endTime <= eventEnd)) {
+          console.log(`Conflict found: overlap with event ${event.id}`);
+          return true;
+        }
+        
+        // Event completely contains the new time slot
+        if (startTime <= eventStart && endTime >= eventEnd) {
+          console.log(`Conflict found: new event contains existing event ${event.id}`);
+          return true;
+        }
+        
+        return false;
+      });
 
-      return (
-        (startTime < eventEnd && endTime > eventStart) ||
-        (startTime === eventStart && endTime === eventEnd)
-      );
-    });
-
-    return {
-      available: !conflictingEvent,
-      conflictingEvent,
-    };
+      return {
+        available: !conflictingEvent,
+        conflictingEvent,
+      };
+    } catch (error) {
+      console.error("Error in checkTimeSlotAvailability:", error);
+      // If there's an error, we'll be cautious and say the slot is unavailable
+      return { available: false };
+    }
   };
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
       console.log('handleCreateEvent - Received data:', data);
-      const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
       
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
@@ -79,16 +136,21 @@ export const useEventDialog = ({
         end: endDate
       });
 
-      const { available, conflictingEvent } = checkTimeSlotAvailability(
+      // Store current user ID in window for conflict checks
+      if (typeof window !== 'undefined' && (window as any).__SUPABASE_AUTH_USER__?.id) {
+        (window as any).__CURRENT_USER_ID__ = (window as any).__SUPABASE_AUTH_USER__.id;
+      }
+
+      const { available, conflictingEvent } = await checkTimeSlotAvailability(
         startDate,
         endDate,
-        allEvents
+        data.business_id
       );
 
       if (!available && conflictingEvent) {
         toast({
           title: "Time Slot Unavailable",
-          description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
+          description: `This time slot conflicts with an existing booking (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
           variant: "destructive",
         });
         throw new Error("Time slot conflict");
@@ -118,22 +180,25 @@ export const useEventDialog = ({
     if (!selectedEvent) return;
     
     try {
-      const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
-      
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
 
-      const { available, conflictingEvent } = checkTimeSlotAvailability(
+      // Store current user ID in window for conflict checks
+      if (typeof window !== 'undefined' && (window as any).__SUPABASE_AUTH_USER__?.id) {
+        (window as any).__CURRENT_USER_ID__ = (window as any).__SUPABASE_AUTH_USER__.id;
+      }
+
+      const { available, conflictingEvent } = await checkTimeSlotAvailability(
         startDate,
         endDate,
-        allEvents,
+        data.business_id || selectedEvent.business_id,
         selectedEvent.id
       );
 
       if (!available && conflictingEvent) {
         toast({
           title: "Time Slot Unavailable",
-          description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
+          description: `This time slot conflicts with an existing booking (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
           variant: "destructive",
         });
         throw new Error("Time slot conflict");

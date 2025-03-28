@@ -30,6 +30,57 @@ export const EventRequestList = ({ eventRequests, isLoading }: EventRequestListP
     return format(dateObj, 'p');
   };
 
+  const checkTimeSlotAvailability = async (startDate: string, endDate: string, businessId: string): Promise<boolean> => {
+    try {
+      console.log(`Checking availability for request: ${startDate} to ${endDate} for business ${businessId}`);
+      
+      // Check for conflicts with existing events
+      const { data: events, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('business_id', businessId)
+        .gte('start_date', new Date(startDate).toISOString().split('T')[0])
+        .lte('start_date', new Date(endDate).toISOString().split('T')[0] + 'T23:59:59');
+        
+      if (eventsError) {
+        console.error("Error checking for event conflicts:", eventsError);
+        throw eventsError;
+      }
+      
+      // Check for conflicts with other approved requests
+      const { data: approvedRequests, error: requestsError } = await supabase
+        .from('event_requests')
+        .select('*')
+        .eq('business_id', businessId)
+        .eq('status', 'approved')
+        .gte('start_date', new Date(startDate).toISOString().split('T')[0])
+        .lte('start_date', new Date(endDate).toISOString().split('T')[0] + 'T23:59:59');
+        
+      if (requestsError) {
+        console.error("Error checking for approved request conflicts:", requestsError);
+        throw requestsError;
+      }
+      
+      const allEvents = [...(events || []), ...(approvedRequests || [])];
+      
+      const startTime = new Date(startDate).getTime();
+      const endTime = new Date(endDate).getTime();
+      
+      const conflictingEvent = allEvents.find(event => {
+        const eventStart = new Date(event.start_date).getTime();
+        const eventEnd = new Date(event.end_date).getTime();
+        
+        // Overlap check
+        return (startTime < eventEnd && endTime > eventStart);
+      });
+      
+      return !conflictingEvent;
+    } catch (error) {
+      console.error("Error in checkTimeSlotAvailability:", error);
+      return false;
+    }
+  };
+
   const handleApprove = async (requestId: string) => {
     try {
       console.log("Approving request:", requestId);
@@ -47,6 +98,22 @@ export const EventRequestList = ({ eventRequests, isLoading }: EventRequestListP
       }
 
       console.log("Request data:", requestData);
+      
+      // Check if time slot is available
+      const isAvailable = await checkTimeSlotAvailability(
+        requestData.start_date, 
+        requestData.end_date, 
+        requestData.business_id
+      );
+      
+      if (!isAvailable) {
+        toast({
+          title: "Time Slot Unavailable",
+          description: "This time slot conflicts with an existing booking. Please reschedule.",
+          variant: "destructive",
+        });
+        return;
+      }
       
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();

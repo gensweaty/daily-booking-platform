@@ -113,6 +113,56 @@ export const useCalendarEvents = () => {
       const eventData = { ...event, user_id: user.id };
       console.log("Creating event:", eventData);
       
+      // First check if there are any conflicts
+      const startDate = new Date(event.start_date as string);
+      const endDate = new Date(event.end_date as string);
+      
+      // Check for conflicts with existing events
+      const { data: existingEvents, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .or(`user_id.eq.${user.id},business_id.eq.${event.business_id || 'null'}`)
+        .gte('start_date', startDate.toISOString().split('T')[0])
+        .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
+        
+      if (eventsError) {
+        console.error("Error checking for existing events:", eventsError);
+        throw eventsError;
+      }
+      
+      // If we have a business ID, also check approved requests
+      let approvedRequests: any[] = [];
+      if (event.business_id) {
+        const { data: requests, error: requestsError } = await supabase
+          .from('event_requests')
+          .select('*')
+          .eq('business_id', event.business_id)
+          .eq('status', 'approved')
+          .gte('start_date', startDate.toISOString().split('T')[0])
+          .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
+          
+        if (requestsError) {
+          console.error("Error checking for approved requests:", requestsError);
+        } else {
+          approvedRequests = requests || [];
+        }
+      }
+      
+      // Check for conflicts
+      const allEvents = [...(existingEvents || []), ...approvedRequests];
+      const startTime = startDate.getTime();
+      const endTime = endDate.getTime();
+      
+      const conflict = allEvents.find(e => {
+        const eStart = new Date(e.start_date).getTime();
+        const eEnd = new Date(e.end_date).getTime();
+        return (startTime < eEnd && endTime > eStart);
+      });
+      
+      if (conflict) {
+        throw new Error("This time slot conflicts with an existing booking");
+      }
+      
       const { data, error } = await supabase
         .from('events')
         .insert([eventData])
@@ -137,6 +187,71 @@ export const useCalendarEvents = () => {
       if (!user) throw new Error("User must be authenticated to update events");
       
       console.log(`Updating event ${id} with:`, updates);
+      
+      // Check for conflicts if date/time changed
+      if (updates.start_date && updates.end_date) {
+        const startDate = new Date(updates.start_date);
+        const endDate = new Date(updates.end_date);
+        
+        // Get the event to update for its business_id
+        const { data: currentEvent, error: eventError } = await supabase
+          .from('events')
+          .select('*')
+          .eq('id', id)
+          .single();
+          
+        if (eventError) {
+          console.error("Error fetching current event:", eventError);
+          throw eventError;
+        }
+        
+        // Check existing events for conflicts
+        const { data: existingEvents, error: eventsError } = await supabase
+          .from('events')
+          .select('*')
+          .or(`user_id.eq.${user.id},business_id.eq.${currentEvent.business_id || 'null'}`)
+          .neq('id', id) // Exclude the current event
+          .gte('start_date', startDate.toISOString().split('T')[0])
+          .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
+          
+        if (eventsError) {
+          console.error("Error checking for existing events:", eventsError);
+          throw eventsError;
+        }
+        
+        // Check approved requests for conflicts
+        let approvedRequests: any[] = [];
+        if (currentEvent.business_id) {
+          const { data: requests, error: requestsError } = await supabase
+            .from('event_requests')
+            .select('*')
+            .eq('business_id', currentEvent.business_id)
+            .eq('status', 'approved')
+            .gte('start_date', startDate.toISOString().split('T')[0])
+            .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
+            
+          if (requestsError) {
+            console.error("Error checking for approved requests:", requestsError);
+          } else {
+            approvedRequests = requests || [];
+          }
+        }
+        
+        // Check for conflicts
+        const allEvents = [...(existingEvents || []), ...approvedRequests];
+        const startTime = startDate.getTime();
+        const endTime = endDate.getTime();
+        
+        const conflict = allEvents.find(e => {
+          const eStart = new Date(e.start_date).getTime();
+          const eEnd = new Date(e.end_date).getTime();
+          return (startTime < eEnd && endTime > eStart);
+        });
+        
+        if (conflict) {
+          throw new Error("This time slot conflicts with an existing booking");
+        }
+      }
       
       const { data, error } = await supabase
         .from('events')
@@ -192,6 +307,52 @@ export const useCalendarEvents = () => {
       }
 
       console.log("Creating event request:", event);
+      
+      // Check for conflicts before creating the request
+      const startDate = new Date(event.start_date as string);
+      const endDate = new Date(event.end_date as string);
+      
+      // Check existing events for conflicts
+      const { data: existingEvents, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('business_id', event.business_id)
+        .gte('start_date', startDate.toISOString().split('T')[0])
+        .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
+        
+      if (eventsError) {
+        console.error("Error checking for existing events:", eventsError);
+        throw eventsError;
+      }
+      
+      // Check approved requests for conflicts
+      const { data: approvedRequests, error: requestsError } = await supabase
+        .from('event_requests')
+        .select('*')
+        .eq('business_id', event.business_id)
+        .eq('status', 'approved')
+        .gte('start_date', startDate.toISOString().split('T')[0])
+        .lte('start_date', endDate.toISOString().split('T')[0] + 'T23:59:59');
+        
+      if (requestsError) {
+        console.error("Error checking for approved requests:", requestsError);
+        throw requestsError;
+      }
+      
+      // Check for conflicts
+      const allEvents = [...(existingEvents || []), ...(approvedRequests || [])];
+      const startTime = startDate.getTime();
+      const endTime = endDate.getTime();
+      
+      const conflict = allEvents.find(e => {
+        const eStart = new Date(e.start_date).getTime();
+        const eEnd = new Date(e.end_date).getTime();
+        return (startTime < eEnd && endTime > eStart);
+      });
+      
+      if (conflict) {
+        throw new Error("This time slot conflicts with an existing booking");
+      }
       
       // No need to attach user_id for anonymous requests
       const { data, error } = await supabase
