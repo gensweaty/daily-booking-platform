@@ -49,6 +49,20 @@ export const getEvents = async () => {
 };
 
 export const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+  // Try to get user's business ID if not provided
+  if (!event.business_id) {
+    const { data: userBusiness } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+      .maybeSingle();
+      
+    if (userBusiness?.id) {
+      event.business_id = userBusiness.id;
+      console.log("API: Found user's business ID:", userBusiness.id);
+    }
+  }
+
   const { data, error } = await supabase
     .from('events')
     .insert([event])
@@ -60,6 +74,31 @@ export const createEvent = async (event: Partial<CalendarEventType>): Promise<Ca
 };
 
 export const updateEvent = async (id: string, updates: Partial<CalendarEventType>) => {
+  // Try to get user's business ID if not provided
+  if (!updates.business_id) {
+    // First try to get the event's existing business_id
+    const { data: existingEvent } = await supabase
+      .from('events')
+      .select('business_id')
+      .eq('id', id)
+      .single();
+      
+    if (existingEvent?.business_id) {
+      updates.business_id = existingEvent.business_id;
+    } else {
+      // Try to get user's business
+      const { data: userBusiness } = await supabase
+        .from('businesses')
+        .select('id')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .maybeSingle();
+        
+      if (userBusiness?.id) {
+        updates.business_id = userBusiness.id;
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .from('events')
     .update(updates)

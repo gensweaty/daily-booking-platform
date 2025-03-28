@@ -46,11 +46,8 @@ export const useEventDialog = ({
         delete cleanData.business_id;
       } 
       
-      // If business_id is not provided, we will allow the API layer to handle it
-      // This fixes the issue where we were enforcing business_id too strictly at this layer
-      if (!cleanData.business_id) {
-        console.log("No business_id provided in form data. Using default if available.");
-      }
+      // NOTE: We're not enforcing business_id at this layer anymore
+      // This allows the API layer to handle the default business ID if available
       
       console.log('handleCreateEvent - Data for submission:', JSON.stringify(cleanData));
       

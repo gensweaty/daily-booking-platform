@@ -114,11 +114,19 @@ export const useCalendarEvents = () => {
       // Set user_id for the event
       eventData.user_id = user.id;
       
-      // Validate business_id 
-      // For calendar events in dashboard mode, we need to ensure business_id is set
+      // Get the user's business if available via Supabase query
       if (!eventData.business_id) {
-        console.error("No business ID provided when creating event");
-        throw new Error("Business ID is required to create an event");
+        // Try to get the first business owned by this user
+        const { data: userBusiness, error: businessError } = await supabase
+          .from('businesses')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+          
+        if (!businessError && userBusiness) {
+          eventData.business_id = userBusiness.id;
+          console.log("[useCalendarEvents] Found user's business ID:", userBusiness.id);
+        }
       }
       
       console.log("[useCalendarEvents] Creating event with full data:", JSON.stringify(eventData));
@@ -139,14 +147,12 @@ export const useCalendarEvents = () => {
       // Invalidate ALL relevant queries to ensure sync
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['events', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       // Also invalidate specific business ID query
-      if (eventData.business_id) {
-        queryClient.invalidateQueries({ queryKey: ['public-events', eventData.business_id] });
+      if (data.business_id) {
+        queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
       }
-      
-      // Also invalidate all public events queries to ensure complete sync
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       return data;
     } catch (err) {
@@ -190,10 +196,19 @@ export const useCalendarEvents = () => {
         console.log("[useCalendarEvents] Using existing business_id for update:", currentBusinessId);
       }
       
-      // If still no business ID, validate based on the update operation
+      // If no business ID exists, try to get the user's business
       if (!cleanUpdates.business_id) {
-        console.error("[useCalendarEvents] No business_id for event update");
-        throw new Error("Business ID is required for event updates");
+        // Try to get the first business owned by this user
+        const { data: userBusiness, error: businessError } = await supabase
+          .from('businesses')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+          
+        if (!businessError && userBusiness) {
+          cleanUpdates.business_id = userBusiness.id;
+          console.log("[useCalendarEvents] Found user's business ID for update:", userBusiness.id);
+        }
       }
       
       const { data, error } = await supabase
@@ -214,6 +229,7 @@ export const useCalendarEvents = () => {
       // Invalidate ALL relevant queries
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['events', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       // Invalidate queries for both the old and new business_id
       if (currentBusinessId) {
@@ -223,9 +239,6 @@ export const useCalendarEvents = () => {
       if (cleanUpdates.business_id && cleanUpdates.business_id !== currentBusinessId) {
         queryClient.invalidateQueries({ queryKey: ['public-events', cleanUpdates.business_id] });
       }
-      
-      // Also invalidate all public events queries to ensure complete sync
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       return data;
     } catch (err) {
@@ -265,17 +278,15 @@ export const useCalendarEvents = () => {
       
       console.log("[useCalendarEvents] Event deleted successfully");
       
-      // FIX: Invalidate ALL relevant queries
+      // Invalidate ALL relevant queries
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['events', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       // Invalidate public events query if the event had a business_id
       if (currentBusinessId) {
         queryClient.invalidateQueries({ queryKey: ['public-events', currentBusinessId] });
       }
-      
-      // FIX: Also invalidate all public events queries to ensure complete sync
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
     } catch (err) {
       console.error("[useCalendarEvents] Failed to delete event:", err);
       throw err;
@@ -326,12 +337,11 @@ export const useCalendarEvents = () => {
       console.log("[useCalendarEvents] Event request created successfully:", data);
       
       // Immediately invalidate relevant queries to ensure sync
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
+      
       if (event.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', event.business_id] });
       }
-      
-      // Also invalidate all public events queries to ensure complete sync
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
       return data;
     } catch (error) {
@@ -401,8 +411,8 @@ export const useCalendarEvents = () => {
   const { data: events = [], isLoading, error } = useQuery({
     queryKey: ['events', user?.id],
     queryFn: getEvents,
-    enabled: true, // FIX: Always enable to support both authenticated and public modes
-    staleTime: 0, // FIX: Reduce stale time to ensure fresh data
+    enabled: true, 
+    staleTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: true
   });
@@ -411,58 +421,45 @@ export const useCalendarEvents = () => {
   const createEventMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: (data) => {
-      // FIX: Invalidate ALL relevant queries
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
-      // Also invalidate public events query if the event has a business_id
       if (data?.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
       }
-      
-      // Additionally invalidate all public events to ensure complete sync
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
     },
   });
 
   const createEventRequestMutation = useMutation({
     mutationFn: createEventRequest,
     onSuccess: (data) => {
-      // After successfully creating a request, invalidate the public events query
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
+      
       if (data?.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
       }
-      
-      // Additionally invalidate all public events to ensure complete sync
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
     },
   });
 
   const updateEventMutation = useMutation({
     mutationFn: updateEvent,
     onSuccess: (data) => {
-      // FIX: Invalidate ALL relevant queries
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['public-events'] });
       
-      // Also invalidate public events queries for any business this event might belong to
       if (data?.business_id) {
         queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
       }
-      
-      // Additionally invalidate all public events to ensure complete sync
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
     },
   });
 
   const deleteEventMutation = useMutation({
     mutationFn: deleteEvent,
     onSuccess: () => {
-      // FIX: Invalidate ALL relevant queries
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      
-      // Also invalidate public events queries for all businesses
       queryClient.invalidateQueries({ queryKey: ['public-events'] });
     },
   });
