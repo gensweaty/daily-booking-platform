@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useBusinessBySlug } from "@/hooks/useBusiness";
 import { Calendar } from "@/components/Calendar/Calendar";
-import { CalendarEventType } from "@/lib/types/calendar";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, ArrowLeft, Mail, MapPin, Phone, Globe, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
@@ -35,8 +34,9 @@ const PublicBusinessPage = () => {
       if (!business?.id) return [];
       
       try {
+        console.log("PublicBusinessPage: Fetching public events for business ID:", business.id);
         const events = await getPublicEvents(business.id);
-        console.log("Fetched public events:", events);
+        console.log("PublicBusinessPage: Fetched public events:", events);
         return events;
       } catch (error) {
         console.error("Failed to fetch public events:", error);

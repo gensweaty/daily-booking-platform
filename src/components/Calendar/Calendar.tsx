@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   startOfWeek,
   endOfWeek,
@@ -43,6 +43,15 @@ export const Calendar = ({
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Debug the events we're working with
+  useEffect(() => {
+    if (publicMode) {
+      console.log("Calendar component: Public mode with external events:", externalEvents?.length);
+    } else {
+      console.log("Calendar component: Private mode with internal events:", events?.length);
+    }
+  }, [publicMode, externalEvents, events]);
 
   // Make events available globally for the useEventDialog hook
   if (typeof window !== 'undefined') {
@@ -188,11 +197,11 @@ export const Calendar = ({
   // In public mode, use provided external events
   if (publicMode && Array.isArray(externalEvents)) {
     displayEvents = externalEvents;
-    console.log("Using external events in public mode:", displayEvents.length);
+    console.log(`Calendar is using ${displayEvents.length} external events in public mode`);
   } else {
     // In private mode, use internal events
     displayEvents = events || [];
-    console.log("Using internal events in private mode:", displayEvents.length);
+    console.log(`Calendar is using ${displayEvents.length} internal events in private mode`);
   }
 
   if (error && !publicMode) {

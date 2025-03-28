@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -54,17 +53,9 @@ export const useCalendarEvents = () => {
       
       console.log(`Retrieved ${data?.length || 0} public events for business:`, businessId);
       
-      // Sanitize events for public display
-      const sanitizedEvents = data.map(event => ({
-        ...event,
-        title: 'Booked', // Generic title for all events
-        user_surname: undefined,
-        user_number: undefined,
-        social_network_link: undefined,
-        event_notes: undefined
-      }));
-      
-      return sanitizedEvents;
+      // Sanitize events for public display - IMPORTANT: Don't anonymize here
+      // Let the CalendarView handle that based on publicMode prop
+      return data;
     } catch (err) {
       console.error("Failed to fetch public events:", err);
       throw err;

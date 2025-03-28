@@ -63,6 +63,8 @@ export const CalendarView = ({
 
     // Get all days that should be shown in the calendar grid
     const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    
+    console.log(`CalendarView: Rendering ${events.length} events in ${publicMode ? 'public' : 'private'} mode`);
 
     return (
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
@@ -71,6 +73,9 @@ export const CalendarView = ({
           const dayEvents = events.filter((event) => 
             isSameDay(parseISO(event.start_date), day)
           );
+          
+          console.log(`CalendarView: Day ${format(day, 'yyyy-MM-dd')} has ${dayEvents.length} events`);
+          
           const isCurrentMonth = isSameMonth(day, selectedDate);
 
           return (
