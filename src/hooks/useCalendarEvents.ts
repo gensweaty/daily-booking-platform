@@ -97,14 +97,7 @@ export const useCalendarEvents = () => {
       
       console.log(`[useCalendarEvents] Retrieved ${events.length} direct events and ${approvedRequests.length} approved requests for business:`, businessId);
       
-      // Make sure events are properly formatted for the calendar
-      const formattedEvents = combinedEvents.map(event => ({
-        ...event,
-        start_date: event.start_date,
-        end_date: event.end_date
-      }));
-      
-      return formattedEvents;
+      return combinedEvents;
     } catch (err) {
       console.error("[useCalendarEvents] Failed to fetch public events:", err);
       throw err;
@@ -329,8 +322,12 @@ export const useCalendarEvents = () => {
   // Set up mutations for CRUD operations
   const createEventMutation = useMutation({
     mutationFn: createEvent,
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      // Also invalidate public events query if the event has a business_id
+      if (data?.business_id) {
+        queryClient.invalidateQueries({ queryKey: ['public-events', data.business_id] });
+      }
     },
   });
 

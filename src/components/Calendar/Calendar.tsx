@@ -49,8 +49,14 @@ export const Calendar = ({
   useEffect(() => {
     if (publicMode) {
       console.log("[Calendar] Public mode with external events:", externalEvents?.length || 0, "events");
+      if (externalEvents && externalEvents.length > 0) {
+        console.log("[Calendar] Sample external event:", externalEvents[0]);
+      }
     } else {
       console.log("[Calendar] Private mode with internal events:", events?.length || 0, "events");
+      if (events && events.length > 0) {
+        console.log("[Calendar] Sample internal event:", events[0]);
+      }
     }
   }, [publicMode, externalEvents, events]);
 
