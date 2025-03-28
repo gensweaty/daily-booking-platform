@@ -19,8 +19,8 @@ import { Toaster } from "@/components/ui/toaster";
 function App() {
   return (
     <LanguageProvider>
-      <AuthProvider>
-        <Router>
+      <Router>
+        <AuthProvider>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<Index />} />
@@ -33,9 +33,9 @@ function App() {
             <Route path="/business/:slug" element={<PublicBusinessPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </Router>
-        <Toaster />
-      </AuthProvider>
+          <Toaster />
+        </AuthProvider>
+      </Router>
     </LanguageProvider>
   );
 }
