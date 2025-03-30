@@ -21,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { createBookingRequest } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabase";
 
 interface BookingRequestFormProps {
   businessId: string;
@@ -62,7 +63,6 @@ export const BookingRequestForm = ({ businessId, selectedDate, onSuccess }: Book
       setIsSubmitting(true);
       console.log("Form values:", values);
       
-      // Create Date objects for start and end times
       const { date, startTime, endTime, ...otherValues } = values;
       
       const [startHour, startMinute] = startTime.split(":").map(Number);
@@ -74,7 +74,6 @@ export const BookingRequestForm = ({ businessId, selectedDate, onSuccess }: Book
       const endDate = new Date(date);
       endDate.setHours(endHour, endMinute, 0, 0);
 
-      // Check if end time is before start time
       if (endDate <= startDate) {
         toast({
           title: "Invalid Time Range",
@@ -98,7 +97,6 @@ export const BookingRequestForm = ({ businessId, selectedDate, onSuccess }: Book
 
       console.log("Submitting booking request:", requestData);
 
-      // Direct Supabase insert for booking requests to bypass API layer (as API layer might have auth constraints)
       const { data, error } = await supabase
         .from('booking_requests')
         .insert([requestData])
