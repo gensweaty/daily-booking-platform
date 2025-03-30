@@ -38,6 +38,7 @@ export const BusinessProfile = ({ existingBusiness }: BusinessProfileProps) => {
       ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/business_covers/${existingBusiness.cover_photo_path}`
       : null
   );
+  const [fileError, setFileError] = useState<string>("");
   
   const form = useForm<BusinessFormValues>({
     resolver: zodResolver(businessSchema),
@@ -61,7 +62,13 @@ export const BusinessProfile = ({ existingBusiness }: BusinessProfileProps) => {
           description: "Your business profile has been updated successfully.",
         });
       } else {
-        result = await createBusiness(data);
+        // Fix: Ensure name is provided as required by the API type
+        const businessData = {
+          name: data.name, // This is now guaranteed to be provided
+          description: data.description,
+          cover_photo_path: data.cover_photo_path,
+        };
+        result = await createBusiness(businessData);
         toast({
           title: "Business created!",
           description: "Your business profile has been created successfully.",
@@ -83,9 +90,12 @@ export const BusinessProfile = ({ existingBusiness }: BusinessProfileProps) => {
     }
   };
 
-  const handleFileUpload = (path: string) => {
-    form.setValue("cover_photo_path", path);
-    setCoverImage(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/business_covers/${path}`);
+  const handleFileChange = (file: File | null) => {
+    if (file) {
+      const path = `${crypto.randomUUID()}.${file.name.split('.').pop()}`;
+      form.setValue("cover_photo_path", path);
+      setCoverImage(URL.createObjectURL(file));
+    }
   };
 
   return (
@@ -142,12 +152,21 @@ export const BusinessProfile = ({ existingBusiness }: BusinessProfileProps) => {
 
           <div className="space-y-2">
             <Label>Cover Image (Optional)</Label>
+            {/* Fixed: Update the props to match FileUploadField's interface */}
             <FileUploadField
-              onFileUploaded={handleFileUpload}
-              currentImage={coverImage}
-              bucketName="business_covers"
-              className="w-full aspect-[3/1] border rounded-md"
+              onFileChange={handleFileChange}
+              fileError={fileError}
+              setFileError={setFileError}
             />
+            {coverImage && (
+              <div className="mt-2 relative w-full aspect-[3/1] overflow-hidden rounded-md border">
+                <img 
+                  src={coverImage} 
+                  alt="Business cover preview" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
           </div>
 
           <Button type="submit" disabled={isSubmitting}>
