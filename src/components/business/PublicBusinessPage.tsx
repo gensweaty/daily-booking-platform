@@ -110,9 +110,9 @@ export const PublicBusinessPage = () => {
             </div>
           </div>
           
-          {business.id && (
+          {business.id && business.user_id && (
             <>
-              {console.log("Rendering ExternalCalendar with businessId:", business.id)}
+              {console.log("Rendering ExternalCalendar with businessId:", business.id, "and userId:", business.user_id)}
               <ExternalCalendar businessId={business.id} />
             </>
           )}

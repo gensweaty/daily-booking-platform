@@ -34,6 +34,7 @@ interface CalendarProps {
   onViewChange?: (view: CalendarViewType) => void;
   isExternalCalendar?: boolean;
   businessId?: string;
+  businessUserId?: string | null;
   showAllEvents?: boolean;
   allowBookingRequests?: boolean;
 }
@@ -44,13 +45,15 @@ export const Calendar = ({
   onViewChange,
   isExternalCalendar = false,
   businessId,
+  businessUserId,
   showAllEvents = false,
   allowBookingRequests = false
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
-    isExternalCalendar && businessId ? businessId : undefined
+    isExternalCalendar && businessId ? businessId : undefined,
+    isExternalCalendar && businessUserId ? businessUserId : undefined
   );
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
   const [bookingStartTime, setBookingStartTime] = useState("09:00");
@@ -69,13 +72,14 @@ export const Calendar = ({
   useEffect(() => {
     console.log("Calendar props:", { 
       isExternalCalendar, 
-      businessId, 
+      businessId,
+      businessUserId, 
       allowBookingRequests,
       eventsCount: events?.length || 0,
       view,
       events
     });
-  }, [isExternalCalendar, businessId, allowBookingRequests, events, view]);
+  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view]);
 
   useEffect(() => {
     const invalidateQueries = () => {

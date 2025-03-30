@@ -1,11 +1,10 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 
-export const useCalendarEvents = (businessId?: string) => {
+export const useCalendarEvents = (businessId?: string, businessUserId?: string | null) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -31,48 +30,66 @@ export const useCalendarEvents = (businessId?: string) => {
   };
 
   const getBusinessEvents = async () => {
-    if (!businessId) return [];
-    
-    try {
-      console.log("Fetching business events for business ID:", businessId);
+    if (businessUserId) {
+      console.log("Fetching business events directly using businessUserId:", businessUserId);
       
-      // First, get the user ID associated with this business
-      const { data: businessProfile, error: businessError } = await supabase
-        .from("business_profiles")
-        .select("user_id")
-        .eq("id", businessId)
-        .single();
-        
-      if (businessError) {
-        console.error("Error fetching business profile:", businessError);
-        return [];
-      }
-      
-      if (!businessProfile?.user_id) {
-        console.error("No user_id found for business:", businessId);
-        return [];
-      }
-      
-      console.log("Found user_id for business:", businessProfile.user_id);
-      
-      // Then get events for that user
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .eq('user_id', businessProfile.user_id)
+        .eq('user_id', businessUserId)
         .order('start_date', { ascending: true });
 
       if (error) {
-        console.error("Error fetching business events:", error);
-        throw error;
+        console.error("Error fetching business events with businessUserId:", error);
+        return [];
       }
       
-      console.log("Fetched business events:", data?.length || 0, data);
+      console.log("Fetched business events with businessUserId:", data?.length || 0, data);
       return data || [];
-    } catch (error) {
-      console.error("Error fetching business events:", error);
-      return [];
     }
+    
+    if (businessId) {
+      try {
+        console.log("Fetching business events for business ID:", businessId);
+        
+        const { data: businessProfile, error: businessError } = await supabase
+          .from("business_profiles")
+          .select("user_id")
+          .eq("id", businessId)
+          .single();
+          
+        if (businessError) {
+          console.error("Error fetching business profile:", businessError);
+          return [];
+        }
+        
+        if (!businessProfile?.user_id) {
+          console.error("No user_id found for business:", businessId);
+          return [];
+        }
+        
+        console.log("Found user_id for business:", businessProfile.user_id);
+        
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('user_id', businessProfile.user_id)
+          .order('start_date', { ascending: true });
+
+        if (error) {
+          console.error("Error fetching business events:", error);
+          throw error;
+        }
+        
+        console.log("Fetched business events:", data?.length || 0, data);
+        return data || [];
+      } catch (error) {
+        console.error("Error fetching business events:", error);
+        return [];
+      }
+    }
+    
+    return [];
   };
 
   const getApprovedBookings = async () => {
@@ -81,7 +98,6 @@ export const useCalendarEvents = (businessId?: string) => {
     try {
       let businessProfileId = businessId;
       
-      // If we're in the dashboard and not external view, get the business ID for the current user
       if (!businessId && user) {
         const { data: userBusinessProfile } = await supabase
           .from("business_profiles")
@@ -114,7 +130,6 @@ export const useCalendarEvents = (businessId?: string) => {
       
       console.log("Fetched approved bookings:", data?.length || 0);
       
-      // Convert booking_requests to format compatible with CalendarEventType
       const bookingEvents = (data || []).map(booking => ({
         id: booking.id,
         title: booking.title,
@@ -191,29 +206,26 @@ export const useCalendarEvents = (businessId?: string) => {
     });
   };
 
-  // Query for user events (used in dashboard)
   const { data: events = [], isLoading: isLoadingUserEvents, error: userEventsError } = useQuery({
     queryKey: ['events', user?.id],
     queryFn: getEvents,
-    enabled: !!user && !businessId, // Only fetch user events when in dashboard mode
-    staleTime: 1000 * 60, // 1 minute
-    refetchInterval: 2000, // Refresh every 2 seconds for better sync
-  });
-
-  // Query for business events (used in external calendar)
-  const { data: businessEvents = [], isLoading: isLoadingBusinessEvents, error: businessEventsError } = useQuery({
-    queryKey: ['business-events', businessId],
-    queryFn: getBusinessEvents,
-    enabled: !!businessId, // Only fetch business events when business ID is provided
+    enabled: !!user && !businessId,
     staleTime: 1000 * 60,
     refetchInterval: 2000,
   });
 
-  // Query for approved booking requests that should appear on both calendars
+  const { data: businessEvents = [], isLoading: isLoadingBusinessEvents, error: businessEventsError } = useQuery({
+    queryKey: ['business-events', businessId, businessUserId],
+    queryFn: getBusinessEvents,
+    enabled: !!businessId || !!businessUserId,
+    staleTime: 1000 * 60,
+    refetchInterval: 2000,
+  });
+
   const { data: approvedBookings = [], isLoading: isLoadingBookings } = useQuery({
     queryKey: ['approved-bookings', user?.id, businessId],
     queryFn: getApprovedBookings,
-    enabled: !!businessId || !!user, // Enable as long as we have either businessId or user
+    enabled: !!businessId || !!user,
     staleTime: 1000 * 60,
     refetchInterval: 2000,
   });
@@ -245,21 +257,21 @@ export const useCalendarEvents = (businessId?: string) => {
     },
   });
 
-  // Combine events with approved bookings for display
   const allEvents = businessId 
-    ? [...businessEvents, ...approvedBookings]  // For external calendar, show business events + approved bookings
-    : [...events, ...approvedBookings];        // For dashboard, show user events + approved bookings
+    ? [...businessEvents, ...approvedBookings]
+    : [...events, ...approvedBookings];
 
   console.log("useCalendarEvents combined data:", {
     userEvents: events.length,
     businessEvents: businessEvents.length,
     approvedBookings: approvedBookings.length,
     combined: allEvents.length,
-    isExternalCalendar: !!businessId
+    isExternalCalendar: !!businessId,
+    businessUserId
   });
 
   return {
-    events: allEvents, // Always return the combined list of events
+    events: allEvents,
     isLoading: businessId ? (isLoadingBusinessEvents || isLoadingBookings) : (isLoadingUserEvents || isLoadingBookings),
     error: businessId ? businessEventsError : userEventsError,
     createEvent: createEventMutation?.mutateAsync,
