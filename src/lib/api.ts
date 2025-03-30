@@ -85,7 +85,7 @@ export const getAllBusinessEvents = async (businessId: string) => {
     
     console.log(`API: Retrieved ${allRequests?.length || 0} event requests`);
     
-    // Convert all requests to event format
+    // Convert all requests to event format with special status field
     const requestEvents = (allRequests || []).map(req => ({
       id: req.id,
       title: req.title,
@@ -119,7 +119,7 @@ export const getAllBusinessEvents = async (businessId: string) => {
           id: e.id,
           title: e.title,
           start: e.start_date,
-          status: (e as any).status // Log status if available
+          status: (e as any).status || 'direct' // Log status if available
         }))
       );
     }

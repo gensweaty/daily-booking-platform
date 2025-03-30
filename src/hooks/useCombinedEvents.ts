@@ -13,7 +13,7 @@ export const useCombinedEvents = (businessId?: string) => {
   const [combinedEvents, setCombinedEvents] = useState<CalendarEventType[]>([]);
   const queryClient = useQueryClient();
 
-  // Fetch direct events from the events table
+  // Fetch direct events from the events table with shorter stale time
   const { data: directEvents, isLoading: isLoadingDirect, error: directError } = useQuery({
     queryKey: ['direct-business-events', businessId],
     queryFn: async () => {
@@ -43,7 +43,8 @@ export const useCombinedEvents = (businessId?: string) => {
     enabled: !!businessId,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    staleTime: 1000, // 1 second
+    staleTime: 500, // 500ms - much shorter stale time for more frequent refreshes
+    refetchInterval: 2000, // Refresh every 2 seconds
   });
 
   // Fetch ALL event requests (not just approved ones)
@@ -76,7 +77,8 @@ export const useCombinedEvents = (businessId?: string) => {
     enabled: !!businessId,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    staleTime: 1000, // 1 second
+    staleTime: 500, // 500ms - much shorter stale time
+    refetchInterval: 2000, // Refresh every 2 seconds
   });
   
   // Fetch combined events directly from API as a backup
@@ -99,28 +101,32 @@ export const useCombinedEvents = (businessId?: string) => {
     enabled: !!businessId,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    staleTime: 1000, // 1 second
+    staleTime: 500, // 500ms - much shorter stale time
+    refetchInterval: 2000, // Refresh every 2 seconds
   });
 
   // Force refetch to ensure we have the latest data
   useEffect(() => {
     if (businessId) {
-      // Invalidate queries to force refresh
-      queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
-      queryClient.invalidateQueries({ queryKey: ['all-event-requests', businessId] });
-      queryClient.invalidateQueries({ queryKey: ['api-combined-events', businessId] });
-      
-      // Schedule additional refetch after a short delay to catch any new updates
-      const timer = setTimeout(() => {
+      // Set up aggressive periodic refresh
+      const refreshFunction = () => {
         if (businessId) {
+          console.log("[useCombinedEvents] Aggressive refresh for business:", businessId);
+          // Force immediate data refetching
           queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
           queryClient.invalidateQueries({ queryKey: ['all-event-requests', businessId] });
           queryClient.invalidateQueries({ queryKey: ['api-combined-events', businessId] });
           refetchApi();
         }
-      }, 1000);
+      };
       
-      return () => clearTimeout(timer);
+      // Initial refresh
+      refreshFunction();
+      
+      // Set up an aggressive refresh interval (every 2 seconds)
+      const refreshInterval = setInterval(refreshFunction, 2000);
+      
+      return () => clearInterval(refreshInterval);
     }
   }, [businessId, queryClient, refetchApi]);
 
@@ -135,6 +141,17 @@ export const useCombinedEvents = (businessId?: string) => {
     
     // First try the separate queries (direct events + all requests)
     if (directEvents && allRequests) {
+      // Log direct events received
+      console.log(`[useCombinedEvents] Processing ${directEvents.length} direct events and ${allRequests.length} requests`);
+      
+      if (directEvents.length > 0) {
+        console.log("[useCombinedEvents] Sample direct event:", JSON.stringify(directEvents[0]));
+      }
+      
+      if (allRequests.length > 0) {
+        console.log("[useCombinedEvents] Sample request:", JSON.stringify(allRequests[0]));
+      }
+      
       // Format all requests to match the CalendarEventType
       const requestEvents: CalendarEventType[] = allRequests.map(req => ({
         id: req.id,
@@ -168,7 +185,7 @@ export const useCombinedEvents = (businessId?: string) => {
       console.log(`[useCombinedEvents] Using API fetched events (${apiEvents.length}) as fallback`);
     }
     
-    console.log(`[useCombinedEvents] Total events: ${allEvents.length}`);
+    console.log(`[useCombinedEvents] Final events count: ${allEvents.length}`);
     
     // Log event dates to help debug
     if (allEvents.length > 0) {
@@ -185,18 +202,20 @@ export const useCombinedEvents = (businessId?: string) => {
     setCombinedEvents(allEvents);
   }, [directEvents, allRequests, apiEvents, businessId]);
 
+  const aggressiveRefetch = () => {
+    console.log(`[useCombinedEvents] Manually triggering aggressive refetch for business: ${businessId}`);
+    if (businessId) {
+      queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['all-event-requests', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['api-combined-events', businessId] });
+      refetchApi();
+    }
+  };
+
   return {
     events: combinedEvents,
     isLoading: isLoadingDirect || isLoadingRequests || isLoadingApi,
     error: directError || requestsError,
-    refetch: () => {
-      console.log(`[useCombinedEvents] Manually triggering refetch for business: ${businessId}`);
-      if (businessId) {
-        queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
-        queryClient.invalidateQueries({ queryKey: ['all-event-requests', businessId] });
-        queryClient.invalidateQueries({ queryKey: ['api-combined-events', businessId] });
-        refetchApi();
-      }
-    }
+    refetch: aggressiveRefetch
   };
 };

@@ -6,7 +6,7 @@ import { useEventAvailability } from "./useEventAvailability";
 
 export const useCalendarEvents = () => {
   const { events, isLoading, error, refetch, getPublicEvents, getAllBusinessEvents } = useEventFetching();
-  const { createEvent, updateEvent, deleteEvent, invalidateAllEventQueries, fetchAllEvents } = useEventMutations();
+  const { createEvent, updateEvent, deleteEvent, invalidateAllEventQueries } = useEventMutations();
   const { createEventRequest } = useEventCreation();
   const { checkTimeSlotAvailability } = useEventAvailability();
 
@@ -32,6 +32,5 @@ export const useCalendarEvents = () => {
     // Utilities
     checkTimeSlotAvailability,
     invalidateAllEventQueries,
-    fetchAllEvents,
   };
 };

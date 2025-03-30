@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -11,19 +10,52 @@ export const useEventMutations = () => {
 
   const invalidateAllEventQueries = (businessId?: string) => {
     console.log("[useEventMutations] Invalidating all event queries");
+    
+    // Invalidate all general event queries
     queryClient.invalidateQueries({ queryKey: ['events'] });
     
     if (user?.id) {
       queryClient.invalidateQueries({ queryKey: ['events', user.id] });
     }
     
+    // Invalidate all public event queries
     queryClient.invalidateQueries({ queryKey: ['public-events'] });
     queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
     
+    // Invalidate the business-specific queries
     if (businessId) {
       console.log(`[useEventMutations] Invalidating business events for ID: ${businessId}`);
       queryClient.invalidateQueries({ queryKey: ['public-events', businessId] });
       queryClient.invalidateQueries({ queryKey: ['all-business-events', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['all-event-requests', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['api-combined-events', businessId] });
+    }
+    
+    // Try to find the user's business and invalidate its queries too
+    if (user?.id) {
+      const checkUserBusiness = async () => {
+        try {
+          const { data: userBusiness } = await supabase
+            .from('businesses')
+            .select('id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+            
+          if (userBusiness?.id && userBusiness.id !== businessId) {
+            console.log(`[useEventMutations] Also invalidating user's business: ${userBusiness.id}`);
+            queryClient.invalidateQueries({ queryKey: ['public-events', userBusiness.id] });
+            queryClient.invalidateQueries({ queryKey: ['all-business-events', userBusiness.id] });
+            queryClient.invalidateQueries({ queryKey: ['direct-business-events', userBusiness.id] });
+            queryClient.invalidateQueries({ queryKey: ['all-event-requests', userBusiness.id] });
+            queryClient.invalidateQueries({ queryKey: ['api-combined-events', userBusiness.id] });
+          }
+        } catch (error) {
+          console.error("[useEventMutations] Error finding user's business:", error);
+        }
+      };
+      
+      checkUserBusiness();
     }
     
     fetchAllEvents();

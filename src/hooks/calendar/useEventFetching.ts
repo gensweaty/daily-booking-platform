@@ -1,7 +1,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const useEventFetching = () => {
@@ -54,7 +53,7 @@ export const useEventFetching = () => {
       
       console.log(`[useEventFetching] Retrieved ${directEvents?.length || 0} direct events for business ID:`, businessId);
       
-      // 2. Get approved event requests - IMPORTANT: We'll include ALL event requests, not just approved ones
+      // 2. Get ALL event requests (not just approved ones)
       const { data: eventRequests, error: requestsError } = await supabase
         .from('event_requests')
         .select('*')
@@ -68,7 +67,7 @@ export const useEventFetching = () => {
       
       console.log(`[useEventFetching] Retrieved ${eventRequests?.length || 0} request events for business ID:`, businessId);
       
-      // Convert event requests to event format (INCLUDE ALL, not just approved ones)
+      // Convert ALL event requests to event format
       const requestEvents = (eventRequests || []).map(req => ({
         id: req.id,
         title: req.title,
@@ -84,7 +83,7 @@ export const useEventFetching = () => {
         payment_status: req.payment_status,
         payment_amount: req.payment_amount,
         business_id: req.business_id,
-        status: req.status // Include the status so we can visually differentiate in UI if needed
+        status: req.status // Include the status for filtering in UI
       }));
       
       // Combine both arrays for public display
@@ -97,7 +96,8 @@ export const useEventFetching = () => {
           id: combinedEvents[0].id,
           title: combinedEvents[0].title,
           start: combinedEvents[0].start_date,
-          type: combinedEvents[0].type || 'standard'
+          type: combinedEvents[0].type || 'standard',
+          status: combinedEvents[0].status || 'direct'
         });
       }
       
@@ -174,7 +174,8 @@ export const useEventFetching = () => {
           id: allEvents[0].id,
           title: allEvents[0].title,
           start: allEvents[0].start_date,
-          type: allEvents[0].type || 'standard'
+          type: allEvents[0].type || 'standard',
+          status: allEvents[0].status || 'direct'
         });
       }
       
@@ -189,10 +190,10 @@ export const useEventFetching = () => {
     queryKey: ['events', user?.id],
     queryFn: getEvents,
     enabled: !!user, 
-    staleTime: 30 * 1000,
+    staleTime: 500, // Very short stale time to force more frequent refreshes
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    refetchInterval: 30 * 1000,
+    refetchInterval: 2000, // Refresh every 2 seconds
   });
 
   return {

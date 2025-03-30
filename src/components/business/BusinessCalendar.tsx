@@ -7,7 +7,6 @@ import { CalendarIcon, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect } from "react";
 import { EventRequestsTable } from "./EventRequestsTable";
-import { getAllBusinessEvents } from "@/lib/api";
 
 interface BusinessCalendarProps {
   businessId: string;
@@ -25,25 +24,11 @@ export const BusinessCalendar = ({ businessId }: BusinessCalendarProps) => {
       // Immediate refresh
       refetch();
       
-      // Also fetch directly from API to ensure data is up-to-date
-      const fetchDirectData = async () => {
-        try {
-          console.log("[BusinessCalendar] Direct API fetch for business:", businessId);
-          const allEvents = await getAllBusinessEvents(businessId);
-          console.log(`[BusinessCalendar] Direct fetch retrieved ${allEvents.length} events`);
-        } catch (err) {
-          console.error("[BusinessCalendar] Error in direct API fetch:", err);
-        }
-      };
-      
-      fetchDirectData();
-      
-      // Set up more frequent refreshes (every 5 seconds)
+      // Set up very frequent refreshes (every 2 seconds)
       const intervalId = setInterval(() => {
-        console.log("[BusinessCalendar] Periodic refresh for business ID:", businessId);
+        console.log("[BusinessCalendar] Aggressive refresh for business ID:", businessId);
         refetch();
-        fetchDirectData();
-      }, 5000); // Reduced from 10 seconds to 5 seconds for better synchronization
+      }, 2000); // Refresh every 2 seconds for better synchronization
       
       return () => clearInterval(intervalId);
     }
@@ -85,6 +70,11 @@ export const BusinessCalendar = ({ businessId }: BusinessCalendarProps) => {
       </CardHeader>
       <CardContent className="pt-6">
         <TabsContent value="calendar" className="mt-0">
+          {events && events.length > 0 && (
+            <div className="mb-2 text-sm text-muted-foreground">
+              {events.length} events showing in calendar
+            </div>
+          )}
           <Calendar 
             defaultView="week" 
             businessId={businessId} 

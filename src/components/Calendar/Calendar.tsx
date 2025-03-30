@@ -10,6 +10,22 @@ interface CalendarProps {
   fromDashboard?: boolean;
 }
 
-export const Calendar = (props: CalendarProps) => {
-  return <CalendarContainer {...props} />;
+export const Calendar = ({
+  defaultView = "month",
+  publicMode = false,
+  externalEvents,
+  businessId,
+  fromDashboard = false
+}: CalendarProps) => {
+  console.log(`[Calendar] Rendering with ${externalEvents?.length || 0} external events, publicMode: ${publicMode}, businessId: ${businessId}`);
+  
+  return (
+    <CalendarContainer 
+      defaultView={defaultView}
+      publicMode={publicMode}
+      externalEvents={externalEvents}
+      businessId={businessId} 
+      fromDashboard={fromDashboard}
+    />
+  );
 };

@@ -1,13 +1,12 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getBusinessBySlug, getAllBusinessEvents } from '@/lib/api';
+import { getBusinessBySlug } from '@/lib/api';
 import { Business } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar } from '@/components/Calendar/Calendar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LanguageProvider } from '@/contexts/LanguageContext';
-import { CalendarEventType } from '@/lib/types/calendar';
 import { useToast } from '@/components/ui/use-toast';
 import { useCombinedEvents } from '@/hooks/useCombinedEvents';
 
@@ -48,30 +47,16 @@ export const PublicBusinessPage = () => {
   // Set up frequent refresh for events
   useEffect(() => {
     if (business?.id) {
-      console.log("[PublicBusinessPage] Setting up event refresh for business:", business.id);
+      console.log("[PublicBusinessPage] Setting up aggressive event refresh for business:", business.id);
       
       // Immediate refresh
       refetch();
       
-      // Also fetch directly from API to ensure data is up-to-date
-      const fetchDirectData = async () => {
-        try {
-          console.log("[PublicBusinessPage] Direct API fetch for business:", business.id);
-          const allEvents = await getAllBusinessEvents(business.id);
-          console.log(`[PublicBusinessPage] Direct fetch retrieved ${allEvents.length} events`);
-        } catch (err) {
-          console.error("[PublicBusinessPage] Error in direct API fetch:", err);
-        }
-      };
-      
-      fetchDirectData();
-      
-      // Set up very frequent refresh (5 seconds)
+      // Set up very frequent refresh (every 2 seconds)
       const intervalId = setInterval(() => {
-        console.log("[PublicBusinessPage] Refreshing events data");
+        console.log("[PublicBusinessPage] Aggressive refresh of events data");
         refetch();
-        fetchDirectData();
-      }, 5000); // Refresh every 5 seconds for better synchronization
+      }, 2000);
       
       return () => clearInterval(intervalId);
     }
@@ -149,6 +134,7 @@ export const PublicBusinessPage = () => {
                     publicMode={true} 
                     externalEvents={events}
                     businessId={business.id}
+                    fromDashboard={false}
                   />
                 </>
               )}

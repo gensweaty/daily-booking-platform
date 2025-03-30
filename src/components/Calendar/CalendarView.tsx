@@ -1,3 +1,4 @@
+
 import { format, isSameDay, parseISO, isSameMonth, endOfMonth, startOfMonth, eachDayOfInterval, startOfWeek, endOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -67,24 +68,48 @@ export const CalendarView = ({
     }
   };
 
+  // Make sure we have valid events
   const validEvents = events?.filter(event => {
     const startDate = safeParseDate(event.start_date);
     return !!startDate;
   }) || [];
 
-  console.log(`[CalendarView] Rendering with ${validEvents.length} events in ${publicMode ? 'public' : 'private'} mode`);
+  console.log(`[CalendarView] Rendering with ${validEvents.length} valid events in ${publicMode ? 'public' : 'private'} mode`);
   if (validEvents.length > 0) {
     console.log("[CalendarView] First few events:", 
       validEvents.slice(0, 3).map(e => ({
         id: e.id,
         title: e.title,
-        start: e.start_date
+        start: e.start_date,
+        status: (e as any).status || 'unknown' // Log status if available
       }))
     );
   }
 
+  // For public mode, just show "Booked" instead of actual event title
   const getEventDisplayTitle = (event: CalendarEventType) => {
     return publicMode ? "Booked" : event.title;
+  };
+
+  // Get event color based on status
+  const getEventColorClass = (event: CalendarEventType) => {
+    // In public mode, all events look the same
+    if (publicMode) return "bg-secondary text-secondary-foreground";
+    
+    // For private mode (dashboard), color-code based on type or status
+    if (event.type === "birthday") {
+      return "bg-primary text-primary-foreground";
+    }
+    
+    // If it's an event request, color it differently based on status
+    if ((event as any).status === 'pending') {
+      return "bg-yellow-500 text-white";
+    } else if ((event as any).status === 'rejected') {
+      return "bg-red-500 text-white";
+    }
+    
+    // Default for regular events or approved requests
+    return "bg-secondary text-secondary-foreground";
   };
 
   if (view === "month") {
@@ -121,11 +146,9 @@ export const CalendarView = ({
                 {dayEvents.length > 0 && dayEvents.map((event) => (
                   <div
                     key={event.id}
-                    className={`text-xs sm:text-sm p-1 rounded ${
-                      event.type === "birthday"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground"
-                    } ${!publicMode ? 'cursor-pointer' : ''} truncate hover:opacity-80 transition-opacity ${
+                    className={`text-xs sm:text-sm p-1 rounded ${getEventColorClass(event)} ${
+                      !publicMode ? 'cursor-pointer' : ''
+                    } truncate hover:opacity-80 transition-opacity ${
                       !isCurrentMonth ? 'opacity-60' : ''
                     }`}
                     onClick={(e) => {
@@ -202,9 +225,7 @@ export const CalendarView = ({
                   <div
                     key={event.id}
                     className={`absolute left-0.5 right-0.5 rounded px-0.5 sm:px-2 py-1 text-[10px] sm:text-sm ${
-                      event.type === "birthday"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground"
+                      getEventColorClass(event)
                     } ${!publicMode ? 'cursor-pointer' : ''} overflow-hidden hover:opacity-80 transition-opacity`}
                     style={{
                       top: `${top}px`,
