@@ -44,6 +44,19 @@ export const BusinessPage = () => {
     window.open(url, "_blank");
   };
 
+  // Wrapper functions to ensure Promise<void> return types
+  const handleApproveRequest = async (id: string): Promise<void> => {
+    await approveRequest(id);
+  };
+
+  const handleRejectRequest = async (id: string): Promise<void> => {
+    await rejectRequest(id);
+  };
+
+  const handleDeleteRequest = async (id: string): Promise<void> => {
+    await deleteBookingRequest(id);
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center p-8">
@@ -137,9 +150,9 @@ export const BusinessPage = () => {
                     <BookingRequestsList
                       requests={pendingRequests}
                       type="pending"
-                      onApprove={approveRequest}
-                      onReject={rejectRequest}
-                      onDelete={deleteBookingRequest}
+                      onApprove={handleApproveRequest}
+                      onReject={handleRejectRequest}
+                      onDelete={handleDeleteRequest}
                     />
                   </TabsContent>
 
@@ -147,7 +160,7 @@ export const BusinessPage = () => {
                     <BookingRequestsList
                       requests={approvedRequests}
                       type="approved"
-                      onDelete={deleteBookingRequest}
+                      onDelete={handleDeleteRequest}
                     />
                   </TabsContent>
 
@@ -155,7 +168,7 @@ export const BusinessPage = () => {
                     <BookingRequestsList
                       requests={rejectedRequests}
                       type="rejected"
-                      onDelete={deleteBookingRequest}
+                      onDelete={handleDeleteRequest}
                     />
                   </TabsContent>
                 </Tabs>
