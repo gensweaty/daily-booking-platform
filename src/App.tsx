@@ -9,7 +9,7 @@ import {
 import Index from './pages/Index';
 import Contact from './pages/Contact';
 import Legal from './pages/Legal';
-import PublicBusinessPage from "@/pages/PublicBusinessPage";
+import { PublicBusinessPage } from "@/pages/PublicBusinessPage";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ForgotPassword } from "@/components/ForgotPassword";
 import { ResetPassword } from "@/components/ResetPassword";
