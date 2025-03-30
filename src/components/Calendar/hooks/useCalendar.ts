@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { startOfWeek, endOfWeek, eachDayOfInterval, addDays, startOfMonth, endOfMonth, addMonths, subMonths, startOfDay } from "date-fns";
 import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
@@ -24,7 +23,6 @@ export const useCalendar = (
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Force refresh data when businessId changes or component mounts
   useEffect(() => {
     if (businessId) {
       console.log("[useCalendar] Invalidating queries for business:", businessId);
@@ -45,7 +43,6 @@ export const useCalendar = (
         
         fetchDirectData();
         
-        // Set up periodic refresh
         const intervalId = setInterval(() => {
           console.log("[useCalendar] Periodic refresh for business data");
           fetchDirectData();
@@ -273,14 +270,12 @@ export const useCalendar = (
     user,
     navigate,
     
-    // Dialog state
     selectedEvent,
     setSelectedEvent,
     isNewEventDialogOpen,
     setIsNewEventDialogOpen,
     dialogSelectedDate,
     
-    // Handlers
     setView,
     handlePrevious,
     handleNext,
@@ -290,7 +285,6 @@ export const useCalendar = (
     handleUpdateEvent,
     handleDeleteEvent,
     
-    // Business ID for context
     businessId
   };
 };
