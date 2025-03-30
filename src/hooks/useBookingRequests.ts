@@ -5,18 +5,27 @@ import { BookingRequest } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
-export const useBookingRequests = (businessId: string | undefined) => {
+export const useBookingRequests = (businessId?: string) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
 
+  // This function now fetches booking requests for a business owner
   const getBookingRequests = async (): Promise<BookingRequest[]> => {
     if (!user?.id) return [];
+    
+    const { data: userBusinessProfile } = await supabase
+      .from("business_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    
+    if (!userBusinessProfile?.id) return [];
     
     const { data, error } = await supabase
       .from("booking_requests")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("business_id", userBusinessProfile.id)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -43,11 +52,19 @@ export const useBookingRequests = (businessId: string | undefined) => {
   const updateBookingRequest = async ({ id, updates }: { id: string; updates: Partial<BookingRequest> }): Promise<BookingRequest> => {
     if (!user?.id) throw new Error("User ID is required to update a booking request");
     
+    const { data: userBusinessProfile } = await supabase
+      .from("business_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    
+    if (!userBusinessProfile?.id) throw new Error("You don't have permission to update this booking request");
+    
     const { data, error } = await supabase
       .from("booking_requests")
       .update(updates)
       .eq("id", id)
-      .eq("user_id", user.id)
+      .eq("business_id", userBusinessProfile.id)
       .select()
       .single();
 
@@ -58,11 +75,19 @@ export const useBookingRequests = (businessId: string | undefined) => {
   const deleteBookingRequest = async (id: string): Promise<void> => {
     if (!user?.id) throw new Error("User ID is required to delete a booking request");
     
+    const { data: userBusinessProfile } = await supabase
+      .from("business_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    
+    if (!userBusinessProfile?.id) throw new Error("You don't have permission to delete this booking request");
+    
     const { error } = await supabase
       .from("booking_requests")
       .delete()
       .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("business_id", userBusinessProfile.id);
 
     if (error) throw error;
   };

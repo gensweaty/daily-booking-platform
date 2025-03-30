@@ -20,7 +20,7 @@ export const PublicBusinessPage = () => {
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(true); // Changed to true by default
 
   const { data: business, isLoading } = useQuery({
     queryKey: ["businessProfile", slug],
