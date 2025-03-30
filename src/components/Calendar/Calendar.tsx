@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -48,12 +47,10 @@ export const Calendar = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Make events available globally for the useEventDialog hook
   if (typeof window !== 'undefined') {
     (window as any).__CALENDAR_EVENTS__ = isPublic ? publicEvents : events;
   }
 
-  // Load public events when in public mode
   useEffect(() => {
     if (isPublic && publicBusinessId) {
       const fetchPublicEvents = async () => {
@@ -85,25 +82,20 @@ export const Calendar = ({
     }
   }, [isPublic, publicBusinessId]);
 
-  // Regular refresh for sync purposes
   useEffect(() => {
     if (!isPublic) {
-      // Initial fetch
       queryClient.invalidateQueries({ queryKey: ['events'] });
       
-      // Set up regular refresh interval
       const intervalId = setInterval(() => {
         queryClient.invalidateQueries({ queryKey: ['events'] });
-      }, 15000); // Refresh every 15 seconds
+      }, 15000);
       
       return () => clearInterval(intervalId);
     }
   }, [queryClient, isPublic]);
 
-  // Add a refresh mechanism for public events as well
   useEffect(() => {
     if (isPublic && publicBusinessId) {
-      // Set up refresh interval for public events
       const refreshPublicEvents = async () => {
         try {
           const { data, error } = await supabase
@@ -138,7 +130,7 @@ export const Calendar = ({
   } = useEventDialog({
     createEvent: async (data) => {
       const result = await createEvent(data);
-      return result;
+      return result as any;
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
@@ -146,7 +138,7 @@ export const Calendar = ({
         id: selectedEvent.id,
         updates: data,
       });
-      return result;
+      return result as any;
     },
     deleteEvent: async (id) => {
       await deleteEvent(id);
@@ -216,9 +208,7 @@ export const Calendar = ({
     const clickedDate = new Date(date);
     clickedDate.setHours(hour || 9, 0, 0, 0);
     
-    // First set the date
     setDialogSelectedDate(clickedDate);
-    // Then open the dialog
     setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
@@ -226,9 +216,7 @@ export const Calendar = ({
     const now = new Date();
     now.setHours(9, 0, 0, 0);
     
-    // First set the date
     setDialogSelectedDate(now);
-    // Then open the dialog
     setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
@@ -249,7 +237,6 @@ export const Calendar = ({
     );
   }
 
-  // Use the appropriate events based on whether we're in public mode or not
   const displayEvents = isPublic ? publicEvents : events || [];
   
   console.log(`Calendar: Rendering with ${displayEvents.length} events, isPublic=${isPublic}, publicBusinessId=${publicBusinessId}`);
@@ -271,7 +258,7 @@ export const Calendar = ({
         <div className="flex-1">
           <CalendarView
             days={getDaysForView()}
-            events={displayEvents}
+            events={displayEvents as any}
             selectedDate={selectedDate}
             view={view}
             onDayClick={handleCalendarDayClick}
@@ -284,7 +271,7 @@ export const Calendar = ({
       {!isPublic && (
         <>
           <EventDialog
-            key={dialogSelectedDate?.getTime()} // Force re-render when date changes
+            key={dialogSelectedDate?.getTime()}
             open={isNewEventDialogOpen}
             onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
@@ -293,10 +280,10 @@ export const Calendar = ({
 
           {selectedEvent && (
             <EventDialog
-              key={selectedEvent.id} // Force re-render when event changes
+              key={selectedEvent.id}
               open={!!selectedEvent}
               onOpenChange={() => setSelectedEvent(null)}
-              selectedDate={new Date(selectedEvent.start_date)} // Use the actual event start date
+              selectedDate={new Date(selectedEvent.start_date)}
               event={selectedEvent}
               onSubmit={handleUpdateEvent}
               onDelete={handleDeleteEvent}

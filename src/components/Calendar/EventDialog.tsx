@@ -1,8 +1,7 @@
-
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { CalendarEventType } from "@/lib/types/calendar";
+import { CalendarEventType } from "@/types/database";
 import { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
@@ -54,11 +53,9 @@ export const EventDialog = ({
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     } else if (selectedDate) {
-      // Create a new date object to prevent mutation
       const start = new Date(selectedDate.getTime());
       const end = new Date(selectedDate.getTime());
       
-      // Always set to 9 AM for the clicked date
       start.setHours(9, 0, 0, 0);
       end.setHours(10, 0, 0, 0);
       

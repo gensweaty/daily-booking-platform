@@ -1,6 +1,7 @@
 
 export type CalendarViewType = 'month' | 'week' | 'day';
 
+// Updated to match the database.ts version
 export interface CalendarEventType {
   id: string;
   title: string;
@@ -10,9 +11,12 @@ export interface CalendarEventType {
   event_notes?: string;
   start_date: string;
   end_date: string;
-  type: 'birthday' | 'private_party';
+  type?: string;  // Changed from strict union type to string to match database.ts
   payment_status?: string;
   payment_amount?: number;
   created_at: string;
   user_id?: string;
+  business_id?: string;
+  booking_request_id?: string;
+  deleted_at?: string | null;
 }

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
@@ -12,19 +11,44 @@ import { updateBookingRequest } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 interface BookingRequestsListProps {
-  businessId: string;
+  businessId?: string;
+  requests?: BookingRequest[];
+  type?: string;
   refresh?: boolean;
+  onApprove?: (id: string) => Promise<void>;
+  onReject?: (id: string) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
 }
 
-export const BookingRequestsList = ({ businessId, refresh }: BookingRequestsListProps) => {
+export const BookingRequestsList = ({ 
+  businessId, 
+  requests: initialRequests, 
+  type = "pending", 
+  refresh,
+  onApprove,
+  onReject,
+  onDelete
+}: BookingRequestsListProps) => {
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const fetchRequests = async () => {
+    if (initialRequests) {
+      setRequests(initialRequests);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       
+      if (!businessId) {
+        console.error("No business ID provided for fetching booking requests");
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("booking_requests")
         .select("*")
@@ -48,14 +72,11 @@ export const BookingRequestsList = ({ businessId, refresh }: BookingRequestsList
   };
 
   useEffect(() => {
-    if (businessId) {
-      fetchRequests();
-    }
-  }, [businessId, refresh]);
+    fetchRequests();
+  }, [businessId, refresh, initialRequests]);
 
-  // Set up real-time updates
   useEffect(() => {
-    if (!businessId) return;
+    if (!businessId || initialRequests) return;
     
     const channel = supabase
       .channel('booking_requests_changes')
@@ -72,26 +93,29 @@ export const BookingRequestsList = ({ businessId, refresh }: BookingRequestsList
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [businessId]);
+  }, [businessId, initialRequests]);
 
   const handleApprove = async (id: string) => {
     try {
       setProcessingId(id);
       
-      console.log(`Approving booking request: ${id}`);
-      await updateBookingRequest(id, { status: "approved" });
-      
-      toast({
-        title: "Request Approved",
-        description: "The booking request has been approved and added to your calendar."
-      });
-      
-      // Optimistically update the UI
-      setRequests(prev => 
-        prev.map(req => 
-          req.id === id ? { ...req, status: "approved" } : req
-        )
-      );
+      if (onApprove) {
+        await onApprove(id);
+      } else {
+        console.log(`Approving booking request: ${id}`);
+        await updateBookingRequest(id, { status: "approved" });
+        
+        toast({
+          title: "Request Approved",
+          description: "The booking request has been approved and added to your calendar."
+        });
+        
+        setRequests(prev => 
+          prev.map(req => 
+            req.id === id ? { ...req, status: "approved" } : req
+          )
+        );
+      }
     } catch (error) {
       console.error("Error approving request:", error);
       toast({
@@ -108,20 +132,23 @@ export const BookingRequestsList = ({ businessId, refresh }: BookingRequestsList
     try {
       setProcessingId(id);
       
-      console.log(`Rejecting booking request: ${id}`);
-      await updateBookingRequest(id, { status: "rejected" });
-      
-      toast({
-        title: "Request Rejected",
-        description: "The booking request has been rejected."
-      });
-      
-      // Optimistically update the UI
-      setRequests(prev => 
-        prev.map(req => 
-          req.id === id ? { ...req, status: "rejected" } : req
-        )
-      );
+      if (onReject) {
+        await onReject(id);
+      } else {
+        console.log(`Rejecting booking request: ${id}`);
+        await updateBookingRequest(id, { status: "rejected" });
+        
+        toast({
+          title: "Request Rejected",
+          description: "The booking request has been rejected."
+        });
+        
+        setRequests(prev => 
+          prev.map(req => 
+            req.id === id ? { ...req, status: "rejected" } : req
+          )
+        );
+      }
     } catch (error) {
       console.error("Error rejecting request:", error);
       toast({
@@ -131,6 +158,12 @@ export const BookingRequestsList = ({ businessId, refresh }: BookingRequestsList
       });
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (onDelete) {
+      await onDelete(id);
     }
   };
 
@@ -146,7 +179,7 @@ export const BookingRequestsList = ({ businessId, refresh }: BookingRequestsList
     );
   }
 
-  if (!requests.length) {
+  if (!requests || !requests.length) {
     return (
       <Card>
         <CardContent className="p-6 flex flex-col items-center justify-center h-40 text-center">
@@ -228,7 +261,7 @@ export const BookingRequestsList = ({ businessId, refresh }: BookingRequestsList
                   </div>
                 </div>
                 
-                {request.status === "pending" && (
+                {type === "pending" && (
                   <div className="flex sm:flex-col gap-2 mt-4 sm:mt-0">
                     <Button
                       onClick={() => handleApprove(request.id)}

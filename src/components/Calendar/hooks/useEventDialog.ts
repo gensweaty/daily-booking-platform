@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { CalendarEventType } from "@/lib/types/calendar";
+import { CalendarEventType } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";
 import { parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
