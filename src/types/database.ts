@@ -1,3 +1,4 @@
+
 export interface Task {
   id: string;
   title: string;
@@ -24,4 +25,34 @@ export interface Note {
   category?: string;
   created_at: string;
   user_id: string;
+}
+
+export interface BusinessProfile {
+  id: string;
+  user_id: string;
+  business_name: string;
+  description?: string;
+  contact_phone?: string;
+  contact_email?: string;
+  contact_address?: string;
+  contact_website?: string;
+  cover_photo_url?: string;
+  slug: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BookingRequest {
+  id: string;
+  business_id: string;
+  requester_name: string;
+  requester_email: string;
+  requester_phone?: string;
+  title: string;
+  description?: string;
+  start_date: string;
+  end_date: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  updated_at: string;
 }

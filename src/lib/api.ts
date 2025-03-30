@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Note, Task, Reminder } from "@/lib/types";
@@ -150,5 +149,92 @@ export const updateReminder = async (id: string, updates: Partial<Reminder>) => 
 
 export const deleteReminder = async (id: string): Promise<void> => {
   const { error } = await supabase.from("reminders").delete().eq("id", id);
+  if (error) throw error;
+};
+
+export const getBusinessProfile = async () => {
+  const { data, error } = await supabase
+    .from("business_profiles")
+    .select("*")
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const createBusinessProfile = async (profile: Omit<BusinessProfile, "id" | "created_at" | "updated_at" | "user_id">) => {
+  const { data, error } = await supabase
+    .from("business_profiles")
+    .insert([profile])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const updateBusinessProfile = async (id: string, updates: Partial<BusinessProfile>) => {
+  const { data, error } = await supabase
+    .from("business_profiles")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const getBusinessProfileBySlug = async (slug: string) => {
+  const { data, error } = await supabase
+    .from("business_profiles")
+    .select("*")
+    .eq("slug", slug)
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const getBookingRequests = async (businessId: string) => {
+  const { data, error } = await supabase
+    .from("booking_requests")
+    .select("*")
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: false });
+  
+  if (error) throw error;
+  return data;
+};
+
+export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status">) => {
+  const { data, error } = await supabase
+    .from("booking_requests")
+    .insert([{ ...request, status: 'pending' }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const updateBookingRequest = async (id: string, updates: Partial<BookingRequest>) => {
+  const { data, error } = await supabase
+    .from("booking_requests")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const deleteBookingRequest = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from("booking_requests")
+    .delete()
+    .eq("id", id);
+  
   if (error) throw error;
 };

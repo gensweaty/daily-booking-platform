@@ -14,6 +14,7 @@ import Legal from "./pages/Legal";
 import { AuthUI } from "./components/AuthUI";
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
+import { PublicBusinessPage } from "./components/business/PublicBusinessPage";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
@@ -309,6 +310,7 @@ const AnimatedRoutes = () => {
           <Route path="/" element={<Landing />} />
           <Route path="/contact" element={<PublicRoute><Contact /></PublicRoute>} />
           <Route path="/legal" element={<PublicRoute><Legal /></PublicRoute>} />
+          <Route path="/business/:slug" element={<PublicRoute><PublicBusinessPage /></PublicRoute>} />
           
           {/* Auth routes - redirect to dashboard if logged in */}
           <Route path="/login" element={
