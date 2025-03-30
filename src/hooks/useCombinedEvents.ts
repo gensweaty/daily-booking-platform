@@ -112,11 +112,10 @@ export const useCombinedEvents = (businessId?: string) => {
     // Log event dates to help debug
     if (allEvents.length > 0) {
       console.log("[useCombinedEvents] Event dates:", 
-        allEvents.slice(0, 5).map(e => ({ 
+        allEvents.slice(0, 3).map(e => ({ 
           id: e.id, 
           start: e.start_date, 
-          title: e.title,
-          type: e.type || 'standard'
+          title: e.title
         }))
       );
     }

@@ -50,14 +50,14 @@ export const Calendar = ({
       console.log("[Calendar] Public mode with external events:", externalEvents?.length || 0, "events");
       if (externalEvents && externalEvents.length > 0) {
         console.log("[Calendar] First few external events:", 
-          externalEvents.slice(0, 5).map(e => ({ id: e.id, title: e.title, start: e.start_date }))
+          externalEvents.slice(0, 3).map(e => ({ id: e.id, title: e.title, start: e.start_date }))
         );
       }
     } else {
       console.log("[Calendar] Private mode with internal events:", events?.length || 0, "events");
       if (events && events.length > 0) {
         console.log("[Calendar] First few internal events:", 
-          events.slice(0, 5).map(e => ({ id: e.id, title: e.title, start: e.start_date }))
+          events.slice(0, 3).map(e => ({ id: e.id, title: e.title, start: e.start_date }))
         );
       }
     }
@@ -69,7 +69,6 @@ export const Calendar = ({
       console.log("[Calendar] Invalidating queries for business:", businessId);
       queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
       queryClient.invalidateQueries({ queryKey: ['approved-event-requests', businessId] });
-      queryClient.invalidateQueries({ queryKey: ['all-business-events', businessId] });
     }
   }, [businessId, queryClient]);
 
@@ -252,7 +251,7 @@ export const Calendar = ({
   }
 
   if (displayEvents.length > 0) {
-    console.log("[Calendar] Events to display:", displayEvents.map(e => ({ 
+    console.log("[Calendar] Events to display:", displayEvents.slice(0, 3).map(e => ({ 
       id: e.id,
       title: e.title,
       start: e.start_date,

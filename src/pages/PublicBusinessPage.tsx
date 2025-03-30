@@ -33,8 +33,16 @@ export const PublicBusinessPage = () => {
     fetchBusiness();
   }, [slug]);
   
-  // Use our combined events hook to get events
-  const { events: allEvents, isLoading: loadingEvents } = useCombinedEvents(business?.id);
+  // Use our combined events hook to get events, including both direct events and approved requests
+  const { events: allEvents, isLoading: loadingEvents, refetch } = useCombinedEvents(business?.id);
+  
+  // Force refetch when business ID is available to ensure we have updated data
+  useEffect(() => {
+    if (business?.id) {
+      console.log("[PublicBusinessPage] Business ID is available, forcing refetch");
+      refetch();
+    }
+  }, [business?.id, refetch]);
   
   if (loadingBusiness) {
     return (
@@ -66,6 +74,8 @@ export const PublicBusinessPage = () => {
       </div>
     );
   }
+  
+  console.log(`[PublicBusinessPage] Rendering with ${allEvents?.length || 0} events for business ${business.id}`);
   
   return (
     <LanguageProvider>
@@ -99,7 +109,7 @@ export const PublicBusinessPage = () => {
               ) : (
                 <>
                   <div className="mb-2 text-sm text-muted-foreground">
-                    {allEvents.length} booking(s) available
+                    {allEvents.length} events showing on calendar
                   </div>
                   <Calendar 
                     defaultView="month"

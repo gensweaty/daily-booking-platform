@@ -1,4 +1,3 @@
-
 import { format, isSameDay, parseISO, isSameMonth, endOfMonth, startOfMonth, eachDayOfInterval, startOfWeek, endOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -46,14 +45,6 @@ export const CalendarView = ({
     return ((actualHour - 6 + 24) % 24) * 80; // 80px is the height of each hour slot
   };
 
-  // Function to get the display title based on public mode
-  const getEventDisplayTitle = (event: CalendarEventType) => {
-    if (publicMode) {
-      return "Booked";
-    }
-    return event.title;
-  };
-
   // Function to safely parse dates from events
   const safeParseDate = (dateStr: string | Date): Date | null => {
     if (!dateStr) return null;
@@ -91,14 +82,19 @@ export const CalendarView = ({
   console.log(`[CalendarView] Rendering with ${validEvents.length} events in ${publicMode ? 'public' : 'private'} mode`);
   if (validEvents.length > 0) {
     console.log("[CalendarView] First few events:", 
-      validEvents.slice(0, 5).map(e => ({
+      validEvents.slice(0, 3).map(e => ({
         id: e.id,
-        title: publicMode ? 'Booked' : e.title,
-        start: e.start_date,
-        isValid: !!safeParseDate(e.start_date)
+        title: e.title,
+        start: e.start_date
       }))
     );
   }
+
+  // In public mode, we should see all events but they should be displayed as "Booked"
+  // We handle this differently for display vs the data structure
+  const getEventDisplayTitle = (event: CalendarEventType) => {
+    return publicMode ? "Booked" : event.title;
+  };
 
   if (view === "month") {
     // Get the start and end of the month view
@@ -119,8 +115,6 @@ export const CalendarView = ({
             const eventDate = safeParseDate(event.start_date);
             return eventDate && isSameDay(eventDate, day);
           });
-          
-          console.log(`[CalendarView] Day ${format(day, 'yyyy-MM-dd')} has ${dayEvents.length} events`);
           
           const isCurrentMonth = isSameMonth(day, selectedDate);
 
