@@ -83,6 +83,36 @@ export const Calendar = ({
     }
   }, [isPublic, publicBusinessId]);
 
+  // Add a more frequent refresh interval for public events
+  useEffect(() => {
+    if (isPublic && publicBusinessId) {
+      const refreshPublicEvents = async () => {
+        try {
+          console.log('Refreshing public events...');
+          const { data, error } = await supabase
+            .from('events')
+            .select('*')
+            .eq('business_id', publicBusinessId)
+            .order('start_date', { ascending: true });
+
+          if (error) throw error;
+          console.log(`Refreshed ${data?.length || 0} public events`);
+          setPublicEvents(data || []);
+        } catch (err) {
+          console.error('Error refreshing public events:', err);
+        }
+      };
+      
+      // Initial refresh
+      refreshPublicEvents();
+      
+      // Set up polling
+      const intervalId = setInterval(refreshPublicEvents, 10000); // Every 10 seconds
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [isPublic, publicBusinessId]);
+
   useEffect(() => {
     if (!isPublic) {
       queryClient.invalidateQueries({ queryKey: ['events'] });
@@ -94,29 +124,6 @@ export const Calendar = ({
       return () => clearInterval(intervalId);
     }
   }, [queryClient, isPublic]);
-
-  useEffect(() => {
-    if (isPublic && publicBusinessId) {
-      const refreshPublicEvents = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('events')
-            .select('*')
-            .eq('business_id', publicBusinessId)
-            .order('start_date', { ascending: true });
-
-          if (error) throw error;
-          setPublicEvents(data || []);
-        } catch (err) {
-          console.error('Error refreshing public events:', err);
-        }
-      };
-      
-      const intervalId = setInterval(refreshPublicEvents, 15000);
-      
-      return () => clearInterval(intervalId);
-    }
-  }, [isPublic, publicBusinessId]);
 
   const {
     selectedEvent,

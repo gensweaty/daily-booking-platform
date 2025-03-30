@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -54,16 +53,23 @@ export const PublicBusinessPage = () => {
     queryFn: async () => {
       if (!business?.id) return [];
       
+      console.log("Fetching events for business ID:", business.id);
       const { data, error } = await supabase
         .from("events")
         .select("*")
         .eq("business_id", business.id)
         .order("start_date", { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching business events:", error);
+        throw error;
+      }
+      
+      console.log(`Retrieved ${data?.length || 0} events for business:`, data);
       return data;
     },
-    enabled: !!business?.id
+    enabled: !!business?.id,
+    refetchInterval: 10000 // Refresh every 10 seconds
   });
 
   useEffect(() => {
