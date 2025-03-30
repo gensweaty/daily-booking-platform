@@ -209,7 +209,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const { data: events = [], isLoading: isLoadingUserEvents, error: userEventsError } = useQuery({
     queryKey: ['events', user?.id],
     queryFn: getEvents,
-    enabled: !!user && !businessId,
+    enabled: !!user && !businessId && !businessUserId,
     staleTime: 1000 * 60,
     refetchInterval: 2000,
   });
@@ -223,9 +223,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   });
 
   const { data: approvedBookings = [], isLoading: isLoadingBookings } = useQuery({
-    queryKey: ['approved-bookings', user?.id, businessId],
+    queryKey: ['approved-bookings', user?.id, businessId, businessUserId],
     queryFn: getApprovedBookings,
-    enabled: !!businessId || !!user,
+    enabled: !!businessId || !!businessUserId || !!user,
     staleTime: 1000 * 60,
     refetchInterval: 2000,
   });
@@ -257,7 +257,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     },
   });
 
-  const allEvents = businessId 
+  const allEvents = (businessId || businessUserId) 
     ? [...businessEvents, ...approvedBookings]
     : [...events, ...approvedBookings];
 
@@ -266,14 +266,14 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     businessEvents: businessEvents.length,
     approvedBookings: approvedBookings.length,
     combined: allEvents.length,
-    isExternalCalendar: !!businessId,
+    isExternalCalendar: !!(businessId || businessUserId),
     businessUserId
   });
 
   return {
     events: allEvents,
-    isLoading: businessId ? (isLoadingBusinessEvents || isLoadingBookings) : (isLoadingUserEvents || isLoadingBookings),
-    error: businessId ? businessEventsError : userEventsError,
+    isLoading: (businessId || businessUserId) ? (isLoadingBusinessEvents || isLoadingBookings) : (isLoadingUserEvents || isLoadingBookings),
+    error: (businessId || businessUserId) ? businessEventsError : userEventsError,
     createEvent: createEventMutation?.mutateAsync,
     updateEvent: updateEventMutation?.mutateAsync,
     deleteEvent: deleteEventMutation?.mutateAsync,

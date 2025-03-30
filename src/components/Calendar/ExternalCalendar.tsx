@@ -42,7 +42,9 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       }
     };
 
-    fetchBusinessUserData();
+    if (businessId) {
+      fetchBusinessUserData();
+    }
   }, [businessId]);
   
   if (!businessId) {
