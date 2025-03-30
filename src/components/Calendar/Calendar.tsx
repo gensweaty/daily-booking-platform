@@ -22,6 +22,7 @@ import { useEventDialog } from "./hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { getAllBusinessEvents } from "@/lib/api";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -44,7 +45,6 @@ export const Calendar = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Log events when they change to help debug the synchronization
   useEffect(() => {
     if (publicMode) {
       console.log("[Calendar] Public mode with external events:", externalEvents?.length || 0, "events");
@@ -63,16 +63,13 @@ export const Calendar = ({
     }
   }, [publicMode, externalEvents, events]);
 
-  // Force refresh data when businessId changes or component mounts
   useEffect(() => {
     if (businessId) {
       console.log("[Calendar] Invalidating queries for business:", businessId);
-      // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
       queryClient.invalidateQueries({ queryKey: ['approved-event-requests', businessId] });
       queryClient.invalidateQueries({ queryKey: ['api-combined-events', businessId] });
       
-      // Also fetch directly if we're in public mode to ensure data is fresh
       if (publicMode && externalEvents) {
         const fetchDirectData = async () => {
           try {
@@ -115,7 +112,6 @@ export const Calendar = ({
             description: "Your booking request has been sent to the business owner for approval.",
           });
           
-          // Invalidate queries to refresh data
           queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
           queryClient.invalidateQueries({ queryKey: ['all-business-events', businessId] });
           queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
