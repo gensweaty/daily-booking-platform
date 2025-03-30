@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarIcon, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarEventType } from "@/lib/types/calendar";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { EventRequestsTable } from "./EventRequestsTable";
 
 interface BusinessCalendarProps {
   businessId: string;
@@ -15,7 +15,15 @@ interface BusinessCalendarProps {
 
 export const BusinessCalendar = ({ businessId }: BusinessCalendarProps) => {
   const [view, setView] = useState<"calendar" | "requests">("calendar");
-  const { events, isLoading } = useCombinedEvents(businessId);
+  const { events, isLoading, refetch } = useCombinedEvents(businessId);
+  
+  // Force refetch when component mounts to ensure data is fresh
+  useEffect(() => {
+    if (businessId) {
+      console.log("[BusinessCalendar] Mounting with business ID:", businessId);
+      refetch();
+    }
+  }, [businessId, refetch]);
   
   console.log(`[BusinessCalendar] Rendering with ${events?.length || 0} events`);
   
@@ -60,18 +68,9 @@ export const BusinessCalendar = ({ businessId }: BusinessCalendarProps) => {
           />
         </TabsContent>
         <TabsContent value="requests" className="mt-0">
-          <EventRequestsList businessId={businessId} />
+          <EventRequestsTable businessId={businessId} />
         </TabsContent>
       </CardContent>
     </Card>
-  );
-};
-
-const EventRequestsList = ({ businessId }: { businessId: string }) => {
-  // Placeholder for event requests list
-  return (
-    <div>
-      <p>Event requests will be shown here.</p>
-    </div>
   );
 };

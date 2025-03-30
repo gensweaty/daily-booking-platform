@@ -7,8 +7,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Calendar } from '@/components/Calendar/Calendar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LanguageProvider } from '@/contexts/LanguageContext';
-import { supabase } from '@/lib/supabase';
-import { CalendarEventType } from '@/lib/types/calendar';
 import { useCombinedEvents } from '@/hooks/useCombinedEvents';
 
 export const PublicBusinessPage = () => {
@@ -35,7 +33,7 @@ export const PublicBusinessPage = () => {
     fetchBusiness();
   }, [slug]);
   
-  // Use our new hook to get combined events
+  // Use our combined events hook to get events
   const { events: allEvents, isLoading: loadingEvents } = useCombinedEvents(business?.id);
   
   if (loadingBusiness) {

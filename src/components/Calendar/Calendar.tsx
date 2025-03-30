@@ -44,6 +44,7 @@ export const Calendar = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Log events when they change to help debug the synchronization
   useEffect(() => {
     if (publicMode) {
       console.log("[Calendar] Public mode with external events:", externalEvents?.length || 0, "events");
@@ -62,6 +63,7 @@ export const Calendar = ({
     }
   }, [publicMode, externalEvents, events]);
 
+  // Force refresh data when businessId changes or component mounts
   useEffect(() => {
     if (businessId) {
       console.log("[Calendar] Invalidating queries for business:", businessId);
@@ -244,8 +246,8 @@ export const Calendar = ({
   if (publicMode && Array.isArray(externalEvents) && externalEvents.length > 0) {
     displayEvents = externalEvents;
     console.log(`[Calendar] Using ${displayEvents.length} external events in public mode`);
-  } else {
-    displayEvents = events || [];
+  } else if (!publicMode && Array.isArray(events) && events.length > 0) {
+    displayEvents = events;
     console.log(`[Calendar] Using ${displayEvents.length} internal events in private mode`);
   }
 

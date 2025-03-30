@@ -1,5 +1,5 @@
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useEffect, useState } from "react";
@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
  */
 export const useCombinedEvents = (businessId?: string) => {
   const [combinedEvents, setCombinedEvents] = useState<CalendarEventType[]>([]);
+  const queryClient = useQueryClient();
 
   // Fetch direct events from the events table
   const { data: directEvents, isLoading: isLoadingDirect, error: directError } = useQuery({
@@ -36,7 +37,7 @@ export const useCombinedEvents = (businessId?: string) => {
     enabled: !!businessId,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    staleTime: 10 * 1000, // 10 seconds
+    staleTime: 5 * 1000, // 5 seconds
   });
 
   // Fetch approved event requests
@@ -65,8 +66,17 @@ export const useCombinedEvents = (businessId?: string) => {
     enabled: !!businessId,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    staleTime: 10 * 1000, // 10 seconds
+    staleTime: 5 * 1000, // 5 seconds
   });
+
+  // Force refetch to ensure we have the latest data
+  useEffect(() => {
+    if (businessId) {
+      // Invalidate queries to force refresh
+      queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['approved-event-requests', businessId] });
+    }
+  }, [businessId, queryClient]);
 
   // Combine both data sources whenever either one changes
   useEffect(() => {
@@ -102,7 +112,7 @@ export const useCombinedEvents = (businessId?: string) => {
     // Log event dates to help debug
     if (allEvents.length > 0) {
       console.log("[useCombinedEvents] Event dates:", 
-        allEvents.map(e => ({ 
+        allEvents.slice(0, 5).map(e => ({ 
           id: e.id, 
           start: e.start_date, 
           title: e.title,
@@ -118,5 +128,11 @@ export const useCombinedEvents = (businessId?: string) => {
     events: combinedEvents,
     isLoading: isLoadingDirect || isLoadingRequests,
     error: directError || requestsError,
+    refetch: () => {
+      if (businessId) {
+        queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
+        queryClient.invalidateQueries({ queryKey: ['approved-event-requests', businessId] });
+      }
+    }
   };
 };
