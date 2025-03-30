@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoaderCircle } from "lucide-react";
+import { BusinessProfile } from "@/types/database";
 
 // Define the schema making slug required
 const businessProfileSchema = z.object({

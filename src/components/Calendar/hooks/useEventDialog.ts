@@ -95,13 +95,7 @@ export const useEventDialog = ({
         throw new Error("Time slot conflict");
       }
 
-      // Ensure that event_notes is provided (default to empty string if not)
-      const eventData = {
-        ...data,
-        event_notes: data.event_notes || ""
-      };
-
-      const result = await createEvent(eventData);
+      const result = await createEvent(data);
       setIsNewEventDialogOpen(false);
       toast({
         title: "Success",
@@ -146,13 +140,7 @@ export const useEventDialog = ({
         throw new Error("Time slot conflict");
       }
 
-      // Ensure that event_notes is provided (use existing or default to empty string)
-      const eventData = {
-        ...data,
-        event_notes: data.event_notes || selectedEvent.event_notes || ""
-      };
-
-      const result = await updateEvent(eventData);
+      const result = await updateEvent(data);
       setSelectedEvent(null);
       toast({
         title: "Success",

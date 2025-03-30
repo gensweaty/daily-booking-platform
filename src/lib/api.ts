@@ -49,17 +49,13 @@ export const getEvents = async () => {
 };
 
 export const createEvent = async (event: Partial<CalendarEventType>) => {
-  console.log("Creating event with data:", event);
   const { data, error } = await supabase
     .from('events')
     .insert([event])
     .select()
     .single();
 
-  if (error) {
-    console.error("Error creating event:", error);
-    throw error;
-  }
+  if (error) throw error;
   return data;
 };
 
@@ -207,50 +203,22 @@ export const getBookingRequests = async (businessId: string) => {
     .eq("business_id", businessId)
     .order("created_at", { ascending: false });
   
-  if (error) {
-    console.error("Error fetching booking requests:", error);
-    throw error;
-  }
+  if (error) throw error;
   return data;
 };
 
 export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status">) => {
-  try {
-    console.log("Creating booking request:", request);
-    
-    // Validate required fields
-    if (!request.business_id) throw new Error("Business ID is required");
-    if (!request.requester_name) throw new Error("Name is required");
-    if (!request.requester_email) throw new Error("Email is required");
-    if (!request.title) throw new Error("Title is required");
-    if (!request.start_date) throw new Error("Start date is required");
-    if (!request.end_date) throw new Error("End date is required");
-    
-    const { data, error } = await supabase
-      .from("booking_requests")
-      .insert([{ 
-        ...request, 
-        status: 'pending'
-      }])
-      .select()
-      .single();
+  const { data, error } = await supabase
+    .from("booking_requests")
+    .insert([{ ...request, status: 'pending' }])
+    .select()
+    .single();
 
-    if (error) {
-      console.error("Error creating booking request:", error);
-      throw new Error(`Request failed: ${error.message || "Unknown error"}`);
-    }
-    
-    console.log("Booking request created successfully:", data);
-    return data;
-  } catch (error: any) {
-    console.error("Exception in createBookingRequest:", error);
-    throw error;
-  }
+  if (error) throw error;
+  return data;
 };
 
 export const updateBookingRequest = async (id: string, updates: Partial<BookingRequest>) => {
-  console.log(`Updating booking request ${id} with:`, updates);
-  
   const { data, error } = await supabase
     .from("booking_requests")
     .update(updates)
@@ -258,58 +226,7 @@ export const updateBookingRequest = async (id: string, updates: Partial<BookingR
     .select()
     .single();
 
-  if (error) {
-    console.error("Error updating booking request:", error);
-    throw error;
-  }
-  
-  console.log("Booking request updated:", data);
-  
-  // If this is an approval and the status was changed to 'approved',
-  // automatically create an event from this booking request
-  if (updates.status === 'approved') {
-    try {
-      // Fetch the full booking request to get all needed data
-      const { data: bookingData, error: fetchError } = await supabase
-        .from("booking_requests")
-        .select("*")
-        .eq("id", id)
-        .single();
-        
-      if (fetchError) throw fetchError;
-      
-      // Create a corresponding event in the calendar
-      const eventData = {
-        title: bookingData.title,
-        event_notes: bookingData.description || '',
-        start_date: bookingData.start_date,
-        end_date: bookingData.end_date,
-        type: 'booking_request',
-        user_surname: bookingData.requester_name,
-        user_number: bookingData.requester_phone || '',
-        business_id: bookingData.business_id,
-        booking_request_id: bookingData.id
-      };
-      
-      console.log("Creating event from approved booking request:", eventData);
-      
-      const { data: eventResult, error: eventError } = await supabase
-        .from('events')
-        .insert([eventData])
-        .select()
-        .single();
-        
-      if (eventError) {
-        console.error("Error creating event from booking request:", eventError);
-      } else {
-        console.log("Event created successfully:", eventResult);
-      }
-    } catch (err) {
-      console.error("Error handling booking approval:", err);
-      // We don't throw here to avoid failing the booking update
-    }
-  }
-  
+  if (error) throw error;
   return data;
 };
 

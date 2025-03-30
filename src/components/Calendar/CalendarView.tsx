@@ -11,7 +11,6 @@ interface CalendarViewProps {
   view: "month" | "week" | "day";
   onDayClick: (date: Date, hour?: number) => void;
   onEventClick: (event: CalendarEventType) => void;
-  isPublic?: boolean;
 }
 
 export const CalendarView = ({
@@ -21,7 +20,6 @@ export const CalendarView = ({
   view,
   onDayClick,
   onEventClick,
-  isPublic = false,
 }: CalendarViewProps) => {
   const { language } = useLanguage();
   const locale = language === 'es' ? es : undefined;
@@ -86,12 +84,10 @@ export const CalendarView = ({
                         : "bg-secondary text-secondary-foreground"
                     } cursor-pointer truncate hover:opacity-80 transition-opacity ${
                       !isCurrentMonth ? 'opacity-60' : ''
-                    } ${isPublic ? 'pointer-events-none' : ''}`}
+                    }`}
                     onClick={(e) => {
-                      if (!isPublic) {
-                        e.stopPropagation();
-                        onEventClick(event);
-                      }
+                      e.stopPropagation();
+                      onEventClick(event);
                     }}
                   >
                     {event.title}
@@ -162,16 +158,14 @@ export const CalendarView = ({
                       event.type === "birthday"
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground"
-                    } ${isPublic ? 'pointer-events-none' : 'cursor-pointer hover:opacity-80 transition-opacity'}`}
+                    } cursor-pointer overflow-hidden hover:opacity-80 transition-opacity`}
                     style={{
                       top: `${top}px`,
                       height: `${Math.max(height, 20)}px`,
                     }}
                     onClick={(e) => {
-                      if (!isPublic) {
-                        e.stopPropagation();
-                        onEventClick(event);
-                      }
+                      e.stopPropagation();
+                      onEventClick(event);
                     }}
                   >
                     <div className="font-semibold truncate">{event.title}</div>

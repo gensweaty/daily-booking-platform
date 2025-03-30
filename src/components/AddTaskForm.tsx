@@ -51,7 +51,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       const taskData = {
         title,
         description,
-        status: editingTask ? editingTask.status : 'todo' as const,
+        status: editingTask ? editingTask.status : ('todo' as const),
         user_id: user.id,
         order: editingTask?.order || 0
       };

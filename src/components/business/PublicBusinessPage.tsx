@@ -1,15 +1,15 @@
+
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookingRequestForm } from "./BookingRequestForm";
-import { LoaderCircle, Globe, Mail, Phone, MapPin, Calendar as CalendarIcon } from "lucide-react";
-import { Calendar } from "@/components/Calendar/Calendar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LoaderCircle, Globe, Mail, Phone, MapPin } from "lucide-react";
 
 export const PublicBusinessPage = () => {
   // Extract the slug from the URL path manually since useParams doesn't work in our case
@@ -19,7 +19,6 @@ export const PublicBusinessPage = () => {
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
-  const [calendarView, setCalendarView] = useState<"month" | "week" | "day">("month");
 
   const { data: business, isLoading } = useQuery({
     queryKey: ["businessProfile", slug],
@@ -33,43 +32,9 @@ export const PublicBusinessPage = () => {
         .single();
 
       if (error) throw error;
-      
-      // Ensure the profile has both old and new field names for compatibility
-      return {
-        ...data,
-        description: data.description || data.business_description || '',
-        contact_address: data.contact_address || data.business_address || '',
-        contact_phone: data.contact_phone || data.business_phone || '',
-        contact_email: data.contact_email || data.business_email || '',
-        contact_website: data.contact_website || data.business_website || '',
-        cover_photo_url: data.cover_photo_url || data.business_logo || '',
-      } as BusinessProfile;
+      return data as BusinessProfile;
     },
     enabled: !!slug
-  });
-
-  const { data: events = [], isLoading: isLoadingEvents } = useQuery({
-    queryKey: ["businessEvents", business?.id],
-    queryFn: async () => {
-      if (!business?.id) return [];
-      
-      console.log("Fetching events for business ID:", business.id);
-      const { data, error } = await supabase
-        .from("events")
-        .select("*")
-        .eq("business_id", business.id)
-        .order("start_date", { ascending: true });
-
-      if (error) {
-        console.error("Error fetching business events:", error);
-        throw error;
-      }
-      
-      console.log(`Retrieved ${data?.length || 0} events for business:`, data);
-      return data;
-    },
-    enabled: !!business?.id,
-    refetchInterval: 10000 // Refresh every 10 seconds
   });
 
   useEffect(() => {
@@ -172,22 +137,27 @@ export const PublicBusinessPage = () => {
             
             <Card>
               <CardContent className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Quick Booking</h2>
+                <h2 className="text-xl font-semibold mb-4">Book an Appointment</h2>
                 <p className="text-muted-foreground mb-4">
                   Select a date on the calendar to book your appointment with us.
                 </p>
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  className="rounded-md border"
+                />
                 <Button 
-                  className="w-full"
+                  className="w-full mt-4"
                   onClick={() => setIsBookingFormOpen(true)}
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  Book Appointment
+                  Book for {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'Selected Date'}
                 </Button>
               </CardContent>
             </Card>
           </div>
           
-          {/* Right Column - Calendar and Booking Form */}
+          {/* Right Column - Booking Form */}
           <div className="md:col-span-2">
             <Card>
               <CardContent className="p-6">
@@ -198,38 +168,17 @@ export const PublicBusinessPage = () => {
                     onSuccess={() => setIsBookingFormOpen(false)}
                   />
                 ) : (
-                  <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <h2 className="text-2xl font-bold">Available Dates</h2>
-                      <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as "month" | "week" | "day")}>
-                        <TabsList>
-                          <TabsTrigger value="month">Month</TabsTrigger>
-                          <TabsTrigger value="week">Week</TabsTrigger>
-                          <TabsTrigger value="day">Day</TabsTrigger>
-                        </TabsList>
-                      </Tabs>
-                    </div>
-                    
-                    <div className="h-[600px]">
-                      <Calendar 
-                        defaultView={calendarView} 
-                        isPublic={true}
-                        publicBusinessId={business.id}
-                        onDateSelected={(date) => {
-                          setSelectedDate(date);
-                          setIsBookingFormOpen(true);
-                        }} 
-                      />
-                    </div>
-                    
-                    <div className="text-center pt-4">
-                      <Button 
-                        size="lg" 
-                        onClick={() => setIsBookingFormOpen(true)}
-                      >
-                        Book for {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'Selected Date'}
-                      </Button>
-                    </div>
+                  <div className="text-center py-12 space-y-4">
+                    <h2 className="text-2xl font-bold">Ready to Book with {business.business_name}?</h2>
+                    <p className="text-muted-foreground">
+                      Click the button below to start the booking process.
+                    </p>
+                    <Button 
+                      size="lg" 
+                      onClick={() => setIsBookingFormOpen(true)}
+                    >
+                      Start Booking
+                    </Button>
                   </div>
                 )}
               </CardContent>
