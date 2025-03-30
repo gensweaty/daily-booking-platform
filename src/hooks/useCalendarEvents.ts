@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -30,24 +31,31 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   };
 
   const getBusinessEvents = async () => {
+    // If we have businessUserId directly, use it - this is more reliable
     if (businessUserId) {
       console.log("Fetching business events directly using businessUserId:", businessUserId);
       
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('user_id', businessUserId)
-        .order('start_date', { ascending: true });
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('user_id', businessUserId)
+          .order('start_date', { ascending: true });
 
-      if (error) {
-        console.error("Error fetching business events with businessUserId:", error);
+        if (error) {
+          console.error("Error fetching business events with businessUserId:", error);
+          return [];
+        }
+        
+        console.log("Fetched business events with businessUserId:", data?.length || 0, data);
+        return data || [];
+      } catch (error) {
+        console.error("Exception in getBusinessEvents with businessUserId:", error);
         return [];
       }
-      
-      console.log("Fetched business events with businessUserId:", data?.length || 0, data);
-      return data || [];
     }
     
+    // Fall back to using businessId to look up user_id
     if (businessId) {
       try {
         console.log("Fetching business events for business ID:", businessId);
@@ -78,7 +86,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
         if (error) {
           console.error("Error fetching business events:", error);
-          throw error;
+          return [];
         }
         
         console.log("Fetched business events:", data?.length || 0, data);
@@ -93,12 +101,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   };
 
   const getApprovedBookings = async () => {
-    if (!user && !businessId) return [];
+    if (!user && !businessId && !businessUserId) return [];
 
     try {
       let businessProfileId = businessId;
       
-      if (!businessId && user) {
+      // If we have no business ID but we're logged in
+      if (!businessProfileId && user) {
         const { data: userBusinessProfile } = await supabase
           .from("business_profiles")
           .select("id")
@@ -125,7 +134,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         
       if (error) {
         console.error("Error fetching approved bookings:", error);
-        throw error;
+        return [];
       }
       
       console.log("Fetched approved bookings:", data?.length || 0);

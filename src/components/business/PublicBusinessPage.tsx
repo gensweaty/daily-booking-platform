@@ -23,7 +23,7 @@ export const PublicBusinessPage = () => {
     queryFn: async () => {
       if (!slug) throw new Error("No business slug provided");
       
-      console.log("Fetching business profile for slug:", slug);
+      console.log("PublicBusinessPage: Fetching business profile for slug:", slug);
       const { data, error } = await supabase
         .from("business_profiles")
         .select("*")
@@ -35,10 +35,12 @@ export const PublicBusinessPage = () => {
         throw error;
       }
       
-      console.log("Fetched business profile:", data);
+      console.log("PublicBusinessPage: Fetched business profile:", data);
       return data as BusinessProfile;
     },
-    enabled: !!slug
+    enabled: !!slug,
+    staleTime: 1000 * 60, // 1 minute
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export const PublicBusinessPage = () => {
     
     // Debug log
     if (business) {
-      console.log("Business data loaded:", {
+      console.log("PublicBusinessPage: Business data loaded:", {
         id: business.id,
         name: business.business_name,
         userId: business.user_id
@@ -112,7 +114,7 @@ export const PublicBusinessPage = () => {
           
           {business.id && (
             <>
-              {console.log("Rendering ExternalCalendar with businessId:", business.id, "and userId:", business.user_id)}
+              {console.log("PublicBusinessPage: Rendering ExternalCalendar with businessId:", business.id)}
               <ExternalCalendar businessId={business.id} />
             </>
           )}
