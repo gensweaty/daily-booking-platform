@@ -38,13 +38,51 @@ export const deleteNote = async (id: string) => {
   if (error) throw error;
 };
 
-export const getEvents = async () => {
+export const getEvents = async (userId?: string) => {
+  const query = supabase.from('events').select('*');
+  
+  if (userId) {
+    query.eq('user_id', userId);
+  }
+  
+  const { data, error } = await query.order('start_date', { ascending: true });
+
+  if (error) throw error;
+  console.log(`Retrieved ${data?.length || 0} events${userId ? ` for user ${userId}` : ''}`);
+  return data;
+};
+
+export const getEventsForBusiness = async (businessId: string) => {
+  // First get the user_id associated with this business
+  const { data: business, error: businessError } = await supabase
+    .from("business_profiles")
+    .select("user_id")
+    .eq("id", businessId)
+    .single();
+  
+  if (businessError) {
+    console.error("Error fetching business:", businessError);
+    throw businessError;
+  }
+  
+  if (!business?.user_id) {
+    console.error("No user_id found for business:", businessId);
+    return [];
+  }
+  
+  // Then get all events for this user
   const { data, error } = await supabase
     .from('events')
     .select('*')
+    .eq('user_id', business.user_id)
     .order('start_date', { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    console.error("Error fetching events for business:", error);
+    throw error;
+  }
+  
+  console.log(`Retrieved ${data?.length || 0} events for business user ${business.user_id}`);
   return data;
 };
 

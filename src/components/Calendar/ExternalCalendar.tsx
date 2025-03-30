@@ -22,6 +22,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("ExternalCalendar: Fetching user_id for business:", businessId);
       
       try {
+        // Direct query to get the user_id for the specific business
         const { data, error } = await supabase
           .from("business_profiles")
           .select("user_id")
