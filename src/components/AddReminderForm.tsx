@@ -18,12 +18,21 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "You need to be logged in to create reminders",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       await createReminder({ 
         title, 
         description, 
         remind_at: dueDate,
-        user_id: user?.id || '' 
+        user_id: user.id
       });
       await queryClient.invalidateQueries({ queryKey: ['reminders'] });
       toast({

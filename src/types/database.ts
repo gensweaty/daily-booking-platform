@@ -1,3 +1,4 @@
+
 export interface Task {
   id: string;
   title: string;
@@ -45,6 +46,7 @@ export interface BusinessProfile {
 export interface BookingRequest {
   id: string;
   business_id: string;
+  user_id: string; // Added this field to match our DB changes
   requester_name: string;
   requester_email: string;
   requester_phone?: string;

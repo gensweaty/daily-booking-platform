@@ -207,10 +207,14 @@ export const getBookingRequests = async (businessId: string) => {
   return data;
 };
 
-export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status">) => {
+export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">) => {
   const { data, error } = await supabase
     .from("booking_requests")
-    .insert([{ ...request, status: 'pending' }])
+    .insert([{ 
+      ...request, 
+      status: 'pending',
+      user_id: supabase.auth.getUser().then(res => res.data.user?.id) || '' 
+    }])
     .select()
     .single();
 
