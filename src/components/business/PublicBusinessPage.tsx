@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -10,52 +9,51 @@ import { LoaderCircle, Globe, Mail, Phone, MapPin } from "lucide-react";
 import { ExternalCalendar } from "../Calendar/ExternalCalendar";
 
 export const PublicBusinessPage = () => {
-  // Extract the slug from the URL path manually since useParams doesn't work in our case
+  // Extract the slug from the URL path
   const path = window.location.pathname;
   const slugMatch = path.match(/\/business\/([^\/]+)/);
   const slug = slugMatch ? slugMatch[1] : '';
   
+  const [business, setBusiness] = useState<BusinessProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [showCalendar, setShowCalendar] = useState(true);
 
-  const { data: business, isLoading } = useQuery({
-    queryKey: ["businessProfile", slug],
-    queryFn: async () => {
-      if (!slug) throw new Error("No business slug provided");
-      
-      console.log("PublicBusinessPage: Fetching business profile for slug:", slug);
-      const { data, error } = await supabase
-        .from("business_profiles")
-        .select("*")
-        .eq("slug", slug)
-        .single();
-
-      if (error) {
-        console.error("Error fetching business profile:", error);
-        throw error;
-      }
-      
-      console.log("PublicBusinessPage: Fetched business profile:", data);
-      return data as BusinessProfile;
-    },
-    enabled: !!slug,
-    staleTime: 1000 * 60, // 1 minute
-  });
-
+  // Fetch business data
   useEffect(() => {
-    // Set the page title
-    if (business?.business_name) {
-      document.title = `${business.business_name} - Book Now`;
-    }
-    
-    // Debug log
-    if (business) {
-      console.log("PublicBusinessPage: Business data loaded:", {
-        id: business.id,
-        name: business.business_name,
-        userId: business.user_id
-      });
-    }
-  }, [business]);
+    const fetchBusinessProfile = async () => {
+      if (!slug) return;
+      
+      try {
+        setIsLoading(true);
+        console.log("PublicBusinessPage: Fetching business profile for slug:", slug);
+        
+        const { data, error } = await supabase
+          .from("business_profiles")
+          .select("*")
+          .eq("slug", slug)
+          .single();
+
+        if (error) {
+          console.error("Error fetching business profile:", error);
+          return;
+        }
+        
+        console.log("PublicBusinessPage: Fetched business profile:", data);
+        setBusiness(data as BusinessProfile);
+        
+        // Set page title
+        if (data?.business_name) {
+          document.title = `${data.business_name} - Book Now`;
+        }
+      } catch (error) {
+        console.error("Exception in fetchBusinessProfile:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBusinessProfile();
+  }, [slug]);
 
   if (isLoading) {
     return (
@@ -78,8 +76,6 @@ export const PublicBusinessPage = () => {
       </div>
     );
   }
-
-  console.log("PublicBusinessPage: Rendering with businessId:", business.id);
 
   return (
     <div className="min-h-screen bg-background">
@@ -114,12 +110,7 @@ export const PublicBusinessPage = () => {
           </div>
           
           {business.id && (
-            <>
-              {console.log("PublicBusinessPage: Rendering ExternalCalendar with businessId:", business.id)}
-              <ExternalCalendar 
-                businessId={business.id} 
-              />
-            </>
+            <ExternalCalendar businessId={business.id} />
           )}
         </div>
 
