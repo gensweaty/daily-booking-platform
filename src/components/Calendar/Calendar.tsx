@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   startOfWeek,
   endOfWeek,
@@ -24,15 +24,27 @@ import { useEventDialog } from "./hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { CalendarEventType } from "@/lib/types/calendar";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
+  isPublic?: boolean;
+  publicBusinessId?: string;
+  onDateSelected?: (date: Date) => void;
 }
 
-export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
+export const Calendar = ({ 
+  defaultView = "week", 
+  isPublic = false, 
+  publicBusinessId,
+  onDateSelected 
+}: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
+  const [publicEvents, setPublicEvents] = useState<CalendarEventType[]>([]);
+  const [isLoadingPublicEvents, setIsLoadingPublicEvents] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -42,18 +54,45 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     (window as any).__CALENDAR_EVENTS__ = events;
   }
 
+  // Load public events when in public mode
+  useEffect(() => {
+    if (isPublic && publicBusinessId) {
+      const fetchPublicEvents = async () => {
+        setIsLoadingPublicEvents(true);
+        try {
+          const { data, error } = await supabase
+            .from('events')
+            .select('*')
+            .eq('business_id', publicBusinessId)
+            .order('start_date', { ascending: true });
+
+          if (error) throw error;
+          setPublicEvents(data || []);
+        } catch (err) {
+          console.error('Error loading public events:', err);
+        } finally {
+          setIsLoadingPublicEvents(false);
+        }
+      };
+
+      fetchPublicEvents();
+    }
+  }, [isPublic, publicBusinessId]);
+
   // Regular refresh for sync purposes
   useEffect(() => {
-    // Initial fetch
-    queryClient.invalidateQueries({ queryKey: ['events'] });
-    
-    // Set up regular refresh interval
-    const intervalId = setInterval(() => {
+    if (!isPublic) {
+      // Initial fetch
       queryClient.invalidateQueries({ queryKey: ['events'] });
-    }, 15000); // Refresh every 15 seconds
-    
-    return () => clearInterval(intervalId);
-  }, [queryClient]);
+      
+      // Set up regular refresh interval
+      const intervalId = setInterval(() => {
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+      }, 15000); // Refresh every 15 seconds
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [queryClient, isPublic]);
 
   const {
     selectedEvent,
@@ -83,7 +122,7 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     }
   });
 
-  if (!user) {
+  if (!isPublic && !user) {
     navigate("/signin");
     return null;
   }
@@ -138,6 +177,11 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   };
 
   const handleCalendarDayClick = (date: Date, hour?: number) => {
+    if (isPublic && onDateSelected) {
+      onDateSelected(date);
+      return;
+    }
+    
     const clickedDate = new Date(date);
     clickedDate.setHours(hour || 9, 0, 0, 0);
     
@@ -157,11 +201,11 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
-  if (error) {
+  if (error && !isPublic) {
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
 
-  if (isLoading) {
+  if ((isLoading && !isPublic) || (isLoadingPublicEvents && isPublic)) {
     return (
       <div className="space-y-4">
         <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
@@ -174,6 +218,9 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
     );
   }
 
+  // Use the appropriate events based on whether we're in public mode or not
+  const displayEvents = isPublic ? publicEvents : events || [];
+
   return (
     <div className="h-full flex flex-col gap-4">
       <CalendarHeader
@@ -182,7 +229,8 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
         onViewChange={setView}
         onPrevious={handlePrevious}
         onNext={handleNext}
-        onAddEvent={handleAddEventClick}
+        onAddEvent={isPublic ? undefined : handleAddEventClick}
+        isPublic={isPublic}
       />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
@@ -190,33 +238,38 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
         <div className="flex-1">
           <CalendarView
             days={getDaysForView()}
-            events={events || []}
+            events={displayEvents}
             selectedDate={selectedDate}
             view={view}
             onDayClick={handleCalendarDayClick}
-            onEventClick={setSelectedEvent}
+            onEventClick={isPublic ? () => {} : setSelectedEvent}
+            isPublic={isPublic}
           />
         </div>
       </div>
 
-      <EventDialog
-        key={dialogSelectedDate?.getTime()} // Force re-render when date changes
-        open={isNewEventDialogOpen}
-        onOpenChange={setIsNewEventDialogOpen}
-        selectedDate={dialogSelectedDate}
-        onSubmit={handleCreateEvent}
-      />
+      {!isPublic && (
+        <>
+          <EventDialog
+            key={dialogSelectedDate?.getTime()} // Force re-render when date changes
+            open={isNewEventDialogOpen}
+            onOpenChange={setIsNewEventDialogOpen}
+            selectedDate={dialogSelectedDate}
+            onSubmit={handleCreateEvent}
+          />
 
-      {selectedEvent && (
-        <EventDialog
-          key={selectedEvent.id} // Force re-render when event changes
-          open={!!selectedEvent}
-          onOpenChange={() => setSelectedEvent(null)}
-          selectedDate={new Date(selectedEvent.start_date)} // Use the actual event start date
-          event={selectedEvent}
-          onSubmit={handleUpdateEvent}
-          onDelete={handleDeleteEvent}
-        />
+          {selectedEvent && (
+            <EventDialog
+              key={selectedEvent.id} // Force re-render when event changes
+              open={!!selectedEvent}
+              onOpenChange={() => setSelectedEvent(null)}
+              selectedDate={new Date(selectedEvent.start_date)} // Use the actual event start date
+              event={selectedEvent}
+              onSubmit={handleUpdateEvent}
+              onDelete={handleDeleteEvent}
+            />
+          )}
+        </>
       )}
     </div>
   );

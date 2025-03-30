@@ -1,17 +1,20 @@
 
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
+import { Calendar, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CalendarViewType } from "@/lib/types/calendar";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { es } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarHeaderProps {
   selectedDate: Date;
-  view: "month" | "week" | "day";
-  onViewChange: (view: "month" | "week" | "day") => void;
+  view: CalendarViewType;
+  onViewChange: (view: CalendarViewType) => void;
   onPrevious: () => void;
   onNext: () => void;
-  onAddEvent: () => void;
+  onAddEvent?: () => void;
+  isPublic?: boolean;
 }
 
 export const CalendarHeader = ({
@@ -21,50 +24,67 @@ export const CalendarHeader = ({
   onPrevious,
   onNext,
   onAddEvent,
+  isPublic = false,
 }: CalendarHeaderProps) => {
-  const { language, t } = useLanguage();
+  const { language } = useLanguage();
+  const locale = language === 'es' ? es : undefined;
+
+  const getTitle = () => {
+    switch (view) {
+      case "month":
+        return format(selectedDate, "MMMM yyyy", { locale });
+      case "week":
+        return `${format(selectedDate, "MMMM d", { locale })} - ${format(
+          selectedDate,
+          "d yyyy",
+          { locale }
+        )}`;
+      case "day":
+        return format(selectedDate, "EEEE, MMMM d, yyyy", { locale });
+    }
+  };
 
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-      <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-        <Button variant="outline" size="icon" onClick={onPrevious}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <h2 className="text-lg sm:text-xl font-semibold">
-          {format(selectedDate, "MMMM yyyy", { locale: language === 'es' ? es : undefined })}
-        </h2>
-        <Button variant="outline" size="icon" onClick={onNext}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-      <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-        <div className="flex rounded-lg border border-input overflow-hidden flex-1 sm:flex-none">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 justify-between">
+      <div className="flex items-center gap-2">
+        <div className="inline-flex items-center justify-center gap-1 bg-background rounded-lg shadow-sm border border-border p-1">
           <Button
-            variant={view === "month" ? "default" : "ghost"}
-            className="rounded-none px-2 sm:px-4 text-sm flex-1"
-            onClick={() => onViewChange("month")}
+            variant="ghost"
+            size="icon"
+            onClick={onPrevious}
+            className="h-7 w-7"
           >
-            {t("dashboard.month")}
+            <ChevronLeft className="h-4 w-4" />
           </Button>
+          <div className="text-sm font-medium flex items-center gap-1">
+            <Calendar className="h-4 w-4 text-primary" />
+            <span>{getTitle()}</span>
+          </div>
           <Button
-            variant={view === "week" ? "default" : "ghost"}
-            className="rounded-none px-2 sm:px-4 text-sm flex-1"
-            onClick={() => onViewChange("week")}
+            variant="ghost"
+            size="icon"
+            onClick={onNext}
+            className="h-7 w-7"
           >
-            {t("dashboard.week")}
-          </Button>
-          <Button
-            variant={view === "day" ? "default" : "ghost"}
-            className="rounded-none px-2 sm:px-4 text-sm flex-1"
-            onClick={() => onViewChange("day")}
-          >
-            {t("dashboard.day")}
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <Button onClick={onAddEvent} className="whitespace-nowrap">
-          {t("dashboard.addEvent")}
-        </Button>
+
+        {!isPublic && onAddEvent && (
+          <Button size="sm" onClick={onAddEvent} className="h-8">
+            <Plus className="h-4 w-4 mr-1" />
+            Event
+          </Button>
+        )}
       </div>
+
+      <Tabs value={view} onValueChange={(value) => onViewChange(value as CalendarViewType)}>
+        <TabsList>
+          <TabsTrigger value="month">Month</TabsTrigger>
+          <TabsTrigger value="week">Week</TabsTrigger>
+          <TabsTrigger value="day">Day</TabsTrigger>
+        </TabsList>
+      </Tabs>
     </div>
   );
 };
