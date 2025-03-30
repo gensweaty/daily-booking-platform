@@ -120,6 +120,7 @@ export const CalendarView = ({
                     title={event.title}
                   >
                     {getEventIcon(event.type)}{event.title}
+                    {event.requester_name && <span className="block text-[9px] italic truncate">({event.requester_name})</span>}
                   </div>
                 ))}
               </div>
@@ -196,7 +197,7 @@ export const CalendarView = ({
                       e.stopPropagation();
                       onEventClick(event);
                     }}
-                    title={event.title}
+                    title={`${event.title} ${event.requester_name ? `(${event.requester_name})` : ''}`}
                   >
                     <div className="font-semibold truncate">
                       {getEventIcon(event.type)}{event.title}
@@ -204,7 +205,7 @@ export const CalendarView = ({
                     {height > 40 && (
                       <div className="text-[8px] sm:text-xs truncate">
                         {format(start, "h:mm a", { locale })} - {format(end, "h:mm a", { locale })}
-                        {event.type === "booking_request" && event.requester_name && (
+                        {event.requester_name && (
                           <div className="italic">{event.requester_name}</div>
                         )}
                       </div>

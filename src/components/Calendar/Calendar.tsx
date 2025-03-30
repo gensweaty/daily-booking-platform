@@ -45,9 +45,8 @@ export const Calendar = ({
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
-  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
+  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(isExternalCalendar ? businessId : undefined);
   const [approvedBookings, setApprovedBookings] = useState<CalendarEventType[]>([]);
-  const [regularEvents, setRegularEvents] = useState<CalendarEventType[]>([]);
   const [isLoadingBookings, setIsLoadingBookings] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -64,50 +63,23 @@ export const Calendar = ({
   }
 
   useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: ['events'] });
-    const intervalId = setInterval(() => {
+    const invalidateQueries = () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
-    }, 15000);
-    return () => clearInterval(intervalId);
-  }, [queryClient]);
-
-  useEffect(() => {
-    const fetchRegularEvents = async () => {
-      if (!showAllEvents || !businessId) return;
-      
-      try {
-        const { data: businessProfile } = await supabase
-          .from("business_profiles")
-          .select("user_id")
-          .eq("id", businessId)
-          .single();
-          
-        if (!businessProfile?.user_id) return;
-          
-        const { data, error } = await supabase
-          .from('events')
-          .select('*')
-          .eq('user_id', businessProfile.user_id)
-          .order('start_date', { ascending: true });
-          
-        if (error) throw error;
-        console.log("Fetched regular events for external calendar:", data);
-        setRegularEvents(data || []);
-      } catch (error) {
-        console.error('Error fetching regular events:', error);
+      if (businessId) {
+        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
       }
     };
     
-    fetchRegularEvents();
-    const intervalId = setInterval(fetchRegularEvents, 30000);
+    invalidateQueries();
+    const intervalId = setInterval(invalidateQueries, 15000);
     return () => clearInterval(intervalId);
-  }, [businessId, showAllEvents]);
+  }, [queryClient, businessId]);
 
   useEffect(() => {
     const fetchApprovedBookings = async () => {
       setIsLoadingBookings(true);
       try {
-        let userBusinessId: string | null = null;
+        let targetBusinessId = businessId;
         
         if (!isExternalCalendar && user?.id) {
           const { data: businessProfile } = await supabase
@@ -116,10 +88,10 @@ export const Calendar = ({
             .eq("user_id", user.id)
             .maybeSingle();
             
-          userBusinessId = businessProfile?.id || null;
+          if (businessProfile?.id) {
+            targetBusinessId = businessProfile.id;
+          }
         }
-        
-        const targetBusinessId = isExternalCalendar ? businessId : userBusinessId;
         
         if (!targetBusinessId && !user?.id) {
           setIsLoadingBookings(false);
@@ -173,14 +145,12 @@ export const Calendar = ({
     return () => clearInterval(intervalId);
   }, [user?.id, isExternalCalendar, businessId]);
   
-  const combinedEvents = [...(events || []), ...approvedBookings];
-  const allEvents = showAllEvents && isExternalCalendar 
-    ? [...combinedEvents, ...regularEvents] 
-    : combinedEvents;
+  const allEvents = [...(events || []), ...approvedBookings];
 
-  console.log("Combined events:", combinedEvents.length);
-  console.log("Regular events from business:", regularEvents.length);
-  console.log("Final events to display:", allEvents.length);
+  console.log("Calendar props:", { isExternalCalendar, businessId, showAllEvents });
+  console.log("Events from useCalendarEvents:", events?.length || 0);
+  console.log("Approved bookings:", approvedBookings.length);
+  console.log("Combined events to display:", allEvents.length);
 
   const {
     selectedEvent,

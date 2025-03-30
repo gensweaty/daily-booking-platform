@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 
-export const useCalendarEvents = () => {
+export const useCalendarEvents = (businessId?: string) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -19,6 +19,34 @@ export const useCalendarEvents = () => {
 
     if (error) throw error;
     return data;
+  };
+
+  const getBusinessEvents = async () => {
+    if (!businessId) return [];
+    
+    try {
+      // First, get the user ID associated with this business
+      const { data: businessProfile } = await supabase
+        .from("business_profiles")
+        .select("user_id")
+        .eq("id", businessId)
+        .single();
+        
+      if (!businessProfile?.user_id) return [];
+      
+      // Then get events for that user
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', businessProfile.user_id)
+        .order('start_date', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error("Error fetching business events:", error);
+      return [];
+    }
   };
 
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
@@ -61,7 +89,8 @@ export const useCalendarEvents = () => {
     if (error) throw error;
   };
 
-  const { data: events = [], isLoading, error } = useQuery({
+  // Query for user events (used in dashboard)
+  const { data: events = [], isLoading: isLoadingUserEvents, error: userEventsError } = useQuery({
     queryKey: ['events', user?.id],
     queryFn: getEvents,
     enabled: !!user,
@@ -69,10 +98,20 @@ export const useCalendarEvents = () => {
     refetchInterval: 15000, // Refresh every 15 seconds to ensure sync
   });
 
+  // Query for business events (used in external calendar)
+  const { data: businessEvents = [], isLoading: isLoadingBusinessEvents, error: businessEventsError } = useQuery({
+    queryKey: ['business-events', businessId],
+    queryFn: getBusinessEvents,
+    enabled: !!businessId,
+    staleTime: 1000 * 60,
+    refetchInterval: 15000,
+  });
+
   const createEventMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
     },
   });
 
@@ -80,6 +119,7 @@ export const useCalendarEvents = () => {
     mutationFn: updateEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
     },
   });
 
@@ -87,13 +127,14 @@ export const useCalendarEvents = () => {
     mutationFn: deleteEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
     },
   });
 
   return {
-    events,
-    isLoading,
-    error,
+    events: businessId ? businessEvents : events, // Return business events if businessId is provided
+    isLoading: businessId ? isLoadingBusinessEvents : isLoadingUserEvents,
+    error: businessId ? businessEventsError : userEventsError,
     createEvent: createEventMutation.mutateAsync,
     updateEvent: updateEventMutation.mutateAsync,
     deleteEvent: deleteEventMutation.mutateAsync,
