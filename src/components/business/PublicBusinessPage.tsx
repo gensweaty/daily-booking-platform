@@ -34,7 +34,17 @@ export const PublicBusinessPage = () => {
         .single();
 
       if (error) throw error;
-      return data as BusinessProfile;
+      
+      // Ensure the profile has both old and new field names for compatibility
+      return {
+        ...data,
+        description: data.description || data.business_description || '',
+        contact_address: data.contact_address || data.business_address || '',
+        contact_phone: data.contact_phone || data.business_phone || '',
+        contact_email: data.contact_email || data.business_email || '',
+        contact_website: data.contact_website || data.business_website || '',
+        cover_photo_url: data.cover_photo_url || data.business_logo || '',
+      } as BusinessProfile;
     },
     enabled: !!slug
   });

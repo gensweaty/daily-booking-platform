@@ -1,9 +1,11 @@
+
 export interface Note {
   id: string;
   created_at: string;
   title: string;
   content: string;
   user_id: string;
+  color?: string; // Added color property
 }
 
 export interface CalendarEventType {
@@ -29,8 +31,10 @@ export interface Task {
   id: string;
   created_at: string;
   title: string;
-  is_completed: boolean;
+  status: 'todo' | 'inprogress' | 'done'; // Changed from is_completed to status
   user_id: string;
+  description?: string; // Added description
+  order?: number; // Added order property
 }
 
 export interface Reminder {
@@ -39,6 +43,8 @@ export interface Reminder {
   title: string;
   time: string;
   user_id: string;
+  description?: string; // Added description property
+  remind_at?: string; // Added remind_at property
 }
 
 export interface BusinessProfile {
@@ -54,6 +60,13 @@ export interface BusinessProfile {
   business_logo: string;
   user_id: string;
   slug: string;
+  // New fields added to match component usage
+  description?: string;
+  contact_phone?: string;
+  contact_email?: string;
+  contact_address?: string;
+  contact_website?: string;
+  cover_photo_url?: string;
 }
 
 export interface BookingRequest {
