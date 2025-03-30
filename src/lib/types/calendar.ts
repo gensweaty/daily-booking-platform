@@ -1,17 +1,17 @@
 
 export type CalendarViewType = 'month' | 'week' | 'day';
 
-// Updated to match the database.ts version
+// Updated to match the database.ts version, making event_notes required
 export interface CalendarEventType {
   id: string;
   title: string;
   user_surname?: string;
   user_number?: string;
   social_network_link?: string;
-  event_notes?: string;
+  event_notes: string;  // Changed from optional to required to match database.ts
   start_date: string;
   end_date: string;
-  type?: string;  // Changed from strict union type to string to match database.ts
+  type?: string;  // String type to match database.ts
   payment_status?: string;
   payment_amount?: number;
   created_at: string;

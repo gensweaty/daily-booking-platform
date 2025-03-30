@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -15,7 +16,7 @@ import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
 import { CalendarView } from "./CalendarView";
 import { EventDialog } from "./EventDialog";
-import { CalendarViewType } from "@/lib/types/calendar";
+import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { TimeIndicator } from "./TimeIndicator";
@@ -23,7 +24,7 @@ import { useEventDialog } from "./hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { CalendarEventType } from "@/types/database";
+import { CalendarEventType as DatabaseCalendarEventType } from "@/types/database";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -41,7 +42,7 @@ export const Calendar = ({
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
-  const [publicEvents, setPublicEvents] = useState<CalendarEventType[]>([]);
+  const [publicEvents, setPublicEvents] = useState<DatabaseCalendarEventType[]>([]);
   const [isLoadingPublicEvents, setIsLoadingPublicEvents] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -129,16 +130,16 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      const result = await createEvent(data);
-      return result as any;
+      const result = await createEvent(data as Partial<DatabaseCalendarEventType>);
+      return result as unknown as CalendarEventType;
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
       const result = await updateEvent({
         id: selectedEvent.id,
-        updates: data,
+        updates: data as Partial<DatabaseCalendarEventType>,
       });
-      return result as any;
+      return result as unknown as CalendarEventType;
     },
     deleteEvent: async (id) => {
       await deleteEvent(id);
@@ -258,11 +259,11 @@ export const Calendar = ({
         <div className="flex-1">
           <CalendarView
             days={getDaysForView()}
-            events={displayEvents as any}
+            events={displayEvents as CalendarEventType[]}
             selectedDate={selectedDate}
             view={view}
             onDayClick={handleCalendarDayClick}
-            onEventClick={isPublic ? () => {} : setSelectedEvent}
+            onEventClick={isPublic ? () => {} : (event) => setSelectedEvent(event as any)}
             isPublic={isPublic}
           />
         </div>

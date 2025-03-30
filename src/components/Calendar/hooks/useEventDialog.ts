@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from "react";
-import { CalendarEventType } from "@/types/database";
+import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
@@ -94,7 +95,13 @@ export const useEventDialog = ({
         throw new Error("Time slot conflict");
       }
 
-      const result = await createEvent(data);
+      // Ensure that event_notes is provided (default to empty string if not)
+      const eventData = {
+        ...data,
+        event_notes: data.event_notes || ""
+      };
+
+      const result = await createEvent(eventData);
       setIsNewEventDialogOpen(false);
       toast({
         title: "Success",
@@ -139,7 +146,13 @@ export const useEventDialog = ({
         throw new Error("Time slot conflict");
       }
 
-      const result = await updateEvent(data);
+      // Ensure that event_notes is provided (use existing or default to empty string)
+      const eventData = {
+        ...data,
+        event_notes: data.event_notes || selectedEvent.event_notes || ""
+      };
+
+      const result = await updateEvent(eventData);
       setSelectedEvent(null);
       toast({
         title: "Success",
