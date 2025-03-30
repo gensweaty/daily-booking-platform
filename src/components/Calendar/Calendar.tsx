@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -56,11 +55,10 @@ export const Calendar = ({
   const [view, setView] = useState<CalendarViewType>(defaultView);
   
   const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
-    isExternalCalendar && businessId ? businessId : undefined,
-    isExternalCalendar && businessUserId ? businessUserId : undefined
+    !directEvents && isExternalCalendar && businessId ? businessId : undefined,
+    !directEvents && isExternalCalendar && businessUserId ? businessUserId : undefined
   );
   
-  // Use direct events if provided, otherwise use fetched events
   const events = directEvents || fetchedEvents;
   const isLoading = !directEvents && isLoadingFromHook;
   
@@ -91,7 +89,7 @@ export const Calendar = ({
     });
     
     if (directEvents) {
-      console.log("Using direct events:", directEvents);
+      console.log("Using direct events:", directEvents.length);
     }
   }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
 

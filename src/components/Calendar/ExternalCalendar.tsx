@@ -5,151 +5,157 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
 
 export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [view, setView] = useState<CalendarViewType>("month");
-  const [businessUserId, setBusinessUserId] = useState<string | null>(null);
   const [events, setEvents] = useState<CalendarEventType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // First, get the user_id associated with this business
   useEffect(() => {
-    const fetchBusinessUserData = async () => {
-      if (!businessId) {
-        console.error("No businessId provided to ExternalCalendar");
-        return;
-      }
+    if (!businessId) {
+      console.error("No businessId provided to ExternalCalendar");
+      return;
+    }
 
-      console.log("ExternalCalendar: Fetching user_id for business:", businessId);
+    const fetchEvents = async () => {
+      setIsLoading(true);
+      console.log("ExternalCalendar: Directly fetching events for business ID:", businessId);
       
       try {
-        // Direct query to get the user_id for the specific business
-        const { data, error } = await supabase
+        // First get the user_id associated with this business
+        const { data: businessData, error: businessError } = await supabase
           .from("business_profiles")
           .select("user_id")
           .eq("id", businessId)
           .single();
           
-        if (error) {
-          console.error("Error fetching business user_id:", error);
+        if (businessError) {
+          console.error("Error fetching business:", businessError);
+          setIsLoading(false);
           toast({
             title: "Error loading calendar",
-            description: "Could not fetch business data.",
+            description: "Could not find business data.",
             variant: "destructive"
           });
           return;
         }
         
-        if (data && data.user_id) {
-          console.log("ExternalCalendar: Found user_id for business:", data.user_id);
-          setBusinessUserId(data.user_id);
-        } else {
+        if (!businessData?.user_id) {
           console.error("No user_id found for business:", businessId);
+          setIsLoading(false);
           toast({
             title: "Error loading calendar",
             description: "Could not find business owner data.",
             variant: "destructive"
           });
+          return;
         }
-      } catch (err) {
-        console.error("Exception fetching business user_id:", err);
-        toast({
-          title: "Error",
-          description: "An unexpected error occurred.",
-          variant: "destructive"
-        });
-      }
-    };
 
-    if (businessId) {
-      fetchBusinessUserData();
-    }
-  }, [businessId, toast]);
-  
-  // Once we have the business user ID, fetch their events directly
-  useEffect(() => {
-    const fetchBusinessEvents = async () => {
-      if (!businessUserId) return;
-      
-      setIsLoading(true);
-      console.log("ExternalCalendar: Fetching events for business user:", businessUserId);
-      
-      try {
-        const { data, error } = await supabase
+        console.log("ExternalCalendar: Found business user_id:", businessData.user_id);
+        
+        // Now fetch events for this user_id
+        const { data: eventData, error: eventsError } = await supabase
           .from('events')
           .select('*')
-          .eq('user_id', businessUserId)
-          .order('start_date', { ascending: true });
+          .eq('user_id', businessData.user_id);
 
-        if (error) {
-          console.error("Error fetching events:", error);
+        if (eventsError) {
+          console.error("Error fetching events:", eventsError);
+          setIsLoading(false);
           toast({
             title: "Error loading events",
             description: "Could not fetch calendar events.",
             variant: "destructive"
           });
-          setIsLoading(false);
           return;
         }
+
+        console.log(`ExternalCalendar: Fetched ${eventData?.length || 0} events:`, eventData);
         
-        console.log(`ExternalCalendar: Fetched ${data?.length || 0} events for business user:`, businessUserId);
-        if (data) {
-          console.log("Events data:", data);
-          setEvents(data);
+        // Also fetch approved booking requests
+        const { data: bookingData, error: bookingsError } = await supabase
+          .from('booking_requests')
+          .select('*')
+          .eq('business_id', businessId)
+          .eq('status', 'approved');
+          
+        if (bookingsError) {
+          console.error("Error fetching booking requests:", bookingsError);
+          // Continue with just the events data
         }
+        
+        // Convert booking requests to calendar events
+        const bookingEvents = (bookingData || []).map(booking => ({
+          id: booking.id,
+          title: booking.title,
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          type: 'booking_request',
+          created_at: booking.created_at || new Date().toISOString(),
+          user_id: booking.user_id || businessData.user_id,
+          requester_name: booking.requester_name,
+          requester_email: booking.requester_email,
+        }));
+        
+        console.log(`ExternalCalendar: Added ${bookingEvents.length} booking events`);
+        
+        // Combine regular events and booking events
+        const allEvents = [...(eventData || []), ...bookingEvents];
+        console.log(`ExternalCalendar: Total events to display: ${allEvents.length}`);
+        
+        setEvents(allEvents);
       } catch (err) {
-        console.error("Exception fetching events:", err);
+        console.error("Exception in ExternalCalendar.fetchEvents:", err);
+        toast({
+          title: "Error",
+          description: "An unexpected error occurred while loading events.",
+          variant: "destructive"
+        });
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (businessUserId) {
-      fetchBusinessEvents();
-      
-      // Set up a polling interval to refresh events
-      const intervalId = setInterval(fetchBusinessEvents, 5000);
-      return () => clearInterval(intervalId);
-    }
-  }, [businessUserId, toast]);
-  
+    fetchEvents();
+    
+    // Set up a polling interval to refresh events
+    const intervalId = setInterval(fetchEvents, 10000);
+    return () => clearInterval(intervalId);
+  }, [businessId, toast]);
+
   if (!businessId) {
-    console.error("No businessId provided to ExternalCalendar");
-    return null;
+    return (
+      <Card className="min-h-[calc(100vh-12rem)]">
+        <CardContent className="p-6">
+          <p className="text-center text-muted-foreground">No business selected</p>
+        </CardContent>
+      </Card>
+    );
   }
   
   return (
     <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
       <CardContent className="p-0">
-        <div className="px-6 pt-6">
-          {businessUserId && (
-            <>
-              {console.log("Rendering Calendar with businessId:", businessId, "businessUserId:", businessUserId, "events:", events.length)}
-              <Calendar 
-                defaultView={view} 
-                currentView={view}
-                onViewChange={setView}
-                isExternalCalendar={true} 
-                businessId={businessId}
-                businessUserId={businessUserId} 
-                showAllEvents={true}
-                allowBookingRequests={true}
-                directEvents={events}
-              />
-            </>
-          )}
-          {!businessUserId && (
-            <div className="flex items-center justify-center h-64">
-              <p className="text-muted-foreground">Loading calendar...</p>
+        <div className="px-6 pt-6 relative">
+          {isLoading && (
+            <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+              <span className="ml-2 text-primary">Loading calendar events...</span>
             </div>
           )}
           
-          {isLoading && businessUserId && (
-            <div className="absolute top-0 left-0 right-0 bg-primary/10 text-center py-1">
-              <p className="text-sm">Loading events...</p>
-            </div>
-          )}
+          <Calendar 
+            defaultView={view}
+            currentView={view}
+            onViewChange={setView}
+            isExternalCalendar={true}
+            businessId={businessId}
+            showAllEvents={true}
+            allowBookingRequests={true}
+            directEvents={events}
+          />
         </div>
       </CardContent>
     </Card>
