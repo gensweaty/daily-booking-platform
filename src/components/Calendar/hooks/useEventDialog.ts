@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -247,3 +248,4 @@ export const useEventDialog = ({
     handleDeleteEvent,
   };
 };
+

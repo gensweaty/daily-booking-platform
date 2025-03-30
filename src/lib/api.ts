@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Note, Task, Reminder } from "@/lib/types";

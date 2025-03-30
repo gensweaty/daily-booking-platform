@@ -1,3 +1,4 @@
+
 export type CalendarViewType = 'month' | 'week' | 'day';
 
 export interface CalendarEventType {
