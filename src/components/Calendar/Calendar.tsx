@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -45,24 +46,36 @@ export const Calendar = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Log and debug events
   useEffect(() => {
     if (publicMode) {
       console.log("[Calendar] Public mode with external events:", externalEvents?.length || 0, "events");
       if (externalEvents && externalEvents.length > 0) {
         console.log("[Calendar] First few external events:", 
-          externalEvents.slice(0, 3).map(e => ({ id: e.id, title: e.title, start: e.start_date }))
+          externalEvents.slice(0, 3).map(e => ({ 
+            id: e.id, 
+            title: e.title, 
+            start: e.start_date,
+            type: e.type || 'standard'
+          }))
         );
       }
     } else {
       console.log("[Calendar] Private mode with internal events:", events?.length || 0, "events");
       if (events && events.length > 0) {
         console.log("[Calendar] First few internal events:", 
-          events.slice(0, 3).map(e => ({ id: e.id, title: e.title, start: e.start_date }))
+          events.slice(0, 3).map(e => ({ 
+            id: e.id, 
+            title: e.title, 
+            start: e.start_date,
+            type: e.type || 'standard' 
+          }))
         );
       }
     }
   }, [publicMode, externalEvents, events]);
 
+  // Force refresh data when businessId changes or component mounts
   useEffect(() => {
     if (businessId) {
       console.log("[Calendar] Invalidating queries for business:", businessId);
@@ -70,19 +83,29 @@ export const Calendar = ({
       queryClient.invalidateQueries({ queryKey: ['approved-event-requests', businessId] });
       queryClient.invalidateQueries({ queryKey: ['api-combined-events', businessId] });
       
-      if (publicMode && externalEvents) {
+      if (publicMode) {
         const fetchDirectData = async () => {
           try {
-            await getAllBusinessEvents(businessId);
+            console.log("[Calendar] Direct API fetch for fresh data, business:", businessId);
+            const freshEvents = await getAllBusinessEvents(businessId);
+            console.log(`[Calendar] Direct fetch retrieved ${freshEvents.length} events`);
           } catch (err) {
             console.error("[Calendar] Error fetching direct business events:", err);
           }
         };
         
         fetchDirectData();
+        
+        // Set up periodic refresh
+        const intervalId = setInterval(() => {
+          console.log("[Calendar] Periodic refresh for business data");
+          fetchDirectData();
+        }, 30000); // Refresh every 30 seconds
+        
+        return () => clearInterval(intervalId);
       }
     }
-  }, [businessId, queryClient, publicMode, externalEvents]);
+  }, [businessId, queryClient, publicMode]);
 
   const {
     selectedEvent,
@@ -138,6 +161,11 @@ export const Calendar = ({
         }
       } catch (error: any) {
         console.error("[Calendar] Error creating event:", error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create event",
+          variant: "destructive",
+        });
         throw error;
       }
     },
@@ -152,32 +180,52 @@ export const Calendar = ({
         data.business_id = businessId;
       }
       
-      const result = await updateEvent(data);
-      
-      if (businessId || selectedEvent.business_id) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['direct-business-events', businessId || selectedEvent.business_id] 
+      try {
+        const result = await updateEvent(data);
+        
+        if (businessId || selectedEvent.business_id) {
+          queryClient.invalidateQueries({ 
+            queryKey: ['direct-business-events', businessId || selectedEvent.business_id] 
+          });
+          queryClient.invalidateQueries({ 
+            queryKey: ['all-business-events', businessId || selectedEvent.business_id] 
+          });
+        }
+        queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
+        
+        return result;
+      } catch (error: any) {
+        console.error("[Calendar] Error updating event:", error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to update event",
+          variant: "destructive",
         });
-        queryClient.invalidateQueries({ 
-          queryKey: ['all-business-events', businessId || selectedEvent.business_id] 
-        });
+        throw error;
       }
-      queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
-      
-      return result;
     },
     deleteEvent: async (id) => {
-      await deleteEvent(id);
-      
-      if (businessId || selectedEvent?.business_id) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['direct-business-events', businessId || selectedEvent?.business_id] 
+      try {
+        if (businessId || selectedEvent?.business_id) {
+          queryClient.invalidateQueries({ 
+            queryKey: ['direct-business-events', businessId || selectedEvent?.business_id] 
+          });
+          queryClient.invalidateQueries({ 
+            queryKey: ['all-business-events', businessId || selectedEvent?.business_id] 
+          });
+        }
+        
+        await deleteEvent(id);
+        queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
+      } catch (error: any) {
+        console.error("[Calendar] Error deleting event:", error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to delete event",
+          variant: "destructive",
         });
-        queryClient.invalidateQueries({ 
-          queryKey: ['all-business-events', businessId || selectedEvent?.business_id] 
-        });
+        throw error;
       }
-      queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
     }
   });
 

@@ -7,6 +7,7 @@ import { CalendarIcon, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect } from "react";
 import { EventRequestsTable } from "./EventRequestsTable";
+import { getAllBusinessEvents } from "@/lib/api";
 
 interface BusinessCalendarProps {
   businessId: string;
@@ -20,13 +21,29 @@ export const BusinessCalendar = ({ businessId }: BusinessCalendarProps) => {
   useEffect(() => {
     if (businessId) {
       console.log("[BusinessCalendar] Mounting with business ID:", businessId);
+      
+      // Immediate refresh
       refetch();
       
-      // Set up periodic refreshing of data
+      // Also fetch directly from API to ensure data is up-to-date
+      const fetchDirectData = async () => {
+        try {
+          console.log("[BusinessCalendar] Direct API fetch for business:", businessId);
+          const allEvents = await getAllBusinessEvents(businessId);
+          console.log(`[BusinessCalendar] Direct fetch retrieved ${allEvents.length} events`);
+        } catch (err) {
+          console.error("[BusinessCalendar] Error in direct API fetch:", err);
+        }
+      };
+      
+      fetchDirectData();
+      
+      // Set up more frequent refreshes
       const intervalId = setInterval(() => {
         console.log("[BusinessCalendar] Periodic refresh for business ID:", businessId);
         refetch();
-      }, 30000); // Refresh every 30 seconds
+        fetchDirectData();
+      }, 15000); // Refresh every 15 seconds for more real-time updates
       
       return () => clearInterval(intervalId);
     }

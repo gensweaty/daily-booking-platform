@@ -7,14 +7,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Calendar } from '@/components/Calendar/Calendar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LanguageProvider } from '@/contexts/LanguageContext';
-import { useCombinedEvents } from '@/hooks/useCombinedEvents';
-import { useQueryClient } from '@tanstack/react-query';
+import { CalendarEventType } from '@/lib/types/calendar';
+import { useToast } from '@/components/ui/use-toast';
 
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const [business, setBusiness] = useState<Business | null>(null);
   const [loadingBusiness, setLoadingBusiness] = useState(true);
-  const queryClient = useQueryClient();
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [events, setEvents] = useState<CalendarEventType[]>([]);
+  const { toast } = useToast();
   
   // Fetch business data
   useEffect(() => {
@@ -27,41 +29,65 @@ export const PublicBusinessPage = () => {
         setBusiness(businessData);
       } catch (error) {
         console.error("[PublicBusinessPage] Error fetching business:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load business information",
+          variant: "destructive"
+        });
       } finally {
         setLoadingBusiness(false);
       }
     };
     
     fetchBusiness();
-  }, [slug]);
+  }, [slug, toast]);
   
-  // Use our combined events hook to get events, including both direct events and approved requests
-  const { events: allEvents, isLoading: loadingEvents, refetch } = useCombinedEvents(business?.id);
-  
-  // Force refetch when business ID is available to ensure we have updated data
+  // Fetch events when business is loaded
   useEffect(() => {
-    if (business?.id) {
-      console.log("[PublicBusinessPage] Business ID is available, forcing refetch");
-      // Invalidate all relevant queries to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: ['direct-business-events', business.id] });
-      queryClient.invalidateQueries({ queryKey: ['approved-event-requests', business.id] });
+    const fetchEvents = async () => {
+      if (!business?.id) return;
       
-      // Then refetch our combined events
-      refetch();
-      
-      // Also fetch directly from the API to ensure we're not missing anything
-      const fetchAllEvents = async () => {
-        try {
-          const events = await getAllBusinessEvents(business.id);
-          console.log(`[PublicBusinessPage] Direct API fetch retrieved ${events.length} events`);
-        } catch (err) {
-          console.error("[PublicBusinessPage] Error in direct API fetch:", err);
+      setLoadingEvents(true);
+      try {
+        console.log(`[PublicBusinessPage] Fetching ALL events for business ${business.id}`);
+        const eventsData = await getAllBusinessEvents(business.id);
+        console.log(`[PublicBusinessPage] Retrieved ${eventsData?.length || 0} total events`);
+        
+        if (eventsData && eventsData.length > 0) {
+          console.log("[PublicBusinessPage] Sample events:", 
+            eventsData.slice(0, 3).map(e => ({
+              id: e.id,
+              title: e.title,
+              start: e.start_date
+            }))
+          );
         }
-      };
+        
+        setEvents(eventsData || []);
+      } catch (error) {
+        console.error("[PublicBusinessPage] Error fetching events:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load calendar events",
+          variant: "destructive"
+        });
+      } finally {
+        setLoadingEvents(false);
+      }
+    };
+
+    if (business?.id) {
+      fetchEvents();
       
-      fetchAllEvents();
+      // Set up periodic refresh
+      const intervalId = setInterval(() => {
+        console.log("[PublicBusinessPage] Refreshing events data");
+        fetchEvents();
+      }, 30000); // Refresh every 30 seconds
+      
+      return () => clearInterval(intervalId);
     }
-  }, [business?.id, refetch, queryClient]);
+  }, [business?.id, toast]);
   
   if (loadingBusiness) {
     return (
@@ -94,7 +120,7 @@ export const PublicBusinessPage = () => {
     );
   }
   
-  console.log(`[PublicBusinessPage] Rendering with ${allEvents?.length || 0} events for business ${business.id}`);
+  console.log(`[PublicBusinessPage] Rendering with ${events?.length || 0} events for business ${business.id}`);
   
   return (
     <LanguageProvider>
@@ -128,12 +154,12 @@ export const PublicBusinessPage = () => {
               ) : (
                 <>
                   <div className="mb-2 text-sm text-muted-foreground">
-                    {allEvents.length} events showing on calendar
+                    {events.length} events showing on calendar
                   </div>
                   <Calendar 
                     defaultView="month"
                     publicMode={true} 
-                    externalEvents={allEvents}
+                    externalEvents={events}
                     businessId={business.id}
                   />
                 </>

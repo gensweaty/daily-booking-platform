@@ -56,69 +56,78 @@ export const getAllBusinessEvents = async (businessId: string) => {
   
   console.log("API: Fetching all business events for:", businessId);
   
-  // First, get direct events from the events table
-  const { data: directEvents, error: eventsError } = await supabase
-    .from('events')
-    .select('*')
-    .eq('business_id', businessId)
-    .order('start_date', { ascending: true });
+  try {
+    // First, get direct events from the events table
+    const { data: directEvents, error: eventsError } = await supabase
+      .from('events')
+      .select('*')
+      .eq('business_id', businessId)
+      .order('start_date', { ascending: true });
 
-  if (eventsError) {
-    console.error("API: Error fetching events:", eventsError);
-    throw eventsError;
-  }
-  
-  // Then, get approved event requests
-  const { data: approvedRequests, error: requestsError } = await supabase
-    .from('event_requests')
-    .select('*')
-    .eq('business_id', businessId)
-    .eq('status', 'approved')
-    .order('start_date', { ascending: true });
+    if (eventsError) {
+      console.error("API: Error fetching events:", eventsError);
+      throw eventsError;
+    }
     
-  if (requestsError) {
-    console.error("API: Error fetching approved requests:", requestsError);
-    throw requestsError;
+    console.log(`API: Retrieved ${directEvents?.length || 0} direct events`);
+    
+    // Then, get approved event requests
+    const { data: approvedRequests, error: requestsError } = await supabase
+      .from('event_requests')
+      .select('*')
+      .eq('business_id', businessId)
+      .eq('status', 'approved')
+      .order('start_date', { ascending: true });
+      
+    if (requestsError) {
+      console.error("API: Error fetching approved requests:", requestsError);
+      throw requestsError;
+    }
+    
+    console.log(`API: Retrieved ${approvedRequests?.length || 0} approved requests`);
+    
+    // Convert approved requests to event format
+    const requestEvents = (approvedRequests || []).map(req => ({
+      id: req.id,
+      title: req.title,
+      start_date: req.start_date,
+      end_date: req.end_date,
+      created_at: req.created_at,
+      updated_at: req.updated_at || req.created_at,
+      user_surname: req.user_surname,
+      user_number: req.user_number,
+      social_network_link: req.social_network_link,
+      event_notes: req.event_notes,
+      type: req.type || 'standard',
+      payment_status: req.payment_status,
+      payment_amount: req.payment_amount,
+      business_id: req.business_id
+    }));
+    
+    // Combine both arrays
+    const allEvents = [
+      ...(directEvents || []),
+      ...requestEvents
+    ];
+    
+    console.log(`API: Retrieved ${allEvents.length} total events for business ${businessId}`);
+    console.log(`API: ${directEvents?.length || 0} direct events, ${approvedRequests?.length || 0} approved requests`);
+    
+    if (allEvents.length > 0) {
+      console.log("API: Sample events:", 
+        allEvents.slice(0, 3).map(e => ({
+          id: e.id,
+          title: e.title,
+          start: e.start_date
+        }))
+      );
+    }
+    
+    return allEvents;
+  } catch (error) {
+    console.error("API: Error in getAllBusinessEvents:", error);
+    throw error;
   }
-  
-  // Convert approved requests to event format
-  const requestEvents = (approvedRequests || []).map(req => ({
-    id: req.id,
-    title: req.title,
-    start_date: req.start_date,
-    end_date: req.end_date,
-    created_at: req.created_at,
-    updated_at: req.updated_at || req.created_at,
-    user_surname: req.user_surname,
-    user_number: req.user_number,
-    social_network_link: req.social_network_link,
-    event_notes: req.event_notes,
-    type: req.type || 'standard',
-    payment_status: req.payment_status,
-    payment_amount: req.payment_amount,
-    business_id: req.business_id
-  }));
-  
-  // Combine both arrays
-  const allEvents = [
-    ...(directEvents || []),
-    ...requestEvents
-  ];
-  
-  console.log(`API: Retrieved ${allEvents.length} total events for business ${businessId}`);
-  console.log(`API: ${directEvents?.length || 0} direct events, ${approvedRequests?.length || 0} approved requests`);
-  
-  if (allEvents.length > 0) {
-    console.log("API: Sample events:", 
-      allEvents.slice(0, 3).map(e => ({
-        id: e.id,
-        title: e.title,
-        start: e.start_date
-      }))
-    );
-  }
-  
-  return allEvents;
 };
 
 export const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
