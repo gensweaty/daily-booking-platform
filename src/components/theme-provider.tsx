@@ -12,7 +12,7 @@ type ThemeProviderProps = {
   enableColorScheme?: boolean;
   disableTransitionOnChange?: boolean;
   forcedTheme?: string;
-  attribute?: string | string[];
+  attribute?: string | "class" | "data-theme";
 }
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
