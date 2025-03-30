@@ -12,6 +12,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     return null;
   }
   
+  console.log("Rendering ExternalCalendar with businessId:", businessId);
+  
   return (
     <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
       <CardContent className="p-0">

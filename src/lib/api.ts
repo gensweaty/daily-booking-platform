@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Note, Task, Reminder, BusinessProfile, BookingRequest } from "@/types/database";
@@ -212,6 +211,8 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
   // Get current user if available
   const { data: userData } = await supabase.auth.getUser();
   
+  console.log("Creating booking request:", request);
+  
   const { data, error } = await supabase
     .from("booking_requests")
     .insert([{ 
@@ -222,7 +223,12 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error("Error creating booking request:", error);
+    throw error;
+  }
+  
+  console.log("Created booking request:", data);
   return data;
 };
 

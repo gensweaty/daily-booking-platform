@@ -51,6 +51,7 @@ export const useCalendarEvents = (businessId?: string) => {
         throw error;
       }
       
+      console.log("Fetched business events:", data?.length || 0);
       return data || [];
     } catch (error) {
       console.error("Error fetching business events:", error);
@@ -89,6 +90,8 @@ export const useCalendarEvents = (businessId?: string) => {
         console.error("Error fetching approved bookings:", error);
         throw error;
       }
+      
+      console.log("Fetched approved bookings:", data?.length || 0);
       
       // Convert booking_requests to format compatible with CalendarEventType
       const bookingEvents = (data || []).map(booking => ({
@@ -189,6 +192,7 @@ export const useCalendarEvents = (businessId?: string) => {
   const { data: approvedBookings = [], isLoading: isLoadingBookings } = useQuery({
     queryKey: ['approved-bookings', user?.id, businessId],
     queryFn: getApprovedBookings,
+    enabled: !!businessId || !!user, // Enable as long as we have either businessId or user
     staleTime: 1000 * 60,
     refetchInterval: 5000,
   });

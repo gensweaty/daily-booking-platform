@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -76,6 +75,7 @@ export const Calendar = ({
     });
   }, [isExternalCalendar, businessId, allowBookingRequests, events, view]);
 
+  // Force refresh to keep events in sync
   useEffect(() => {
     const invalidateQueries = () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
@@ -86,7 +86,7 @@ export const Calendar = ({
     };
     
     invalidateQueries();
-    const intervalId = setInterval(invalidateQueries, 5000);
+    const intervalId = setInterval(invalidateQueries, 3000);
     return () => clearInterval(intervalId);
   }, [queryClient, businessId]);
 
@@ -235,6 +235,7 @@ export const Calendar = ({
   };
 
   if (error) {
+    console.error("Calendar error:", error);
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
 

@@ -30,6 +30,7 @@ export const PublicBusinessPage = () => {
         .single();
 
       if (error) throw error;
+      console.log("Fetched business profile:", data);
       return data as BusinessProfile;
     },
     enabled: !!slug
@@ -63,6 +64,8 @@ export const PublicBusinessPage = () => {
       </div>
     );
   }
+
+  console.log("Rendering PublicBusinessPage with businessId:", business.id);
 
   return (
     <div className="min-h-screen bg-background">
