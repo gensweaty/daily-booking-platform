@@ -44,6 +44,20 @@ export const CalendarView = ({
     return ((actualHour - 6 + 24) % 24) * 80; // 80px is the height of each hour slot
   };
 
+  // Function to determine event color based on type
+  const getEventColorClass = (eventType: string) => {
+    switch (eventType) {
+      case "birthday":
+        return "bg-primary text-primary-foreground";
+      case "booking_request":
+        return "bg-green-600 text-white";
+      case "private_party":
+        return "bg-amber-500 text-black";
+      default:
+        return "bg-secondary text-secondary-foreground";
+    }
+  };
+
   if (view === "month") {
     // Get the start and end of the month view
     const monthStart = startOfMonth(selectedDate);
@@ -81,9 +95,7 @@ export const CalendarView = ({
                   <div
                     key={event.id}
                     className={`text-xs sm:text-sm p-1 rounded ${
-                      event.type === "birthday"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground"
+                      getEventColorClass(event.type)
                     } cursor-pointer truncate hover:opacity-80 transition-opacity ${
                       !isCurrentMonth ? 'opacity-60' : ''
                     }`}
@@ -91,8 +103,9 @@ export const CalendarView = ({
                       e.stopPropagation();
                       onEventClick(event);
                     }}
+                    title={event.title}
                   >
-                    {event.title}
+                    {event.type === "booking_request" ? `📅 ${event.title}` : event.title}
                   </div>
                 ))}
               </div>
@@ -159,9 +172,7 @@ export const CalendarView = ({
                   <div
                     key={event.id}
                     className={`absolute left-0.5 right-0.5 rounded px-0.5 sm:px-2 py-1 text-[10px] sm:text-sm ${
-                      event.type === "birthday"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground"
+                      getEventColorClass(event.type)
                     } cursor-pointer overflow-hidden hover:opacity-80 transition-opacity`}
                     style={{
                       top: `${top}px`,
@@ -171,11 +182,17 @@ export const CalendarView = ({
                       e.stopPropagation();
                       onEventClick(event);
                     }}
+                    title={event.title}
                   >
-                    <div className="font-semibold truncate">{event.title}</div>
+                    <div className="font-semibold truncate">
+                      {event.type === "booking_request" ? `📅 ${event.title}` : event.title}
+                    </div>
                     {height > 40 && (
                       <div className="text-[8px] sm:text-xs truncate">
                         {format(start, "h:mm a", { locale })} - {format(end, "h:mm a", { locale })}
+                        {event.type === "booking_request" && event.requester_name && (
+                          <div className="italic">{event.requester_name}</div>
+                        )}
                       </div>
                     )}
                   </div>

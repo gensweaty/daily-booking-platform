@@ -67,10 +67,31 @@ export const Calendar = ({
   // Fetch approved booking requests
   useEffect(() => {
     const fetchApprovedBookings = async () => {
-      if (!isExternalCalendar && !user?.id) return;
-      
       setIsLoadingBookings(true);
       try {
+        // Get business profile ID for the current user if in dashboard (not external) view
+        let userBusinessId: string | null = null;
+        
+        if (!isExternalCalendar && user?.id) {
+          const { data: businessProfile } = await supabase
+            .from("business_profiles")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+            
+          userBusinessId = businessProfile?.id || null;
+        }
+        
+        // For external calendar, use the provided businessId
+        // For internal calendar (dashboard), use the user's business ID
+        const targetBusinessId = isExternalCalendar ? businessId : userBusinessId;
+        
+        if (!targetBusinessId && !user?.id) {
+          setIsLoadingBookings(false);
+          return;
+        }
+        
+        // Fetch all approved booking requests
         const { data, error } = await supabase
           .from('booking_requests')
           .select('*')
@@ -78,10 +99,20 @@ export const Calendar = ({
           
         if (error) throw error;
         
-        // Filter by businessId for external calendar or by user_id for internal
-        const filteredData = isExternalCalendar && businessId 
-          ? data.filter((booking: BookingRequest) => booking.business_id === businessId)
-          : data.filter((booking: BookingRequest) => booking.user_id === user?.id);
+        // Filter by business ID
+        let filteredData = data;
+        
+        if (targetBusinessId) {
+          // If we have a business ID (either external or user's business), filter by it
+          filteredData = data.filter((booking: BookingRequest) => 
+            booking.business_id === targetBusinessId
+          );
+        } else if (user?.id) {
+          // Otherwise show the user's personal bookings
+          filteredData = data.filter((booking: BookingRequest) => 
+            booking.user_id === user.id
+          );
+        }
         
         // Convert booking requests to calendar events
         const bookingEvents: CalendarEventType[] = (filteredData || []).map((booking: BookingRequest) => ({
@@ -89,9 +120,11 @@ export const Calendar = ({
           title: booking.title,
           start_date: booking.start_date,
           end_date: booking.end_date,
-          type: 'private_party', // Use a type that will display differently
-          user_id: booking.user_id,
-          created_at: booking.created_at || new Date().toISOString(),
+          type: 'booking_request', // Special type for styling
+          user_id: booking.user_id || '',
+          created_at: booking.created_at,
+          requester_name: booking.requester_name, // Include additional booking info
+          requester_email: booking.requester_email,
         }));
         
         setApprovedBookings(bookingEvents);
@@ -105,7 +138,7 @@ export const Calendar = ({
     fetchApprovedBookings();
     
     // Set up interval to refresh approved bookings
-    const intervalId = setInterval(fetchApprovedBookings, 30000);
+    const intervalId = setInterval(fetchApprovedBookings, 15000);
     return () => clearInterval(intervalId);
   }, [user?.id, isExternalCalendar, businessId]);
   
