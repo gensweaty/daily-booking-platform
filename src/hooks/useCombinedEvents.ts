@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { getAllBusinessEvents } from "@/lib/api";
 
 /**
- * Hook that fetches and combines both direct events and approved event requests
+ * Hook that fetches and combines both direct events and event requests
  * to ensure internal and external calendars are synchronized
  */
 export const useCombinedEvents = (businessId?: string) => {
@@ -46,31 +46,30 @@ export const useCombinedEvents = (businessId?: string) => {
     staleTime: 1000, // 1 second
   });
 
-  // Fetch approved event requests
-  const { data: approvedRequests, isLoading: isLoadingRequests, error: requestsError } = useQuery({
-    queryKey: ['approved-event-requests', businessId],
+  // Fetch ALL event requests (not just approved ones)
+  const { data: allRequests, isLoading: isLoadingRequests, error: requestsError } = useQuery({
+    queryKey: ['all-event-requests', businessId],
     queryFn: async () => {
       if (!businessId) return [];
       
-      console.log("[useCombinedEvents] Fetching approved requests for business:", businessId);
+      console.log("[useCombinedEvents] Fetching ALL requests for business:", businessId);
       
       try {
         const { data, error } = await supabase
           .from('event_requests')
           .select('*')
           .eq('business_id', businessId)
-          .eq('status', 'approved')
           .order('start_date', { ascending: true });
           
         if (error) {
-          console.error("[useCombinedEvents] Error fetching approved requests:", error);
+          console.error("[useCombinedEvents] Error fetching all requests:", error);
           throw error;
         }
         
-        console.log(`[useCombinedEvents] Retrieved ${data?.length || 0} approved requests`);
+        console.log(`[useCombinedEvents] Retrieved ${data?.length || 0} total requests`);
         return data || [];
       } catch (err) {
-        console.error("[useCombinedEvents] Error in fetchApprovedRequests:", err);
+        console.error("[useCombinedEvents] Error in fetchAllRequests:", err);
         return [];
       }
     },
@@ -108,14 +107,14 @@ export const useCombinedEvents = (businessId?: string) => {
     if (businessId) {
       // Invalidate queries to force refresh
       queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-event-requests', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['all-event-requests', businessId] });
       queryClient.invalidateQueries({ queryKey: ['api-combined-events', businessId] });
       
       // Schedule additional refetch after a short delay to catch any new updates
       const timer = setTimeout(() => {
         if (businessId) {
           queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
-          queryClient.invalidateQueries({ queryKey: ['approved-event-requests', businessId] });
+          queryClient.invalidateQueries({ queryKey: ['all-event-requests', businessId] });
           queryClient.invalidateQueries({ queryKey: ['api-combined-events', businessId] });
           refetchApi();
         }
@@ -134,10 +133,10 @@ export const useCombinedEvents = (businessId?: string) => {
     
     let allEvents: CalendarEventType[] = [];
     
-    // First try the separate queries (direct events + approved requests)
-    if (directEvents && approvedRequests) {
-      // Format approved requests to match the CalendarEventType
-      const requestEvents: CalendarEventType[] = approvedRequests.map(req => ({
+    // First try the separate queries (direct events + all requests)
+    if (directEvents && allRequests) {
+      // Format all requests to match the CalendarEventType
+      const requestEvents: CalendarEventType[] = allRequests.map(req => ({
         id: req.id,
         title: req.title,
         start_date: req.start_date,
@@ -151,7 +150,8 @@ export const useCombinedEvents = (businessId?: string) => {
         type: req.type || 'standard',
         payment_status: req.payment_status,
         payment_amount: req.payment_amount,
-        business_id: req.business_id
+        business_id: req.business_id,
+        status: req.status // Include status to differentiate in UI if needed
       }));
       
       // Combine both arrays
@@ -160,7 +160,7 @@ export const useCombinedEvents = (businessId?: string) => {
         ...requestEvents
       ];
       
-      console.log(`[useCombinedEvents] Combined ${directEvents?.length || 0} direct events and ${approvedRequests?.length || 0} approved requests`);
+      console.log(`[useCombinedEvents] Combined ${directEvents?.length || 0} direct events and ${allRequests?.length || 0} requests`);
     } 
     // Fallback to API directly fetched events if available and there was an issue with separate queries
     else if (apiEvents && apiEvents.length > 0) {
@@ -176,13 +176,14 @@ export const useCombinedEvents = (businessId?: string) => {
         allEvents.slice(0, 3).map(e => ({ 
           id: e.id, 
           title: e.title,
-          start: e.start_date
+          start: e.start_date,
+          status: (e as any).status // Log status if available
         }))
       );
     }
     
     setCombinedEvents(allEvents);
-  }, [directEvents, approvedRequests, apiEvents, businessId]);
+  }, [directEvents, allRequests, apiEvents, businessId]);
 
   return {
     events: combinedEvents,
@@ -192,7 +193,7 @@ export const useCombinedEvents = (businessId?: string) => {
       console.log(`[useCombinedEvents] Manually triggering refetch for business: ${businessId}`);
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
-        queryClient.invalidateQueries({ queryKey: ['approved-event-requests', businessId] });
+        queryClient.invalidateQueries({ queryKey: ['all-event-requests', businessId] });
         queryClient.invalidateQueries({ queryKey: ['api-combined-events', businessId] });
         refetchApi();
       }

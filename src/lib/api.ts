@@ -71,23 +71,22 @@ export const getAllBusinessEvents = async (businessId: string) => {
     
     console.log(`API: Retrieved ${directEvents?.length || 0} direct events`);
     
-    // Then, get approved event requests
-    const { data: approvedRequests, error: requestsError } = await supabase
+    // Then, get ALL event requests, not just approved ones
+    const { data: allRequests, error: requestsError } = await supabase
       .from('event_requests')
       .select('*')
       .eq('business_id', businessId)
-      .eq('status', 'approved')
       .order('start_date', { ascending: true });
       
     if (requestsError) {
-      console.error("API: Error fetching approved requests:", requestsError);
+      console.error("API: Error fetching all requests:", requestsError);
       throw requestsError;
     }
     
-    console.log(`API: Retrieved ${approvedRequests?.length || 0} approved requests`);
+    console.log(`API: Retrieved ${allRequests?.length || 0} event requests`);
     
-    // Convert approved requests to event format
-    const requestEvents = (approvedRequests || []).map(req => ({
+    // Convert all requests to event format
+    const requestEvents = (allRequests || []).map(req => ({
       id: req.id,
       title: req.title,
       start_date: req.start_date,
@@ -101,7 +100,8 @@ export const getAllBusinessEvents = async (businessId: string) => {
       type: req.type || 'standard',
       payment_status: req.payment_status,
       payment_amount: req.payment_amount,
-      business_id: req.business_id
+      business_id: req.business_id,
+      status: req.status // Include status field
     }));
     
     // Combine both arrays
@@ -111,14 +111,15 @@ export const getAllBusinessEvents = async (businessId: string) => {
     ];
     
     console.log(`API: Retrieved ${allEvents.length} total events for business ${businessId}`);
-    console.log(`API: ${directEvents?.length || 0} direct events, ${approvedRequests?.length || 0} approved requests`);
+    console.log(`API: ${directEvents?.length || 0} direct events, ${allRequests?.length || 0} requests`);
     
     if (allEvents.length > 0) {
       console.log("API: Sample events:", 
         allEvents.slice(0, 3).map(e => ({
           id: e.id,
           title: e.title,
-          start: e.start_date
+          start: e.start_date,
+          status: (e as any).status // Log status if available
         }))
       );
     }

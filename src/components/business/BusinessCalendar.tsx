@@ -38,12 +38,12 @@ export const BusinessCalendar = ({ businessId }: BusinessCalendarProps) => {
       
       fetchDirectData();
       
-      // Set up more frequent refreshes
+      // Set up more frequent refreshes (every 5 seconds)
       const intervalId = setInterval(() => {
         console.log("[BusinessCalendar] Periodic refresh for business ID:", businessId);
         refetch();
         fetchDirectData();
-      }, 10000); // Refresh every 10 seconds for more real-time updates
+      }, 5000); // Reduced from 10 seconds to 5 seconds for better synchronization
       
       return () => clearInterval(intervalId);
     }

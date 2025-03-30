@@ -45,7 +45,7 @@ export const PublicBusinessPage = () => {
   // Use the combined events hook to get all events (both direct and requests)
   const { events, isLoading: loadingEvents, refetch } = useCombinedEvents(business?.id);
   
-  // Set up periodic refresh for events
+  // Set up frequent refresh for events
   useEffect(() => {
     if (business?.id) {
       console.log("[PublicBusinessPage] Setting up event refresh for business:", business.id);
@@ -53,11 +53,25 @@ export const PublicBusinessPage = () => {
       // Immediate refresh
       refetch();
       
-      // Set up periodic refresh
+      // Also fetch directly from API to ensure data is up-to-date
+      const fetchDirectData = async () => {
+        try {
+          console.log("[PublicBusinessPage] Direct API fetch for business:", business.id);
+          const allEvents = await getAllBusinessEvents(business.id);
+          console.log(`[PublicBusinessPage] Direct fetch retrieved ${allEvents.length} events`);
+        } catch (err) {
+          console.error("[PublicBusinessPage] Error in direct API fetch:", err);
+        }
+      };
+      
+      fetchDirectData();
+      
+      // Set up very frequent refresh (5 seconds)
       const intervalId = setInterval(() => {
         console.log("[PublicBusinessPage] Refreshing events data");
         refetch();
-      }, 15000); // Refresh every 15 seconds
+        fetchDirectData();
+      }, 5000); // Refresh every 5 seconds for better synchronization
       
       return () => clearInterval(intervalId);
     }

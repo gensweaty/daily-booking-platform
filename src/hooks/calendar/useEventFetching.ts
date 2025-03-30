@@ -54,23 +54,22 @@ export const useEventFetching = () => {
       
       console.log(`[useEventFetching] Retrieved ${directEvents?.length || 0} direct events for business ID:`, businessId);
       
-      // 2. Get approved event requests
-      const { data: approvedRequests, error: requestsError } = await supabase
+      // 2. Get approved event requests - IMPORTANT: We'll include ALL event requests, not just approved ones
+      const { data: eventRequests, error: requestsError } = await supabase
         .from('event_requests')
         .select('*')
         .eq('business_id', businessId)
-        .eq('status', 'approved')
         .order('start_date', { ascending: true });
       
       if (requestsError) {
-        console.error("[useEventFetching] Error fetching approved event requests:", requestsError);
+        console.error("[useEventFetching] Error fetching event requests:", requestsError);
         throw requestsError;
       }
       
-      console.log(`[useEventFetching] Retrieved ${approvedRequests?.length || 0} approved request events for business ID:`, businessId);
+      console.log(`[useEventFetching] Retrieved ${eventRequests?.length || 0} request events for business ID:`, businessId);
       
-      // Convert approved requests to event format
-      const requestEvents = (approvedRequests || []).map(req => ({
+      // Convert event requests to event format (INCLUDE ALL, not just approved ones)
+      const requestEvents = (eventRequests || []).map(req => ({
         id: req.id,
         title: req.title,
         start_date: req.start_date,
@@ -84,13 +83,14 @@ export const useEventFetching = () => {
         type: req.type,
         payment_status: req.payment_status,
         payment_amount: req.payment_amount,
-        business_id: req.business_id
+        business_id: req.business_id,
+        status: req.status // Include the status so we can visually differentiate in UI if needed
       }));
       
       // Combine both arrays for public display
       const combinedEvents = [...(directEvents || []), ...requestEvents];
       
-      console.log(`[useEventFetching] Total public events: ${combinedEvents.length} (${directEvents?.length || 0} direct + ${approvedRequests?.length || 0} requests)`);
+      console.log(`[useEventFetching] Total public events: ${combinedEvents.length} (${directEvents?.length || 0} direct + ${eventRequests?.length || 0} requests)`);
       
       if (combinedEvents.length > 0) {
         console.log("[useEventFetching] Sample event data:", {
@@ -131,29 +131,28 @@ export const useEventFetching = () => {
       
       console.log(`[useEventFetching] Retrieved ${directEvents?.length || 0} direct events for business:`, businessId);
       
-      // Get approved event requests
-      const { data: approvedRequests, error: requestsError } = await supabase
+      // Get ALL event requests, not just approved ones
+      const { data: allRequests, error: requestsError } = await supabase
         .from('event_requests')
         .select('*')
         .eq('business_id', businessId)
-        .eq('status', 'approved')
         .order('start_date', { ascending: true });
         
       if (requestsError) {
-        console.error("[useEventFetching] Error fetching approved requests:", requestsError);
+        console.error("[useEventFetching] Error fetching all requests:", requestsError);
         throw requestsError;
       }
       
-      console.log(`[useEventFetching] Retrieved ${approvedRequests?.length || 0} approved request events for business:`, businessId);
+      console.log(`[useEventFetching] Retrieved ${allRequests?.length || 0} request events for business:`, businessId);
       
-      // Convert approved requests to event format
-      const requestEvents = (approvedRequests || []).map(req => ({
+      // Convert requests to event format
+      const requestEvents = (allRequests || []).map(req => ({
         id: req.id,
         title: req.title,
         start_date: req.start_date,
         end_date: req.end_date,
         created_at: req.created_at,
-        updated_at: req.updated_at,
+        updated_at: req.updated_at || req.created_at,
         user_surname: req.user_surname,
         user_number: req.user_number,
         social_network_link: req.social_network_link,
@@ -161,13 +160,14 @@ export const useEventFetching = () => {
         type: req.type,
         payment_status: req.payment_status,
         payment_amount: req.payment_amount,
-        business_id: req.business_id
+        business_id: req.business_id,
+        status: req.status // Include status field from request
       }));
       
-      // Combine direct events and approved requests
+      // Combine direct events and all requests
       const allEvents = [...(directEvents || []), ...requestEvents];
       
-      console.log(`[useEventFetching] Retrieved ${allEvents.length} total events (${directEvents?.length || 0} direct, ${approvedRequests?.length || 0} requests) for business:`, businessId);
+      console.log(`[useEventFetching] Retrieved ${allEvents.length} total events (${directEvents?.length || 0} direct, ${allRequests?.length || 0} requests) for business:`, businessId);
       
       if (allEvents.length > 0) {
         console.log("[useEventFetching] Sample event data:", {
