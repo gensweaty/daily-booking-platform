@@ -60,12 +60,7 @@ export const BusinessPage = () => {
             )}
           </div>
 
-          <BusinessProfileForm 
-            existingProfile={businessProfile} 
-            onSuccess={() => {
-              // Handle success
-            }}
-          />
+          <BusinessProfileForm />
         </TabsContent>
 
         <TabsContent value="bookings" className="space-y-6">
