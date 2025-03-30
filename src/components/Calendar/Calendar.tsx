@@ -49,7 +49,9 @@ export const Calendar = ({
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
-  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(isExternalCalendar ? businessId : undefined);
+  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
+    isExternalCalendar && businessId ? businessId : undefined
+  );
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
   const [bookingStartTime, setBookingStartTime] = useState("09:00");
   const [bookingDate, setBookingDate] = useState<Date | undefined>(undefined);
@@ -64,18 +66,17 @@ export const Calendar = ({
     }
   }, [currentView]);
 
-  // For debugging
   useEffect(() => {
     console.log("Calendar props:", { 
       isExternalCalendar, 
       businessId, 
       allowBookingRequests,
       eventsCount: events?.length || 0,
-      view
+      view,
+      events
     });
   }, [isExternalCalendar, businessId, allowBookingRequests, events, view]);
 
-  // Force refresh to keep events in sync
   useEffect(() => {
     const invalidateQueries = () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
@@ -184,13 +185,11 @@ export const Calendar = ({
     clickedDate.setHours(hour || 9, 0, 0, 0);
     
     if (isExternalCalendar && allowBookingRequests) {
-      // For external calendar with booking requests enabled
       setBookingDate(clickedDate);
       const formattedHour = hour?.toString().padStart(2, '0') || '09';
       setBookingStartTime(`${formattedHour}:00`);
       setIsBookingFormOpen(true);
     } else if (!isExternalCalendar) {
-      // For dashboard calendar
       setDialogSelectedDate(clickedDate);
       setTimeout(() => setIsNewEventDialogOpen(true), 0);
     }
@@ -198,12 +197,10 @@ export const Calendar = ({
 
   const handleAddEventClick = () => {
     if (isExternalCalendar && allowBookingRequests) {
-      // For external calendar, open booking request form
       const now = new Date();
       setBookingDate(now);
       setIsBookingFormOpen(true);
     } else if (!isExternalCalendar) {
-      // For dashboard calendar
       const now = new Date();
       now.setHours(9, 0, 0, 0);
       
@@ -216,7 +213,6 @@ export const Calendar = ({
     if (!isExternalCalendar) {
       setSelectedEvent(event);
     } else if (isExternalCalendar && allowBookingRequests) {
-      // Show a toast that this time slot is already booked
       toast({
         title: "Time slot not available",
         description: "This time slot is already booked. Please select a different time.",
@@ -302,7 +298,6 @@ export const Calendar = ({
         </>
       )}
 
-      {/* Booking Request Dialog for External Calendar */}
       {isExternalCalendar && allowBookingRequests && (
         <Dialog open={isBookingFormOpen} onOpenChange={setIsBookingFormOpen}>
           <DialogContent className="max-w-md">

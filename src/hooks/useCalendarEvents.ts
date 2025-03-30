@@ -37,7 +37,12 @@ export const useCalendarEvents = (businessId?: string) => {
         .eq("id", businessId)
         .single();
         
-      if (!businessProfile?.user_id) return [];
+      if (!businessProfile?.user_id) {
+        console.error("No user_id found for business:", businessId);
+        return [];
+      }
+      
+      console.log("Found user_id for business:", businessProfile.user_id);
       
       // Then get events for that user
       const { data, error } = await supabase
@@ -51,7 +56,7 @@ export const useCalendarEvents = (businessId?: string) => {
         throw error;
       }
       
-      console.log("Fetched business events:", data?.length || 0);
+      console.log("Fetched business events:", data?.length || 0, data);
       return data || [];
     } catch (error) {
       console.error("Error fetching business events:", error);
@@ -174,7 +179,7 @@ export const useCalendarEvents = (businessId?: string) => {
   const { data: events = [], isLoading: isLoadingUserEvents, error: userEventsError } = useQuery({
     queryKey: ['events', user?.id],
     queryFn: getEvents,
-    enabled: !!user,
+    enabled: !!user && !businessId, // Only fetch user events when in dashboard mode
     staleTime: 1000 * 60, // 1 minute
     refetchInterval: 5000, // Refresh every 5 seconds to ensure sync
   });
@@ -183,7 +188,7 @@ export const useCalendarEvents = (businessId?: string) => {
   const { data: businessEvents = [], isLoading: isLoadingBusinessEvents, error: businessEventsError } = useQuery({
     queryKey: ['business-events', businessId],
     queryFn: getBusinessEvents,
-    enabled: !!businessId,
+    enabled: !!businessId, // Only fetch business events when business ID is provided
     staleTime: 1000 * 60,
     refetchInterval: 5000,
   });
@@ -225,10 +230,9 @@ export const useCalendarEvents = (businessId?: string) => {
   });
 
   // Combine events with approved bookings for display
-  const allEvents = [
-    ...(businessId ? businessEvents : events),
-    ...approvedBookings
-  ];
+  const allEvents = businessId 
+    ? [...businessEvents, ...approvedBookings]  // For external calendar, show business events + approved bookings
+    : [...events, ...approvedBookings];        // For dashboard, show user events + approved bookings
 
   console.log("useCalendarEvents combined data:", {
     userEvents: events.length,
@@ -242,8 +246,8 @@ export const useCalendarEvents = (businessId?: string) => {
     events: allEvents, // Always return the combined list of events
     isLoading: businessId ? (isLoadingBusinessEvents || isLoadingBookings) : (isLoadingUserEvents || isLoadingBookings),
     error: businessId ? businessEventsError : userEventsError,
-    createEvent: createEventMutation.mutateAsync,
-    updateEvent: updateEventMutation.mutateAsync,
-    deleteEvent: deleteEventMutation.mutateAsync,
+    createEvent: createEventMutation?.mutateAsync,
+    updateEvent: updateEventMutation?.mutateAsync,
+    deleteEvent: deleteEventMutation?.mutateAsync,
   };
 };
