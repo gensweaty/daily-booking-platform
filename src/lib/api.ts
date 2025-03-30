@@ -208,14 +208,26 @@ export const getBookingRequests = async (businessId: string) => {
 };
 
 export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status">) => {
-  const { data, error } = await supabase
-    .from("booking_requests")
-    .insert([{ ...request, status: 'pending' }])
-    .select()
-    .single();
+  try {
+    console.log("Creating booking request:", request);
+    
+    const { data, error } = await supabase
+      .from("booking_requests")
+      .insert([{ ...request, status: 'pending' }])
+      .select()
+      .single();
 
-  if (error) throw error;
-  return data;
+    if (error) {
+      console.error("Error creating booking request:", error);
+      throw error;
+    }
+    
+    console.log("Booking request created successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Exception in createBookingRequest:", error);
+    throw error;
+  }
 };
 
 export const updateBookingRequest = async (id: string, updates: Partial<BookingRequest>) => {

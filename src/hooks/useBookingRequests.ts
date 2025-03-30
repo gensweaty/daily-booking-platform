@@ -61,6 +61,43 @@ export const useBookingRequests = (businessId: string | undefined) => {
     if (error) throw error;
   };
 
+  // Add booking to calendar events when approved
+  const addBookingToEvents = async (booking: BookingRequest): Promise<void> => {
+    // Check if this booking is already in events
+    const { data: existingEvents } = await supabase
+      .from("events")
+      .select("id")
+      .eq("booking_request_id", booking.id)
+      .maybeSingle();
+
+    if (existingEvents) {
+      console.log("Booking already exists in events, skipping creation");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("events")
+      .insert([{
+        title: `${booking.requester_name} - ${booking.title}`,
+        event_notes: booking.description || "",
+        start_date: booking.start_date,
+        end_date: booking.end_date,
+        user_surname: "",
+        user_number: booking.requester_phone || "",
+        social_network_link: booking.requester_email || "",
+        business_id: businessId,
+        booking_request_id: booking.id,
+      }]);
+
+    if (error) {
+      console.error("Error adding booking to events:", error);
+      throw error;
+    }
+    
+    // Also invalidate events cache to refresh calendars
+    queryClient.invalidateQueries({ queryKey: ["events"] });
+  };
+
   const { data: bookingRequests = [], isLoading, error } = useQuery({
     queryKey: ["bookingRequests", businessId],
     queryFn: getBookingRequests,
@@ -92,8 +129,21 @@ export const useBookingRequests = (businessId: string | undefined) => {
 
   const updateRequestMutation = useMutation({
     mutationFn: updateBookingRequest,
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["bookingRequests", businessId] });
+      
+      // If the booking was approved, add it to events
+      if (data.status === "approved") {
+        addBookingToEvents(data).catch(error => {
+          console.error("Failed to add approved booking to calendar:", error);
+          toast({
+            title: "Warning",
+            description: "Booking approved, but failed to add to calendar. Please check your events.",
+            variant: "destructive",
+          });
+        });
+      }
+      
       toast({
         title: "Success",
         description: "Booking request updated successfully",
@@ -126,12 +176,12 @@ export const useBookingRequests = (businessId: string | undefined) => {
     },
   });
 
-  const approveRequest = (id: string) => {
-    updateRequestMutation.mutate({ id, updates: { status: "approved" } });
+  const approveRequest = async (id: string) => {
+    await updateRequestMutation.mutateAsync({ id, updates: { status: "approved" } });
   };
 
-  const rejectRequest = (id: string) => {
-    updateRequestMutation.mutate({ id, updates: { status: "rejected" } });
+  const rejectRequest = async (id: string) => {
+    await updateRequestMutation.mutateAsync({ id, updates: { status: "rejected" } });
   };
 
   return {

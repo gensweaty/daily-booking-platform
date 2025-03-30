@@ -61,6 +61,7 @@ export const BookingRequestForm = ({ businessId, selectedDate, onSuccess }: Book
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsSubmitting(true);
+      console.log("Form values:", values);
       
       // Create Date objects for start and end times
       const { date, startTime, endTime, ...otherValues } = values;
@@ -85,22 +86,27 @@ export const BookingRequestForm = ({ businessId, selectedDate, onSuccess }: Book
         return;
       }
 
-      await createBookingRequest({
+      const requestData = {
         business_id: businessId,
         requester_name: values.requesterName,
         requester_email: values.requesterEmail,
-        requester_phone: values.requesterPhone,
+        requester_phone: values.requesterPhone || '',
         title: values.title,
-        description: values.description,
+        description: values.description || '',
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
-      });
+      };
+
+      console.log("Submitting booking request:", requestData);
+
+      await createBookingRequest(requestData);
 
       toast({
         title: "Booking Request Submitted",
         description: "Your booking request has been submitted successfully.",
       });
       
+      form.reset();
       onSuccess();
     } catch (error) {
       console.error("Error submitting booking request:", error);

@@ -1,45 +1,59 @@
-export interface Task {
+export interface Note {
+  id: string;
+  created_at: string;
+  title: string;
+  content: string;
+  user_id: string;
+}
+
+export interface CalendarEventType {
   id: string;
   title: string;
-  description?: string;
-  status: 'todo' | 'inprogress' | 'done';
-  order: number;
+  event_notes: string;
+  start_date: string;
+  end_date: string;
+  user_id?: string;
+  business_id?: string;
+  booking_request_id?: string;
+  type?: string;
+  created_at?: string;
+  user_surname?: string;
+  user_number?: string;
+  payment_status?: string;
+  payment_amount?: number;
+  social_network_link?: string;
+  deleted_at?: string | null;
+}
+
+export interface Task {
+  id: string;
   created_at: string;
+  title: string;
+  is_completed: boolean;
   user_id: string;
 }
 
 export interface Reminder {
   id: string;
-  title: string;
-  description?: string;
-  remind_at: string;
   created_at: string;
-  user_id: string;
-}
-
-export interface Note {
-  id: string;
   title: string;
-  content?: string;
-  color?: string;
-  category?: string;
-  created_at: string;
+  time: string;
   user_id: string;
 }
 
 export interface BusinessProfile {
   id: string;
-  user_id: string;
-  business_name: string;
-  description?: string;
-  contact_phone?: string;
-  contact_email?: string;
-  contact_address?: string;
-  contact_website?: string;
-  cover_photo_url?: string;
-  slug: string;
   created_at: string;
   updated_at: string;
+  business_name: string;
+  business_description: string;
+  business_address: string;
+  business_phone: string;
+  business_email: string;
+  business_website: string;
+  business_logo: string;
+  user_id: string;
+  slug: string;
 }
 
 export interface BookingRequest {
@@ -52,7 +66,7 @@ export interface BookingRequest {
   description?: string;
   start_date: string;
   end_date: string;
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
-  updated_at: string;
+  status: "pending" | "approved" | "rejected";
+  created_at?: string;
+  updated_at?: string;
 }
