@@ -30,17 +30,20 @@ interface CalendarProps {
   defaultView?: CalendarViewType;
   isExternalCalendar?: boolean;
   businessId?: string;
+  showAllEvents?: boolean;
 }
 
 export const Calendar = ({ 
   defaultView = "week", 
   isExternalCalendar = false,
-  businessId 
+  businessId,
+  showAllEvents = false
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
   const [approvedBookings, setApprovedBookings] = useState<CalendarEventType[]>([]);
+  const [regularEvents, setRegularEvents] = useState<CalendarEventType[]>([]);
   const [isLoadingBookings, setIsLoadingBookings] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -63,6 +66,37 @@ export const Calendar = ({
     
     return () => clearInterval(intervalId);
   }, [queryClient]);
+
+  // Fetch regular events for both calendars when showAllEvents is true
+  useEffect(() => {
+    const fetchRegularEvents = async () => {
+      if (!showAllEvents || !businessId) return;
+      
+      try {
+        const { data: businessProfile } = await supabase
+          .from("business_profiles")
+          .select("user_id")
+          .eq("id", businessId)
+          .single();
+          
+        if (!businessProfile?.user_id) return;
+          
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('user_id', businessProfile.user_id)
+          .order('start_date', { ascending: true });
+          
+        if (error) throw error;
+        
+        setRegularEvents(data || []);
+      } catch (error) {
+        console.error('Error fetching regular events:', error);
+      }
+    };
+    
+    fetchRegularEvents();
+  }, [businessId, showAllEvents]);
 
   // Fetch approved booking requests
   useEffect(() => {
@@ -143,7 +177,11 @@ export const Calendar = ({
   }, [user?.id, isExternalCalendar, businessId]);
   
   // Combine regular events and approved bookings
-  const allEvents = [...(events || []), ...approvedBookings];
+  const combinedEvents = [...(events || []), ...approvedBookings];
+  // If showing all events in external view, also include regular events from the business owner
+  const allEvents = showAllEvents && isExternalCalendar 
+    ? [...combinedEvents, ...regularEvents] 
+    : combinedEvents;
 
   const {
     selectedEvent,

@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   if (!businessId) {
     console.error("No businessId provided to ExternalCalendar");
+    return null;
   }
   
   return (
@@ -15,6 +16,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             defaultView="month" 
             isExternalCalendar={true} 
             businessId={businessId} 
+            showAllEvents={true} // Add this flag to show all events
           />
         </div>
       </CardContent>

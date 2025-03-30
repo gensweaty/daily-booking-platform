@@ -58,6 +58,20 @@ export const CalendarView = ({
     }
   };
 
+  // Function to get event icon based on type
+  const getEventIcon = (eventType: string) => {
+    switch (eventType) {
+      case "booking_request":
+        return "📅 ";
+      case "birthday":
+        return "🎂 ";
+      case "private_party":
+        return "🎉 ";
+      default:
+        return "";
+    }
+  };
+
   if (view === "month") {
     // Get the start and end of the month view
     const monthStart = startOfMonth(selectedDate);
@@ -105,7 +119,7 @@ export const CalendarView = ({
                     }}
                     title={event.title}
                   >
-                    {event.type === "booking_request" ? `📅 ${event.title}` : event.title}
+                    {getEventIcon(event.type)}{event.title}
                   </div>
                 ))}
               </div>
@@ -185,7 +199,7 @@ export const CalendarView = ({
                     title={event.title}
                   >
                     <div className="font-semibold truncate">
-                      {event.type === "booking_request" ? `📅 ${event.title}` : event.title}
+                      {getEventIcon(event.type)}{event.title}
                     </div>
                     {height > 40 && (
                       <div className="text-[8px] sm:text-xs truncate">
