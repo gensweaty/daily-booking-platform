@@ -13,6 +13,7 @@ import { CustomerList } from "@/components/crm/CustomerList"
 import { BusinessPage } from "@/components/business/BusinessPage"
 import { motion, AnimatePresence } from "framer-motion"
 import { useLanguage } from "@/contexts/LanguageContext"
+import { useBusinessProfile } from "@/hooks/useBusinessProfile" // Add import for useBusinessProfile hook
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
@@ -47,6 +48,7 @@ export const DashboardContent = ({
   setIsTaskDialogOpen 
 }: DashboardContentProps) => {
   const { t } = useLanguage();
+  const { businessProfile } = useBusinessProfile(); // Get the business profile
 
   return (
     <Tabs defaultValue="calendar" className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
@@ -161,7 +163,7 @@ export const DashboardContent = ({
               initial="hidden"
               animate="visible"
             >
-              <ExternalCalendar />
+              <ExternalCalendar businessId={businessProfile?.id || ''} />
             </motion.div>
           </motion.div>
         </TabsContent>
