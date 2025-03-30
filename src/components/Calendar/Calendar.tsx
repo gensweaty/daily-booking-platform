@@ -11,7 +11,7 @@ import {
   subMonths,
   startOfDay,
 } from "date-fns";
-import { useCalendarEvents } from "@/hooks/useCalendarEvents";
+import { useCalendarEvents } from "@/hooks/calendar";
 import { CalendarHeader } from "./CalendarHeader";
 import { CalendarView } from "./CalendarView";
 import { EventDialog } from "./EventDialog";
