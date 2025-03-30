@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
       await createReminder({ 
         title, 
         description, 
-        due_date: dueDate 
+        remind_at: dueDate 
       });
       await queryClient.invalidateQueries({ queryKey: ['reminders'] });
       toast({

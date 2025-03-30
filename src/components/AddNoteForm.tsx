@@ -51,7 +51,7 @@ export const AddNoteForm = ({ onClose }: { onClose: () => void }) => {
     try {
       const newNote = await createNote({ 
         title, 
-        content, 
+        content,
         color,
         user_id: user.id 
       });

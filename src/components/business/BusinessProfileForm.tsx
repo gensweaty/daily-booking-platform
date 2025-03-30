@@ -75,10 +75,11 @@ export const BusinessProfileForm = () => {
         // Update existing profile
         updateBusinessProfile(data);
       } else {
-        // Create new profile - ensure slug is provided
+        // Create new profile - ensure slug and business_name are provided
         createBusinessProfile({
           ...data,
-          slug: data.slug, // Explicitly include slug to satisfy TypeScript
+          business_name: data.business_name, // Explicitly include business_name
+          slug: data.slug, // Explicitly include slug
         });
       }
     } finally {

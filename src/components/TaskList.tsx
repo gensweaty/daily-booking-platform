@@ -46,7 +46,7 @@ export const TaskList = () => {
     if (!result.destination) return;
 
     const taskId = result.draggableId;
-    const newStatus = result.destination.droppableId as 'todo' | 'in-progress' | 'done';
+    const newStatus = result.destination.droppableId as 'todo' | 'inprogress' | 'done';
 
     updateTaskMutation.mutate({
       id: taskId,

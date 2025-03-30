@@ -1,10 +1,12 @@
+
 export interface Task {
   id: string;
   title: string;
   description?: string;
-  status: 'todo' | 'in-progress' | 'done';
+  status: 'todo' | 'inprogress' | 'done';
   created_at: string;
   user_id?: string;
+  order: number;
 }
 
 export interface Note {
@@ -22,7 +24,7 @@ export interface Reminder {
   id: string;
   title: string;
   description?: string;
-  due_date: string;
+  remind_at: string;
   created_at: string;
   user_id?: string;
 }
