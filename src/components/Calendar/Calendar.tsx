@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   startOfWeek,
@@ -21,6 +22,8 @@ import { useNavigate } from "react-router-dom";
 import { TimeIndicator } from "./TimeIndicator";
 import { useEventDialog } from "./hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -32,11 +35,25 @@ export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Make events available globally for the useEventDialog hook
   if (typeof window !== 'undefined') {
     (window as any).__CALENDAR_EVENTS__ = events;
   }
+
+  // Regular refresh for sync purposes
+  useEffect(() => {
+    // Initial fetch
+    queryClient.invalidateQueries({ queryKey: ['events'] });
+    
+    // Set up regular refresh interval
+    const intervalId = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+    }, 15000); // Refresh every 15 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [queryClient]);
 
   const {
     selectedEvent,

@@ -1,4 +1,5 @@
 
+
 -- Add color column to notes table
 ALTER TABLE notes ADD COLUMN IF NOT EXISTS color VARCHAR(255);
 
@@ -38,3 +39,4 @@ CREATE POLICY "Enable delete access for users based on user_id" ON events
     FOR DELETE
     TO authenticated
     USING (auth.uid() = user_id);
+

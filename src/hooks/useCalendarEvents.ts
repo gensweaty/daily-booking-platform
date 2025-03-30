@@ -62,6 +62,8 @@ export const useCalendarEvents = () => {
     queryKey: ['events', user?.id],
     queryFn: getEvents,
     enabled: !!user,
+    staleTime: 1000 * 60, // 1 minute
+    refetchInterval: 30000, // Refresh every 30 seconds to ensure sync
   });
 
   const createEventMutation = useMutation({
