@@ -9,7 +9,7 @@ interface CalendarViewProps {
   events: CalendarEventType[];
   selectedDate: Date;
   view: "month" | "week" | "day";
-  onDayClick: (date: Date, hour?: number) => void;
+  onDayClick?: (date: Date, hour?: number) => void;
   onEventClick: (event: CalendarEventType) => void;
 }
 
@@ -66,10 +66,12 @@ export const CalendarView = ({
           return (
             <div
               key={day.toISOString()}
-              className={`relative bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted border border-border transition-colors ${
+              className={`relative bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] ${
+                onDayClick ? 'cursor-pointer hover:bg-muted' : ''
+              } border border-border transition-colors ${
                 !isCurrentMonth ? 'bg-opacity-50' : ''
               }`}
-              onClick={() => onDayClick(day)}
+              onClick={onDayClick ? () => onDayClick(day) : undefined}
             >
               <div className={`font-medium ${!isCurrentMonth ? 'text-muted-foreground' : 'text-foreground'}`}>
                 {format(day, "d")}
@@ -135,8 +137,10 @@ export const CalendarView = ({
               return (
                 <div
                   key={actualHour}
-                  className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
-                  onClick={() => onDayClick(hourDate, actualHour)}
+                  className={`h-20 border-b border-border ${
+                    onDayClick ? 'hover:bg-muted transition-colors cursor-pointer' : ''
+                  } relative`}
+                  onClick={onDayClick ? () => onDayClick(hourDate, actualHour) : undefined}
                 />
               );
             })}

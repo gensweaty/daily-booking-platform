@@ -46,7 +46,7 @@ export interface BusinessProfile {
 export interface BookingRequest {
   id: string;
   business_id: string;
-  user_id: string; // Added this field to match our DB changes
+  user_id: string; 
   requester_name: string;
   requester_email: string;
   requester_phone?: string;
