@@ -5,10 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
-import { BookingRequestForm } from "./BookingRequestForm";
 import { LoaderCircle, Globe, Mail, Phone, MapPin } from "lucide-react";
 import { ExternalCalendar } from "../Calendar/ExternalCalendar";
 
@@ -18,9 +16,7 @@ export const PublicBusinessPage = () => {
   const slugMatch = path.match(/\/business\/([^\/]+)/);
   const slug = slugMatch ? slugMatch[1] : '';
   
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(true); // Changed to true by default
+  const [showCalendar, setShowCalendar] = useState(true);
 
   const { data: business, isLoading } = useQuery({
     queryKey: ["businessProfile", slug],
@@ -81,149 +77,77 @@ export const PublicBusinessPage = () => {
               size="lg" 
               className="bg-white text-blue-700 hover:bg-blue-50"
               onClick={() => {
-                setIsBookingFormOpen(true);
-                setShowCalendar(false);
-              }}
-            >
-              Book an Appointment
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline"
-              className="bg-transparent text-white border-white hover:bg-white/10"
-              onClick={() => {
                 setShowCalendar(true);
-                setIsBookingFormOpen(false);
               }}
             >
-              View Calendar
+              View & Book Calendar
             </Button>
           </div>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-12">
-        {showCalendar ? (
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">Available Times</h2>
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  setShowCalendar(false);
-                  setIsBookingFormOpen(true);
-                }}
-              >
-                Request a Booking
-              </Button>
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">Available Times</h2>
+            <div className="text-sm text-muted-foreground">
+              Click on any time slot to request a booking
             </div>
+          </div>
+          {business.id && (
             <ExternalCalendar businessId={business.id} />
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Left Column - Contact Info */}
-            <div className="md:col-span-1 space-y-6">
-              <Card>
-                <CardContent className="p-6 space-y-4">
-                  <h2 className="text-xl font-semibold">Contact Information</h2>
-                  
-                  <div className="space-y-3">
-                    {business.contact_email && (
-                      <div className="flex items-center gap-3">
-                        <Mail className="h-5 w-5 text-blue-600" />
-                        <a href={`mailto:${business.contact_email}`} className="hover:underline">
-                          {business.contact_email}
-                        </a>
-                      </div>
-                    )}
-                    
-                    {business.contact_phone && (
-                      <div className="flex items-center gap-3">
-                        <Phone className="h-5 w-5 text-blue-600" />
-                        <a href={`tel:${business.contact_phone}`} className="hover:underline">
-                          {business.contact_phone}
-                        </a>
-                      </div>
-                    )}
-                    
-                    {business.contact_address && (
-                      <div className="flex items-center gap-3">
-                        <MapPin className="h-5 w-5 text-blue-600" />
-                        <span>{business.contact_address}</span>
-                      </div>
-                    )}
-                    
-                    {business.contact_website && (
-                      <div className="flex items-center gap-3">
-                        <Globe className="h-5 w-5 text-blue-600" />
-                        <a 
-                          href={business.contact_website} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="hover:underline"
-                        >
-                          {business.contact_website.replace(/^https?:\/\//, '')}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+          )}
+        </div>
+
+        {/* Contact Information */}
+        <div className="mt-12">
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <h2 className="text-xl font-semibold">Contact Information</h2>
               
-              <Card>
-                <CardContent className="p-6">
-                  <h2 className="text-xl font-semibold mb-4">Book an Appointment</h2>
-                  <p className="text-muted-foreground mb-4">
-                    Select a date on the calendar to book your appointment with us.
-                  </p>
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    className="rounded-md border"
-                  />
-                  <Button 
-                    className="w-full mt-4"
-                    onClick={() => setIsBookingFormOpen(true)}
-                  >
-                    Book for {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'Selected Date'}
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-            
-            {/* Right Column - Booking Form */}
-            <div className="md:col-span-2">
-              <Card>
-                <CardContent className="p-6">
-                  {isBookingFormOpen ? (
-                    <BookingRequestForm 
-                      businessId={business.id}
-                      selectedDate={selectedDate}
-                      onSuccess={() => setIsBookingFormOpen(false)}
-                    />
-                  ) : (
-                    <div className="text-center py-12 space-y-4">
-                      <h2 className="text-2xl font-bold">Ready to Book with {business.business_name}?</h2>
-                      <p className="text-muted-foreground">
-                        Click the button below to start the booking process.
-                      </p>
-                      <Button 
-                        size="lg" 
-                        onClick={() => setIsBookingFormOpen(true)}
-                      >
-                        Start Booking
-                      </Button>
-                      <p className="text-sm text-muted-foreground mt-8">
-                        Alternatively, you can <Button variant="link" className="p-0 h-auto" onClick={() => setShowCalendar(true)}>view our calendar</Button> to see available times.
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        )}
+              <div className="grid md:grid-cols-2 gap-6">
+                {business.contact_email && (
+                  <div className="flex items-center gap-3">
+                    <Mail className="h-5 w-5 text-blue-600" />
+                    <a href={`mailto:${business.contact_email}`} className="hover:underline">
+                      {business.contact_email}
+                    </a>
+                  </div>
+                )}
+                
+                {business.contact_phone && (
+                  <div className="flex items-center gap-3">
+                    <Phone className="h-5 w-5 text-blue-600" />
+                    <a href={`tel:${business.contact_phone}`} className="hover:underline">
+                      {business.contact_phone}
+                    </a>
+                  </div>
+                )}
+                
+                {business.contact_address && (
+                  <div className="flex items-center gap-3">
+                    <MapPin className="h-5 w-5 text-blue-600" />
+                    <span>{business.contact_address}</span>
+                  </div>
+                )}
+                
+                {business.contact_website && (
+                  <div className="flex items-center gap-3">
+                    <Globe className="h-5 w-5 text-blue-600" />
+                    <a 
+                      href={business.contact_website} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                    >
+                      {business.contact_website.replace(/^https?:\/\//, '')}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
