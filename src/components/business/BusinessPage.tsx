@@ -1,170 +1,104 @@
 
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Plus, Store } from "lucide-react";
-import { BusinessForm } from "./BusinessForm";
-import { BusinessDetails } from "./BusinessDetails";
-import { useBusiness } from "@/hooks/useBusiness";
-import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useState, useEffect } from "react";
+import { BusinessProfile } from "./BusinessProfile";
+import { BusinessCalendar } from "./BusinessCalendar";
+import { EventRequestsTable } from "./EventRequestsTable";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CalendarIcon, ClipboardList, Store } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getBusiness } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Business } from "@/lib/types";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/lib/supabase";
+import { CopyToClipboard } from 'react-copy-to-clipboard';
+import { Button } from "../ui/button";
 
 export const BusinessPage = () => {
-  const { t } = useLanguage();
-  const navigate = useNavigate();
-  const { user } = useAuth();
+  const { data: business, isLoading } = useQuery({
+    queryKey: ['business'],
+    queryFn: getBusiness,
+  });
+
   const { toast } = useToast();
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  
-  const {
-    business,
-    isBusinessLoading,
-    businessError,
-    createBusiness,
-    updateBusiness,
-    deleteBusiness,
-    uploadCoverPhoto
-  } = useBusiness();
-  
-  if (!user) {
-    navigate("/signin");
-    return null;
-  }
-  
-  if (businessError) {
-    console.error("Business data error:", businessError);
-  }
-  
-  const handleCreateBusiness = async (formData: any, coverPhoto?: File) => {
-    try {
-      console.log("Creating business with data:", formData);
-      const newBusiness = await createBusiness(formData);
-      
-      if (coverPhoto && newBusiness) {
-        console.log("Uploading cover photo for business:", newBusiness.id);
-        
-        // Check if business_covers bucket exists
-        const { data: buckets, error: bucketsError } = await supabase
-          .storage
-          .listBuckets();
-        
-        const bucketExists = buckets?.find(b => b.name === 'business_covers');
-        
-        if (!bucketExists) {
-          console.log("Creating business_covers bucket");
-          const { error } = await supabase.storage.createBucket('business_covers', {
-            public: true
-          });
-          
-          if (error) {
-            console.error("Error creating business_covers bucket:", error);
-            toast({
-              title: "Error",
-              description: "Could not create storage for business covers. Please try again.",
-              variant: "destructive",
-            });
-          }
-        }
-        
-        await uploadCoverPhoto({ file: coverPhoto, businessId: newBusiness.id });
-      }
-      
-      toast({
-        title: "Success",
-        description: "Business created successfully!",
-      });
-      
-      setIsAddDialogOpen(false);
-    } catch (error: any) {
-      console.error("Error creating business:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create business. Please try again.",
-        variant: "destructive",
-      });
+  const [publicUrl, setPublicUrl] = useState("");
+
+  useEffect(() => {
+    if (business?.slug) {
+      const baseUrl = window.location.origin;
+      setPublicUrl(`${baseUrl}/business/${business.slug}`);
     }
+  }, [business]);
+
+  const handleCopyLink = () => {
+    toast({
+      title: "Link copied!",
+      description: "Public calendar link copied to clipboard",
+    });
   };
-  
-  const handleUpdateBusiness = async (formData: Business) => {
-    if (!business) return;
-    
-    try {
-      await updateBusiness({ id: business.id, updates: formData });
-    } catch (error) {
-      console.error("Error updating business:", error);
-      throw error;
-    }
-  };
-  
-  const handleDeleteBusiness = async () => {
-    if (!business) return;
-    
-    try {
-      await deleteBusiness(business.id);
-    } catch (error) {
-      console.error("Error deleting business:", error);
-      throw error;
-    }
-  };
-  
-  if (isBusinessLoading) {
+
+  if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">My Business</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <Skeleton className="h-[200px] w-full rounded-md" />
-            <Skeleton className="h-8 w-1/3" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-8">
+        <Skeleton className="h-12 w-1/3" />
+        <Skeleton className="h-96 w-full" />
+      </div>
     );
   }
-  
+
   if (!business) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">My Business</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Store className="mb-4 h-12 w-12 text-muted-foreground" />
-            <h3 className="mb-2 text-lg font-medium">No business profile yet</h3>
-            <p className="mb-6 text-sm text-muted-foreground max-w-md">
-              Create a business profile to get your own booking page and start
-              receiving bookings from customers.
-            </p>
-            <Button onClick={() => setIsAddDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Business
-            </Button>
-          </div>
-          
-          <BusinessForm
-            open={isAddDialogOpen}
-            onOpenChange={setIsAddDialogOpen}
-            onSubmit={handleCreateBusiness}
-          />
-        </CardContent>
-      </Card>
+      <div className="space-y-8">
+        <h2 className="text-2xl font-semibold mb-4">Business Profile</h2>
+        <p className="text-muted-foreground">
+          You haven't set up your business profile yet.
+        </p>
+        <BusinessProfile />
+      </div>
     );
   }
-  
+
   return (
-    <BusinessDetails
-      business={business}
-      onUpdate={handleUpdateBusiness}
-      onDelete={handleDeleteBusiness}
-    />
+    <div className="space-y-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+        <h2 className="text-2xl font-semibold">My Business</h2>
+        {business?.slug && (
+          <CopyToClipboard text={publicUrl} onCopy={handleCopyLink}>
+            <Button variant="outline" className="flex gap-2 items-center">
+              <Store className="w-4 h-4" />
+              Copy Public Calendar Link
+            </Button>
+          </CopyToClipboard>
+        )}
+      </div>
+      
+      <Tabs defaultValue="profile">
+        <TabsList>
+          <TabsTrigger value="profile" className="flex gap-2">
+            <Store className="w-4 h-4" />
+            <span>Profile</span>
+          </TabsTrigger>
+          <TabsTrigger value="calendar" className="flex gap-2">
+            <CalendarIcon className="w-4 h-4" />
+            <span>Calendar</span>
+          </TabsTrigger>
+          <TabsTrigger value="requests" className="flex gap-2">
+            <ClipboardList className="w-4 h-4" />
+            <span>Booking Requests</span>
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="profile">
+          <BusinessProfile existingBusiness={business} />
+        </TabsContent>
+        
+        <TabsContent value="calendar">
+          {business?.id && <BusinessCalendar businessId={business.id} />}
+        </TabsContent>
+        
+        <TabsContent value="requests">
+          {business?.id && <EventRequestsTable businessId={business.id} />}
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };

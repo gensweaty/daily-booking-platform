@@ -54,14 +54,48 @@ export const CalendarView = ({
     return event.title;
   };
 
+  // Function to safely parse dates from events
+  const safeParseDate = (dateStr: string | Date): Date | null => {
+    if (!dateStr) return null;
+    
+    try {
+      if (dateStr instanceof Date) return dateStr;
+      
+      // Handle ISO string format
+      const parsedDate = new Date(dateStr);
+      if (!isNaN(parsedDate.getTime())) {
+        return parsedDate;
+      }
+      
+      // Try parseISO as fallback
+      const isoParsed = parseISO(dateStr);
+      if (!isNaN(isoParsed.getTime())) {
+        return isoParsed;
+      }
+      
+      console.error("[CalendarView] Invalid date format:", dateStr);
+      return null;
+    } catch (err) {
+      console.error("[CalendarView] Error parsing date:", err, dateStr);
+      return null;
+    }
+  };
+
+  // Validate events before rendering
+  const validEvents = events?.filter(event => {
+    const startDate = safeParseDate(event.start_date);
+    return !!startDate;
+  }) || [];
+
   // Log events being rendered
-  console.log(`[CalendarView] Rendering with ${events.length} events in ${publicMode ? 'public' : 'private'} mode`);
-  if (events.length > 0) {
+  console.log(`[CalendarView] Rendering with ${validEvents.length} events in ${publicMode ? 'public' : 'private'} mode`);
+  if (validEvents.length > 0) {
     console.log("[CalendarView] First few events:", 
-      events.slice(0, 5).map(e => ({
+      validEvents.slice(0, 5).map(e => ({
         id: e.id,
         title: publicMode ? 'Booked' : e.title,
-        start: e.start_date
+        start: e.start_date,
+        isValid: !!safeParseDate(e.start_date)
       }))
     );
   }
@@ -80,24 +114,10 @@ export const CalendarView = ({
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
         {weekDays.map(renderDayHeader)}
         {calendarDays.map((day) => {
-          // Make sure we're handling date strings and Date objects correctly
-          const dayEvents = events.filter((event) => {
-            try {
-              const eventDate = typeof event.start_date === 'string' 
-                ? parseISO(event.start_date)
-                : event.start_date;
-                
-              // Ensure the string can be parsed as a valid date
-              if (isNaN(eventDate.getTime())) {
-                console.error("Invalid date:", event.start_date);
-                return false;
-              }
-              
-              return isSameDay(eventDate, day);
-            } catch (error) {
-              console.error("Error comparing dates:", error, event.start_date, day);
-              return false;
-            }
+          // Filter events for this day using our safe parsing function
+          const dayEvents = validEvents.filter(event => {
+            const eventDate = safeParseDate(event.start_date);
+            return eventDate && isSameDay(eventDate, day);
           });
           
           console.log(`[CalendarView] Day ${format(day, 'yyyy-MM-dd')} has ${dayEvents.length} events`);
@@ -183,27 +203,15 @@ export const CalendarView = ({
               );
             })}
             
-            {events
-              .filter((event) => {
-                try {
-                  const eventDate = typeof event.start_date === 'string'
-                    ? parseISO(event.start_date)
-                    : event.start_date;
-                    
-                  if (isNaN(eventDate.getTime())) {
-                    console.error("Invalid date:", event.start_date);
-                    return false;
-                  }
-                    
-                  return isSameDay(eventDate, day);
-                } catch (error) {
-                  console.error("Error comparing dates for week view:", error);
-                  return false;
-                }
+            {validEvents
+              .filter(event => {
+                const eventDate = safeParseDate(event.start_date);
+                return eventDate && isSameDay(eventDate, day);
               })
               .map((event) => {
-                const start = new Date(event.start_date);
-                const end = new Date(event.end_date);
+                const start = safeParseDate(event.start_date) || new Date();
+                const end = safeParseDate(event.end_date) || new Date(start.getTime() + 60 * 60 * 1000); // Default to 1 hour
+                
                 const top = actualHourToDisplayPosition(start.getHours()) + 
                           (start.getMinutes() / 60) * 80;
                 const height = (end.getHours() - start.getHours() + 

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -63,14 +62,14 @@ export const Calendar = ({
     }
   }, [publicMode, externalEvents, events]);
 
-  // Invalidate queries when events change
   useEffect(() => {
-    if (!publicMode && events?.length > 0 && businessId) {
+    if (businessId) {
+      console.log("[Calendar] Invalidating queries for business:", businessId);
       queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['approved-event-requests', businessId] });
       queryClient.invalidateQueries({ queryKey: ['all-business-events', businessId] });
-      queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
     }
-  }, [events, publicMode, businessId, queryClient]);
+  }, [businessId, queryClient]);
 
   const {
     selectedEvent,
@@ -240,7 +239,6 @@ export const Calendar = ({
     setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
-  // Determine which events to display
   let displayEvents: CalendarEventType[] = [];
   
   if (publicMode && Array.isArray(externalEvents) && externalEvents.length > 0) {
@@ -249,6 +247,15 @@ export const Calendar = ({
   } else {
     displayEvents = events || [];
     console.log(`[Calendar] Using ${displayEvents.length} internal events in private mode`);
+  }
+
+  if (displayEvents.length > 0) {
+    console.log("[Calendar] Events to display:", displayEvents.map(e => ({ 
+      id: e.id,
+      title: e.title,
+      start: e.start_date,
+      end: e.end_date
+    })));
   }
 
   if (error && !publicMode) {

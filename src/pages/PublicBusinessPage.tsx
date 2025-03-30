@@ -1,329 +1,120 @@
 
-import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useBusinessBySlug } from "@/hooks/useBusiness";
-import { Calendar } from "@/components/Calendar/Calendar";
-import { Button } from "@/components/ui/button";
-import { ExternalLink, ArrowLeft, Mail, MapPin, Phone, Globe, Calendar as CalendarIcon, Clock } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
-import { LanguageProvider } from "@/contexts/LanguageContext";
-import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/lib/supabase";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { getBusinessBySlug } from '@/lib/api';
+import { Business } from '@/lib/types';
+import { Card, CardContent } from '@/components/ui/card';
+import { Calendar } from '@/components/Calendar/Calendar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { LanguageProvider } from '@/contexts/LanguageContext';
+import { supabase } from '@/lib/supabase';
+import { CalendarEventType } from '@/lib/types/calendar';
+import { useCombinedEvents } from '@/hooks/useCombinedEvents';
 
-const PublicBusinessPage = () => {
+export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
-  const { data: business, isLoading, error } = useBusinessBySlug(slug);
-  const { toast } = useToast();
-  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [loadingBusiness, setLoadingBusiness] = useState(true);
   
+  // Fetch business data
   useEffect(() => {
-    // Reset state when slug changes
-    setIsBookingDialogOpen(false);
-    setSelectedDate(null);
-  }, [slug]);
-  
-  // Direct database query for all events regardless of their source
-  // This ensures we're getting the exact same data that's shown in the internal calendar
-  const { data: businessEvents = [], isLoading: isLoadingEvents } = useQuery({
-    queryKey: ['direct-business-events', business?.id],
-    queryFn: async () => {
-      if (!business?.id) return [];
+    const fetchBusiness = async () => {
+      if (!slug) return;
       
       try {
-        console.log("[PublicBusinessPage] Fetching ALL events directly for business ID:", business.id);
-        
-        // 1. First get all direct events from events table
-        const { data: directEvents, error: eventsError } = await supabase
-          .from('events')
-          .select('*')
-          .eq('business_id', business.id)
-          .order('start_date', { ascending: true });
-          
-        if (eventsError) {
-          console.error("[PublicBusinessPage] Error fetching direct events:", eventsError);
-          throw eventsError;
-        }
-        
-        console.log(`[PublicBusinessPage] Retrieved ${directEvents?.length || 0} direct events`);
-        
-        // 2. Then get all approved requests
-        const { data: approvedRequests, error: requestsError } = await supabase
-          .from('event_requests')
-          .select('*')
-          .eq('business_id', business.id)
-          .eq('status', 'approved')
-          .order('start_date', { ascending: true });
-          
-        if (requestsError) {
-          console.error("[PublicBusinessPage] Error fetching approved requests:", requestsError);
-          throw requestsError;
-        }
-        
-        console.log(`[PublicBusinessPage] Retrieved ${approvedRequests?.length || 0} approved requests`);
-        
-        // Convert approved requests to match event structure
-        const requestEvents = (approvedRequests || []).map(req => ({
-          id: req.id,
-          title: req.title,
-          start_date: req.start_date,
-          end_date: req.end_date,
-          created_at: req.created_at,
-          updated_at: req.updated_at,
-          user_surname: req.user_surname,
-          user_number: req.user_number,
-          social_network_link: req.social_network_link,
-          event_notes: req.event_notes,
-          type: req.type,
-          payment_status: req.payment_status,
-          payment_amount: req.payment_amount,
-          business_id: req.business_id
-        }));
-        
-        // Combine both sets of events
-        const allEvents = [...(directEvents || []), ...requestEvents];
-        
-        console.log(`[PublicBusinessPage] Total combined events: ${allEvents.length} (${directEvents?.length || 0} direct + ${requestEvents.length} requests)`);
-        
-        if (allEvents.length > 0) {
-          console.log("[PublicBusinessPage] Sample events:", 
-            allEvents.slice(0, 3).map(e => ({ 
-              id: e.id, 
-              title: e.title,
-              start: e.start_date
-            }))
-          );
-        }
-        
-        return allEvents;
+        const businessData = await getBusinessBySlug(slug);
+        console.log("[PublicBusinessPage] Fetched business:", businessData?.id);
+        setBusiness(businessData);
       } catch (error) {
-        console.error("[PublicBusinessPage] Failed to fetch events:", error);
-        toast({
-          title: "Error loading calendar",
-          description: "Failed to load calendar events. Please try again later.",
-          variant: "destructive",
-        });
-        return [];
-      }
-    },
-    enabled: !!business?.id,
-    staleTime: 1000, // 1 second - very short stale time to ensure fresh data
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: 5000 // Refresh every 5 seconds
-  });
-  
-  // Fetch the cover photo URL if it exists
-  useEffect(() => {
-    const fetchCoverPhoto = async () => {
-      if (business?.cover_photo_path) {
-        try {
-          console.log("Fetching cover photo from path:", business.cover_photo_path);
-          const { data } = await supabase.storage
-            .from('business_covers')
-            .getPublicUrl(business.cover_photo_path);
-          
-          if (data) {
-            console.log("Cover photo public URL:", data.publicUrl);
-            setCoverPhotoUrl(data.publicUrl);
-          } else {
-            console.log("No public URL data returned");
-          }
-        } catch (error) {
-          console.error("Error fetching cover photo:", error);
-        }
-      } else {
-        console.log("No cover photo path available");
+        console.error("[PublicBusinessPage] Error fetching business:", error);
+      } finally {
+        setLoadingBusiness(false);
       }
     };
     
-    if (business) {
-      fetchCoverPhoto();
-    }
-  }, [business]);
+    fetchBusiness();
+  }, [slug]);
   
-  const handleDayClick = (date: Date) => {
-    setSelectedDate(date);
-    setIsBookingDialogOpen(true);
-  };
+  // Use our new hook to get combined events
+  const { events: allEvents, isLoading: loadingEvents } = useCombinedEvents(business?.id);
   
-  if (isLoading) {
+  if (loadingBusiness) {
     return (
-      <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center mb-8">
-            <Button asChild variant="ghost" size="sm" className="mr-2">
-              <Link to="/">
-                ← Home
-              </Link>
-            </Button>
-          </div>
-          <Skeleton className="h-12 w-1/3 mb-4" />
-          <Skeleton className="h-6 w-1/2 mb-8" />
-          <Skeleton className="h-[400px] w-full mb-8 rounded-lg" />
-        </div>
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <Skeleton className="h-12 w-1/2" />
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-6 w-3/4" />
+              <div className="mt-6">
+                <Skeleton className="h-96 w-full" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
   
-  if (error || !business) {
+  if (!business) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold mb-4">Business Not Found</h1>
-          <p className="text-muted-foreground mb-6">
-            The business you're looking for doesn't exist or has been removed.
-          </p>
-          <Button asChild>
-            <Link to="/">Return Home</Link>
-          </Button>
-        </div>
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="p-6">
+            <h1 className="text-2xl font-bold text-center">Business not found</h1>
+          </CardContent>
+        </Card>
       </div>
     );
   }
   
   return (
     <LanguageProvider>
-      <div className="min-h-screen bg-background pb-12">
-        <header className="w-full">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back
-              </Link>
-            </Button>
-          </div>
-        </header>
-        
-        {coverPhotoUrl ? (
-          <div className="w-full h-64 md:h-80 relative mb-8">
-            <img
-              src={coverPhotoUrl}
-              alt={`${business?.name} cover`}
-              className="w-full h-full object-cover absolute inset-0"
-            />
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <div className="text-white text-center p-4">
-                <h1 className="text-4xl md:text-5xl font-bold mb-2">{business?.name}</h1>
-                {business?.description && (
-                  <p className="max-w-2xl mx-auto text-lg">{business?.description}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="py-12 px-4 sm:px-6 lg:px-8 text-center mb-8 bg-primary/10">
-            <h1 className="text-4xl font-bold mb-2">{business?.name}</h1>
-            {business?.description && (
-              <p className="max-w-2xl mx-auto text-lg text-muted-foreground">{business?.description}</p>
-            )}
-          </div>
-        )}
-        
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
-              <div className="bg-card rounded-lg shadow-sm overflow-hidden mb-8">
-                <div className="p-6 border-b border-border">
-                  <h2 className="text-2xl font-semibold flex items-center gap-2">
-                    <CalendarIcon className="w-5 h-5 text-primary" /> 
-                    Book an Appointment
-                  </h2>
-                </div>
-                <div className="bg-background p-4">
-                  {isLoadingEvents ? (
-                    <div className="flex items-center justify-center py-20">
-                      <Skeleton className="h-[400px] w-full" />
-                    </div>
-                  ) : (
-                    <Calendar 
-                      defaultView="month" 
-                      publicMode={true}
-                      externalEvents={businessEvents}
-                      businessId={business?.id}
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="p-6">
+            <h1 className="text-3xl font-bold mb-4">{business.name}</h1>
             
-            <div>
-              <div className="bg-card rounded-lg shadow-sm overflow-hidden sticky top-6">
-                <div className="p-6 border-b border-border">
-                  <h2 className="text-2xl font-semibold">Contact Information</h2>
-                </div>
-                <div className="p-6">
-                  <div className="space-y-4">
-                    {business.contact_address && (
-                      <div className="flex items-start gap-3">
-                        <MapPin className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                        <span>{business.contact_address}</span>
-                      </div>
-                    )}
-                    
-                    {business.contact_phone && (
-                      <div className="flex items-center gap-3">
-                        <Phone className="w-5 h-5 text-primary flex-shrink-0" />
-                        <a href={`tel:${business.contact_phone}`} className="hover:underline">
-                          {business.contact_phone}
-                        </a>
-                      </div>
-                    )}
-                    
-                    {business.contact_email && (
-                      <div className="flex items-center gap-3">
-                        <Mail className="w-5 h-5 text-primary flex-shrink-0" />
-                        <a href={`mailto:${business.contact_email}`} className="hover:underline">
-                          {business.contact_email}
-                        </a>
-                      </div>
-                    )}
-                    
-                    {business.contact_website && (
-                      <div className="flex items-center gap-3">
-                        <Globe className="w-5 h-5 text-primary flex-shrink-0" />
-                        <a 
-                          href={business.contact_website} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="hover:underline flex items-center"
-                        >
-                          {business.contact_website.replace(/^https?:\/\//, '')}
-                          <ExternalLink className="w-3 h-3 ml-1" />
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="mt-8">
-                    <div className="rounded-lg bg-primary/10 p-4 mb-6">
-                      <div className="flex items-center gap-2 text-sm mb-2">
-                        <Clock className="w-4 h-4 text-primary" />
-                        <span className="font-medium">Available for booking</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Select a date on the calendar to request a booking
-                      </p>
-                    </div>
-                    
-                    <Button 
-                      className="w-full" 
-                      size="lg"
-                      onClick={() => setIsBookingDialogOpen(true)}
-                    >
-                      Book Now
-                    </Button>
-                  </div>
-                </div>
+            {business.description && (
+              <p className="text-muted-foreground mb-6">{business.description}</p>
+            )}
+            
+            {business.cover_photo_path && (
+              <div className="relative w-full h-40 md:h-60 mb-6 rounded-md overflow-hidden">
+                <img 
+                  src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/business_covers/${business.cover_photo_path}`} 
+                  alt={business.name}
+                  className="w-full h-full object-cover"
+                />
               </div>
+            )}
+            
+            <div className="mt-6">
+              <h2 className="text-2xl font-semibold mb-4">Book an Appointment</h2>
+              <p className="mb-4 text-muted-foreground">
+                Select a date and time to schedule your appointment.
+              </p>
+              
+              {loadingEvents ? (
+                <Skeleton className="h-96 w-full" />
+              ) : (
+                <>
+                  <div className="mb-2 text-sm text-muted-foreground">
+                    {allEvents.length} booking(s) available
+                  </div>
+                  <Calendar 
+                    defaultView="month"
+                    publicMode={true} 
+                    externalEvents={allEvents}
+                    businessId={business.id}
+                  />
+                </>
+              )}
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </LanguageProvider>
   );
 };
-
-export default PublicBusinessPage;
