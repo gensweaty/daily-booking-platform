@@ -32,7 +32,7 @@ export const useCalendar = (
     if (businessId) {
       console.log("[useCalendar] Invalidating queries for business:", businessId);
       queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-event-requests', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['all-event-requests', businessId] });
       queryClient.invalidateQueries({ queryKey: ['api-combined-events', businessId] });
       queryClient.invalidateQueries({ queryKey: ['all-business-events', businessId] });
       
@@ -53,7 +53,7 @@ export const useCalendar = (
           console.log("[useCalendar] Periodic refresh for business data");
           fetchDirectData();
           if (refetchCombined) refetchCombined();
-        }, 15000); // Refresh every 15 seconds for more consistent data
+        }, 2000); // Refresh every 2 seconds for more consistent data
         
         return () => clearInterval(intervalId);
       }
