@@ -13,6 +13,8 @@ export const useCalendarEvents = (businessId?: string) => {
   const getEvents = async () => {
     if (!user) return [];
     
+    console.log("Fetching user events for user:", user.id);
+    
     const { data, error } = await supabase
       .from('events')
       .select('*')
@@ -23,6 +25,8 @@ export const useCalendarEvents = (businessId?: string) => {
       console.error("Error fetching user events:", error);
       throw error;
     }
+    
+    console.log("Fetched user events:", data?.length || 0);
     return data || [];
   };
 
@@ -30,13 +34,20 @@ export const useCalendarEvents = (businessId?: string) => {
     if (!businessId) return [];
     
     try {
+      console.log("Fetching business events for business ID:", businessId);
+      
       // First, get the user ID associated with this business
-      const { data: businessProfile } = await supabase
+      const { data: businessProfile, error: businessError } = await supabase
         .from("business_profiles")
         .select("user_id")
         .eq("id", businessId)
         .single();
         
+      if (businessError) {
+        console.error("Error fetching business profile:", businessError);
+        return [];
+      }
+      
       if (!businessProfile?.user_id) {
         console.error("No user_id found for business:", businessId);
         return [];
@@ -83,7 +94,12 @@ export const useCalendarEvents = (businessId?: string) => {
         }
       }
       
-      if (!businessProfileId) return [];
+      if (!businessProfileId) {
+        console.log("No business profile ID found for fetching bookings");
+        return [];
+      }
+      
+      console.log("Fetching approved bookings for business ID:", businessProfileId);
       
       const { data, error } = await supabase
         .from('booking_requests')
@@ -181,7 +197,7 @@ export const useCalendarEvents = (businessId?: string) => {
     queryFn: getEvents,
     enabled: !!user && !businessId, // Only fetch user events when in dashboard mode
     staleTime: 1000 * 60, // 1 minute
-    refetchInterval: 5000, // Refresh every 5 seconds to ensure sync
+    refetchInterval: 2000, // Refresh every 2 seconds for better sync
   });
 
   // Query for business events (used in external calendar)
@@ -190,7 +206,7 @@ export const useCalendarEvents = (businessId?: string) => {
     queryFn: getBusinessEvents,
     enabled: !!businessId, // Only fetch business events when business ID is provided
     staleTime: 1000 * 60,
-    refetchInterval: 5000,
+    refetchInterval: 2000,
   });
 
   // Query for approved booking requests that should appear on both calendars
@@ -199,7 +215,7 @@ export const useCalendarEvents = (businessId?: string) => {
     queryFn: getApprovedBookings,
     enabled: !!businessId || !!user, // Enable as long as we have either businessId or user
     staleTime: 1000 * 60,
-    refetchInterval: 5000,
+    refetchInterval: 2000,
   });
 
   const createEventMutation = useMutation({

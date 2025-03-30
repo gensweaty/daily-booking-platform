@@ -23,13 +23,18 @@ export const PublicBusinessPage = () => {
     queryFn: async () => {
       if (!slug) throw new Error("No business slug provided");
       
+      console.log("Fetching business profile for slug:", slug);
       const { data, error } = await supabase
         .from("business_profiles")
         .select("*")
         .eq("slug", slug)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching business profile:", error);
+        throw error;
+      }
+      
       console.log("Fetched business profile:", data);
       return data as BusinessProfile;
     },
@@ -40,6 +45,15 @@ export const PublicBusinessPage = () => {
     // Set the page title
     if (business?.business_name) {
       document.title = `${business.business_name} - Book Now`;
+    }
+    
+    // Debug log
+    if (business) {
+      console.log("Business data loaded:", {
+        id: business.id,
+        name: business.business_name,
+        userId: business.user_id
+      });
     }
   }, [business]);
 
@@ -64,8 +78,6 @@ export const PublicBusinessPage = () => {
       </div>
     );
   }
-
-  console.log("Rendering PublicBusinessPage with businessId:", business.id);
 
   return (
     <div className="min-h-screen bg-background">
@@ -97,8 +109,12 @@ export const PublicBusinessPage = () => {
               Click on any time slot to request a booking
             </div>
           </div>
+          
           {business.id && (
-            <ExternalCalendar businessId={business.id} />
+            <>
+              {console.log("Rendering ExternalCalendar with businessId:", business.id)}
+              <ExternalCalendar businessId={business.id} />
+            </>
           )}
         </div>
 

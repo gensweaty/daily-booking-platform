@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { CalendarViewType } from "@/lib/types/calendar";
@@ -7,12 +7,18 @@ import { CalendarViewType } from "@/lib/types/calendar";
 export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [view, setView] = useState<CalendarViewType>("month");
 
+  // Add console logs to debug
+  useEffect(() => {
+    console.log("ExternalCalendar mounted with businessId:", businessId);
+    if (!businessId) {
+      console.error("No businessId provided to ExternalCalendar");
+    }
+  }, [businessId]);
+  
   if (!businessId) {
     console.error("No businessId provided to ExternalCalendar");
     return null;
   }
-  
-  console.log("Rendering ExternalCalendar with businessId:", businessId);
   
   return (
     <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
