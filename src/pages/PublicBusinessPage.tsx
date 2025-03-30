@@ -8,7 +8,7 @@ import { Calendar } from '@/components/Calendar/Calendar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { useToast } from '@/components/ui/use-toast';
-import { useCombinedEvents } from '@/hooks/useCombinedEvents';
+import { useCombinedEvents } from '@/hooks/calendar';
 
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -127,7 +127,7 @@ export const PublicBusinessPage = () => {
               ) : (
                 <>
                   <div className="mb-2 text-sm text-muted-foreground">
-                    {events.length} events showing on calendar
+                    {events?.length || 0} events showing on calendar
                   </div>
                   <Calendar 
                     defaultView="month"

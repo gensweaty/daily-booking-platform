@@ -1,6 +1,6 @@
 
 import { Calendar } from "@/components/Calendar/Calendar";
-import { useCombinedEvents } from "@/hooks/useCombinedEvents";
+import { useCombinedEvents } from "@/hooks/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarIcon, Users } from "lucide-react";

@@ -190,7 +190,7 @@ export const useEventFetching = () => {
     queryKey: ['events', user?.id],
     queryFn: getEvents,
     enabled: !!user, 
-    staleTime: 500, // Very short stale time to force more frequent refreshes
+    staleTime: 100, // Very short stale time to force more frequent refreshes
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     refetchInterval: 2000, // Refresh every 2 seconds
