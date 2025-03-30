@@ -41,15 +41,6 @@ export const BookingRequestForm = ({
       return;
     }
 
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to make a booking request",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setIsSubmitting(true);
 
@@ -62,10 +53,10 @@ export const BookingRequestForm = ({
       const [endHours, endMinutes] = endTime.split(":").map(Number);
       endDate.setHours(endHours, endMinutes, 0, 0);
 
-      // Insert booking request with user_id
+      // Insert booking request - if user is logged in, associate with their ID, otherwise just use public booking
       const { error } = await supabase.from("booking_requests").insert({
         business_id: businessId,
-        user_id: user.id,
+        user_id: user?.id || null, // Allow null for public bookings
         requester_name: name,
         requester_email: email,
         requester_phone: phone,

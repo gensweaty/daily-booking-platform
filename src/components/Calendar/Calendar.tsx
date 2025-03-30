@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -30,9 +29,14 @@ import { BookingRequest } from "@/types/database";
 interface CalendarProps {
   defaultView?: CalendarViewType;
   isExternalCalendar?: boolean;
+  businessId?: string;
 }
 
-export const Calendar = ({ defaultView = "week", isExternalCalendar = false }: CalendarProps) => {
+export const Calendar = ({ 
+  defaultView = "week", 
+  isExternalCalendar = false,
+  businessId 
+}: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
@@ -63,20 +67,24 @@ export const Calendar = ({ defaultView = "week", isExternalCalendar = false }: C
   // Fetch approved booking requests
   useEffect(() => {
     const fetchApprovedBookings = async () => {
-      if (!user?.id) return;
+      if (!isExternalCalendar && !user?.id) return;
       
       setIsLoadingBookings(true);
       try {
         const { data, error } = await supabase
           .from('booking_requests')
           .select('*')
-          .eq('status', 'approved')
-          .eq('user_id', user.id);
+          .eq('status', 'approved');
           
         if (error) throw error;
         
+        // Filter by businessId for external calendar or by user_id for internal
+        const filteredData = isExternalCalendar && businessId 
+          ? data.filter((booking: BookingRequest) => booking.business_id === businessId)
+          : data.filter((booking: BookingRequest) => booking.user_id === user?.id);
+        
         // Convert booking requests to calendar events
-        const bookingEvents: CalendarEventType[] = (data || []).map((booking: BookingRequest) => ({
+        const bookingEvents: CalendarEventType[] = (filteredData || []).map((booking: BookingRequest) => ({
           id: booking.id,
           title: booking.title,
           start_date: booking.start_date,
@@ -99,7 +107,7 @@ export const Calendar = ({ defaultView = "week", isExternalCalendar = false }: C
     // Set up interval to refresh approved bookings
     const intervalId = setInterval(fetchApprovedBookings, 30000);
     return () => clearInterval(intervalId);
-  }, [user?.id]);
+  }, [user?.id, isExternalCalendar, businessId]);
   
   // Combine regular events and approved bookings
   const allEvents = [...(events || []), ...approvedBookings];
@@ -132,7 +140,8 @@ export const Calendar = ({ defaultView = "week", isExternalCalendar = false }: C
     }
   });
 
-  if (!user && !isExternalCalendar) {
+  // Only check authentication for non-external calendars
+  if (!isExternalCalendar && !user) {
     navigate("/signin");
     return null;
   }

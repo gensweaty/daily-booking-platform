@@ -24,14 +24,14 @@ export const useBookingRequests = (businessId: string | undefined) => {
   };
 
   const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">): Promise<BookingRequest> => {
-    if (!user?.id) throw new Error("User ID is required to create a booking request");
-    
+    // Allow creating booking requests without authentication
     const { data, error } = await supabase
       .from("booking_requests")
       .insert([{ 
         ...request, 
         status: "pending",
-        user_id: user.id 
+        // Set user_id to authenticated user if available, otherwise null
+        user_id: user?.id || null
       }])
       .select()
       .single();
@@ -81,7 +81,9 @@ export const useBookingRequests = (businessId: string | undefined) => {
   const createRequestMutation = useMutation({
     mutationFn: createBookingRequest,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["bookingRequests", user?.id] });
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: ["bookingRequests", user?.id] });
+      }
       toast({
         title: "Success",
         description: "Booking request submitted successfully",

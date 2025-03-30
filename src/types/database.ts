@@ -46,7 +46,7 @@ export interface BusinessProfile {
 export interface BookingRequest {
   id: string;
   business_id: string;
-  user_id: string; 
+  user_id: string | null; // Make user_id nullable for public booking requests
   requester_name: string;
   requester_email: string;
   requester_phone?: string;
