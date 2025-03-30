@@ -1,4 +1,3 @@
-
 -- Add color column to notes table
 ALTER TABLE notes ADD COLUMN IF NOT EXISTS color VARCHAR(255);
 
@@ -12,9 +11,7 @@ CREATE TABLE IF NOT EXISTS events (
     location VARCHAR(255),
     type VARCHAR(50) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    user_id UUID REFERENCES auth.users(id),
-    business_id UUID REFERENCES businesses(id),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    user_id UUID REFERENCES auth.users(id)
 );
 
 -- Add RLS policies for events table

@@ -62,15 +62,7 @@ const PUBLIC_PATHS = ['/', '/login', '/signup', '/contact', '/legal', '/forgot-p
 
 // Helper to check if the current path is public
 const isPublicPath = (path: string) => {
-  // Check exact matches first
-  if (PUBLIC_PATHS.includes(path)) return true;
-  
-  // Check paths that start with a public path and have a slash or nothing after
-  return PUBLIC_PATHS.some(publicPath => 
-    path === publicPath || 
-    path.startsWith(publicPath + '/') ||
-    path.startsWith('/business/')
-  );
+  return PUBLIC_PATHS.some(publicPath => path === publicPath || path.startsWith(publicPath + '/'));
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -127,10 +119,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-      console.log("Refreshed session:", currentSession ? "Session exists" : "No session");
-      
       if (error) {
-        console.error("Session refresh error:", error);
         if (error.message.includes('token_refresh_failed') || 
             error.message.includes('invalid_refresh_token') ||
             error.message.includes('token_not_found')) {
@@ -141,10 +130,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (!currentSession) {
-        console.log("No session found during refresh, path:", location.pathname);
         // Only handle as error if not on public path
         if (!isPublicPath(location.pathname)) {
-          console.log("Non-public path without session, redirecting to login");
           await handleTokenError();
         } else {
           // We're on a public path, just update the state
@@ -166,7 +153,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const initSession = async () => {
-      console.log("Initializing auth session...");
       try {
         // Handle dashboard with code parameter (email confirmation)
         if (location.pathname === '/dashboard' && searchParams.has('code')) {
@@ -381,12 +367,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       if (event === 'SIGNED_IN') {
-        console.log("User signed in, navigating to dashboard");
         setSession(newSession);
         setUser(newSession?.user ?? null);
         navigate('/dashboard');
       } else if (event === 'SIGNED_OUT') {
-        console.log("User signed out");
         setSession(null);
         setUser(null);
         localStorage.removeItem('app-auth-token');
@@ -397,11 +381,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           navigate('/login');
         }
       } else if (event === 'TOKEN_REFRESHED') {
-        console.log("Token refreshed");
         setSession(newSession);
         setUser(newSession?.user ?? null);
       } else if (event === 'USER_UPDATED') {
-        console.log("User updated");
         setSession(newSession);
         setUser(newSession?.user ?? null);
       } else if (event === 'PASSWORD_RECOVERY') {

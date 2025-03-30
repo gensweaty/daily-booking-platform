@@ -11,7 +11,6 @@ interface CalendarViewProps {
   view: "month" | "week" | "day";
   onDayClick: (date: Date, hour?: number) => void;
   onEventClick: (event: CalendarEventType) => void;
-  publicMode?: boolean;
 }
 
 export const CalendarView = ({
@@ -21,7 +20,6 @@ export const CalendarView = ({
   view,
   onDayClick,
   onEventClick,
-  publicMode = false,
 }: CalendarViewProps) => {
   const { language } = useLanguage();
   const locale = language === 'es' ? es : undefined;
@@ -36,99 +34,33 @@ export const CalendarView = ({
     </div>
   );
 
+  // Function to convert display hour to actual hour
   const displayHourToActualHour = (displayIndex: number) => {
     return (displayIndex + 6) % 24;
   };
 
+  // Function to convert actual hour to display position
   const actualHourToDisplayPosition = (actualHour: number) => {
-    return ((actualHour - 6 + 24) % 24) * 80;
-  };
-
-  const safeParseDate = (dateStr: string | Date): Date | null => {
-    if (!dateStr) return null;
-    
-    try {
-      if (dateStr instanceof Date) return dateStr;
-      
-      const parsedDate = new Date(dateStr);
-      if (!isNaN(parsedDate.getTime())) {
-        return parsedDate;
-      }
-      
-      const isoParsed = parseISO(dateStr);
-      if (!isNaN(isoParsed.getTime())) {
-        return isoParsed;
-      }
-      
-      console.error("[CalendarView] Invalid date format:", dateStr);
-      return null;
-    } catch (err) {
-      console.error("[CalendarView] Error parsing date:", err, dateStr);
-      return null;
-    }
-  };
-
-  // Make sure we have valid events
-  const validEvents = events?.filter(event => {
-    const startDate = safeParseDate(event.start_date);
-    return !!startDate;
-  }) || [];
-
-  console.log(`[CalendarView] Rendering with ${validEvents.length} valid events in ${publicMode ? 'public' : 'private'} mode`);
-  if (validEvents.length > 0) {
-    console.log("[CalendarView] First few events:", 
-      validEvents.slice(0, 3).map(e => ({
-        id: e.id,
-        title: e.title,
-        start: e.start_date,
-        status: (e as any).status || 'unknown' // Log status if available
-      }))
-    );
-  }
-
-  // For public mode, just show "Booked" instead of actual event title
-  const getEventDisplayTitle = (event: CalendarEventType) => {
-    return publicMode ? "Booked" : event.title;
-  };
-
-  // Get event color based on status
-  const getEventColorClass = (event: CalendarEventType) => {
-    // In public mode, all events look the same
-    if (publicMode) return "bg-secondary text-secondary-foreground";
-    
-    // For private mode (dashboard), color-code based on type or status
-    if (event.type === "birthday") {
-      return "bg-primary text-primary-foreground";
-    }
-    
-    // If it's an event request, color it differently based on status
-    if ((event as any).status === 'pending') {
-      return "bg-yellow-500 text-white";
-    } else if ((event as any).status === 'rejected') {
-      return "bg-red-500 text-white";
-    }
-    
-    // Default for regular events or approved requests
-    return "bg-secondary text-secondary-foreground";
+    return ((actualHour - 6 + 24) % 24) * 80; // 80px is the height of each hour slot
   };
 
   if (view === "month") {
+    // Get the start and end of the month view
     const monthStart = startOfMonth(selectedDate);
     const monthEnd = endOfMonth(selectedDate);
     const calendarStart = startOfWeek(monthStart);
     const calendarEnd = endOfWeek(monthEnd);
 
+    // Get all days that should be shown in the calendar grid
     const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
     return (
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
         {weekDays.map(renderDayHeader)}
         {calendarDays.map((day) => {
-          const dayEvents = validEvents.filter(event => {
-            const eventDate = safeParseDate(event.start_date);
-            return eventDate && isSameDay(eventDate, day);
-          });
-          
+          const dayEvents = events.filter((event) => 
+            isSameDay(parseISO(event.start_date), day)
+          );
           const isCurrentMonth = isSameMonth(day, selectedDate);
 
           return (
@@ -143,21 +75,22 @@ export const CalendarView = ({
                 {format(day, "d")}
               </div>
               <div className="mt-1 sm:mt-2 space-y-1">
-                {dayEvents.length > 0 && dayEvents.map((event) => (
+                {dayEvents.map((event) => (
                   <div
                     key={event.id}
-                    className={`text-xs sm:text-sm p-1 rounded ${getEventColorClass(event)} ${
-                      !publicMode ? 'cursor-pointer' : ''
-                    } truncate hover:opacity-80 transition-opacity ${
+                    className={`text-xs sm:text-sm p-1 rounded ${
+                      event.type === "birthday"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-secondary-foreground"
+                    } cursor-pointer truncate hover:opacity-80 transition-opacity ${
                       !isCurrentMonth ? 'opacity-60' : ''
                     }`}
                     onClick={(e) => {
-                      if (publicMode) return;
                       e.stopPropagation();
                       onEventClick(event);
                     }}
                   >
-                    {getEventDisplayTitle(event)}
+                    {event.title}
                   </div>
                 ))}
               </div>
@@ -168,6 +101,7 @@ export const CalendarView = ({
     );
   }
 
+  // Week/Day view with time slots starting from 6 AM
   return (
     <div className="flex-1 grid bg-background rounded-lg overflow-y-auto" 
          style={{ gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` }}>
@@ -207,15 +141,11 @@ export const CalendarView = ({
               );
             })}
             
-            {validEvents
-              .filter(event => {
-                const eventDate = safeParseDate(event.start_date);
-                return eventDate && isSameDay(eventDate, day);
-              })
+            {events
+              .filter((event) => isSameDay(parseISO(event.start_date), day))
               .map((event) => {
-                const start = safeParseDate(event.start_date) || new Date();
-                const end = safeParseDate(event.end_date) || new Date(start.getTime() + 60 * 60 * 1000);
-                
+                const start = new Date(event.start_date);
+                const end = new Date(event.end_date);
                 const top = actualHourToDisplayPosition(start.getHours()) + 
                           (start.getMinutes() / 60) * 80;
                 const height = (end.getHours() - start.getHours() + 
@@ -225,21 +155,20 @@ export const CalendarView = ({
                   <div
                     key={event.id}
                     className={`absolute left-0.5 right-0.5 rounded px-0.5 sm:px-2 py-1 text-[10px] sm:text-sm ${
-                      getEventColorClass(event)
-                    } ${!publicMode ? 'cursor-pointer' : ''} overflow-hidden hover:opacity-80 transition-opacity`}
+                      event.type === "birthday"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-secondary-foreground"
+                    } cursor-pointer overflow-hidden hover:opacity-80 transition-opacity`}
                     style={{
                       top: `${top}px`,
                       height: `${Math.max(height, 20)}px`,
                     }}
                     onClick={(e) => {
-                      if (publicMode) return;
                       e.stopPropagation();
                       onEventClick(event);
                     }}
                   >
-                    <div className="font-semibold truncate">
-                      {getEventDisplayTitle(event)}
-                    </div>
+                    <div className="font-semibold truncate">{event.title}</div>
                     {height > 40 && (
                       <div className="text-[8px] sm:text-xs truncate">
                         {format(start, "h:mm a", { locale })} - {format(end, "h:mm a", { locale })}
