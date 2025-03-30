@@ -9,13 +9,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { CalendarEventType } from '@/lib/types/calendar';
 import { useToast } from '@/components/ui/use-toast';
+import { useCombinedEvents } from '@/hooks/useCombinedEvents';
 
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const [business, setBusiness] = useState<Business | null>(null);
   const [loadingBusiness, setLoadingBusiness] = useState(true);
-  const [loadingEvents, setLoadingEvents] = useState(true);
-  const [events, setEvents] = useState<CalendarEventType[]>([]);
+  
   const { toast } = useToast();
   
   // Fetch business data
@@ -41,53 +41,27 @@ export const PublicBusinessPage = () => {
     
     fetchBusiness();
   }, [slug, toast]);
-  
-  // Fetch events when business is loaded
-  useEffect(() => {
-    const fetchEvents = async () => {
-      if (!business?.id) return;
-      
-      setLoadingEvents(true);
-      try {
-        console.log(`[PublicBusinessPage] Fetching ALL events for business ${business.id}`);
-        const eventsData = await getAllBusinessEvents(business.id);
-        console.log(`[PublicBusinessPage] Retrieved ${eventsData?.length || 0} total events`);
-        
-        if (eventsData && eventsData.length > 0) {
-          console.log("[PublicBusinessPage] Sample events:", 
-            eventsData.slice(0, 3).map(e => ({
-              id: e.id,
-              title: e.title,
-              start: e.start_date
-            }))
-          );
-        }
-        
-        setEvents(eventsData || []);
-      } catch (error) {
-        console.error("[PublicBusinessPage] Error fetching events:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load calendar events",
-          variant: "destructive"
-        });
-      } finally {
-        setLoadingEvents(false);
-      }
-    };
 
+  // Use the combined events hook to get all events (both direct and requests)
+  const { events, isLoading: loadingEvents, refetch } = useCombinedEvents(business?.id);
+  
+  // Set up periodic refresh for events
+  useEffect(() => {
     if (business?.id) {
-      fetchEvents();
+      console.log("[PublicBusinessPage] Setting up event refresh for business:", business.id);
+      
+      // Immediate refresh
+      refetch();
       
       // Set up periodic refresh
       const intervalId = setInterval(() => {
         console.log("[PublicBusinessPage] Refreshing events data");
-        fetchEvents();
-      }, 30000); // Refresh every 30 seconds
+        refetch();
+      }, 15000); // Refresh every 15 seconds
       
       return () => clearInterval(intervalId);
     }
-  }, [business?.id, toast]);
+  }, [business?.id, refetch]);
   
   if (loadingBusiness) {
     return (

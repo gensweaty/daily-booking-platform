@@ -7,6 +7,7 @@ interface CalendarProps {
   publicMode?: boolean;
   externalEvents?: any[];
   businessId?: string;
+  fromDashboard?: boolean;
 }
 
 export const Calendar = (props: CalendarProps) => {

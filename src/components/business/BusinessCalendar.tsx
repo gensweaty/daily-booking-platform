@@ -43,7 +43,7 @@ export const BusinessCalendar = ({ businessId }: BusinessCalendarProps) => {
         console.log("[BusinessCalendar] Periodic refresh for business ID:", businessId);
         refetch();
         fetchDirectData();
-      }, 15000); // Refresh every 15 seconds for more real-time updates
+      }, 10000); // Refresh every 10 seconds for more real-time updates
       
       return () => clearInterval(intervalId);
     }
@@ -88,7 +88,8 @@ export const BusinessCalendar = ({ businessId }: BusinessCalendarProps) => {
           <Calendar 
             defaultView="week" 
             businessId={businessId} 
-            externalEvents={events} 
+            externalEvents={events}
+            fromDashboard={true}
           />
         </TabsContent>
         <TabsContent value="requests" className="mt-0">

@@ -13,13 +13,15 @@ interface CalendarContainerProps {
   publicMode?: boolean;
   externalEvents?: any[];
   businessId?: string;
+  fromDashboard?: boolean;
 }
 
 export const CalendarContainer = ({
   defaultView = "week",
   publicMode = false,
   externalEvents,
-  businessId
+  businessId,
+  fromDashboard = false
 }: CalendarContainerProps) => {
   const {
     selectedDate,
@@ -32,14 +34,12 @@ export const CalendarContainer = ({
     user,
     navigate,
     
-    // Dialog state
     selectedEvent,
     setSelectedEvent,
     isNewEventDialogOpen,
     setIsNewEventDialogOpen,
     dialogSelectedDate,
     
-    // Handlers
     setView,
     handlePrevious,
     handleNext,
@@ -48,7 +48,7 @@ export const CalendarContainer = ({
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent
-  } = useCalendar(defaultView, publicMode, externalEvents, businessId);
+  } = useCalendar(defaultView, publicMode, externalEvents, businessId, fromDashboard);
 
   if (!publicMode && !user) {
     navigate("/signin");

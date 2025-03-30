@@ -8,12 +8,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { getAllBusinessEvents } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
+import { useCombinedEvents } from "@/hooks/useCombinedEvents";
 
 export const useCalendar = (
   defaultView: CalendarViewType = "week",
   publicMode: boolean = false,
   externalEvents?: CalendarEventType[],
-  businessId?: string
+  businessId?: string,
+  fromDashboard: boolean = false
 ) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
@@ -23,14 +25,18 @@ export const useCalendar = (
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const { events: combinedEvents, isLoading: loadingCombined, refetch: refetchCombined } = 
+    useCombinedEvents(businessId);
+
   useEffect(() => {
     if (businessId) {
       console.log("[useCalendar] Invalidating queries for business:", businessId);
       queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
       queryClient.invalidateQueries({ queryKey: ['approved-event-requests', businessId] });
       queryClient.invalidateQueries({ queryKey: ['api-combined-events', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['all-business-events', businessId] });
       
-      if (publicMode) {
+      if (publicMode || fromDashboard) {
         const fetchDirectData = async () => {
           try {
             console.log("[useCalendar] Direct API fetch for fresh data, business:", businessId);
@@ -46,12 +52,13 @@ export const useCalendar = (
         const intervalId = setInterval(() => {
           console.log("[useCalendar] Periodic refresh for business data");
           fetchDirectData();
-        }, 30000); // Refresh every 30 seconds
+          if (refetchCombined) refetchCombined();
+        }, 15000); // Refresh every 15 seconds for more consistent data
         
         return () => clearInterval(intervalId);
       }
     }
-  }, [businessId, queryClient, publicMode]);
+  }, [businessId, queryClient, publicMode, fromDashboard, refetchCombined]);
 
   const {
     selectedEvent,
@@ -65,54 +72,44 @@ export const useCalendar = (
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      try {
-        if (publicMode && businessId) {
-          console.log("[useCalendar] Creating event request with business_id:", businessId);
-          const requestData = {
-            ...data,
-            business_id: businessId,
-            status: 'pending'
-          };
-          
-          const result = await createEventRequest(requestData);
-          
-          toast({
-            title: "Request Sent",
-            description: "Your booking request has been sent to the business owner for approval.",
-          });
-          
-          queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
-          queryClient.invalidateQueries({ queryKey: ['all-business-events', businessId] });
-          queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
-          
-          return result;
-        } else {
-          console.log("[useCalendar] Creating regular event:", 
-            businessId ? "with business_id: " + businessId : "without business_id");
-          
-          const eventData = { ...data };
-          if (businessId) {
-            eventData.business_id = businessId;
-          }
-          
-          const result = await createEvent(eventData);
-          
-          if (eventData.business_id) {
-            queryClient.invalidateQueries({ queryKey: ['direct-business-events', eventData.business_id] });
-            queryClient.invalidateQueries({ queryKey: ['all-business-events', eventData.business_id] });
-          }
-          queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
-          
-          return result;
-        }
-      } catch (error: any) {
-        console.error("[useCalendar] Error creating event:", error);
+      if (publicMode && businessId) {
+        console.log("[useCalendar] Creating event request with business_id:", businessId);
+        const requestData = {
+          ...data,
+          business_id: businessId,
+          status: 'pending'
+        };
+        
+        const result = await createEventRequest(requestData);
+        
         toast({
-          title: "Error",
-          description: error.message || "Failed to create event",
-          variant: "destructive",
+          title: "Request Sent",
+          description: "Your booking request has been sent to the business owner for approval.",
         });
-        throw error;
+        
+        queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
+        queryClient.invalidateQueries({ queryKey: ['all-business-events', businessId] });
+        queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
+        
+        return result;
+      } else {
+        console.log("[useCalendar] Creating regular event:", 
+          businessId ? "with business_id: " + businessId : "without business_id");
+        
+        const eventData = { ...data };
+        if (businessId) {
+          eventData.business_id = businessId;
+        }
+        
+        const result = await createEvent(eventData);
+        
+        if (eventData.business_id) {
+          queryClient.invalidateQueries({ queryKey: ['direct-business-events', eventData.business_id] });
+          queryClient.invalidateQueries({ queryKey: ['all-business-events', eventData.business_id] });
+        }
+        queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
+        
+        return result;
       }
     },
     updateEvent: async (data) => {
@@ -244,10 +241,19 @@ export const useCalendar = (
   
   if (publicMode && Array.isArray(externalEvents) && externalEvents.length > 0) {
     displayEvents = externalEvents;
-    console.log(`[useCalendar] Using ${displayEvents.length} external events in public mode`);
+    console.log(`[useCalendar] Using ${displayEvents.length} explicitly provided external events in public mode`);
+  } else if (publicMode && businessId && combinedEvents && combinedEvents.length > 0) {
+    displayEvents = combinedEvents;
+    console.log(`[useCalendar] Using ${displayEvents.length} combined events from hook in public mode`);
+  } else if (fromDashboard && businessId && combinedEvents && combinedEvents.length > 0) {
+    displayEvents = combinedEvents;
+    console.log(`[useCalendar] Using ${displayEvents.length} combined events from hook in dashboard mode`);
   } else if (!publicMode && Array.isArray(events) && events.length > 0) {
     displayEvents = events;
     console.log(`[useCalendar] Using ${displayEvents.length} internal events in private mode`);
+  } else if (Array.isArray(externalEvents) && externalEvents.length > 0) {
+    displayEvents = externalEvents;
+    console.log(`[useCalendar] Using ${displayEvents.length} external events as fallback`);
   }
 
   if (displayEvents.length > 0) {
@@ -264,7 +270,7 @@ export const useCalendar = (
     view,
     days: getDaysForView(),
     displayEvents,
-    isLoading,
+    isLoading: isLoading || loadingCombined,
     error,
     publicMode,
     user,
