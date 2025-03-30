@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -37,6 +38,7 @@ interface CalendarProps {
   businessUserId?: string | null;
   showAllEvents?: boolean;
   allowBookingRequests?: boolean;
+  directEvents?: CalendarEventType[];
 }
 
 export const Calendar = ({ 
@@ -47,14 +49,21 @@ export const Calendar = ({
   businessId,
   businessUserId,
   showAllEvents = false,
-  allowBookingRequests = false
+  allowBookingRequests = false,
+  directEvents
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
-  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
+  
+  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     isExternalCalendar && businessId ? businessId : undefined,
     isExternalCalendar && businessUserId ? businessUserId : undefined
   );
+  
+  // Use direct events if provided, otherwise use fetched events
+  const events = directEvents || fetchedEvents;
+  const isLoading = !directEvents && isLoadingFromHook;
+  
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
   const [bookingStartTime, setBookingStartTime] = useState("09:00");
   const [bookingDate, setBookingDate] = useState<Date | undefined>(undefined);
@@ -75,11 +84,16 @@ export const Calendar = ({
       businessId,
       businessUserId, 
       allowBookingRequests,
+      directEvents: directEvents?.length || 0,
+      fetchedEvents: fetchedEvents?.length || 0,
       eventsCount: events?.length || 0,
-      view,
-      events
+      view
     });
-  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view]);
+    
+    if (directEvents) {
+      console.log("Using direct events:", directEvents);
+    }
+  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
 
   useEffect(() => {
     const invalidateQueries = () => {
@@ -90,10 +104,12 @@ export const Calendar = ({
       }
     };
     
-    invalidateQueries();
-    const intervalId = setInterval(invalidateQueries, 3000);
-    return () => clearInterval(intervalId);
-  }, [queryClient, businessId]);
+    if (!directEvents) {
+      invalidateQueries();
+      const intervalId = setInterval(invalidateQueries, 3000);
+      return () => clearInterval(intervalId);
+    }
+  }, [queryClient, businessId, directEvents]);
 
   const {
     selectedEvent,
@@ -239,7 +255,7 @@ export const Calendar = ({
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
 
-  if (isLoading) {
+  if (isLoading && !directEvents) {
     return (
       <div className="space-y-4">
         <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
@@ -269,7 +285,7 @@ export const Calendar = ({
         <div className="flex-1">
           <CalendarView
             days={getDaysForView()}
-            events={events}
+            events={events || []}
             selectedDate={selectedDate}
             view={view}
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}

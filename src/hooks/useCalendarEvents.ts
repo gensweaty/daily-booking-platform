@@ -10,26 +10,33 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Function to fetch user's own events
   const getEvents = async () => {
     if (!user) return [];
     
     console.log("Fetching user events for user:", user.id);
     
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('start_date', { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('start_date', { ascending: true });
 
-    if (error) {
-      console.error("Error fetching user events:", error);
-      throw error;
+      if (error) {
+        console.error("Error fetching user events:", error);
+        throw error;
+      }
+      
+      console.log("Fetched user events:", data?.length || 0);
+      return data || [];
+    } catch (err) {
+      console.error("Exception in getEvents:", err);
+      return [];
     }
-    
-    console.log("Fetched user events:", data?.length || 0);
-    return data || [];
   };
 
+  // Function to fetch business events using businessUserId or businessId
   const getBusinessEvents = async () => {
     // If we have businessUserId directly, use it - this is more reliable
     if (businessUserId) {
@@ -60,6 +67,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       try {
         console.log("Fetching business events for business ID:", businessId);
         
+        // First get the user_id associated with this business
         const { data: businessProfile, error: businessError } = await supabase
           .from("business_profiles")
           .select("user_id")
@@ -78,6 +86,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         
         console.log("Found user_id for business:", businessProfile.user_id);
         
+        // Then get all events for this user
         const { data, error } = await supabase
           .from('events')
           .select('*')
@@ -100,6 +109,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     return [];
   };
 
+  // Function to fetch approved booking requests
   const getApprovedBookings = async () => {
     if (!user && !businessId && !businessUserId) return [];
 
@@ -112,6 +122,19 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           .from("business_profiles")
           .select("id")
           .eq("user_id", user.id)
+          .maybeSingle();
+          
+        if (userBusinessProfile?.id) {
+          businessProfileId = userBusinessProfile.id;
+        }
+      }
+      
+      // If we have a business user ID but no business ID
+      if (!businessProfileId && businessUserId) {
+        const { data: userBusinessProfile } = await supabase
+          .from("business_profiles")
+          .select("id")
+          .eq("user_id", businessUserId)
           .maybeSingle();
           
         if (userBusinessProfile?.id) {
@@ -139,13 +162,14 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       console.log("Fetched approved bookings:", data?.length || 0);
       
+      // Convert booking requests to calendar events
       const bookingEvents = (data || []).map(booking => ({
         id: booking.id,
         title: booking.title,
         start_date: booking.start_date,
         end_date: booking.end_date,
         type: 'booking_request',
-        created_at: booking.created_at,
+        created_at: booking.created_at || new Date().toISOString(),
         user_id: booking.user_id || '',
         requester_name: booking.requester_name,
         requester_email: booking.requester_email,
@@ -158,6 +182,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
   };
 
+  // Mutation function to create a new event
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to create events");
     
@@ -177,6 +202,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     return data;
   };
 
+  // Mutation function to update an existing event
   const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
     
@@ -198,6 +224,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     return data;
   };
 
+  // Mutation function to delete an event
   const deleteEvent = async (id: string): Promise<void> => {
     if (!user) throw new Error("User must be authenticated to delete events");
     
@@ -215,30 +242,34 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     });
   };
 
+  // User's own events query
   const { data: events = [], isLoading: isLoadingUserEvents, error: userEventsError } = useQuery({
     queryKey: ['events', user?.id],
     queryFn: getEvents,
     enabled: !!user && !businessId && !businessUserId,
-    staleTime: 1000 * 60,
+    staleTime: 1000 * 30, // 30 seconds
     refetchInterval: 2000,
   });
 
+  // Business events query
   const { data: businessEvents = [], isLoading: isLoadingBusinessEvents, error: businessEventsError } = useQuery({
     queryKey: ['business-events', businessId, businessUserId],
     queryFn: getBusinessEvents,
     enabled: !!businessId || !!businessUserId,
-    staleTime: 1000 * 60,
+    staleTime: 1000 * 30, // 30 seconds
     refetchInterval: 2000,
   });
 
+  // Approved bookings query
   const { data: approvedBookings = [], isLoading: isLoadingBookings } = useQuery({
     queryKey: ['approved-bookings', user?.id, businessId, businessUserId],
     queryFn: getApprovedBookings,
     enabled: !!businessId || !!businessUserId || !!user,
-    staleTime: 1000 * 60,
+    staleTime: 1000 * 30, // 30 seconds
     refetchInterval: 2000,
   });
 
+  // Create event mutation
   const createEventMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: () => {
@@ -248,6 +279,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     },
   });
 
+  // Update event mutation
   const updateEventMutation = useMutation({
     mutationFn: updateEvent,
     onSuccess: () => {
@@ -257,6 +289,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     },
   });
 
+  // Delete event mutation
   const deleteEventMutation = useMutation({
     mutationFn: deleteEvent,
     onSuccess: () => {
@@ -266,6 +299,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     },
   });
 
+  // Combine events based on whether viewing business events or own events
   const allEvents = (businessId || businessUserId) 
     ? [...businessEvents, ...approvedBookings]
     : [...events, ...approvedBookings];

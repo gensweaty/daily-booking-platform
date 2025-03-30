@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoaderCircle, Globe, Mail, Phone, MapPin } from "lucide-react";
 import { ExternalCalendar } from "../Calendar/ExternalCalendar";
+import { CalendarEventType } from "@/lib/types/calendar";
 
 export const PublicBusinessPage = () => {
   // Extract the slug from the URL path manually since useParams doesn't work in our case
@@ -17,6 +18,7 @@ export const PublicBusinessPage = () => {
   const slug = slugMatch ? slugMatch[1] : '';
   
   const [showCalendar, setShowCalendar] = useState(true);
+  const [directEvents, setDirectEvents] = useState<CalendarEventType[]>([]);
 
   const { data: business, isLoading } = useQuery({
     queryKey: ["businessProfile", slug],
@@ -40,8 +42,44 @@ export const PublicBusinessPage = () => {
     },
     enabled: !!slug,
     staleTime: 1000 * 60, // 1 minute
-    refetchInterval: 30000, // Refresh every 30 seconds
   });
+
+  // Directly fetch business events
+  useEffect(() => {
+    const fetchBusinessEvents = async () => {
+      if (!business?.user_id) return;
+      
+      try {
+        console.log("PublicBusinessPage: Directly fetching events for business user:", business.user_id);
+        
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('user_id', business.user_id)
+          .order('start_date', { ascending: true });
+
+        if (error) {
+          console.error("Error fetching business events:", error);
+          return;
+        }
+        
+        console.log("PublicBusinessPage: Directly fetched events:", data?.length || 0, data);
+        if (data) {
+          setDirectEvents(data);
+        }
+      } catch (err) {
+        console.error("Exception fetching business events:", err);
+      }
+    };
+
+    if (business?.user_id) {
+      fetchBusinessEvents();
+      
+      // Set up a polling interval to refresh events
+      const intervalId = setInterval(fetchBusinessEvents, 5000);
+      return () => clearInterval(intervalId);
+    }
+  }, [business?.user_id]);
 
   useEffect(() => {
     // Set the page title
@@ -54,10 +92,11 @@ export const PublicBusinessPage = () => {
       console.log("PublicBusinessPage: Business data loaded:", {
         id: business.id,
         name: business.business_name,
-        userId: business.user_id
+        userId: business.user_id,
+        directEvents: directEvents.length
       });
     }
-  }, [business]);
+  }, [business, directEvents]);
 
   if (isLoading) {
     return (
@@ -114,8 +153,10 @@ export const PublicBusinessPage = () => {
           
           {business.id && (
             <>
-              {console.log("PublicBusinessPage: Rendering ExternalCalendar with businessId:", business.id)}
-              <ExternalCalendar businessId={business.id} />
+              {console.log("PublicBusinessPage: Rendering ExternalCalendar with businessId:", business.id, "userId:", business.user_id, "directEvents:", directEvents.length)}
+              <ExternalCalendar 
+                businessId={business.id} 
+              />
             </>
           )}
         </div>
