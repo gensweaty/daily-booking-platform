@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -47,24 +46,21 @@ export const Calendar = ({
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(isExternalCalendar ? businessId : undefined);
+  const [approvedBookings, setApprovedBookings] = useState<CalendarEventType[]>([]);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-
-  // Debug output
-  console.log("Calendar Props:", { 
-    defaultView, 
-    isExternalCalendar, 
-    businessId, 
-    showAllEvents,
-    eventsCount: events?.length
-  });
 
   useEffect(() => {
     if (currentView) {
       setView(currentView);
     }
   }, [currentView]);
+
+  if (typeof window !== 'undefined') {
+    (window as any).__CALENDAR_EVENTS__ = events;
+  }
 
   useEffect(() => {
     const invalidateQueries = () => {
@@ -75,9 +71,86 @@ export const Calendar = ({
     };
     
     invalidateQueries();
-    const intervalId = setInterval(invalidateQueries, 5000); // Refresh every 5 seconds
+    const intervalId = setInterval(invalidateQueries, 15000);
     return () => clearInterval(intervalId);
   }, [queryClient, businessId]);
+
+  useEffect(() => {
+    const fetchApprovedBookings = async () => {
+      setIsLoadingBookings(true);
+      try {
+        let targetBusinessId = businessId;
+        
+        if (!isExternalCalendar && user?.id) {
+          const { data: businessProfile } = await supabase
+            .from("business_profiles")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+            
+          if (businessProfile?.id) {
+            targetBusinessId = businessProfile.id;
+          }
+        }
+        
+        if (!targetBusinessId && !user?.id) {
+          setIsLoadingBookings(false);
+          return;
+        }
+        
+        const { data, error } = await supabase
+          .from('booking_requests')
+          .select('*')
+          .eq('status', 'approved');
+          
+        if (error) throw error;
+        
+        let filteredData = data;
+        
+        if (targetBusinessId) {
+          filteredData = data.filter((booking: BookingRequest) => 
+            booking.business_id === targetBusinessId
+          );
+        } else if (user?.id) {
+          filteredData = data.filter((booking: BookingRequest) => 
+            booking.user_id === user.id
+          );
+        }
+        
+        console.log("Fetched booking requests:", filteredData);
+        
+        const bookingEvents: CalendarEventType[] = (filteredData || []).map((booking: BookingRequest) => ({
+          id: booking.id,
+          title: booking.title,
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          type: 'booking_request',
+          user_id: booking.user_id || '',
+          created_at: booking.created_at,
+          requester_name: booking.requester_name,
+          requester_email: booking.requester_email,
+        }));
+        
+        setApprovedBookings(bookingEvents);
+      } catch (error) {
+        console.error('Error fetching approved bookings:', error);
+      } finally {
+        setIsLoadingBookings(false);
+      }
+    };
+    
+    fetchApprovedBookings();
+    
+    const intervalId = setInterval(fetchApprovedBookings, 15000);
+    return () => clearInterval(intervalId);
+  }, [user?.id, isExternalCalendar, businessId]);
+  
+  const allEvents = [...(events || []), ...approvedBookings];
+
+  console.log("Calendar props:", { isExternalCalendar, businessId, showAllEvents });
+  console.log("Events from useCalendarEvents:", events?.length || 0);
+  console.log("Approved bookings:", approvedBookings.length);
+  console.log("Combined events to display:", allEvents.length);
 
   const {
     selectedEvent,
@@ -189,17 +262,16 @@ export const Calendar = ({
   };
 
   const handleEventClick = (event: CalendarEventType) => {
-    if (!isExternalCalendar) {
+    if (!isExternalCalendar && !approvedBookings.some(booking => booking.id === event.id)) {
       setSelectedEvent(event);
     }
   };
 
   if (error) {
-    console.error("Calendar error:", error);
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
 
-  if (isLoading) {
+  if (isLoading || isLoadingBookings) {
     return (
       <div className="space-y-4">
         <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
@@ -210,12 +282,6 @@ export const Calendar = ({
         </div>
       </div>
     );
-  }
-
-  // Debug output for events
-  console.log(`Rendering calendar with ${events?.length || 0} events`);
-  if (events?.length > 0) {
-    console.log("First few events:", events.slice(0, 3));
   }
 
   return (
@@ -234,7 +300,7 @@ export const Calendar = ({
         <div className="flex-1">
           <CalendarView
             days={getDaysForView()}
-            events={events || []}
+            events={allEvents}
             selectedDate={selectedDate}
             view={view}
             onDayClick={!isExternalCalendar ? handleCalendarDayClick : undefined}
