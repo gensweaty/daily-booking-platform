@@ -5,7 +5,7 @@ export interface Note {
   title: string;
   content: string;
   user_id: string;
-  color?: string; // Added color property
+  color?: string;
 }
 
 export interface CalendarEventType {
@@ -31,10 +31,10 @@ export interface Task {
   id: string;
   created_at: string;
   title: string;
-  status: 'todo' | 'inprogress' | 'done'; // Changed from is_completed to status
+  status: 'todo' | 'inprogress' | 'done';
   user_id: string;
-  description?: string; // Added description
-  order?: number; // Added order property
+  description?: string;
+  order?: number;
 }
 
 export interface Reminder {
@@ -43,8 +43,8 @@ export interface Reminder {
   title: string;
   time: string;
   user_id: string;
-  description?: string; // Added description property
-  remind_at?: string; // Added remind_at property
+  description?: string;
+  remind_at?: string;
 }
 
 export interface BusinessProfile {
@@ -52,12 +52,12 @@ export interface BusinessProfile {
   created_at: string;
   updated_at: string;
   business_name: string;
-  business_description: string;
-  business_address: string;
-  business_phone: string;
-  business_email: string;
-  business_website: string;
-  business_logo: string;
+  business_description?: string;
+  business_address?: string;
+  business_phone?: string;
+  business_email?: string;
+  business_website?: string;
+  business_logo?: string;
   user_id: string;
   slug: string;
   // New fields added to match component usage

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -23,7 +24,7 @@ import { useEventDialog } from "./hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { CalendarEventType } from "@/lib/types/calendar";
+import { CalendarEventType } from "@/types/database";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -38,7 +39,7 @@ export const Calendar = ({
   publicBusinessId,
   onDateSelected 
 }: CalendarProps) => {
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
   const [publicEvents, setPublicEvents] = useState<CalendarEventType[]>([]);
@@ -49,7 +50,7 @@ export const Calendar = ({
 
   // Make events available globally for the useEventDialog hook
   if (typeof window !== 'undefined') {
-    (window as any).__CALENDAR_EVENTS__ = events;
+    (window as any).__CALENDAR_EVENTS__ = isPublic ? publicEvents : events;
   }
 
   // Load public events when in public mode
@@ -58,13 +59,20 @@ export const Calendar = ({
       const fetchPublicEvents = async () => {
         setIsLoadingPublicEvents(true);
         try {
+          console.log(`Fetching public events for business ID: ${publicBusinessId}`);
+          
           const { data, error } = await supabase
             .from('events')
             .select('*')
             .eq('business_id', publicBusinessId)
             .order('start_date', { ascending: true });
 
-          if (error) throw error;
+          if (error) {
+            console.error("Error fetching public events:", error);
+            throw error;
+          }
+          
+          console.log(`Fetched ${data?.length || 0} public events:`, data);
           setPublicEvents(data || []);
         } catch (err) {
           console.error('Error loading public events:', err);
@@ -91,6 +99,31 @@ export const Calendar = ({
       return () => clearInterval(intervalId);
     }
   }, [queryClient, isPublic]);
+
+  // Add a refresh mechanism for public events as well
+  useEffect(() => {
+    if (isPublic && publicBusinessId) {
+      // Set up refresh interval for public events
+      const refreshPublicEvents = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('events')
+            .select('*')
+            .eq('business_id', publicBusinessId)
+            .order('start_date', { ascending: true });
+
+          if (error) throw error;
+          setPublicEvents(data || []);
+        } catch (err) {
+          console.error('Error refreshing public events:', err);
+        }
+      };
+      
+      const intervalId = setInterval(refreshPublicEvents, 15000);
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [isPublic, publicBusinessId]);
 
   const {
     selectedEvent,
@@ -218,7 +251,9 @@ export const Calendar = ({
 
   // Use the appropriate events based on whether we're in public mode or not
   const displayEvents = isPublic ? publicEvents : events || [];
-
+  
+  console.log(`Calendar: Rendering with ${displayEvents.length} events, isPublic=${isPublic}, publicBusinessId=${publicBusinessId}`);
+  
   return (
     <div className="h-full flex flex-col gap-4">
       <CalendarHeader

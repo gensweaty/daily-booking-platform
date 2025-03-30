@@ -99,7 +99,9 @@ export const BookingRequestForm = ({ businessId, selectedDate, onSuccess }: Book
 
       console.log("Submitting booking request:", requestData);
 
-      await createBookingRequest(requestData);
+      const result = await createBookingRequest(requestData);
+      
+      console.log("Booking request result:", result);
 
       toast({
         title: "Booking Request Submitted",
@@ -108,11 +110,11 @@ export const BookingRequestForm = ({ businessId, selectedDate, onSuccess }: Book
       
       form.reset();
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting booking request:", error);
       toast({
         title: "Error",
-        description: "There was a problem submitting your request. Please try again.",
+        description: error.message || "There was a problem submitting your request. Please try again.",
         variant: "destructive",
       });
     } finally {
