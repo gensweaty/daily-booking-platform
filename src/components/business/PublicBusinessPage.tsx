@@ -79,6 +79,8 @@ export const PublicBusinessPage = () => {
     );
   }
 
+  console.log("PublicBusinessPage: Rendering with businessId:", business.id);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -93,6 +95,7 @@ export const PublicBusinessPage = () => {
               className="bg-white text-blue-700 hover:bg-blue-50"
               onClick={() => {
                 setShowCalendar(true);
+                console.log("View calendar button clicked");
               }}
             >
               View & Book Calendar

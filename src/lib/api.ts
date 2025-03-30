@@ -86,6 +86,60 @@ export const getEventsForBusiness = async (businessId: string) => {
   return data;
 };
 
+export const getPublicCalendarEvents = async (businessId: string) => {
+  try {
+    // First get the user_id associated with this business
+    const { data: businessData, error: businessError } = await supabase
+      .from("business_profiles")
+      .select("user_id")
+      .eq("id", businessId)
+      .single();
+      
+    if (businessError) {
+      console.error("Error fetching business:", businessError);
+      return { events: [], bookings: [] };
+    }
+    
+    if (!businessData?.user_id) {
+      console.error("No user_id found for business:", businessId);
+      return { events: [], bookings: [] };
+    }
+
+    // Get events for this user
+    const { data: eventData, error: eventsError } = await supabase
+      .from('events')
+      .select('*')
+      .eq('user_id', businessData.user_id)
+      .order('start_date', { ascending: true });
+
+    if (eventsError) {
+      console.error("Error fetching events:", eventsError);
+      return { events: [], bookings: [] };
+    }
+    
+    // Get approved bookings
+    const { data: bookingData, error: bookingsError } = await supabase
+      .from('booking_requests')
+      .select('*')
+      .eq('business_id', businessId)
+      .eq('status', 'approved')
+      .order('start_date', { ascending: true });
+      
+    if (bookingsError) {
+      console.error("Error fetching booking requests:", bookingsError);
+      return { events: eventData || [], bookings: [] };
+    }
+    
+    return { 
+      events: eventData || [], 
+      bookings: bookingData || []
+    };
+  } catch (err) {
+    console.error("Exception in getPublicCalendarEvents:", err);
+    return { events: [], bookings: [] };
+  }
+};
+
 export const createEvent = async (event: Partial<CalendarEventType>) => {
   const { data, error } = await supabase
     .from('events')
