@@ -3,6 +3,7 @@
 
 import * as React from "react"
 import { ThemeProvider as NextThemesProvider } from "next-themes"
+import type { ThemeProviderProps as NextThemeProviderProps } from "next-themes"
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -12,7 +13,7 @@ type ThemeProviderProps = {
   enableColorScheme?: boolean;
   disableTransitionOnChange?: boolean;
   forcedTheme?: string;
-  attribute?: string | "class" | "data-theme";
+  attribute?: NextThemeProviderProps['attribute'];
 }
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
