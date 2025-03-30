@@ -58,28 +58,28 @@ export const CalendarHeader = ({
             size="sm"
             onClick={() => onViewChange("day")}
           >
-            {t("calendar.day")}
+            {t("dashboard.day")}
           </Button>
           <Button
             variant={view === "week" ? "default" : "outline"}
             size="sm"
             onClick={() => onViewChange("week")}
           >
-            {t("calendar.week")}
+            {t("dashboard.week")}
           </Button>
           <Button
             variant={view === "month" ? "default" : "outline"}
             size="sm"
             onClick={() => onViewChange("month")}
           >
-            {t("calendar.month")}
+            {t("dashboard.month")}
           </Button>
         </div>
         
         {onAddEvent && (
           <Button onClick={onAddEvent} size="sm">
             <Plus className="h-4 w-4 mr-1" />
-            {isExternalCalendar ? "Book Now" : t("events.addEvent")}
+            {isExternalCalendar ? "Book Now" : t("dashboard.addEvent")}
           </Button>
         )}
       </div>
