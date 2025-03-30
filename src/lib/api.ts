@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
-import { Note, Task, Reminder } from "@/lib/types";
+import { Note, Task, Reminder, BusinessProfile, BookingRequest } from "@/types/database";
 
 export const getNotes = async () => {
   const { data, error } = await supabase

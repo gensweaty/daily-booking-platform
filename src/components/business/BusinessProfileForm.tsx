@@ -18,7 +18,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoaderCircle } from "lucide-react";
+import { BusinessProfile } from "@/types/database";
 
+// Define the schema making slug required
 const businessProfileSchema = z.object({
   business_name: z.string().min(2, { message: "Business name must be at least 2 characters" }),
   slug: z.string().min(2, { message: "Slug must be at least 2 characters" })
@@ -73,8 +75,11 @@ export const BusinessProfileForm = () => {
         // Update existing profile
         updateBusinessProfile(data);
       } else {
-        // Create new profile
-        createBusinessProfile(data);
+        // Create new profile - ensure slug is provided
+        createBusinessProfile({
+          ...data,
+          slug: data.slug, // Explicitly include slug to satisfy TypeScript
+        });
       }
     } finally {
       setIsSubmitting(false);
