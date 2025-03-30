@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -62,7 +61,9 @@ const PUBLIC_PATHS = ['/', '/login', '/signup', '/contact', '/legal', '/forgot-p
 
 // Helper to check if the current path is public
 const isPublicPath = (path: string) => {
-  return PUBLIC_PATHS.some(publicPath => path === publicPath || path.startsWith(publicPath + '/'));
+  // Check if the path is one of the public paths or starts with /business/
+  return PUBLIC_PATHS.some(publicPath => path === publicPath || path.startsWith(publicPath + '/')) || 
+         path.startsWith('/business/');
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {

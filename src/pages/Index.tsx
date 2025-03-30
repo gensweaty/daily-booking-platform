@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
-import { useSearchParams, useNavigate } from "react-router-dom"
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom"
 import { AuthUI } from "@/components/AuthUI"
 import { DashboardHeader } from "@/components/DashboardHeader"
 import { TrialExpiredDialog } from "@/components/TrialExpiredDialog"
@@ -42,6 +42,7 @@ const Index = () => {
   const { toast } = useToast()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const location = useLocation()
   
   const currentPath = window.location.pathname;
   const isBusinessPage = currentPath.startsWith('/business/');
