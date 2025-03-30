@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -48,12 +49,16 @@ export const Calendar = ({
     if (publicMode) {
       console.log("[Calendar] Public mode with external events:", externalEvents?.length || 0, "events");
       if (externalEvents && externalEvents.length > 0) {
-        console.log("[Calendar] Sample external event:", externalEvents[0]);
+        console.log("[Calendar] First few external events:", 
+          externalEvents.slice(0, 5).map(e => ({ id: e.id, title: e.title, start: e.start_date }))
+        );
       }
     } else {
       console.log("[Calendar] Private mode with internal events:", events?.length || 0, "events");
       if (events && events.length > 0) {
-        console.log("[Calendar] Sample internal event:", events[0]);
+        console.log("[Calendar] First few internal events:", 
+          events.slice(0, 5).map(e => ({ id: e.id, title: e.title, start: e.start_date }))
+        );
       }
     }
   }, [publicMode, externalEvents, events]);
@@ -61,6 +66,7 @@ export const Calendar = ({
   // Invalidate queries when events change
   useEffect(() => {
     if (!publicMode && events?.length > 0 && businessId) {
+      queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
       queryClient.invalidateQueries({ queryKey: ['all-business-events', businessId] });
       queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
     }
@@ -80,7 +86,7 @@ export const Calendar = ({
     createEvent: async (data) => {
       try {
         if (publicMode && businessId) {
-          console.log("Creating event request with business_id:", businessId);
+          console.log("[Calendar] Creating event request with business_id:", businessId);
           const requestData = {
             ...data,
             business_id: businessId,
@@ -94,12 +100,14 @@ export const Calendar = ({
             description: "Your booking request has been sent to the business owner for approval.",
           });
           
+          // Invalidate queries to refresh data
+          queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
           queryClient.invalidateQueries({ queryKey: ['all-business-events', businessId] });
           queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
           
           return result;
         } else {
-          console.log("Creating regular event:", 
+          console.log("[Calendar] Creating regular event:", 
             businessId ? "with business_id: " + businessId : "without business_id");
           
           const eventData = { ...data };
@@ -110,6 +118,7 @@ export const Calendar = ({
           const result = await createEvent(eventData);
           
           if (eventData.business_id) {
+            queryClient.invalidateQueries({ queryKey: ['direct-business-events', eventData.business_id] });
             queryClient.invalidateQueries({ queryKey: ['all-business-events', eventData.business_id] });
           }
           queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
@@ -117,7 +126,7 @@ export const Calendar = ({
           return result;
         }
       } catch (error: any) {
-        console.error("Error creating event:", error);
+        console.error("[Calendar] Error creating event:", error);
         throw error;
       }
     },
@@ -136,6 +145,9 @@ export const Calendar = ({
       
       if (businessId || selectedEvent.business_id) {
         queryClient.invalidateQueries({ 
+          queryKey: ['direct-business-events', businessId || selectedEvent.business_id] 
+        });
+        queryClient.invalidateQueries({ 
           queryKey: ['all-business-events', businessId || selectedEvent.business_id] 
         });
       }
@@ -147,6 +159,9 @@ export const Calendar = ({
       await deleteEvent(id);
       
       if (businessId || selectedEvent?.business_id) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['direct-business-events', businessId || selectedEvent?.business_id] 
+        });
         queryClient.invalidateQueries({ 
           queryKey: ['all-business-events', businessId || selectedEvent?.business_id] 
         });

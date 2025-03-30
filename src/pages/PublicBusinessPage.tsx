@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useBusinessBySlug } from "@/hooks/useBusiness";
@@ -9,7 +10,6 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 
 const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -18,7 +18,6 @@ const PublicBusinessPage = () => {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
-  const { getAllBusinessEvents } = useCalendarEvents();
   
   useEffect(() => {
     // Reset state when slug changes
@@ -26,27 +25,81 @@ const PublicBusinessPage = () => {
     setSelectedDate(null);
   }, [slug]);
   
-  // Fetch ALL events for this business for public display with short stale time for better sync
-  const { data: businessEvents = [], isLoading: isLoadingEvents, refetch: refetchEvents } = useQuery({
-    queryKey: ['all-business-events', business?.id],
+  // Direct database query for all events regardless of their source
+  // This ensures we're getting the exact same data that's shown in the internal calendar
+  const { data: businessEvents = [], isLoading: isLoadingEvents } = useQuery({
+    queryKey: ['direct-business-events', business?.id],
     queryFn: async () => {
       if (!business?.id) return [];
       
       try {
-        console.log("[PublicBusinessPage] Fetching ALL events for business ID:", business.id);
+        console.log("[PublicBusinessPage] Fetching ALL events directly for business ID:", business.id);
         
-        // Use our existing hook to get ALL business events
-        const allEvents = await getAllBusinessEvents(business.id);
+        // 1. First get all direct events from events table
+        const { data: directEvents, error: eventsError } = await supabase
+          .from('events')
+          .select('*')
+          .eq('business_id', business.id)
+          .order('start_date', { ascending: true });
+          
+        if (eventsError) {
+          console.error("[PublicBusinessPage] Error fetching direct events:", eventsError);
+          throw eventsError;
+        }
         
-        console.log(`[PublicBusinessPage] Retrieved ${allEvents.length} total events for business:`, business.id);
+        console.log(`[PublicBusinessPage] Retrieved ${directEvents?.length || 0} direct events`);
+        
+        // 2. Then get all approved requests
+        const { data: approvedRequests, error: requestsError } = await supabase
+          .from('event_requests')
+          .select('*')
+          .eq('business_id', business.id)
+          .eq('status', 'approved')
+          .order('start_date', { ascending: true });
+          
+        if (requestsError) {
+          console.error("[PublicBusinessPage] Error fetching approved requests:", requestsError);
+          throw requestsError;
+        }
+        
+        console.log(`[PublicBusinessPage] Retrieved ${approvedRequests?.length || 0} approved requests`);
+        
+        // Convert approved requests to match event structure
+        const requestEvents = (approvedRequests || []).map(req => ({
+          id: req.id,
+          title: req.title,
+          start_date: req.start_date,
+          end_date: req.end_date,
+          created_at: req.created_at,
+          updated_at: req.updated_at,
+          user_surname: req.user_surname,
+          user_number: req.user_number,
+          social_network_link: req.social_network_link,
+          event_notes: req.event_notes,
+          type: req.type,
+          payment_status: req.payment_status,
+          payment_amount: req.payment_amount,
+          business_id: req.business_id
+        }));
+        
+        // Combine both sets of events
+        const allEvents = [...(directEvents || []), ...requestEvents];
+        
+        console.log(`[PublicBusinessPage] Total combined events: ${allEvents.length} (${directEvents?.length || 0} direct + ${requestEvents.length} requests)`);
         
         if (allEvents.length > 0) {
-          console.log("[PublicBusinessPage] Sample event:", allEvents[0]);
+          console.log("[PublicBusinessPage] Sample events:", 
+            allEvents.slice(0, 3).map(e => ({ 
+              id: e.id, 
+              title: e.title,
+              start: e.start_date
+            }))
+          );
         }
         
         return allEvents;
       } catch (error) {
-        console.error("[PublicBusinessPage] Failed to fetch business events:", error);
+        console.error("[PublicBusinessPage] Failed to fetch events:", error);
         toast({
           title: "Error loading calendar",
           description: "Failed to load calendar events. Please try again later.",
@@ -56,18 +109,11 @@ const PublicBusinessPage = () => {
       }
     },
     enabled: !!business?.id,
-    staleTime: 5 * 1000, // 5 seconds - very short stale time for better sync
+    staleTime: 1000, // 1 second - very short stale time to ensure fresh data
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    refetchInterval: 10 * 1000 // Refresh every 10 seconds for better sync
+    refetchInterval: 5000 // Refresh every 5 seconds
   });
-  
-  // Retry fetching events when business changes
-  useEffect(() => {
-    if (business?.id) {
-      refetchEvents();
-    }
-  }, [business?.id, refetchEvents]);
   
   // Fetch the cover photo URL if it exists
   useEffect(() => {

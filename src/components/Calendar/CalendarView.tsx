@@ -55,12 +55,16 @@ export const CalendarView = ({
   };
 
   // Log events being rendered
-  console.log(`[CalendarView] Rendering events in ${publicMode ? 'public' : 'private'} mode:`, 
-    events.length > 0 ? events.map(e => ({
-      id: e.id,
-      title: publicMode ? 'Booked' : e.title,
-      start: e.start_date
-    })) : 'No events');
+  console.log(`[CalendarView] Rendering with ${events.length} events in ${publicMode ? 'public' : 'private'} mode`);
+  if (events.length > 0) {
+    console.log("[CalendarView] First few events:", 
+      events.slice(0, 5).map(e => ({
+        id: e.id,
+        title: publicMode ? 'Booked' : e.title,
+        start: e.start_date
+      }))
+    );
+  }
 
   if (view === "month") {
     // Get the start and end of the month view
@@ -82,6 +86,13 @@ export const CalendarView = ({
               const eventDate = typeof event.start_date === 'string' 
                 ? parseISO(event.start_date)
                 : event.start_date;
+                
+              // Ensure the string can be parsed as a valid date
+              if (isNaN(eventDate.getTime())) {
+                console.error("Invalid date:", event.start_date);
+                return false;
+              }
+              
               return isSameDay(eventDate, day);
             } catch (error) {
               console.error("Error comparing dates:", error, event.start_date, day);
@@ -105,7 +116,7 @@ export const CalendarView = ({
                 {format(day, "d")}
               </div>
               <div className="mt-1 sm:mt-2 space-y-1">
-                {dayEvents.map((event) => (
+                {dayEvents.length > 0 && dayEvents.map((event) => (
                   <div
                     key={event.id}
                     className={`text-xs sm:text-sm p-1 rounded ${
@@ -178,6 +189,12 @@ export const CalendarView = ({
                   const eventDate = typeof event.start_date === 'string'
                     ? parseISO(event.start_date)
                     : event.start_date;
+                    
+                  if (isNaN(eventDate.getTime())) {
+                    console.error("Invalid date:", event.start_date);
+                    return false;
+                  }
+                    
                   return isSameDay(eventDate, day);
                 } catch (error) {
                   console.error("Error comparing dates for week view:", error);
