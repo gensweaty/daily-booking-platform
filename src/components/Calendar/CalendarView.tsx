@@ -35,30 +35,25 @@ export const CalendarView = ({
     </div>
   );
 
-  // Function to convert display hour to actual hour
   const displayHourToActualHour = (displayIndex: number) => {
     return (displayIndex + 6) % 24;
   };
 
-  // Function to convert actual hour to display position
   const actualHourToDisplayPosition = (actualHour: number) => {
-    return ((actualHour - 6 + 24) % 24) * 80; // 80px is the height of each hour slot
+    return ((actualHour - 6 + 24) % 24) * 80;
   };
 
-  // Function to safely parse dates from events
   const safeParseDate = (dateStr: string | Date): Date | null => {
     if (!dateStr) return null;
     
     try {
       if (dateStr instanceof Date) return dateStr;
       
-      // Handle ISO string format
       const parsedDate = new Date(dateStr);
       if (!isNaN(parsedDate.getTime())) {
         return parsedDate;
       }
       
-      // Try parseISO as fallback
       const isoParsed = parseISO(dateStr);
       if (!isNaN(isoParsed.getTime())) {
         return isoParsed;
@@ -72,13 +67,11 @@ export const CalendarView = ({
     }
   };
 
-  // Validate events before rendering
   const validEvents = events?.filter(event => {
     const startDate = safeParseDate(event.start_date);
     return !!startDate;
   }) || [];
 
-  // Log events being rendered
   console.log(`[CalendarView] Rendering with ${validEvents.length} events in ${publicMode ? 'public' : 'private'} mode`);
   if (validEvents.length > 0) {
     console.log("[CalendarView] First few events:", 
@@ -90,27 +83,22 @@ export const CalendarView = ({
     );
   }
 
-  // In public mode, we should see all events but they should be displayed as "Booked"
-  // We handle this differently for display vs the data structure
   const getEventDisplayTitle = (event: CalendarEventType) => {
     return publicMode ? "Booked" : event.title;
   };
 
   if (view === "month") {
-    // Get the start and end of the month view
     const monthStart = startOfMonth(selectedDate);
     const monthEnd = endOfMonth(selectedDate);
     const calendarStart = startOfWeek(monthStart);
     const calendarEnd = endOfWeek(monthEnd);
 
-    // Get all days that should be shown in the calendar grid
     const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
     return (
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
         {weekDays.map(renderDayHeader)}
         {calendarDays.map((day) => {
-          // Filter events for this day using our safe parsing function
           const dayEvents = validEvents.filter(event => {
             const eventDate = safeParseDate(event.start_date);
             return eventDate && isSameDay(eventDate, day);
@@ -157,7 +145,6 @@ export const CalendarView = ({
     );
   }
 
-  // Week/Day view with time slots starting from 6 AM
   return (
     <div className="flex-1 grid bg-background rounded-lg overflow-y-auto" 
          style={{ gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` }}>
@@ -204,7 +191,7 @@ export const CalendarView = ({
               })
               .map((event) => {
                 const start = safeParseDate(event.start_date) || new Date();
-                const end = safeParseDate(event.end_date) || new Date(start.getTime() + 60 * 60 * 1000); // Default to 1 hour
+                const end = safeParseDate(event.end_date) || new Date(start.getTime() + 60 * 60 * 1000);
                 
                 const top = actualHourToDisplayPosition(start.getHours()) + 
                           (start.getMinutes() / 60) * 80;

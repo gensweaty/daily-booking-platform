@@ -2,7 +2,6 @@
 import { Calendar } from "@/components/Calendar/Calendar";
 import { useCombinedEvents } from "@/hooks/useCombinedEvents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarIcon, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +21,14 @@ export const BusinessCalendar = ({ businessId }: BusinessCalendarProps) => {
     if (businessId) {
       console.log("[BusinessCalendar] Mounting with business ID:", businessId);
       refetch();
+      
+      // Set up periodic refreshing of data
+      const intervalId = setInterval(() => {
+        console.log("[BusinessCalendar] Periodic refresh for business ID:", businessId);
+        refetch();
+      }, 30000); // Refresh every 30 seconds
+      
+      return () => clearInterval(intervalId);
     }
   }, [businessId, refetch]);
   

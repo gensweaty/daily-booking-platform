@@ -108,6 +108,16 @@ export const getAllBusinessEvents = async (businessId: string) => {
   console.log(`API: Retrieved ${allEvents.length} total events for business ${businessId}`);
   console.log(`API: ${directEvents?.length || 0} direct events, ${approvedRequests?.length || 0} approved requests`);
   
+  if (allEvents.length > 0) {
+    console.log("API: Sample events:", 
+      allEvents.slice(0, 3).map(e => ({
+        id: e.id,
+        title: e.title,
+        start: e.start_date
+      }))
+    );
+  }
+  
   return allEvents;
 };
 

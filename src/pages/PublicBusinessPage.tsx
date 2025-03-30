@@ -1,18 +1,20 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getBusinessBySlug } from '@/lib/api';
+import { getBusinessBySlug, getAllBusinessEvents } from '@/lib/api';
 import { Business } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar } from '@/components/Calendar/Calendar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { useCombinedEvents } from '@/hooks/useCombinedEvents';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const [business, setBusiness] = useState<Business | null>(null);
   const [loadingBusiness, setLoadingBusiness] = useState(true);
+  const queryClient = useQueryClient();
   
   // Fetch business data
   useEffect(() => {
@@ -40,9 +42,26 @@ export const PublicBusinessPage = () => {
   useEffect(() => {
     if (business?.id) {
       console.log("[PublicBusinessPage] Business ID is available, forcing refetch");
+      // Invalidate all relevant queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['direct-business-events', business.id] });
+      queryClient.invalidateQueries({ queryKey: ['approved-event-requests', business.id] });
+      
+      // Then refetch our combined events
       refetch();
+      
+      // Also fetch directly from the API to ensure we're not missing anything
+      const fetchAllEvents = async () => {
+        try {
+          const events = await getAllBusinessEvents(business.id);
+          console.log(`[PublicBusinessPage] Direct API fetch retrieved ${events.length} events`);
+        } catch (err) {
+          console.error("[PublicBusinessPage] Error in direct API fetch:", err);
+        }
+      };
+      
+      fetchAllEvents();
     }
-  }, [business?.id, refetch]);
+  }, [business?.id, refetch, queryClient]);
   
   if (loadingBusiness) {
     return (

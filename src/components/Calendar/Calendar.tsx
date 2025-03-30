@@ -67,10 +67,25 @@ export const Calendar = ({
   useEffect(() => {
     if (businessId) {
       console.log("[Calendar] Invalidating queries for business:", businessId);
+      // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ['direct-business-events', businessId] });
       queryClient.invalidateQueries({ queryKey: ['approved-event-requests', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['api-combined-events', businessId] });
+      
+      // Also fetch directly if we're in public mode to ensure data is fresh
+      if (publicMode && externalEvents) {
+        const fetchDirectData = async () => {
+          try {
+            await getAllBusinessEvents(businessId);
+          } catch (err) {
+            console.error("[Calendar] Error fetching direct business events:", err);
+          }
+        };
+        
+        fetchDirectData();
+      }
     }
-  }, [businessId, queryClient]);
+  }, [businessId, queryClient, publicMode, externalEvents]);
 
   const {
     selectedEvent,
