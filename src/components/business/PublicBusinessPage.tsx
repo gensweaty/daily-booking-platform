@@ -12,13 +12,19 @@ import { BookingRequestForm } from "./BookingRequestForm";
 import { LoaderCircle, Globe, Mail, Phone, MapPin } from "lucide-react";
 
 export const PublicBusinessPage = () => {
-  const { slug } = useParams<{ slug: string }>();
+  // Extract the slug from the URL path manually since useParams doesn't work in our case
+  const path = window.location.pathname;
+  const slugMatch = path.match(/\/business\/([^\/]+)/);
+  const slug = slugMatch ? slugMatch[1] : '';
+  
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
 
   const { data: business, isLoading } = useQuery({
     queryKey: ["businessProfile", slug],
     queryFn: async () => {
+      if (!slug) throw new Error("No business slug provided");
+      
       const { data, error } = await supabase
         .from("business_profiles")
         .select("*")
@@ -28,6 +34,7 @@ export const PublicBusinessPage = () => {
       if (error) throw error;
       return data as BusinessProfile;
     },
+    enabled: !!slug
   });
 
   useEffect(() => {

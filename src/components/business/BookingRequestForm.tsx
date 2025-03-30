@@ -1,311 +1,181 @@
 
 import { useState } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import { format, addHours } from "date-fns";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { supabase } from "@/lib/supabase";
+import { format } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
-import { LoaderCircle, CheckCircle } from "lucide-react";
-
-const bookingSchema = z.object({
-  requester_name: z.string().min(2, { message: "Please enter your name" }),
-  requester_email: z.string().email({ message: "Please enter a valid email address" }),
-  requester_phone: z.string().optional(),
-  title: z.string().min(2, { message: "Please enter a booking title" }),
-  description: z.string().optional(),
-  date: z.string(),
-  time: z.string(),
-  duration: z.string(),
-});
+import { supabase } from "@/lib/supabase";
 
 interface BookingRequestFormProps {
   businessId: string;
   selectedDate?: Date;
-  onSuccess?: () => void;
+  onSuccess: () => void;
 }
 
-export const BookingRequestForm = ({ 
-  businessId, 
-  selectedDate = new Date(),
-  onSuccess 
+export const BookingRequestForm = ({
+  businessId,
+  selectedDate,
+  onSuccess,
 }: BookingRequestFormProps) => {
-  const { toast } = useToast();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("10:00");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const { toast } = useToast();
 
-  // Generate time slots for the day
-  const generateTimeOptions = () => {
-    const options = [];
-    for (let hour = 9; hour <= 17; hour++) {
-      for (let minute of [0, 30]) {
-        const time = new Date();
-        time.setHours(hour, minute, 0, 0);
-        options.push({
-          value: format(time, "HH:mm"),
-          label: format(time, "h:mm a"),
-        });
-      }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDate) {
+      toast({
+        title: "Error",
+        description: "Please select a date for your booking",
+        variant: "destructive",
+      });
+      return;
     }
-    return options;
-  };
 
-  const timeOptions = generateTimeOptions();
-  
-  const durationOptions = [
-    { value: "30", label: "30 minutes" },
-    { value: "60", label: "1 hour" },
-    { value: "90", label: "1.5 hours" },
-    { value: "120", label: "2 hours" },
-  ];
-
-  const form = useForm<z.infer<typeof bookingSchema>>({
-    resolver: zodResolver(bookingSchema),
-    defaultValues: {
-      requester_name: "",
-      requester_email: "",
-      requester_phone: "",
-      title: "",
-      description: "",
-      date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-      time: "09:00",
-      duration: "60",
-    },
-  });
-
-  const onSubmit = async (values: z.infer<typeof bookingSchema>) => {
-    setIsSubmitting(true);
-    
     try {
-      const startDate = new Date(`${values.date}T${values.time}`);
-      const endDate = addHours(startDate, parseInt(values.duration) / 60);
-      
-      const { error } = await supabase
-        .from("booking_requests")
-        .insert([
-          {
-            business_id: businessId,
-            requester_name: values.requester_name,
-            requester_email: values.requester_email,
-            requester_phone: values.requester_phone || null,
-            title: values.title,
-            description: values.description || null,
-            start_date: startDate.toISOString(),
-            end_date: endDate.toISOString(),
-            status: "pending",
-          },
-        ]);
+      setIsSubmitting(true);
+
+      // Create start and end date objects
+      const startDate = new Date(selectedDate);
+      const [startHours, startMinutes] = startTime.split(":").map(Number);
+      startDate.setHours(startHours, startMinutes, 0, 0);
+
+      const endDate = new Date(selectedDate);
+      const [endHours, endMinutes] = endTime.split(":").map(Number);
+      endDate.setHours(endHours, endMinutes, 0, 0);
+
+      // Insert booking request
+      const { error } = await supabase.from("booking_requests").insert({
+        business_id: businessId,
+        requester_name: name,
+        requester_email: email,
+        requester_phone: phone,
+        title: title || `Booking for ${name}`,
+        description,
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
+        status: "pending",
+      });
 
       if (error) throw error;
-      
-      setIsSubmitted(true);
+
       toast({
-        title: "Booking request submitted",
-        description: "We'll notify you when the business responds to your request.",
+        title: "Success",
+        description: "Your booking request has been submitted!",
       });
-      
-      setTimeout(() => {
-        if (onSuccess) onSuccess();
-      }, 3000);
-      
+
+      // Reset form and notify parent component
+      onSuccess();
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "Failed to submit booking request",
         variant: "destructive",
       });
+      console.error("Booking request error:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (isSubmitted) {
-    return (
-      <div className="text-center py-12">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-          <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
-        </div>
-        <h2 className="mt-6 text-2xl font-bold">Booking Request Submitted</h2>
-        <p className="mt-2 text-lg text-muted-foreground">
-          Thank you for your booking request. The business will review your request and get back to you soon.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6">Book an Appointment</h2>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid gap-6 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="requester_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Your Name *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="John Doe" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <h2 className="text-2xl font-bold mb-4">Request a Booking</h2>
+      
+      {selectedDate && (
+        <p className="text-muted-foreground mb-4">
+          Booking for: {format(selectedDate, "EEEE, MMMM d, yyyy")}
+        </p>
+      )}
 
-            <FormField
-              control={form.control}
-              name="requester_email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email Address *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="johndoe@example.com" type="email" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+      <div className="space-y-2">
+        <label htmlFor="name" className="block text-sm font-medium">Full Name</label>
+        <Input
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+      </div>
 
-            <FormField
-              control={form.control}
-              name="requester_phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone Number</FormLabel>
-                  <FormControl>
-                    <Input placeholder="+1 (555) 123-4567" {...field} />
-                  </FormControl>
-                  <FormDescription>Optional but recommended</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+      <div className="space-y-2">
+        <label htmlFor="email" className="block text-sm font-medium">Email</label>
+        <Input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+      </div>
 
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Appointment Title *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Initial Consultation" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+      <div className="space-y-2">
+        <label htmlFor="phone" className="block text-sm font-medium">Phone Number</label>
+        <Input
+          id="phone"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+        />
+      </div>
 
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date *</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+      <div className="space-y-2">
+        <label htmlFor="title" className="block text-sm font-medium">Booking Title</label>
+        <Input
+          id="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Optional"
+        />
+      </div>
 
-            <div className="grid gap-6 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Time *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a time" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {timeOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label htmlFor="startTime" className="block text-sm font-medium">Start Time</label>
+          <Input
+            id="startTime"
+            type="time"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="endTime" className="block text-sm font-medium">End Time</label>
+          <Input
+            id="endTime"
+            type="time"
+            value={endTime}
+            onChange={(e) => setEndTime(e.target.value)}
+            required
+          />
+        </div>
+      </div>
 
-              <FormField
-                control={form.control}
-                name="duration"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Duration *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select duration" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {durationOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+      <div className="space-y-2">
+        <label htmlFor="description" className="block text-sm font-medium">Additional Information</label>
+        <Textarea
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+        />
+      </div>
 
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem className="col-span-2">
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Please provide any additional information about your appointment request"
-                      className="resize-y h-32"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
-            Submit Booking Request
-          </Button>
-        </form>
-      </Form>
-    </div>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onSuccess}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Submitting..." : "Submit Request"}
+        </Button>
+      </div>
+    </form>
   );
 };

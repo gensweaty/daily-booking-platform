@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
@@ -12,6 +11,7 @@ import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
 import { LanguageProvider } from "@/contexts/LanguageContext"
+import { PublicBusinessPage } from "@/components/business/PublicBusinessPage"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -43,11 +43,14 @@ const Index = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   
-  useSubscriptionRedirect()
+  const currentPath = window.location.pathname;
+  const isBusinessPage = currentPath.startsWith('/business/');
+  
+  if (!isBusinessPage) {
+    useSubscriptionRedirect()
+  }
 
-  // Handle email confirmation code if present
   useEffect(() => {
-    // This is a special handler for email confirmation codes on the dashboard route
     const code = searchParams.get('code');
     
     if (code && !processingCode) {
@@ -74,7 +77,6 @@ const Index = () => {
                 description: "Your email has been successfully confirmed!",
               });
               
-              // Refresh the page without the code parameter
               navigate('/dashboard', { replace: true });
             }
           }
@@ -120,7 +122,6 @@ const Index = () => {
     getProfile()
   }, [user])
 
-  // Show a loading state when processing confirmation code
   if (processingCode) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -130,6 +131,14 @@ const Index = () => {
           <p className="text-muted-foreground">Please wait while we complete this process.</p>
         </div>
       </div>
+    );
+  }
+
+  if (isBusinessPage) {
+    return (
+      <LanguageProvider>
+        <PublicBusinessPage />
+      </LanguageProvider>
     );
   }
 
