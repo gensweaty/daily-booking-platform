@@ -28,6 +28,8 @@ import { BookingRequest } from "@/types/database";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
+  currentView?: CalendarViewType;
+  onViewChange?: (view: CalendarViewType) => void;
   isExternalCalendar?: boolean;
   businessId?: string;
   showAllEvents?: boolean;
@@ -35,6 +37,8 @@ interface CalendarProps {
 
 export const Calendar = ({ 
   defaultView = "week", 
+  currentView,
+  onViewChange,
   isExternalCalendar = false,
   businessId,
   showAllEvents = false
@@ -49,25 +53,24 @@ export const Calendar = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Make events available globally for the useEventDialog hook
+  useEffect(() => {
+    if (currentView) {
+      setView(currentView);
+    }
+  }, [currentView]);
+
   if (typeof window !== 'undefined') {
     (window as any).__CALENDAR_EVENTS__ = events;
   }
 
-  // Regular refresh for sync purposes
   useEffect(() => {
-    // Initial fetch
     queryClient.invalidateQueries({ queryKey: ['events'] });
-    
-    // Set up regular refresh interval
     const intervalId = setInterval(() => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
-    }, 15000); // Refresh every 15 seconds
-    
+    }, 15000);
     return () => clearInterval(intervalId);
   }, [queryClient]);
 
-  // Fetch regular events for both calendars when showAllEvents is true
   useEffect(() => {
     const fetchRegularEvents = async () => {
       if (!showAllEvents || !businessId) return;
@@ -88,7 +91,7 @@ export const Calendar = ({
           .order('start_date', { ascending: true });
           
         if (error) throw error;
-        
+        console.log("Fetched regular events for external calendar:", data);
         setRegularEvents(data || []);
       } catch (error) {
         console.error('Error fetching regular events:', error);
@@ -96,14 +99,14 @@ export const Calendar = ({
     };
     
     fetchRegularEvents();
+    const intervalId = setInterval(fetchRegularEvents, 30000);
+    return () => clearInterval(intervalId);
   }, [businessId, showAllEvents]);
 
-  // Fetch approved booking requests
   useEffect(() => {
     const fetchApprovedBookings = async () => {
       setIsLoadingBookings(true);
       try {
-        // Get business profile ID for the current user if in dashboard (not external) view
         let userBusinessId: string | null = null;
         
         if (!isExternalCalendar && user?.id) {
@@ -116,8 +119,6 @@ export const Calendar = ({
           userBusinessId = businessProfile?.id || null;
         }
         
-        // For external calendar, use the provided businessId
-        // For internal calendar (dashboard), use the user's business ID
         const targetBusinessId = isExternalCalendar ? businessId : userBusinessId;
         
         if (!targetBusinessId && !user?.id) {
@@ -125,7 +126,6 @@ export const Calendar = ({
           return;
         }
         
-        // Fetch all approved booking requests
         const { data, error } = await supabase
           .from('booking_requests')
           .select('*')
@@ -133,31 +133,29 @@ export const Calendar = ({
           
         if (error) throw error;
         
-        // Filter by business ID
         let filteredData = data;
         
         if (targetBusinessId) {
-          // If we have a business ID (either external or user's business), filter by it
           filteredData = data.filter((booking: BookingRequest) => 
             booking.business_id === targetBusinessId
           );
         } else if (user?.id) {
-          // Otherwise show the user's personal bookings
           filteredData = data.filter((booking: BookingRequest) => 
             booking.user_id === user.id
           );
         }
         
-        // Convert booking requests to calendar events
+        console.log("Fetched booking requests:", filteredData);
+        
         const bookingEvents: CalendarEventType[] = (filteredData || []).map((booking: BookingRequest) => ({
           id: booking.id,
           title: booking.title,
           start_date: booking.start_date,
           end_date: booking.end_date,
-          type: 'booking_request', // Special type for styling
+          type: 'booking_request',
           user_id: booking.user_id || '',
           created_at: booking.created_at,
-          requester_name: booking.requester_name, // Include additional booking info
+          requester_name: booking.requester_name,
           requester_email: booking.requester_email,
         }));
         
@@ -171,17 +169,18 @@ export const Calendar = ({
     
     fetchApprovedBookings();
     
-    // Set up interval to refresh approved bookings
     const intervalId = setInterval(fetchApprovedBookings, 15000);
     return () => clearInterval(intervalId);
   }, [user?.id, isExternalCalendar, businessId]);
   
-  // Combine regular events and approved bookings
   const combinedEvents = [...(events || []), ...approvedBookings];
-  // If showing all events in external view, also include regular events from the business owner
   const allEvents = showAllEvents && isExternalCalendar 
     ? [...combinedEvents, ...regularEvents] 
     : combinedEvents;
+
+  console.log("Combined events:", combinedEvents.length);
+  console.log("Regular events from business:", regularEvents.length);
+  console.log("Final events to display:", allEvents.length);
 
   const {
     selectedEvent,
@@ -211,8 +210,7 @@ export const Calendar = ({
     }
   });
 
-  // Only check authentication for non-external calendars
-  if (!isExternalCalendar && !user) {
+  if (!isExternalCalendar && !user && !window.location.pathname.includes('/business/')) {
     navigate("/signin");
     return null;
   }
@@ -266,32 +264,34 @@ export const Calendar = ({
     }
   };
 
+  const handleViewChange = (newView: CalendarViewType) => {
+    setView(newView);
+    if (onViewChange) {
+      onViewChange(newView);
+    }
+  };
+
   const handleCalendarDayClick = (date: Date, hour?: number) => {
-    if (isExternalCalendar) return; // Don't allow creating events on external calendar
+    if (isExternalCalendar) return;
     
     const clickedDate = new Date(date);
     clickedDate.setHours(hour || 9, 0, 0, 0);
     
-    // First set the date
     setDialogSelectedDate(clickedDate);
-    // Then open the dialog
     setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
   const handleAddEventClick = () => {
-    if (isExternalCalendar) return; // Don't allow creating events on external calendar
+    if (isExternalCalendar) return;
     
     const now = new Date();
     now.setHours(9, 0, 0, 0);
     
-    // First set the date
     setDialogSelectedDate(now);
-    // Then open the dialog
     setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
   const handleEventClick = (event: CalendarEventType) => {
-    // Only allow editing regular events, not booking requests
     if (!isExternalCalendar && !approvedBookings.some(booking => booking.id === event.id)) {
       setSelectedEvent(event);
     }
@@ -319,7 +319,7 @@ export const Calendar = ({
       <CalendarHeader
         selectedDate={selectedDate}
         view={view}
-        onViewChange={setView}
+        onViewChange={handleViewChange}
         onPrevious={handlePrevious}
         onNext={handleNext}
         onAddEvent={!isExternalCalendar ? handleAddEventClick : undefined}
@@ -342,7 +342,7 @@ export const Calendar = ({
       {!isExternalCalendar && (
         <>
           <EventDialog
-            key={dialogSelectedDate?.getTime()} // Force re-render when date changes
+            key={dialogSelectedDate?.getTime()}
             open={isNewEventDialogOpen}
             onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
@@ -351,10 +351,10 @@ export const Calendar = ({
 
           {selectedEvent && (
             <EventDialog
-              key={selectedEvent.id} // Force re-render when event changes
+              key={selectedEvent.id}
               open={!!selectedEvent}
               onOpenChange={() => setSelectedEvent(null)}
-              selectedDate={new Date(selectedEvent.start_date)} // Use the actual event start date
+              selectedDate={new Date(selectedEvent.start_date)}
               event={selectedEvent}
               onSubmit={handleUpdateEvent}
               onDelete={handleDeleteEvent}

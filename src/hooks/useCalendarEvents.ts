@@ -9,9 +9,12 @@ export const useCalendarEvents = () => {
   const { user } = useAuth();
 
   const getEvents = async () => {
+    if (!user) return [];
+    
     const { data, error } = await supabase
       .from('events')
       .select('*')
+      .eq('user_id', user.id)
       .order('start_date', { ascending: true });
 
     if (error) throw error;
@@ -63,7 +66,7 @@ export const useCalendarEvents = () => {
     queryFn: getEvents,
     enabled: !!user,
     staleTime: 1000 * 60, // 1 minute
-    refetchInterval: 30000, // Refresh every 30 seconds to ensure sync
+    refetchInterval: 15000, // Refresh every 15 seconds to ensure sync
   });
 
   const createEventMutation = useMutation({
