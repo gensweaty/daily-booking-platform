@@ -131,6 +131,8 @@ export const useCalendarEvents = () => {
         throw eventsError;
       }
       
+      console.log(`[useCalendarEvents] Retrieved ${directEvents?.length || 0} direct events for business:`, businessId);
+      
       // Get approved event requests
       const { data: approvedRequests, error: requestsError } = await supabase
         .from('event_requests')
@@ -143,6 +145,8 @@ export const useCalendarEvents = () => {
         console.error("[useCalendarEvents] Error fetching approved requests:", requestsError);
         throw requestsError;
       }
+      
+      console.log(`[useCalendarEvents] Retrieved ${approvedRequests?.length || 0} approved request events for business:`, businessId);
       
       // Convert approved requests to event format
       const requestEvents = (approvedRequests || []).map(req => ({
@@ -166,6 +170,15 @@ export const useCalendarEvents = () => {
       const allEvents = [...(directEvents || []), ...requestEvents];
       
       console.log(`[useCalendarEvents] Retrieved ${allEvents.length} total events (${directEvents?.length || 0} direct, ${approvedRequests?.length || 0} requests) for business:`, businessId);
+      
+      if (allEvents.length > 0) {
+        console.log("[useCalendarEvents] Sample event data:", {
+          id: allEvents[0].id,
+          title: allEvents[0].title,
+          start: allEvents[0].start_date,
+          type: allEvents[0].type || 'standard'
+        });
+      }
       
       return allEvents;
     } catch (err) {
@@ -495,7 +508,7 @@ export const useCalendarEvents = () => {
     error,
     refetch,
     getPublicEvents,
-    getAllBusinessEvents, 
+    getAllBusinessEvents,
     createEvent: createEventMutation.mutateAsync,
     updateEvent: updateEventMutation.mutateAsync,
     deleteEvent: deleteEventMutation.mutateAsync,

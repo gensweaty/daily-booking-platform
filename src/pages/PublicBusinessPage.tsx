@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useBusinessBySlug } from "@/hooks/useBusiness";
@@ -19,7 +18,7 @@ const PublicBusinessPage = () => {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
-  const { getPublicEvents } = useCalendarEvents();
+  const { getAllBusinessEvents } = useCalendarEvents();
   
   useEffect(() => {
     // Reset state when slug changes
@@ -29,64 +28,23 @@ const PublicBusinessPage = () => {
   
   // Fetch ALL events for this business for public display with short stale time for better sync
   const { data: businessEvents = [], isLoading: isLoadingEvents, refetch: refetchEvents } = useQuery({
-    queryKey: ['public-events', business?.id],
+    queryKey: ['all-business-events', business?.id],
     queryFn: async () => {
       if (!business?.id) return [];
       
       try {
-        console.log("[PublicBusinessPage] Fetching ALL public events for business ID:", business.id);
+        console.log("[PublicBusinessPage] Fetching ALL events for business ID:", business.id);
         
-        // Directly fetch both direct events and approved requests
-        const { data: directEvents, error: directEventsError } = await supabase
-          .from('events')
-          .select('*')
-          .eq('business_id', business.id)
-          .order('start_date', { ascending: true });
+        // Use our existing hook to get ALL business events
+        const allEvents = await getAllBusinessEvents(business.id);
         
-        if (directEventsError) {
-          throw directEventsError;
+        console.log(`[PublicBusinessPage] Retrieved ${allEvents.length} total events for business:`, business.id);
+        
+        if (allEvents.length > 0) {
+          console.log("[PublicBusinessPage] Sample event:", allEvents[0]);
         }
         
-        // Get approved event requests
-        const { data: approvedRequests, error: requestsError } = await supabase
-          .from('event_requests')
-          .select('*')
-          .eq('business_id', business.id)
-          .eq('status', 'approved')
-          .order('start_date', { ascending: true });
-        
-        if (requestsError) {
-          throw requestsError;
-        }
-        
-        // Convert approved requests to event format
-        const requestEvents = (approvedRequests || []).map(req => ({
-          id: req.id,
-          title: req.title,
-          start_date: req.start_date,
-          end_date: req.end_date,
-          created_at: req.created_at,
-          updated_at: req.updated_at,
-          user_surname: req.user_surname,
-          user_number: req.user_number,
-          social_network_link: req.social_network_link,
-          event_notes: req.event_notes,
-          type: req.type,
-          payment_status: req.payment_status,
-          payment_amount: req.payment_amount,
-          business_id: req.business_id
-        }));
-        
-        // Combine both arrays for public display
-        const combinedEvents = [...(directEvents || []), ...requestEvents];
-        
-        console.log(`[PublicBusinessPage] Retrieved ${combinedEvents.length} public events (${directEvents?.length || 0} direct events, ${approvedRequests?.length || 0} approved requests) for business:`, business.id);
-        
-        if (combinedEvents.length > 0) {
-          console.log("[PublicBusinessPage] Sample public event:", combinedEvents[0]);
-        }
-        
-        return combinedEvents;
+        return allEvents;
       } catch (error) {
         console.error("[PublicBusinessPage] Failed to fetch business events:", error);
         toast({

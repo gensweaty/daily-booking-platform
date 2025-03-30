@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -62,8 +61,8 @@ export const Calendar = ({
   // Invalidate queries when events change
   useEffect(() => {
     if (!publicMode && events?.length > 0 && businessId) {
-      queryClient.invalidateQueries({ queryKey: ['public-events', businessId] });
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
+      queryClient.invalidateQueries({ queryKey: ['all-business-events', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
     }
   }, [events, publicMode, businessId, queryClient]);
 
@@ -95,8 +94,8 @@ export const Calendar = ({
             description: "Your booking request has been sent to the business owner for approval.",
           });
           
-          queryClient.invalidateQueries({ queryKey: ['public-events', businessId] });
-          queryClient.invalidateQueries({ queryKey: ['public-events'] });
+          queryClient.invalidateQueries({ queryKey: ['all-business-events', businessId] });
+          queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
           
           return result;
         } else {
@@ -111,9 +110,9 @@ export const Calendar = ({
           const result = await createEvent(eventData);
           
           if (eventData.business_id) {
-            queryClient.invalidateQueries({ queryKey: ['public-events', eventData.business_id] });
+            queryClient.invalidateQueries({ queryKey: ['all-business-events', eventData.business_id] });
           }
-          queryClient.invalidateQueries({ queryKey: ['public-events'] });
+          queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
           
           return result;
         }
@@ -137,10 +136,10 @@ export const Calendar = ({
       
       if (businessId || selectedEvent.business_id) {
         queryClient.invalidateQueries({ 
-          queryKey: ['public-events', businessId || selectedEvent.business_id] 
+          queryKey: ['all-business-events', businessId || selectedEvent.business_id] 
         });
       }
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
+      queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
       
       return result;
     },
@@ -149,10 +148,10 @@ export const Calendar = ({
       
       if (businessId || selectedEvent?.business_id) {
         queryClient.invalidateQueries({ 
-          queryKey: ['public-events', businessId || selectedEvent?.business_id] 
+          queryKey: ['all-business-events', businessId || selectedEvent?.business_id] 
         });
       }
-      queryClient.invalidateQueries({ queryKey: ['public-events'] });
+      queryClient.invalidateQueries({ queryKey: ['all-business-events'] });
     }
   });
 
