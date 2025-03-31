@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Calendar } from "@/components/Calendar/Calendar";
@@ -11,12 +12,13 @@ import { Statistics } from "./Statistics";
 import { BookingRequests } from "./BookingRequests";
 import { BookingRequestNotifications } from "./BookingRequestNotifications";
 
-interface Params {
+// Fixed Params interface to satisfy constraints
+interface Params extends Record<string, string> {
   slug: string;
 }
 
 export const BusinessPage = () => {
-  const { slug } = useParams<Params>();
+  const { slug } = useParams<keyof Params>() as Params;
   const [businessProfile, setBusinessProfile] = useState<BusinessProfileType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +87,7 @@ export const BusinessPage = () => {
     <Tabs defaultValue="profile" className="space-y-4 min-h-[calc(100vh-12rem)]">
       <Card>
         <CardHeader>
-          <CardTitle>{businessProfile.name}</CardTitle>
+          <CardTitle>{businessProfile.slug}</CardTitle>
         </CardHeader>
         <CardContent>
           <TabsList className="grid w-full grid-cols-4">

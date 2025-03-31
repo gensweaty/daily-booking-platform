@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { ModeToggle } from "./ModeToggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,7 +17,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-export default function DashboardHeader() {
+// Using default export instead of named export
+const DashboardHeader = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { signOut } = useSignOut();
@@ -142,4 +144,6 @@ export default function DashboardHeader() {
       </div>
     </div>
   );
-}
+};
+
+export default DashboardHeader;
