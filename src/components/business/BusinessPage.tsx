@@ -83,7 +83,7 @@ export const BusinessPage = () => {
     <Tabs defaultValue="profile" className="space-y-4 min-h-[calc(100vh-12rem)]">
       <Card>
         <CardHeader>
-          <CardTitle>{businessProfile?.name || "Business Profile"}</CardTitle>
+          <CardTitle>{businessProfile?.business_name || "Business Profile"}</CardTitle>
         </CardHeader>
         <CardContent>
           <TabsList className="grid w-full grid-cols-4">

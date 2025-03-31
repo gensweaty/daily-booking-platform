@@ -15,7 +15,7 @@ export const Statistics = ({ businessProfile }: StatisticsProps) => {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">
-          Statistics for {businessProfile?.name || "Your Business"}
+          Statistics for {businessProfile?.business_name || "Your Business"}
         </p>
         <div className="mt-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
