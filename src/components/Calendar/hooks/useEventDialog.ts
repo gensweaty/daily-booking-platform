@@ -36,6 +36,7 @@ export const useEventDialog = ({
     console.log('useEventDialog - current selectedDate:', selectedDate);
   }, [isNewEventDialogOpen]);
 
+  // This function is not used anymore - time slot checking is handled in useCalendarEvents hook
   const checkTimeSlotAvailability = (
     startDate: Date,
     endDate: Date,
@@ -70,31 +71,7 @@ export const useEventDialog = ({
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
       console.log('handleCreateEvent - Received data:', data);
-      const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
       
-      const startDate = new Date(data.start_date as string);
-      const endDate = new Date(data.end_date as string);
-
-      console.log('handleCreateEvent - Parsed dates:', {
-        start: startDate,
-        end: endDate
-      });
-
-      const { available, conflictingEvent } = checkTimeSlotAvailability(
-        startDate,
-        endDate,
-        allEvents
-      );
-
-      if (!available && conflictingEvent) {
-        toast({
-          title: "Time Slot Unavailable",
-          description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
-          variant: "destructive",
-        });
-        throw new Error("Time slot conflict");
-      }
-
       const result = await createEvent(data);
       setIsNewEventDialogOpen(false);
       toast({
@@ -104,13 +81,11 @@ export const useEventDialog = ({
       return result;
     } catch (error: any) {
       console.error('handleCreateEvent - Error:', error);
-      if (error.message !== "Time slot conflict") {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
       throw error;
     }
   };
@@ -119,27 +94,6 @@ export const useEventDialog = ({
     if (!selectedEvent) return;
     
     try {
-      const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
-      
-      const startDate = new Date(data.start_date as string);
-      const endDate = new Date(data.end_date as string);
-
-      const { available, conflictingEvent } = checkTimeSlotAvailability(
-        startDate,
-        endDate,
-        allEvents,
-        selectedEvent.id
-      );
-
-      if (!available && conflictingEvent) {
-        toast({
-          title: "Time Slot Unavailable",
-          description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
-          variant: "destructive",
-        });
-        throw new Error("Time slot conflict");
-      }
-
       const result = await updateEvent(data);
       setSelectedEvent(null);
       toast({
@@ -149,13 +103,11 @@ export const useEventDialog = ({
       return result;
     } catch (error: any) {
       console.error('handleUpdateEvent - Error:', error);
-      if (error.message !== "Time slot conflict") {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
       throw error;
     }
   };
