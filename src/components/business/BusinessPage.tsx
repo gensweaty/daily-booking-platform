@@ -12,13 +12,9 @@ import { Statistics } from "./Statistics";
 import { BookingRequests } from "./BookingRequests";
 import { BookingRequestNotifications } from "./BookingRequestNotifications";
 
-// Fixed Params interface to satisfy constraints
-interface Params extends Record<string, string> {
-  slug: string;
-}
-
 export const BusinessPage = () => {
-  const { slug } = useParams<keyof Params>() as Params;
+  const params = useParams<{ slug: string }>();
+  const slug = params.slug;
   const [businessProfile, setBusinessProfile] = useState<BusinessProfileType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +83,7 @@ export const BusinessPage = () => {
     <Tabs defaultValue="profile" className="space-y-4 min-h-[calc(100vh-12rem)]">
       <Card>
         <CardHeader>
-          <CardTitle>{businessProfile.slug}</CardTitle>
+          <CardTitle>{businessProfile.name}</CardTitle>
         </CardHeader>
         <CardContent>
           <TabsList className="grid w-full grid-cols-4">

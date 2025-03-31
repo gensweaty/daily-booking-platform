@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
@@ -146,7 +145,7 @@ const Index = () => {
         </motion.div>
       )}
       <motion.div variants={childVariants}>
-        <DashboardHeader username={username} />
+        <DashboardHeader />
       </motion.div>
       <motion.div variants={childVariants}>
         <DashboardContent 

@@ -1,310 +1,477 @@
 
-import { useState } from "react";
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { useBookingRequests } from "@/hooks/useBookingRequests";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, Check, X, FileText } from "lucide-react";
-import { 
-  Dialog, 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useToast } from "@/components/ui/use-toast";
+import { format } from "date-fns";
+import {
+  Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogDescription
 } from "@/components/ui/dialog";
 
-interface BookingRequestsProps {
+type BookingRequest = {
+  id: string;
+  business_id: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone?: string;
+  start_time: string;
+  end_time: string;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+  title: string;
+  description?: string;
+};
+
+type BookingRequestsProps = {
   businessId: string;
-}
+};
 
 export const BookingRequests = ({ businessId }: BookingRequestsProps) => {
-  const {
-    pendingRequests,
-    approvedRequests,
-    rejectedRequests,
-    isLoading,
-    approveRequest,
-    rejectRequest,
-  } = useBookingRequests(businessId);
-  
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
-  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedRequest, setSelectedRequest] = useState<BookingRequest | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const selectedRequest = [...pendingRequests, ...approvedRequests, ...rejectedRequests]
-    .find(request => request.id === selectedRequestId);
+  const { data: bookingRequests, isLoading, error } = useQuery({
+    queryKey: ["bookingRequests", businessId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_requests")
+        .select("*")
+        .eq("business_id", businessId)
+        .order("created_at", { ascending: false });
 
-  const renderRequestList = (requests: any[], status: string) => {
-    if (isLoading) {
-      return Array(3).fill(0).map((_, i) => (
-        <TableRow key={i}>
-          <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-        </TableRow>
-      ));
+      if (error) throw error;
+      return data as BookingRequest[];
+    },
+    enabled: !!businessId,
+  });
+
+  const updateRequestStatusMutation = useMutation({
+    mutationFn: async ({
+      requestId,
+      status,
+    }: {
+      requestId: string;
+      status: "approved" | "rejected";
+    }) => {
+      const { data, error } = await supabase
+        .from("booking_requests")
+        .update({ status })
+        .eq("id", requestId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["bookingRequests", businessId] });
+      toast({
+        title: `Booking ${data.status}`,
+        description: `The booking request has been ${data.status}.`,
+      });
+
+      // If approved, create a calendar event
+      if (data.status === "approved") {
+        createCalendarEventMutation.mutate({
+          requestId: data.id,
+        });
+      }
+      
+      setIsDialogOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to update booking status: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createCalendarEventMutation = useMutation({
+    mutationFn: async ({ requestId }: { requestId: string }) => {
+      // First, get the request details
+      const { data: request, error: requestError } = await supabase
+        .from("booking_requests")
+        .select("*")
+        .eq("id", requestId)
+        .single();
+
+      if (requestError) throw requestError;
+
+      // Create a calendar event
+      const { data, error } = await supabase
+        .from("events")
+        .insert({
+          business_id: request.business_id,
+          title: request.title,
+          description: request.description || "",
+          start_time: request.start_time,
+          end_time: request.end_time,
+          user_id: request.user_id,
+          created_at: new Date().toISOString(),
+          booking_request_id: request.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Create customer record if needed
+      await createOrUpdateCustomer(request);
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      toast({
+        title: "Event created",
+        description: "A new event has been added to your calendar.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to create event: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createOrUpdateCustomer = async (request: BookingRequest) => {
+    // Check if customer already exists
+    const { data: existingCustomer } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("email", request.customer_email)
+      .eq("business_id", request.business_id)
+      .maybeSingle();
+
+    if (existingCustomer) {
+      // Update existing customer
+      await supabase
+        .from("customers")
+        .update({
+          last_booking: new Date().toISOString(),
+          bookings_count: (existingCustomer.bookings_count || 0) + 1,
+        })
+        .eq("id", existingCustomer.id);
+    } else {
+      // Create new customer
+      await supabase.from("customers").insert({
+        business_id: request.business_id,
+        name: request.customer_name,
+        email: request.customer_email,
+        phone: request.customer_phone || "",
+        created_at: new Date().toISOString(),
+        last_booking: new Date().toISOString(),
+        bookings_count: 1,
+      });
     }
-    
-    if (requests.length === 0) {
-      return (
-        <TableRow>
-          <TableCell colSpan={5} className="text-center py-6">
-            <p className="text-muted-foreground">No {status} booking requests</p>
-          </TableCell>
-        </TableRow>
-      );
+  };
+
+  const handleViewRequest = (request: BookingRequest) => {
+    setSelectedRequest(request);
+    setIsDialogOpen(true);
+  };
+
+  const handleUpdateStatus = (status: "approved" | "rejected") => {
+    if (selectedRequest) {
+      updateRequestStatusMutation.mutate({
+        requestId: selectedRequest.id,
+        status,
+      });
     }
-    
-    return requests.map((request) => (
-      <TableRow key={request.id}>
-        <TableCell>
-          <div className="font-medium">{request.requester_name}</div>
-          <div className="text-sm text-muted-foreground">{request.requester_email}</div>
-        </TableCell>
-        <TableCell>{request.title || "No title"}</TableCell>
-        <TableCell>
-          {new Date(request.start_date).toLocaleDateString()} at{" "}
-          {new Date(request.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </TableCell>
-        <TableCell>
-          {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
-        </TableCell>
-        <TableCell>
-          <div className="flex gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => {
-                setSelectedRequestId(request.id);
-                setViewDialogOpen(true);
-              }}
-            >
-              <FileText className="h-4 w-4 mr-1" />
-              View
-            </Button>
-            
-            {status === 'pending' && (
-              <>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="text-green-600 hover:text-green-700 border-green-200 hover:border-green-300 hover:bg-green-50"
-                  onClick={() => approveRequest(request.id)}
-                >
-                  <Check className="h-4 w-4 mr-1" />
-                  Approve
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 hover:bg-red-50"
-                  onClick={() => rejectRequest(request.id)}
-                >
-                  <X className="h-4 w-4 mr-1" />
-                  Reject
-                </Button>
-              </>
-            )}
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center h-40">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
           </div>
-        </TableCell>
-      </TableRow>
-    ));
-  }; 
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-center text-red-500">
+            Error loading booking requests: {(error as Error).message}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const pendingRequests = bookingRequests?.filter((req) => req.status === "pending") || [];
+  const pastRequests = bookingRequests?.filter((req) => req.status !== "pending") || [];
 
   return (
     <>
-      <Card>
-        <CardHeader className="pb-3">
+      <Card className="mb-6">
+        <CardHeader>
           <CardTitle>Booking Requests</CardTitle>
+          <CardDescription>
+            Manage booking requests from customers
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="pending">
-            <TabsList className="mb-4">
-              <TabsTrigger value="pending">
-                Pending
-                {pendingRequests.length > 0 && (
-                  <Badge className="ml-2 bg-yellow-500">{pendingRequests.length}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="approved">
-                Approved
-                {approvedRequests.length > 0 && (
-                  <Badge className="ml-2 bg-green-500">{approvedRequests.length}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="rejected">
-                Rejected
-                {rejectedRequests.length > 0 && (
-                  <Badge className="ml-2 bg-red-500">{rejectedRequests.length}</Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="pending">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Requester</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Requested Time</TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {renderRequestList(pendingRequests, 'pending')}
-                </TableBody>
-              </Table>
-            </TabsContent>
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium mb-4">Pending Requests ({pendingRequests.length})</h3>
+              {pendingRequests.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No pending requests</p>
+              ) : (
+                <div className="space-y-4">
+                  {pendingRequests.map((request) => (
+                    <Card key={request.id}>
+                      <CardContent className="p-4">
+                        <div className="flex flex-col md:flex-row justify-between">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold">{request.title}</h4>
+                              <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                                Pending
+                              </Badge>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback>
+                                  {request.customer_name.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {request.customer_name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {request.customer_email}
+                                </p>
+                              </div>
+                            </div>
+                            <p className="text-sm">
+                              {format(
+                                new Date(request.start_time),
+                                "MMM d, yyyy h:mm a"
+                              )} - {format(
+                                new Date(request.end_time),
+                                "h:mm a"
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-2 mt-4 md:mt-0">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewRequest(request)}
+                            >
+                              View Details
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
             
-            <TabsContent value="approved">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Requester</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Scheduled Time</TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {renderRequestList(approvedRequests, 'approved')}
-                </TableBody>
-              </Table>
-            </TabsContent>
-            
-            <TabsContent value="rejected">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Requester</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Requested Time</TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {renderRequestList(rejectedRequests, 'rejected')}
-                </TableBody>
-              </Table>
-            </TabsContent>
-          </Tabs>
+            <div>
+              <h3 className="text-lg font-medium mb-4">Past Requests ({pastRequests.length})</h3>
+              {pastRequests.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No past requests</p>
+              ) : (
+                <div className="space-y-4">
+                  {pastRequests.map((request) => (
+                    <Card key={request.id}>
+                      <CardContent className="p-4">
+                        <div className="flex flex-col md:flex-row justify-between">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold">{request.title}</h4>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  request.status === "approved"
+                                    ? "bg-green-100 text-green-800 border-green-300"
+                                    : "bg-red-100 text-red-800 border-red-300"
+                                }
+                              >
+                                {request.status.charAt(0).toUpperCase() +
+                                  request.status.slice(1)}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback>
+                                  {request.customer_name.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {request.customer_name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {request.customer_email}
+                                </p>
+                              </div>
+                            </div>
+                            <p className="text-sm">
+                              {format(
+                                new Date(request.start_time),
+                                "MMM d, yyyy h:mm a"
+                              )} - {format(
+                                new Date(request.end_time),
+                                "h:mm a"
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Request Details Dialog */}
-      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Booking Request Details</DialogTitle>
-            <DialogDescription>
-              {selectedRequest?.requester_name}'s booking request
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedRequest && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold text-sm">Requester</h3>
-                <p>{selectedRequest.requester_name}</p>
-                <p className="text-sm text-muted-foreground">{selectedRequest.requester_email}</p>
-                {selectedRequest.requester_phone && (
-                  <p className="text-sm text-muted-foreground">{selectedRequest.requester_phone}</p>
-                )}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        {selectedRequest && (
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Booking Request Details</DialogTitle>
+              <DialogDescription>
+                Review the details of this booking request
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Status</p>
+                <Badge
+                  variant="outline"
+                  className={
+                    selectedRequest.status === "pending"
+                      ? "bg-yellow-100 text-yellow-800 border-yellow-300"
+                      : selectedRequest.status === "approved"
+                      ? "bg-green-100 text-green-800 border-green-300"
+                      : "bg-red-100 text-red-800 border-red-300"
+                  }
+                >
+                  {selectedRequest.status.charAt(0).toUpperCase() +
+                    selectedRequest.status.slice(1)}
+                </Badge>
               </div>
               
-              <div>
-                <h3 className="font-semibold text-sm">Title</h3>
-                <p>{selectedRequest.title || "No title"}</p>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Title</p>
+                <p>{selectedRequest.title}</p>
               </div>
               
-              <div>
-                <h3 className="font-semibold text-sm">Time</h3>
+              {selectedRequest.description && (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Description</p>
+                  <p className="text-sm">{selectedRequest.description}</p>
+                </div>
+              )}
+              
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Customer Information</p>
+                <div className="flex items-center space-x-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback>
+                      {selectedRequest.customer_name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-medium">
+                      {selectedRequest.customer_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedRequest.customer_email}
+                    </p>
+                    {selectedRequest.customer_phone && (
+                      <p className="text-xs text-muted-foreground">
+                        {selectedRequest.customer_phone}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Date and Time</p>
                 <p>
-                  {new Date(selectedRequest.start_date).toLocaleDateString()}, {" "}
-                  {new Date(selectedRequest.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  {" to "}
-                  {new Date(selectedRequest.end_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {format(
+                    new Date(selectedRequest.start_time),
+                    "MMMM d, yyyy"
+                  )}
+                </p>
+                <p>
+                  {format(
+                    new Date(selectedRequest.start_time),
+                    "h:mm a"
+                  )} - {format(
+                    new Date(selectedRequest.end_time),
+                    "h:mm a"
+                  )}
                 </p>
               </div>
               
-              {selectedRequest.notes && (
-                <div>
-                  <h3 className="font-semibold text-sm">Notes</h3>
-                  <p className="whitespace-pre-wrap">{selectedRequest.notes}</p>
-                </div>
-              )}
+              {/* Add file attachment display here if needed */}
               
-              {selectedRequest.file_url && (
-                <div>
-                  <h3 className="font-semibold text-sm">Attached File</h3>
-                  <a 
-                    href={selectedRequest.file_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="flex items-center text-blue-600 hover:underline"
-                  >
-                    <FileText className="h-4 w-4 mr-1" />
-                    View Attachment
-                  </a>
-                </div>
-              )}
-              
-              <div className="flex gap-2 pt-2">
-                {selectedRequest.status === 'pending' && (
-                  <>
-                    <Button 
-                      className="flex-1"
-                      onClick={() => {
-                        approveRequest(selectedRequest.id);
-                        setViewDialogOpen(false);
-                      }}
-                    >
-                      <Check className="h-4 w-4 mr-1" />
-                      Approve
-                    </Button>
-                    <Button 
-                      variant="destructive" 
-                      className="flex-1"
-                      onClick={() => {
-                        rejectRequest(selectedRequest.id);
-                        setViewDialogOpen(false);
-                      }}
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Reject
-                    </Button>
-                  </>
-                )}
-                {selectedRequest.status === 'approved' && (
-                  <Badge className="bg-green-500 px-2 py-1">Approved</Badge>
-                )}
-                {selectedRequest.status === 'rejected' && (
-                  <Badge className="bg-red-500 px-2 py-1">Rejected</Badge>
-                )}
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Created At</p>
+                <p>
+                  {format(
+                    new Date(selectedRequest.created_at),
+                    "MMMM d, yyyy h:mm a"
+                  )}
+                </p>
               </div>
             </div>
-          )}
-        </DialogContent>
+            
+            {selectedRequest.status === "pending" && (
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => handleUpdateStatus("rejected")}
+                >
+                  Reject
+                </Button>
+                <Button
+                  onClick={() => handleUpdateStatus("approved")}
+                >
+                  Approve
+                </Button>
+              </DialogFooter>
+            )}
+          </DialogContent>
+        )}
       </Dialog>
     </>
   );
