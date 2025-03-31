@@ -6,6 +6,7 @@ import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
+import { getPublicCalendarEvents } from "@/lib/api";
 
 export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [view, setView] = useState<CalendarViewType>("month");
@@ -51,49 +52,32 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     getBusinessUserId();
   }, [businessId]);
 
-  // Step 2: Fetch events once we have the business user ID
+  // Step 2: Fetch all events using the getPublicCalendarEvents API
   useEffect(() => {
     const fetchAllEvents = async () => {
-      if (!businessId || !businessUserId) return;
+      if (!businessId) return;
       
       setIsLoading(true);
-      console.log("[External Calendar] Starting to fetch events for business user:", businessUserId);
+      console.log("[External Calendar] Starting to fetch events for business ID:", businessId);
       
       try {
-        // Fetch regular events
-        const { data: eventData, error: eventsError } = await supabase
-          .from('events')
-          .select('*')
-          .eq('user_id', businessUserId);
+        // Use the API function to fetch both regular events and approved bookings
+        const { events: regularEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
         
-        if (eventsError) {
-          console.error("Error fetching events:", eventsError);
-          throw eventsError;
+        console.log(`[External Calendar] Fetched ${regularEvents?.length || 0} regular events`);
+        console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
+        
+        // Log first event of each type for debugging if available
+        if (regularEvents && regularEvents.length > 0) {
+          console.log("Sample regular event data:", JSON.stringify(regularEvents[0]));
         }
         
-        console.log(`[External Calendar] Fetched ${eventData?.length || 0} events for user ${businessUserId}`);
-        
-        // Log first event for debugging if available
-        if (eventData && eventData.length > 0) {
-          console.log("Sample event data:", JSON.stringify(eventData[0]));
+        if (approvedBookings && approvedBookings.length > 0) {
+          console.log("Sample approved booking data:", JSON.stringify(approvedBookings[0]));
         }
         
-        // Fetch approved booking requests
-        const { data: bookingData, error: bookingsError } = await supabase
-          .from('booking_requests')
-          .select('*')
-          .eq('business_id', businessId)
-          .eq('status', 'approved');
-          
-        if (bookingsError) {
-          console.error("Error fetching booking requests:", bookingsError);
-          throw bookingsError;
-        }
-        
-        console.log(`[External Calendar] Fetched ${bookingData?.length || 0} approved booking requests`);
-        
-        // Convert booking requests to calendar events
-        const bookingEvents: CalendarEventType[] = (bookingData || []).map(booking => ({
+        // Convert booking requests to calendar events format
+        const bookingEvents: CalendarEventType[] = (approvedBookings || []).map(booking => ({
           id: booking.id,
           title: booking.title || 'Booking',
           start_date: booking.start_date,
@@ -107,7 +91,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         
         // Combine both types of events
         const allEvents: CalendarEventType[] = [
-          ...(eventData || []).map(event => ({
+          ...(regularEvents || []).map(event => ({
             ...event,
             // Ensure all required fields are present
             type: event.type || 'event'
@@ -148,20 +132,18 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       }
     };
 
-    // Only fetch if we have both IDs
-    if (businessId && businessUserId) {
-      console.log("[External Calendar] Have both business ID and user ID, fetching events");
+    // Only fetch if we have both ID
+    if (businessId) {
+      console.log("[External Calendar] Have business ID, fetching events");
       fetchAllEvents();
       
-      // Set up polling to refresh data
-      const intervalId = setInterval(fetchAllEvents, 30000);
+      // Set up polling to refresh data every 15 seconds
+      const intervalId = setInterval(fetchAllEvents, 15000);
       return () => {
         clearInterval(intervalId);
       };
-    } else if (businessId && !businessUserId) {
-      console.log("[External Calendar] Have business ID but waiting for user ID");
     }
-  }, [businessId, businessUserId, toast]);
+  }, [businessId, toast]);
 
   if (!businessId) {
     return (
@@ -172,6 +154,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       </Card>
     );
   }
+  
+  console.log("[ExternalCalendar] Rendering with events:", events.length);
   
   return (
     <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
