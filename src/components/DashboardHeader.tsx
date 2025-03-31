@@ -1,149 +1,208 @@
 
-import { Link } from "react-router-dom";
-import { ModeToggle } from "./ModeToggle";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useSignOut } from "@/hooks/useSignOut";
-import { useNavigate } from "react-router-dom";
-import { BookingRequestNotifications } from "./business/BookingRequestNotifications";
+import { LogOut, User } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "next-themes";
+import { Link } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
-// Using default export instead of named export
-const DashboardHeader = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const { signOut } = useSignOut();
-  
-  // Fetch business profile for current user
-  const { data: businessProfile } = useQuery({
-    queryKey: ['businessProfile', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data } = await supabase
-        .from('business_profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!user?.id
-  });
+interface DashboardHeaderProps {
+  username: string;
+}
+
+interface Subscription {
+  plan_type: string;
+  status: string;
+  current_period_end: string | null;
+  trial_end_date: string | null;
+}
+
+export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const { theme } = useTheme();
+  const { t } = useLanguage();
+
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .from('subscriptions')
+            .select('plan_type, status, current_period_end, trial_end_date')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (error) {
+            console.error('Error fetching subscription:', error);
+            return;
+          }
+
+          console.log('Fetched subscription:', data);
+          setSubscription(data);
+        } catch (error) {
+          console.error('Subscription fetch error:', error);
+        }
+      }
+    };
+
+    fetchSubscription();
+  }, [user]);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Sign out error:', error);
+      toast({
+        title: "Error during sign out",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleChangePassword = async () => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user?.email || '', {
+        redirectTo: 'https://daily-booking-platform.lovable.app/reset-password',
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password Reset Email Sent",
+        description: "Please check your email for the password reset link.",
+      });
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send password reset email. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const formatPlanType = (planType: string) => {
+    return planType === 'monthly' ? 'Monthly Plan' : 'Yearly Plan';
+  };
+
+  const formatTimeLeft = (endDate: string | null, isTrialPeriod: boolean = false) => {
+    if (!endDate) return '';
+    
+    const end = new Date(endDate);
+    const now = new Date();
+    const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (isTrialPeriod) {
+      return `${daysLeft} days left in trial`;
+    }
+    
+    return `${daysLeft} days left in ${subscription?.plan_type === 'monthly' ? 'monthly' : 'yearly'} plan`;
+  };
 
   return (
-    <div className="flex flex-col md:flex-row justify-between items-center pt-4 px-4 md:px-8 gap-4">
-      <div className="flex items-center gap-4">
-        <Link to="/dashboard" className="text-2xl font-bold">
-          Dashboard
+    <header className="mb-4">
+      <div className="flex items-center justify-between mb-3">
+        <Link to="/" className="flex items-center gap-2">
+          <img 
+            src={theme === 'dark' 
+              ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+              : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+            }
+            alt="SmartBookly Logo" 
+            className="h-8 md:h-10 w-auto"
+          />
         </Link>
-        <nav className="hidden md:flex gap-2">
-          <Link to="/dashboard" className="px-2 py-1 rounded hover:bg-accent">
-            Home
-          </Link>
-          <Link to="/dashboard/calendar" className="px-2 py-1 rounded hover:bg-accent">
-            Calendar
-          </Link>
-          <Link to="/dashboard/customers" className="px-2 py-1 rounded hover:bg-accent">
-            CRM
-          </Link>
-          <Link to="/dashboard/booking-requests" className="px-2 py-1 rounded hover:bg-accent flex items-center">
-            Booking Requests
-            {businessProfile && <BookingRequestNotifications businessId={businessProfile.id} />}
-          </Link>
-          <Link to="/dashboard/statistics" className="px-2 py-1 rounded hover:bg-accent">
-            Statistics
-          </Link>
-        </nav>
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="icon"
+                className="text-foreground"
+              >
+                <User className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>{t('dashboard.profile')}</DialogTitle>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">{t('auth.emailLabel')}</p>
+                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">{t('auth.usernameLabel')}</p>
+                  <p className="text-sm text-muted-foreground">{username}</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Subscription</p>
+                  {subscription && (
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">
+                        {formatPlanType(subscription.plan_type)}
+                      </p>
+                      {subscription.status === 'trial' ? (
+                        <p className="text-xs text-muted-foreground">
+                          {formatTimeLeft(subscription.trial_end_date, true)}
+                        </p>
+                      ) : subscription.status === 'active' && (
+                        <p className="text-xs text-muted-foreground">
+                          {formatTimeLeft(subscription.current_period_end)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="pt-4">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={handleChangePassword}
+                  >
+                    {t('dashboard.changePassword')}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <ThemeToggle />
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2 text-foreground"
+            onClick={handleSignOut}
+          >
+            <LogOut className="w-4 h-4" />
+            {t('dashboard.signOut')}
+          </Button>
+        </div>
       </div>
-      <div className="flex items-center gap-2">
-        <ModeToggle />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.user_metadata?.avatar_url} alt={user?.email || "Avatar"} />
-                <AvatarFallback>{user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/dashboard/profile')}>
-              <span className="mr-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4"
-                >
-                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-              </span>
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/pricing')}>
-              <span className="mr-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="16" />
-                  <line x1="8" y1="12" x2="16" y2="12" />
-                </svg>
-              </span>
-              Upgrade
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer" onClick={() => signOut()}>
-              <span className="mr-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4"
-                >
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                  <polyline points="16 17 21 12 16 7"></polyline>
-                  <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-              </span>
-              Log Out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="text-center mb-2">
+        <h1 className="text-xl sm:text-2xl font-bold text-primary">{t('dashboard.welcome')}</h1>
+        <p className="text-sm text-foreground/80">
+          {t('dashboard.subtitle')}
+        </p>
       </div>
-    </div>
+    </header>
   );
 };
-
-export default DashboardHeader;

@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -9,6 +10,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Function to fetch user's own events
   const getEvents = async () => {
     if (!user) return [];
     
@@ -34,7 +36,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
   };
 
+  // Function to fetch business events using businessUserId or businessId
   const getBusinessEvents = async () => {
+    // If we have businessUserId directly, use it - this is more reliable
     if (businessUserId) {
       console.log("Fetching business events directly using businessUserId:", businessUserId);
       
@@ -58,10 +62,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
+    // Fall back to using businessId to look up user_id
     if (businessId) {
       try {
         console.log("Fetching business events for business ID:", businessId);
         
+        // First get the user_id associated with this business
         const { data: businessProfile, error: businessError } = await supabase
           .from("business_profiles")
           .select("user_id")
@@ -80,6 +86,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         
         console.log("Found user_id for business:", businessProfile.user_id);
         
+        // Then get all events for this user
         const { data, error } = await supabase
           .from('events')
           .select('*')
@@ -102,12 +109,14 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     return [];
   };
 
+  // Function to fetch approved booking requests
   const getApprovedBookings = async () => {
     if (!user && !businessId && !businessUserId) return [];
 
     try {
       let businessProfileId = businessId;
       
+      // If we have no business ID but we're logged in
       if (!businessProfileId && user) {
         const { data: userBusinessProfile } = await supabase
           .from("business_profiles")
@@ -120,6 +129,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
+      // If we have a business user ID but no business ID
       if (!businessProfileId && businessUserId) {
         const { data: userBusinessProfile } = await supabase
           .from("business_profiles")
@@ -152,6 +162,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       console.log("Fetched approved bookings:", data?.length || 0);
       
+      // Convert booking requests to calendar events
       const bookingEvents = (data || []).map(booking => ({
         id: booking.id,
         title: booking.title,
@@ -171,99 +182,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
   };
 
-  const checkTimeSlotAvailability = async (
-    startDate: Date,
-    endDate: Date,
-    excludeEventId?: string
-  ): Promise<{ available: boolean; conflict?: any }> => {
-    try {
-      let userId = businessUserId;
-      
-      if (!userId && businessId) {
-        const { data: businessProfile } = await supabase
-          .from("business_profiles")
-          .select("user_id")
-          .eq("id", businessId)
-          .single();
-        
-        userId = businessProfile?.user_id;
-      }
-      
-      if (!userId && !businessId && user?.id) {
-        userId = user.id;
-      }
-      
-      if (!userId) {
-        return { available: false };
-      }
-      
-      const { data: existingEvents } = await supabase
-        .from("events")
-        .select("*")
-        .eq("user_id", userId)
-        .lte("start_date", endDate.toISOString())
-        .gte("end_date", startDate.toISOString());
-      
-      const conflictingEvent = existingEvents?.find(
-        event => excludeEventId !== event.id
-      );
-      
-      if (conflictingEvent) {
-        return { available: false, conflict: conflictingEvent };
-      }
-      
-      let checkBusinessId = businessId;
-      
-      if (!checkBusinessId && userId) {
-        const { data: businessData } = await supabase
-          .from("business_profiles")
-          .select("id")
-          .eq("user_id", userId)
-          .single();
-        
-        checkBusinessId = businessData?.id;
-      }
-      
-      if (checkBusinessId) {
-        const { data: existingBookings } = await supabase
-          .from("booking_requests")
-          .select("*")
-          .eq("business_id", checkBusinessId)
-          .eq("status", "approved")
-          .lte("start_date", endDate.toISOString())
-          .gte("end_date", startDate.toISOString());
-        
-        const conflictingBooking = existingBookings?.find(
-          booking => excludeEventId !== booking.id
-        );
-        
-        if (conflictingBooking) {
-          return { available: false, conflict: conflictingBooking };
-        }
-      }
-      
-      return { available: true };
-    } catch (error) {
-      console.error("Error checking time slot availability:", error);
-      return { available: false };
-    }
-  };
-
+  // Mutation function to create a new event
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to create events");
-    
-    const startDate = new Date(event.start_date as string);
-    const endDate = new Date(event.end_date as string);
-    
-    const { available, conflict } = await checkTimeSlotAvailability(startDate, endDate);
-    
-    if (!available) {
-      if (conflict) {
-        throw new Error(`Time slot conflicts with "${conflict.title}" (${new Date(conflict.start_date).toLocaleTimeString()} - ${new Date(conflict.end_date).toLocaleTimeString()})`);
-      } else {
-        throw new Error("This time slot is unavailable");
-      }
-    }
     
     const { data, error } = await supabase
       .from('events')
@@ -281,23 +202,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     return data;
   };
 
+  // Mutation function to update an existing event
   const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
-    
-    if (updates.start_date && updates.end_date) {
-      const startDate = new Date(updates.start_date as string);
-      const endDate = new Date(updates.end_date as string);
-      
-      const { available, conflict } = await checkTimeSlotAvailability(startDate, endDate, id);
-      
-      if (!available) {
-        if (conflict) {
-          throw new Error(`Time slot conflicts with "${conflict.title}" (${new Date(conflict.start_date).toLocaleTimeString()} - ${new Date(conflict.end_date).toLocaleTimeString()})`);
-        } else {
-          throw new Error("This time slot is unavailable");
-        }
-      }
-    }
     
     const { data, error } = await supabase
       .from('events')
@@ -317,6 +224,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     return data;
   };
 
+  // Mutation function to delete an event
   const deleteEvent = async (id: string): Promise<void> => {
     if (!user) throw new Error("User must be authenticated to delete events");
     
@@ -334,30 +242,34 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     });
   };
 
+  // User's own events query
   const { data: events = [], isLoading: isLoadingUserEvents, error: userEventsError } = useQuery({
     queryKey: ['events', user?.id],
     queryFn: getEvents,
     enabled: !!user && !businessId && !businessUserId,
-    staleTime: 1000 * 30,
+    staleTime: 1000 * 30, // 30 seconds
     refetchInterval: 2000,
   });
 
+  // Business events query
   const { data: businessEvents = [], isLoading: isLoadingBusinessEvents, error: businessEventsError } = useQuery({
     queryKey: ['business-events', businessId, businessUserId],
     queryFn: getBusinessEvents,
     enabled: !!businessId || !!businessUserId,
-    staleTime: 1000 * 30,
+    staleTime: 1000 * 30, // 30 seconds
     refetchInterval: 2000,
   });
 
+  // Approved bookings query
   const { data: approvedBookings = [], isLoading: isLoadingBookings } = useQuery({
     queryKey: ['approved-bookings', user?.id, businessId, businessUserId],
     queryFn: getApprovedBookings,
     enabled: !!businessId || !!businessUserId || !!user,
-    staleTime: 1000 * 30,
+    staleTime: 1000 * 30, // 30 seconds
     refetchInterval: 2000,
   });
 
+  // Create event mutation
   const createEventMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: () => {
@@ -367,6 +279,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     },
   });
 
+  // Update event mutation
   const updateEventMutation = useMutation({
     mutationFn: updateEvent,
     onSuccess: () => {
@@ -376,6 +289,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     },
   });
 
+  // Delete event mutation
   const deleteEventMutation = useMutation({
     mutationFn: deleteEvent,
     onSuccess: () => {
@@ -385,6 +299,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     },
   });
 
+  // Combine events based on whether viewing business events or own events
   const allEvents = (businessId || businessUserId) 
     ? [...businessEvents, ...approvedBookings]
     : [...events, ...approvedBookings];
@@ -405,6 +320,5 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     createEvent: createEventMutation?.mutateAsync,
     updateEvent: updateEventMutation?.mutateAsync,
     deleteEvent: deleteEventMutation?.mutateAsync,
-    checkTimeSlotAvailability,
   };
 };

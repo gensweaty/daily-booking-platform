@@ -1,124 +1,103 @@
 
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Calendar } from "@/components/Calendar/Calendar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
-import { BusinessProfile as BusinessProfileType } from "@/types/database";
+import { BusinessProfileForm } from "./BusinessProfileForm";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { BusinessProfile } from "./BusinessProfile";
-import { Statistics } from "./Statistics";
-import { BookingRequests } from "./BookingRequests";
-import { BookingRequestNotifications } from "./BookingRequestNotifications";
+import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { BookingRequestsList } from "./BookingRequestsList";
+import { useBookingRequests } from "@/hooks/useBookingRequests";
 
 export const BusinessPage = () => {
-  const params = useParams<{ slug: string }>();
-  const slug = params.slug;
-  const [businessProfile, setBusinessProfile] = useState<BusinessProfileType | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState("profile");
+  const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest } = useBookingRequests();
 
-  useEffect(() => {
-    const fetchBusinessProfile = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        if (!slug) throw new Error("Business slug is required");
-        const { data, error } = await supabase
-          .from("business_profiles")
-          .select("*")
-          .eq("slug", slug)
-          .single();
+  const { data: businessProfile, isLoading } = useQuery({
+    queryKey: ["businessProfile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      
+      const { data, error } = await supabase
+        .from("business_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
 
-        if (error) throw error;
-
-        setBusinessProfile(data);
-      } catch (error: any) {
-        setError(error.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchBusinessProfile();
-  }, [slug]);
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   if (isLoading) {
-    return (
-      <Card className="min-h-[calc(100vh-12rem)]">
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-4 w-1/2" />
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <div className="text-center p-8">Loading...</div>;
   }
 
-  if (error) {
-    return (
-      <Card className="min-h-[calc(100vh-12rem)]">
-        <CardContent className="p-6">
-          <p className="text-center text-red-500">Error: {error}</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!businessProfile) {
-    return (
-      <Card className="min-h-[calc(100vh-12rem)]">
-        <CardContent className="p-6">
-          <p className="text-center text-muted-foreground">Business not found</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const publicUrl = businessProfile?.slug 
+    ? `${window.location.protocol}//${window.location.host}/business/${businessProfile.slug}`
+    : null;
 
   return (
-    <Tabs defaultValue="profile" className="space-y-4 min-h-[calc(100vh-12rem)]">
-      <Card>
-        <CardHeader>
-          <CardTitle>{businessProfile?.business_name || "Business Profile"}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="calendar">Calendar</TabsTrigger>
-            <TabsTrigger value="booking-requests" className="flex items-center gap-2">
-              Booking Requests
-              {businessProfile?.id && <BookingRequestNotifications businessId={businessProfile.id} />}
-            </TabsTrigger>
-            <TabsTrigger value="statistics">Statistics</TabsTrigger>
-          </TabsList>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="profile">Business Profile</TabsTrigger>
+          <TabsTrigger value="bookings">Booking Requests</TabsTrigger>
+        </TabsList>
 
-      <TabsContent value="profile" className="space-y-10">
-        <BusinessProfile businessProfile={businessProfile} />
-      </TabsContent>
-      <TabsContent value="calendar" className="space-y-10">
-        <Card>
-          <CardContent className="p-0">
-            <Calendar
-              isExternalCalendar={true}
-              businessId={businessProfile.id}
-              businessUserId={businessProfile.user_id}
-              allowBookingRequests={true}
-            />
-          </CardContent>
-        </Card>
-      </TabsContent>
-      <TabsContent value="booking-requests" className="space-y-10">
-        <BookingRequests businessId={businessProfile.id} />
-      </TabsContent>
-      <TabsContent value="statistics" className="space-y-10">
-        <Statistics businessProfile={businessProfile} />
-      </TabsContent>
-    </Tabs>
+        <TabsContent value="profile" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">My Business Profile</h1>
+            {publicUrl && (
+              <Button 
+                variant="outline"
+                onClick={() => window.open(publicUrl, '_blank')}
+              >
+                View Public Page
+              </Button>
+            )}
+          </div>
+
+          <BusinessProfileForm />
+        </TabsContent>
+
+        <TabsContent value="bookings" className="space-y-6">
+          <h1 className="text-2xl font-bold">Booking Requests</h1>
+
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Pending Requests ({pendingRequests.length})</h2>
+              <BookingRequestsList
+                requests={pendingRequests}
+                type="pending"
+                onApprove={approveRequest}
+                onReject={rejectRequest}
+                onDelete={deleteBookingRequest}
+              />
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Approved Requests ({approvedRequests.length})</h2>
+              <BookingRequestsList
+                requests={approvedRequests}
+                type="approved"
+                onDelete={deleteBookingRequest}
+              />
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Rejected Requests ({rejectedRequests.length})</h2>
+              <BookingRequestsList
+                requests={rejectedRequests}
+                type="rejected"
+                onDelete={deleteBookingRequest}
+              />
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };

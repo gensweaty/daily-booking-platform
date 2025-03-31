@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { AuthUI } from "@/components/AuthUI"
-import DashboardHeader from "@/components/DashboardHeader"
+import { DashboardHeader } from "@/components/DashboardHeader"
 import { TrialExpiredDialog } from "@/components/TrialExpiredDialog"
 import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
@@ -145,7 +146,7 @@ const Index = () => {
         </motion.div>
       )}
       <motion.div variants={childVariants}>
-        <DashboardHeader />
+        <DashboardHeader username={username} />
       </motion.div>
       <motion.div variants={childVariants}>
         <DashboardContent 

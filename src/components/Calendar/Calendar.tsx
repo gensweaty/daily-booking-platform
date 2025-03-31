@@ -54,7 +54,7 @@ export const Calendar = ({
   const [view, setView] = useState<CalendarViewType>(defaultView);
   
   // Only use the hook if we're not getting directEvents
-  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent, checkTimeSlotAvailability } = useCalendarEvents(
+  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
     !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
   );
@@ -186,54 +186,13 @@ export const Calendar = ({
     }
   };
 
-  const handleCalendarDayClick = async (date: Date, hour?: number) => {
+  const handleCalendarDayClick = (date: Date, hour?: number) => {
     const clickedDate = new Date(date);
     clickedDate.setHours(hour || 9, 0, 0, 0);
     
     if (isExternalCalendar && allowBookingRequests) {
-      const formattedHour = hour?.toString().padStart(2, '0') || '09';
-      const nextHour = ((hour || 9) + 1).toString().padStart(2, '0');
-      
-      // Check if this time slot is available
-      const startDate = new Date(clickedDate);
-      const endDate = new Date(clickedDate);
-      endDate.setHours(endDate.getHours() + 1);
-      
-      // If we have directEvents, use a simplified check
-      if (directEvents) {
-        const isTimeSlotTaken = directEvents.some(event => {
-          const eventStart = new Date(event.start_date);
-          const eventEnd = new Date(event.end_date);
-          
-          return !(
-            endDate <= eventStart || 
-            startDate >= eventEnd
-          );
-        });
-        
-        if (isTimeSlotTaken) {
-          toast({
-            title: "Time Slot Unavailable",
-            description: "This time slot is already booked. Please choose a different time.",
-            variant: "destructive",
-          });
-          return;
-        }
-      } else if (checkTimeSlotAvailability) {
-        // Use the hook's checkTimeSlotAvailability function if available
-        const { available } = await checkTimeSlotAvailability(startDate, endDate);
-        
-        if (!available) {
-          toast({
-            title: "Time Slot Unavailable",
-            description: "This time slot is already booked. Please choose a different time.",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-      
       setBookingDate(clickedDate);
+      const formattedHour = hour?.toString().padStart(2, '0') || '09';
       setBookingStartTime(`${formattedHour}:00`);
       setIsBookingFormOpen(true);
     } else if (!isExternalCalendar) {
@@ -242,7 +201,7 @@ export const Calendar = ({
     }
   };
 
-  const handleAddEventClick = async () => {
+  const handleAddEventClick = () => {
     if (isExternalCalendar && allowBookingRequests) {
       const now = new Date();
       setBookingDate(now);
@@ -256,14 +215,13 @@ export const Calendar = ({
     }
   };
 
-  const handleEventClick = async (event: CalendarEventType) => {
+  const handleEventClick = (event: CalendarEventType) => {
     if (!isExternalCalendar) {
       setSelectedEvent(event);
     } else if (isExternalCalendar && allowBookingRequests) {
       toast({
         title: "Time slot not available",
         description: "This time slot is already booked. Please select a different time.",
-        variant: "destructive",
       });
     }
   };
@@ -276,10 +234,6 @@ export const Calendar = ({
       title: "Booking request submitted",
       description: "Your booking request has been submitted and is pending approval."
     });
-    
-    // Play notification sound
-    const audio = new Audio('/audio/notification.mp3');
-    audio.play().catch(e => console.log('Audio play failed:', e));
   };
 
   if (error && !directEvents) {
