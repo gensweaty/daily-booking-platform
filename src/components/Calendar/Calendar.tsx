@@ -10,7 +10,6 @@ import {
   subMonths,
   setHours,
   startOfDay,
-  parseISO,
 } from "date-fns";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
@@ -23,7 +22,6 @@ import { TimeIndicator } from "./TimeIndicator";
 import { useEventDialog } from "./hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/components/ui/use-toast";
@@ -88,26 +86,13 @@ export const Calendar = ({
       view
     });
     
-    if (directEvents) {
+    if (directEvents?.length) {
       console.log("Using direct events:", directEvents.length);
+      if (directEvents.length > 0) {
+        console.log("Sample direct event:", directEvents[0]);
+      }
     }
   }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
-
-  useEffect(() => {
-    const invalidateQueries = () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-      if (businessId) {
-        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
-      }
-    };
-    
-    if (!directEvents) {
-      invalidateQueries();
-      const intervalId = setInterval(invalidateQueries, 3000);
-      return () => clearInterval(intervalId);
-    }
-  }, [queryClient, businessId, directEvents]);
 
   const {
     selectedEvent,
@@ -121,19 +106,19 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      const result = await createEvent(data);
+      const result = await createEvent?.(data);
       return result;
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
-      const result = await updateEvent({
+      const result = await updateEvent?.({
         id: selectedEvent.id,
         updates: data,
       });
       return result;
     },
     deleteEvent: async (id) => {
-      await deleteEvent(id);
+      await deleteEvent?.(id);
     }
   });
 
@@ -248,7 +233,7 @@ export const Calendar = ({
     });
   };
 
-  if (error) {
+  if (error && !directEvents) {
     console.error("Calendar error:", error);
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
@@ -264,6 +249,11 @@ export const Calendar = ({
         </div>
       </div>
     );
+  }
+
+  console.log(`Calendar rendering with ${events?.length || 0} events`);
+  if (events?.length > 0) {
+    console.log("First event to render:", events[0]);
   }
 
   return (

@@ -9,32 +9,50 @@ import { LoaderCircle, Globe, Mail, Phone, MapPin } from "lucide-react";
 import { ExternalCalendar } from "../Calendar/ExternalCalendar";
 
 export const PublicBusinessPage = () => {
-  // Extract the slug from the URL path
+  // Extract the slug from the URL using React Router's useParams
+  const { slug } = useParams<{ slug?: string }>();
+  
+  // As a fallback, also check the path directly
   const path = window.location.pathname;
-  const slugMatch = path.match(/\/business\/([^\/]+)/);
-  const slug = slugMatch ? slugMatch[1] : '';
+  const slugFromPath = path.match(/\/business\/([^\/]+)/)?.[1];
+  
+  // Use the slug from useParams if available, otherwise use the one from the path
+  const businessSlug = slug || slugFromPath;
   
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [showCalendar, setShowCalendar] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  console.log("PublicBusinessPage: Using business slug:", businessSlug);
 
   // Fetch business data
   useEffect(() => {
     const fetchBusinessProfile = async () => {
-      if (!slug) return;
+      if (!businessSlug) {
+        setError("No business slug provided");
+        setIsLoading(false);
+        return;
+      }
       
       try {
         setIsLoading(true);
-        console.log("PublicBusinessPage: Fetching business profile for slug:", slug);
+        console.log("PublicBusinessPage: Fetching business profile for slug:", businessSlug);
         
         const { data, error } = await supabase
           .from("business_profiles")
           .select("*")
-          .eq("slug", slug)
+          .eq("slug", businessSlug)
           .single();
 
         if (error) {
           console.error("Error fetching business profile:", error);
+          setError("Failed to load business information");
+          return;
+        }
+        
+        if (!data) {
+          console.error("No business found with slug:", businessSlug);
+          setError("Business not found");
           return;
         }
         
@@ -47,28 +65,30 @@ export const PublicBusinessPage = () => {
         }
       } catch (error) {
         console.error("Exception in fetchBusinessProfile:", error);
+        setError("An unexpected error occurred");
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchBusinessProfile();
-  }, [slug]);
+  }, [businessSlug]);
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <LoaderCircle className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading business calendar...</span>
       </div>
     );
   }
 
-  if (!business) {
+  if (error || !business) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12">
         <h1 className="text-3xl font-bold mb-4">Business Not Found</h1>
         <p className="text-center text-muted-foreground">
-          Sorry, we couldn't find a business with this URL. Please check the URL and try again.
+          {error || "Sorry, we couldn't find a business with this URL. Please check the URL and try again."}
         </p>
         <Button className="mt-6" onClick={() => window.location.href = "/"}>
           Back to Homepage
@@ -76,6 +96,8 @@ export const PublicBusinessPage = () => {
       </div>
     );
   }
+
+  console.log("PublicBusinessPage: Rendering calendar for business ID:", business.id);
 
   return (
     <div className="min-h-screen bg-background">
@@ -90,8 +112,9 @@ export const PublicBusinessPage = () => {
               size="lg" 
               className="bg-white text-blue-700 hover:bg-blue-50"
               onClick={() => {
-                setShowCalendar(true);
                 console.log("View calendar button clicked");
+                // Scroll to calendar section
+                document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
               }}
             >
               View & Book Calendar
@@ -101,7 +124,7 @@ export const PublicBusinessPage = () => {
       </div>
 
       <div className="container mx-auto px-4 py-12">
-        <div className="mb-8">
+        <div className="mb-8" id="calendar-section">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold">Available Times</h2>
             <div className="text-sm text-muted-foreground">

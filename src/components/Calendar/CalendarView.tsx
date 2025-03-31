@@ -72,6 +72,20 @@ export const CalendarView = ({
     }
   };
 
+  // Debug log to check events
+  console.log(`CalendarView received ${events?.length || 0} events for rendering`);
+  if (events?.length > 0) {
+    console.log("First event:", events[0]);
+    
+    // Check if date parsing is working correctly
+    try {
+      const sampleDate = parseISO(events[0].start_date);
+      console.log("Parsed sample date:", sampleDate, "Is valid date:", !isNaN(sampleDate.getTime()));
+    } catch (error) {
+      console.error("Error parsing event date:", error);
+    }
+  }
+
   if (view === "month") {
     // Get the start and end of the month view
     const monthStart = startOfMonth(selectedDate);
@@ -86,9 +100,20 @@ export const CalendarView = ({
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
         {weekDays.map(renderDayHeader)}
         {calendarDays.map((day) => {
-          const dayEvents = events.filter((event) => 
-            isSameDay(parseISO(event.start_date), day)
-          );
+          const dayEvents = events.filter((event) => {
+            try {
+              // Defensive check to ensure start_date is string and valid
+              if (typeof event.start_date !== 'string') {
+                console.error("Invalid event start_date:", event.start_date);
+                return false;
+              }
+              return isSameDay(parseISO(event.start_date), day);
+            } catch (error) {
+              console.error("Error filtering events for day:", error, event);
+              return false;
+            }
+          });
+          
           const isCurrentMonth = isSameMonth(day, selectedDate);
 
           return (
@@ -105,6 +130,11 @@ export const CalendarView = ({
                 {format(day, "d")}
               </div>
               <div className="mt-1 sm:mt-2 space-y-1">
+                {dayEvents.length > 0 && (
+                  <div className="text-xs text-muted-foreground mb-1">
+                    {dayEvents.length} event{dayEvents.length !== 1 ? 's' : ''}
+                  </div>
+                )}
                 {dayEvents.map((event) => (
                   <div
                     key={event.id}
@@ -174,45 +204,70 @@ export const CalendarView = ({
             })}
             
             {events
-              .filter((event) => isSameDay(parseISO(event.start_date), day))
+              .filter((event) => {
+                try {
+                  // Defensive check to ensure start_date is string and valid
+                  if (typeof event.start_date !== 'string') {
+                    console.error("Invalid event start_date:", event.start_date);
+                    return false;
+                  }
+                  return isSameDay(parseISO(event.start_date), day);
+                } catch (error) {
+                  console.error("Error filtering events for day:", error, event);
+                  return false;
+                }
+              })
               .map((event) => {
-                const start = new Date(event.start_date);
-                const end = new Date(event.end_date);
-                const top = actualHourToDisplayPosition(start.getHours()) + 
-                          (start.getMinutes() / 60) * 80;
-                const height = (end.getHours() - start.getHours() + 
-                              (end.getMinutes() - start.getMinutes()) / 60) * 80;
-                
-                return (
-                  <div
-                    key={event.id}
-                    className={`absolute left-0.5 right-0.5 rounded px-0.5 sm:px-2 py-1 text-[10px] sm:text-sm ${
-                      getEventColorClass(event.type)
-                    } cursor-pointer overflow-hidden hover:opacity-80 transition-opacity`}
-                    style={{
-                      top: `${top}px`,
-                      height: `${Math.max(height, 20)}px`,
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEventClick(event);
-                    }}
-                    title={`${event.title} ${event.requester_name ? `(${event.requester_name})` : ''}`}
-                  >
-                    <div className="font-semibold truncate">
-                      {getEventIcon(event.type)}{event.title}
-                    </div>
-                    {height > 40 && (
-                      <div className="text-[8px] sm:text-xs truncate">
-                        {format(start, "h:mm a", { locale })} - {format(end, "h:mm a", { locale })}
-                        {event.requester_name && (
-                          <div className="italic">{event.requester_name}</div>
-                        )}
+                try {
+                  const start = new Date(event.start_date);
+                  const end = new Date(event.end_date);
+                  
+                  // Add validation to prevent invalid dates
+                  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+                    console.error("Invalid date in event:", event);
+                    return null;
+                  }
+                  
+                  const top = actualHourToDisplayPosition(start.getHours()) + 
+                            (start.getMinutes() / 60) * 80;
+                  const height = (end.getHours() - start.getHours() + 
+                                (end.getMinutes() - start.getMinutes()) / 60) * 80;
+                  
+                  return (
+                    <div
+                      key={event.id}
+                      className={`absolute left-0.5 right-0.5 rounded px-0.5 sm:px-2 py-1 text-[10px] sm:text-sm ${
+                        getEventColorClass(event.type)
+                      } cursor-pointer overflow-hidden hover:opacity-80 transition-opacity`}
+                      style={{
+                        top: `${top}px`,
+                        height: `${Math.max(height, 20)}px`,
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEventClick(event);
+                      }}
+                      title={`${event.title} ${event.requester_name ? `(${event.requester_name})` : ''}`}
+                    >
+                      <div className="font-semibold truncate">
+                        {getEventIcon(event.type)}{event.title}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                      {height > 40 && (
+                        <div className="text-[8px] sm:text-xs truncate">
+                          {format(start, "h:mm a", { locale })} - {format(end, "h:mm a", { locale })}
+                          {event.requester_name && (
+                            <div className="italic">{event.requester_name}</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                } catch (error) {
+                  console.error("Error rendering event:", error, event);
+                  return null;
+                }
+              })
+              .filter(Boolean)} {/* Filter out any null items from rendering errors */}
           </div>
         ))}
       </div>
