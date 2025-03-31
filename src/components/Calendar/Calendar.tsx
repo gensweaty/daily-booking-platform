@@ -53,11 +53,13 @@ export const Calendar = ({
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
   
+  // Only use the hook if we're not getting directEvents
   const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
-    !directEvents && isExternalCalendar && businessId ? businessId : undefined,
-    !directEvents && isExternalCalendar && businessUserId ? businessUserId : undefined
+    !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
+    !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
   );
   
+  // Use directEvents if provided, otherwise use fetchedEvents
   const events = directEvents || fetchedEvents;
   const isLoading = !directEvents && isLoadingFromHook;
   
@@ -69,14 +71,16 @@ export const Calendar = ({
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Update view when currentView prop changes
   useEffect(() => {
     if (currentView) {
       setView(currentView);
     }
   }, [currentView]);
 
+  // Diagnostic logging
   useEffect(() => {
-    console.log("Calendar props:", { 
+    console.log("[Calendar] Rendering with props:", { 
       isExternalCalendar, 
       businessId,
       businessUserId, 
@@ -87,11 +91,8 @@ export const Calendar = ({
       view
     });
     
-    if (directEvents?.length) {
-      console.log("Using direct events:", directEvents.length);
-      if (directEvents.length > 0) {
-        console.log("Sample direct event:", directEvents[0]);
-      }
+    if (events?.length > 0) {
+      console.log("[Calendar] First event:", events[0]);
     }
   }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
 
@@ -123,6 +124,7 @@ export const Calendar = ({
     }
   });
 
+  // Redirect to signin if not authenticated and not on public business page
   if (!isExternalCalendar && !user && !window.location.pathname.includes('/business/')) {
     navigate("/signin");
     return null;
@@ -252,11 +254,9 @@ export const Calendar = ({
     );
   }
 
-  console.log(`Calendar rendering with ${events?.length || 0} events`);
-  if (events?.length > 0) {
-    console.log("First event to render:", events[0]);
-  }
-
+  // Always log events to help debug
+  console.log("[Calendar] Rendering with events count:", events?.length || 0);
+  
   return (
     <div className="h-full flex flex-col gap-4">
       <CalendarHeader

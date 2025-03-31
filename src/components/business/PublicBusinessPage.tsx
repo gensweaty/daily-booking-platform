@@ -10,7 +10,7 @@ import { ExternalCalendar } from "../Calendar/ExternalCalendar";
 
 export const PublicBusinessPage = () => {
   // Extract the slug from the URL using React Router's useParams
-  const { slug } = useParams<{ slug?: string }>();
+  const { slug } = useParams<{ slug: string }>();
   
   // As a fallback, also check the path directly
   const path = window.location.pathname;
@@ -23,7 +23,7 @@ export const PublicBusinessPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  console.log("PublicBusinessPage: Using business slug:", businessSlug);
+  console.log("[PublicBusinessPage] Using business slug:", businessSlug);
 
   // Fetch business data
   useEffect(() => {
@@ -36,7 +36,7 @@ export const PublicBusinessPage = () => {
       
       try {
         setIsLoading(true);
-        console.log("PublicBusinessPage: Fetching business profile for slug:", businessSlug);
+        console.log("[PublicBusinessPage] Fetching business profile for slug:", businessSlug);
         
         const { data, error } = await supabase
           .from("business_profiles")
@@ -56,7 +56,7 @@ export const PublicBusinessPage = () => {
           return;
         }
         
-        console.log("PublicBusinessPage: Fetched business profile:", data);
+        console.log("[PublicBusinessPage] Fetched business profile:", data);
         setBusiness(data as BusinessProfile);
         
         // Set page title
@@ -97,7 +97,7 @@ export const PublicBusinessPage = () => {
     );
   }
 
-  console.log("PublicBusinessPage: Rendering calendar for business ID:", business.id);
+  console.log("[PublicBusinessPage] Rendering calendar for business ID:", business.id);
 
   return (
     <div className="min-h-screen bg-background">
@@ -112,8 +112,6 @@ export const PublicBusinessPage = () => {
               size="lg" 
               className="bg-white text-blue-700 hover:bg-blue-50"
               onClick={() => {
-                console.log("View calendar button clicked");
-                // Scroll to calendar section
                 document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
               }}
             >

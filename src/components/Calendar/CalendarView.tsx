@@ -73,17 +73,37 @@ export const CalendarView = ({
   };
 
   // Debug log to check events
-  console.log(`CalendarView received ${events?.length || 0} events for rendering`);
+  console.log(`[CalendarView] Received ${events?.length || 0} events for rendering`);
   if (events?.length > 0) {
-    console.log("First event:", events[0]);
-    
-    // Check if date parsing is working correctly
+    console.log("[CalendarView] First event:", events[0]);
+  }
+
+  // Validate events have proper dates
+  const validEvents = events.filter(event => {
     try {
-      const sampleDate = parseISO(events[0].start_date);
-      console.log("Parsed sample date:", sampleDate, "Is valid date:", !isNaN(sampleDate.getTime()));
+      if (!event.start_date || !event.end_date) {
+        console.warn("Event missing dates:", event);
+        return false;
+      }
+      
+      // Ensure dates are valid
+      const startDate = typeof event.start_date === 'string' ? parseISO(event.start_date) : event.start_date;
+      const endDate = typeof event.end_date === 'string' ? parseISO(event.end_date) : event.end_date;
+      
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        console.warn("Event has invalid dates:", event);
+        return false;
+      }
+      
+      return true;
     } catch (error) {
-      console.error("Error parsing event date:", error);
+      console.error("Error validating event dates:", error, event);
+      return false;
     }
+  });
+  
+  if (validEvents.length !== events.length) {
+    console.warn(`[CalendarView] Filtered out ${events.length - validEvents.length} events with invalid dates`);
   }
 
   if (view === "month") {
@@ -100,14 +120,10 @@ export const CalendarView = ({
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
         {weekDays.map(renderDayHeader)}
         {calendarDays.map((day) => {
-          const dayEvents = events.filter((event) => {
+          const dayEvents = validEvents.filter((event) => {
             try {
-              // Defensive check to ensure start_date is string and valid
-              if (typeof event.start_date !== 'string') {
-                console.error("Invalid event start_date:", event.start_date);
-                return false;
-              }
-              return isSameDay(parseISO(event.start_date), day);
+              const startDate = typeof event.start_date === 'string' ? parseISO(event.start_date) : event.start_date;
+              return isSameDay(startDate, day);
             } catch (error) {
               console.error("Error filtering events for day:", error, event);
               return false;
@@ -161,7 +177,7 @@ export const CalendarView = ({
     );
   }
 
-  // Week/Day view with time slots starting from 6 AM
+  // Week/Day view with time slots
   return (
     <div className="flex-1 grid bg-background rounded-lg overflow-y-auto" 
          style={{ gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` }}>
@@ -203,15 +219,11 @@ export const CalendarView = ({
               );
             })}
             
-            {events
+            {validEvents
               .filter((event) => {
                 try {
-                  // Defensive check to ensure start_date is string and valid
-                  if (typeof event.start_date !== 'string') {
-                    console.error("Invalid event start_date:", event.start_date);
-                    return false;
-                  }
-                  return isSameDay(parseISO(event.start_date), day);
+                  const startDate = typeof event.start_date === 'string' ? parseISO(event.start_date) : event.start_date;
+                  return isSameDay(startDate, day);
                 } catch (error) {
                   console.error("Error filtering events for day:", error, event);
                   return false;
@@ -222,9 +234,8 @@ export const CalendarView = ({
                   const start = new Date(event.start_date);
                   const end = new Date(event.end_date);
                   
-                  // Add validation to prevent invalid dates
+                  // Skip invalid dates
                   if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-                    console.error("Invalid date in event:", event);
                     return null;
                   }
                   
@@ -267,7 +278,7 @@ export const CalendarView = ({
                   return null;
                 }
               })
-              .filter(Boolean)} {/* Filter out any null items from rendering errors */}
+              .filter(Boolean)}
           </div>
         ))}
       </div>

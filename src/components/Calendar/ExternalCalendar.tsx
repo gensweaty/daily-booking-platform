@@ -12,130 +12,156 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [events, setEvents] = useState<CalendarEventType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const [businessUserId, setBusinessUserId] = useState<string | null>(null);
 
-  // Function to fetch events for the business
-  const fetchAllEvents = async () => {
-    console.log("ExternalCalendar: Starting direct fetch for business ID:", businessId);
-    setIsLoading(true);
-    
-    try {
-      // First, find the user_id for this business
-      const { data: businessProfile, error: businessError } = await supabase
-        .from("business_profiles")
-        .select("user_id")
-        .eq("id", businessId)
-        .single();
-      
-      if (businessError) {
-        console.error("Error fetching business profile:", businessError);
-        throw businessError;
-      }
-      
-      if (!businessProfile?.user_id) {
-        console.error("No user_id found for business:", businessId);
-        throw new Error("Business user not found");
-      }
-      
-      console.log(`Found business owner user_id: ${businessProfile.user_id}`);
-      
-      // Fetch all events for this business owner
-      const { data: eventData, error: eventsError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('user_id', businessProfile.user_id);
-      
-      if (eventsError) {
-        console.error("Error fetching events:", eventsError);
-        throw eventsError;
-      }
-      
-      console.log(`Fetched ${eventData?.length || 0} events for user ${businessProfile.user_id}`);
-      
-      // Fetch all approved booking requests for this business
-      const { data: bookingData, error: bookingsError } = await supabase
-        .from('booking_requests')
-        .select('*')
-        .eq('business_id', businessId)
-        .eq('status', 'approved');
-        
-      if (bookingsError) {
-        console.error("Error fetching booking requests:", bookingsError);
-        throw bookingsError;
-      }
-      
-      console.log(`Fetched ${bookingData?.length || 0} approved booking requests for business ${businessId}`);
-      
-      // Convert booking requests to calendar events format
-      const bookingEvents = (bookingData || []).map(booking => ({
-        id: booking.id,
-        title: booking.title || 'Booking',
-        start_date: booking.start_date,
-        end_date: booking.end_date,
-        type: 'booking_request',
-        created_at: booking.created_at || new Date().toISOString(),
-        user_id: booking.user_id || '',
-        requester_name: booking.requester_name || '',
-        requester_email: booking.requester_email || '',
-      }));
-      
-      // Create proper CalendarEventType objects from regular events
-      const calendarEvents = (eventData || []).map(event => ({
-        id: event.id,
-        title: event.title,
-        start_date: event.start_date,
-        end_date: event.end_date,
-        type: event.type || 'event',
-        created_at: event.created_at,
-        user_id: event.user_id,
-        user_surname: event.user_surname,
-        user_number: event.user_number,
-        social_network_link: event.social_network_link,
-        event_notes: event.event_notes,
-        payment_status: event.payment_status,
-        payment_amount: event.payment_amount,
-      }));
-      
-      // Combine both types of events
-      const allEvents = [...calendarEvents, ...bookingEvents];
-      console.log(`Total combined events: ${allEvents.length}`);
-      
-      if (allEvents.length > 0) {
-        console.log("Sample event:", allEvents[0]);
-      }
-      
-      // Update state with fetched events
-      setEvents(allEvents);
-    } catch (error) {
-      console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred while loading events.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch events initially and set up polling
+  // Diagnostic logging for businessId
   useEffect(() => {
-    if (!businessId) {
-      console.error("No businessId provided to ExternalCalendar");
-      setIsLoading(false);
-      return;
-    }
-
-    console.log("ExternalCalendar: Initial fetch for business ID:", businessId);
-    fetchAllEvents();
-    
-    // Poll for updates every 15 seconds
-    const intervalId = setInterval(fetchAllEvents, 15000);
-    
-    return () => {
-      clearInterval(intervalId);
-      console.log("ExternalCalendar: Cleanup, cleared polling interval");
-    };
+    console.log("External Calendar mounted with business ID:", businessId);
   }, [businessId]);
+
+  // Step 1: Get the business user ID
+  useEffect(() => {
+    const getBusinessUserId = async () => {
+      if (!businessId) return;
+      
+      try {
+        console.log("[External Calendar] Fetching business user ID for business:", businessId);
+        const { data, error } = await supabase
+          .from("business_profiles")
+          .select("user_id")
+          .eq("id", businessId)
+          .single();
+        
+        if (error) {
+          console.error("Error fetching business profile:", error);
+          return;
+        }
+        
+        if (data?.user_id) {
+          console.log("[External Calendar] Found business user ID:", data.user_id);
+          setBusinessUserId(data.user_id);
+        } else {
+          console.error("No user ID found for business:", businessId);
+        }
+      } catch (error) {
+        console.error("Exception fetching business user ID:", error);
+      }
+    };
+    
+    getBusinessUserId();
+  }, [businessId]);
+
+  // Step 2: Fetch events once we have the business user ID
+  useEffect(() => {
+    const fetchAllEvents = async () => {
+      if (!businessId || !businessUserId) return;
+      
+      setIsLoading(true);
+      console.log("[External Calendar] Starting to fetch events for business user:", businessUserId);
+      
+      try {
+        // Fetch regular events
+        const { data: eventData, error: eventsError } = await supabase
+          .from('events')
+          .select('*')
+          .eq('user_id', businessUserId);
+        
+        if (eventsError) {
+          console.error("Error fetching events:", eventsError);
+          throw eventsError;
+        }
+        
+        console.log(`[External Calendar] Fetched ${eventData?.length || 0} events for user ${businessUserId}`);
+        
+        // Log first event for debugging if available
+        if (eventData && eventData.length > 0) {
+          console.log("Sample event data:", JSON.stringify(eventData[0]));
+        }
+        
+        // Fetch approved booking requests
+        const { data: bookingData, error: bookingsError } = await supabase
+          .from('booking_requests')
+          .select('*')
+          .eq('business_id', businessId)
+          .eq('status', 'approved');
+          
+        if (bookingsError) {
+          console.error("Error fetching booking requests:", bookingsError);
+          throw bookingsError;
+        }
+        
+        console.log(`[External Calendar] Fetched ${bookingData?.length || 0} approved booking requests`);
+        
+        // Convert booking requests to calendar events
+        const bookingEvents: CalendarEventType[] = (bookingData || []).map(booking => ({
+          id: booking.id,
+          title: booking.title || 'Booking',
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          type: 'booking_request',
+          created_at: booking.created_at || new Date().toISOString(),
+          user_id: booking.user_id || '',
+          requester_name: booking.requester_name || '',
+          requester_email: booking.requester_email || '',
+        }));
+        
+        // Combine both types of events
+        const allEvents: CalendarEventType[] = [
+          ...(eventData || []).map(event => ({
+            ...event,
+            // Ensure all required fields are present
+            type: event.type || 'event'
+          })),
+          ...bookingEvents
+        ];
+        
+        console.log(`[External Calendar] Combined ${allEvents.length} total events`);
+        
+        // Validate all events have proper dates
+        const validEvents = allEvents.filter(event => {
+          try {
+            // Check if start_date and end_date are valid
+            const startValid = !!new Date(event.start_date).getTime();
+            const endValid = !!new Date(event.end_date).getTime();
+            return startValid && endValid;
+          } catch (err) {
+            console.error("Invalid date in event:", event);
+            return false;
+          }
+        });
+        
+        if (validEvents.length !== allEvents.length) {
+          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates`);
+        }
+        
+        // Update state with fetched events
+        setEvents(validEvents);
+      } catch (error) {
+        console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
+        toast({
+          title: "Error loading events",
+          description: "Failed to load calendar events. Please try again later.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Only fetch if we have both IDs
+    if (businessId && businessUserId) {
+      console.log("[External Calendar] Have both business ID and user ID, fetching events");
+      fetchAllEvents();
+      
+      // Set up polling to refresh data
+      const intervalId = setInterval(fetchAllEvents, 30000);
+      return () => {
+        clearInterval(intervalId);
+      };
+    } else if (businessId && !businessUserId) {
+      console.log("[External Calendar] Have business ID but waiting for user ID");
+    }
+  }, [businessId, businessUserId, toast]);
 
   if (!businessId) {
     return (
@@ -164,6 +190,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             onViewChange={setView}
             isExternalCalendar={true}
             businessId={businessId}
+            businessUserId={businessUserId}
             showAllEvents={true}
             allowBookingRequests={true}
             directEvents={events}
