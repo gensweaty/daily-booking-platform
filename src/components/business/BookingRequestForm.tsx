@@ -37,14 +37,24 @@ export const BookingRequestForm = ({
   const [paymentAmount, setPaymentAmount] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date(selectedDate);
+    const [hours, minutes] = startTime.split(':').map(Number);
+    date.setHours(hours, minutes, 0, 0);
+    return format(date, "yyyy-MM-dd'T'HH:mm");
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const date = new Date(selectedDate);
+    const [hours, minutes] = endTime.split(':').map(Number);
+    date.setHours(hours, minutes, 0, 0);
+    return format(date, "yyyy-MM-dd'T'HH:mm");
+  });
   const { user } = useAuth();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
 
-  const formatDateWithTime = (date: Date, timeString: string) => {
-    const [hours, minutes] = timeString.split(':').map(Number);
-    const newDate = new Date(date);
-    newDate.setHours(hours, minutes, 0, 0);
-    return newDate.toISOString();
+  const formatDateWithTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toISOString();
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -62,8 +72,8 @@ export const BookingRequestForm = ({
       setIsSubmitting(true);
       
       // Format dates
-      const startDateTime = formatDateWithTime(selectedDate, startTime);
-      const endDateTime = formatDateWithTime(selectedDate, endTime);
+      const startDateTime = formatDateWithTime(startDate);
+      const endDateTime = formatDateWithTime(endDate);
       
       // Check for time slot conflicts
       const { data: conflictingEvents } = await supabase
@@ -101,11 +111,11 @@ export const BookingRequestForm = ({
         end_date: endDateTime,
         description: eventNotes,
         // Additional fields that match the EventDialog structure
-        user_surname: "", // Not collected separately in this form
         user_number: userNumber,
         social_network_link: socialNetworkLink,
         event_notes: eventNotes,
-        // We're not setting payment fields on initial booking request
+        payment_status: paymentStatus,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : undefined
       });
 
       // Handle file upload if a file is selected
@@ -212,10 +222,10 @@ export const BookingRequestForm = ({
               </Label>
               <Input
                 id="startDate"
-                type="text"
-                value={`${format(selectedDate, 'MM/dd/yyyy')} ${startTime}`}
-                readOnly
-                className="bg-muted"
+                type="datetime-local"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-background"
               />
             </div>
             <div>
@@ -224,10 +234,10 @@ export const BookingRequestForm = ({
               </Label>
               <Input
                 id="endDate"
-                type="text"
-                value={`${format(selectedDate, 'MM/dd/yyyy')} ${endTime}`}
-                readOnly
-                className="bg-muted"
+                type="datetime-local"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-background"
               />
             </div>
           </div>
@@ -235,9 +245,9 @@ export const BookingRequestForm = ({
 
         <div className="space-y-2">
           <Label>{t("events.paymentStatus")}</Label>
-          <Select disabled>
-            <SelectTrigger className="w-full bg-muted">
-              <SelectValue placeholder={t("events.selectPaymentStatus")} />
+          <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+            <SelectTrigger className="w-full bg-background">
+              <SelectValue placeholder={t("crm.selectPaymentStatus")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="not_paid">{t("crm.notPaid")}</SelectItem>
