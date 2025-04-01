@@ -249,14 +249,14 @@ export const BookingRequestForm = ({
             <SelectTrigger className="w-full bg-background">
               <SelectValue placeholder={t("crm.selectPaymentStatus")} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover">
               <SelectItem value="not_paid">{t("crm.notPaid")}</SelectItem>
               <SelectItem value="partly">{t("crm.paidPartly")}</SelectItem>
               <SelectItem value="fully">{t("crm.paidFully")}</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            {t("events.paymentStatusNote")}
+            {t("crm.paymentStatusNote")}
           </p>
         </div>
 
