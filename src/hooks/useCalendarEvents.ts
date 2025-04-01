@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -186,6 +185,19 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to create events");
     
+    // Check for time slot conflicts before creating event
+    const startDateTime = new Date(event.start_date as string);
+    const endDateTime = new Date(event.end_date as string);
+    
+    const { available, conflictDetails } = await checkTimeSlotAvailability(
+      startDateTime,
+      endDateTime
+    );
+    
+    if (!available) {
+      throw new Error(`Time slot already booked: ${conflictDetails}`);
+    }
+    
     const { data, error } = await supabase
       .from('events')
       .insert([{ ...event, user_id: user.id }])
@@ -206,6 +218,22 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
     
+    // Check for time slot conflicts before updating event
+    if (updates.start_date && updates.end_date) {
+      const startDateTime = new Date(updates.start_date);
+      const endDateTime = new Date(updates.end_date);
+      
+      const { available, conflictDetails } = await checkTimeSlotAvailability(
+        startDateTime,
+        endDateTime,
+        id
+      );
+      
+      if (!available) {
+        throw new Error(`Time slot already booked: ${conflictDetails}`);
+      }
+    }
+    
     const { data, error } = await supabase
       .from('events')
       .update(updates)
@@ -222,6 +250,61 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     });
     
     return data;
+  };
+
+  // Helper function to check if a time slot is available
+  const checkTimeSlotAvailability = async (
+    startDate: Date,
+    endDate: Date,
+    excludeEventId?: string
+  ): Promise<{ available: boolean; conflictDetails: string }> => {
+    try {
+      // First, check conflicts with regular events
+      const { data: conflictingEvents, error: eventsError } = await supabase
+        .from('events')
+        .select('id, title, start_date, end_date')
+        .filter('start_date', 'lt', endDate.toISOString())
+        .filter('end_date', 'gt', startDate.toISOString());
+      
+      if (eventsError) throw eventsError;
+      
+      // Check if any non-excluded event conflicts
+      const eventsConflict = conflictingEvents?.some(event => 
+        excludeEventId !== event.id
+      );
+      
+      if (eventsConflict && conflictingEvents && conflictingEvents.length > 0) {
+        const conflictEvent = conflictingEvents[0];
+        return { 
+          available: false, 
+          conflictDetails: `Conflicts with "${conflictEvent.title}" at ${new Date(conflictEvent.start_date).toLocaleTimeString()}`
+        };
+      }
+      
+      // Next, check conflicts with approved booking requests
+      const { data: conflictingBookings, error: bookingsError } = await supabase
+        .from('booking_requests')
+        .select('id, title, start_date, end_date')
+        .eq('status', 'approved')
+        .filter('start_date', 'lt', endDate.toISOString())
+        .filter('end_date', 'gt', startDate.toISOString());
+      
+      if (bookingsError) throw bookingsError;
+      
+      if (conflictingBookings && conflictingBookings.length > 0) {
+        const conflictBooking = conflictingBookings[0];
+        return { 
+          available: false, 
+          conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`
+        };
+      }
+      
+      // No conflicts found
+      return { available: true, conflictDetails: "" };
+    } catch (error) {
+      console.error("Error checking time slot availability:", error);
+      return { available: false, conflictDetails: "Error checking availability" };
+    }
   };
 
   // Mutation function to delete an event
@@ -320,5 +403,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     createEvent: createEventMutation?.mutateAsync,
     updateEvent: updateEventMutation?.mutateAsync,
     deleteEvent: deleteEventMutation?.mutateAsync,
+    checkTimeSlotAvailability,
   };
 };
