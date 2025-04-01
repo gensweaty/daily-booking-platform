@@ -57,4 +57,9 @@ export interface BookingRequest {
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
+  // Additional fields for extended functionality
+  user_surname?: string;
+  user_number?: string;
+  social_network_link?: string;
+  event_notes?: string;
 }

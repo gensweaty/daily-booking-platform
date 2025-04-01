@@ -117,6 +117,7 @@ export const BookingRequestForm = ({
         requester_phone: data.requester_phone || null,
         start_date: startDateTime,
         end_date: endDateTime,
+        // Pass these as custom fields that will be stored in the same table
         user_surname: data.requester_surname,
         user_number: data.requester_phone,
         social_network_link: data.social_network_link,
@@ -281,7 +282,8 @@ export const BookingRequestForm = ({
           <Label>Attachment (Optional)</Label>
           <FileUploadField
             onFileChange={handleFileChange}
-            error={fileError}
+            fileError={fileError}
+            setFileError={setFileError}
             acceptedFileTypes="image/*,.pdf,.doc,.docx"
           />
           <p className="text-xs text-muted-foreground mt-1">

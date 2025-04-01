@@ -17,9 +17,10 @@ interface FileUploadFieldProps {
   onFileChange: (file: File | null) => void;
   fileError: string;
   setFileError: (error: string) => void;
+  acceptedFileTypes?: string;
 }
 
-export const FileUploadField = ({ onFileChange, fileError, setFileError }: FileUploadFieldProps) => {
+export const FileUploadField = ({ onFileChange, fileError, setFileError, acceptedFileTypes }: FileUploadFieldProps) => {
   const { t } = useLanguage();
 
   const validateFile = (file: File) => {
@@ -61,7 +62,7 @@ export const FileUploadField = ({ onFileChange, fileError, setFileError }: FileU
         id="file"
         type="file"
         onChange={handleFileChange}
-        accept={[...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")}
+        accept={acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")}
         className="cursor-pointer bg-background border-gray-700"
         onClick={(e) => {
           // Reset value before opening to ensure onChange triggers even if same file is selected
