@@ -225,7 +225,7 @@ export const BookingRequestForm = ({
                 type="datetime-local"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-background"
+                className="bg-background border-input"
               />
             </div>
             <div>
@@ -237,7 +237,7 @@ export const BookingRequestForm = ({
                 type="datetime-local"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-background"
+                className="bg-background border-input"
               />
             </div>
           </div>
@@ -246,17 +246,17 @@ export const BookingRequestForm = ({
         <div className="space-y-2">
           <Label>{t("events.paymentStatus")}</Label>
           <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder={t("crm.selectPaymentStatus")} />
+            <SelectTrigger className="w-full bg-background border-input">
+              <SelectValue placeholder={t("events.selectPaymentStatus")} />
             </SelectTrigger>
-            <SelectContent className="bg-popover">
-              <SelectItem value="not_paid">{t("crm.notPaid")}</SelectItem>
-              <SelectItem value="partly">{t("crm.paidPartly")}</SelectItem>
-              <SelectItem value="fully">{t("crm.paidFully")}</SelectItem>
+            <SelectContent className="bg-popover border border-input shadow-md">
+              <SelectItem value="not_paid" className="text-foreground">{t("crm.notPaid")}</SelectItem>
+              <SelectItem value="partly" className="text-foreground">{t("crm.paidPartly")}</SelectItem>
+              <SelectItem value="fully" className="text-foreground">{t("crm.paidFully")}</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            {t("crm.paymentStatusNote")}
+            {t("events.paymentStatusNote")}
           </p>
         </div>
 
@@ -267,18 +267,15 @@ export const BookingRequestForm = ({
             placeholder={t("events.addEventNotes")}
             value={eventNotes}
             onChange={(e) => setEventNotes(e.target.value)}
-            className="min-h-[80px]"
+            className="min-h-[80px] bg-background border-input"
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="file">{t("events.attachment")}</Label>
-          <FileUploadField 
-            onFileChange={setSelectedFile}
-            fileError={fileError}
-            setFileError={setFileError}
-          />
-        </div>
+        <FileUploadField 
+          onFileChange={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+        />
 
         <Button 
           type="submit" 
