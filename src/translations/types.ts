@@ -1,4 +1,12 @@
 
+export type Language = 'en' | 'es';
+
+export interface LanguageContextType {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: string) => string;
+}
+
 export interface TranslationType {
   landing: {
     heroTitle: string;
@@ -308,3 +316,4 @@ export interface TranslationType {
     partiallyPaidBookings: string;
   };
 }
+

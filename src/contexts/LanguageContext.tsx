@@ -15,8 +15,19 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     localStorage.setItem('language', language);
   }, [language]);
 
-  const t = (key: keyof TranslationType): string => {
-    return translations[language][key] || key;
+  const t = (key: string): string => {
+    const keys = key.split('.');
+    if (keys.length === 1) {
+      return key; // Return the key itself if it's not a nested key
+    }
+    
+    let result: any = translations[language];
+    for (const k of keys) {
+      if (result === undefined) return key;
+      result = result[k];
+    }
+    
+    return result !== undefined ? result : key;
   };
 
   return (
