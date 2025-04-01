@@ -1,13 +1,16 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string | null) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   // Function to fetch user's own events
   const getEvents = async () => {
@@ -161,17 +164,23 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       console.log("Fetched approved bookings:", data?.length || 0);
       
-      // Convert booking requests to calendar events
+      // Convert booking requests to calendar events with complete information
       const bookingEvents = (data || []).map(booking => ({
         id: booking.id,
-        title: booking.title,
+        title: booking.title || 'Booking',
         start_date: booking.start_date,
         end_date: booking.end_date,
         type: 'booking_request',
         created_at: booking.created_at || new Date().toISOString(),
         user_id: booking.user_id || '',
-        requester_name: booking.requester_name,
-        requester_email: booking.requester_email,
+        user_surname: booking.requester_name || '',
+        user_number: booking.requester_phone || '',
+        social_network_link: booking.requester_email || '',
+        event_notes: booking.description || '',
+        requester_name: booking.requester_name || '',
+        requester_email: booking.requester_email || '',
+        requester_phone: booking.requester_phone || '',
+        description: booking.description || '',
       }));
       
       return bookingEvents;

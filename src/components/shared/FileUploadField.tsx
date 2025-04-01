@@ -57,7 +57,7 @@ export const FileUploadField = ({ onFileChange, fileError, setFileError, accepte
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="file" className="text-foreground">{t("events.attachment")}</Label>
+      <Label htmlFor="file" className="text-foreground">{t("calendar.attachment")}</Label>
       <Input
         id="file"
         type="file"
@@ -72,10 +72,10 @@ export const FileUploadField = ({ onFileChange, fileError, setFileError, accepte
       {fileError && (
         <p className="text-sm text-red-500 mt-1">{fileError}</p>
       )}
-      <p className="text-[0.5rem] text-muted-foreground mt-1">
-        {t("events.maxSize")}
+      <p className="text-xs text-muted-foreground mt-1">
+        {t("calendar.maxSize")}
         <br />
-        {t("events.supportedFormats")}
+        {t("calendar.supportedFormats")}
       </p>
     </div>
   );

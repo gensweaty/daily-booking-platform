@@ -45,12 +45,20 @@ export const EventDialog = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
 
+  // Set initial values when dialog opens or event changes
   useEffect(() => {
     if (event) {
       const start = new Date(event.start_date);
       const end = new Date(event.end_date);
+      setTitle(event.title || "");
+      setUserSurname(event.user_surname || event.requester_name || "");
+      setUserNumber(event.user_number || event.requester_phone || "");
+      setSocialNetworkLink(event.social_network_link || event.requester_email || "");
+      setEventNotes(event.event_notes || event.description || "");
+      setPaymentStatus(event.payment_status || "");
+      setPaymentAmount(event.payment_amount?.toString() || "");
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     } else if (selectedDate) {
@@ -72,6 +80,36 @@ export const EventDialog = ({
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     }
   }, [selectedDate, event, open]);
+
+  // Load existing files when editing an event
+  useEffect(() => {
+    const loadFiles = async () => {
+      if (event?.id) {
+        try {
+          const { data, error } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', event.id);
+            
+          if (error) {
+            console.error("Error loading event files:", error);
+            return;
+          }
+          
+          if (data && data.length > 0) {
+            console.log("Loaded event files:", data);
+            setDisplayedFiles(data);
+          }
+        } catch (err) {
+          console.error("Exception loading event files:", err);
+        }
+      }
+    };
+    
+    if (open) {
+      loadFiles();
+    }
+  }, [event, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,14 +249,17 @@ export const EventDialog = ({
         console.log('File records created successfully');
 
         toast({
-          title: "Success",
-          description: "File uploaded successfully",
+          title: t("common.success"),
+          description: t("common.success"),
         });
       }
 
       onOpenChange(false);
       
+      // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
@@ -226,8 +267,8 @@ export const EventDialog = ({
     } catch (error: any) {
       console.error('Error handling event submission:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to save changes",
+        title: t("common.error"),
+        description: error.message || t("common.error"),
         variant: "destructive",
       });
     }
@@ -267,6 +308,7 @@ export const EventDialog = ({
             setFileError={setFileError}
             eventId={event?.id}
             onFileDeleted={handleFileDeleted}
+            displayedFiles={displayedFiles}
           />
           
           <div className="flex justify-between gap-4">
