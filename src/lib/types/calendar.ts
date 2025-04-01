@@ -17,4 +17,6 @@ export interface CalendarEventType {
   user_id: string;
   requester_name?: string;
   requester_email?: string;
+  requester_phone?: string;
+  description?: string;
 }

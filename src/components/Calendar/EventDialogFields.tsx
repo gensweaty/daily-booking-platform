@@ -36,6 +36,7 @@ interface EventDialogFieldsProps {
   setFileError: (error: string) => void;
   eventId?: string;
   onFileDeleted?: (fileId: string) => void;
+  displayedFiles?: any[];
 }
 
 export const EventDialogFields = ({
@@ -63,6 +64,7 @@ export const EventDialogFields = ({
   setFileError,
   eventId,
   onFileDeleted,
+  displayedFiles = [],
 }: EventDialogFieldsProps) => {
   const { t, language } = useLanguage();
 
@@ -295,10 +297,10 @@ export const EventDialogFields = ({
         />
       </div>
 
-      {(eventId || title) && allFiles && allFiles.length > 0 && (
+      {(eventId || title) && ((allFiles && allFiles.length > 0) || (displayedFiles && displayedFiles.length > 0)) && (
         <div className="space-y-2">
           <FileDisplay 
-            files={allFiles} 
+            files={displayedFiles?.length > 0 ? displayedFiles : allFiles} 
             bucketName="event_attachments"
             allowDelete
             onFileDeleted={onFileDeleted}

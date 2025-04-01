@@ -31,7 +31,7 @@ export const CalendarHeader = ({
       case "month":
         return format(selectedDate, "MMMM yyyy");
       case "week":
-        return `Week of ${format(selectedDate, "MMM d, yyyy")}`;
+        return `${t("calendar.weekOf")} ${format(selectedDate, "MMM d, yyyy")}`;
       case "day":
         return format(selectedDate, "EEEE, MMMM d, yyyy");
       default:
