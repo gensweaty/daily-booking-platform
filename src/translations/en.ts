@@ -83,6 +83,7 @@ export const enTranslations = {
   "events.socialLinkEmail": "Social Link or Email",
   "events.paymentStatus": "Payment Status",
   "events.selectPaymentStatus": "Select payment status",
+  "events.paymentStatusNote": "Payment status will be set after your booking is approved",
   "events.paymentAmount": "Payment Amount",
   "events.eventNotes": "Event Notes",
   "events.addEventNotes": "Add event notes",
@@ -95,6 +96,7 @@ export const enTranslations = {
   "events.dateAndTime": "Date and Time",
   "events.startDateTime": "Start Date & Time",
   "events.endDateTime": "End Date & Time",
+  "events.submitBookingRequest": "Submit Booking Request",
 
   // Dashboard
   "dashboard.welcome": "Welcome to SmartBookIy!",

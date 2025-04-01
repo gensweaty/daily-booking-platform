@@ -6,27 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { createBookingRequest } from "@/lib/api";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { format } from "date-fns";
 import { FileUploadField } from "@/components/shared/FileUploadField";
-import { format, addHours, parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-
-// Define form schema
-const bookingRequestSchema = z.object({
-  requester_name: z.string().min(2, { message: "Name is required" }),
-  requester_surname: z.string().optional(),
-  requester_email: z.string().email({ message: "Valid email is required" }),
-  requester_phone: z.string().optional(),
-  title: z.string().min(1, { message: "Title is required" }),
-  description: z.string().optional(),
-  social_network_link: z.string().optional(),
-  event_notes: z.string().optional(),
-});
-
-type BookingFormValues = z.infer<typeof bookingRequestSchema>;
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface BookingRequestFormProps {
   businessId: string;
@@ -44,28 +29,16 @@ export const BookingRequestForm = ({
   onSuccess,
 }: BookingRequestFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [title, setTitle] = useState("");
+  const [userNumber, setUserNumber] = useState("");
+  const [socialNetworkLink, setSocialNetworkLink] = useState("");
+  const [eventNotes, setEventNotes] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const { user } = useAuth();
-
-  // Set up form
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<BookingFormValues>({
-    resolver: zodResolver(bookingRequestSchema),
-    defaultValues: {
-      requester_name: "",
-      requester_surname: "",
-      requester_email: "",
-      requester_phone: "",
-      title: "",
-      description: "",
-      social_network_link: "",
-      event_notes: "",
-    },
-  });
+  const { t, language } = useLanguage();
 
   const formatDateWithTime = (date: Date, timeString: string) => {
     const [hours, minutes] = timeString.split(':').map(Number);
@@ -74,7 +47,17 @@ export const BookingRequestForm = ({
     return newDate.toISOString();
   };
 
-  const onSubmit = async (data: BookingFormValues) => {
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      toast({
+        title: "Error",
+        description: "Name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       
@@ -110,18 +93,19 @@ export const BookingRequestForm = ({
       // Create booking request
       const bookingRequest = await createBookingRequest({
         business_id: businessId,
-        title: data.title,
-        description: data.description,
-        requester_name: data.requester_name,
-        requester_email: data.requester_email,
-        requester_phone: data.requester_phone || null,
+        title: title,
+        requester_name: title, // Using title (full name) as requester_name for consistency
+        requester_email: socialNetworkLink, // Using socialNetworkLink as email/contact
+        requester_phone: userNumber,
         start_date: startDateTime,
         end_date: endDateTime,
-        // Pass these as custom fields that will be stored in the same table
-        user_surname: data.requester_surname,
-        user_number: data.requester_phone,
-        social_network_link: data.social_network_link,
-        event_notes: data.event_notes,
+        description: eventNotes,
+        // Additional fields that match the EventDialog structure
+        user_surname: "", // Not collected separately in this form
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        // We're not setting payment fields on initial booking request
       });
 
       // Handle file upload if a file is selected
@@ -178,117 +162,112 @@ export const BookingRequestForm = ({
     }
   };
 
-  const handleFileChange = (file: File | null) => {
-    setSelectedFile(file);
-    setFileError("");
-  };
-
   return (
     <div className="space-y-4 p-1">
-      <h2 className="text-xl font-bold mb-4">Request a Booking</h2>
+      <h2 className="text-xl font-bold mb-4">{t("events.addNewEvent")}</h2>
       <p className="text-sm text-muted-foreground mb-4">
         For {format(selectedDate, "EEEE, MMMM d, yyyy")} from {startTime} to {endTime}
       </p>
       
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="requester_name">Your Name*</Label>
-            <Input 
-              id="requester_name" 
-              {...register("requester_name")} 
-              placeholder="John" 
-            />
-            {errors.requester_name && (
-              <p className="text-sm text-red-500 mt-1">{errors.requester_name.message}</p>
-            )}
-          </div>
-          
-          <div>
-            <Label htmlFor="requester_surname">Surname</Label>
-            <Input 
-              id="requester_surname" 
-              {...register("requester_surname")} 
-              placeholder="Doe" 
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="requester_email">Email*</Label>
-            <Input 
-              id="requester_email" 
-              type="email" 
-              {...register("requester_email")} 
-              placeholder="john.doe@example.com" 
-            />
-            {errors.requester_email && (
-              <p className="text-sm text-red-500 mt-1">{errors.requester_email.message}</p>
-            )}
-          </div>
-          
-          <div>
-            <Label htmlFor="requester_phone">Phone Number</Label>
-            <Input 
-              id="requester_phone" 
-              type="tel" 
-              {...register("requester_phone")} 
-              placeholder="+1234567890" 
-            />
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="title">Booking Title*</Label>
-          <Input 
-            id="title" 
-            {...register("title")} 
-            placeholder="e.g., Consultation Meeting" 
-          />
-          {errors.title && (
-            <p className="text-sm text-red-500 mt-1">{errors.title.message}</p>
-          )}
-        </div>
-
-        <div>
-          <Label htmlFor="social_network_link">Social Media Link</Label>
-          <Input 
-            id="social_network_link" 
-            {...register("social_network_link")} 
-            placeholder="e.g., Instagram profile" 
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="title">{t("events.fullNameRequired")}</Label>
+          <Input
+            id="title"
+            placeholder={t("events.fullName")}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
           />
         </div>
 
-        <div>
-          <Label htmlFor="description">Description</Label>
-          <Textarea 
-            id="description" 
-            {...register("description")} 
-            placeholder="Briefly describe what this booking is for..." 
-            rows={3}
+        <div className="space-y-2">
+          <Label htmlFor="number">{t("events.phoneNumber")}</Label>
+          <Input
+            id="number"
+            type="tel"
+            placeholder={t("events.phoneNumber")}
+            value={userNumber}
+            onChange={(e) => setUserNumber(e.target.value)}
           />
         </div>
 
-        <div>
-          <Label htmlFor="event_notes">Additional Notes</Label>
-          <Textarea 
-            id="event_notes" 
-            {...register("event_notes")} 
-            placeholder="Any additional information..." 
-            rows={3}
+        <div className="space-y-2">
+          <Label htmlFor="socialNetwork">{t("events.socialLinkEmail")}</Label>
+          <Input
+            id="socialNetwork"
+            type="text"
+            placeholder={t("events.socialLinkEmail")}
+            value={socialNetworkLink}
+            onChange={(e) => setSocialNetworkLink(e.target.value)}
           />
         </div>
 
-        <div>
-          <Label>Attachment (Optional)</Label>
-          <FileUploadField
-            onFileChange={handleFileChange}
+        <div className="space-y-2">
+          <Label>{t("events.dateAndTime")}</Label>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="startDate" className="text-sm text-muted-foreground mb-1">
+                {t("events.startDateTime")}
+              </Label>
+              <Input
+                id="startDate"
+                type="text"
+                value={`${format(selectedDate, 'MM/dd/yyyy')} ${startTime}`}
+                readOnly
+                className="bg-muted"
+              />
+            </div>
+            <div>
+              <Label htmlFor="endDate" className="text-sm text-muted-foreground mb-1">
+                {t("events.endDateTime")}
+              </Label>
+              <Input
+                id="endDate"
+                type="text"
+                value={`${format(selectedDate, 'MM/dd/yyyy')} ${endTime}`}
+                readOnly
+                className="bg-muted"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>{t("events.paymentStatus")}</Label>
+          <Select disabled>
+            <SelectTrigger className="w-full bg-muted">
+              <SelectValue placeholder={t("events.selectPaymentStatus")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="not_paid">{t("crm.notPaid")}</SelectItem>
+              <SelectItem value="partly">{t("crm.paidPartly")}</SelectItem>
+              <SelectItem value="fully">{t("crm.paidFully")}</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {t("events.paymentStatusNote")}
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="notes">{t("events.eventNotes")}</Label>
+          <Textarea
+            id="notes"
+            placeholder={t("events.addEventNotes")}
+            value={eventNotes}
+            onChange={(e) => setEventNotes(e.target.value)}
+            className="min-h-[80px]"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="file">{t("events.attachment")}</Label>
+          <FileUploadField 
+            onFileChange={setSelectedFile}
             fileError={fileError}
             setFileError={setFileError}
-            acceptedFileTypes="image/*,.pdf,.doc,.docx"
           />
-          <p className="text-xs text-muted-foreground mt-1">
-            Upload a file related to your booking (images, documents, etc.)
-          </p>
         </div>
 
         <Button 
@@ -296,7 +275,7 @@ export const BookingRequestForm = ({
           className="w-full" 
           disabled={isSubmitting}
         >
-          {isSubmitting ? "Submitting..." : "Submit Booking Request"}
+          {isSubmitting ? t("common.submitting") : t("events.submitBookingRequest")}
         </Button>
       </form>
     </div>
