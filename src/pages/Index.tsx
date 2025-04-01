@@ -156,10 +156,10 @@ const Index = () => {
       </motion.div>
     </motion.div>
   ) : (
-    <>
+    <LanguageProvider>
       <CursorFollower />
       <AuthUI />
-    </>
+    </LanguageProvider>
   );
 
   return content;
