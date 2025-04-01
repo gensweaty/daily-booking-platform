@@ -1,3 +1,4 @@
+
 export const enTranslations = {
   // Nav
   "nav.home": "Home",
@@ -48,6 +49,9 @@ export const enTranslations = {
   "tasks.feature3": "Efficient task prioritization",
   "tasks.feature4": "Simple drag-and-drop functionality",
   "tasks.feature5": "Quick note-saving for tasks",
+
+  // Common
+  "common.submitting": "Submitting...",
 
   // Auth
   "auth.welcome": "Welcome to SmartBookly",
@@ -230,6 +234,7 @@ export const enTranslations = {
   "crm.cancel": "Cancel",
   "crm.yes": "Yes",
   "crm.no": "No",
+  "crm.paymentStatusNote": "Payment status will be set after your booking is approved",
 
   // Legal
   "legal.termsAndPrivacy": "Terms and Privacy Policy",

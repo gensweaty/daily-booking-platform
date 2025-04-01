@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es';
 
 export type TranslationType = {
@@ -52,6 +51,9 @@ export type TranslationType = {
   "tasks.feature4": string;
   "tasks.feature5": string;
 
+  // Common
+  "common.submitting": string;
+
   // Auth
   "auth.welcome": string;
   "auth.description": string;
@@ -98,6 +100,8 @@ export type TranslationType = {
   "events.date": string;
   "events.time": string;
   "events.endDate": string;
+  "events.paymentStatusNote": string;
+  "events.submitBookingRequest": string;
 
   // Dashboard
   "dashboard.welcome": string;
@@ -217,6 +221,7 @@ export type TranslationType = {
   "crm.cancel": string;
   "crm.yes": string;
   "crm.no": string;
+  "crm.paymentStatusNote": string;
 
   // Business
   "business.events": string;
