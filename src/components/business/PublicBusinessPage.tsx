@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -9,23 +8,17 @@ import { LoaderCircle, Globe, Mail, Phone, MapPin } from "lucide-react";
 import { ExternalCalendar } from "../Calendar/ExternalCalendar";
 
 export const PublicBusinessPage = () => {
-  // Extract the slug from the URL using React Router's useParams
   const { slug } = useParams<{ slug: string }>();
-  
-  // As a fallback, also check the path directly
   const path = window.location.pathname;
   const slugFromPath = path.match(/\/business\/([^\/]+)/)?.[1];
-  
-  // Use the slug from useParams if available, otherwise use the one from the path
   const businessSlug = slug || slugFromPath;
-  
+
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   console.log("[PublicBusinessPage] Using business slug:", businessSlug);
 
-  // Fetch business data
   useEffect(() => {
     const fetchBusinessProfile = async () => {
       if (!businessSlug) {
@@ -59,7 +52,6 @@ export const PublicBusinessPage = () => {
         console.log("[PublicBusinessPage] Fetched business profile:", data);
         setBusiness(data as BusinessProfile);
         
-        // Set page title
         if (data?.business_name) {
           document.title = `${data.business_name} - Book Now`;
         }
@@ -71,8 +63,28 @@ export const PublicBusinessPage = () => {
       }
     };
 
+    const fetchProfile = async () => {
+      try {
+        const { data: buckets } = await supabase.storage.listBuckets();
+        const bookingBucketExists = buckets?.some(b => b.name === 'booking_attachments');
+        
+        if (!bookingBucketExists) {
+          await supabase.storage.createBucket('booking_attachments', {
+            public: false,
+            allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+            fileSizeLimit: 5000000 // 5MB
+          });
+          
+          console.log('Created booking_attachments storage bucket');
+        }
+      } catch (error) {
+        console.error('Error checking/creating storage buckets:', error);
+      }
+    };
+
     fetchBusinessProfile();
-  }, [businessSlug]);
+    fetchProfile();
+  }, [slug]);
 
   if (isLoading) {
     return (
@@ -101,7 +113,6 @@ export const PublicBusinessPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-16">
         <div className="container mx-auto px-4">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">{business.business_name}</h1>
@@ -135,7 +146,6 @@ export const PublicBusinessPage = () => {
           )}
         </div>
 
-        {/* Contact Information */}
         <div className="mt-12">
           <Card>
             <CardContent className="p-6 space-y-4">

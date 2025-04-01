@@ -109,13 +109,7 @@ export const BookingRequestForm = ({
         requester_phone: userNumber,
         start_date: startDateTime,
         end_date: endDateTime,
-        description: eventNotes,
-        // Additional fields that match the EventDialog structure
-        user_number: userNumber,
-        social_network_link: socialNetworkLink,
-        event_notes: eventNotes,
-        payment_status: paymentStatus,
-        payment_amount: paymentAmount ? parseFloat(paymentAmount) : undefined
+        description: eventNotes // Ensure this matches the column name in the database
       });
 
       // Handle file upload if a file is selected
@@ -250,15 +244,30 @@ export const BookingRequestForm = ({
               <SelectValue placeholder={t("events.selectPaymentStatus")} />
             </SelectTrigger>
             <SelectContent className="bg-popover border border-input shadow-md">
-              <SelectItem value="not_paid" className="text-foreground">{t("crm.notPaid")}</SelectItem>
-              <SelectItem value="partly" className="text-foreground">{t("crm.paidPartly")}</SelectItem>
-              <SelectItem value="fully" className="text-foreground">{t("crm.paidFully")}</SelectItem>
+              <SelectItem value="not_paid" className="text-foreground hover:bg-accent hover:text-accent-foreground">{t("crm.notPaid")}</SelectItem>
+              <SelectItem value="partly" className="text-foreground hover:bg-accent hover:text-accent-foreground">{t("crm.paidPartly")}</SelectItem>
+              <SelectItem value="fully" className="text-foreground hover:bg-accent hover:text-accent-foreground">{t("crm.paidFully")}</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
             {t("events.paymentStatusNote")}
           </p>
         </div>
+
+        {(paymentStatus === 'partly' || paymentStatus === 'fully') && (
+          <div className="space-y-2">
+            <Label htmlFor="paymentAmount">{t("events.paymentAmount")}</Label>
+            <Input
+              id="paymentAmount"
+              type="number"
+              step="0.01"
+              placeholder={t("events.enterAmount")}
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(e.target.value)}
+              className="bg-background border-input"
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="notes">{t("events.eventNotes")}</Label>
@@ -271,11 +280,14 @@ export const BookingRequestForm = ({
           />
         </div>
 
-        <FileUploadField 
-          onFileChange={setSelectedFile}
-          fileError={fileError}
-          setFileError={setFileError}
-        />
+        <div className="space-y-2">
+          <Label>{t("events.attachmentOptional")}</Label>
+          <FileUploadField 
+            onFileChange={setSelectedFile}
+            fileError={fileError}
+            setFileError={setFileError}
+          />
+        </div>
 
         <Button 
           type="submit" 
