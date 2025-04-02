@@ -102,16 +102,8 @@ export const CalendarView = ({
                       // Set event styles
                       let eventClass = "absolute left-1 right-1 px-2 py-1 rounded-md overflow-hidden flex items-center shadow-sm";
                       
-                      // Use the same styling logic as in CalendarGrid
-                      if (isExternalCalendar) {
-                        eventClass += " bg-green-500 text-white";
-                      } else if (event.type === "booking_request") {
-                        eventClass += " bg-green-500 text-white";
-                      } else if (event.type === "birthday") {
-                        eventClass += " bg-blue-100 text-blue-700";
-                      } else {
-                        eventClass += " bg-purple-100 text-purple-700";
-                      }
+                      // Use green style for all events in external calendar
+                      eventClass += " bg-green-500 text-white";
                       
                       return (
                         <div
@@ -133,7 +125,7 @@ export const CalendarView = ({
                             </span>
                             <div className="truncate flex-1">
                               <div className="font-medium text-sm">
-                                {isExternalCalendar ? "Booked" : event.title}
+                                {"Booked"}
                               </div>
                               <div className="text-xs">
                                 {format(startTime, 'h:mm a')} - {format(endTime, 'h:mm a')}

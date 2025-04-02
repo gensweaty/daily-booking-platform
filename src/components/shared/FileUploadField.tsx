@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,10 +8,23 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@/components/ui/tooltip";
 import { Info, Upload } from "lucide-react";
-import { formatBytes } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { FileDisplay } from "./FileDisplay";
+
+// Helper function to format bytes
+const formatBytes = (bytes: number, decimals = 2) => {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
 
 interface FileUploadFieldProps {
   label: string;
@@ -27,6 +41,7 @@ interface FileUploadFieldProps {
   parentType?: string;
   displayedFiles?: any[];
   onFileDeleted?: (fileId: string) => void;
+  setFileError?: (error: string) => void;
 }
 
 export const FileUploadField = ({
@@ -46,7 +61,7 @@ export const FileUploadField = ({
   onFileDeleted
 }: FileUploadFieldProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const acceptedExtensions = accept.split(',').map(ext => ext.trim().replace(/^\./, '')).join(', ');
+  const acceptedTypes = accept.split(',').map(ext => ext.trim().replace(/^\./, ''));
   const fieldId = `file-upload-${label.toLowerCase().replace(/\s+/g, '-')}`;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,9 +135,11 @@ export const FileUploadField = ({
               <h4 className="text-sm font-medium mb-1">Attached Files</h4>
               <FileDisplay 
                 files={displayedFiles} 
-                onDelete={handleDelete}
+                onFileDeleted={handleDelete}
                 parentId={parentId}
                 parentType={parentType} 
+                bucketName="customer_attachments"
+                allowDelete
               />
             </div>
           )}
@@ -131,7 +148,7 @@ export const FileUploadField = ({
         <div className="mt-1">
           {helperText && <p className="text-xs text-muted-foreground">{helperText}</p>}
           <p className="text-xs text-muted-foreground">
-            {`Max size: ${maxSizeMB}MB, Supported formats: ${acceptedExtensions.join(', ')}`}
+            {`Max size: ${maxSizeMB}MB, Supported formats: ${acceptedTypes.join(', ')}`}
           </p>
         </div>
       </div>

@@ -65,11 +65,9 @@ export const EventDialogFields = ({
   eventId,
   onFileDeleted,
   displayedFiles = [],
-  isBookingRequest,
+  isBookingRequest = false,
 }: EventDialogFieldsProps) => {
   const { t, language } = useLanguage();
-
-  const isBookingRequest = props.isBookingRequest || false;
 
   const formattedMinDate = format(new Date(), "yyyy-MM-dd'T'HH:mm");
 
@@ -84,8 +82,8 @@ export const EventDialogFields = ({
               id="start-date"
               type="datetime-local"
               min={formattedMinDate}
-              value={props.startDate}
-              onChange={(e) => props.setStartDate(e.target.value)}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
               required
             />
           </div>
@@ -94,9 +92,9 @@ export const EventDialogFields = ({
             <Input
               id="end-date"
               type="datetime-local"
-              min={props.startDate || formattedMinDate}
-              value={props.endDate}
-              onChange={(e) => props.setEndDate(e.target.value)}
+              min={startDate || formattedMinDate}
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
               required
             />
           </div>
@@ -346,10 +344,13 @@ export const EventDialogFields = ({
       )}
 
       <FileUploadField 
-        onFileChange={setSelectedFile}
-        fileError={fileError}
+        onChange={setSelectedFile}
+        value={selectedFile}
+        error={fileError}
         setFileError={setFileError}
         hideLabel={true}
+        label="Attachment"
+        placeholder="Upload file"
       />
     </div>
   );
