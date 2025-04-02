@@ -254,7 +254,7 @@ export const EventDialogFields = ({
           <SelectTrigger className="w-full bg-background border-input">
             <SelectValue placeholder={t("events.selectPaymentStatus")} />
           </SelectTrigger>
-          <SelectContent className="bg-background border border-input shadow-md">
+          <SelectContent className="bg-background border-input shadow-md">
             <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">
               {t("crm.notPaid")}
             </SelectItem>

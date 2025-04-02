@@ -1,4 +1,3 @@
-
 const es = {
   landing: {
     heroTitle: "Organiza tu día, potencia tu éxito.",
@@ -188,7 +187,8 @@ const es = {
     attachmentOptional: "Archivo Adjunto (opcional)",
     paymentAmount: "Cantidad de Pago",
     enterAmount: "Introduzca cantidad",
-    paymentStatusNote: "El estado del pago se establecerá después de que se apruebe su reserva"
+    paymentStatusNote: "El estado del pago se establecerá después de que se apruebe su reserva",
+    booked: "Reservado"
   },
   tasks: {
     title: "Gestión de Tareas",

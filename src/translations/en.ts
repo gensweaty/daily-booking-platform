@@ -1,4 +1,3 @@
-
 const en = {
   landing: {
     heroTitle: "Unleash Your Potential with Our Productivity Platform",
@@ -188,7 +187,8 @@ const en = {
     attachmentOptional: "Attachment (optional)",
     paymentAmount: "Payment Amount",
     enterAmount: "Enter amount",
-    paymentStatusNote: "Payment status will be set after your booking is approved"
+    paymentStatusNote: "Payment status will be set after your booking is approved",
+    booked: "Booked"
   },
   tasks: {
     title: "Task Management",

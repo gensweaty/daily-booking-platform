@@ -18,9 +18,10 @@ interface FileUploadFieldProps {
   fileError: string;
   setFileError: (error: string) => void;
   acceptedFileTypes?: string;
+  hideLabel?: boolean;
 }
 
-export const FileUploadField = ({ onFileChange, fileError, setFileError, acceptedFileTypes }: FileUploadFieldProps) => {
+export const FileUploadField = ({ onFileChange, fileError, setFileError, acceptedFileTypes, hideLabel = false }: FileUploadFieldProps) => {
   const { t } = useLanguage();
 
   const validateFile = (file: File) => {
@@ -57,7 +58,9 @@ export const FileUploadField = ({ onFileChange, fileError, setFileError, accepte
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="file" className="text-foreground">{t("calendar.attachment")}</Label>
+      {!hideLabel && (
+        <Label htmlFor="file" className="text-foreground">{t("calendar.attachment")}</Label>
+      )}
       <Input
         id="file"
         type="file"

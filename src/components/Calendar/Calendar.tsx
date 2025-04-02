@@ -279,6 +279,7 @@ export const Calendar = ({
             view={view}
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}
             onEventClick={handleEventClick}
+            isExternalCalendar={isExternalCalendar}
           />
         </div>
       </div>
