@@ -1,3 +1,4 @@
+
 const en = {
   landing: {
     heroTitle: "Unleash Your Potential with Our Productivity Platform",
@@ -283,6 +284,18 @@ const en = {
     publicPageUrl: "Public Page URL",
     copy: "Copy",
     copied: "Copied!",
+    events: "Events",
+    eventsDesc: "Perfect for event planners, wedding coordinators, and party organizers.",
+    health: "Health and Medicine",
+    healthDesc: "Ideal for doctors, therapists, and other healthcare professionals.",
+    sports: "Sports and Fitness",
+    sportsDesc: "Great for personal trainers, coaches, and fitness instructors.",
+    beauty: "Beauty and Wellness",
+    beautyDesc: "Designed for salons, spas, and wellness professionals.",
+    personal: "Personal Services",
+    personalDesc: "Suitable for consultants, coaches, and personal service providers.",
+    education: "Education",
+    educationDesc: "For tutors, trainers, and educational institutions."
   },
   crm: {
     title: "Customer Relationship Management",
@@ -387,15 +400,6 @@ const en = {
     feature4: "Generate professional reports for business decisions",
     feature5: "Custom dashboard with key performance indicators"
   },
-  crm: {
-    title: "Customer Relationship Management",
-    description: "Build stronger client relationships with our integrated CRM tools.",
-    feature1: "Complete client profiles with contact history",
-    feature2: "Personalized client communication tools",
-    feature3: "Track client preferences and special requests",
-    feature4: "Integrated messaging and follow-up systems",
-    feature5: "Client segmentation for targeted marketing"
-  },
   tasks: {
     title: "Task Management",
     description: "Stay organized and boost productivity with our intuitive task management system.",
@@ -404,6 +408,15 @@ const en = {
     feature3: "Set priorities and deadlines for better focus",
     feature4: "Collaborate with team members on shared tasks",
     feature5: "Automated task reminders and notifications"
+  },
+  crm: {
+    title: "Customer Relationship Management",
+    description: "Build stronger client relationships with our integrated CRM tools.",
+    feature1: "Complete client profiles with contact history",
+    feature2: "Personalized client communication tools",
+    feature3: "Track client preferences and special requests",
+    feature4: "Integrated messaging and follow-up systems",
+    feature5: "Client segmentation for targeted marketing"
   },
   footer: {
     description: "Your all-in-one solution for business management, scheduling, and client relationships.",

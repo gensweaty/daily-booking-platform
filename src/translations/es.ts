@@ -1,3 +1,4 @@
+
 const es = {
   landing: {
     heroTitle: "Organiza tu día, potencia tu éxito.",
@@ -268,7 +269,7 @@ const es = {
     personal: "Servicios Personales",
     personalDesc: "Adecuado para consultores, coaches y proveedores de servicios personales.",
     education: "Educación",
-    educationDesc: "Para tutores, formadores e instituciones educativas.",
+    educationDesc: "Para tutores, formadores e instituciones educativas."
   },
   crm: {
     title: "CRM",
