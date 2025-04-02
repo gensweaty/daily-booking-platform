@@ -20,6 +20,7 @@ interface FileUploadFieldProps {
   setFileError: (error: string) => void;
   acceptedFileTypes?: string;
   hideLabel?: boolean;
+  hideDescription?: boolean; // Added to hide the description text
 }
 
 export const FileUploadField = ({ 
@@ -28,7 +29,8 @@ export const FileUploadField = ({
   fileError, 
   setFileError, 
   acceptedFileTypes, 
-  hideLabel = false 
+  hideLabel = false,
+  hideDescription = false
 }: FileUploadFieldProps) => {
   const { t } = useLanguage();
 
@@ -80,7 +82,7 @@ export const FileUploadField = ({
   };
 
   return (
-    <div className="space-y-2">
+    <div className={`${hideLabel && hideDescription ? '' : 'space-y-2'}`}>
       {!hideLabel && (
         <Label htmlFor="file" className="text-foreground">{t("calendar.attachment")}</Label>
       )}
@@ -98,11 +100,13 @@ export const FileUploadField = ({
       {fileError && (
         <p className="text-sm text-red-500 mt-1">{fileError}</p>
       )}
-      <p className="text-xs text-muted-foreground mt-1">
-        {t("calendar.maxSize")} ({formatBytes(MAX_FILE_SIZE_IMAGES)} for images, {formatBytes(MAX_FILE_SIZE_DOCS)} for documents)
-        <br />
-        {t("calendar.supportedFormats")}
-      </p>
+      {!hideDescription && (
+        <p className="text-xs text-muted-foreground mt-1">
+          {t("calendar.maxSize")} ({formatBytes(MAX_FILE_SIZE_IMAGES)} for images, {formatBytes(MAX_FILE_SIZE_DOCS)} for documents)
+          <br />
+          {t("calendar.supportedFormats")}
+        </p>
+      )}
     </div>
   );
 };

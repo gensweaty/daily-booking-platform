@@ -1,163 +1,179 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { BookingRequest } from "@/types/database";
 import { createBookingRequest } from "@/lib/api";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface BookingRequestFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   businessId: string;
-  selectedDate: Date;
-  startTime: string;
-  endTime: string;
-  onSuccess: () => void;
+  selectedDate?: Date | null;
+  onSuccess?: () => void;
 }
 
 export const BookingRequestForm = ({
+  open,
+  onOpenChange,
   businessId,
   selectedDate,
-  startTime,
-  endTime,
   onSuccess,
 }: BookingRequestFormProps) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [title, setTitle] = useState("");
-  const [userNumber, setUserNumber] = useState("");
-  const [socialNetworkLink, setSocialNetworkLink] = useState("");
-  const [eventNotes, setEventNotes] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("");
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState("");
-  const [startDate, setStartDate] = useState(() => {
-    const date = new Date(selectedDate);
-    const [hours, minutes] = startTime.split(':').map(Number);
-    date.setHours(hours, minutes, 0, 0);
-    return format(date, "yyyy-MM-dd'T'HH:mm");
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const date = new Date(selectedDate);
-    const [hours, minutes] = endTime.split(':').map(Number);
-    date.setHours(hours, minutes, 0, 0);
-    return format(date, "yyyy-MM-dd'T'HH:mm");
-  });
   const { user } = useAuth();
+  const { toast } = useToast();
   const { t } = useLanguage();
 
-  const formatDateWithTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toISOString();
+  // Format date to ISO string for input fields
+  const formatDateForInput = (date: Date) => {
+    return format(date, "yyyy-MM-dd'T'HH:mm");
   };
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const today = new Date();
+  const defaultStart = new Date(today);
+  defaultStart.setHours(9, 0, 0, 0);
+  
+  const defaultEnd = new Date(today);
+  defaultEnd.setHours(10, 0, 0, 0);
+
+  const [formData, setFormData] = useState({
+    name: user?.user_metadata?.name || "",
+    email: user?.email || "",
+    phone: "",
+    title: "",
+    description: "",
+    startDate: selectedDate ? formatDateForInput(selectedDate) : formatDateForInput(defaultStart),
+    endDate: selectedDate ? formatDateForInput(new Date(selectedDate.getTime() + 60 * 60 * 1000)) : formatDateForInput(defaultEnd),
+  });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.name) newErrors.name = "Name is required";
+    if (!formData.email) newErrors.email = "Email is required";
+    if (!formData.title) newErrors.title = "Title is required";
+    
+    // Validate dates
+    if (!formData.startDate) {
+      newErrors.startDate = "Start date is required";
+    }
+    
+    if (!formData.endDate) {
+      newErrors.endDate = "End date is required";
+    } else if (new Date(formData.endDate) <= new Date(formData.startDate)) {
+      newErrors.endDate = "End date must be after start date";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    // Clear error when field is corrected
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) {
-      toast({
-        title: "Error",
-        description: "Name is required",
-        variant: "destructive",
-      });
+    
+    if (!validateForm()) {
       return;
     }
 
     try {
       setIsSubmitting(true);
       
-      // Format dates
-      const startDateTime = formatDateWithTime(startDate);
-      const endDateTime = formatDateWithTime(endDate);
-      
-      // Check for time slot conflicts
-      const { data: conflictingEvents } = await supabase
-        .from('events')
-        .select('id, title, start_date, end_date')
-        .filter('start_date', 'lt', endDateTime)
-        .filter('end_date', 'gt', startDateTime);
-      
-      const { data: conflictingBookings } = await supabase
-        .from('booking_requests')
-        .select('id, title, start_date, end_date, status')
-        .eq('status', 'approved')
-        .filter('start_date', 'lt', endDateTime)
-        .filter('end_date', 'gt', startDateTime);
-      
-      if ((conflictingEvents && conflictingEvents.length > 0) || 
-          (conflictingBookings && conflictingBookings.length > 0)) {
-        toast({
-          title: "Time Slot Unavailable",
-          description: "This time slot is already booked. Please select a different time.",
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
-        return;
-      }
-      
-      // Create booking request
-      const bookingRequest = await createBookingRequest({
+      const bookingData: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id"> = {
         business_id: businessId,
-        title: title,
-        requester_name: title, // Using title (full name) as requester_name for consistency
-        requester_email: socialNetworkLink, // Using socialNetworkLink as email/contact
-        requester_phone: userNumber,
-        start_date: startDateTime,
-        end_date: endDateTime,
-        description: eventNotes // Ensure this matches the column name in the database
-      });
-
+        requester_name: formData.name,
+        requester_email: formData.email,
+        requester_phone: formData.phone,
+        title: formData.title,
+        description: formData.description,
+        start_date: new Date(formData.startDate).toISOString(),
+        end_date: new Date(formData.endDate).toISOString(),
+      };
+      
+      // Send the booking request
+      const createdBooking = await createBookingRequest(bookingData);
+      
       // Handle file upload if a file is selected
-      if (selectedFile && bookingRequest?.id) {
+      if (selectedFile && createdBooking?.id) {
         const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        const filePath = `booking_attachments/${crypto.randomUUID()}.${fileExt}`;
         
-        // Upload file to storage
         const { error: uploadError } = await supabase.storage
-          .from('booking_attachments')
+          .from('event_attachments')
           .upload(filePath, selectedFile);
 
         if (uploadError) {
           console.error('Error uploading file:', uploadError);
-          toast({
-            title: "File Upload Error",
-            description: "Your booking was created but the file couldn't be uploaded.",
-            variant: "destructive",
+          throw uploadError;
+        }
+        
+        const { error: insertError } = await supabase
+          .from('booking_attachments')
+          .insert({
+            booking_id: createdBooking.id,
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user?.id || null
           });
-        } else {
-          // Create file record
-          const { error: fileRecordError } = await supabase
-            .from('booking_files')
-            .insert({
-              booking_id: bookingRequest.id,
-              filename: selectedFile.name,
-              file_path: filePath,
-              content_type: selectedFile.type,
-              size: selectedFile.size,
-              user_id: user?.id || null
-            });
-
-          if (fileRecordError) {
-            console.error('Error creating file record:', fileRecordError);
-          }
+          
+        if (insertError) {
+          console.error('Error saving file data:', insertError);
+          // Don't throw here, we'll just continue with the booking
         }
       }
-
+      
       toast({
-        title: "Booking Request Submitted",
-        description: "Your booking request has been submitted successfully and is pending approval.",
+        title: t("bookings.requestSubmitted"),
+        description: t("bookings.requestSubmittedDesc"),
       });
       
-      onSuccess();
+      // Reset form and close dialog
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        title: "",
+        description: "",
+        startDate: formatDateForInput(defaultStart),
+        endDate: formatDateForInput(defaultEnd),
+      });
+      setSelectedFile(null);
+      onOpenChange(false);
+      
+      // Trigger success callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (error: any) {
-      console.error("Error submitting booking request:", error);
+      console.error('Error submitting booking request:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to submit booking request",
+        title: t("common.error"),
+        description: error.message || t("bookings.requestFailedDesc"),
         variant: "destructive",
       });
     } finally {
@@ -166,136 +182,117 @@ export const BookingRequestForm = ({
   };
 
   return (
-    <div className="space-y-4 p-1">
-      <h2 className="text-xl font-bold mb-4">{t("events.addNewEvent")}</h2>
-      <p className="text-sm text-muted-foreground mb-4">
-        For {format(selectedDate, "EEEE, MMMM d, yyyy")} from {startTime} to {endTime}
-      </p>
-      
-      <form onSubmit={onSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="title">{t("events.fullNameRequired")}</Label>
-          <Input
-            id="title"
-            placeholder={t("events.fullName")}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="number">{t("events.phoneNumber")}</Label>
-          <Input
-            id="number"
-            type="tel"
-            placeholder={t("events.phoneNumber")}
-            value={userNumber}
-            onChange={(e) => setUserNumber(e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="socialNetwork">{t("events.socialLinkEmail")}</Label>
-          <Input
-            id="socialNetwork"
-            type="text"
-            placeholder={t("events.socialLinkEmail")}
-            value={socialNetworkLink}
-            onChange={(e) => setSocialNetworkLink(e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>{t("events.dateAndTime")}</Label>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="startDate" className="text-sm text-muted-foreground mb-1">
-                {t("events.startDateTime")}
-              </Label>
-              <Input
-                id="startDate"
-                type="datetime-local"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-background border-input"
-              />
-            </div>
-            <div>
-              <Label htmlFor="endDate" className="text-sm text-muted-foreground mb-1">
-                {t("events.endDateTime")}
-              </Label>
-              <Input
-                id="endDate"
-                type="datetime-local"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-background border-input"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label>{t("events.paymentStatus")}</Label>
-          <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-            <SelectTrigger className="w-full bg-background border-input">
-              <SelectValue placeholder={t("events.selectPaymentStatus")} />
-            </SelectTrigger>
-            <SelectContent className="bg-popover border border-input shadow-md">
-              <SelectItem value="not_paid" className="text-foreground hover:bg-accent hover:text-accent-foreground">{t("crm.notPaid")}</SelectItem>
-              <SelectItem value="partly" className="text-foreground hover:bg-accent hover:text-accent-foreground">{t("crm.paidPartly")}</SelectItem>
-              <SelectItem value="fully" className="text-foreground hover:bg-accent hover:text-accent-foreground">{t("crm.paidFully")}</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
-            {t("events.paymentStatusNote")}
-          </p>
-        </div>
-
-        {(paymentStatus === 'partly' || paymentStatus === 'fully') && (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t("bookings.requestBooking")}</DialogTitle>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-2">
-            <Label htmlFor="paymentAmount">{t("events.paymentAmount")}</Label>
+            <Label htmlFor="name">{t("bookings.yourName")} *</Label>
             <Input
-              id="paymentAmount"
-              type="number"
-              step="0.01"
-              placeholder={t("events.enterAmount")}
-              value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-              className="bg-background border-input"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className={errors.name ? "border-red-500" : ""}
+            />
+            {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="email">{t("bookings.yourEmail")} *</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              className={errors.email ? "border-red-500" : ""}
+            />
+            {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="phone">{t("bookings.yourPhone")}</Label>
+            <Input
+              id="phone"
+              name="phone"
+              type="tel"
+              value={formData.phone}
+              onChange={handleChange}
             />
           </div>
-        )}
-
-        <div className="space-y-2">
-          <Label htmlFor="notes">{t("events.eventNotes")}</Label>
-          <Textarea
-            id="notes"
-            placeholder={t("events.addEventNotes")}
-            value={eventNotes}
-            onChange={(e) => setEventNotes(e.target.value)}
-            className="min-h-[80px] bg-background border-input"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>{t("events.attachmentOptional")}</Label>
+          
+          <div className="space-y-2">
+            <Label htmlFor="title">{t("bookings.appointmentTitle")} *</Label>
+            <Input
+              id="title"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              className={errors.title ? "border-red-500" : ""}
+            />
+            {errors.title && <p className="text-red-500 text-sm">{errors.title}</p>}
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="startDate">{t("bookings.startDateTime")} *</Label>
+              <Input
+                id="startDate"
+                name="startDate"
+                type="datetime-local"
+                value={formData.startDate}
+                onChange={handleChange}
+                className={errors.startDate ? "border-red-500" : ""}
+                min={formatDateForInput(new Date())}
+              />
+              {errors.startDate && <p className="text-red-500 text-sm">{errors.startDate}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="endDate">{t("bookings.endDateTime")} *</Label>
+              <Input
+                id="endDate"
+                name="endDate"
+                type="datetime-local"
+                value={formData.endDate}
+                onChange={handleChange}
+                className={errors.endDate ? "border-red-500" : ""}
+                min={formData.startDate || formatDateForInput(new Date())}
+              />
+              {errors.endDate && <p className="text-red-500 text-sm">{errors.endDate}</p>}
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="description">{t("bookings.description")}</Label>
+            <Textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              className="min-h-[100px]"
+            />
+          </div>
+          
           <FileUploadField 
             onChange={setSelectedFile}
             fileError={fileError}
             setFileError={setFileError}
+            hideLabel={true}
           />
-        </div>
-
-        <Button 
-          type="submit" 
-          className="w-full" 
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? t("common.submitting") : t("events.submitBookingRequest")}
-        </Button>
-      </form>
-    </div>
+          
+          <Button 
+            type="submit" 
+            className="w-full" 
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? t("common.submitting") : t("bookings.submitRequest")}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
