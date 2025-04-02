@@ -10,7 +10,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Info, Upload } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { FileDisplay } from "./FileDisplay";
 
 // Helper function to format bytes
@@ -27,10 +26,10 @@ const formatBytes = (bytes: number, decimals = 2) => {
 };
 
 interface FileUploadFieldProps {
-  label: string;
-  placeholder: string;
+  label?: string;
+  placeholder?: string;
   onChange: (file: File | null) => void;
-  value: File | null;
+  value?: File | null;
   error?: string;
   helperText?: string;
   accept?: string;
@@ -42,14 +41,19 @@ interface FileUploadFieldProps {
   displayedFiles?: any[];
   onFileDeleted?: (fileId: string) => void;
   setFileError?: (error: string) => void;
+  // For backward compatibility with existing code
+  onFileChange?: (file: File | null) => void;
+  fileError?: string;
 }
 
 export const FileUploadField = ({
-  label,
-  placeholder,
+  label = "Attachment",
+  placeholder = "Upload file",
   onChange,
+  onFileChange, // For backward compatibility
   value,
   error,
+  fileError, // For backward compatibility
   helperText,
   accept = "image/*,application/pdf",
   maxSizeMB = 5,
@@ -58,32 +62,40 @@ export const FileUploadField = ({
   parentId,
   parentType,
   displayedFiles,
-  onFileDeleted
+  onFileDeleted,
+  setFileError
 }: FileUploadFieldProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const acceptedTypes = accept.split(',').map(ext => ext.trim().replace(/^\./, ''));
-  const fieldId = `file-upload-${label.toLowerCase().replace(/\s+/g, '-')}`;
+  const fieldId = `file-upload-${(label || "").toLowerCase().replace(/\s+/g, '-')}`;
+
+  // Use either error or fileError, with error taking precedence
+  const displayError = error || fileError;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
 
     if (!file) {
-      onChange(null);
+      if (onChange) onChange(null);
+      if (onFileChange) onFileChange(null); // For backward compatibility
       return;
     }
 
     const maxSizeInBytes = maxSizeMB * 1024 * 1024;
     if (file.size > maxSizeInBytes) {
-      alert(`File size exceeds the maximum limit of ${maxSizeMB}MB.`);
+      const errorMsg = `File size exceeds the maximum limit of ${maxSizeMB}MB.`;
+      if (setFileError) setFileError(errorMsg);
+      alert(errorMsg);
       e.target.value = '';
       return;
     }
 
-    onChange(file);
+    if (onChange) onChange(file);
+    if (onFileChange) onFileChange(file); // For backward compatibility
   };
 
   const handleDelete = (fileId: string) => {
-    onFileDeleted?.(fileId);
+    if (onFileDeleted) onFileDeleted(fileId);
   };
 
   return (
@@ -124,7 +136,7 @@ export const FileUploadField = ({
             </Button>
           </div>
           
-          {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+          {displayError && <p className="text-sm font-medium text-destructive">{displayError}</p>}
           
           {value && (
             <p className="text-xs text-muted-foreground">{formatBytes(value.size)}</p>
@@ -136,8 +148,6 @@ export const FileUploadField = ({
               <FileDisplay 
                 files={displayedFiles} 
                 onFileDeleted={handleDelete}
-                parentId={parentId}
-                parentType={parentType} 
                 bucketName="customer_attachments"
                 allowDelete
               />

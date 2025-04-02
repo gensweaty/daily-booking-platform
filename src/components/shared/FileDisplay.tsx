@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "../ui/button";
@@ -16,9 +17,18 @@ interface FileDisplayProps {
   bucketName: "task_attachments" | "note_attachments" | "event_attachments" | "customer_attachments";
   allowDelete?: boolean;
   onFileDeleted?: (fileId: string) => void;
+  parentId?: string; // Make this optional since not all components pass it
+  parentType?: string; // Make this optional since not all components pass it
 }
 
-export const FileDisplay = ({ files, bucketName, allowDelete = false, onFileDeleted }: FileDisplayProps) => {
+export const FileDisplay = ({ 
+  files, 
+  bucketName, 
+  allowDelete = false, 
+  onFileDeleted,
+  parentId,
+  parentType
+}: FileDisplayProps) => {
   const [loadingFile, setLoadingFile] = useState<string | null>(null);
   const [deletingFile, setDeletingFile] = useState<string | null>(null);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
