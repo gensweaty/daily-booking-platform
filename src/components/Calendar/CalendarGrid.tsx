@@ -1,6 +1,7 @@
 
 import { format, isSameDay, isSameMonth, startOfWeek, addDays } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
+import { Calendar as CalendarIcon } from "lucide-react";
 
 interface CalendarGridProps {
   days: Date[];
@@ -54,15 +55,24 @@ export const CalendarGrid = ({
               .map((event) => (
                 <div
                   key={event.id}
-                  className={`text-sm p-1 rounded ${
-                    event.type === "birthday" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
+                  className={`text-sm p-1 rounded flex items-center ${
+                    event.type === "booking_request" 
+                      ? "bg-green-500 text-white" 
+                      : event.type === "birthday" 
+                        ? "bg-blue-100 text-blue-700" 
+                        : "bg-purple-100 text-purple-700"
                   } cursor-pointer truncate`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onEventClick?.(event);
                   }}
                 >
-                  {isExternalCalendar ? "Booked" : event.title}
+                  {event.type === "booking_request" && (
+                    <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
+                  )}
+                  <span className="truncate">
+                    {isExternalCalendar && event.type === "booking_request" ? "Booked" : event.title}
+                  </span>
                 </div>
               ))}
           </div>

@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -312,6 +311,7 @@ export const EventDialogFields = ({
         onFileChange={setSelectedFile}
         fileError={fileError}
         setFileError={setFileError}
+        hideLabel={true}
       />
     </div>
   );
