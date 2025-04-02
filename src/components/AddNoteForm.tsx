@@ -139,9 +139,8 @@ export const AddNoteForm = ({ onClose }: { onClose: () => void }) => {
           {content.length}/{MAX_CHARS} characters
         </div>
         <FileUploadField
-          onChange={setFile}
-          value={file}
-          error={fileError}
+          onFileChange={setFile}
+          fileError={fileError}
           setFileError={setFileError}
         />
         <Button type="submit" className="w-full bg-primary hover:bg-primary/90">Add Note</Button>

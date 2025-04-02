@@ -1,4 +1,3 @@
-
 import { Note } from "@/lib/types";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
@@ -124,9 +123,8 @@ export const EditNoteDialog = ({
             </div>
           )}
           <FileUploadField 
-            onChange={setSelectedFile}
-            value={selectedFile}
-            error={fileError}
+            onFileChange={setSelectedFile}
+            fileError={fileError}
             setFileError={setFileError}
           />
           <Button onClick={handleSave} className="w-full">

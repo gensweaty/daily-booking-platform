@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,9 +71,11 @@ export const BookingRequestForm = ({
     try {
       setIsSubmitting(true);
       
+      // Format dates
       const startDateTime = formatDateWithTime(startDate);
       const endDateTime = formatDateWithTime(endDate);
       
+      // Check for time slot conflicts
       const { data: conflictingEvents } = await supabase
         .from('events')
         .select('id, title, start_date, end_date')
@@ -97,21 +100,24 @@ export const BookingRequestForm = ({
         return;
       }
       
+      // Create booking request
       const bookingRequest = await createBookingRequest({
         business_id: businessId,
         title: title,
-        requester_name: title,
-        requester_email: socialNetworkLink,
+        requester_name: title, // Using title (full name) as requester_name for consistency
+        requester_email: socialNetworkLink, // Using socialNetworkLink as email/contact
         requester_phone: userNumber,
         start_date: startDateTime,
         end_date: endDateTime,
-        description: eventNotes
+        description: eventNotes // Ensure this matches the column name in the database
       });
 
+      // Handle file upload if a file is selected
       if (selectedFile && bookingRequest?.id) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
+        // Upload file to storage
         const { error: uploadError } = await supabase.storage
           .from('booking_attachments')
           .upload(filePath, selectedFile);
@@ -124,6 +130,7 @@ export const BookingRequestForm = ({
             variant: "destructive",
           });
         } else {
+          // Create file record
           const { error: fileRecordError } = await supabase
             .from('booking_files')
             .insert({
@@ -276,9 +283,8 @@ export const BookingRequestForm = ({
         <div className="space-y-2">
           <Label>{t("events.attachmentOptional")}</Label>
           <FileUploadField 
-            onChange={setSelectedFile}
-            value={selectedFile}
-            error={fileError}
+            onFileChange={setSelectedFile}
+            fileError={fileError}
             setFileError={setFileError}
           />
         </div>

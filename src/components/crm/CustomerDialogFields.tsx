@@ -340,12 +340,9 @@ export const CustomerDialogFields = ({
       )}
 
       <FileUploadField 
-        onChange={setSelectedFile}
-        value={selectedFile}
-        error={fileError}
+        onFileChange={setSelectedFile}
+        fileError={fileError}
         setFileError={setFileError}
-        label="Attachment"
-        placeholder="Upload file"
       />
     </div>
   );
