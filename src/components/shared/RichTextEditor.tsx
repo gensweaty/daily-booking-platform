@@ -5,6 +5,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import Underline from '@tiptap/extension-underline';
+import Placeholder from '@tiptap/extension-placeholder';
 import { Button } from '../ui/button';
 import { Bold, Underline as UnderlineIcon, List, Type, Smile } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
@@ -17,9 +18,10 @@ interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
   onBlur?: () => void;
+  placeholder?: string;
 }
 
-const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur }: RichTextEditorProps) {
+const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur, placeholder }: RichTextEditorProps) {
   const prevContentRef = useRef(content);
   const isUserEditingRef = useRef(false);
 
@@ -33,7 +35,15 @@ const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur 
   );
 
   const extensions = useMemo(() => [
-    StarterKit,
+    StarterKit.configure({
+      heading: {
+        levels: [1, 2, 3],
+      },
+      placeholder: placeholder ? {
+        placeholder: placeholder,
+        emptyEditorClass: 'is-editor-empty',
+      } : undefined,
+    }),
     TaskList.configure({
       HTMLAttributes: {
         class: 'not-prose pl-2',
@@ -48,7 +58,7 @@ const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur 
     TextStyle,
     Color,
     Underline,
-  ], []);
+  ], [placeholder]);
 
   const editor = useEditor({
     extensions,
