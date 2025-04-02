@@ -154,6 +154,15 @@ const en = {
     day: "Day",
     week: "Week",
     month: "Month",
+    totalTasks: "Total Tasks",
+    completed: "Completed",
+    inProgress: "In Progress",
+    todo: "To Do",
+    totalEvents: "Total Events",
+    partlyPaid: "Partly Paid",
+    fullyPaid: "Fully Paid",
+    totalIncome: "Total Income",
+    fromAllEvents: "From All Events",
   },
   events: {
     addNewEvent: "Add New Event",
@@ -182,6 +191,13 @@ const en = {
     paymentStatusNote: "Payment status will be set after your booking is approved"
   },
   tasks: {
+    title: "Task Management",
+    description: "Stay organized and boost productivity with our intuitive task management system.",
+    feature1: "Create and organize tasks with custom categories",
+    feature2: "Track progress with visual kanban boards",
+    feature3: "Set priorities and deadlines for better focus",
+    feature4: "Collaborate with team members on shared tasks",
+    feature5: "Automated task reminders and notifications",
     newTask: "New Task",
     addTask: "Add Task",
     editTask: "Edit Task",
@@ -300,6 +316,12 @@ const en = {
   crm: {
     title: "Customer Relationship Management",
     subtitle: "Manage your customer interactions and relationships.",
+    description: "Build stronger client relationships with our integrated CRM tools.",
+    feature1: "Complete client profiles with contact history",
+    feature2: "Personalized client communication tools",
+    feature3: "Track client preferences and special requests",
+    feature4: "Integrated messaging and follow-up systems",
+    feature5: "Client segmentation for targeted marketing",
     customerName: "Customer Name",
     customerEmail: "Customer Email",
     customerPhone: "Customer Phone",
@@ -399,24 +421,6 @@ const en = {
     feature3: "Analyze booking patterns to optimize your schedule",
     feature4: "Generate professional reports for business decisions",
     feature5: "Custom dashboard with key performance indicators"
-  },
-  tasks: {
-    title: "Task Management",
-    description: "Stay organized and boost productivity with our intuitive task management system.",
-    feature1: "Create and organize tasks with custom categories",
-    feature2: "Track progress with visual kanban boards",
-    feature3: "Set priorities and deadlines for better focus",
-    feature4: "Collaborate with team members on shared tasks",
-    feature5: "Automated task reminders and notifications"
-  },
-  crm: {
-    title: "Customer Relationship Management",
-    description: "Build stronger client relationships with our integrated CRM tools.",
-    feature1: "Complete client profiles with contact history",
-    feature2: "Personalized client communication tools",
-    feature3: "Track client preferences and special requests",
-    feature4: "Integrated messaging and follow-up systems",
-    feature5: "Client segmentation for targeted marketing"
   },
   footer: {
     description: "Your all-in-one solution for business management, scheduling, and client relationships.",

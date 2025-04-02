@@ -18,23 +18,28 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
   const t = (key: string): string => {
     if (!key) return '';
     
-    const keys = key.split('.');
-    let result: any = translations[language];
-    
-    // Navigate through the translation object using the keys
-    for (const k of keys) {
-      if (!result || typeof result !== 'object') {
-        console.warn(`Translation key not found: ${key}`);
-        return key; // Return the key if we can't navigate further
+    try {
+      const keys = key.split('.');
+      let result: any = translations[language];
+      
+      // Navigate through the translation object using the keys
+      for (const k of keys) {
+        if (!result || typeof result !== 'object') {
+          console.warn(`Translation key not found: ${key} (at ${k})`);
+          return key; // Return the key if we can't navigate further
+        }
+        result = result[k];
       }
-      result = result[k];
-    }
-    
-    // Return the translated string or fallback to the key
-    if (typeof result === 'string') {
-      return result;
-    } else {
-      console.warn(`Translation missing for key: ${key}`);
+      
+      // Return the translated string or fallback to the key
+      if (typeof result === 'string') {
+        return result;
+      } else {
+        console.warn(`Translation missing for key: ${key}`);
+        return key;
+      }
+    } catch (error) {
+      console.error(`Error getting translation for key: ${key}`, error);
       return key;
     }
   };
