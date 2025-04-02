@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -64,7 +63,6 @@ export const Calendar = ({
   const isLoading = !directEvents && isLoadingFromHook;
   
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
-  const [bookingStartTime, setBookingStartTime] = useState("09:00");
   const [bookingDate, setBookingDate] = useState<Date | undefined>(undefined);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -192,8 +190,6 @@ export const Calendar = ({
     
     if (isExternalCalendar && allowBookingRequests) {
       setBookingDate(clickedDate);
-      const formattedHour = hour?.toString().padStart(2, '0') || '09';
-      setBookingStartTime(`${formattedHour}:00`);
       setIsBookingFormOpen(true);
     } else if (!isExternalCalendar) {
       setDialogSelectedDate(clickedDate);
@@ -313,10 +309,10 @@ export const Calendar = ({
           <DialogContent className="max-w-md">
             {bookingDate && businessId && (
               <BookingRequestForm
+                open={isBookingFormOpen}
+                onOpenChange={setIsBookingFormOpen}
                 businessId={businessId}
                 selectedDate={bookingDate}
-                startTime={bookingStartTime}
-                endTime={`${parseInt(bookingStartTime.split(':')[0]) + 1}:00`}
                 onSuccess={handleBookingSuccess}
               />
             )}

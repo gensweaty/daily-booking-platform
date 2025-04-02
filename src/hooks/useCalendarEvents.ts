@@ -379,61 +379,87 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.error("Error checking for booking request:", error);
     }
     
-    const { data: customer, error: customerError } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('title', selectedEvent?.title || '')
-      .eq('start_date', selectedEvent?.start_date || '')
-      .eq('end_date', selectedEvent?.end_date || '')
-      .maybeSingle();
+    // Find potentially related customer
+    try {
+      // Get the event first to use its data
+      const { data: eventData, error: eventError } = await supabase
+        .from('events')
+        .select('title, start_date, end_date')
+        .eq('id', id)
+        .maybeSingle();
+      
+      if (eventError) {
+        console.error('Error finding event:', eventError);
+        // Continue with deletion even if we can't find the event data
+      } else if (eventData) {
+        // Check for associated customer using event data
+        const { data: customer, error: customerError } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('title', eventData.title)
+          .eq('start_date', eventData.start_date)
+          .eq('end_date', eventData.end_date)
+          .maybeSingle();
 
-    if (customerError && customerError.code !== 'PGRST116') {
-      console.error('Error finding associated customer:', customerError);
-      throw customerError;
-    }
+        if (customerError && customerError.code !== 'PGRST116') {
+          console.error('Error finding associated customer:', customerError);
+          // Don't throw, continue with deletion
+        }
 
-    if (customer) {
-      const { error: updateError } = await supabase
-        .from('customers')
-        .update({
-          start_date: null,
-          end_date: null
-        })
-        .eq('id', customer.id);
+        if (customer) {
+          const { error: updateError } = await supabase
+            .from('customers')
+            .update({
+              start_date: null,
+              end_date: null
+            })
+            .eq('id', customer.id);
 
-      if (updateError) {
-        console.error('Error updating customer:', updateError);
-        throw updateError;
-      }
-    }
-
-    const { data: files } = await supabase
-      .from('event_files')
-      .select('*')
-      .eq('event_id', id);
-
-    if (files && files.length > 0) {
-      for (const file of files) {
-        const { error: storageError } = await supabase.storage
-          .from('event_attachments')
-          .remove([file.file_path]);
-
-        if (storageError) {
-          console.error('Error deleting file from storage:', storageError);
+          if (updateError) {
+            console.error('Error updating customer:', updateError);
+            // Don't throw, continue with deletion
+          }
         }
       }
-
-      const { error: filesDeleteError } = await supabase
-        .from('event_files')
-        .delete()
-        .eq('event_id', id);
-
-      if (filesDeleteError) {
-        console.error('Error deleting file records:', filesDeleteError);
-        throw filesDeleteError;
-      }
+    } catch (error) {
+      console.error('Error handling customer association:', error);
+      // Continue with deletion even if customer handling fails
     }
 
+    // Check for and delete associated files
+    try {
+      const { data: files } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', id);
+
+      if (files && files.length > 0) {
+        for (const file of files) {
+          const { error: storageError } = await supabase.storage
+            .from('event_attachments')
+            .remove([file.file_path]);
+
+          if (storageError) {
+            console.error('Error deleting file from storage:', storageError);
+          }
+        }
+
+        const { error: filesDeleteError } = await supabase
+          .from('event_files')
+          .delete()
+          .eq('event_id', id);
+
+        if (filesDeleteError) {
+          console.error('Error deleting file records:', filesDeleteError);
+          // Don't throw, continue with deletion
+        }
+      }
+    } catch (error) {
+      console.error('Error handling file deletion:', error);
+      // Continue with deletion even if file handling fails
+    }
+
+    // Finally delete the event
     const { error } = await supabase
       .from('events')
       .delete()
@@ -481,95 +507,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   });
 
   const updateEventMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
-      if (!user) throw new Error("User must be authenticated to update events");
-      
-      if (updates.start_date && updates.end_date) {
-        const startDateTime = new Date(updates.start_date);
-        const endDateTime = new Date(updates.end_date);
-        
-        const { available, conflictDetails } = await checkTimeSlotAvailability(
-          startDateTime,
-          endDateTime,
-          id
-        );
-        
-        if (!available) {
-          throw new Error(`Time slot already booked: ${conflictDetails}`);
-        }
-      }
-      
-      if (updates.type === 'booking_request' || (updates.id && id.includes('-'))) {
-        try {
-          const { data: bookingData, error: bookingError } = await supabase
-            .from('booking_requests')
-            .select('*')
-            .eq('id', id)
-            .maybeSingle();
-          
-          if (!bookingError && bookingData) {
-            console.log("Updating booking request:", id);
-            const { data: updatedBooking, error: updateError } = await supabase
-              .from('booking_requests')
-              .update({
-                title: updates.title,
-                requester_name: updates.user_surname,
-                requester_phone: updates.user_number,
-                requester_email: updates.social_network_link,
-                description: updates.event_notes,
-                start_date: updates.start_date,
-                end_date: updates.end_date,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', id)
-              .select()
-              .single();
-              
-            if (updateError) throw updateError;
-            
-            toast({
-              title: "Booking updated",
-              description: "The booking request has been updated successfully."
-            });
-            
-            return {
-              id: updatedBooking.id,
-              title: updatedBooking.title,
-              start_date: updatedBooking.start_date,
-              end_date: updatedBooking.end_date,
-              user_id: updatedBooking.user_id || '',
-              user_surname: updatedBooking.requester_name,
-              user_number: updatedBooking.requester_phone || '',
-              social_network_link: updatedBooking.requester_email,
-              event_notes: updatedBooking.description || '',
-              type: 'booking_request',
-              created_at: updatedBooking.created_at,
-              requester_name: updatedBooking.requester_name,
-              requester_email: updatedBooking.requester_email,
-              requester_phone: updatedBooking.requester_phone || '',
-            } as CalendarEventType;
-          }
-        } catch (error) {
-          console.error("Error checking for booking request:", error);
-        }
-      }
-      
-      const { data, error } = await supabase
-        .from('events')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      toast({
-        title: "Event updated",
-        description: "Your event has been updated successfully."
-      });
-      
-      return data;
-    },
+    mutationFn: updateEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
@@ -607,44 +545,65 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.error("Error checking for booking request:", error);
       }
       
-      const { data: customer, error: customerError } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('title', selectedEvent?.title || '')
-        .eq('start_date', selectedEvent?.start_date || '')
-        .eq('end_date', selectedEvent?.end_date || '')
-        .maybeSingle();
+      // Find potentially related customer
+      try {
+        // Get the event first to use its data
+        const { data: eventData, error: eventError } = await supabase
+          .from('events')
+          .select('title, start_date, end_date')
+          .eq('id', id)
+          .maybeSingle();
+        
+        if (eventError) {
+          console.error('Error finding event:', eventError);
+          // Continue with deletion even if we can't find the event data
+        } else if (eventData) {
+          // Check for associated customer using event data
+          const { data: customer, error: customerError } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('title', eventData.title)
+            .eq('start_date', eventData.start_date)
+            .eq('end_date', eventData.end_date)
+            .maybeSingle();
 
-      if (customerError && customerError.code !== 'PGRST116') {
-        console.error('Error finding associated customer:', customerError);
-        throw customerError;
-      }
+          if (customerError && customerError.code !== 'PGRST116') {
+            console.error('Error finding associated customer:', customerError);
+            // Don't throw, continue with deletion
+          }
 
-      if (customer) {
-        const { error: updateError } = await supabase
-          .from('customers')
-          .update({
-            start_date: null,
-            end_date: null
-          })
-          .eq('id', customer.id);
+          if (customer) {
+            const { error: updateError } = await supabase
+              .from('customers')
+              .update({
+                start_date: null,
+                end_date: null
+              })
+              .eq('id', customer.id);
 
-        if (updateError) {
-          console.error('Error updating customer:', updateError);
-          throw updateError;
+            if (updateError) {
+              console.error('Error updating customer:', updateError);
+              // Don't throw, continue with deletion
+            }
+          }
         }
+      } catch (error) {
+        console.error('Error handling customer association:', error);
+        // Continue with deletion even if customer handling fails
       }
 
-      const { data: files } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', id);
+      // Check for and delete associated files
+      try {
+        const { data: files } = await supabase
+          .from('event_files')
+          .select('*')
+          .eq('event_id', id);
 
-      if (files && files.length > 0) {
-        for (const file of files) {
-          const { error: storageError } = await supabase.storage
-            .from('event_attachments')
-            .remove([file.file_path]);
+        if (files && files.length > 0) {
+          for (const file of files) {
+            const { error: storageError } = await supabase.storage
+              .from('event_attachments')
+              .remove([file.file_path]);
 
           if (storageError) {
             console.error('Error deleting file from storage:', storageError);
@@ -658,14 +617,19 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
         if (filesDeleteError) {
           console.error('Error deleting file records:', filesDeleteError);
-          throw filesDeleteError;
+          // Don't throw, continue with deletion
         }
       }
+    } catch (error) {
+      console.error('Error handling file deletion:', error);
+      // Continue with deletion even if file handling fails
+    }
 
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', id);
+    // Finally delete the event
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', id);
 
       if (error) throw error;
       

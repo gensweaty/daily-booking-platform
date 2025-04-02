@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -15,10 +14,12 @@ import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface BookingRequestFormProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   businessId: string;
   selectedDate?: Date | null;
+  startTime?: string;
+  endTime?: string;
   onSuccess?: () => void;
 }
 
@@ -27,6 +28,8 @@ export const BookingRequestForm = ({
   onOpenChange,
   businessId,
   selectedDate,
+  startTime,
+  endTime,
   onSuccess,
 }: BookingRequestFormProps) => {
   const { user } = useAuth();
@@ -45,14 +48,32 @@ export const BookingRequestForm = ({
   const defaultEnd = new Date(today);
   defaultEnd.setHours(10, 0, 0, 0);
 
+  // Use provided startTime and endTime if available
+  let startDateTime = selectedDate ? new Date(selectedDate) : new Date(defaultStart);
+  let endDateTime = selectedDate ? new Date(selectedDate) : new Date(defaultEnd);
+  
+  if (selectedDate && startTime) {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    startDateTime.setHours(hours, minutes, 0, 0);
+  }
+  
+  if (selectedDate && endTime) {
+    const [hours, minutes] = endTime.split(':').map(Number);
+    endDateTime.setHours(hours, minutes, 0, 0);
+  } else if (selectedDate && !endTime && startTime) {
+    // Default to 1 hour duration if only start time is provided
+    const [hours, minutes] = startTime.split(':').map(Number);
+    endDateTime.setHours(hours + 1, minutes, 0, 0);
+  }
+
   const [formData, setFormData] = useState({
     name: user?.user_metadata?.name || "",
     email: user?.email || "",
     phone: "",
     title: "",
     description: "",
-    startDate: selectedDate ? formatDateForInput(selectedDate) : formatDateForInput(defaultStart),
-    endDate: selectedDate ? formatDateForInput(new Date(selectedDate.getTime() + 60 * 60 * 1000)) : formatDateForInput(defaultEnd),
+    startDate: formatDateForInput(startDateTime),
+    endDate: formatDateForInput(endDateTime),
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -163,7 +184,7 @@ export const BookingRequestForm = ({
         endDate: formatDateForInput(defaultEnd),
       });
       setSelectedFile(null);
-      onOpenChange(false);
+      onOpenChange?.(false);
       
       // Trigger success callback if provided
       if (onSuccess) {
@@ -282,6 +303,7 @@ export const BookingRequestForm = ({
             fileError={fileError}
             setFileError={setFileError}
             hideLabel={true}
+            hideDescription={true}
           />
           
           <Button 
