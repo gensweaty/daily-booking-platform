@@ -33,6 +33,23 @@ export const CalendarGrid = ({
   // Convert formattedSelectedDate string back to a Date for comparison
   const selectedDate = new Date(formattedSelectedDate);
 
+  // Get event color based on type and whether it's an external calendar
+  const getEventStyles = (event: CalendarEventType) => {
+    if (event.type === "booking_request") {
+      return "bg-green-500 text-white"; // Always green for booking requests regardless of calendar type
+    } else if (isExternalCalendar) {
+      return "bg-green-500 text-white"; // Make all events green in external calendar
+    } else {
+      // For internal calendar, differentiate event types by color
+      switch (event.type) {
+        case "birthday":
+          return "bg-blue-100 text-blue-700";
+        default:
+          return "bg-purple-100 text-purple-700";
+      }
+    }
+  };
+
   return (
     <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
       {weekDays.map((day) => (
@@ -55,22 +72,14 @@ export const CalendarGrid = ({
               .map((event) => (
                 <div
                   key={event.id}
-                  className={`text-sm p-1 rounded flex items-center ${
-                    event.type === "booking_request" 
-                      ? "bg-green-500 text-white" 
-                      : event.type === "birthday" 
-                        ? "bg-blue-100 text-blue-700" 
-                        : "bg-purple-100 text-purple-700"
-                  } cursor-pointer truncate`}
+                  className={`text-sm p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onEventClick?.(event);
                   }}
                 >
-                  {event.type === "booking_request" && (
-                    <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
-                  )}
-                  <span className="truncate">
+                  <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
+                  <span className="truncate font-medium">
                     {isExternalCalendar && event.type === "booking_request" ? "Booked" : event.title}
                   </span>
                 </div>
