@@ -129,40 +129,44 @@ const Index = () => {
     );
   }
 
-  const content = user ? (
-    <motion.div 
-      className="min-h-screen bg-background p-4"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {showTrialExpired && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-        >
-          <TrialExpiredDialog />
-        </motion.div>
-      )}
-      <motion.div variants={childVariants}>
-        <DashboardHeader username={username} />
-      </motion.div>
-      <motion.div variants={childVariants}>
-        <DashboardContent 
-          isTaskDialogOpen={isTaskDialogOpen}
-          setIsTaskDialogOpen={setIsTaskDialogOpen}
-        />
-      </motion.div>
-    </motion.div>
-  ) : (
+  return (
+    // Wrap everything in the LanguageProvider to ensure it's available for both
+    // logged in and logged out states
     <LanguageProvider>
-      <CursorFollower />
-      <AuthUI />
+      {user ? (
+        <motion.div 
+          className="min-h-screen bg-background p-4"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {showTrialExpired && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+            >
+              <TrialExpiredDialog />
+            </motion.div>
+          )}
+          <motion.div variants={childVariants}>
+            <DashboardHeader username={username} />
+          </motion.div>
+          <motion.div variants={childVariants}>
+            <DashboardContent 
+              isTaskDialogOpen={isTaskDialogOpen}
+              setIsTaskDialogOpen={setIsTaskDialogOpen}
+            />
+          </motion.div>
+        </motion.div>
+      ) : (
+        <>
+          <CursorFollower />
+          <AuthUI />
+        </>
+      )}
     </LanguageProvider>
   );
-
-  return content;
 }
 
 export default Index;
