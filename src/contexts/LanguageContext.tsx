@@ -31,7 +31,12 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     }
     
     // Return the translated string or fallback to the key
-    return typeof result === 'string' ? result : key;
+    if (typeof result === 'string') {
+      return result;
+    } else {
+      console.warn(`Translation missing for key: ${key}`);
+      return key;
+    }
   };
 
   return (

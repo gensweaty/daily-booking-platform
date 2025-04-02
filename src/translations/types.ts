@@ -131,6 +131,105 @@ export type TranslationType = {
     supportedFormats: string;
     weekOf: string;
   };
+  features: {
+    title: string;
+    mainTitle: string;
+    booking: string;
+    tasks: string;
+    crm: string;
+    analytics: string;
+    businessTitle: string;
+  };
+  booking: {
+    title: string;
+    description: string;
+    feature1: string;
+    feature2: string;
+    feature3: string;
+    feature4: string;
+  };
+  analytics: {
+    title: string;
+    description: string;
+    feature1: string;
+    feature2: string;
+    feature3: string;
+    feature4: string;
+    feature5: string;
+  };
+  tasks: {
+    title: string;
+    description: string;
+    feature1: string;
+    feature2: string;
+    feature3: string;
+    feature4: string;
+    feature5: string;
+  };
+  crm: {
+    title: string;
+    description: string;
+    feature1: string;
+    feature2: string;
+    feature3: string;
+    feature4: string;
+    feature5: string;
+  };
+  business: {
+    title: string;
+    subtitle: string;
+    createBusiness: string;
+    editBusiness: string;
+    businessName: string;
+    businessDescription: string;
+    contactInformation: string;
+    phone: string;
+    email: string;
+    address: string;
+    website: string;
+    save: string;
+    cancel: string;
+    previewWebsite: string;
+    bookings: string;
+    pendingBookings: string;
+    approvedBookings: string;
+    rejectedBookings: string;
+    bookingTitle: string;
+    bookingDate: string;
+    bookingTime: string;
+    bookingStatus: string;
+    bookingContact: string;
+    approveBooking: string;
+    rejectBooking: string;
+    deleteBooking: string;
+    viewBooking: string;
+    bookingDetails: string;
+    bookingApproved: string;
+    bookingRejected: string;
+    bookingDeleted: string;
+    publicPageUrl: string;
+    copy: string;
+    copied: string;
+    events: string;
+    eventsDesc: string;
+    health: string;
+    healthDesc: string;
+    sports: string;
+    sportsDesc: string;
+    beauty: string;
+    beautyDesc: string;
+    personal: string;
+    personalDesc: string;
+    education: string;
+    educationDesc: string;
+  };
+  footer: {
+    description: string;
+    navigation: string;
+    legal: string;
+    termsAndPrivacy: string;
+    rights: string;
+  };
   [key: string]: any;  // Allow for other sections to be added
 };
 

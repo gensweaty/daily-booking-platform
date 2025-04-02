@@ -306,7 +306,7 @@ const en = {
     notPaid: "Not Paid",
     paidPartly: "Paid Partially",
     paidFully: "Paid Fully",
-    paymentStatusNote: "Payment status will be set after your booking is approved",
+    paymentStatusNote: "Payment status will be set after your booking is approved"
   },
   common: {
     loading: "Loading...",
@@ -361,6 +361,57 @@ const en = {
     unpaidBookings: "Unpaid Bookings",
     partiallyPaidBookings: "Partially Paid Bookings",
   },
+  features: {
+    title: "Explore Features",
+    mainTitle: "Powerful Features to Boost Your Business",
+    booking: "Smart Booking",
+    tasks: "Task Management",
+    crm: "CRM Solution",
+    analytics: "Analytics",
+    businessTitle: "Perfect for All Types of Businesses",
+  },
+  booking: {
+    title: "Smart Booking Calendar",
+    description: "Effortlessly manage appointments and bookings with our intuitive calendar system.",
+    feature1: "Easy appointment scheduling and management",
+    feature2: "Automated reminders to reduce no-shows",
+    feature3: "Client self-booking portal for 24/7 availability",
+    feature4: "Customizable booking rules and availability"
+  },
+  analytics: {
+    title: "Business Analytics",
+    description: "Gain valuable insights into your business performance with comprehensive data analytics.",
+    feature1: "Track revenue and booking trends over time",
+    feature2: "Monitor client acquisition and retention rates",
+    feature3: "Analyze booking patterns to optimize your schedule",
+    feature4: "Generate professional reports for business decisions",
+    feature5: "Custom dashboard with key performance indicators"
+  },
+  crm: {
+    title: "Customer Relationship Management",
+    description: "Build stronger client relationships with our integrated CRM tools.",
+    feature1: "Complete client profiles with contact history",
+    feature2: "Personalized client communication tools",
+    feature3: "Track client preferences and special requests",
+    feature4: "Integrated messaging and follow-up systems",
+    feature5: "Client segmentation for targeted marketing"
+  },
+  tasks: {
+    title: "Task Management",
+    description: "Stay organized and boost productivity with our intuitive task management system.",
+    feature1: "Create and organize tasks with custom categories",
+    feature2: "Track progress with visual kanban boards",
+    feature3: "Set priorities and deadlines for better focus",
+    feature4: "Collaborate with team members on shared tasks",
+    feature5: "Automated task reminders and notifications"
+  },
+  footer: {
+    description: "Your all-in-one solution for business management, scheduling, and client relationships.",
+    navigation: "Navigation",
+    legal: "Legal",
+    termsAndPrivacy: "Terms & Privacy",
+    rights: "© 2024 SmartBookly. All rights reserved."
+  }
 };
 
 export default en;

@@ -257,6 +257,18 @@ const es = {
     publicPageUrl: "URL de la Página Pública",
     copy: "Copiar",
     copied: "Copiado",
+    events: "Planificación de Eventos",
+    eventsDesc: "Perfecto para organizadores de eventos, coordinadores de bodas y organizadores de fiestas.",
+    health: "Salud y Medicina",
+    healthDesc: "Ideal para médicos, terapeutas y otros profesionales de la salud.",
+    sports: "Deportes y Fitness",
+    sportsDesc: "Excelente para entrenadores personales, coaches y instructores de fitness.",
+    beauty: "Belleza y Bienestar",
+    beautyDesc: "Diseñado para salones, spas y profesionales del bienestar.",
+    personal: "Servicios Personales",
+    personalDesc: "Adecuado para consultores, coaches y proveedores de servicios personales.",
+    education: "Educación",
+    educationDesc: "Para tutores, formadores e instituciones educativas.",
   },
   crm: {
     title: "CRM",
@@ -335,6 +347,57 @@ const es = {
     unpaidBookings: "Reservas No Pagadas",
     partiallyPaidBookings: "Reservas Parcialmente Pagadas",
   },
+  features: {
+    title: "Explorar Características",
+    mainTitle: "Potentes Funciones para Impulsar tu Negocio",
+    booking: "Reservas Inteligentes",
+    tasks: "Gestión de Tareas",
+    crm: "Solución CRM",
+    analytics: "Analítica",
+    businessTitle: "Perfecto para Todo Tipo de Negocios",
+  },
+  booking: {
+    title: "Calendario de Reservas Inteligente",
+    description: "Gestiona citas y reservas sin esfuerzo con nuestro intuitivo sistema de calendario.",
+    feature1: "Programación y gestión sencilla de citas",
+    feature2: "Recordatorios automáticos para reducir inasistencias",
+    feature3: "Portal de auto-reserva para clientes disponible 24/7",
+    feature4: "Reglas de reserva y disponibilidad personalizables"
+  },
+  analytics: {
+    title: "Análisis de Negocio",
+    description: "Obtén información valiosa sobre el rendimiento de tu negocio con análisis de datos completos.",
+    feature1: "Seguimiento de ingresos y tendencias de reservas",
+    feature2: "Monitoreo de tasas de adquisición y retención de clientes",
+    feature3: "Análisis de patrones de reserva para optimizar tu agenda",
+    feature4: "Generación de informes profesionales para decisiones empresariales",
+    feature5: "Panel personalizado con indicadores clave de rendimiento"
+  },
+  crm: {
+    title: "Gestión de Relaciones con Clientes",
+    description: "Construye relaciones más sólidas con los clientes mediante nuestras herramientas CRM integradas.",
+    feature1: "Perfiles completos de clientes con historial de contactos",
+    feature2: "Herramientas de comunicación personalizada con clientes",
+    feature3: "Seguimiento de preferencias y solicitudes especiales de clientes",
+    feature4: "Sistemas integrados de mensajería y seguimiento",
+    feature5: "Segmentación de clientes para marketing dirigido"
+  },
+  tasks: {
+    title: "Gestión de Tareas",
+    description: "Mantente organizado y aumenta la productividad con nuestro intuitivo sistema de gestión de tareas.",
+    feature1: "Crea y organiza tareas con categorías personalizadas",
+    feature2: "Seguimiento del progreso con tableros kanban visuales",
+    feature3: "Establece prioridades y plazos para un mejor enfoque",
+    feature4: "Colabora con miembros del equipo en tareas compartidas",
+    feature5: "Recordatorios de tareas y notificaciones automáticas"
+  },
+  footer: {
+    description: "Tu solución todo en uno para gestión empresarial, programación y relaciones con clientes.",
+    navigation: "Navegación",
+    legal: "Legal",
+    termsAndPrivacy: "Términos y Privacidad",
+    rights: "© 2024 SmartBookly. Todos los derechos reservados."
+  }
 };
 
 export default es;
