@@ -1,13 +1,7 @@
 
 export type Language = 'en' | 'es';
 
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (language: Language) => void;
-  t: (key: string) => string;
-}
-
-export interface TranslationType {
+export type TranslationType = {
   landing: {
     heroTitle: string;
     heroSubtitle: string;
@@ -42,6 +36,8 @@ export interface TranslationType {
     footerRights: string;
   };
   auth: {
+    welcome: string;
+    description: string;
     signIn: string;
     signUp: string;
     emailLabel: string;
@@ -57,7 +53,9 @@ export interface TranslationType {
     forgotPasswordDescription: string;
     sendResetInstructions: string;
     loading: string;
-    passwordMismatch: string;
+    signingUp: string;
+    passwordsDoNotMatch: string;
+    passwordTooShort: string;
     passwordRequirements: string;
     backToLogin: string;
     resetPassword: string;
@@ -66,25 +64,45 @@ export interface TranslationType {
     resetPasswordButton: string;
     passwordResetSuccess: string;
   };
-  dashboard: {
-    welcome: string;
-    greeting: string;
-    goodMorning: string;
-    goodAfternoon: string;
-    goodEvening: string;
-    overview: string;
-    calendar: string;
-    tasks: string;
-    reminders: string;
-    notes: string;
-    business: string;
-    stats: string;
-    crm: string;
-    signOut: string;
-    darkMode: string;
-    lightMode: string;
-    systemMode: string;
-    more: string;
+  nav: {
+    signin: string;
+    signup: string;
+    startJourney: string;
+    contact: string;
+  };
+  hero: {
+    title: string;
+    subtitle: string;
+    description: string;
+  };
+  cta: {
+    title: string;
+    subtitle: string;
+    button: string;
+  };
+  contact: {
+    getInTouch: string;
+    contactInfo: string;
+    email: string;
+    phone: string;
+    address: string;
+    addressLine1: string;
+    addressLine2: string;
+    businessHours: string;
+    workingHours: string;
+    weekendHours: string;
+    sendMessage: string;
+    name: string;
+    namePlaceholder: string;
+    emailPlaceholder: string;
+    message: string;
+    messagePlaceholder: string;
+    send: string;
+    sending: string;
+    messageSent: string;
+    messageSentDesc: string;
+    error: string;
+    errorDesc: string;
   };
   calendar: {
     settings: string;
@@ -96,6 +114,7 @@ export interface TranslationType {
     previous: string;
     next: string;
     addEvent: string;
+    bookNow: string;
     editEvent: string;
     deleteEvent: string;
     eventTitle: string;
@@ -107,213 +126,16 @@ export interface TranslationType {
     cancel: string;
     timezone: string;
     showCompletedTasks: string;
+    attachment: string;
+    maxSize: string;
+    supportedFormats: string;
+    weekOf: string;
   };
-  events: {
-    addNewEvent: string;
-    editEvent: string;
-    fullNameRequired: string;
-    fullName: string;
-    phoneNumber: string;
-    socialLinkEmail: string;
-    dateAndTime: string;
-    startDateTime: string;
-    endDateTime: string;
-    paymentStatus: string;
-    selectPaymentStatus: string;
-    eventNotes: string;
-    addEventNotes: string;
-    createEvent: string;
-    updateEvent: string;
-    deleteEvent: string;
-    eventDeleted: string;
-    submitBookingRequest: string;
-    bookingCreated: string;
-    bookingRequested: string;
-    attachmentOptional: string;
-    paymentAmount: string;
-    enterAmount: string;
-    paymentStatusNote: string;
-  };
-  tasks: {
-    newTask: string;
-    addTask: string;
-    editTask: string;
-    deleteTask: string;
-    taskTitle: string;
-    taskDescription: string;
-    taskStatus: string;
-    taskDueDate: string;
-    todo: string;
-    inProgress: string;
-    done: string;
-    moveToInProgress: string;
-    moveToTodo: string;
-    moveToDone: string;
-    search: string;
-    filterStatus: string;
-    filterAll: string;
-    filterTodo: string;
-    filterInProgress: string;
-    filterDone: string;
-  };
-  reminders: {
-    newReminder: string;
-    addReminder: string;
-    editReminder: string;
-    deleteReminder: string;
-    reminderTitle: string;
-    reminderDescription: string;
-    reminderDateTime: string;
-    reminderDate: string;
-    reminderTime: string;
-    save: string;
-    cancel: string;
-    delete: string;
-    upcoming: string;
-    past: string;
-    all: string;
-    today: string;
-    tomorrow: string;
-    thisWeek: string;
-    later: string;
-    notificationTitle: string;
-  };
-  notes: {
-    newNote: string;
-    addNote: string;
-    editNote: string;
-    deleteNote: string;
-    noteTitle: string;
-    noteContent: string;
-    save: string;
-    cancel: string;
-    delete: string;
-    search: string;
-    filterCategory: string;
-    filterAll: string;
-    personal: string;
-    work: string;
-    ideas: string;
-    sortBy: string;
-    oldest: string;
-    newest: string;
-    alphabetical: string;
-    viewMode: string;
-    grid: string;
-    list: string;
-  };
-  business: {
-    title: string;
-    subtitle: string;
-    createBusiness: string;
-    editBusiness: string;
-    businessName: string;
-    businessDescription: string;
-    contactInformation: string;
-    phone: string;
-    email: string;
-    address: string;
-    website: string;
-    save: string;
-    cancel: string;
-    previewWebsite: string;
-    bookings: string;
-    pendingBookings: string;
-    approvedBookings: string;
-    rejectedBookings: string;
-    bookingTitle: string;
-    bookingDate: string;
-    bookingTime: string;
-    bookingStatus: string;
-    bookingContact: string;
-    approveBooking: string;
-    rejectBooking: string;
-    deleteBooking: string;
-    viewBooking: string;
-    bookingDetails: string;
-    bookingApproved: string;
-    bookingRejected: string;
-    bookingDeleted: string;
-    publicPageUrl: string;
-    copy: string;
-    copied: string;
-  };
-  crm: {
-    title: string;
-    subtitle: string;
-    customerName: string;
-    customerEmail: string;
-    customerPhone: string;
-    customerAddress: string;
-    addCustomer: string;
-    editCustomer: string;
-    deleteCustomer: string;
-    viewCustomer: string;
-    customerDetails: string;
-    customerSince: string;
-    lastContact: string;
-    notes: string;
-    addNote: string;
-    notFound: string;
-    searchCustomers: string;
-    newCustomer: string;
-    notPaid: string;
-    paidPartly: string;
-    paidFully: string;
-    paymentStatusNote: string;
-  };
-  common: {
-    loading: string;
-    error: string;
-    success: string;
-    save: string;
-    cancel: string;
-    delete: string;
-    edit: string;
-    view: string;
-    add: string;
-    search: string;
-    filter: string;
-    sort: string;
-    noResults: string;
-    noData: string;
-    back: string;
-    next: string;
-    previous: string;
-    confirm: string;
-    reject: string;
-    approve: string;
-    submitting: string;
-  };
-  stats: {
-    title: string;
-    subtitle: string;
-    total: string;
-    today: string;
-    thisWeek: string;
-    thisMonth: string;
-    customers: string;
-    bookings: string;
-    revenue: string;
-    events: string;
-    tasks: string;
-    reminders: string;
-    notes: string;
-    exportToExcel: string;
-    dateRange: string;
-    customRange: string;
-    from: string;
-    to: string;
-    apply: string;
-    reset: string;
-    totalBookings: string;
-    pendingBookings: string;
-    approvedBookings: string;
-    rejectedBookings: string;
-    totalIncome: string;
-    paidBookings: string;
-    unpaidBookings: string;
-    partiallyPaidBookings: string;
-  };
-}
+  [key: string]: any;  // Allow for other sections to be added
+};
 
+export type LanguageContextType = {
+  language: Language;
+  setLanguage: React.Dispatch<React.SetStateAction<Language>>;
+  t: (key: string) => string;
+};
