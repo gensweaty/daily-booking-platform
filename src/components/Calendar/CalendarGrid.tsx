@@ -1,18 +1,21 @@
+
 import { format, isSameDay, isSameMonth, startOfWeek, addDays } from "date-fns";
-import { CalendarEvent } from "@/lib/types";
+import { CalendarEventType } from "@/lib/types/calendar";
 
 interface CalendarGridProps {
   days: Date[];
-  events: CalendarEvent[];
-  selectedDate: Date;
-  onDayClick: (date: Date) => void;
-  onEventClick: (event: CalendarEvent) => void;
+  events: CalendarEventType[];
+  formattedSelectedDate: string;
+  view: string;
+  onDayClick?: (date: Date, hour?: number) => void;
+  onEventClick?: (event: CalendarEventType) => void;
 }
 
 export const CalendarGrid = ({
   days,
   events,
-  selectedDate,
+  formattedSelectedDate,
+  view,
   onDayClick,
   onEventClick,
 }: CalendarGridProps) => {
@@ -23,6 +26,9 @@ export const CalendarGrid = ({
   const weekDays = Array.from({ length: 7 }, (_, i) => 
     format(addDays(startDate, i), 'EEE')
   );
+
+  // Convert formattedSelectedDate string back to a Date for comparison
+  const selectedDate = new Date(formattedSelectedDate);
 
   return (
     <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
@@ -37,7 +43,7 @@ export const CalendarGrid = ({
           className={`bg-white p-4 min-h-[120px] cursor-pointer hover:bg-gray-50 ${
             !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
           }`}
-          onClick={() => onDayClick(day)}
+          onClick={() => onDayClick?.(day)}
         >
           <div className="font-medium">{format(day, "d")}</div>
           <div className="mt-2 space-y-1">
@@ -51,7 +57,7 @@ export const CalendarGrid = ({
                   } cursor-pointer truncate`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onEventClick(event);
+                    onEventClick?.(event);
                   }}
                 >
                   {event.title}
