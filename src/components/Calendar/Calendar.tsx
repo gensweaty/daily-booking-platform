@@ -328,10 +328,10 @@ export const Calendar = ({
         </>
       )}
 
-      {isExternalCalendar && allowBookingRequests && (
+      {isExternalCalendar && allowBookingRequests && businessId && (
         <Dialog open={isBookingFormOpen} onOpenChange={setIsBookingFormOpen}>
           <DialogContent className="max-w-md">
-            {bookingDate && businessId && (
+            {bookingDate && (
               <BookingRequestForm
                 open={isBookingFormOpen}
                 onOpenChange={setIsBookingFormOpen}
