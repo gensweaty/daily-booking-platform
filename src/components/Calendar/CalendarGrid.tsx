@@ -35,19 +35,12 @@ export const CalendarGrid = ({
 
   // Get event color based on type and whether it's an external calendar
   const getEventStyles = (event: CalendarEventType) => {
-    // Always use green for external calendar events
-    if (isExternalCalendar) {
-      return "bg-green-500 text-white";
+    if (event.type === "booking_request") {
+      return "bg-green-500 text-white"; // Booking requests are always green
+    } else if (event.type === "birthday") {
+      return "bg-blue-100 text-blue-700";
     } else {
-      // For internal calendar, differentiate event types by color
-      switch (event.type) {
-        case "booking_request":
-          return "bg-green-500 text-white"; // Booking requests are always green
-        case "birthday":
-          return "bg-blue-100 text-blue-700";
-        default:
-          return "bg-purple-100 text-purple-700";
-      }
+      return "bg-purple-100 text-purple-700";
     }
   };
 
@@ -61,6 +54,85 @@ export const CalendarGrid = ({
     return event.title;
   };
 
+  // For week and day view, we need to render hours
+  if (view === 'week' || view === 'day') {
+    return (
+      <div className="grid grid-cols-1 md:grid-rows-24 h-full overflow-y-auto">
+        {/* Render a grid with hours */}
+        {Array.from({ length: 24 }).map((_, hourIndex) => (
+          <div 
+            key={hourIndex} 
+            className="grid grid-cols-7 border-b border-gray-200 min-h-[60px]"
+            style={{ gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(7, 1fr)' }}
+          >
+            {days.map((day) => (
+              <div
+                key={`${day.toISOString()}-${hourIndex}`}
+                className={`border-r border-gray-200 p-1 relative ${
+                  !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
+                }`}
+                onClick={() => onDayClick?.(day, hourIndex)}
+              >
+                {/* Only show hour on the first column */}
+                {day === days[0] && (
+                  <div className="absolute -left-10 top-0 text-xs font-medium text-gray-500">
+                    {hourIndex}:00
+                  </div>
+                )}
+                
+                {/* Render events that start in this hour */}
+                {events
+                  .filter((event) => {
+                    const eventDate = new Date(event.start_date);
+                    return (
+                      isSameDay(eventDate, day) && 
+                      eventDate.getHours() === hourIndex
+                    );
+                  })
+                  .map((event) => {
+                    const startTime = new Date(event.start_date);
+                    const endTime = new Date(event.end_date);
+                    const durationHours = Math.max(
+                      1, 
+                      Math.ceil(
+                        (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)
+                      )
+                    );
+                    
+                    return (
+                      <div
+                        key={event.id}
+                        className={`${getEventStyles(event)} p-1 text-xs rounded cursor-pointer mb-1`}
+                        style={{ 
+                          height: `${Math.min(durationHours, 24 - hourIndex) * 100}%`,
+                          minHeight: '20px' 
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEventClick?.(event);
+                        }}
+                      >
+                        <div className="flex items-center">
+                          <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
+                          <span className="truncate font-medium">
+                            {getEventTitle(event)}
+                          </span>
+                        </div>
+                        <div className="truncate">
+                          {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Month view (default)
   return (
     <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
       {weekDays.map((day) => (

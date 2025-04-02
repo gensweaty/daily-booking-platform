@@ -14,14 +14,22 @@ const ALLOWED_DOC_TYPES = [
 ];
 
 interface FileUploadFieldProps {
-  onFileChange: (file: File | null) => void;
+  onChange: (file: File | null) => void;
+  onFileChange?: (file: File | null) => void; // For backward compatibility
   fileError: string;
   setFileError: (error: string) => void;
   acceptedFileTypes?: string;
   hideLabel?: boolean;
 }
 
-export const FileUploadField = ({ onFileChange, fileError, setFileError, acceptedFileTypes, hideLabel = false }: FileUploadFieldProps) => {
+export const FileUploadField = ({ 
+  onChange, 
+  onFileChange, 
+  fileError, 
+  setFileError, 
+  acceptedFileTypes, 
+  hideLabel = false 
+}: FileUploadFieldProps) => {
   const { t } = useLanguage();
 
   const validateFile = (file: File) => {
@@ -40,6 +48,19 @@ export const FileUploadField = ({ onFileChange, fileError, setFileError, accepte
     return null;
   };
 
+  // Format bytes to human-readable size
+  const formatBytes = (bytes: number, decimals = 2) => {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+    
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault(); // Prevent default behavior
     const selectedFile = e.target.files?.[0];
@@ -49,10 +70,12 @@ export const FileUploadField = ({ onFileChange, fileError, setFileError, accepte
       const error = validateFile(selectedFile);
       if (error) {
         setFileError(error);
-        onFileChange(null);
+        if (onChange) onChange(null);
+        if (onFileChange) onFileChange(null);
         return;
       }
-      onFileChange(selectedFile);
+      if (onChange) onChange(selectedFile);
+      if (onFileChange) onFileChange(selectedFile);
     }
   };
 
@@ -76,7 +99,7 @@ export const FileUploadField = ({ onFileChange, fileError, setFileError, accepte
         <p className="text-sm text-red-500 mt-1">{fileError}</p>
       )}
       <p className="text-xs text-muted-foreground mt-1">
-        {t("calendar.maxSize")}
+        {t("calendar.maxSize")} ({formatBytes(MAX_FILE_SIZE_IMAGES)} for images, {formatBytes(MAX_FILE_SIZE_DOCS)} for documents)
         <br />
         {t("calendar.supportedFormats")}
       </p>

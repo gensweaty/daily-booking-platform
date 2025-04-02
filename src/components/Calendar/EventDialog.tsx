@@ -20,6 +20,7 @@ interface EventDialogProps {
   onSubmit: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   onDelete?: () => void;
   event?: CalendarEventType;
+  isBookingRequest?: boolean;
 }
 
 export const EventDialog = ({
@@ -29,6 +30,7 @@ export const EventDialog = ({
   onSubmit,
   onDelete,
   event,
+  isBookingRequest = false
 }: EventDialogProps) => {
   const [title, setTitle] = useState(event?.title || "");
   const [userSurname, setUserSurname] = useState(event?.user_surname || "");
@@ -309,6 +311,7 @@ export const EventDialog = ({
             eventId={event?.id}
             onFileDeleted={handleFileDeleted}
             displayedFiles={displayedFiles}
+            isBookingRequest={isBookingRequest}
           />
           
           <div className="flex justify-between gap-4">
