@@ -1,3 +1,4 @@
+
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
@@ -39,10 +40,6 @@ const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur,
       heading: {
         levels: [1, 2, 3],
       },
-      placeholder: placeholder ? {
-        placeholder: placeholder,
-        emptyEditorClass: 'is-editor-empty',
-      } : undefined,
     }),
     TaskList.configure({
       HTMLAttributes: {
@@ -58,7 +55,11 @@ const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur,
     TextStyle,
     Color,
     Underline,
-  ], [placeholder]);
+    placeholder ? Placeholder.configure({
+      placeholder,
+      emptyEditorClass: 'is-editor-empty',
+    }) : null,
+  ].filter(Boolean), [placeholder]);
 
   const editor = useEditor({
     extensions,
