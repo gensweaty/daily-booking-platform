@@ -35,19 +35,30 @@ export const CalendarGrid = ({
 
   // Get event color based on type and whether it's an external calendar
   const getEventStyles = (event: CalendarEventType) => {
-    if (event.type === "booking_request") {
-      return "bg-green-500 text-white"; // Always green for booking requests regardless of calendar type
-    } else if (isExternalCalendar) {
-      return "bg-green-500 text-white"; // Make all events green in external calendar
+    // Always use green for external calendar events
+    if (isExternalCalendar) {
+      return "bg-green-500 text-white";
     } else {
       // For internal calendar, differentiate event types by color
       switch (event.type) {
+        case "booking_request":
+          return "bg-green-500 text-white"; // Booking requests are always green
         case "birthday":
           return "bg-blue-100 text-blue-700";
         default:
           return "bg-purple-100 text-purple-700";
       }
     }
+  };
+
+  // Get event title based on whether it's an external calendar
+  const getEventTitle = (event: CalendarEventType): string => {
+    // For external calendar, always display as "Booked"
+    if (isExternalCalendar) {
+      return "Booked";
+    }
+    // For internal calendar, display the actual title
+    return event.title;
   };
 
   return (
@@ -80,7 +91,7 @@ export const CalendarGrid = ({
                 >
                   <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
                   <span className="truncate font-medium">
-                    {isExternalCalendar && event.type === "booking_request" ? "Booked" : event.title}
+                    {getEventTitle(event)}
                   </span>
                 </div>
               ))}
