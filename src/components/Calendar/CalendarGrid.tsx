@@ -56,13 +56,19 @@ export const CalendarGrid = ({
 
   // For week and day view, we need to render hours
   if (view === 'week' || view === 'day') {
+    // Reorder hours to start from 6 AM to match the TimeIndicator component
+    const HOURS = [
+      ...Array.from({ length: 18 }, (_, i) => i + 6), // 6 AM to 23 PM
+      ...Array.from({ length: 6 }, (_, i) => i) // 0 AM to 5 AM
+    ];
+    
     return (
       <div className="grid grid-cols-1 md:grid-rows-24 h-full overflow-y-auto">
         {/* Render a grid with hours */}
-        {Array.from({ length: 24 }).map((_, hourIndex) => (
+        {HOURS.map((hourIndex) => (
           <div 
             key={hourIndex} 
-            className="grid grid-cols-7 border-b border-gray-200 min-h-[60px]"
+            className="grid grid-cols-7 border-b border-gray-200 h-20"
             style={{ gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(7, 1fr)' }}
           >
             {days.map((day) => (
@@ -73,13 +79,6 @@ export const CalendarGrid = ({
                 }`}
                 onClick={() => onDayClick?.(day, hourIndex)}
               >
-                {/* Only show hour on the first column */}
-                {day === days[0] && (
-                  <div className="absolute -left-10 top-0 text-xs font-medium text-gray-500">
-                    {hourIndex}:00
-                  </div>
-                )}
-                
                 {/* Render events that start in this hour */}
                 {events
                   .filter((event) => {

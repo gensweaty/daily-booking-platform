@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { format } from "date-fns";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface BookingRequestFormProps {
   open?: boolean;
@@ -71,9 +73,11 @@ export const BookingRequestForm = ({
     email: user?.email || "",
     phone: "",
     title: "",
+    socialLink: "",
     description: "",
     startDate: formatDateForInput(startDateTime),
     endDate: formatDateForInput(endDateTime),
+    paymentStatus: "not_paid",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -169,8 +173,8 @@ export const BookingRequestForm = ({
       }
       
       toast({
-        title: t("bookings.requestSubmitted"),
-        description: t("bookings.requestSubmittedDesc"),
+        title: "Booking Request Submitted",
+        description: "Your booking request has been submitted successfully.",
       });
       
       // Reset form and close dialog
@@ -179,9 +183,11 @@ export const BookingRequestForm = ({
         email: "",
         phone: "",
         title: "",
+        socialLink: "",
         description: "",
         startDate: formatDateForInput(defaultStart),
         endDate: formatDateForInput(defaultEnd),
+        paymentStatus: "not_paid",
       });
       setSelectedFile(null);
       onOpenChange?.(false);
@@ -193,8 +199,8 @@ export const BookingRequestForm = ({
     } catch (error: any) {
       console.error('Error submitting booking request:', error);
       toast({
-        title: t("common.error"),
-        description: error.message || t("bookings.requestFailedDesc"),
+        title: "Error",
+        description: error.message || "Failed to submit booking request. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -206,12 +212,12 @@ export const BookingRequestForm = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{t("bookings.requestBooking")}</DialogTitle>
+          <DialogTitle>Request Booking</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-2">
-            <Label htmlFor="name">{t("bookings.yourName")} *</Label>
+            <Label htmlFor="name">Your Name *</Label>
             <Input
               id="name"
               name="name"
@@ -223,7 +229,7 @@ export const BookingRequestForm = ({
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="email">{t("bookings.yourEmail")} *</Label>
+            <Label htmlFor="email">Your Email *</Label>
             <Input
               id="email"
               name="email"
@@ -236,7 +242,7 @@ export const BookingRequestForm = ({
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="phone">{t("bookings.yourPhone")}</Label>
+            <Label htmlFor="phone">Your Phone</Label>
             <Input
               id="phone"
               name="phone"
@@ -247,7 +253,7 @@ export const BookingRequestForm = ({
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="title">{t("bookings.appointmentTitle")} *</Label>
+            <Label htmlFor="title">Appointment Title *</Label>
             <Input
               id="title"
               name="title"
@@ -258,9 +264,19 @@ export const BookingRequestForm = ({
             {errors.title && <p className="text-red-500 text-sm">{errors.title}</p>}
           </div>
           
+          <div className="space-y-2">
+            <Label htmlFor="socialLink">Social Link or Email</Label>
+            <Input
+              id="socialLink"
+              name="socialLink"
+              value={formData.socialLink}
+              onChange={handleChange}
+            />
+          </div>
+          
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="startDate">{t("bookings.startDateTime")} *</Label>
+              <Label htmlFor="startDate">Start Date & Time *</Label>
               <Input
                 id="startDate"
                 name="startDate"
@@ -273,7 +289,7 @@ export const BookingRequestForm = ({
               {errors.startDate && <p className="text-red-500 text-sm">{errors.startDate}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="endDate">{t("bookings.endDateTime")} *</Label>
+              <Label htmlFor="endDate">End Date & Time *</Label>
               <Input
                 id="endDate"
                 name="endDate"
@@ -288,7 +304,26 @@ export const BookingRequestForm = ({
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="description">{t("bookings.description")}</Label>
+            <Label htmlFor="paymentStatus">Payment Status</Label>
+            <Select 
+              name="paymentStatus"
+              value={formData.paymentStatus}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, paymentStatus: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select payment status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="not_paid">Not Paid</SelectItem>
+                <SelectItem value="partly_paid">Paid Partially</SelectItem>
+                <SelectItem value="paid">Paid Fully</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Payment status will be set after your booking is approved</p>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
               name="description"
@@ -311,7 +346,7 @@ export const BookingRequestForm = ({
             className="w-full" 
             disabled={isSubmitting}
           >
-            {isSubmitting ? t("common.submitting") : t("bookings.submitRequest")}
+            {isSubmitting ? "Submitting..." : "Submit Request"}
           </Button>
         </form>
       </DialogContent>

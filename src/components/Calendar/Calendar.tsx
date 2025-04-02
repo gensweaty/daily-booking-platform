@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -10,6 +11,7 @@ import {
   subMonths,
   setHours,
   startOfDay,
+  format,
 } from "date-fns";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
@@ -64,6 +66,8 @@ export const Calendar = ({
   
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
   const [bookingDate, setBookingDate] = useState<Date | undefined>(undefined);
+  const [bookingStartTime, setBookingStartTime] = useState<string>("");
+  const [bookingEndTime, setBookingEndTime] = useState<string>("");
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -190,6 +194,16 @@ export const Calendar = ({
     
     if (isExternalCalendar && allowBookingRequests) {
       setBookingDate(clickedDate);
+      
+      // Format the time for the form
+      const startHour = format(clickedDate, "HH:mm");
+      const endDate = new Date(clickedDate);
+      endDate.setHours(clickedDate.getHours() + 1);
+      const endHour = format(endDate, "HH:mm");
+      
+      setBookingStartTime(startHour);
+      setBookingEndTime(endHour);
+      
       setIsBookingFormOpen(true);
     } else if (!isExternalCalendar) {
       setDialogSelectedDate(clickedDate);
@@ -201,6 +215,16 @@ export const Calendar = ({
     if (isExternalCalendar && allowBookingRequests) {
       const now = new Date();
       setBookingDate(now);
+      
+      // Default to current hour and next hour
+      const startHour = format(now, "HH:mm");
+      const endDate = new Date(now);
+      endDate.setHours(now.getHours() + 1);
+      const endHour = format(endDate, "HH:mm");
+      
+      setBookingStartTime(startHour);
+      setBookingEndTime(endHour);
+      
       setIsBookingFormOpen(true);
     } else if (!isExternalCalendar) {
       const now = new Date();
@@ -313,6 +337,8 @@ export const Calendar = ({
                 onOpenChange={setIsBookingFormOpen}
                 businessId={businessId}
                 selectedDate={bookingDate}
+                startTime={bookingStartTime}
+                endTime={bookingEndTime}
                 onSuccess={handleBookingSuccess}
               />
             )}
