@@ -25,22 +25,12 @@ export const CalendarView = ({
   isExternalCalendar = false 
 }: CalendarViewProps) => {
   const { t } = useLanguage();
-  const [normalizedEvents, setNormalizedEvents] = useState<CalendarEventType[]>([]);
+  const [normalizedEvents, setNormalizedEvents] = useState<CalendarEventType[]>(events);
   
-  // When events change or isExternalCalendar changes, normalize events for display
+  // When events change, update normalized events
   useEffect(() => {
-    if (isExternalCalendar) {
-      // For external calendar, replace all titles with "Booked"
-      const modifiedEvents = events.map(event => ({
-        ...event,
-        title: t("events.booked") || "Booked"
-      }));
-      setNormalizedEvents(modifiedEvents);
-    } else {
-      // For internal calendar, use original events
-      setNormalizedEvents(events);
-    }
-  }, [events, isExternalCalendar, t]);
+    setNormalizedEvents(events);
+  }, [events]);
 
   const formattedSelectedDate = formatDate(selectedDate, "yyyy-MM-dd");
 
@@ -53,6 +43,7 @@ export const CalendarView = ({
         view={view}
         onDayClick={onDayClick}
         onEventClick={onEventClick}
+        isExternalCalendar={isExternalCalendar}
       />
     </div>
   );

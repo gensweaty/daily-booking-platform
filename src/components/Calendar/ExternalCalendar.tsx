@@ -69,15 +69,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         console.log(`[External Calendar] Fetched ${regularEvents?.length || 0} regular events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
         
-        // Log first event of each type for debugging if available
-        if (regularEvents && regularEvents.length > 0) {
-          console.log("Sample regular event data:", JSON.stringify(regularEvents[0]));
-        }
-        
-        if (approvedBookings && approvedBookings.length > 0) {
-          console.log("Sample approved booking data:", JSON.stringify(approvedBookings[0]));
-        }
-        
         // Convert booking requests to calendar events format with full details
         const bookingEvents: CalendarEventType[] = (approvedBookings || []).map(booking => ({
           id: booking.id,

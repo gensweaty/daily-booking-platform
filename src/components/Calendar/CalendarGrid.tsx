@@ -9,6 +9,7 @@ interface CalendarGridProps {
   view: string;
   onDayClick?: (date: Date, hour?: number) => void;
   onEventClick?: (event: CalendarEventType) => void;
+  isExternalCalendar?: boolean;
 }
 
 export const CalendarGrid = ({
@@ -18,6 +19,7 @@ export const CalendarGrid = ({
   view,
   onDayClick,
   onEventClick,
+  isExternalCalendar = false,
 }: CalendarGridProps) => {
   // Get the start of the week for proper alignment
   const startDate = startOfWeek(days[0]);
@@ -60,7 +62,7 @@ export const CalendarGrid = ({
                     onEventClick?.(event);
                   }}
                 >
-                  {event.title}
+                  {isExternalCalendar ? "Booked" : event.title}
                 </div>
               ))}
           </div>
