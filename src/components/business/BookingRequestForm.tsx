@@ -40,6 +40,7 @@ export const BookingRequestForm = ({
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,7 +140,7 @@ export const BookingRequestForm = ({
     }
   };
 
-  const handleFileSelected = (file: File | null) => {
+  const handleFileChange = (file: File | null) => {
     setSelectedFile(file);
   };
 
@@ -265,11 +266,10 @@ export const BookingRequestForm = ({
         
         <div>
           <FileUploadField
-            onFileSelected={handleFileSelected}
-            fileTypes="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            maxSize={2}
-            buttonText="Choose File"
-            selectedFile={selectedFile}
+            onChange={handleFileChange}
+            fileError={fileError}
+            setFileError={setFileError}
+            acceptedFileTypes="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           />
           <p className="text-xs text-muted-foreground mt-1">
             Max size: Images 2MB, Documents 1MB (2 MB for images, 1 MB for documents)
