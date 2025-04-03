@@ -43,6 +43,21 @@ export const BookingRequestForm = ({
   const [fileError, setFileError] = useState("");
   const { toast } = useToast();
 
+  // Generate time options for select dropdown
+  const generateTimeOptions = () => {
+    const options = [];
+    for (let hour = 0; hour < 24; hour++) {
+      for (let min = 0; min < 60; min += 15) {
+        const formattedHour = hour.toString().padStart(2, '0');
+        const formattedMin = min.toString().padStart(2, '0');
+        options.push(`${formattedHour}:${formattedMin}`);
+      }
+    }
+    return options;
+  };
+  
+  const timeOptions = generateTimeOptions();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -190,33 +205,49 @@ export const BookingRequestForm = ({
           />
         </div>
         
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <div>
-            <Label htmlFor="startDate">Start Date & Time *</Label>
-            <div className="flex space-x-2">
-              <Input
-                id="startDate"
-                type="text"
-                value={`${date} ${start}`}
-                readOnly
-                className="bg-muted"
-                required
-              />
-            </div>
+            <Label htmlFor="date">Date *</Label>
+            <Input
+              id="date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="bg-background"
+              required
+            />
           </div>
           
           <div>
-            <Label htmlFor="endDate">End Date & Time *</Label>
-            <div className="flex space-x-2">
-              <Input
-                id="endDate"
-                type="text" 
-                value={`${date} ${end}`}
-                readOnly
-                className="bg-muted"
-                required
-              />
-            </div>
+            <Label htmlFor="startTime">Start Time *</Label>
+            <Select value={start} onValueChange={setStart}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select start time" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[200px] overflow-y-auto">
+                {timeOptions.map((time) => (
+                  <SelectItem key={`start-${time}`} value={time}>
+                    {time}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label htmlFor="endTime">End Time *</Label>
+            <Select value={end} onValueChange={setEnd}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select end time" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[200px] overflow-y-auto">
+                {timeOptions.map((time) => (
+                  <SelectItem key={`end-${time}`} value={time}>
+                    {time}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         
