@@ -63,72 +63,77 @@ export const CalendarGrid = ({
     ];
     
     return (
-      <div className="grid grid-cols-1 md:grid-rows-24 h-full overflow-y-auto">
-        {/* Render a grid with hours */}
-        {HOURS.map((hourIndex) => (
-          <div 
-            key={hourIndex} 
-            className="grid border-b border-gray-200 h-24"
-            style={{ 
-              gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(7, 1fr)',
-            }}
-          >
-            {days.map((day) => (
-              <div
-                key={`${day.toISOString()}-${hourIndex}`}
-                className={`border-r border-gray-200 p-1 relative ${
-                  !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
-                }`}
-                onClick={() => onDayClick?.(day, hourIndex)}
-              >
-                {/* Render events that start in this hour */}
-                {events
-                  .filter((event) => {
-                    const eventDate = new Date(event.start_date);
-                    return (
-                      isSameDay(eventDate, day) && 
-                      eventDate.getHours() === hourIndex
-                    );
-                  })
-                  .map((event) => {
-                    const startTime = new Date(event.start_date);
-                    const endTime = new Date(event.end_date);
-                    const durationHours = Math.max(
-                      1, 
-                      Math.ceil(
-                        (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)
-                      )
-                    );
-                    
-                    return (
-                      <div
-                        key={event.id}
-                        className={`${getEventStyles(event)} p-2 rounded cursor-pointer absolute top-0 left-1 right-1 overflow-hidden`}
-                        style={{ 
-                          height: `${Math.min(durationHours * 24, 24)}px`,
-                          zIndex: 10
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEventClick?.(event);
-                        }}
-                      >
-                        <div className="flex items-center">
-                          <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
-                          <span className="truncate font-medium">
-                            {getEventTitle(event)}
-                          </span>
+      <div className="grid grid-cols-1 h-full overflow-y-auto">
+        <div className="grid" style={{ 
+          gridTemplateRows: `repeat(${HOURS.length}, 6rem)`,
+          height: `${HOURS.length * 6}rem`
+        }}>
+          {HOURS.map((hourIndex, rowIndex) => (
+            <div 
+              key={hourIndex} 
+              className="grid border-b border-gray-200"
+              style={{ 
+                gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(7, 1fr)',
+                height: '6rem'
+              }}
+            >
+              {days.map((day) => (
+                <div
+                  key={`${day.toISOString()}-${hourIndex}`}
+                  className={`border-r border-gray-200 p-1 relative ${
+                    !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
+                  }`}
+                  onClick={() => onDayClick?.(day, hourIndex)}
+                >
+                  {/* Render events that start in this hour */}
+                  {events
+                    .filter((event) => {
+                      const eventDate = new Date(event.start_date);
+                      return (
+                        isSameDay(eventDate, day) && 
+                        eventDate.getHours() === hourIndex
+                      );
+                    })
+                    .map((event) => {
+                      const startTime = new Date(event.start_date);
+                      const endTime = new Date(event.end_date);
+                      const durationHours = Math.max(
+                        1, 
+                        Math.ceil(
+                          (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)
+                        )
+                      );
+                      
+                      return (
+                        <div
+                          key={event.id}
+                          className={`${getEventStyles(event)} p-2 rounded cursor-pointer absolute top-1 left-1 right-1 overflow-hidden`}
+                          style={{ 
+                            height: `${Math.min(durationHours * 6 - 0.5, 5.5)}rem`,
+                            zIndex: 10
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEventClick?.(event);
+                          }}
+                        >
+                          <div className="flex items-center">
+                            <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
+                            <span className="truncate font-medium text-sm">
+                              {getEventTitle(event)}
+                            </span>
+                          </div>
+                          <div className="truncate text-xs">
+                            {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
+                          </div>
                         </div>
-                        <div className="truncate">
-                          {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            ))}
-          </div>
-        ))}
+                      );
+                    })}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

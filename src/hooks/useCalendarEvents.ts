@@ -104,7 +104,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     try {
       let businessProfileId = businessId;
       
-      if (!businessProfileId && user) {
+      if (!businessProfileId && !businessId && !businessUserId && user) {
         const { data: userBusinessProfile } = await supabase
           .from("business_profiles")
           .select("id")
@@ -484,9 +484,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   });
 
   const { data: approvedBookings = [], isLoading: isLoadingBookings } = useQuery({
-    queryKey: ['approved-bookings', user?.id, businessId, businessUserId],
+    queryKey: ['approved-bookings', businessId, businessUserId],
     queryFn: getApprovedBookings,
-    enabled: !!(businessId || businessUserId || !!user),
+    enabled: !!(businessId || businessUserId || (user && !businessId && !businessUserId)),
     staleTime: 1000 * 30,
     refetchInterval: 2000,
   });
@@ -523,7 +523,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   if (businessId || businessUserId) {
     allEvents = [...businessEvents, ...approvedBookings];
   } else if (user) {
-    allEvents = [...events, ...approvedBookings];
+    const isUserBusiness = approvedBookings.length > 0 && approvedBookings[0].user_id === user.id;
+    allEvents = [...events, ...(isUserBusiness ? approvedBookings : [])];
   }
 
   console.log("useCalendarEvents combined data:", {

@@ -10,8 +10,7 @@ const HOURS = [
 export const TimeIndicator = () => {
   return (
     <div className="w-16 flex-shrink-0 border-r border-border bg-background">
-      <div className="h-24 border-b border-border" /> {/* Empty cell for header alignment */}
-      {HOURS.map((hour) => {
+      {HOURS.map((hour, index) => {
         const date = new Date();
         date.setHours(hour, 0, 0, 0);
         
@@ -20,7 +19,7 @@ export const TimeIndicator = () => {
             key={hour}
             className="h-24 border-b border-border text-xs text-muted-foreground relative"
           >
-            <span className="absolute -top-2.5 left-0">
+            <span className="absolute -top-2.5 left-2">
               {format(date, 'h a')}
             </span>
           </div>

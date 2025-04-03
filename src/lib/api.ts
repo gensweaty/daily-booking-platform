@@ -18,7 +18,7 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
     };
     
     // Make sure payment_amount is correctly formatted as a number or null
-    if (request.payment_amount) {
+    if (request.payment_amount !== undefined && request.payment_amount !== null && request.payment_amount !== '') {
       bookingData.payment_amount = Number(request.payment_amount);
     } else {
       // Explicitly set to null to avoid database errors

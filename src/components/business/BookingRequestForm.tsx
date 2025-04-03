@@ -1,155 +1,123 @@
 
-import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format } from "date-fns";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
+import { format, addHours } from "date-fns";
+import { useToast } from "../ui/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { DialogHeader, DialogTitle } from "../ui/dialog";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { createBookingRequest } from "@/lib/api";
-import { useToast } from "@/components/ui/use-toast";
-import { FileUploadField } from "@/components/shared/FileUploadField";
-import { supabase } from "@/lib/supabase";
+import { Loader2 } from "lucide-react";
 
-export interface BookingRequestFormProps {
+interface BookingRequestFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
   businessId: string;
   selectedDate: Date;
   startTime?: string;
   endTime?: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
 }
 
+const BookingSchema = z.object({
+  title: z.string().min(2, "Title is required"),
+  requester_name: z.string().min(2, "Name is required"),
+  requester_email: z.string().email("Valid email is required"),
+  requester_phone: z.string().optional(),
+  description: z.string().optional(),
+  start_date: z.string(),
+  end_date: z.string(),
+  payment_amount: z.union([
+    z.string().optional(), 
+    z.number().optional(),
+    z.null()
+  ]),
+  business_id: z.string(),
+});
+
+type FormValues = z.infer<typeof BookingSchema>;
+
 export const BookingRequestForm = ({
+  open,
+  onOpenChange,
+  onSuccess,
   businessId,
   selectedDate,
   startTime,
   endTime,
-  onSuccess,
 }: BookingRequestFormProps) => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [socialLink, setSocialLink] = useState("");
-  const [description, setDescription] = useState("");
-  const [date, setDate] = useState(format(selectedDate, "yyyy-MM-dd"));
-  const [start, setStart] = useState(startTime || "09:00");
-  const [end, setEnd] = useState(endTime || "10:00");
-  const [paymentStatus, setPaymentStatus] = useState("unpaid");
-  const [paymentAmount, setPaymentAmount] = useState<string>("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState("");
   const { toast } = useToast();
+  const { t } = useLanguage();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Generate time options for select dropdown
-  const generateTimeOptions = () => {
-    const options = [];
-    for (let hour = 0; hour < 24; hour++) {
-      for (let min = 0; min < 60; min += 15) {
-        const formattedHour = hour.toString().padStart(2, '0');
-        const formattedMin = min.toString().padStart(2, '0');
-        options.push(`${formattedHour}:${formattedMin}`);
-      }
-    }
-    return options;
-  };
+  // Format the selected date for the form
+  const formattedDate = format(selectedDate, "yyyy-MM-dd");
   
-  const timeOptions = generateTimeOptions();
+  // Set default times if not provided
+  const defaultStartTime = startTime || format(selectedDate, "HH:mm");
+  const defaultEndTime = endTime || format(addHours(selectedDate, 1), "HH:mm");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!name || !email) {
-      toast({
-        title: "Missing information",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
+  const form = useForm<FormValues>({
+    resolver: zodResolver(BookingSchema),
+    defaultValues: {
+      title: "",
+      requester_name: "",
+      requester_email: "",
+      requester_phone: "",
+      description: "",
+      start_date: `${formattedDate}T${defaultStartTime}:00`,
+      end_date: `${formattedDate}T${defaultEndTime}:00`,
+      payment_amount: "",
+      business_id: businessId,
+    },
+  });
+
+  const onSubmit = async (values: FormValues) => {
     try {
-      const startDateTime = new Date(`${date}T${start}`);
-      const endDateTime = new Date(`${date}T${end}`);
+      setIsSubmitting(true);
+      console.log("Submitting booking request:", values);
+
+      // Convert times to ISO strings
+      const start = new Date(values.start_date);
+      const end = new Date(values.end_date);
       
-      let fileUrl = null;
-      let fileName = null;
-      let fileSize = null;
-      let fileType = null;
+      // Handle payment_amount explicitly to avoid type errors
+      let paymentAmount: string | number | null = values.payment_amount;
       
-      // Upload file if present
-      if (selectedFile) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-        
-        const { error: uploadError, data } = await supabase.storage
-          .from('booking_attachments')
-          .upload(filePath, selectedFile);
-          
-        if (uploadError) {
-          throw uploadError;
-        }
-        
-        fileUrl = filePath;
-        fileName = selectedFile.name;
-        fileSize = selectedFile.size;
-        fileType = selectedFile.type;
-      }
-      
-      // Create booking request with payment_amount as numeric value
-      const bookingData = {
-        business_id: businessId,
-        requester_name: name,
-        requester_email: email,
-        requester_phone: phone,
-        title: name, // Use requester name as title
-        description: description,
-        start_date: startDateTime.toISOString(),
-        end_date: endDateTime.toISOString(),
-        social_network_link: socialLink,
-        payment_status: paymentStatus,
-        payment_amount: paymentStatus !== "unpaid" && paymentAmount ? parseFloat(paymentAmount) : null,
-      };
-      
-      console.log("Submitting booking data:", bookingData);
-      
-      const booking = await createBookingRequest(bookingData);
-      
-      // If we have a file, create booking file record
-      if (fileUrl && booking?.id) {
-        const { error: fileError } = await supabase
-          .from('booking_files')
-          .insert({
-            booking_id: booking.id,
-            filename: fileName,
-            file_path: fileUrl,
-            content_type: fileType,
-            size: fileSize,
-            user_id: null, // Public booking
-          });
-          
-        if (fileError) {
-          console.error('Error saving file metadata:', fileError);
+      if (paymentAmount === "" || paymentAmount === undefined) {
+        paymentAmount = null;
+      } else if (typeof paymentAmount === "string" && paymentAmount.trim() !== "") {
+        paymentAmount = Number(paymentAmount);
+        if (isNaN(paymentAmount)) {
+          paymentAmount = null;
         }
       }
       
-      toast({
-        title: "Booking request submitted",
-        description: "Your booking request has been submitted and is awaiting approval",
+      await createBookingRequest({
+        ...values,
+        start_date: start.toISOString(),
+        end_date: end.toISOString(),
+        payment_amount: paymentAmount
       });
       
-      if (onSuccess) {
-        onSuccess();
-      }
-    } catch (error: any) {
-      console.error("Error creating booking request:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to submit booking request",
+        title: t("common.success"),
+        description: t("booking.requestSubmitted"),
+      });
+      
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (error: any) {
+      console.error("Error submitting booking request:", error);
+      toast({
+        title: t("common.error"),
+        description: error.message || t("common.error"),
         variant: "destructive",
       });
     } finally {
@@ -157,165 +125,149 @@ export const BookingRequestForm = ({
     }
   };
 
-  const handleFileChange = (file: File | null) => {
-    setSelectedFile(file);
-  };
-
   return (
-    <div className="space-y-6 p-2">
-      <h2 className="text-xl font-bold">Request Booking</h2>
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <Label htmlFor="name">Your Name *</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
+    <>
+      <DialogHeader>
+        <DialogTitle>{t("booking.requestTitle")}</DialogTitle>
+      </DialogHeader>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
+          <FormField
+            control={form.control}
+            name="title"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("booking.bookingTitle")}</FormLabel>
+                <FormControl>
+                  <Input placeholder={t("booking.bookingTitlePlaceholder")} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        
-        <div>
-          <Label htmlFor="email">Your Email *</Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
+
+          <FormField
+            control={form.control}
+            name="requester_name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("booking.yourName")}</FormLabel>
+                <FormControl>
+                  <Input placeholder={t("booking.yourNamePlaceholder")} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        
-        <div>
-          <Label htmlFor="phone">Your Phone</Label>
-          <Input
-            id="phone"
-            value={phone}
-            placeholder="Phone number"
-            onChange={(e) => setPhone(e.target.value)}
+
+          <FormField
+            control={form.control}
+            name="requester_email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("booking.yourEmail")}</FormLabel>
+                <FormControl>
+                  <Input type="email" placeholder={t("booking.yourEmailPlaceholder")} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        
-        <div>
-          <Label htmlFor="socialLink">Social Link or Email</Label>
-          <Input
-            id="socialLink"
-            value={socialLink}
-            placeholder="Instagram, Facebook, or additional email"
-            onChange={(e) => setSocialLink(e.target.value)}
+
+          <FormField
+            control={form.control}
+            name="requester_phone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("booking.yourPhone")}</FormLabel>
+                <FormControl>
+                  <Input placeholder={t("booking.yourPhonePlaceholder")} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        
-        <div className="grid grid-cols-3 gap-2">
-          <div>
-            <Label htmlFor="date">Date *</Label>
-            <Input
-              id="date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="bg-background"
-              required
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="start_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("booking.startTime")}</FormLabel>
+                  <FormControl>
+                    <Input type="datetime-local" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="end_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("booking.endTime")}</FormLabel>
+                  <FormControl>
+                    <Input type="datetime-local" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
           </div>
-          
-          <div>
-            <Label htmlFor="startTime">Start Time *</Label>
-            <Select value={start} onValueChange={setStart}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select start time" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[200px] overflow-y-auto">
-                {timeOptions.map((time) => (
-                  <SelectItem key={`start-${time}`} value={time}>
-                    {time}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div>
-            <Label htmlFor="endTime">End Time *</Label>
-            <Select value={end} onValueChange={setEnd}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select end time" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[200px] overflow-y-auto">
-                {timeOptions.map((time) => (
-                  <SelectItem key={`end-${time}`} value={time}>
-                    {time}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        
-        <div>
-          <Label htmlFor="paymentStatus">Payment Status</Label>
-          <Select 
-            value={paymentStatus} 
-            onValueChange={setPaymentStatus}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select payment status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="unpaid">Unpaid</SelectItem>
-              <SelectItem value="partially_paid">Paid Partially</SelectItem>
-              <SelectItem value="fully_paid">Paid Fully</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        {paymentStatus !== "unpaid" && (
-          <div>
-            <Label htmlFor="paymentAmount">Payment Amount ($)</Label>
-            <Input
-              id="paymentAmount"
-              type="number"
-              value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-              placeholder="0.00"
-            />
-          </div>
-        )}
-        
-        <div>
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Provide any additional details about your booking"
-            rows={4}
+
+          <FormField
+            control={form.control}
+            name="payment_amount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("booking.paymentAmount")}</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="0.00" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        
-        <div>
-          <FileUploadField
-            onChange={handleFileChange}
-            fileError={fileError}
-            setFileError={setFileError}
-            acceptedFileTypes="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("booking.description")}</FormLabel>
+                <FormControl>
+                  <Textarea placeholder={t("booking.descriptionPlaceholder")} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-          <p className="text-xs text-muted-foreground mt-1">
-            Max size: Images 2MB, Documents 1MB
-            <br />
-            Supported formats: JPG, PNG, PDF, DOCX, XLSX, PPTX
-          </p>
-        </div>
-        
-        <Button 
-          type="submit" 
-          className="w-full"
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? "Submitting..." : "Submit Request"}
-        </Button>
-      </form>
-    </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("booking.submitting")}
+                </>
+              ) : (
+                t("booking.submit")
+              )}
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </>
   );
 };
