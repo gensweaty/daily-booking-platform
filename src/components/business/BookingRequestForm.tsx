@@ -91,10 +91,15 @@ export const BookingRequestForm = ({
       }
       
       await createBookingRequest({
-        ...values,
+        title: values.title,
+        requester_name: values.requester_name,
+        requester_email: values.requester_email,
+        requester_phone: values.requester_phone || "",
+        description: values.description || "",
         start_date: start.toISOString(),
         end_date: end.toISOString(),
-        payment_amount: paymentAmount
+        payment_amount: paymentAmount,
+        business_id: businessId,
       });
       
       toast({

@@ -63,5 +63,5 @@ export interface BookingRequest {
   social_network_link?: string;
   event_notes?: string;
   payment_status?: string;
-  payment_amount?: number;
+  payment_amount?: number | null;
 }
