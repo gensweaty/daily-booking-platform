@@ -12,7 +12,7 @@ export interface CalendarEventType {
   end_date: string;
   type: 'birthday' | 'private_party' | 'booking_request' | string;
   payment_status?: string;
-  payment_amount?: number;
+  payment_amount?: number | null;
   created_at: string;
   user_id: string;
   requester_name?: string;

@@ -84,6 +84,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           event_notes: booking.description || '',
           requester_name: booking.requester_name || '',
           requester_email: booking.requester_email || '',
+          requester_phone: booking.requester_phone || '',
+          description: booking.description || '',
         }));
         
         // Combine both types of events
