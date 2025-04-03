@@ -83,12 +83,10 @@ export const BookingRequestForm = ({
       const start = new Date(values.start_date);
       const end = new Date(values.end_date);
       
-      let paymentAmount: string | number | null = values.payment_amount;
+      let paymentAmount: number | null = null;
       
-      if (paymentAmount === "" || paymentAmount === undefined) {
-        paymentAmount = null;
-      } else if (typeof paymentAmount === "string" && paymentAmount.trim() !== "") {
-        const parsedAmount = Number(paymentAmount);
+      if (values.payment_amount !== undefined && values.payment_amount !== null && values.payment_amount !== '') {
+        const parsedAmount = Number(values.payment_amount);
         paymentAmount = isNaN(parsedAmount) ? null : parsedAmount;
       }
       
