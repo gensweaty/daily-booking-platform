@@ -1,3 +1,4 @@
+
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
@@ -17,7 +18,7 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
     };
     
     // Make sure payment_amount is correctly formatted as a number or null
-    if (request.payment_amount !== undefined && request.payment_amount !== null && request.payment_amount !== '') {
+    if (request.payment_amount !== undefined && request.payment_amount !== null) {
       // Convert to number regardless of input type
       const parsedAmount = Number(request.payment_amount);
       bookingData.payment_amount = isNaN(parsedAmount) ? null : parsedAmount;
