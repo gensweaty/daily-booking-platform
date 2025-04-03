@@ -68,8 +68,10 @@ export const CalendarGrid = ({
         {HOURS.map((hourIndex) => (
           <div 
             key={hourIndex} 
-            className="grid grid-cols-7 border-b border-gray-200 h-24"
-            style={{ gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(7, 1fr)' }}
+            className="grid border-b border-gray-200 h-24"
+            style={{ 
+              gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(7, 1fr)',
+            }}
           >
             {days.map((day) => (
               <div
@@ -101,9 +103,9 @@ export const CalendarGrid = ({
                     return (
                       <div
                         key={event.id}
-                        className={`${getEventStyles(event)} p-2 rounded cursor-pointer absolute top-1 left-1 right-1`}
+                        className={`${getEventStyles(event)} p-2 rounded cursor-pointer absolute top-0 left-1 right-1 overflow-hidden`}
                         style={{ 
-                          height: `${Math.min(durationHours * 24 - 2, 24 * 24 - 2)}px`,
+                          height: `${Math.min(durationHours * 24, 24)}px`,
                           zIndex: 10
                         }}
                         onClick={(e) => {

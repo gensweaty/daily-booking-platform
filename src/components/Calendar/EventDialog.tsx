@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -50,7 +49,6 @@ export const EventDialog = ({
   const { t } = useLanguage();
   const [isBookingEvent, setIsBookingEvent] = useState(false);
 
-  // Set initial values when dialog opens or event changes
   useEffect(() => {
     if (event) {
       const start = new Date(event.start_date);
@@ -64,29 +62,19 @@ export const EventDialog = ({
       setPaymentAmount(event.payment_amount?.toString() || "");
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-      // Check if this is a booking event
       setIsBookingEvent(event.type === 'booking_request');
     } else if (selectedDate) {
-      // Create a new date object to prevent mutation
       const start = new Date(selectedDate.getTime());
       const end = new Date(selectedDate.getTime());
       
-      // Always set to 9 AM for the clicked date
       start.setHours(9, 0, 0, 0);
       end.setHours(10, 0, 0, 0);
-      
-      console.log('Setting dialog dates:', {
-        selectedDate,
-        start,
-        end
-      });
       
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     }
   }, [selectedDate, event, open]);
 
-  // Load existing files when editing an event
   useEffect(() => {
     const loadFiles = async () => {
       if (event?.id) {
@@ -134,7 +122,6 @@ export const EventDialog = ({
       payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
     };
 
-    // If we're updating a booking event, add the ID to ensure we update it correctly
     if (isBookingEvent && event?.id) {
       eventData.id = event.id;
     }
@@ -143,7 +130,6 @@ export const EventDialog = ({
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
 
-      // Only create/update customer for non-booking events or new events
       if (!isBookingEvent) {
         const { data: existingCustomer, error: customerQueryError } = await supabase
           .from('customers')
@@ -207,9 +193,7 @@ export const EventDialog = ({
           console.log('Updated existing customer:', customerId);
         }
 
-        // Handle file upload
         if (selectedFile && createdEvent?.id && user) {
-          // Continue with file upload...
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;
           
@@ -270,7 +254,6 @@ export const EventDialog = ({
           description: t("common.success"),
         });
       } else {
-        // For booking events, update the corresponding booking_request if it exists
         if (event?.id) {
           const { data: bookingRequest, error: findError } = await supabase
             .from('booking_requests')
@@ -303,7 +286,6 @@ export const EventDialog = ({
 
       onOpenChange(false);
       
-      // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
       queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });

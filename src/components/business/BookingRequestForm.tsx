@@ -268,9 +268,6 @@ export const BookingRequestForm = ({
               <SelectItem value="fully_paid">Paid Fully</SelectItem>
             </SelectContent>
           </Select>
-          <p className="text-sm text-muted-foreground mt-1">
-            Payment status will be set after your booking is approved
-          </p>
         </div>
         
         {paymentStatus !== "unpaid" && (

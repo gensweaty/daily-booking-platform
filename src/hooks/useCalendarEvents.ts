@@ -37,32 +37,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   };
 
   const getBusinessEvents = async () => {
-    if (businessUserId) {
-      console.log("Fetching business events directly using businessUserId:", businessUserId);
-      
-      try {
-        const { data, error } = await supabase
-          .from('events')
-          .select('*')
-          .eq('user_id', businessUserId)
-          .order('start_date', { ascending: true });
-
-        if (error) {
-          console.error("Error fetching business events with businessUserId:", error);
-          return [];
-        }
-        
-        console.log("Fetched business events with businessUserId:", data?.length || 0, data);
-        return data || [];
-      } catch (error) {
-        console.error("Exception in getBusinessEvents with businessUserId:", error);
-        return [];
-      }
+    if (!businessId && !businessUserId) {
+      return [];
     }
     
-    if (businessId) {
+    let targetUserId = businessUserId;
+    
+    if (businessId && !targetUserId) {
       try {
-        console.log("Fetching business events for business ID:", businessId);
+        console.log("Fetching business user ID for business:", businessId);
         
         const { data: businessProfile, error: businessError } = await supabase
           .from("business_profiles")
@@ -80,32 +63,43 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           return [];
         }
         
-        console.log("Found user_id for business:", businessProfile.user_id);
-        
-        const { data, error } = await supabase
-          .from('events')
-          .select('*')
-          .eq('user_id', businessProfile.user_id)
-          .order('start_date', { ascending: true });
-
-        if (error) {
-          console.error("Error fetching business events:", error);
-          return [];
-        }
-        
-        console.log("Fetched business events:", data?.length || 0, data);
-        return data || [];
+        targetUserId = businessProfile.user_id;
+        console.log("Found user_id for business:", targetUserId);
       } catch (error) {
-        console.error("Error fetching business events:", error);
+        console.error("Error fetching business profile:", error);
         return [];
       }
     }
     
-    return [];
+    if (!targetUserId) {
+      console.error("No target user ID found to fetch business events");
+      return [];
+    }
+    
+    try {
+      console.log("Fetching business events for user ID:", targetUserId);
+      
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', targetUserId)
+        .order('start_date', { ascending: true });
+
+      if (error) {
+        console.error("Error fetching business events:", error);
+        return [];
+      }
+      
+      console.log("Fetched business events:", data?.length || 0);
+      return data || [];
+    } catch (error) {
+      console.error("Error fetching business events:", error);
+      return [];
+    }
   };
 
   const getApprovedBookings = async () => {
-    if (!user && !businessId && !businessUserId) return [];
+    if (!businessId && !businessUserId && !user) return [];
 
     try {
       let businessProfileId = businessId;
@@ -484,7 +478,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const { data: businessEvents = [], isLoading: isLoadingBusinessEvents, error: businessEventsError } = useQuery({
     queryKey: ['business-events', businessId, businessUserId],
     queryFn: getBusinessEvents,
-    enabled: !!businessId || !!businessUserId,
+    enabled: !!(businessId || businessUserId),
     staleTime: 1000 * 30,
     refetchInterval: 2000,
   });
@@ -492,7 +486,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const { data: approvedBookings = [], isLoading: isLoadingBookings } = useQuery({
     queryKey: ['approved-bookings', user?.id, businessId, businessUserId],
     queryFn: getApprovedBookings,
-    enabled: !!businessId || !!businessUserId || !!user,
+    enabled: !!(businessId || businessUserId || !!user),
     staleTime: 1000 * 30,
     refetchInterval: 2000,
   });
@@ -524,26 +518,29 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     },
   });
 
-  const allEvents = (businessId || businessUserId) 
-    ? [...businessEvents, ...approvedBookings]
-    : [...events, ...approvedBookings];
+  let allEvents: CalendarEventType[] = [];
+  
+  if (businessId || businessUserId) {
+    allEvents = [...businessEvents, ...approvedBookings];
+  } else if (user) {
+    allEvents = [...events, ...approvedBookings];
+  }
 
   console.log("useCalendarEvents combined data:", {
-    userEvents: events.length,
-    businessEvents: businessEvents.length,
-    approvedBookings: approvedBookings.length,
+    userEvents: events?.length || 0,
+    businessEvents: businessEvents?.length || 0,
+    approvedBookings: approvedBookings?.length || 0,
     combined: allEvents.length,
     isExternalCalendar: !!(businessId || businessUserId),
-    businessUserId
   });
 
   return {
     events: allEvents,
     isLoading: (businessId || businessUserId) ? (isLoadingBusinessEvents || isLoadingBookings) : (isLoadingUserEvents || isLoadingBookings),
     error: (businessId || businessUserId) ? businessEventsError : userEventsError,
-    createEvent: createEventMutation?.mutateAsync,
-    updateEvent: updateEventMutation?.mutateAsync,
-    deleteEvent: deleteEventMutation?.mutateAsync,
+    createEvent,
+    updateEvent,
+    deleteEvent,
     checkTimeSlotAvailability,
   };
 };

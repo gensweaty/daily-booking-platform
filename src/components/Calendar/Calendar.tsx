@@ -273,9 +273,6 @@ export const Calendar = ({
       </div>
     );
   }
-
-  // Always log events to help debug
-  console.log("[Calendar] Rendering with events count:", events?.length || 0);
   
   return (
     <div className="h-full flex flex-col gap-4">
