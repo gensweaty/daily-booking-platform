@@ -101,9 +101,9 @@ export const CalendarGrid = ({
                     return (
                       <div
                         key={event.id}
-                        className={`${getEventStyles(event)} p-2 rounded cursor-pointer mb-1 absolute top-1 left-1 right-1`}
+                        className={`${getEventStyles(event)} p-2 rounded cursor-pointer absolute top-1 left-1 right-1`}
                         style={{ 
-                          height: `${Math.min(durationHours * 24 - 2, 24 * 24 - hourIndex * 24 - 2)}px`,
+                          height: `${Math.min(durationHours * 24 - 2, 24 * 24 - 2)}px`,
                           zIndex: 10
                         }}
                         onClick={(e) => {

@@ -312,13 +312,24 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
   console.log("Creating booking request:", request);
   
   try {
+    // Ensure payment_amount is properly handled when saving to the database
+    const bookingData = {
+      ...request,
+      status: 'pending',
+      user_id: userData?.user?.id || null // Allow null for public bookings
+    };
+    
+    // Make sure payment_amount is correctly formatted as a number or null
+    if (bookingData.payment_amount) {
+      bookingData.payment_amount = Number(bookingData.payment_amount);
+    } else {
+      // Explicitly set to null to avoid database errors
+      bookingData.payment_amount = null;
+    }
+    
     const { data, error } = await supabase
       .from("booking_requests")
-      .insert([{ 
-        ...request, 
-        status: 'pending',
-        user_id: userData?.user?.id || null // Allow null for public bookings
-      }])
+      .insert([bookingData])
       .select()
       .single();
 

@@ -100,7 +100,7 @@ export const BookingRequestForm = ({
         fileType = selectedFile.type;
       }
       
-      // Create booking request
+      // Create booking request with payment_amount as numeric value
       const bookingData = {
         business_id: businessId,
         requester_name: name,
@@ -112,8 +112,10 @@ export const BookingRequestForm = ({
         end_date: endDateTime.toISOString(),
         social_network_link: socialLink,
         payment_status: paymentStatus,
-        payment_amount: paymentStatus !== "unpaid" ? Number(paymentAmount) : undefined,
+        payment_amount: paymentStatus !== "unpaid" && paymentAmount ? parseFloat(paymentAmount) : null,
       };
+      
+      console.log("Submitting booking data:", bookingData);
       
       const booking = await createBookingRequest(bookingData);
       
@@ -303,7 +305,7 @@ export const BookingRequestForm = ({
             acceptedFileTypes="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Max size: Images 2MB, Documents 1MB (2 MB for images, 1 MB for documents)
+            Max size: Images 2MB, Documents 1MB
             <br />
             Supported formats: JPG, PNG, PDF, DOCX, XLSX, PPTX
           </p>
