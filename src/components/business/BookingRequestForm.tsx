@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
@@ -56,10 +55,8 @@ export const BookingRequestForm = ({
   const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Format the selected date for the form
   const formattedDate = format(selectedDate, "yyyy-MM-dd");
   
-  // Set default times if not provided
   const defaultStartTime = startTime || format(selectedDate, "HH:mm");
   const defaultEndTime = endTime || format(addHours(selectedDate, 1), "HH:mm");
 
@@ -83,20 +80,16 @@ export const BookingRequestForm = ({
       setIsSubmitting(true);
       console.log("Submitting booking request:", values);
 
-      // Convert times to ISO strings
       const start = new Date(values.start_date);
       const end = new Date(values.end_date);
       
-      // Handle payment_amount explicitly to avoid type errors
       let paymentAmount: string | number | null = values.payment_amount;
       
       if (paymentAmount === "" || paymentAmount === undefined) {
         paymentAmount = null;
       } else if (typeof paymentAmount === "string" && paymentAmount.trim() !== "") {
-        paymentAmount = Number(paymentAmount);
-        if (isNaN(paymentAmount)) {
-          paymentAmount = null;
-        }
+        const parsedAmount = Number(paymentAmount);
+        paymentAmount = isNaN(parsedAmount) ? null : parsedAmount;
       }
       
       await createBookingRequest({
