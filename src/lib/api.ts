@@ -1,6 +1,7 @@
+
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
-import { Note, Task, Reminder, Business, EventRequest } from "@/lib/types";
+import { Note, Task, Reminder, BusinessProfile, BookingRequest } from "@/types/database";
 
 export const getNotes = async () => {
   const { data, error } = await supabase
@@ -48,7 +49,7 @@ export const getEvents = async () => {
   return data;
 };
 
-export const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+export const createEvent = async (event: Partial<CalendarEventType>) => {
   const { data, error } = await supabase
     .from('events')
     .insert([event])
@@ -152,55 +153,30 @@ export const deleteReminder = async (id: string): Promise<void> => {
   if (error) throw error;
 };
 
-export const getBusiness = async () => {
+export const getBusinessProfile = async () => {
   const { data, error } = await supabase
-    .from("businesses")
+    .from("business_profiles")
     .select("*")
-    .maybeSingle();
+    .single();
   
   if (error) throw error;
   return data;
 };
 
-export const createBusiness = async (business: Omit<Business, "id" | "created_at" | "user_id" | "slug">) => {
-  // Get the current user ID
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) throw new Error("User not authenticated");
-  
-  const slug = business.name
-    .toLowerCase()
-    .replace(/[^\w\s]/gi, '')
-    .replace(/\s+/g, '-');
-  
+export const createBusinessProfile = async (profile: Omit<BusinessProfile, "id" | "created_at" | "updated_at" | "user_id">) => {
   const { data, error } = await supabase
-    .from("businesses")
-    .insert([{ 
-      ...business, 
-      slug,
-      user_id: user.id
-    }])
+    .from("business_profiles")
+    .insert([profile])
     .select()
     .single();
 
-  if (error) {
-    console.error("Business creation error:", error);
-    throw error;
-  }
-  
+  if (error) throw error;
   return data;
 };
 
-export const updateBusiness = async (id: string, updates: Partial<Business>) => {
-  if (updates.name) {
-    updates.slug = updates.name
-      .toLowerCase()
-      .replace(/[^\w\s]/gi, '')
-      .replace(/\s+/g, '-');
-  }
-  
+export const updateBusinessProfile = async (id: string, updates: Partial<BusinessProfile>) => {
   const { data, error } = await supabase
-    .from("businesses")
+    .from("business_profiles")
     .update(updates)
     .eq("id", id)
     .select()
@@ -210,58 +186,39 @@ export const updateBusiness = async (id: string, updates: Partial<Business>) => 
   return data;
 };
 
-export const deleteBusiness = async (id: string) => {
-  const { error } = await supabase.from("businesses").delete().eq("id", id);
-  if (error) throw error;
-};
-
-export const getBusinessBySlug = async (slug: string) => {
+export const getBusinessProfileBySlug = async (slug: string) => {
   const { data, error } = await supabase
-    .from("businesses")
+    .from("business_profiles")
     .select("*")
     .eq("slug", slug)
-    .maybeSingle();
+    .single();
   
   if (error) throw error;
   return data;
 };
 
-export const uploadBusinessCoverPhoto = async (file: File, businessId: string) => {
-  const fileExt = file.name.split('.').pop();
-  const filePath = `business_covers/${businessId}/${crypto.randomUUID()}.${fileExt}`;
-  
-  const { error: uploadError } = await supabase.storage
-    .from('business_covers')
-    .upload(filePath, file);
-
-  if (uploadError) throw uploadError;
-  
-  const { data, error: updateError } = await supabase
-    .from("businesses")
-    .update({ cover_photo_path: filePath })
-    .eq("id", businessId)
-    .select()
-    .single();
-    
-  if (updateError) throw updateError;
-  return data;
-};
-
-export const getEventRequests = async (businessId: string) => {
+export const getBookingRequests = async (businessId: string) => {
   const { data, error } = await supabase
-    .from("event_requests")
+    .from("booking_requests")
     .select("*")
     .eq("business_id", businessId)
-    .order('created_at', { ascending: false });
+    .order("created_at", { ascending: false });
   
   if (error) throw error;
   return data;
 };
 
-export const createEventRequest = async (eventRequest: Omit<EventRequest, "id" | "created_at" | "status">) => {
+export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">) => {
+  // Get current user if available
+  const { data: userData } = await supabase.auth.getUser();
+  
   const { data, error } = await supabase
-    .from("event_requests")
-    .insert([{ ...eventRequest, status: 'pending' }])
+    .from("booking_requests")
+    .insert([{ 
+      ...request, 
+      status: 'pending',
+      user_id: userData?.user?.id || null // Allow null for public bookings
+    }])
     .select()
     .single();
 
@@ -269,52 +226,23 @@ export const createEventRequest = async (eventRequest: Omit<EventRequest, "id" |
   return data;
 };
 
-export const approveEventRequest = async (id: string) => {
-  const { data: eventRequest, error: fetchError } = await supabase
-    .from("event_requests")
-    .select("*")
-    .eq("id", id)
-    .single();
-  
-  if (fetchError) throw fetchError;
-  
-  const { error: createError } = await supabase
-    .from("events")
-    .insert([{
-      title: eventRequest.title,
-      user_surname: eventRequest.user_surname,
-      user_number: eventRequest.user_number,
-      social_network_link: eventRequest.social_network_link,
-      event_notes: eventRequest.event_notes,
-      start_date: eventRequest.start_date,
-      end_date: eventRequest.end_date,
-      type: eventRequest.type,
-      payment_status: eventRequest.payment_status,
-      payment_amount: eventRequest.payment_amount,
-      user_id: (await supabase.auth.getUser()).data.user?.id
-    }]);
-  
-  if (createError) throw createError;
-  
-  const { data, error: updateError } = await supabase
-    .from("event_requests")
-    .update({ status: 'approved' })
-    .eq("id", id)
-    .select()
-    .single();
-  
-  if (updateError) throw updateError;
-  return data;
-};
-
-export const rejectEventRequest = async (id: string) => {
+export const updateBookingRequest = async (id: string, updates: Partial<BookingRequest>) => {
   const { data, error } = await supabase
-    .from("event_requests")
-    .update({ status: 'rejected' })
+    .from("booking_requests")
+    .update(updates)
     .eq("id", id)
     .select()
     .single();
-  
+
   if (error) throw error;
   return data;
+};
+
+export const deleteBookingRequest = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from("booking_requests")
+    .delete()
+    .eq("id", id);
+  
+  if (error) throw error;
 };

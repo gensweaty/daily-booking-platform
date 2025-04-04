@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getTasks, updateTask, deleteTask } from "@/lib/api";
 import { Task } from "@/lib/types";
@@ -46,7 +47,7 @@ export const TaskList = () => {
     if (!result.destination) return;
 
     const taskId = result.draggableId;
-    const newStatus = result.destination.droppableId as 'todo' | 'in-progress' | 'done';
+    const newStatus = result.destination.droppableId as 'todo' | 'inprogress' | 'done';
 
     updateTaskMutation.mutate({
       id: taskId,
@@ -68,7 +69,7 @@ export const TaskList = () => {
 
   const columns = {
     todo: tasks.filter((task: Task) => task.status === 'todo'),
-    'in-progress': tasks.filter((task: Task) => task.status === 'in-progress'),
+    'inprogress': tasks.filter((task: Task) => task.status === 'inprogress'),
     done: tasks.filter((task: Task) => task.status === 'done'),
   };
 

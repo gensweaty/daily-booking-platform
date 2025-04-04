@@ -1,170 +1,103 @@
 
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Plus, Store } from "lucide-react";
-import { BusinessForm } from "./BusinessForm";
-import { BusinessDetails } from "./BusinessDetails";
-import { useBusiness } from "@/hooks/useBusiness";
-import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Business } from "@/lib/types";
-import { useToast } from "@/components/ui/use-toast";
+import { BusinessProfileForm } from "./BusinessProfileForm";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { BookingRequestsList } from "./BookingRequestsList";
+import { useBookingRequests } from "@/hooks/useBookingRequests";
 
 export const BusinessPage = () => {
-  const { t } = useLanguage();
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  
-  const {
-    business,
-    isBusinessLoading,
-    businessError,
-    createBusiness,
-    updateBusiness,
-    deleteBusiness,
-    uploadCoverPhoto
-  } = useBusiness();
-  
-  if (!user) {
-    navigate("/signin");
-    return null;
-  }
-  
-  if (businessError) {
-    console.error("Business data error:", businessError);
-  }
-  
-  const handleCreateBusiness = async (formData: any, coverPhoto?: File) => {
-    try {
-      console.log("Creating business with data:", formData);
-      const newBusiness = await createBusiness(formData);
+  const [activeTab, setActiveTab] = useState("profile");
+  const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest } = useBookingRequests();
+
+  const { data: businessProfile, isLoading } = useQuery({
+    queryKey: ["businessProfile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
       
-      if (coverPhoto && newBusiness) {
-        console.log("Uploading cover photo for business:", newBusiness.id);
-        
-        // Check if business_covers bucket exists
-        const { data: buckets, error: bucketsError } = await supabase
-          .storage
-          .listBuckets();
-        
-        const bucketExists = buckets?.find(b => b.name === 'business_covers');
-        
-        if (!bucketExists) {
-          console.log("Creating business_covers bucket");
-          const { error } = await supabase.storage.createBucket('business_covers', {
-            public: true
-          });
-          
-          if (error) {
-            console.error("Error creating business_covers bucket:", error);
-            toast({
-              title: "Error",
-              description: "Could not create storage for business covers. Please try again.",
-              variant: "destructive",
-            });
-          }
-        }
-        
-        await uploadCoverPhoto({ file: coverPhoto, businessId: newBusiness.id });
-      }
-      
-      toast({
-        title: "Success",
-        description: "Business created successfully!",
-      });
-      
-      setIsAddDialogOpen(false);
-    } catch (error: any) {
-      console.error("Error creating business:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create business. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-  
-  const handleUpdateBusiness = async (formData: Business) => {
-    if (!business) return;
-    
-    try {
-      await updateBusiness({ id: business.id, updates: formData });
-    } catch (error) {
-      console.error("Error updating business:", error);
-      throw error;
-    }
-  };
-  
-  const handleDeleteBusiness = async () => {
-    if (!business) return;
-    
-    try {
-      await deleteBusiness(business.id);
-    } catch (error) {
-      console.error("Error deleting business:", error);
-      throw error;
-    }
-  };
-  
-  if (isBusinessLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">My Business</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <Skeleton className="h-[200px] w-full rounded-md" />
-            <Skeleton className="h-8 w-1/3" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-        </CardContent>
-      </Card>
-    );
+      const { data, error } = await supabase
+        .from("business_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  if (isLoading) {
+    return <div className="text-center p-8">Loading...</div>;
   }
-  
-  if (!business) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">My Business</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Store className="mb-4 h-12 w-12 text-muted-foreground" />
-            <h3 className="mb-2 text-lg font-medium">No business profile yet</h3>
-            <p className="mb-6 text-sm text-muted-foreground max-w-md">
-              Create a business profile to get your own booking page and start
-              receiving bookings from customers.
-            </p>
-            <Button onClick={() => setIsAddDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Business
-            </Button>
-          </div>
-          
-          <BusinessForm
-            open={isAddDialogOpen}
-            onOpenChange={setIsAddDialogOpen}
-            onSubmit={handleCreateBusiness}
-          />
-        </CardContent>
-      </Card>
-    );
-  }
-  
+
+  const publicUrl = businessProfile?.slug 
+    ? `${window.location.protocol}//${window.location.host}/business/${businessProfile.slug}`
+    : null;
+
   return (
-    <BusinessDetails
-      business={business}
-      onUpdate={handleUpdateBusiness}
-      onDelete={handleDeleteBusiness}
-    />
+    <div className="space-y-6">
+      <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="profile">Business Profile</TabsTrigger>
+          <TabsTrigger value="bookings">Booking Requests</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="profile" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">My Business Profile</h1>
+            {publicUrl && (
+              <Button 
+                variant="outline"
+                onClick={() => window.open(publicUrl, '_blank')}
+              >
+                View Public Page
+              </Button>
+            )}
+          </div>
+
+          <BusinessProfileForm />
+        </TabsContent>
+
+        <TabsContent value="bookings" className="space-y-6">
+          <h1 className="text-2xl font-bold">Booking Requests</h1>
+
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Pending Requests ({pendingRequests.length})</h2>
+              <BookingRequestsList
+                requests={pendingRequests}
+                type="pending"
+                onApprove={approveRequest}
+                onReject={rejectRequest}
+                onDelete={deleteBookingRequest}
+              />
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Approved Requests ({approvedRequests.length})</h2>
+              <BookingRequestsList
+                requests={approvedRequests}
+                type="approved"
+                onDelete={deleteBookingRequest}
+              />
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Rejected Requests ({rejectedRequests.length})</h2>
+              <BookingRequestsList
+                requests={rejectedRequests}
+                type="rejected"
+                onDelete={deleteBookingRequest}
+              />
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };

@@ -1,15 +1,14 @@
 
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Button } from "@/components/ui/button";
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
-import { CalendarViewType } from "@/lib/types/calendar";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarHeaderProps {
   selectedDate: Date;
-  view: CalendarViewType;
-  onViewChange: (view: CalendarViewType) => void;
+  view: "month" | "week" | "day";
+  onViewChange: (view: "month" | "week" | "day") => void;
   onPrevious: () => void;
   onNext: () => void;
   onAddEvent?: () => void;
@@ -23,96 +22,48 @@ export const CalendarHeader = ({
   onNext,
   onAddEvent,
 }: CalendarHeaderProps) => {
-  const { language } = useLanguage();
-  const locale = language === 'es' ? es : undefined;
+  const { language, t } = useLanguage();
 
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center space-x-4">
-        <h2 className="text-xl font-bold tracking-tight hidden sm:block">
-          {format(selectedDate, "MMMM yyyy", { locale })}
+    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
+      <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+        <Button variant="outline" size="icon" onClick={onPrevious}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <h2 className="text-lg sm:text-xl font-semibold">
+          {format(selectedDate, "MMMM yyyy", { locale: language === 'es' ? es : undefined })}
         </h2>
-        <h2 className="text-xl font-bold tracking-tight sm:hidden">
-          {format(selectedDate, "MMM yyyy", { locale })}
-        </h2>
-        <div className="flex items-center">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onPrevious}
-            className="h-7 w-7"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onNext}
-            className="h-7 w-7 ml-1"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+        <Button variant="outline" size="icon" onClick={onNext}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
-      <div className="flex items-center space-x-2">
-        <div className="hidden sm:flex bg-muted rounded-md p-1">
+      <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+        <div className="flex rounded-lg border border-input overflow-hidden flex-1 sm:flex-none">
           <Button
-            variant={view === "day" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => onViewChange("day")}
-            className="text-xs h-7"
+            variant={view === "month" ? "default" : "ghost"}
+            className="rounded-none px-2 sm:px-4 text-sm flex-1"
+            onClick={() => onViewChange("month")}
           >
-            Day
+            {t("dashboard.month")}
           </Button>
           <Button
             variant={view === "week" ? "default" : "ghost"}
-            size="sm"
+            className="rounded-none px-2 sm:px-4 text-sm flex-1"
             onClick={() => onViewChange("week")}
-            className="text-xs h-7"
           >
-            Week
+            {t("dashboard.week")}
           </Button>
-          <Button
-            variant={view === "month" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => onViewChange("month")}
-            className="text-xs h-7"
-          >
-            Month
-          </Button>
-        </div>
-        <div className="sm:hidden bg-muted rounded-md p-1">
           <Button
             variant={view === "day" ? "default" : "ghost"}
-            size="sm"
+            className="rounded-none px-2 sm:px-4 text-sm flex-1"
             onClick={() => onViewChange("day")}
-            className="text-xs h-7 px-2"
           >
-            D
-          </Button>
-          <Button
-            variant={view === "week" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => onViewChange("week")}
-            className="text-xs h-7 px-2"
-          >
-            W
-          </Button>
-          <Button
-            variant={view === "month" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => onViewChange("month")}
-            className="text-xs h-7 px-2"
-          >
-            M
+            {t("dashboard.day")}
           </Button>
         </div>
-        
         {onAddEvent && (
-          <Button size="sm" onClick={onAddEvent} className="h-7">
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            <span className="hidden sm:inline">Add Event</span>
-            <span className="sm:hidden">Add</span>
+          <Button onClick={onAddEvent} className="whitespace-nowrap">
+            {t("dashboard.addEvent")}
           </Button>
         )}
       </div>

@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
-import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Store } from "lucide-react"
+import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefcase } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TaskList } from "@/components/TaskList"
 import { Calendar } from "@/components/Calendar/Calendar"
@@ -12,6 +12,7 @@ import { CustomerList } from "@/components/crm/CustomerList"
 import { BusinessPage } from "@/components/business/BusinessPage"
 import { motion, AnimatePresence } from "framer-motion"
 import { useLanguage } from "@/contexts/LanguageContext"
+import { useBusinessProfile } from "@/hooks/useBusinessProfile"
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
@@ -106,7 +107,7 @@ export const DashboardContent = ({
             whileHover={{ rotate: 15 }}
             transition={{ duration: 0.2 }}
           >
-            <Store className="w-4 h-4" />
+            <Briefcase className="w-4 h-4" />
           </motion.div>
           <span className="hidden sm:inline">My Business</span>
         </TabsTrigger>
@@ -229,7 +230,7 @@ export const DashboardContent = ({
             </Card>
           </motion.div>
         </TabsContent>
-        
+
         <TabsContent value="business">
           <motion.div
             variants={tabVariants}

@@ -1,7 +1,8 @@
+
 -- Create policies for note_attachments bucket
 CREATE POLICY "Allow authenticated users to upload files"
 ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (bucket_id = 'note_attachments');
+WITH CHECK (bucket_id = 'note_attachments' AND auth.uid() = owner);
 
 CREATE POLICY "Allow users to update their own files"
 ON storage.objects FOR UPDATE TO authenticated

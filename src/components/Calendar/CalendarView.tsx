@@ -9,9 +9,8 @@ interface CalendarViewProps {
   events: CalendarEventType[];
   selectedDate: Date;
   view: "month" | "week" | "day";
-  onDayClick: (date: Date, hour?: number) => void;
+  onDayClick?: (date: Date, hour?: number) => void;
   onEventClick: (event: CalendarEventType) => void;
-  publicMode?: boolean;
 }
 
 export const CalendarView = ({
@@ -21,7 +20,6 @@ export const CalendarView = ({
   view,
   onDayClick,
   onEventClick,
-  publicMode = false,
 }: CalendarViewProps) => {
   const { language } = useLanguage();
   const locale = language === 'es' ? es : undefined;
@@ -46,21 +44,19 @@ export const CalendarView = ({
     return ((actualHour - 6 + 24) % 24) * 80; // 80px is the height of each hour slot
   };
 
-  // Function to get the display title based on public mode
-  const getEventDisplayTitle = (event: CalendarEventType) => {
-    if (publicMode) {
-      return "Booked";
+  // Function to determine event color based on type
+  const getEventColorClass = (eventType: string) => {
+    switch (eventType) {
+      case "birthday":
+        return "bg-primary text-primary-foreground";
+      case "booking_request":
+        return "bg-green-600 text-white";
+      case "private_party":
+        return "bg-amber-500 text-black";
+      default:
+        return "bg-secondary text-secondary-foreground";
     }
-    return event.title;
   };
-
-  // Log events being rendered
-  console.log(`[CalendarView] Rendering events in ${publicMode ? 'public' : 'private'} mode:`, 
-    events.length > 0 ? events.map(e => ({
-      id: e.id,
-      title: publicMode ? 'Booked' : e.title,
-      start: e.start_date
-    })) : 'No events');
 
   if (view === "month") {
     // Get the start and end of the month view
@@ -76,30 +72,20 @@ export const CalendarView = ({
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
         {weekDays.map(renderDayHeader)}
         {calendarDays.map((day) => {
-          // Make sure we're handling date strings and Date objects correctly
-          const dayEvents = events.filter((event) => {
-            try {
-              const eventDate = typeof event.start_date === 'string' 
-                ? parseISO(event.start_date)
-                : event.start_date;
-              return isSameDay(eventDate, day);
-            } catch (error) {
-              console.error("Error comparing dates:", error, event.start_date, day);
-              return false;
-            }
-          });
-          
-          console.log(`[CalendarView] Day ${format(day, 'yyyy-MM-dd')} has ${dayEvents.length} events`);
-          
+          const dayEvents = events.filter((event) => 
+            isSameDay(parseISO(event.start_date), day)
+          );
           const isCurrentMonth = isSameMonth(day, selectedDate);
 
           return (
             <div
               key={day.toISOString()}
-              className={`relative bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted border border-border transition-colors ${
+              className={`relative bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] ${
+                onDayClick ? 'cursor-pointer hover:bg-muted' : ''
+              } border border-border transition-colors ${
                 !isCurrentMonth ? 'bg-opacity-50' : ''
               }`}
-              onClick={() => onDayClick(day)}
+              onClick={onDayClick ? () => onDayClick(day) : undefined}
             >
               <div className={`font-medium ${!isCurrentMonth ? 'text-muted-foreground' : 'text-foreground'}`}>
                 {format(day, "d")}
@@ -109,19 +95,17 @@ export const CalendarView = ({
                   <div
                     key={event.id}
                     className={`text-xs sm:text-sm p-1 rounded ${
-                      event.type === "birthday"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground"
-                    } ${!publicMode ? 'cursor-pointer' : ''} truncate hover:opacity-80 transition-opacity ${
+                      getEventColorClass(event.type)
+                    } cursor-pointer truncate hover:opacity-80 transition-opacity ${
                       !isCurrentMonth ? 'opacity-60' : ''
                     }`}
                     onClick={(e) => {
-                      if (publicMode) return;
                       e.stopPropagation();
                       onEventClick(event);
                     }}
+                    title={event.title}
                   >
-                    {getEventDisplayTitle(event)}
+                    {event.type === "booking_request" ? `📅 ${event.title}` : event.title}
                   </div>
                 ))}
               </div>
@@ -166,24 +150,16 @@ export const CalendarView = ({
               return (
                 <div
                   key={actualHour}
-                  className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
-                  onClick={() => onDayClick(hourDate, actualHour)}
+                  className={`h-20 border-b border-border ${
+                    onDayClick ? 'hover:bg-muted transition-colors cursor-pointer' : ''
+                  } relative`}
+                  onClick={onDayClick ? () => onDayClick(hourDate, actualHour) : undefined}
                 />
               );
             })}
             
             {events
-              .filter((event) => {
-                try {
-                  const eventDate = typeof event.start_date === 'string'
-                    ? parseISO(event.start_date)
-                    : event.start_date;
-                  return isSameDay(eventDate, day);
-                } catch (error) {
-                  console.error("Error comparing dates for week view:", error);
-                  return false;
-                }
-              })
+              .filter((event) => isSameDay(parseISO(event.start_date), day))
               .map((event) => {
                 const start = new Date(event.start_date);
                 const end = new Date(event.end_date);
@@ -196,26 +172,27 @@ export const CalendarView = ({
                   <div
                     key={event.id}
                     className={`absolute left-0.5 right-0.5 rounded px-0.5 sm:px-2 py-1 text-[10px] sm:text-sm ${
-                      event.type === "birthday"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground"
-                    } ${!publicMode ? 'cursor-pointer' : ''} overflow-hidden hover:opacity-80 transition-opacity`}
+                      getEventColorClass(event.type)
+                    } cursor-pointer overflow-hidden hover:opacity-80 transition-opacity`}
                     style={{
                       top: `${top}px`,
                       height: `${Math.max(height, 20)}px`,
                     }}
                     onClick={(e) => {
-                      if (publicMode) return;
                       e.stopPropagation();
                       onEventClick(event);
                     }}
+                    title={event.title}
                   >
                     <div className="font-semibold truncate">
-                      {getEventDisplayTitle(event)}
+                      {event.type === "booking_request" ? `📅 ${event.title}` : event.title}
                     </div>
                     {height > 40 && (
                       <div className="text-[8px] sm:text-xs truncate">
                         {format(start, "h:mm a", { locale })} - {format(end, "h:mm a", { locale })}
+                        {event.type === "booking_request" && event.requester_name && (
+                          <div className="italic">{event.requester_name}</div>
+                        )}
                       </div>
                     )}
                   </div>

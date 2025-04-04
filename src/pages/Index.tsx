@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
-import { useToast } from "@/hooks/use-toast"
-import { useSearchParams, useNavigate, Link } from "react-router-dom"
+import { useToast } from "@/components/ui/use-toast"
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom"
 import { AuthUI } from "@/components/AuthUI"
 import { DashboardHeader } from "@/components/DashboardHeader"
 import { TrialExpiredDialog } from "@/components/TrialExpiredDialog"
@@ -11,8 +10,8 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
-import { Button } from "@/components/ui/button"
-import { HomeIcon } from "lucide-react"
+import { LanguageProvider } from "@/contexts/LanguageContext"
+import { PublicBusinessPage } from "@/components/business/PublicBusinessPage"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -39,16 +38,20 @@ const Index = () => {
   const [username, setUsername] = useState("")
   const [showTrialExpired, setShowTrialExpired] = useState(false)
   const [processingCode, setProcessingCode] = useState(false)
-  const { user, loading } = useAuth()
+  const { user } = useAuth()
   const { toast } = useToast()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const location = useLocation()
   
-  useSubscriptionRedirect()
+  const currentPath = window.location.pathname;
+  const isBusinessPage = currentPath.startsWith('/business/');
+  
+  if (!isBusinessPage) {
+    useSubscriptionRedirect()
+  }
 
-  // Handle email confirmation code if present
   useEffect(() => {
-    // This is a special handler for email confirmation codes on the dashboard route
     const code = searchParams.get('code');
     
     if (code && !processingCode) {
@@ -75,7 +78,6 @@ const Index = () => {
                 description: "Your email has been successfully confirmed!",
               });
               
-              // Refresh the page without the code parameter
               navigate('/dashboard', { replace: true });
             }
           }
@@ -121,39 +123,27 @@ const Index = () => {
     getProfile()
   }, [user])
 
-  // Show a loading state when processing confirmation code or when auth is loading
-  if (processingCode || loading) {
+  if (processingCode) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold">{processingCode ? "Confirming your email..." : "Loading..."}</h2>
+          <h2 className="text-xl font-semibold">Confirming your email...</h2>
           <p className="text-muted-foreground">Please wait while we complete this process.</p>
         </div>
       </div>
     );
   }
 
-  console.log("User state:", user ? "Authenticated" : "Not authenticated");
+  if (isBusinessPage) {
+    return (
+      <LanguageProvider>
+        <PublicBusinessPage />
+      </LanguageProvider>
+    );
+  }
 
-  // Content for non-authenticated users (landing page or auth UI)
-  const nonAuthContent = (
-    <>
-      <CursorFollower />
-      <div className="fixed top-4 left-4 z-10">
-        <Button asChild variant="outline" size="sm" className="flex items-center gap-2">
-          <Link to="/">
-            <HomeIcon className="h-4 w-4" />
-            <span>Home</span>
-          </Link>
-        </Button>
-      </div>
-      <AuthUI />
-    </>
-  );
-
-  // Content for authenticated users (dashboard)
-  const authContent = (
+  const content = user ? (
     <motion.div 
       className="min-h-screen bg-background p-4"
       variants={containerVariants}
@@ -179,9 +169,18 @@ const Index = () => {
         />
       </motion.div>
     </motion.div>
+  ) : (
+    <>
+      <CursorFollower />
+      <AuthUI />
+    </>
   );
 
-  return user ? authContent : nonAuthContent;
+  return (
+    <LanguageProvider>
+      {content}
+    </LanguageProvider>
+  );
 }
 
 export default Index;
