@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 import { getPublicCalendarEvents } from "@/lib/api";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { EventDialog } from "./EventDialog";
 
 export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [view, setView] = useState<CalendarViewType>("month");
@@ -16,6 +17,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const { toast } = useToast();
   const [businessUserId, setBusinessUserId] = useState<string | null>(null);
   const { t } = useLanguage();
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
+  const [selectedBookingDate, setSelectedBookingDate] = useState<Date | null>(null);
 
   // Diagnostic logging for businessId
   useEffect(() => {
@@ -90,6 +93,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             event_notes: booking.description || '',
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
+            requester_phone: booking.requester_phone || '',
+            description: booking.description || '',
           }))
         ];
         
@@ -152,6 +157,50 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     }
   }, [businessId, toast, t]);
 
+  const handleDayClick = (date: Date) => {
+    setSelectedBookingDate(date);
+    setIsBookingDialogOpen(true);
+  };
+
+  const handleBookingSubmit = async (data: Partial<CalendarEventType>) => {
+    try {
+      console.log("[External Calendar] Creating booking request:", data);
+      
+      const { data: bookingData, error } = await supabase
+        .from('booking_requests')
+        .insert({
+          business_id: businessId,
+          title: data.title,
+          requester_name: data.user_surname,
+          requester_email: data.social_network_link,
+          requester_phone: data.user_number,
+          description: data.event_notes,
+          start_date: data.start_date,
+          end_date: data.end_date,
+          status: 'pending',
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      toast({
+        title: t("booking.requestSubmitted"),
+        description: t("booking.requestSubmittedDescription"),
+      });
+      
+      return bookingData;
+    } catch (error: any) {
+      console.error("[External Calendar] Error creating booking request:", error);
+      toast({
+        title: t("common.error"),
+        description: error.message || t("common.error"),
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   if (!businessId) {
     return (
       <Card className="min-h-[calc(100vh-12rem)]">
@@ -185,9 +234,20 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             showAllEvents={true}
             allowBookingRequests={true}
             directEvents={events}
+            onDayClick={handleDayClick}
           />
         </div>
       </CardContent>
+
+      {selectedBookingDate && (
+        <EventDialog
+          open={isBookingDialogOpen}
+          onOpenChange={setIsBookingDialogOpen}
+          selectedDate={selectedBookingDate}
+          onSubmit={handleBookingSubmit}
+          isBookingRequest={true}
+        />
+      )}
     </Card>
   );
 };

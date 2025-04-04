@@ -72,38 +72,6 @@ export const EventDialogFields = ({
 
   const formattedMinDate = format(new Date(), "yyyy-MM-dd'T'HH:mm");
 
-  // If it's a booking request, we only show date and time fields
-  if (isBookingRequest) {
-    return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="start-date">Start Date & Time</Label>
-            <Input
-              id="start-date"
-              type="datetime-local"
-              min={formattedMinDate}
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="end-date">End Date & Time</Label>
-            <Input
-              id="end-date"
-              type="datetime-local"
-              min={startDate || formattedMinDate}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   useEffect(() => {
     // Set default times if no startDate or endDate is provided
     if (!startDate || !endDate) {
@@ -284,27 +252,29 @@ export const EventDialogFields = ({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>{t("events.paymentStatus")}</Label>
-        <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-          <SelectTrigger className="w-full bg-background border-input">
-            <SelectValue placeholder={t("events.selectPaymentStatus")} />
-          </SelectTrigger>
-          <SelectContent className="bg-background border-input shadow-md">
-            <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">
-              {t("crm.notPaid")}
-            </SelectItem>
-            <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">
-              {t("crm.paidPartly")}
-            </SelectItem>
-            <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">
-              {t("crm.paidFully")}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {!isBookingRequest && (
+        <div className="space-y-2">
+          <Label>{t("events.paymentStatus")}</Label>
+          <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+            <SelectTrigger className="w-full bg-background border-input">
+              <SelectValue placeholder={t("events.selectPaymentStatus")} />
+            </SelectTrigger>
+            <SelectContent className="bg-background border-input shadow-md">
+              <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">
+                {t("crm.notPaid")}
+              </SelectItem>
+              <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">
+                {t("crm.paidPartly")}
+              </SelectItem>
+              <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">
+                {t("crm.paidFully")}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
-      {paymentStatus && paymentStatus !== 'not_paid' && (
+      {(paymentStatus && paymentStatus !== 'not_paid' && !isBookingRequest) || isBookingRequest ? (
         <div className="space-y-2">
           <Label htmlFor="amount">
             {t("events.paymentAmount")} ({language === 'es' ? '€' : '$'})
@@ -316,11 +286,10 @@ export const EventDialogFields = ({
             placeholder={`${t("events.paymentAmount")} ${language === 'es' ? '(€)' : '($)'}`}
             value={paymentAmount}
             onChange={(e) => setPaymentAmount(e.target.value)}
-            required
             className="bg-background border-input"
           />
         </div>
-      )}
+      ) : null}
 
       <div className="space-y-2">
         <Label htmlFor="notes">{t("events.eventNotes")}</Label>
@@ -348,7 +317,7 @@ export const EventDialogFields = ({
         onChange={setSelectedFile}
         fileError={fileError}
         setFileError={setFileError}
-        hideLabel={true}
+        hideLabel={false}
       />
     </div>
   );
