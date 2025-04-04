@@ -119,6 +119,20 @@ export const BookingRequestForm = ({
         paymentAmountValue = isNaN(parsedAmount) ? null : parsedAmount;
       }
       
+      // Print debug information to help diagnose the issue
+      console.log("Submitting booking request with data:", {
+        title,
+        requester_name: userSurname,
+        requester_email: socialNetworkLink,
+        requester_phone: userNumber,
+        description: eventNotes,
+        start_date: startDateTime.toISOString(),
+        end_date: endDateTime.toISOString(),
+        payment_amount: paymentAmountValue,
+        payment_status: paymentStatus,
+        business_id: businessId
+      });
+      
       await createBookingRequest({
         title: title,
         requester_name: userSurname,
@@ -128,8 +142,8 @@ export const BookingRequestForm = ({
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
         payment_amount: paymentAmountValue,
-        business_id: businessId,
         payment_status: paymentStatus,
+        business_id: businessId,
       });
       
       toast({
@@ -180,7 +194,7 @@ export const BookingRequestForm = ({
           setSelectedFile={setSelectedFile}
           fileError={fileError}
           setFileError={setFileError}
-          isBookingRequest={false}
+          isBookingRequest={true}
         />
 
         <div className="flex justify-end space-x-2 pt-4">

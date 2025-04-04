@@ -66,7 +66,7 @@ export const EventDialogFields = ({
   eventId,
   onFileDeleted,
   displayedFiles = [],
-  isBookingRequest = false,
+  isBookingRequest = true,
 }: EventDialogFieldsProps) => {
   const { t, language } = useLanguage();
 

@@ -1,3 +1,4 @@
+
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
@@ -25,6 +26,9 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
       // Explicitly set to null to avoid database errors
       bookingData.payment_amount = null;
     }
+    
+    // Print more detailed debugging info
+    console.log("Final booking data being sent to supabase:", bookingData);
     
     const { data, error } = await supabase
       .from("booking_requests")
