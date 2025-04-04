@@ -13,12 +13,14 @@ import { TaskFullView } from "./tasks/TaskFullView";
 import { supabase } from "@/lib/supabase";
 import { TaskColumn } from "./tasks/TaskColumn";
 import { TaskCard } from "./tasks/TaskCard";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const TaskList = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
+  const { user } = useAuth();
 
   const deleteTaskMutation = useMutation({
     mutationFn: (id: string) => deleteTask(id),
@@ -56,13 +58,8 @@ export const TaskList = () => {
   };
 
   const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ['tasks'],
-    queryFn: async () => {
-      console.log('Fetching tasks in TaskList component');
-      const tasks = await getTasks();
-      console.log('Tasks received in TaskList:', tasks);
-      return tasks;
-    },
+    queryKey: ['tasks', user?.id],
+    queryFn: () => getTasks(user?.id),
   });
 
   if (isLoading) return <div className="text-foreground">Loading tasks...</div>;

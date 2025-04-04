@@ -14,12 +14,17 @@ export async function getPublicCalendarEvents(businessId: string) {
 }
 
 // Task API functions
-export async function getTasks(userId: string) {
-  const { data, error } = await supabase
+export async function getTasks(userId?: string) {
+  const query = supabase
     .from('tasks')
     .select('*')
-    .eq('user_id', userId)
-    .order('order');
+    .order('position', { ascending: true });
+    
+  if (userId) {
+    query.eq('user_id', userId);
+  }
+  
+  const { data, error } = await query;
     
   if (error) throw error;
   return data || [];
@@ -58,12 +63,17 @@ export async function deleteTask(id: string) {
 }
 
 // Note API functions
-export async function getNotes(userId: string) {
-  const { data, error } = await supabase
+export async function getNotes(userId?: string) {
+  const query = supabase
     .from('notes')
     .select('*')
-    .eq('user_id', userId)
     .order('created_at', { ascending: false });
+    
+  if (userId) {
+    query.eq('user_id', userId);
+  }
+  
+  const { data, error } = await query;
     
   if (error) throw error;
   return data || [];
@@ -102,12 +112,17 @@ export async function deleteNote(id: string) {
 }
 
 // Reminder API functions
-export async function getReminders(userId: string) {
-  const { data, error } = await supabase
+export async function getReminders(userId?: string) {
+  const query = supabase
     .from('reminders')
     .select('*')
-    .eq('user_id', userId)
-    .order('due_date', { ascending: true });
+    .order('remind_at', { ascending: true });
+    
+  if (userId) {
+    query.eq('user_id', userId);
+  }
+  
+  const { data, error } = await query;
     
   if (error) throw error;
   return data || [];
