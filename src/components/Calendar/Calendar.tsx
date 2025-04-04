@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from "react";
 import { CalendarHeader } from "./CalendarHeader";
-import { CalendarGrid } from "./CalendarGrid";
+import { CalendarView } from "./CalendarView";
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { EventDialog } from "./EventDialog";
 import { format, addDays, startOfWeek, startOfMonth, addMonths, addWeeks } from "date-fns";
+import { useToast } from "@/components/ui/use-toast";
 
 interface CalendarProps {
   isExternalCalendar?: boolean;
@@ -18,6 +19,7 @@ interface CalendarProps {
   onEventDelete?: (id: string) => Promise<void>;
   view?: CalendarViewType;
   onViewChange?: (view: CalendarViewType) => void;
+  defaultView?: CalendarViewType;
 }
 
 export const Calendar: React.FC<CalendarProps> = ({
@@ -30,20 +32,25 @@ export const Calendar: React.FC<CalendarProps> = ({
   onEventCreate,
   onEventUpdate,
   onEventDelete,
-  view = "month",
-  onViewChange,
+  view: externalView,
+  onViewChange: externalViewChange,
+  defaultView = "month",
 }) => {
   const [events, setEvents] = useState<CalendarEventType[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
-  const [localView, setLocalView] = useState<CalendarViewType>(view);
+  const [localView, setLocalView] = useState<CalendarViewType>(externalView || defaultView);
   const [days, setDays] = useState<Date[]>([]);
+  const { toast } = useToast();
+  
+  // Use the external view state if provided, otherwise use local state
+  const currentView = externalView || localView;
   
   // Handle view changes internally if no external handler is provided
   const handleViewChange = (newView: CalendarViewType) => {
-    if (onViewChange) {
-      onViewChange(newView);
+    if (externalViewChange) {
+      externalViewChange(newView);
     } else {
       setLocalView(newView);
     }
@@ -52,7 +59,6 @@ export const Calendar: React.FC<CalendarProps> = ({
   // Calculate days to display based on view and selected date
   useEffect(() => {
     try {
-      const currentView = onViewChange ? view : localView;
       let newDays: Date[] = [];
       
       if (currentView === 'month') {
@@ -87,34 +93,75 @@ export const Calendar: React.FC<CalendarProps> = ({
       console.error("Error calculating days:", error);
       setDays([new Date()]); // Fallback to today if there's an error
     }
-  }, [selectedDate, localView, view, onViewChange]);
+  }, [selectedDate, localView, externalView]);
   
   useEffect(() => {
-    // Combine direct events and fetched events
-    const combinedEvents = [...(directEvents || []), ...(fetchedEvents || [])];
-    setEvents(combinedEvents);
+    // Combine direct events and fetched events and filter out invalid ones
+    try {
+      const combinedEvents = [...(directEvents || []), ...(fetchedEvents || [])];
+      
+      // Filter out events with invalid dates
+      const validEvents = combinedEvents.filter(event => {
+        try {
+          const startDate = new Date(event.start_date);
+          const endDate = new Date(event.end_date);
+          return (
+            startDate instanceof Date && !isNaN(startDate.getTime()) &&
+            endDate instanceof Date && !isNaN(endDate.getTime())
+          );
+        } catch (e) {
+          console.warn("Invalid event date:", event, e);
+          return false;
+        }
+      });
+      
+      if (validEvents.length !== combinedEvents.length) {
+        console.warn(`Filtered out ${combinedEvents.length - validEvents.length} events with invalid dates`);
+      }
+      
+      setEvents(validEvents);
+    } catch (error) {
+      console.error("Error processing events:", error);
+      setEvents([]);
+    }
   }, [directEvents, fetchedEvents]);
 
   // Navigation functions
   const handlePrevious = () => {
-    const currentView = onViewChange ? view : localView;
-    if (currentView === 'month') {
-      setSelectedDate(prev => addMonths(prev, -1));
-    } else if (currentView === 'week') {
-      setSelectedDate(prev => addWeeks(prev, -1));
-    } else {
-      setSelectedDate(prev => addDays(prev, -1));
+    try {
+      if (currentView === 'month') {
+        setSelectedDate(prev => addMonths(prev, -1));
+      } else if (currentView === 'week') {
+        setSelectedDate(prev => addWeeks(prev, -1));
+      } else {
+        setSelectedDate(prev => addDays(prev, -1));
+      }
+    } catch (error) {
+      console.error("Error navigating to previous period:", error);
+      toast({
+        title: "Navigation Error",
+        description: "There was an error navigating to the previous period.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleNext = () => {
-    const currentView = onViewChange ? view : localView;
-    if (currentView === 'month') {
-      setSelectedDate(prev => addMonths(prev, 1));
-    } else if (currentView === 'week') {
-      setSelectedDate(prev => addWeeks(prev, 1));
-    } else {
-      setSelectedDate(prev => addDays(prev, 1));
+    try {
+      if (currentView === 'month') {
+        setSelectedDate(prev => addMonths(prev, 1));
+      } else if (currentView === 'week') {
+        setSelectedDate(prev => addWeeks(prev, 1));
+      } else {
+        setSelectedDate(prev => addDays(prev, 1));
+      }
+    } catch (error) {
+      console.error("Error navigating to next period:", error);
+      toast({
+        title: "Navigation Error",
+        description: "There was an error navigating to the next period.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -123,9 +170,71 @@ export const Calendar: React.FC<CalendarProps> = ({
     setSelectedEvent(event);
   };
 
-  const handleDateClick = (date: Date) => {
-    setSelectedDate(date);
-    setIsNewEventDialogOpen(true);
+  const handleDayClick = (date: Date, hour?: number) => {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      console.error("Invalid date clicked:", date);
+      return;
+    }
+    
+    try {
+      const newDate = new Date(date);
+      
+      // If an hour is specified (for week/day view), set it
+      if (typeof hour === 'number') {
+        newDate.setHours(hour, 0, 0, 0);
+      } else {
+        // For month view, default to noon
+        newDate.setHours(12, 0, 0, 0);
+      }
+      
+      setSelectedDate(newDate);
+      setIsNewEventDialogOpen(true);
+    } catch (error) {
+      console.error("Error handling day click:", error);
+      toast({
+        title: "Error",
+        description: "There was an error selecting this date.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle event creation with proper type safety
+  const handleEventCreate = async (data: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+    if (!onEventCreate) {
+      throw new Error("No event creation handler provided");
+    }
+    
+    try {
+      const result = await onEventCreate(data);
+      if (!result) {
+        throw new Error("Failed to create event");
+      }
+      setIsNewEventDialogOpen(false);
+      return result as CalendarEventType;
+    } catch (error) {
+      console.error("Error creating event:", error);
+      throw error;
+    }
+  };
+
+  // Handle event updates with proper type safety
+  const handleEventUpdate = async (id: string, data: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+    if (!onEventUpdate) {
+      throw new Error("No event update handler provided");
+    }
+    
+    try {
+      const result = await onEventUpdate(id, data);
+      if (!result) {
+        throw new Error("Failed to update event");
+      }
+      setSelectedEvent(null);
+      return result as CalendarEventType;
+    } catch (error) {
+      console.error("Error updating event:", error);
+      throw error;
+    }
   };
 
   // Debug logs for troubleshooting
@@ -137,14 +246,21 @@ export const Calendar: React.FC<CalendarProps> = ({
     directEvents: directEvents?.length || 0,
     fetchedEvents: fetchedEvents?.length || 0,
     eventsCount: events?.length || 0,
-    view: onViewChange ? view : localView
+    view: currentView
   });
-  
-  if (events?.length > 0) {
-    console.log("[Calendar] First event:", events[0]);
-  }
 
-  const currentView = onViewChange ? view : localView;
+  // Safe formatting for selected date
+  let formattedSelectedDate = "";
+  try {
+    if (selectedDate instanceof Date && !isNaN(selectedDate.getTime())) {
+      formattedSelectedDate = format(selectedDate, "yyyy-MM-dd");
+    } else {
+      formattedSelectedDate = format(new Date(), "yyyy-MM-dd");
+    }
+  } catch (error) {
+    console.error("Error formatting selected date:", error);
+    formattedSelectedDate = format(new Date(), "yyyy-MM-dd");
+  }
 
   return (
     <div className="w-full calendar-container">
@@ -157,15 +273,17 @@ export const Calendar: React.FC<CalendarProps> = ({
         onAddEvent={() => setIsNewEventDialogOpen(true)}
         isExternalCalendar={isExternalCalendar}
       />
-      <CalendarGrid 
+      
+      <CalendarView
         days={days}
         events={events}
-        formattedSelectedDate={format(selectedDate, "yyyy-MM-dd")}
+        selectedDate={selectedDate}
         view={currentView}
-        onDayClick={handleDateClick}
+        onDayClick={handleDayClick}
         onEventClick={handleEventClick}
         isExternalCalendar={isExternalCalendar}
       />
+      
       <EventDialog 
         open={isNewEventDialogOpen || selectedEvent !== null}
         onOpenChange={(open) => {
@@ -177,15 +295,10 @@ export const Calendar: React.FC<CalendarProps> = ({
         selectedDate={selectedEvent ? new Date(selectedEvent.start_date) : selectedDate}
         onSubmit={async (data) => {
           if (selectedEvent) {
-            if (onEventUpdate) {
-              return await onEventUpdate(selectedEvent.id, data);
-            }
+            return await handleEventUpdate(selectedEvent.id, data);
           } else {
-            if (onEventCreate) {
-              return await onEventCreate(data);
-            }
+            return await handleEventCreate(data);
           }
-          throw new Error("No event handler provided");
         }}
         onDelete={selectedEvent && onEventDelete ? () => onEventDelete(selectedEvent.id) : undefined}
         event={selectedEvent}

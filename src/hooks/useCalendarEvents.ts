@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { CalendarEventType } from '@/lib/types/calendar';
+import { isValid } from 'date-fns';
 
 interface UseCalendarEventsProps {
   businessId?: string;
@@ -71,7 +72,7 @@ export const useCalendarEvents = ({ businessId, businessUserId }: UseCalendarEve
         try {
           const startDate = new Date(event.start_date);
           const endDate = new Date(event.end_date);
-          return !isNaN(startDate.getTime()) && !isNaN(endDate.getTime());
+          return isValid(startDate) && isValid(endDate);
         } catch (e) {
           console.error("Invalid event date format:", event, e);
           return false;
