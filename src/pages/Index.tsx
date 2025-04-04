@@ -10,7 +10,6 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
-import { LanguageProvider } from "@/contexts/LanguageContext"
 import { PublicBusinessPage } from "@/components/business/PublicBusinessPage"
 
 const containerVariants = {
@@ -42,7 +41,6 @@ const Index = () => {
   const { toast } = useToast()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const location = useLocation()
   
   const currentPath = window.location.pathname;
   const isBusinessPage = currentPath.startsWith('/business/');
@@ -136,11 +134,7 @@ const Index = () => {
   }
 
   if (isBusinessPage) {
-    return (
-      <LanguageProvider>
-        <PublicBusinessPage />
-      </LanguageProvider>
-    );
+    return <PublicBusinessPage />;
   }
 
   const content = user ? (
@@ -176,11 +170,7 @@ const Index = () => {
     </>
   );
 
-  return (
-    <LanguageProvider>
-      {content}
-    </LanguageProvider>
-  );
+  return content;
 }
 
 export default Index;
