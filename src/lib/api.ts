@@ -1,4 +1,3 @@
-
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
@@ -259,13 +258,39 @@ export const deleteReminder = async (id: string): Promise<void> => {
 // Calendar events for public display
 export const getPublicCalendarEvents = async (businessId: string) => {
   try {
-    // Fetch regular events first
-    const { data: eventsData, error: eventsError } = await supabase
-      .from("events")
-      .select("*")
-      .eq("user_id", businessId);
+    // First, get the business profile to find the related user_id
+    let businessUserId = null;
     
-    if (eventsError) throw eventsError;
+    try {
+      const { data: businessProfile, error: profileError } = await supabase
+        .from("business_profiles")
+        .select("user_id")
+        .eq("id", businessId)
+        .single();
+        
+      if (!profileError && businessProfile) {
+        businessUserId = businessProfile.user_id;
+        console.log(`[getPublicCalendarEvents] Found user_id ${businessUserId} for business ${businessId}`);
+      }
+    } catch (err) {
+      console.error("Error fetching business user ID:", err);
+    }
+    
+    // Fetch regular events from user's calendar if we have the user ID
+    let eventsData = [];
+    if (businessUserId) {
+      const { data: userEvents, error: eventsError } = await supabase
+        .from("events")
+        .select("*")
+        .eq("user_id", businessUserId);
+      
+      if (eventsError) {
+        console.error("Error fetching user events:", eventsError);
+      } else {
+        eventsData = userEvents || [];
+        console.log(`[getPublicCalendarEvents] Fetched ${eventsData.length} user events`);
+      }
+    }
     
     // Then fetch approved booking requests
     const { data: bookingsData, error: bookingsError } = await supabase
@@ -274,7 +299,12 @@ export const getPublicCalendarEvents = async (businessId: string) => {
       .eq("business_id", businessId)
       .eq("status", "approved");
     
-    if (bookingsError) throw bookingsError;
+    if (bookingsError) {
+      console.error("Error fetching approved bookings:", bookingsError);
+      throw bookingsError;
+    }
+    
+    console.log(`[getPublicCalendarEvents] Fetched ${bookingsData?.length || 0} approved bookings`);
     
     return {
       events: eventsData || [],

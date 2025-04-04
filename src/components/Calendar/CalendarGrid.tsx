@@ -35,12 +35,18 @@ export const CalendarGrid = ({
 
   // Get event color based on type and whether it's an external calendar
   const getEventStyles = (event: CalendarEventType) => {
-    if (event.type === "booking_request") {
-      return "bg-green-500 text-white"; // Booking requests are always green
-    } else if (event.type === "birthday") {
-      return "bg-blue-100 text-blue-700";
+    if (isExternalCalendar) {
+      // In external calendar, all events (including regular events) should have a consistent appearance as "Booked"
+      return "bg-green-500 text-white";
     } else {
-      return "bg-purple-100 text-purple-700";
+      // In internal calendar, use event type to determine appearance
+      if (event.type === "booking_request") {
+        return "bg-green-500 text-white"; 
+      } else if (event.type === "birthday") {
+        return "bg-blue-100 text-blue-700";
+      } else {
+        return "bg-purple-100 text-purple-700";
+      }
     }
   };
 

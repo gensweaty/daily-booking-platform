@@ -54,7 +54,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     getBusinessUserId();
   }, [businessId]);
 
-  // Step 2: Fetch all events using the getPublicCalendarEvents API
+  // Step 2: Fetch all events using the getPublicCalendarEvents API and directly from events table
   useEffect(() => {
     const fetchAllEvents = async () => {
       if (!businessId) return;
@@ -63,37 +63,53 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("[External Calendar] Starting to fetch events for business ID:", businessId);
       
       try {
-        // Use the API function to fetch both regular events and approved bookings
-        const { events: regularEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
+        // 1. First, get events from the API function which includes approved bookings
+        const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
         
-        console.log(`[External Calendar] Fetched ${regularEvents?.length || 0} regular events`);
+        console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
         
-        // Convert booking requests to calendar events format with full details
-        const bookingEvents: CalendarEventType[] = (approvedBookings || []).map(booking => ({
-          id: booking.id,
-          title: booking.title || 'Booking',
-          start_date: booking.start_date,
-          end_date: booking.end_date,
-          type: 'booking_request',
-          created_at: booking.created_at || new Date().toISOString(),
-          user_id: booking.user_id || '',
-          user_surname: booking.requester_name || '',
-          user_number: booking.requester_phone || '',
-          social_network_link: booking.requester_email || '',
-          event_notes: booking.description || '',
-          requester_name: booking.requester_name || '',
-          requester_email: booking.requester_email || '',
-        }));
+        // 2. If we have a businessUserId, fetch all regular events directly from the events table
+        let directEvents: CalendarEventType[] = [];
+        if (businessUserId) {
+          const { data: userEvents, error: userEventsError } = await supabase
+            .from('events')
+            .select('*')
+            .eq('user_id', businessUserId);
+            
+          if (userEventsError) {
+            console.error("Error fetching user events:", userEventsError);
+          } else {
+            directEvents = userEvents || [];
+            console.log(`[External Calendar] Fetched ${directEvents.length} direct user events`);
+          }
+        }
         
-        // Combine both types of events
+        // Combine all event sources, ensuring all events have proper defaults
         const allEvents: CalendarEventType[] = [
-          ...(regularEvents || []).map(event => ({
+          ...(apiEvents || []).map(event => ({
             ...event,
-            // Ensure all required fields are present
             type: event.type || 'event'
           })),
-          ...bookingEvents
+          ...(directEvents || []).map(event => ({
+            ...event,
+            type: event.type || 'event'
+          })),
+          ...(approvedBookings || []).map(booking => ({
+            id: booking.id,
+            title: booking.title || 'Booking',
+            start_date: booking.start_date,
+            end_date: booking.end_date,
+            type: 'booking_request',
+            created_at: booking.created_at || new Date().toISOString(),
+            user_id: booking.user_id || '',
+            user_surname: booking.requester_name || '',
+            user_number: booking.requester_phone || '',
+            social_network_link: booking.requester_email || '',
+            event_notes: booking.description || '',
+            requester_name: booking.requester_name || '',
+            requester_email: booking.requester_email || '',
+          }))
         ];
         
         console.log(`[External Calendar] Combined ${allEvents.length} total events`);
@@ -115,8 +131,21 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates`);
         }
         
+        // Remove duplicate events (same time slot)
+        const eventMap = new Map();
+        validEvents.forEach(event => {
+          const key = `${event.start_date}-${event.end_date}`;
+          // Prioritize booking_request type events
+          if (!eventMap.has(key) || event.type === 'booking_request') {
+            eventMap.set(key, event);
+          }
+        });
+        
+        const uniqueEvents = Array.from(eventMap.values());
+        console.log(`[External Calendar] Final unique events: ${uniqueEvents.length}`);
+        
         // Update state with fetched events
-        setEvents(validEvents);
+        setEvents(uniqueEvents);
       } catch (error) {
         console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
         toast({
@@ -140,7 +169,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         clearInterval(intervalId);
       };
     }
-  }, [businessId, toast, t]);
+  }, [businessId, businessUserId, toast, t]);
 
   if (!businessId) {
     return (
