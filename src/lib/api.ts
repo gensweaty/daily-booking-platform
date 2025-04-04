@@ -46,7 +46,7 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
 };
 
 // Task related functions
-export const getTasks = async () => {
+export const getTasks = async (): Promise<Task[]> => {
   try {
     const { data: userData } = await supabase.auth.getUser();
     
@@ -116,7 +116,7 @@ export const deleteTask = async (id: string): Promise<void> => {
 };
 
 // Note related functions
-export const getNotes = async () => {
+export const getNotes = async (): Promise<Note[]> => {
   try {
     const { data: userData } = await supabase.auth.getUser();
     
@@ -186,7 +186,7 @@ export const deleteNote = async (id: string): Promise<void> => {
 };
 
 // Reminder related functions
-export const getReminders = async () => {
+export const getReminders = async (): Promise<Reminder[]> => {
   try {
     const { data: userData } = await supabase.auth.getUser();
     

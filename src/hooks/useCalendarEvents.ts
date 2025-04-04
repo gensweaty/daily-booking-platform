@@ -222,9 +222,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
-    const bookingStatus = updates.type === 'booking_request';
-    
-    if (bookingStatus || (updates.id && id.includes('-'))) {
+    if (updates.type === 'booking_request' || (updates.id && id.includes('-'))) {
       try {
         const { data: bookingData, error: bookingError } = await supabase
           .from('booking_requests')
