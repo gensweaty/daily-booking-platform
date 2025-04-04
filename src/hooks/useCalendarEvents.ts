@@ -65,7 +65,24 @@ export const useCalendarEvents = ({ businessId, businessUserId }: UseCalendarEve
       }
       
       console.log("Fetched business events:", data?.length || 0);
-      return data || [];
+      
+      // Validate event dates before returning
+      const validEvents = data?.filter(event => {
+        try {
+          const startDate = new Date(event.start_date);
+          const endDate = new Date(event.end_date);
+          return !isNaN(startDate.getTime()) && !isNaN(endDate.getTime());
+        } catch (e) {
+          console.error("Invalid event date format:", event, e);
+          return false;
+        }
+      }) || [];
+      
+      if (validEvents.length !== data?.length) {
+        console.warn(`Filtered out ${(data?.length || 0) - validEvents.length} events with invalid dates`);
+      }
+      
+      return validEvents;
     } catch (error) {
       console.error("Error fetching business events:", error);
       return [];

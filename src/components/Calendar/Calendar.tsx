@@ -13,8 +13,8 @@ interface CalendarProps {
   allowBookingRequests?: boolean;
   directEvents?: CalendarEventType[];
   fetchedEvents?: CalendarEventType[];
-  onEventCreate?: (event: Partial<CalendarEventType>) => Promise<void>;
-  onEventUpdate?: (id: string, event: Partial<CalendarEventType>) => Promise<void>;
+  onEventCreate?: (event: Partial<CalendarEventType>) => Promise<CalendarEventType | void>;
+  onEventUpdate?: (id: string, event: Partial<CalendarEventType>) => Promise<CalendarEventType | void>;
   onEventDelete?: (id: string) => Promise<void>;
   view?: CalendarViewType;
   onViewChange?: (view: CalendarViewType) => void;
@@ -51,28 +51,42 @@ export const Calendar: React.FC<CalendarProps> = ({
 
   // Calculate days to display based on view and selected date
   useEffect(() => {
-    const currentView = onViewChange ? view : localView;
-    let newDays: Date[] = [];
-    
-    if (currentView === 'month') {
-      // Generate days for month view
-      const monthStart = startOfMonth(selectedDate);
-      const weekStart = startOfWeek(monthStart);
-      for (let i = 0; i < 42; i++) {
-        newDays.push(addDays(weekStart, i));
+    try {
+      const currentView = onViewChange ? view : localView;
+      let newDays: Date[] = [];
+      
+      if (currentView === 'month') {
+        // Generate days for month view
+        const monthStart = startOfMonth(selectedDate);
+        const weekStart = startOfWeek(monthStart);
+        for (let i = 0; i < 42; i++) {
+          newDays.push(addDays(weekStart, i));
+        }
+      } else if (currentView === 'week') {
+        // Generate days for week view
+        const weekStart = startOfWeek(selectedDate);
+        for (let i = 0; i < 7; i++) {
+          newDays.push(addDays(weekStart, i));
+        }
+      } else {
+        // Day view - just the selected date
+        newDays = [selectedDate];
       }
-    } else if (currentView === 'week') {
-      // Generate days for week view
-      const weekStart = startOfWeek(selectedDate);
-      for (let i = 0; i < 7; i++) {
-        newDays.push(addDays(weekStart, i));
+      
+      // Validate the days array to ensure all dates are valid
+      const validDays = newDays.filter(day => 
+        day instanceof Date && !isNaN(day.getTime())
+      );
+      
+      if (validDays.length !== newDays.length) {
+        console.warn("Some days were invalid and filtered out", newDays);
       }
-    } else {
-      // Day view - just the selected date
-      newDays = [selectedDate];
+      
+      setDays(validDays);
+    } catch (error) {
+      console.error("Error calculating days:", error);
+      setDays([new Date()]); // Fallback to today if there's an error
     }
-    
-    setDays(newDays);
   }, [selectedDate, localView, view, onViewChange]);
   
   useEffect(() => {

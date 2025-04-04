@@ -22,13 +22,20 @@ export const CalendarGrid = ({
   onEventClick,
   isExternalCalendar = false,
 }: CalendarGridProps) => {
+  // Ensure days array has at least one valid date to avoid format errors
+  if (!days || days.length === 0 || !days[0] || !(days[0] instanceof Date) || isNaN(days[0].getTime())) {
+    console.error("CalendarGrid received invalid days array:", days);
+    return <div>Loading calendar...</div>;
+  }
+  
   // Get the start of the week for proper alignment
   const startDate = startOfWeek(days[0]);
   
-  // Generate properly aligned weekday headers
-  const weekDays = Array.from({ length: 7 }, (_, i) => 
-    format(addDays(startDate, i), 'EEE')
-  );
+  // Generate properly aligned weekday headers with validation
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const day = addDays(startDate, i);
+    return format(day, 'EEE');
+  });
 
   // Convert formattedSelectedDate string back to a Date for comparison
   const selectedDate = new Date(formattedSelectedDate);
@@ -77,26 +84,31 @@ export const CalendarGrid = ({
                 height: '6rem'
               }}
             >
-              {days.map((day) => (
+              {view === 'day' ? (
                 <div
-                  key={`${day.toISOString()}-${hourIndex}`}
-                  className={`border-r border-gray-200 p-1 relative ${
-                    !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
-                  }`}
-                  onClick={() => onDayClick?.(day, hourIndex)}
+                  key={`${days[0]?.toISOString() || 'day'}-${hourIndex}`}
+                  className="border-r border-gray-200 p-1 relative"
+                  onClick={() => onDayClick?.(days[0], hourIndex)}
                 >
                   {/* Render events that start in this hour */}
                   {events
                     .filter((event) => {
                       const eventDate = new Date(event.start_date);
                       return (
-                        isSameDay(eventDate, day) && 
+                        eventDate && !isNaN(eventDate.getTime()) &&
+                        isSameDay(eventDate, days[0]) && 
                         eventDate.getHours() === hourIndex
                       );
                     })
                     .map((event) => {
                       const startTime = new Date(event.start_date);
                       const endTime = new Date(event.end_date);
+                      
+                      if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+                        console.error("Invalid event dates:", event);
+                        return null;
+                      }
+                      
                       const durationHours = Math.max(
                         1, 
                         Math.ceil(
@@ -130,7 +142,69 @@ export const CalendarGrid = ({
                       );
                     })}
                 </div>
-              ))}
+              ) : (
+                days.map((day) => (
+                  <div
+                    key={`${day?.toISOString() || 'day'}-${hourIndex}`}
+                    className={`border-r border-gray-200 p-1 relative ${
+                      !day || !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
+                    }`}
+                    onClick={() => day && onDayClick?.(day, hourIndex)}
+                  >
+                    {/* Render events that start in this hour */}
+                    {events
+                      .filter((event) => {
+                        const eventDate = new Date(event.start_date);
+                        return (
+                          day && eventDate && !isNaN(eventDate.getTime()) &&
+                          isSameDay(eventDate, day) && 
+                          eventDate.getHours() === hourIndex
+                        );
+                      })
+                      .map((event) => {
+                        const startTime = new Date(event.start_date);
+                        const endTime = new Date(event.end_date);
+                        
+                        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+                          console.error("Invalid event dates:", event);
+                          return null;
+                        }
+                        
+                        const durationHours = Math.max(
+                          1, 
+                          Math.ceil(
+                            (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)
+                          )
+                        );
+                        
+                        return (
+                          <div
+                            key={event.id}
+                            className={`${getEventStyles(event)} p-2 rounded cursor-pointer absolute top-1 left-1 right-1 overflow-hidden`}
+                            style={{ 
+                              height: `${Math.min(durationHours * 6 - 0.5, 5.5)}rem`,
+                              zIndex: 10
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEventClick?.(event);
+                            }}
+                          >
+                            <div className="flex items-center">
+                              <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
+                              <span className="truncate font-medium text-sm">
+                                {getEventTitle(event)}
+                              </span>
+                            </div>
+                            <div className="truncate text-xs">
+                              {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                ))
+              )}
             </div>
           ))}
         </div>
@@ -146,36 +220,47 @@ export const CalendarGrid = ({
           {day}
         </div>
       ))}
-      {days.map((day) => (
-        <div
-          key={day.toISOString()}
-          className={`bg-white p-4 min-h-[120px] cursor-pointer hover:bg-gray-50 ${
-            !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
-          }`}
-          onClick={() => onDayClick?.(day)}
-        >
-          <div className="font-medium">{format(day, "d")}</div>
-          <div className="mt-2 space-y-1">
-            {events
-              .filter((event) => isSameDay(new Date(event.start_date), day))
-              .map((event) => (
-                <div
-                  key={event.id}
-                  className={`text-sm p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEventClick?.(event);
-                  }}
-                >
-                  <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
-                  <span className="truncate font-medium">
-                    {getEventTitle(event)}
-                  </span>
-                </div>
-              ))}
+      {days.map((day) => {
+        // Skip rendering invalid days
+        if (!day || !(day instanceof Date) || isNaN(day.getTime())) {
+          console.warn("Invalid day in month view:", day);
+          return <div key={`invalid-${Math.random()}`} className="bg-white p-4 min-h-[120px]"></div>;
+        }
+        
+        return (
+          <div
+            key={day.toISOString()}
+            className={`bg-white p-4 min-h-[120px] cursor-pointer hover:bg-gray-50 ${
+              !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
+            }`}
+            onClick={() => onDayClick?.(day)}
+          >
+            <div className="font-medium">{format(day, "d")}</div>
+            <div className="mt-2 space-y-1">
+              {events
+                .filter((event) => {
+                  const eventDate = new Date(event.start_date);
+                  return eventDate && !isNaN(eventDate.getTime()) && isSameDay(eventDate, day);
+                })
+                .map((event) => (
+                  <div
+                    key={event.id}
+                    className={`text-sm p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick?.(event);
+                    }}
+                  >
+                    <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
+                    <span className="truncate font-medium">
+                      {getEventTitle(event)}
+                    </span>
+                  </div>
+                ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
