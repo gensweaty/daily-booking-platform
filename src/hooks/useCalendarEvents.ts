@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -32,14 +31,23 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       console.log(`Fetched ${data?.length || 0} events for user ${user.id}`);
       
-      // Additional validation to prevent any possible data leakage
-      const filteredData = data ? data.filter(event => event.user_id === user.id) : [];
-      
-      if (filteredData.length !== (data?.length || 0)) {
-        console.error(`CRITICAL DATA LEAK DETECTED: API returned ${data?.length} events but only ${filteredData.length} belong to current user!`);
+      // CRITICAL SECURITY FIX: Perform client-side validation to ensure data integrity
+      if (data && data.length > 0) {
+        const validUserEvents = data.filter(event => event.user_id === user.id);
+        
+        if (validUserEvents.length !== data.length) {
+          console.error(`CRITICAL SECURITY BREACH: API returned ${data.length} events but only ${validUserEvents.length} belong to current user ${user.id}!`);
+          
+          // Log the specific events that don't belong to the user for debugging
+          const invalidEvents = data.filter(event => event.user_id !== user.id);
+          console.error("Invalid events:", invalidEvents.map(e => ({ id: e.id, user_id: e.user_id, title: e.title })));
+          
+          // Return only the valid events
+          return validUserEvents;
+        }
       }
       
-      return filteredData;
+      return data || [];
     } catch (err) {
       console.error("Exception in getEvents:", err);
       return [];
@@ -68,14 +76,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         
         console.log(`Fetched ${data?.length || 0} business events for user ${businessUserId}`);
         
-        // Additional validation to prevent any possible data leakage
-        const filteredData = data ? data.filter(event => event.user_id === businessUserId) : [];
-        
-        if (filteredData.length !== (data?.length || 0)) {
-          console.error(`CRITICAL DATA LEAK DETECTED: API returned ${data?.length} events but only ${filteredData.length} belong to business user!`);
+        // CRITICAL SECURITY FIX: Perform client-side validation to ensure data integrity
+        if (data && data.length > 0) {
+          const validBusinessEvents = data.filter(event => event.user_id === businessUserId);
+          
+          if (validBusinessEvents.length !== data.length) {
+            console.error(`CRITICAL SECURITY BREACH: API returned ${data.length} events but only ${validBusinessEvents.length} belong to business user ${businessUserId}!`);
+            return validBusinessEvents;
+          }
         }
         
-        return filteredData;
+        return data || [];
       } catch (error) {
         console.error("Exception in getBusinessEvents with businessUserId:", error);
         return [];
@@ -104,15 +115,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           return [];
         }
         
-        const businessUserId = businessProfile.user_id;
-        console.log("Found user_id for business:", businessUserId);
+        const businessUserIdFromProfile = businessProfile.user_id;
+        console.log("Found user_id for business:", businessUserIdFromProfile);
         
         // Then get all events for this user
         // CRITICAL SECURITY FIX: Added strict user_id equality check
         const { data, error } = await supabase
           .from('events')
           .select('*')
-          .eq('user_id', businessUserId) // Ensures we only get that business's events
+          .eq('user_id', businessUserIdFromProfile) // Ensures we only get that business's events
           .is('deleted_at', null) // Only fetch non-deleted events
           .order('start_date', { ascending: true });
 
@@ -123,14 +134,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         
         console.log(`Fetched ${data?.length || 0} business events`);
         
-        // Additional validation to prevent any possible data leakage
-        const filteredData = data ? data.filter(event => event.user_id === businessUserId) : [];
-        
-        if (filteredData.length !== (data?.length || 0)) {
-          console.error(`CRITICAL DATA LEAK DETECTED: API returned ${data?.length} events but only ${filteredData.length} belong to business user!`);
+        // CRITICAL SECURITY FIX: Perform client-side validation to ensure data integrity
+        if (data && data.length > 0) {
+          const validBusinessEvents = data.filter(event => event.user_id === businessUserIdFromProfile);
+          
+          if (validBusinessEvents.length !== data.length) {
+            console.error(`CRITICAL SECURITY BREACH: API returned ${data.length} events but only ${validBusinessEvents.length} belong to business user ${businessUserIdFromProfile}!`);
+            return validBusinessEvents;
+          }
         }
         
-        return filteredData;
+        return data || [];
       } catch (error) {
         console.error("Error fetching business events:", error);
         return [];
@@ -218,14 +232,26 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to create events");
     
-    // CRITICAL SECURITY FIX: Always set user_id to current user
+    // CRITICAL SECURITY FIX: Force the user_id to be the current user's ID
+    const eventWithUserId = { ...event, user_id: user.id };
+    console.log(`Creating event with explicit user_id: ${user.id}`);
+    
     const { data, error } = await supabase
       .from('events')
-      .insert([{ ...event, user_id: user.id }])
+      .insert([eventWithUserId])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error creating event:", error);
+      throw error;
+    }
+    
+    // CRITICAL SECURITY FIX: Verify the created event has the correct user_id
+    if (data.user_id !== user.id) {
+      console.error(`CRITICAL SECURITY BREACH: Created event has user_id ${data.user_id} instead of ${user.id}`);
+      throw new Error("Security error: Event was created with incorrect user ID");
+    }
     
     toast({
       title: "Event created",
@@ -246,6 +272,29 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.warn("SECURITY: Prevented attempt to change user_id during event update");
     }
     
+    console.log(`Updating event ${id} for user ${user.id}`);
+    
+    // CRITICAL SECURITY FIX: First verify the event belongs to this user
+    const { data: existingEvent, error: getError } = await supabase
+      .from('events')
+      .select('user_id')
+      .eq('id', id)
+      .single();
+      
+    if (getError) {
+      console.error("Error fetching event for update:", getError);
+      throw getError;
+    }
+    
+    if (!existingEvent) {
+      throw new Error("Event not found");
+    }
+    
+    if (existingEvent.user_id !== user.id) {
+      console.error(`SECURITY BREACH ATTEMPT: User ${user.id} attempted to update event ${id} belonging to user ${existingEvent.user_id}`);
+      throw new Error("You do not have permission to update this event");
+    }
+    
     // CRITICAL SECURITY FIX: Added user_id check to ensure users can only update their own events
     const { data, error } = await supabase
       .from('events')
@@ -255,7 +304,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error updating event:", error);
+      throw error;
+    }
     
     toast({
       title: "Event updated",
@@ -269,6 +321,29 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const deleteEvent = async (id: string): Promise<void> => {
     if (!user) throw new Error("User must be authenticated to delete events");
     
+    console.log(`Deleting event ${id} for user ${user.id}`);
+    
+    // CRITICAL SECURITY FIX: First verify the event belongs to this user
+    const { data: existingEvent, error: getError } = await supabase
+      .from('events')
+      .select('user_id')
+      .eq('id', id)
+      .single();
+      
+    if (getError) {
+      console.error("Error fetching event for delete:", getError);
+      throw getError;
+    }
+    
+    if (!existingEvent) {
+      throw new Error("Event not found");
+    }
+    
+    if (existingEvent.user_id !== user.id) {
+      console.error(`SECURITY BREACH ATTEMPT: User ${user.id} attempted to delete event ${id} belonging to user ${existingEvent.user_id}`);
+      throw new Error("You do not have permission to delete this event");
+    }
+    
     // CRITICAL SECURITY FIX: Added user_id check to ensure users can only delete their own events
     const { error } = await supabase
       .from('events')
@@ -276,7 +351,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       .eq('id', id)
       .eq('user_id', user.id); // Critical: Only delete events owned by this user
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error deleting event:", error);
+      throw error;
+    }
     
     toast({
       title: "Event deleted",
@@ -338,22 +416,28 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     },
   });
 
-  // CRITICAL SECURITY FIX: Added double-check to verify events belong to the correct user
+  // CRITICAL SECURITY FIX: Enhanced verification for events ownership
   const allEvents = (() => {
-    // First determine which events to use (user's or business's)
+    // Determine which events to use (user's or business's)
     const currentUserEvents = (businessId || businessUserId) ? businessEvents : events;
     
-    // Filter by user_id for extra protection
-    const userId = businessUserId || (businessId ? null : user?.id);
+    // Check if business or user mode
+    const targetUserId = businessUserId || (businessId ? null : user?.id);
     
-    // Apply strict filtering
-    const safeEvents = userId ? currentUserEvents.filter(event => {
-      if (event.user_id !== userId) {
-        console.error(`SECURITY: Found event (id: ${event.id}, title: ${event.title}) belonging to user ${event.user_id} that should not be visible to user ${userId}`);
-        return false;
-      }
-      return true;
-    }) : currentUserEvents;
+    // Apply strict filtering on all events to ensure proper data isolation
+    const safeEvents = targetUserId 
+      ? currentUserEvents.filter(event => {
+          if (event.user_id !== targetUserId) {
+            console.error(`SECURITY BREACH: Found event (id: ${event.id}, title: ${event.title}) belonging to user ${event.user_id} that should not be visible to user ${targetUserId}`);
+            return false;
+          }
+          return true;
+        }) 
+      : currentUserEvents;
+    
+    if (safeEvents.length !== currentUserEvents.length) {
+      console.error(`CRITICAL SECURITY: Filtered out ${currentUserEvents.length - safeEvents.length} events due to user_id mismatch`);
+    }
     
     // Return filtered events plus approved bookings
     return [...safeEvents, ...approvedBookings];

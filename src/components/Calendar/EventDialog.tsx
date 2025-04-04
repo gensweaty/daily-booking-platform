@@ -76,9 +76,20 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!user?.id) {
+      console.error("No authenticated user found when submitting event");
+      toast({
+        title: "Error",
+        description: "You must be logged in to create or edit events",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const startDateTime = new Date(startDate);
     const endDateTime = new Date(endDate);
     
+    // CRITICAL SECURITY FIX: Always set the user_id to the current user's ID
     const eventData = {
       title,
       user_surname: userSurname,
@@ -89,16 +100,32 @@ export const EventDialog = ({
       end_date: endDateTime.toISOString(),
       payment_status: paymentStatus || null,
       payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+      user_id: user.id, // CRITICAL: Always set the user_id
     };
+
+    console.log("Submitting event with explicit user_id:", user.id);
 
     try {
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
+      
+      // Verify that the created/updated event has the correct user_id
+      if (createdEvent.user_id !== user.id) {
+        console.error(`CRITICAL SECURITY ERROR: Event was saved with wrong user_id: ${createdEvent.user_id} instead of ${user.id}`);
+        toast({
+          title: "Security Warning",
+          description: "There was a security concern with your event. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
 
+      // Customer record operations
       const { data: existingCustomer, error: customerQueryError } = await supabase
         .from('customers')
         .select('id')
         .eq('title', title)
+        .eq('user_id', user.id) // CRITICAL SECURITY FIX: Filter by user_id 
         .maybeSingle();
 
       if (customerQueryError && customerQueryError.code !== 'PGRST116') {
@@ -121,7 +148,7 @@ export const EventDialog = ({
             payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
             start_date: startDateTime.toISOString(),
             end_date: endDateTime.toISOString(),
-            user_id: user?.id,
+            user_id: user.id, // CRITICAL: Always set the user_id
             type: 'customer'
           })
           .select()
@@ -148,7 +175,8 @@ export const EventDialog = ({
             start_date: startDateTime.toISOString(),
             end_date: endDateTime.toISOString(),
           })
-          .eq('id', customerId);
+          .eq('id', customerId)
+          .eq('user_id', user.id); // CRITICAL SECURITY FIX: Only update if user_id matches
 
         if (updateError) {
           console.error('Error updating customer:', updateError);

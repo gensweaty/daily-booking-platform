@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -96,6 +97,29 @@ export const Calendar = ({
     }
   }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents, user?.id]);
 
+  // CRITICAL SECURITY FIX: Ensure events belong only to current user
+  const filteredEvents = (() => {
+    if (!user?.id || isExternalCalendar) {
+      return events;
+    }
+    
+    // Apply strict user filtering for non-external calendars
+    const userEvents = events.filter(event => {
+      if (event.user_id !== user.id) {
+        console.error(`SECURITY: Found event (id: ${event.id}, title: ${event.title}) belonging to user ${event.user_id} in calendar for ${user.id}`);
+        return false;
+      }
+      return true;
+    });
+    
+    if (userEvents.length !== events.length) {
+      console.error(`CRITICAL SECURITY: Filtered out ${events.length - userEvents.length} events that don't belong to current user ${user.id}`);
+    }
+    
+    return userEvents;
+  })();
+
+  // Use filteredEvents instead of events for all rendering
   const {
     selectedEvent,
     setSelectedEvent,
@@ -256,7 +280,7 @@ export const Calendar = ({
 
   // Store events in window for debugging
   if (typeof window !== "undefined") {
-    (window as any).__CALENDAR_EVENTS__ = events;
+    (window as any).__CALENDAR_EVENTS__ = filteredEvents;
   }
   
   return (
@@ -276,7 +300,7 @@ export const Calendar = ({
         <div className="flex-1">
           <CalendarView
             days={getDaysForView()}
-            events={events || []}
+            events={filteredEvents || []} {/* Use filteredEvents instead of events */}
             selectedDate={selectedDate}
             view={view}
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}
