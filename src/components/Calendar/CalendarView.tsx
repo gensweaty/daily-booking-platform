@@ -1,4 +1,3 @@
-
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { CalendarGrid } from "./CalendarGrid";
@@ -15,22 +14,26 @@ interface CalendarViewProps {
   isExternalCalendar?: boolean;
 }
 
-export const CalendarView = ({ 
-  days, 
-  events, 
-  selectedDate, 
-  view, 
-  onDayClick, 
+export function CalendarView({
+  days,
+  events,
+  selectedDate,
+  view,
+  onDayClick,
   onEventClick,
-  isExternalCalendar = false 
-}: CalendarViewProps) => {
+  isExternalCalendar = false,
+}: CalendarViewProps) {
   const { t } = useLanguage();
-  const [normalizedEvents, setNormalizedEvents] = useState<CalendarEventType[]>(events);
   
-  // When events change, update normalized events
+  // Add debug log for events in CalendarView
   useEffect(() => {
-    setNormalizedEvents(events);
-  }, [events]);
+    if (isExternalCalendar) {
+      console.log(`[CalendarView] Rendering external calendar with ${events.length} events`);
+      if (events.length > 0) {
+        console.log("[CalendarView] First event sample:", events[0]);
+      }
+    }
+  }, [events, isExternalCalendar]);
 
   const formattedSelectedDate = formatDate(selectedDate, "yyyy-MM-dd");
 
@@ -38,7 +41,7 @@ export const CalendarView = ({
     <div className="h-full">
       <CalendarGrid
         days={days}
-        events={normalizedEvents}
+        events={events}
         formattedSelectedDate={formattedSelectedDate}
         view={view}
         onDayClick={onDayClick}

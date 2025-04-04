@@ -746,6 +746,27 @@ export type Database = {
         }
         Returns: string
       }
+      get_public_events_by_user_id: {
+        Args: {
+          user_id_param: string
+        }
+        Returns: {
+          created_at: string | null
+          deleted_at: string | null
+          end_date: string
+          event_notes: string | null
+          id: string
+          payment_amount: number | null
+          payment_status: string | null
+          social_network_link: string | null
+          start_date: string
+          title: string
+          type: string | null
+          user_id: string | null
+          user_number: string | null
+          user_surname: string | null
+        }[]
+      }
       validate_and_use_redeem_code: {
         Args: {
           p_code: string

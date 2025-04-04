@@ -54,7 +54,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     getBusinessUserId();
   }, [businessId]);
 
-  // Step 2: Fetch all events using the getPublicCalendarEvents API and directly from events table
+  // Step 2: Fetch all events using the getPublicCalendarEvents API which uses our new RPC function
   useEffect(() => {
     const fetchAllEvents = async () => {
       if (!businessId) return;
@@ -63,7 +63,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("[External Calendar] Starting to fetch events for business ID:", businessId);
       
       try {
-        // 1. Get events from the API function which includes approved bookings and user events
+        // Get events from the API function which includes approved bookings and user events
+        // This now uses our security definer function to bypass RLS
         const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
         
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);

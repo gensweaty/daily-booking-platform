@@ -258,59 +258,60 @@ export const deleteReminder = async (id: string): Promise<void> => {
 // Calendar events for public display
 export const getPublicCalendarEvents = async (businessId: string) => {
   try {
-    // First, get the business profile to find the related user_id
-    let businessUserId = null;
+    console.log("[getPublicCalendarEvents] Fetching for business ID:", businessId);
     
-    try {
-      const { data: businessProfile, error: profileError } = await supabase
-        .from("business_profiles")
-        .select("user_id")
-        .eq("id", businessId)
-        .single();
-        
-      if (!profileError && businessProfile) {
-        businessUserId = businessProfile.user_id;
-        console.log(`[getPublicCalendarEvents] Found user_id ${businessUserId} for business ${businessId}`);
-      }
-    } catch (err) {
-      console.error("Error fetching business user ID:", err);
+    // First fetch the business user ID
+    const { data: business, error: businessError } = await supabase
+      .from("business_profiles")
+      .select("user_id")
+      .eq("id", businessId)
+      .single();
+    
+    if (businessError) {
+      console.error("Error fetching business:", businessError);
+      return { events: [], bookings: [] };
     }
     
-    // Fetch regular events from user's calendar if we have the user ID
-    let eventsData = [];
-    if (businessUserId) {
-      // Use a public function to bypass RLS for the specific business user's events
-      const { data: userEvents, error: eventsError } = await supabase
-        .rpc('get_public_events_by_user_id', { user_id_param: businessUserId });
-      
-      if (eventsError) {
-        console.error("Error fetching user events:", eventsError);
-      } else {
-        eventsData = userEvents || [];
-        console.log(`[getPublicCalendarEvents] Fetched ${eventsData.length} user events`);
-      }
+    if (!business?.user_id) {
+      console.error("No user ID found for business:", businessId);
+      return { events: [], bookings: [] };
     }
     
-    // Then fetch approved booking requests
-    const { data: bookingsData, error: bookingsError } = await supabase
-      .from("booking_requests")
-      .select("*")
-      .eq("business_id", businessId)
-      .eq("status", "approved");
+    console.log("[getPublicCalendarEvents] Using business user ID:", business.user_id);
+    
+    // Use the security definer function to get events bypassing RLS
+    const { data: events, error: eventsError } = await supabase
+      .rpc('get_public_events_by_user_id', {
+        user_id_param: business.user_id
+      });
+    
+    if (eventsError) {
+      console.error("Error fetching events with RPC:", eventsError);
+      return { events: [], bookings: [] };
+    }
+    
+    console.log(`[getPublicCalendarEvents] Fetched ${events?.length || 0} events via RPC function`);
+    
+    // Fetch approved booking requests
+    const { data: bookings, error: bookingsError } = await supabase
+      .from('booking_requests')
+      .select('*')
+      .eq('business_id', businessId)
+      .eq('status', 'approved');
     
     if (bookingsError) {
-      console.error("Error fetching approved bookings:", bookingsError);
-      throw bookingsError;
+      console.error("Error fetching bookings:", bookingsError);
+      return { events: events || [], bookings: [] };
     }
     
-    console.log(`[getPublicCalendarEvents] Fetched ${bookingsData?.length || 0} approved bookings`);
+    console.log(`[getPublicCalendarEvents] Fetched ${bookings?.length || 0} approved bookings`);
     
-    return {
-      events: eventsData || [],
-      bookings: bookingsData || []
+    return { 
+      events: events || [], 
+      bookings: bookings || [] 
     };
-  } catch (error: any) {
-    console.error("Error fetching public calendar events:", error);
-    throw new Error(error.message || "Failed to fetch public calendar events");
+  } catch (error) {
+    console.error("Exception in getPublicCalendarEvents:", error);
+    return { events: [], bookings: [] };
   }
 };
