@@ -46,6 +46,8 @@ export const ForgotPassword = () => {
       console.log("Current origin:", origin);
       
       // Request password reset with the correct redirect URL
+      // This is the key change - we're simply using the site origin without any path
+      // Supabase will handle the routing based on its site settings
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: origin,
       });
@@ -119,17 +121,17 @@ export const ForgotPassword = () => {
         {emailSent ? (
           <div className="text-center space-y-4">
             <p className="text-muted-foreground mb-4">
-              {t("auth.checkEmailReset")}
+              Please check your email for a reset link. The link will expire in 1 hour.
             </p>
             <p className="text-sm text-muted-foreground">
-              {t("auth.dontSeeEmail")}
+              Don't see the email? Check your spam folder or request another link.
             </p>
             <Button 
               variant="outline" 
               className="mt-2"
               onClick={() => setEmailSent(false)}
             >
-              {t("auth.sendAnotherLink")}
+              Send another link
             </Button>
           </div>
         ) : (

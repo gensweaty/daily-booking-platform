@@ -340,6 +340,7 @@ export const CustomerDialogFields = ({
       )}
 
       <FileUploadField 
+        onChange={setSelectedFile}
         onFileChange={setSelectedFile}
         fileError={fileError}
         setFileError={setFileError}

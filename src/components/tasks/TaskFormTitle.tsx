@@ -9,14 +9,14 @@ interface TaskFormTitleProps {
 }
 
 export const TaskFormTitle = ({ title, setTitle }: TaskFormTitleProps) => {
-  const { t } = useLanguage();
+  const { language } = useLanguage();
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="title">{t("tasks.title")}</Label>
+      <Label htmlFor="title">{language === 'es' ? 'Título' : 'Title'}</Label>
       <Input
         id="title"
-        placeholder={t("tasks.titlePlaceholder")}
+        placeholder={language === 'es' ? 'Título de la tarea' : 'Task title'}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required

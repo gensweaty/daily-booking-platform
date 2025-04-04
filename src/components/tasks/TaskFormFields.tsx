@@ -1,3 +1,4 @@
+
 import { FileUploadField } from "../shared/FileUploadField";
 import { FileDisplay } from "../shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
@@ -63,7 +64,7 @@ export const TaskFormFields = ({
         </div>
       )}
       <FileUploadField 
-        onFileChange={setSelectedFile}
+        onChange={setSelectedFile}
         fileError={fileError}
         setFileError={setFileError}
       />

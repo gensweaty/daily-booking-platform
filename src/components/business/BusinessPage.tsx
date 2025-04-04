@@ -1,167 +1,122 @@
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useBusinessProfile } from "@/hooks/useBusinessProfile";
-import { useBookingRequests } from "@/hooks/useBookingRequests";
 import { BusinessProfileForm } from "./BusinessProfileForm";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { BookingRequestsList } from "./BookingRequestsList";
-import { LoaderCircle, Globe } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useBookingRequests } from "@/hooks/useBookingRequests";
+import { Badge } from "@/components/ui/badge";
+import { MessageSquare } from "lucide-react";
 
 export const BusinessPage = () => {
-  const { businessProfile, isLoading } = useBusinessProfile();
-  const { toast } = useToast();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("profile");
-  
-  const { 
-    pendingRequests, 
-    approvedRequests, 
-    rejectedRequests,
-    isLoading: isLoadingRequests,
-    approveRequest,
-    rejectRequest,
-    deleteBookingRequest
-  } = useBookingRequests(businessProfile?.id);
+  const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest } = useBookingRequests();
+  const pendingCount = pendingRequests?.length || 0;
 
-  const copyPublicUrl = () => {
-    if (!businessProfile?.slug) return;
-    
-    const url = `${window.location.origin}/business/${businessProfile.slug}`;
-    navigator.clipboard.writeText(url);
-    
-    toast({
-      title: "URL Copied",
-      description: "Public business page URL copied to clipboard",
-    });
-  };
+  const { data: businessProfile, isLoading } = useQuery({
+    queryKey: ["businessProfile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      
+      const { data, error } = await supabase
+        .from("business_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
 
-  const visitPublicPage = () => {
-    if (!businessProfile?.slug) return;
-    
-    const url = `${window.location.origin}/business/${businessProfile.slug}`;
-    window.open(url, "_blank");
-  };
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center p-8">
-        <LoaderCircle className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <div className="text-center p-8">Loading...</div>;
   }
 
-  return (
-    <div className="space-y-4">
-      {businessProfile && (
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <h2 className="text-2xl font-bold">{businessProfile.business_name}</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Public URL: {window.location.origin}/business/{businessProfile.slug}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={copyPublicUrl} size="sm">
-                  Copy URL
-                </Button>
-                <Button onClick={visitPublicPage} size="sm" className="flex items-center gap-1">
-                  <Globe className="h-4 w-4" />
-                  Visit Public Page
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+  const publicUrl = businessProfile?.slug 
+    ? `${window.location.protocol}//${window.location.host}/business/${businessProfile.slug}`
+    : null;
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
+  return (
+    <div className="space-y-6">
+      <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-6">
           <TabsTrigger value="profile">Business Profile</TabsTrigger>
-          <TabsTrigger value="bookings" disabled={!businessProfile}>
+          <TabsTrigger value="bookings" className="relative">
             Booking Requests
-            {pendingRequests && pendingRequests.length > 0 && (
-              <span className="ml-2 bg-red-500 text-white rounded-full text-xs px-2 py-0.5">
-                {pendingRequests.length}
-              </span>
+            {pendingCount > 0 && (
+              <Badge 
+                variant="destructive" 
+                className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 p-0 text-xs"
+              >
+                {pendingCount}
+              </Badge>
             )}
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile">
+        <TabsContent value="profile" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">My Business Profile</h1>
+            {publicUrl && (
+              <Button 
+                variant="outline"
+                onClick={() => window.open(publicUrl, '_blank')}
+              >
+                View Public Page
+              </Button>
+            )}
+          </div>
+
           <BusinessProfileForm />
         </TabsContent>
 
-        <TabsContent value="bookings">
-          <Card>
-            <CardHeader>
-              <CardTitle>Booking Requests</CardTitle>
-              <CardDescription>
-                Manage booking requests from your customers
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingRequests ? (
-                <div className="flex justify-center items-center p-8">
-                  <LoaderCircle className="h-8 w-8 animate-spin" />
-                </div>
-              ) : (
-                <Tabs defaultValue="pending">
-                  <TabsList className="mb-4">
-                    <TabsTrigger value="pending">
-                      Pending
-                      {pendingRequests.length > 0 && (
-                        <span className="ml-2 bg-red-500 text-white rounded-full text-xs px-2 py-0.5">
-                          {pendingRequests.length}
-                        </span>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="approved">
-                      Approved
-                      <span className="ml-2 bg-green-500 text-white rounded-full text-xs px-2 py-0.5">
-                        {approvedRequests.length}
-                      </span>
-                    </TabsTrigger>
-                    <TabsTrigger value="rejected">
-                      Rejected
-                      <span className="ml-2 bg-gray-500 text-white rounded-full text-xs px-2 py-0.5">
-                        {rejectedRequests.length}
-                      </span>
-                    </TabsTrigger>
-                  </TabsList>
+        <TabsContent value="bookings" className="space-y-6">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">Booking Requests</h1>
+            {pendingCount > 0 && (
+              <div className="flex items-center gap-2 text-destructive bg-destructive/10 px-3 py-1 rounded-full">
+                <MessageSquare className="h-4 w-4" />
+                <span className="font-medium">{pendingCount} new {pendingCount === 1 ? 'request' : 'requests'}</span>
+              </div>
+            )}
+          </div>
 
-                  <TabsContent value="pending">
-                    <BookingRequestsList
-                      requests={pendingRequests}
-                      type="pending"
-                      onApprove={approveRequest}
-                      onReject={rejectRequest}
-                      onDelete={deleteBookingRequest}
-                    />
-                  </TabsContent>
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Pending Requests ({pendingRequests.length})</h2>
+              <BookingRequestsList
+                requests={pendingRequests}
+                type="pending"
+                onApprove={approveRequest}
+                onReject={rejectRequest}
+                onDelete={deleteBookingRequest}
+              />
+            </div>
 
-                  <TabsContent value="approved">
-                    <BookingRequestsList
-                      requests={approvedRequests}
-                      type="approved"
-                      onDelete={deleteBookingRequest}
-                    />
-                  </TabsContent>
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Approved Requests ({approvedRequests.length})</h2>
+              <BookingRequestsList
+                requests={approvedRequests}
+                type="approved"
+                onDelete={deleteBookingRequest}
+              />
+            </div>
 
-                  <TabsContent value="rejected">
-                    <BookingRequestsList
-                      requests={rejectedRequests}
-                      type="rejected"
-                      onDelete={deleteBookingRequest}
-                    />
-                  </TabsContent>
-                </Tabs>
-              )}
-            </CardContent>
-          </Card>
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Rejected Requests ({rejectedRequests.length})</h2>
+              <BookingRequestsList
+                requests={rejectedRequests}
+                type="rejected"
+                onDelete={deleteBookingRequest}
+              />
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

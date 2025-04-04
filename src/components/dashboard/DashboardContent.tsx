@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
-import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefcase } from "lucide-react"
+import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefcase, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TaskList } from "@/components/TaskList"
 import { Calendar } from "@/components/Calendar/Calendar"
@@ -12,6 +12,9 @@ import { CustomerList } from "@/components/crm/CustomerList"
 import { BusinessPage } from "@/components/business/BusinessPage"
 import { motion, AnimatePresence } from "framer-motion"
 import { useLanguage } from "@/contexts/LanguageContext"
+import { useBusinessProfile } from "@/hooks/useBusinessProfile"
+import { useBookingRequests } from "@/hooks/useBookingRequests"
+import { Badge } from "@/components/ui/badge"
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
@@ -46,6 +49,8 @@ export const DashboardContent = ({
   setIsTaskDialogOpen 
 }: DashboardContentProps) => {
   const { t } = useLanguage();
+  const { pendingRequests } = useBookingRequests();
+  const pendingCount = pendingRequests?.length || 0;
 
   return (
     <Tabs defaultValue="calendar" className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
@@ -100,7 +105,7 @@ export const DashboardContent = ({
         </TabsTrigger>
         <TabsTrigger 
           value="business" 
-          className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95"
+          className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 relative"
         >
           <motion.div
             whileHover={{ rotate: 15 }}
@@ -109,6 +114,14 @@ export const DashboardContent = ({
             <Briefcase className="w-4 h-4" />
           </motion.div>
           <span className="hidden sm:inline">My Business</span>
+          {pendingCount > 0 && (
+            <Badge 
+              variant="destructive" 
+              className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 p-0 text-xs"
+            >
+              {pendingCount}
+            </Badge>
+          )}
         </TabsTrigger>
       </TabsList>
 

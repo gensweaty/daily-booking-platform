@@ -8,11 +8,18 @@ interface TaskFormHeaderProps {
 }
 
 export const TaskFormHeader = ({ editingTask }: TaskFormHeaderProps) => {
-  const { t } = useLanguage();
+  const { language } = useLanguage();
   
+  const getTitle = () => {
+    if (language === 'es') {
+      return editingTask ? 'Editar Tarea' : 'Agregar Nueva Tarea';
+    }
+    return editingTask ? 'Edit Task' : 'Add New Task';
+  };
+
   return (
     <DialogTitle className="text-foreground">
-      {editingTask ? t("tasks.editTask") : t("tasks.addNewTask")}
+      {getTitle()}
     </DialogTitle>
   );
 };

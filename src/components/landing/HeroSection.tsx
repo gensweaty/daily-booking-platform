@@ -1,20 +1,17 @@
+
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Menu, X, Sparkles } from "lucide-react";
-import { useState, lazy, Suspense } from "react";
+import { useState } from "react";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { FeatureButtons } from "./FeatureButtons";
+// Import ClientLogos directly instead of lazy loading
+import { ClientLogos } from "./ClientLogos";
 
-// Lazy load less critical components
-const ClientLogos = lazy(() => import("./ClientLogos").then(mod => ({
-  default: mod.ClientLogos
-})));
-const FeatureButtons = lazy(() => import("./FeatureButtons").then(mod => ({
-  default: mod.FeatureButtons
-})));
 const productImages = [{
   src: "/lovable-uploads/a00576d5-fb16-4a4b-a313-0e1cbb61b00c.png",
   alt: "Calendar Preview",
@@ -132,11 +129,7 @@ export const HeroSection = () => {
         </div>
       </header>
 
-      <Suspense fallback={<div className="h-20" />}>
-        <FeatureButtons />
-      </Suspense>
-      <Suspense fallback={<div className="h-20" />}>
-        <ClientLogos />
-      </Suspense>
+      <FeatureButtons />
+      <ClientLogos />
     </>;
 };
