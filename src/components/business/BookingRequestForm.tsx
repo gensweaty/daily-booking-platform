@@ -114,7 +114,7 @@ export const BookingRequestForm = ({
       
       let paymentAmountValue: number | null = null;
       
-      if (paymentAmount && paymentAmount !== '') {
+      if (paymentAmount && paymentAmount !== '' && paymentStatus !== 'not_paid') {
         const parsedAmount = Number(paymentAmount);
         paymentAmountValue = isNaN(parsedAmount) ? null : parsedAmount;
       }
@@ -147,8 +147,8 @@ export const BookingRequestForm = ({
       });
       
       toast({
-        title: t("common.success"),
-        description: t("booking.requestSubmitted"),
+        title: "Success",
+        description: "Booking request submitted successfully",
       });
       
       onOpenChange(false);
@@ -156,8 +156,8 @@ export const BookingRequestForm = ({
     } catch (error: any) {
       console.error("Error submitting booking request:", error);
       toast({
-        title: t("common.error"),
-        description: error.message || t("common.error"),
+        title: "Error",
+        description: error.message || "Failed to submit booking request",
         variant: "destructive",
       });
     } finally {

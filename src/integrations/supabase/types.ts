@@ -16,6 +16,8 @@ export type Database = {
           description: string | null
           end_date: string
           id: string
+          payment_amount: number | null
+          payment_status: string | null
           requester_email: string
           requester_name: string
           requester_phone: string | null
@@ -31,6 +33,8 @@ export type Database = {
           description?: string | null
           end_date: string
           id?: string
+          payment_amount?: number | null
+          payment_status?: string | null
           requester_email: string
           requester_name: string
           requester_phone?: string | null
@@ -46,6 +50,8 @@ export type Database = {
           description?: string | null
           end_date?: string
           id?: string
+          payment_amount?: number | null
+          payment_status?: string | null
           requester_email?: string
           requester_name?: string
           requester_phone?: string | null
