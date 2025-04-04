@@ -157,7 +157,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     }
   }, [businessId, toast, t]);
 
-  const handleDayClick = (date: Date) => {
+  const handleDayClick = (date: Date, hour?: number) => {
+    console.log("[ExternalCalendar] Day clicked:", date, "hour:", hour);
     setSelectedBookingDate(date);
     setIsBookingDialogOpen(true);
   };

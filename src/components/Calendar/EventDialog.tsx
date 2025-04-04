@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -49,6 +48,12 @@ export const EventDialog = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
   const [isBookingEvent, setIsBookingEvent] = useState(false);
+
+  useEffect(() => {
+    if (open && isBookingRequest) {
+      console.log("[EventDialog] Opened as booking request dialog with date:", selectedDate);
+    }
+  }, [open, isBookingRequest, selectedDate]);
 
   useEffect(() => {
     if (event) {
