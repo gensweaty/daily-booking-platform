@@ -21,9 +21,18 @@ export const useCalendarEvents = () => {
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to create events");
     
+    // Ensure payment_amount is properly formatted as a number or null
+    const formattedEvent = {
+      ...event,
+      user_id: user.id,
+      payment_amount: event.payment_amount !== undefined ? 
+        (event.payment_amount === null ? null : Number(event.payment_amount)) : 
+        null
+    };
+    
     const { data, error } = await supabase
       .from('events')
-      .insert([{ ...event, user_id: user.id }])
+      .insert([formattedEvent])
       .select()
       .single();
 
@@ -34,9 +43,17 @@ export const useCalendarEvents = () => {
   const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
     
+    // Ensure payment_amount is properly formatted as a number or null
+    const formattedUpdates = {
+      ...updates,
+      payment_amount: updates.payment_amount !== undefined ? 
+        (updates.payment_amount === null ? null : Number(updates.payment_amount)) : 
+        undefined
+    };
+    
     const { data, error } = await supabase
       .from('events')
-      .update(updates)
+      .update(formattedUpdates)
       .eq('id', id)
       .eq('user_id', user.id)
       .select()

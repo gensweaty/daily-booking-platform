@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface BookingRequestFormProps {
   businessId: string;
@@ -29,6 +30,7 @@ export const BookingRequestForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

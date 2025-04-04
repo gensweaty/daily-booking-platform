@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Note, Task, Reminder, BusinessProfile, BookingRequest } from "@/types/database";
@@ -50,9 +49,16 @@ export const getEvents = async () => {
 };
 
 export const createEvent = async (event: Partial<CalendarEventType>) => {
+  const formattedEvent = {
+    ...event,
+    payment_amount: event.payment_amount !== undefined ? 
+      (event.payment_amount === null ? null : Number(event.payment_amount)) : 
+      null
+  };
+
   const { data, error } = await supabase
     .from('events')
-    .insert([event])
+    .insert([formattedEvent])
     .select()
     .single();
 
@@ -61,9 +67,16 @@ export const createEvent = async (event: Partial<CalendarEventType>) => {
 };
 
 export const updateEvent = async (id: string, updates: Partial<CalendarEventType>) => {
+  const formattedUpdates = {
+    ...updates,
+    payment_amount: updates.payment_amount !== undefined ? 
+      (updates.payment_amount === null ? null : Number(updates.payment_amount)) : 
+      undefined
+  };
+
   const { data, error } = await supabase
     .from('events')
-    .update(updates)
+    .update(formattedUpdates)
     .eq('id', id)
     .select()
     .single();

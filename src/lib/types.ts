@@ -18,7 +18,8 @@ export interface Note {
   user_id?: string;
 }
 
-export type { CalendarEventType as CalendarEvent } from './types/calendar';
+// Export the CalendarEventType directly to ensure consistency
+export type { CalendarEventType, CalendarViewType } from './types/calendar';
 
 export interface Reminder {
   id: string;

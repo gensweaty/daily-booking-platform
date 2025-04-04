@@ -10,11 +10,13 @@ export interface CalendarEventType {
   event_notes?: string;
   start_date: string;
   end_date: string;
-  type: 'birthday' | 'private_party' | string;
+  type: 'birthday' | 'private_party' | 'booking_request' | string;
   payment_status?: string;
-  payment_amount?: number;
+  payment_amount?: number | null;
   created_at: string;
   user_id: string;
+  // Fields related to booking requests
   requester_name?: string;
   requester_email?: string;
+  requester_phone?: string;
 }
