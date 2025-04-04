@@ -42,6 +42,7 @@ export const Calendar = ({
   showAllEvents = false,
   allowBookingRequests = false,
   directEvents = [],
+  onDayClick,
 }: CalendarProps) => {
   const [view, setView] = useState<CalendarViewType>(currentView || defaultView);
   const [date, setDate] = useState(selectedDate || new Date());
@@ -105,7 +106,6 @@ export const Calendar = ({
         onDayClick(date, hour);
       }
     } else if (!isExternalCalendar) {
-      // Only open the dialog if we're in the internal calendar
       setIsNewEventDialogOpen(true);
     }
   };

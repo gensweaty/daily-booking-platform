@@ -253,8 +253,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             .single();
               
           if (updateError) throw updateError;
+
+          const statusToUse = 'status' in updates ? updates.status : bookingData.status;
           
-          if (updates.status === 'approved' && bookingData.status !== 'approved') {
+          if (statusToUse === 'approved' && bookingData.status !== 'approved') {
             try {
               const { data: existingCustomer, error: customerQueryError } = await supabase
                 .from('customers')
