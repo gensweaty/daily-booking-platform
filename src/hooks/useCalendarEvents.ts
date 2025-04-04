@@ -9,7 +9,7 @@ interface UseCalendarEventsProps {
   businessUserId?: string;
 }
 
-export const useCalendarEvents = ({ businessId, businessUserId }: UseCalendarEventsProps) => {
+export const useCalendarEvents = ({ businessId, businessUserId }: UseCalendarEventsProps = {}) => {
   const getBusinessEvents = async () => {
     if (!businessId && !businessUserId) {
       return [];

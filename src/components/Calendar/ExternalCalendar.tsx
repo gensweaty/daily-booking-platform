@@ -168,13 +168,11 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           )}
           
           <Calendar 
-            defaultView={view}
-            currentView={view}
+            view={view}
             onViewChange={setView}
             isExternalCalendar={true}
             businessId={businessId}
-            businessUserId={businessUserId}
-            showAllEvents={true}
+            businessUserId={businessUserId || undefined}
             allowBookingRequests={true}
             directEvents={events}
           />

@@ -1,6 +1,7 @@
 
 import { supabase } from "./supabase";
-import { Task, Note, Reminder, CalendarEventType } from "./types";
+import { Task, Note, Reminder } from "./types";
+import { CalendarEventType } from "./types/calendar";
 
 // Calendar events for public display
 export const getPublicCalendarEvents = async (businessId: string) => {
