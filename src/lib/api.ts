@@ -5,7 +5,7 @@ import { Task, Note, Reminder } from "@/lib/types";
 // Tasks API
 export const getTasks = async () => {
   try {
-    // Get user ID from session to ensure filtering
+    // CRITICAL SECURITY FIX: Get user ID from session to ensure filtering
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
     
@@ -19,7 +19,7 @@ export const getTasks = async () => {
     const { data: tasks, error } = await supabase
       .from("tasks")
       .select("*")
-      .eq("user_id", userId) // CRITICAL FIX: Added strict user filtering
+      .eq("user_id", userId) // CRITICAL SECURITY FIX: Added strict user filtering
       .order("position", { ascending: true });
 
     if (error) {
@@ -29,11 +29,11 @@ export const getTasks = async () => {
 
     console.log(`Fetched ${tasks?.length || 0} tasks for user ${userId}`);
     
-    // Additional validation to catch any data isolation issues
+    // CRITICAL SECURITY FIX: Additional validation to catch any data isolation issues
     if (tasks && tasks.length > 0) {
       const invalidTasks = tasks.filter(task => task.user_id !== userId);
       if (invalidTasks.length > 0) {
-        console.error("DATA ISOLATION BREACH: Found tasks for other users:", invalidTasks);
+        console.error("CRITICAL SECURITY: DATA ISOLATION BREACH: Found tasks for other users:", invalidTasks);
       }
     }
 
@@ -46,7 +46,7 @@ export const getTasks = async () => {
 
 export const createTask = async (taskData: Partial<Task>) => {
   try {
-    // Get user ID from session to ensure we create for current user
+    // CRITICAL SECURITY FIX: Get user ID from session to ensure we create for current user
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
     
@@ -54,7 +54,7 @@ export const createTask = async (taskData: Partial<Task>) => {
       throw new Error("No authenticated user found");
     }
 
-    // CRITICAL FIX: Force the user_id to be the current user's ID
+    // CRITICAL SECURITY FIX: Force the user_id to be the current user's ID
     // This prevents any possibility of creating tasks for other users
     const { data, error } = await supabase
       .from("tasks")
@@ -76,7 +76,7 @@ export const createTask = async (taskData: Partial<Task>) => {
 
 export const updateTask = async (id: string, updates: Partial<Task>) => {
   try {
-    // Get user ID from session for validation
+    // CRITICAL SECURITY FIX: Get user ID from session for validation
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
     
@@ -84,18 +84,18 @@ export const updateTask = async (id: string, updates: Partial<Task>) => {
       throw new Error("No authenticated user found");
     }
 
-    // CRITICAL FIX: Remove user_id from updates to prevent ownership changes
+    // CRITICAL SECURITY FIX: Remove user_id from updates to prevent ownership changes
     const safeUpdates = { ...updates };
     if ('user_id' in safeUpdates) {
       delete safeUpdates.user_id;
-      console.warn("Prevented attempt to change user_id during task update");
+      console.warn("SECURITY: Prevented attempt to change user_id during task update");
     }
 
     const { data, error } = await supabase
       .from("tasks")
       .update(safeUpdates)
       .eq("id", id)
-      .eq("user_id", userId) // FIXED: Only update user's own tasks
+      .eq("user_id", userId) // CRITICAL SECURITY FIX: Only update user's own tasks
       .select()
       .single();
 
@@ -113,7 +113,7 @@ export const updateTask = async (id: string, updates: Partial<Task>) => {
 
 export const deleteTask = async (id: string) => {
   try {
-    // Get user ID from session for validation
+    // CRITICAL SECURITY FIX: Get user ID from session for validation
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
     
@@ -125,7 +125,7 @@ export const deleteTask = async (id: string) => {
       .from("tasks")
       .delete()
       .eq("id", id)
-      .eq("user_id", userId); // FIXED: Only delete user's own tasks
+      .eq("user_id", userId); // CRITICAL SECURITY FIX: Only delete user's own tasks
 
     if (error) {
       console.error("Error deleting task:", error);
@@ -142,7 +142,7 @@ export const deleteTask = async (id: string) => {
 // Notes API
 export const getNotes = async () => {
   try {
-    // Get user ID from session to ensure filtering
+    // CRITICAL SECURITY FIX: Get user ID from session to ensure filtering
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
     
@@ -156,7 +156,7 @@ export const getNotes = async () => {
     const { data: notes, error } = await supabase
       .from("notes")
       .select("*")
-      .eq("user_id", userId); // FIXED: Added strict user filtering
+      .eq("user_id", userId); // CRITICAL SECURITY FIX: Added strict user filtering
 
     if (error) {
       console.error("Error fetching notes:", error);
@@ -165,11 +165,11 @@ export const getNotes = async () => {
 
     console.log(`Fetched ${notes?.length || 0} notes for user ${userId}`);
 
-    // Additional validation to catch any data isolation issues
+    // CRITICAL SECURITY FIX: Additional validation to catch any data isolation issues
     if (notes && notes.length > 0) {
       const invalidNotes = notes.filter(note => note.user_id !== userId);
       if (invalidNotes.length > 0) {
-        console.error("DATA ISOLATION BREACH: Found notes for other users:", invalidNotes);
+        console.error("CRITICAL SECURITY: DATA ISOLATION BREACH: Found notes for other users:", invalidNotes);
       }
     }
 
@@ -182,7 +182,7 @@ export const getNotes = async () => {
 
 export const createNote = async (noteData: Partial<Note>) => {
   try {
-    // Get user ID from session to ensure we create for current user
+    // CRITICAL SECURITY FIX: Get user ID from session to ensure we create for current user
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
     
@@ -192,7 +192,7 @@ export const createNote = async (noteData: Partial<Note>) => {
 
     const { data, error } = await supabase
       .from("notes")
-      .insert([{ ...noteData, user_id: userId }]) // FIXED: Ensure user_id is set
+      .insert([{ ...noteData, user_id: userId }]) // CRITICAL SECURITY FIX: Ensure user_id is set
       .select()
       .single();
 
@@ -210,7 +210,7 @@ export const createNote = async (noteData: Partial<Note>) => {
 
 export const updateNote = async (id: string, updates: Partial<Note>) => {
   try {
-    // Get user ID from session for validation
+    // CRITICAL SECURITY FIX: Get user ID from session for validation
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
     
@@ -218,18 +218,18 @@ export const updateNote = async (id: string, updates: Partial<Note>) => {
       throw new Error("No authenticated user found");
     }
 
-    // CRITICAL FIX: Remove user_id from updates to prevent ownership changes
+    // CRITICAL SECURITY FIX: Remove user_id from updates to prevent ownership changes
     const safeUpdates = { ...updates };
     if ('user_id' in safeUpdates) {
       delete safeUpdates.user_id;
-      console.warn("Prevented attempt to change user_id during note update");
+      console.warn("SECURITY: Prevented attempt to change user_id during note update");
     }
 
     const { data, error } = await supabase
       .from("notes")
       .update(safeUpdates)
       .eq("id", id)
-      .eq("user_id", userId) // FIXED: Only update user's own notes
+      .eq("user_id", userId) // CRITICAL SECURITY FIX: Only update user's own notes
       .select()
       .single();
 
@@ -247,7 +247,7 @@ export const updateNote = async (id: string, updates: Partial<Note>) => {
 
 export const deleteNote = async (id: string) => {
   try {
-    // Get user ID from session for validation
+    // CRITICAL SECURITY FIX: Get user ID from session for validation
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
     
@@ -259,7 +259,7 @@ export const deleteNote = async (id: string) => {
       .from("notes")
       .delete()
       .eq("id", id)
-      .eq("user_id", userId); // FIXED: Only delete user's own notes
+      .eq("user_id", userId); // CRITICAL SECURITY FIX: Only delete user's own notes
 
     if (error) {
       console.error("Error deleting note:", error);
@@ -276,7 +276,7 @@ export const deleteNote = async (id: string) => {
 // Reminders API
 export const getReminders = async () => {
   try {
-    // Get user ID from session to ensure filtering
+    // CRITICAL SECURITY FIX: Get user ID from session to ensure filtering
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
     
@@ -290,7 +290,7 @@ export const getReminders = async () => {
     const { data: reminders, error } = await supabase
       .from("reminders")
       .select("*")
-      .eq("user_id", userId); // FIXED: Added strict user filtering
+      .eq("user_id", userId); // CRITICAL SECURITY FIX: Added strict user filtering
 
     if (error) {
       console.error("Error fetching reminders:", error);
@@ -299,11 +299,11 @@ export const getReminders = async () => {
 
     console.log(`Fetched ${reminders?.length || 0} reminders for user ${userId}`);
 
-    // Additional validation to catch any data isolation issues
+    // CRITICAL SECURITY FIX: Additional validation to catch any data isolation issues
     if (reminders && reminders.length > 0) {
       const invalidReminders = reminders.filter(reminder => reminder.user_id !== userId);
       if (invalidReminders.length > 0) {
-        console.error("DATA ISOLATION BREACH: Found reminders for other users:", invalidReminders);
+        console.error("CRITICAL SECURITY: DATA ISOLATION BREACH: Found reminders for other users:", invalidReminders);
       }
     }
 
@@ -316,7 +316,7 @@ export const getReminders = async () => {
 
 export const createReminder = async (reminderData: Partial<Reminder>) => {
   try {
-    // Get user ID from session to ensure we create for current user
+    // CRITICAL SECURITY FIX: Get user ID from session to ensure we create for current user
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
     
@@ -326,7 +326,7 @@ export const createReminder = async (reminderData: Partial<Reminder>) => {
 
     const { data, error } = await supabase
       .from("reminders")
-      .insert([{ ...reminderData, user_id: userId }]) // FIXED: Ensure user_id is set
+      .insert([{ ...reminderData, user_id: userId }]) // CRITICAL SECURITY FIX: Ensure user_id is set
       .select()
       .single();
 
@@ -344,7 +344,7 @@ export const createReminder = async (reminderData: Partial<Reminder>) => {
 
 export const updateReminder = async (id: string, updates: Partial<Reminder>) => {
   try {
-    // Get user ID from session for validation
+    // CRITICAL SECURITY FIX: Get user ID from session for validation
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
     
@@ -352,18 +352,18 @@ export const updateReminder = async (id: string, updates: Partial<Reminder>) => 
       throw new Error("No authenticated user found");
     }
 
-    // CRITICAL FIX: Remove user_id from updates to prevent ownership changes
+    // CRITICAL SECURITY FIX: Remove user_id from updates to prevent ownership changes
     const safeUpdates = { ...updates };
     if ('user_id' in safeUpdates) {
       delete safeUpdates.user_id;
-      console.warn("Prevented attempt to change user_id during reminder update");
+      console.warn("SECURITY: Prevented attempt to change user_id during reminder update");
     }
 
     const { data, error } = await supabase
       .from("reminders")
       .update(safeUpdates)
       .eq("id", id)
-      .eq("user_id", userId) // FIXED: Only update user's own reminders
+      .eq("user_id", userId) // CRITICAL SECURITY FIX: Only update user's own reminders
       .select()
       .single();
 
@@ -381,7 +381,7 @@ export const updateReminder = async (id: string, updates: Partial<Reminder>) => 
 
 export const deleteReminder = async (id: string) => {
   try {
-    // Get user ID from session for validation
+    // CRITICAL SECURITY FIX: Get user ID from session for validation
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
     
@@ -393,7 +393,7 @@ export const deleteReminder = async (id: string) => {
       .from("reminders")
       .delete()
       .eq("id", id)
-      .eq("user_id", userId); // FIXED: Only delete user's own reminders
+      .eq("user_id", userId); // CRITICAL SECURITY FIX: Only delete user's own reminders
 
     if (error) {
       console.error("Error deleting reminder:", error);
@@ -431,11 +431,11 @@ export const getPublicCalendarEvents = async (businessId: string) => {
 
     console.log("[API] Found business user_id:", businessData.user_id);
 
-    // CRITICAL FIX: Get events ONLY for this business owner/user
+    // CRITICAL SECURITY FIX: Get events ONLY for this business owner/user
     const { data: eventData, error: eventsError } = await supabase
       .from('events')
       .select('*')
-      .eq('user_id', businessData.user_id)  // FIXED: Strict filtering by user_id
+      .eq('user_id', businessData.user_id)  // CRITICAL SECURITY FIX: Strict filtering by user_id
       .is('deleted_at', null) // Only fetch non-deleted events
       .order('start_date', { ascending: true });
 
@@ -446,11 +446,11 @@ export const getPublicCalendarEvents = async (businessId: string) => {
     
     console.log(`[API] Fetched events count: ${eventData?.length || 0}`);
     
-    // Additional validation to catch any data isolation issues
+    // CRITICAL SECURITY FIX: Additional validation to catch any data isolation issues
     if (eventData && eventData.length > 0) {
       const invalidEvents = eventData.filter(event => event.user_id !== businessData.user_id);
       if (invalidEvents.length > 0) {
-        console.error("[API] DATA ISOLATION BREACH: Found events for other users:", invalidEvents);
+        console.error("[API] CRITICAL SECURITY: DATA ISOLATION BREACH: Found events for other users:", invalidEvents);
       }
     }
     

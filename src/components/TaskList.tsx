@@ -31,11 +31,11 @@ export const TaskList = () => {
 
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) => {
-      // CRITICAL FIX: Remove user_id from updates to prevent ownership changes
+      // CRITICAL SECURITY FIX: Remove user_id from updates to prevent ownership changes
       const safeUpdates = { ...updates };
       if ('user_id' in safeUpdates) {
         delete safeUpdates.user_id;
-        console.warn("Prevented attempt to change user_id during task update in TaskList");
+        console.warn("SECURITY: Prevented attempt to change user_id during task update in TaskList");
       }
       return updateTask(id, safeUpdates);
     },
@@ -60,7 +60,7 @@ export const TaskList = () => {
     });
   };
 
-  // CRITICAL FIX: Added user id to query key for proper caching and added additional logging
+  // CRITICAL SECURITY FIX: Added user id to query key and explicit data validation
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks', user?.id], // Added user id to query key
     queryFn: async () => {
@@ -74,7 +74,7 @@ export const TaskList = () => {
       const tasks = await getTasks();
       console.log('Tasks received in TaskList:', tasks);
       
-      // Additional validation to ensure we only have tasks for the current user
+      // CRITICAL SECURITY FIX: Additional validation to ensure we only have tasks for the current user
       if (tasks && tasks.length > 0) {
         const invalidTasks = tasks.filter(task => task.user_id !== user.id);
         if (invalidTasks.length > 0) {
@@ -96,13 +96,13 @@ export const TaskList = () => {
   // Type assertion to ensure tasks is treated as Task[]
   const taskList = tasks as Task[];
   
-  // Final check to ensure we only show tasks for the current user
+  // CRITICAL SECURITY FIX: Final check to ensure we only show tasks for the current user
   const filteredTasks = user?.id 
     ? taskList.filter(task => task.user_id === user.id)
     : [];
   
   if (filteredTasks.length !== taskList.length) {
-    console.error(`FILTERED OUT ${taskList.length - filteredTasks.length} tasks that didn't belong to user ${user?.id}`);
+    console.error(`CRITICAL SECURITY: FILTERED OUT ${taskList.length - filteredTasks.length} tasks that didn't belong to user ${user?.id}`);
   }
   
   const columns = {
