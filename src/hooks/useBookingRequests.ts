@@ -99,24 +99,63 @@ export const useBookingRequests = () => {
       
       if (updateError) throw updateError;
       
-      // Create a customer record from the booking request
-      const { error: customerError } = await supabase
+      console.log('Creating event from booking request:', booking);
+      
+      // Create an event record from the booking request so it appears in the internal calendar
+      const { data: eventData, error: eventError } = await supabase
+        .from('events')
+        .insert({
+          title: booking.title,
+          user_surname: booking.requester_name,
+          user_number: booking.requester_phone || booking.user_number,
+          social_network_link: booking.requester_email || booking.social_network_link,
+          event_notes: booking.event_notes || booking.description,
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          type: 'booking_request',
+          payment_status: booking.payment_status,
+          payment_amount: booking.payment_amount,
+          user_id: user?.id
+        })
+        .select()
+        .single();
+      
+      if (eventError) {
+        console.error('Error creating event from booking:', eventError);
+        // Revert booking approval
+        await supabase
+          .from('booking_requests')
+          .update({ status: 'pending' })
+          .eq('id', bookingId);
+        throw new Error('Failed to create event from booking');
+      }
+      
+      console.log('Created event:', eventData);
+      
+      // Create a customer record from the booking request for CRM
+      const { data: customerData, error: customerError } = await supabase
         .from('customers')
         .insert({
           title: booking.requester_name,
-          user_surname: booking.user_surname || null,
-          user_number: booking.requester_phone || booking.user_number || null,
-          social_network_link: booking.social_network_link || null,
-          event_notes: booking.event_notes || booking.description || null,
+          user_surname: booking.requester_name,
+          user_number: booking.requester_phone || booking.user_number,
+          social_network_link: booking.requester_email,
+          event_notes: booking.description,
           start_date: booking.start_date,
           end_date: booking.end_date,
+          payment_status: booking.payment_status,
+          payment_amount: booking.payment_amount,
           user_id: user?.id,
           type: 'booking_request'
-        });
+        })
+        .select()
+        .single();
       
       if (customerError) {
         console.error('Error creating customer from booking:', customerError);
         // Continue with the approval even if customer creation fails
+      } else {
+        console.log('Created customer:', customerData);
       }
       
       // Check if there are any files attached to the booking
@@ -136,24 +175,44 @@ export const useBookingRequests = () => {
               content_type: file.content_type,
               size: file.size,
               user_id: user?.id,
-              // Link to the newly created customer
-              customer_id: booking.id
+              customer_id: customerData?.id
             });
             
           if (fileError) {
             console.error('Error copying booking file to customer:', fileError);
           }
+          
+          // Create event file record
+          const { error: eventFileError } = await supabase
+            .from('event_files')
+            .insert({
+              filename: file.filename,
+              file_path: file.file_path,
+              content_type: file.content_type,
+              size: file.size,
+              user_id: user?.id,
+              event_id: eventData?.id
+            });
+            
+          if (eventFileError) {
+            console.error('Error copying booking file to event:', eventFileError);
+          }
         }
       }
       
-      return booking;
+      return {
+        booking,
+        event: eventData,
+        customer: customerData
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast({
         title: "Success",
-        description: "Booking request approved successfully"
+        description: "Booking request approved successfully and added to calendar"
       });
     },
     onError: (error: Error) => {

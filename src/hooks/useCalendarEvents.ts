@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -164,6 +165,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         requester_email: booking.requester_email || '',
         requester_phone: booking.requester_phone || '',
         description: booking.description || '',
+        payment_status: booking.payment_status || 'not_paid',
+        payment_amount: booking.payment_amount || 0,
       }));
       
       return bookingEvents;
@@ -484,7 +487,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   });
 
   const { data: approvedBookings = [], isLoading: isLoadingBookings } = useQuery({
-    queryKey: ['approved-bookings', businessId, businessUserId],
+    queryKey: ['approved-bookings', businessId, businessUserId, user?.id],
     queryFn: getApprovedBookings,
     enabled: !!(businessId || businessUserId || (user && !businessId && !businessUserId)),
     staleTime: 1000 * 30,
@@ -523,8 +526,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   if (businessId || businessUserId) {
     allEvents = [...businessEvents, ...approvedBookings];
   } else if (user) {
-    const isUserBusiness = approvedBookings.length > 0 && approvedBookings[0].user_id === user.id;
-    allEvents = [...events, ...(isUserBusiness ? approvedBookings : [])];
+    // Include both events and approved bookings for the user
+    allEvents = [...events, ...approvedBookings];
   }
 
   console.log("useCalendarEvents combined data:", {
