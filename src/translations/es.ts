@@ -48,6 +48,9 @@ export const esTranslations = {
   "tasks.feature3": "Priorización eficiente de tareas",
   "tasks.feature4": "Funcionalidad simple de arrastrar y soltar",
   "tasks.feature5": "Guardado rápido de notas para tareas",
+  "tasks.editTask": "Editar Tarea",
+  "tasks.addNewTask": "Agregar Nueva Tarea",
+  "tasks.titlePlaceholder": "Título de la tarea",
 
   // Auth
   "auth.welcome": "Bienvenido a SmartBookly",

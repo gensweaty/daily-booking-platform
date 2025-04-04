@@ -51,6 +51,9 @@ export type TranslationType = {
   "tasks.feature3": string;
   "tasks.feature4": string;
   "tasks.feature5": string;
+  "tasks.editTask": string;
+  "tasks.addNewTask": string;
+  "tasks.titlePlaceholder": string;
 
   // Auth
   "auth.welcome": string;

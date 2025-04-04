@@ -48,6 +48,9 @@ export const enTranslations = {
   "tasks.feature3": "Efficient task prioritization",
   "tasks.feature4": "Simple drag-and-drop functionality",
   "tasks.feature5": "Quick note-saving for tasks",
+  "tasks.editTask": "Edit Task",
+  "tasks.addNewTask": "Add New Task",
+  "tasks.titlePlaceholder": "Task title",
 
   // Auth
   "auth.welcome": "Welcome to SmartBookly",
