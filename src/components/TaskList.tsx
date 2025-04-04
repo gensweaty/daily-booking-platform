@@ -16,12 +16,12 @@ export const TaskList = () => {
   const { toast } = useToast();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
-  const { user } = useAuth(); // ADDED: Get the current user
+  const { user } = useAuth();
 
   const deleteTaskMutation = useMutation({
     mutationFn: (id: string) => deleteTask(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', user?.id] });
       toast({
         title: "Success",
         description: "Task deleted successfully",
@@ -30,10 +30,17 @@ export const TaskList = () => {
   });
 
   const updateTaskMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) =>
-      updateTask(id, updates),
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) => {
+      // CRITICAL FIX: Remove user_id from updates to prevent ownership changes
+      const safeUpdates = { ...updates };
+      if ('user_id' in safeUpdates) {
+        delete safeUpdates.user_id;
+        console.warn("Prevented attempt to change user_id during task update in TaskList");
+      }
+      return updateTask(id, safeUpdates);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', user?.id] });
       toast({
         title: "Success",
         description: "Task updated successfully",
@@ -53,13 +60,32 @@ export const TaskList = () => {
     });
   };
 
-  // FIXED: Added user id to query key for proper caching
+  // CRITICAL FIX: Added user id to query key for proper caching and added additional logging
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks', user?.id], // Added user id to query key
     queryFn: async () => {
       console.log('Fetching tasks in TaskList component for user:', user?.id);
+      
+      if (!user?.id) {
+        console.error('No user ID available for fetching tasks');
+        return [] as Task[];
+      }
+      
       const tasks = await getTasks();
       console.log('Tasks received in TaskList:', tasks);
+      
+      // Additional validation to ensure we only have tasks for the current user
+      if (tasks && tasks.length > 0) {
+        const invalidTasks = tasks.filter(task => task.user_id !== user.id);
+        if (invalidTasks.length > 0) {
+          console.error("CRITICAL DATA ISOLATION BREACH: TaskList received tasks from other users:", 
+            invalidTasks.map(t => ({ id: t.id, user_id: t.user_id, title: t.title }))
+          );
+          // Filter out the tasks that don't belong to the current user
+          return tasks.filter(task => task.user_id === user.id) as Task[];
+        }
+      }
+      
       return tasks as Task[];
     },
     enabled: !!user, // Only run query when user is available
@@ -70,10 +96,19 @@ export const TaskList = () => {
   // Type assertion to ensure tasks is treated as Task[]
   const taskList = tasks as Task[];
   
+  // Final check to ensure we only show tasks for the current user
+  const filteredTasks = user?.id 
+    ? taskList.filter(task => task.user_id === user.id)
+    : [];
+  
+  if (filteredTasks.length !== taskList.length) {
+    console.error(`FILTERED OUT ${taskList.length - filteredTasks.length} tasks that didn't belong to user ${user?.id}`);
+  }
+  
   const columns = {
-    todo: taskList.filter((task: Task) => task.status === 'todo'),
-    'inprogress': taskList.filter((task: Task) => task.status === 'inprogress'),
-    done: taskList.filter((task: Task) => task.status === 'done'),
+    todo: filteredTasks.filter((task: Task) => task.status === 'todo'),
+    'inprogress': filteredTasks.filter((task: Task) => task.status === 'inprogress'),
+    done: filteredTasks.filter((task: Task) => task.status === 'done'),
   };
 
   return (

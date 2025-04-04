@@ -14,15 +14,27 @@ export const getTasks = async () => {
       return [];
     }
 
+    console.log("Fetching tasks for user:", userId);
+
     const { data: tasks, error } = await supabase
       .from("tasks")
       .select("*")
-      .eq("user_id", userId) // FIXED: Added strict user filtering
+      .eq("user_id", userId) // CRITICAL FIX: Added strict user filtering
       .order("position", { ascending: true });
 
     if (error) {
       console.error("Error fetching tasks:", error);
       throw error;
+    }
+
+    console.log(`Fetched ${tasks?.length || 0} tasks for user ${userId}`);
+    
+    // Additional validation to catch any data isolation issues
+    if (tasks && tasks.length > 0) {
+      const invalidTasks = tasks.filter(task => task.user_id !== userId);
+      if (invalidTasks.length > 0) {
+        console.error("DATA ISOLATION BREACH: Found tasks for other users:", invalidTasks);
+      }
     }
 
     return tasks || [];
@@ -42,6 +54,8 @@ export const createTask = async (taskData: Partial<Task>) => {
       throw new Error("No authenticated user found");
     }
 
+    // CRITICAL FIX: Force the user_id to be the current user's ID
+    // This prevents any possibility of creating tasks for other users
     const { data, error } = await supabase
       .from("tasks")
       .insert([{ ...taskData, user_id: userId }]) // FIXED: Ensure user_id is set
@@ -70,9 +84,16 @@ export const updateTask = async (id: string, updates: Partial<Task>) => {
       throw new Error("No authenticated user found");
     }
 
+    // CRITICAL FIX: Remove user_id from updates to prevent ownership changes
+    const safeUpdates = { ...updates };
+    if ('user_id' in safeUpdates) {
+      delete safeUpdates.user_id;
+      console.warn("Prevented attempt to change user_id during task update");
+    }
+
     const { data, error } = await supabase
       .from("tasks")
-      .update(updates)
+      .update(safeUpdates)
       .eq("id", id)
       .eq("user_id", userId) // FIXED: Only update user's own tasks
       .select()
@@ -130,6 +151,8 @@ export const getNotes = async () => {
       return [];
     }
 
+    console.log("Fetching notes for user:", userId);
+
     const { data: notes, error } = await supabase
       .from("notes")
       .select("*")
@@ -138,6 +161,16 @@ export const getNotes = async () => {
     if (error) {
       console.error("Error fetching notes:", error);
       throw error;
+    }
+
+    console.log(`Fetched ${notes?.length || 0} notes for user ${userId}`);
+
+    // Additional validation to catch any data isolation issues
+    if (notes && notes.length > 0) {
+      const invalidNotes = notes.filter(note => note.user_id !== userId);
+      if (invalidNotes.length > 0) {
+        console.error("DATA ISOLATION BREACH: Found notes for other users:", invalidNotes);
+      }
     }
 
     return notes || [];
@@ -185,9 +218,16 @@ export const updateNote = async (id: string, updates: Partial<Note>) => {
       throw new Error("No authenticated user found");
     }
 
+    // CRITICAL FIX: Remove user_id from updates to prevent ownership changes
+    const safeUpdates = { ...updates };
+    if ('user_id' in safeUpdates) {
+      delete safeUpdates.user_id;
+      console.warn("Prevented attempt to change user_id during note update");
+    }
+
     const { data, error } = await supabase
       .from("notes")
-      .update(updates)
+      .update(safeUpdates)
       .eq("id", id)
       .eq("user_id", userId) // FIXED: Only update user's own notes
       .select()
@@ -245,6 +285,8 @@ export const getReminders = async () => {
       return [];
     }
 
+    console.log("Fetching reminders for user:", userId);
+
     const { data: reminders, error } = await supabase
       .from("reminders")
       .select("*")
@@ -253,6 +295,16 @@ export const getReminders = async () => {
     if (error) {
       console.error("Error fetching reminders:", error);
       throw error;
+    }
+
+    console.log(`Fetched ${reminders?.length || 0} reminders for user ${userId}`);
+
+    // Additional validation to catch any data isolation issues
+    if (reminders && reminders.length > 0) {
+      const invalidReminders = reminders.filter(reminder => reminder.user_id !== userId);
+      if (invalidReminders.length > 0) {
+        console.error("DATA ISOLATION BREACH: Found reminders for other users:", invalidReminders);
+      }
     }
 
     return reminders || [];
@@ -300,9 +352,16 @@ export const updateReminder = async (id: string, updates: Partial<Reminder>) => 
       throw new Error("No authenticated user found");
     }
 
+    // CRITICAL FIX: Remove user_id from updates to prevent ownership changes
+    const safeUpdates = { ...updates };
+    if ('user_id' in safeUpdates) {
+      delete safeUpdates.user_id;
+      console.warn("Prevented attempt to change user_id during reminder update");
+    }
+
     const { data, error } = await supabase
       .from("reminders")
-      .update(updates)
+      .update(safeUpdates)
       .eq("id", id)
       .eq("user_id", userId) // FIXED: Only update user's own reminders
       .select()
@@ -372,7 +431,7 @@ export const getPublicCalendarEvents = async (businessId: string) => {
 
     console.log("[API] Found business user_id:", businessData.user_id);
 
-    // Get events for this user only
+    // CRITICAL FIX: Get events ONLY for this business owner/user
     const { data: eventData, error: eventsError } = await supabase
       .from('events')
       .select('*')
@@ -386,6 +445,14 @@ export const getPublicCalendarEvents = async (businessId: string) => {
     }
     
     console.log(`[API] Fetched events count: ${eventData?.length || 0}`);
+    
+    // Additional validation to catch any data isolation issues
+    if (eventData && eventData.length > 0) {
+      const invalidEvents = eventData.filter(event => event.user_id !== businessData.user_id);
+      if (invalidEvents.length > 0) {
+        console.error("[API] DATA ISOLATION BREACH: Found events for other users:", invalidEvents);
+      }
+    }
     
     // Get approved bookings for this business only
     const { data: bookingData, error: bookingsError } = await supabase

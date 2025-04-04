@@ -17,7 +17,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     console.log("Fetching user events for user:", user.id);
     
     try {
-      // FIXED: Added strict user_id equality check
+      // FIXED: Added strict user_id equality check with explicit auth filter
       const { data, error } = await supabase
         .from('events')
         .select('*')
@@ -31,6 +31,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
       
       console.log("Fetched user events count:", data?.length || 0);
+      
+      if (data && data.length > 0) {
+        // Add additional logging to verify user_id matches
+        const mismatchedEvents = data.filter(event => event.user_id !== user.id);
+        if (mismatchedEvents.length > 0) {
+          console.error("CRITICAL ERROR: Found events with mismatched user_id:", 
+            mismatchedEvents.map(e => ({ id: e.id, user_id: e.user_id, title: e.title }))
+          );
+        }
+      }
+      
       return data || [];
     } catch (err) {
       console.error("Exception in getEvents:", err);
@@ -45,7 +56,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.log("Fetching business events directly using businessUserId:", businessUserId);
       
       try {
-        // FIXED: Added strict user_id equality check
+        // FIXED: Added strict user_id equality check with explicit filter
         const { data, error } = await supabase
           .from('events')
           .select('*')
@@ -59,6 +70,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
         
         console.log("Fetched business events with businessUserId count:", data?.length || 0);
+        
+        if (data && data.length > 0) {
+          // Add additional logging to verify user_id matches
+          const mismatchedEvents = data.filter(event => event.user_id !== businessUserId);
+          if (mismatchedEvents.length > 0) {
+            console.error("CRITICAL ERROR: Found business events with mismatched user_id:", 
+              mismatchedEvents.map(e => ({ id: e.id, user_id: e.user_id, title: e.title }))
+            );
+          }
+        }
+        
         return data || [];
       } catch (error) {
         console.error("Exception in getBusinessEvents with businessUserId:", error);
@@ -105,6 +127,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
         
         console.log("Fetched business events count:", data?.length || 0);
+        
+        if (data && data.length > 0) {
+          // Add additional logging to verify user_id matches
+          const mismatchedEvents = data.filter(event => event.user_id !== businessProfile.user_id);
+          if (mismatchedEvents.length > 0) {
+            console.error("CRITICAL ERROR: Found business events with mismatched user_id:", 
+              mismatchedEvents.map(e => ({ id: e.id, user_id: e.user_id, title: e.title }))
+            );
+          }
+        }
+        
         return data || [];
       } catch (error) {
         console.error("Error fetching business events:", error);
@@ -214,10 +247,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
     
+    // CRITICAL FIX: Never allow changing user_id when updating an event
+    const safeUpdates = { ...updates };
+    if ('user_id' in safeUpdates) {
+      delete safeUpdates.user_id;
+      console.warn("Prevented attempt to change user_id during event update");
+    }
+    
     // FIXED: Ensure user_id is checked for security
     const { data, error } = await supabase
       .from('events')
-      .update(updates)
+      .update(safeUpdates)
       .eq('id', id)
       .eq('user_id', user.id) // Critical: Only update events owned by this user
       .select()
@@ -309,10 +349,26 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     },
   });
 
-  // Combine events based on whether viewing business events or own events
-  const allEvents = (businessId || businessUserId) 
-    ? [...businessEvents, ...approvedBookings]
-    : [...events, ...approvedBookings]; // Only include current user's events or business events
+  // CRITICAL FIX: Rather than just combining arrays, let's verify each event belongs to the right user
+  const allEvents = (() => {
+    const currentUserEvents = (businessId || businessUserId) ? businessEvents : events;
+    
+    // For extra protection, filter out any events that don't belong to the correct user
+    const targetUserId = businessUserId || (businessId ? null : user?.id);
+    
+    const filteredEvents = targetUserId 
+      ? currentUserEvents.filter(event => {
+          const isCorrectOwner = event.user_id === targetUserId;
+          if (!isCorrectOwner) {
+            // Log any data isolation breaches for debugging
+            console.error(`Data isolation breach detected: Event ${event.id} (${event.title}) belongs to user ${event.user_id} but is being shown to ${targetUserId}`);
+          }
+          return isCorrectOwner;
+        })
+      : currentUserEvents;
+      
+    return [...filteredEvents, ...approvedBookings];
+  })();
 
   // Enhanced debug logging to help identify issues
   console.log("useCalendarEvents combined data:", {
