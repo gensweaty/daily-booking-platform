@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const enTranslations: TranslationType = {
@@ -76,6 +77,9 @@ export const enTranslations: TranslationType = {
   "auth.checkEmailReset": "Please check your email for a reset link. The link will expire in 1 hour.",
   "auth.dontSeeEmail": "Don't see the email? Check your spam folder or request another link.",
   "auth.sendAnotherLink": "Send another link",
+  "auth.passwordsDoNotMatch": "Passwords do not match",
+  "auth.passwordTooShort": "Password must be at least 6 characters",
+  "auth.signingUp": "Signing Up...",
 
   // Events
   "events.editEvent": "Edit Event",

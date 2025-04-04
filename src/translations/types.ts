@@ -1,3 +1,4 @@
+
 export type Language = "en" | "es";
 
 export interface LanguageContextType {
@@ -82,6 +83,9 @@ export interface TranslationType {
   "auth.checkEmailReset": string;
   "auth.dontSeeEmail": string;
   "auth.sendAnotherLink": string;
+  "auth.passwordsDoNotMatch": string;
+  "auth.passwordTooShort": string;
+  "auth.signingUp": string;
 
   // Events
   "events.fullNameRequired": string;

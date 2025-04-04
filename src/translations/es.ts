@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const esTranslations: TranslationType = {
@@ -76,6 +77,9 @@ export const esTranslations: TranslationType = {
   "auth.checkEmailReset": "Por favor, revisa tu correo electrónico para obtener un enlace de restablecimiento. El enlace caducará en 1 hora.",
   "auth.dontSeeEmail": "¿No ves el correo electrónico? Revisa tu carpeta de spam o solicita otro enlace.",
   "auth.sendAnotherLink": "Enviar otro enlace",
+  "auth.passwordsDoNotMatch": "Las contraseñas no coinciden",
+  "auth.passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
+  "auth.signingUp": "Registrando...",
 
   // Events
   "events.editEvent": "Editar Evento",
