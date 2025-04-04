@@ -252,27 +252,47 @@ export const EventDialogFields = ({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>{t("events.paymentStatus")}</Label>
-        <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-          <SelectTrigger className="w-full bg-background border-input">
-            <SelectValue placeholder={t("events.selectPaymentStatus")} />
-          </SelectTrigger>
-          <SelectContent className="bg-background border-input shadow-md">
-            <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">
-              {t("crm.notPaid")}
-            </SelectItem>
-            <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">
-              {t("crm.paidPartly")}
-            </SelectItem>
-            <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">
-              {t("crm.paidFully")}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {!isBookingRequest && (
+        <div className="space-y-2">
+          <Label>{t("events.paymentStatus")}</Label>
+          <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+            <SelectTrigger className="w-full bg-background border-input">
+              <SelectValue placeholder={t("events.selectPaymentStatus")} />
+            </SelectTrigger>
+            <SelectContent className="bg-background border-input shadow-md">
+              <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">
+                {t("crm.notPaid")}
+              </SelectItem>
+              <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">
+                {t("crm.paidPartly")}
+              </SelectItem>
+              <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">
+                {t("crm.paidFully")}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
-      {paymentStatus && paymentStatus !== 'not_paid' && (
+      {isBookingRequest && (
+        <div className="space-y-2">
+          <Label htmlFor="amount">
+            {t("events.paymentAmount")} ({language === 'es' ? '€' : '$'})
+          </Label>
+          <Input
+            id="amount"
+            type="number"
+            step="0.01"
+            placeholder={`${t("events.paymentAmount")} ${language === 'es' ? '(€)' : '($)'}`}
+            value={paymentAmount}
+            onChange={(e) => setPaymentAmount(e.target.value)}
+            className="bg-background border-input"
+          />
+          <p className="text-sm text-muted-foreground">{t("crm.paymentStatusNote")}</p>
+        </div>
+      )}
+
+      {!isBookingRequest && paymentStatus && paymentStatus !== 'not_paid' && (
         <div className="space-y-2">
           <Label htmlFor="amount">
             {t("events.paymentAmount")} ({language === 'es' ? '€' : '$'})

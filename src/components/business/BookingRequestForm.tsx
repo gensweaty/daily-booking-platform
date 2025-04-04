@@ -177,7 +177,7 @@ export const BookingRequestForm = ({
           setSelectedFile={setSelectedFile}
           fileError={fileError}
           setFileError={setFileError}
-          isBookingRequest={false}
+          isBookingRequest={true}
         />
 
         <div className="flex justify-end space-x-2 pt-4">
@@ -193,7 +193,7 @@ export const BookingRequestForm = ({
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("booking.submitting")}
+                {t("common.submitting")}
               </>
             ) : (
               t("booking.submit")
