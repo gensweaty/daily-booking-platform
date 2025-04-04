@@ -5,10 +5,20 @@ import { Task, Note, Reminder } from "@/lib/types";
 // Tasks API
 export const getTasks = async () => {
   try {
+    // Get user ID from session to ensure filtering
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
+    if (!userId) {
+      console.error("No authenticated user found");
+      return [];
+    }
+
     const { data: tasks, error } = await supabase
       .from("tasks")
       .select("*")
-      .order("order");
+      .eq("user_id", userId) // FIXED: Added strict user filtering
+      .order("position", { ascending: true });
 
     if (error) {
       console.error("Error fetching tasks:", error);
@@ -24,9 +34,17 @@ export const getTasks = async () => {
 
 export const createTask = async (taskData: Partial<Task>) => {
   try {
+    // Get user ID from session to ensure we create for current user
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
+    if (!userId) {
+      throw new Error("No authenticated user found");
+    }
+
     const { data, error } = await supabase
       .from("tasks")
-      .insert([taskData])
+      .insert([{ ...taskData, user_id: userId }]) // FIXED: Ensure user_id is set
       .select()
       .single();
 
@@ -44,10 +62,19 @@ export const createTask = async (taskData: Partial<Task>) => {
 
 export const updateTask = async (id: string, updates: Partial<Task>) => {
   try {
+    // Get user ID from session for validation
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
+    if (!userId) {
+      throw new Error("No authenticated user found");
+    }
+
     const { data, error } = await supabase
       .from("tasks")
       .update(updates)
       .eq("id", id)
+      .eq("user_id", userId) // FIXED: Only update user's own tasks
       .select()
       .single();
 
@@ -65,10 +92,19 @@ export const updateTask = async (id: string, updates: Partial<Task>) => {
 
 export const deleteTask = async (id: string) => {
   try {
+    // Get user ID from session for validation
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
+    if (!userId) {
+      throw new Error("No authenticated user found");
+    }
+
     const { error } = await supabase
       .from("tasks")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", userId); // FIXED: Only delete user's own tasks
 
     if (error) {
       console.error("Error deleting task:", error);
@@ -85,9 +121,19 @@ export const deleteTask = async (id: string) => {
 // Notes API
 export const getNotes = async () => {
   try {
+    // Get user ID from session to ensure filtering
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
+    if (!userId) {
+      console.error("No authenticated user found");
+      return [];
+    }
+
     const { data: notes, error } = await supabase
       .from("notes")
-      .select("*");
+      .select("*")
+      .eq("user_id", userId); // FIXED: Added strict user filtering
 
     if (error) {
       console.error("Error fetching notes:", error);
@@ -103,9 +149,17 @@ export const getNotes = async () => {
 
 export const createNote = async (noteData: Partial<Note>) => {
   try {
+    // Get user ID from session to ensure we create for current user
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
+    if (!userId) {
+      throw new Error("No authenticated user found");
+    }
+
     const { data, error } = await supabase
       .from("notes")
-      .insert([noteData])
+      .insert([{ ...noteData, user_id: userId }]) // FIXED: Ensure user_id is set
       .select()
       .single();
 
@@ -123,10 +177,19 @@ export const createNote = async (noteData: Partial<Note>) => {
 
 export const updateNote = async (id: string, updates: Partial<Note>) => {
   try {
+    // Get user ID from session for validation
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
+    if (!userId) {
+      throw new Error("No authenticated user found");
+    }
+
     const { data, error } = await supabase
       .from("notes")
       .update(updates)
       .eq("id", id)
+      .eq("user_id", userId) // FIXED: Only update user's own notes
       .select()
       .single();
 
@@ -144,10 +207,19 @@ export const updateNote = async (id: string, updates: Partial<Note>) => {
 
 export const deleteNote = async (id: string) => {
   try {
+    // Get user ID from session for validation
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
+    if (!userId) {
+      throw new Error("No authenticated user found");
+    }
+
     const { error } = await supabase
       .from("notes")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", userId); // FIXED: Only delete user's own notes
 
     if (error) {
       console.error("Error deleting note:", error);
@@ -164,9 +236,19 @@ export const deleteNote = async (id: string) => {
 // Reminders API
 export const getReminders = async () => {
   try {
+    // Get user ID from session to ensure filtering
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
+    if (!userId) {
+      console.error("No authenticated user found");
+      return [];
+    }
+
     const { data: reminders, error } = await supabase
       .from("reminders")
-      .select("*");
+      .select("*")
+      .eq("user_id", userId); // FIXED: Added strict user filtering
 
     if (error) {
       console.error("Error fetching reminders:", error);
@@ -182,9 +264,17 @@ export const getReminders = async () => {
 
 export const createReminder = async (reminderData: Partial<Reminder>) => {
   try {
+    // Get user ID from session to ensure we create for current user
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
+    if (!userId) {
+      throw new Error("No authenticated user found");
+    }
+
     const { data, error } = await supabase
       .from("reminders")
-      .insert([reminderData])
+      .insert([{ ...reminderData, user_id: userId }]) // FIXED: Ensure user_id is set
       .select()
       .single();
 
@@ -202,10 +292,19 @@ export const createReminder = async (reminderData: Partial<Reminder>) => {
 
 export const updateReminder = async (id: string, updates: Partial<Reminder>) => {
   try {
+    // Get user ID from session for validation
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
+    if (!userId) {
+      throw new Error("No authenticated user found");
+    }
+
     const { data, error } = await supabase
       .from("reminders")
       .update(updates)
       .eq("id", id)
+      .eq("user_id", userId) // FIXED: Only update user's own reminders
       .select()
       .single();
 
@@ -223,10 +322,19 @@ export const updateReminder = async (id: string, updates: Partial<Reminder>) => 
 
 export const deleteReminder = async (id: string) => {
   try {
+    // Get user ID from session for validation
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
+    if (!userId) {
+      throw new Error("No authenticated user found");
+    }
+
     const { error } = await supabase
       .from("reminders")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", userId); // FIXED: Only delete user's own reminders
 
     if (error) {
       console.error("Error deleting reminder:", error);
@@ -264,11 +372,13 @@ export const getPublicCalendarEvents = async (businessId: string) => {
 
     console.log("[API] Found business user_id:", businessData.user_id);
 
-    // Get events for this user
+    // Get events for this user only
     const { data: eventData, error: eventsError } = await supabase
       .from('events')
       .select('*')
-      .eq('user_id', businessData.user_id);  // Strict filtering by user_id
+      .eq('user_id', businessData.user_id)  // FIXED: Strict filtering by user_id
+      .is('deleted_at', null) // Only fetch non-deleted events
+      .order('start_date', { ascending: true });
 
     if (eventsError) {
       console.error("[API] Error fetching events:", eventsError);
@@ -277,7 +387,7 @@ export const getPublicCalendarEvents = async (businessId: string) => {
     
     console.log(`[API] Fetched events count: ${eventData?.length || 0}`);
     
-    // Get approved bookings
+    // Get approved bookings for this business only
     const { data: bookingData, error: bookingsError } = await supabase
       .from('booking_requests')
       .select('*')

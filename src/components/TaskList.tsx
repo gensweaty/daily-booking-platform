@@ -9,12 +9,14 @@ import { useToast } from "./ui/use-toast";
 import { AddTaskForm } from "./AddTaskForm";
 import { TaskFullView } from "./tasks/TaskFullView";
 import { TaskColumn } from "./tasks/TaskColumn";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const TaskList = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
+  const { user } = useAuth(); // ADDED: Get the current user
 
   const deleteTaskMutation = useMutation({
     mutationFn: (id: string) => deleteTask(id),
@@ -51,14 +53,16 @@ export const TaskList = () => {
     });
   };
 
+  // FIXED: Added user id to query key for proper caching
   const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ['tasks'],
+    queryKey: ['tasks', user?.id], // Added user id to query key
     queryFn: async () => {
-      console.log('Fetching tasks in TaskList component');
+      console.log('Fetching tasks in TaskList component for user:', user?.id);
       const tasks = await getTasks();
       console.log('Tasks received in TaskList:', tasks);
       return tasks as Task[];
     },
+    enabled: !!user, // Only run query when user is available
   });
 
   if (isLoading) return <div className="text-foreground">Loading tasks...</div>;

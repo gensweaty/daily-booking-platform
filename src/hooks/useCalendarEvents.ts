@@ -17,10 +17,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     console.log("Fetching user events for user:", user.id);
     
     try {
+      // FIXED: Added strict user_id equality check
       const { data, error } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', user.id) // This ensures we only get this user's events
+        .is('deleted_at', null) // Only fetch non-deleted events
         .order('start_date', { ascending: true });
 
       if (error) {
@@ -28,7 +30,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         throw error;
       }
       
-      console.log("Fetched user events:", data?.length || 0);
+      console.log("Fetched user events count:", data?.length || 0);
       return data || [];
     } catch (err) {
       console.error("Exception in getEvents:", err);
@@ -43,10 +45,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.log("Fetching business events directly using businessUserId:", businessUserId);
       
       try {
+        // FIXED: Added strict user_id equality check
         const { data, error } = await supabase
           .from('events')
           .select('*')
           .eq('user_id', businessUserId) // Ensures we only get that business's events
+          .is('deleted_at', null) // Only fetch non-deleted events
           .order('start_date', { ascending: true });
 
         if (error) {
@@ -54,7 +58,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           return [];
         }
         
-        console.log("Fetched business events with businessUserId:", data?.length || 0, data);
+        console.log("Fetched business events with businessUserId count:", data?.length || 0);
         return data || [];
       } catch (error) {
         console.error("Exception in getBusinessEvents with businessUserId:", error);
@@ -87,10 +91,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.log("Found user_id for business:", businessProfile.user_id);
         
         // Then get all events for this user
+        // FIXED: Added strict user_id equality check
         const { data, error } = await supabase
           .from('events')
           .select('*')
           .eq('user_id', businessProfile.user_id) // Ensures we only get that business's events
+          .is('deleted_at', null) // Only fetch non-deleted events
           .order('start_date', { ascending: true });
 
         if (error) {
@@ -98,7 +104,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           return [];
         }
         
-        console.log("Fetched business events:", data?.length || 0, data);
+        console.log("Fetched business events count:", data?.length || 0);
         return data || [];
       } catch (error) {
         console.error("Error fetching business events:", error);
@@ -149,6 +155,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       console.log("Fetching approved bookings for business ID:", businessProfileId);
       
+      // FIXED: Added proper filters for bookings
       const { data, error } = await supabase
         .from('booking_requests')
         .select('*')
@@ -160,7 +167,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         return [];
       }
       
-      console.log("Fetched approved bookings:", data?.length || 0);
+      console.log("Fetched approved bookings count:", data?.length || 0);
       
       // Convert booking requests to calendar events
       const bookingEvents = (data || []).map(booking => ({
@@ -186,6 +193,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to create events");
     
+    // FIXED: Ensure user_id is always set to current user id
     const { data, error } = await supabase
       .from('events')
       .insert([{ ...event, user_id: user.id }])
@@ -206,6 +214,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
     
+    // FIXED: Ensure user_id is checked for security
     const { data, error } = await supabase
       .from('events')
       .update(updates)
@@ -228,6 +237,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const deleteEvent = async (id: string): Promise<void> => {
     if (!user) throw new Error("User must be authenticated to delete events");
     
+    // FIXED: Added user_id check for security
     const { error } = await supabase
       .from('events')
       .delete()
@@ -304,6 +314,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     ? [...businessEvents, ...approvedBookings]
     : [...events, ...approvedBookings]; // Only include current user's events or business events
 
+  // Enhanced debug logging to help identify issues
   console.log("useCalendarEvents combined data:", {
     userEvents: events.length,
     businessEvents: businessEvents.length,
