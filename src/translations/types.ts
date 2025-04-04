@@ -1,7 +1,12 @@
+export type Language = "en" | "es";
 
-export type Language = 'en' | 'es';
+export interface LanguageContextType {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: keyof TranslationType) => string;
+}
 
-export type TranslationType = {
+export interface TranslationType {
   // Nav
   "nav.home": string;
   "nav.features": string;
@@ -61,22 +66,22 @@ export type TranslationType = {
   "auth.signInButton": string;
   "auth.signUpButton": string;
   "auth.emailLabel": string;
-  "auth.passwordLabel": string;
-  "auth.usernameLabel": string;
-  "auth.passwordsDoNotMatch": string;
-  "auth.passwordTooShort": string;
-  "auth.forgotPassword": string;
-  "auth.loading": string;
-  "auth.signingUp": string;
-  "auth.resetLinkSent": string;
-  "auth.resetLinkSentDescription": string;
-  "auth.backToSignIn": string;
-  "auth.resetPassword": string;
   "auth.enterEmail": string;
-  "auth.sending": string;
-  "auth.sendResetLink": string;
+  "auth.passwordLabel": string;
   "auth.passwordRequirements": string;
   "auth.confirmPasswordLabel": string;
+  "auth.usernameLabel": string;
+  "auth.forgotPasswordLink": string;
+  "auth.signUpText": string;
+  "auth.signInText": string;
+  "auth.createAccount": string;
+  "auth.backToSignIn": string;
+  "auth.resetPassword": string;
+  "auth.sendResetLink": string;
+  "auth.sending": string;
+  "auth.checkEmailReset": string;
+  "auth.dontSeeEmail": string;
+  "auth.sendAnotherLink": string;
 
   // Events
   "events.fullNameRequired": string;
@@ -279,10 +284,4 @@ export type TranslationType = {
   "legal.dataRights4": string;
   "legal.contactUs": string;
   "legal.contactUsText": string;
-};
-
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (lang: Language) => void;
-  t: (key: keyof TranslationType) => string;
 }

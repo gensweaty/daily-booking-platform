@@ -1,4 +1,6 @@
-export const esTranslations = {
+import { TranslationType } from "./types";
+
+export const esTranslations: TranslationType = {
   // Nav
   "nav.home": "Inicio",
   "nav.features": "Características",
@@ -54,26 +56,26 @@ export const esTranslations = {
 
   // Auth
   "auth.welcome": "Bienvenido a SmartBookly",
-  "auth.description": "Productividad ágil completa: tareas, notas, calendario todo en uno",
+  "auth.description": "Agiliza tus citas, tareas y clientes en un solo lugar.",
   "auth.signInButton": "Iniciar Sesión",
   "auth.signUpButton": "Registrarse",
-  "auth.emailLabel": "Correo Electrónico",
+  "auth.emailLabel": "Correo electrónico",
+  "auth.enterEmail": "Ingresa tu correo electrónico",
   "auth.passwordLabel": "Contraseña",
-  "auth.usernameLabel": "Nombre de Usuario",
-  "auth.passwordsDoNotMatch": "Las contraseñas no coinciden",
-  "auth.passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
-  "auth.forgotPassword": "¿Olvidaste tu contraseña?",
-  "auth.loading": "Cargando...",
-  "auth.signingUp": "Registrando...",
-  "auth.resetLinkSent": "Enlace de Restablecimiento Enviado",
-  "auth.resetLinkSentDescription": "Si existe una cuenta con este correo electrónico, recibirás un enlace para restablecer la contraseña.",
-  "auth.backToSignIn": "Volver a Iniciar Sesión",
-  "auth.resetPassword": "Restablecer Contraseña",
-  "auth.enterEmail": "Introduce tu correo electrónico",
-  "auth.sending": "Enviando...",
-  "auth.sendResetLink": "Enviar Enlace de Restablecimiento",
-  "auth.passwordRequirements": "Contraseña (mín. 6 caracteres)",
+  "auth.passwordRequirements": "Mín. 6 caracteres",
   "auth.confirmPasswordLabel": "Confirmar Contraseña",
+  "auth.usernameLabel": "Nombre de usuario",
+  "auth.forgotPasswordLink": "¿Olvidaste tu contraseña?",
+  "auth.signUpText": "¿No tienes una cuenta? Regístrate",
+  "auth.signInText": "¿Ya tienes una cuenta? Inicia sesión",
+  "auth.createAccount": "Crear Cuenta",
+  "auth.backToSignIn": "Volver a iniciar sesión",
+  "auth.resetPassword": "Restablecer Contraseña",
+  "auth.sendResetLink": "Enviar Enlace de Restablecimiento",
+  "auth.sending": "Enviando...",
+  "auth.checkEmailReset": "Por favor, revisa tu correo electrónico para obtener un enlace de restablecimiento. El enlace caducará en 1 hora.",
+  "auth.dontSeeEmail": "¿No ves el correo electrónico? Revisa tu carpeta de spam o solicita otro enlace.",
+  "auth.sendAnotherLink": "Enviar otro enlace",
 
   // Events
   "events.editEvent": "Editar Evento",

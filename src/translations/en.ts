@@ -1,4 +1,6 @@
-export const enTranslations = {
+import { TranslationType } from "./types";
+
+export const enTranslations: TranslationType = {
   // Nav
   "nav.home": "Home",
   "nav.features": "Features",
@@ -54,26 +56,26 @@ export const enTranslations = {
 
   // Auth
   "auth.welcome": "Welcome to SmartBookly",
-  "auth.description": "Complete Agile productivity - tasks, notes, calendar all in one",
+  "auth.description": "Streamline your appointments, tasks, and clients all in one place.",
   "auth.signInButton": "Sign In",
   "auth.signUpButton": "Sign Up",
   "auth.emailLabel": "Email",
-  "auth.passwordLabel": "Password",
-  "auth.usernameLabel": "Username",
-  "auth.passwordsDoNotMatch": "Passwords do not match",
-  "auth.passwordTooShort": "Password must be at least 6 characters long",
-  "auth.forgotPassword": "Forgot password?",
-  "auth.loading": "Loading...",
-  "auth.signingUp": "Signing up...",
-  "auth.resetLinkSent": "Reset Link Sent",
-  "auth.resetLinkSentDescription": "If an account exists with this email, you will receive a password reset link.",
-  "auth.backToSignIn": "Back to Sign In",
-  "auth.resetPassword": "Reset Password",
   "auth.enterEmail": "Enter your email",
-  "auth.sending": "Sending...",
-  "auth.sendResetLink": "Send Reset Link",
-  "auth.passwordRequirements": "Password (min. 6 characters)",
+  "auth.passwordLabel": "Password",
+  "auth.passwordRequirements": "Min. 6 characters",
   "auth.confirmPasswordLabel": "Confirm Password",
+  "auth.usernameLabel": "Username",
+  "auth.forgotPasswordLink": "Forgot password?",
+  "auth.signUpText": "Don't have an account? Sign up",
+  "auth.signInText": "Already have an account? Sign in",
+  "auth.createAccount": "Create Account",
+  "auth.backToSignIn": "Back to sign in",
+  "auth.resetPassword": "Reset Password",
+  "auth.sendResetLink": "Send Reset Link",
+  "auth.sending": "Sending...",
+  "auth.checkEmailReset": "Please check your email for a reset link. The link will expire in 1 hour.",
+  "auth.dontSeeEmail": "Don't see the email? Check your spam folder or request another link.",
+  "auth.sendAnotherLink": "Send another link",
 
   // Events
   "events.editEvent": "Edit Event",
