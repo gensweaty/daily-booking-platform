@@ -72,40 +72,6 @@ export const CalendarView = ({
     }
   };
 
-  // Debug log to check events
-  console.log(`[CalendarView] Received ${events?.length || 0} events for rendering`);
-  if (events?.length > 0) {
-    console.log("[CalendarView] First event:", events[0]);
-  }
-
-  // Validate events have proper dates
-  const validEvents = events.filter(event => {
-    try {
-      if (!event.start_date || !event.end_date) {
-        console.warn("Event missing dates:", event);
-        return false;
-      }
-      
-      // Ensure dates are valid
-      const startDate = typeof event.start_date === 'string' ? parseISO(event.start_date) : event.start_date;
-      const endDate = typeof event.end_date === 'string' ? parseISO(event.end_date) : event.end_date;
-      
-      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        console.warn("Event has invalid dates:", event);
-        return false;
-      }
-      
-      return true;
-    } catch (error) {
-      console.error("Error validating event dates:", error, event);
-      return false;
-    }
-  });
-  
-  if (validEvents.length !== events.length) {
-    console.warn(`[CalendarView] Filtered out ${events.length - validEvents.length} events with invalid dates`);
-  }
-
   if (view === "month") {
     // Get the start and end of the month view
     const monthStart = startOfMonth(selectedDate);
@@ -120,16 +86,9 @@ export const CalendarView = ({
       <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-sm sm:text-base">
         {weekDays.map(renderDayHeader)}
         {calendarDays.map((day) => {
-          const dayEvents = validEvents.filter((event) => {
-            try {
-              const startDate = typeof event.start_date === 'string' ? parseISO(event.start_date) : event.start_date;
-              return isSameDay(startDate, day);
-            } catch (error) {
-              console.error("Error filtering events for day:", error, event);
-              return false;
-            }
-          });
-          
+          const dayEvents = events.filter((event) => 
+            isSameDay(parseISO(event.start_date), day)
+          );
           const isCurrentMonth = isSameMonth(day, selectedDate);
 
           return (
@@ -146,11 +105,6 @@ export const CalendarView = ({
                 {format(day, "d")}
               </div>
               <div className="mt-1 sm:mt-2 space-y-1">
-                {dayEvents.length > 0 && (
-                  <div className="text-xs text-muted-foreground mb-1">
-                    {dayEvents.length} event{dayEvents.length !== 1 ? 's' : ''}
-                  </div>
-                )}
                 {dayEvents.map((event) => (
                   <div
                     key={event.id}
@@ -177,7 +131,7 @@ export const CalendarView = ({
     );
   }
 
-  // Week/Day view with time slots
+  // Week/Day view with time slots starting from 6 AM
   return (
     <div className="flex-1 grid bg-background rounded-lg overflow-y-auto" 
          style={{ gridTemplateColumns: `repeat(${view === 'week' ? 7 : 1}, 1fr)` }}>
@@ -219,66 +173,46 @@ export const CalendarView = ({
               );
             })}
             
-            {validEvents
-              .filter((event) => {
-                try {
-                  const startDate = typeof event.start_date === 'string' ? parseISO(event.start_date) : event.start_date;
-                  return isSameDay(startDate, day);
-                } catch (error) {
-                  console.error("Error filtering events for day:", error, event);
-                  return false;
-                }
-              })
+            {events
+              .filter((event) => isSameDay(parseISO(event.start_date), day))
               .map((event) => {
-                try {
-                  const start = new Date(event.start_date);
-                  const end = new Date(event.end_date);
-                  
-                  // Skip invalid dates
-                  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-                    return null;
-                  }
-                  
-                  const top = actualHourToDisplayPosition(start.getHours()) + 
-                            (start.getMinutes() / 60) * 80;
-                  const height = (end.getHours() - start.getHours() + 
-                                (end.getMinutes() - start.getMinutes()) / 60) * 80;
-                  
-                  return (
-                    <div
-                      key={event.id}
-                      className={`absolute left-0.5 right-0.5 rounded px-0.5 sm:px-2 py-1 text-[10px] sm:text-sm ${
-                        getEventColorClass(event.type)
-                      } cursor-pointer overflow-hidden hover:opacity-80 transition-opacity`}
-                      style={{
-                        top: `${top}px`,
-                        height: `${Math.max(height, 20)}px`,
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEventClick(event);
-                      }}
-                      title={`${event.title} ${event.requester_name ? `(${event.requester_name})` : ''}`}
-                    >
-                      <div className="font-semibold truncate">
-                        {getEventIcon(event.type)}{event.title}
-                      </div>
-                      {height > 40 && (
-                        <div className="text-[8px] sm:text-xs truncate">
-                          {format(start, "h:mm a", { locale })} - {format(end, "h:mm a", { locale })}
-                          {event.requester_name && (
-                            <div className="italic">{event.requester_name}</div>
-                          )}
-                        </div>
-                      )}
+                const start = new Date(event.start_date);
+                const end = new Date(event.end_date);
+                const top = actualHourToDisplayPosition(start.getHours()) + 
+                          (start.getMinutes() / 60) * 80;
+                const height = (end.getHours() - start.getHours() + 
+                              (end.getMinutes() - start.getMinutes()) / 60) * 80;
+                
+                return (
+                  <div
+                    key={event.id}
+                    className={`absolute left-0.5 right-0.5 rounded px-0.5 sm:px-2 py-1 text-[10px] sm:text-sm ${
+                      getEventColorClass(event.type)
+                    } cursor-pointer overflow-hidden hover:opacity-80 transition-opacity`}
+                    style={{
+                      top: `${top}px`,
+                      height: `${Math.max(height, 20)}px`,
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick(event);
+                    }}
+                    title={`${event.title} ${event.requester_name ? `(${event.requester_name})` : ''}`}
+                  >
+                    <div className="font-semibold truncate">
+                      {getEventIcon(event.type)}{event.title}
                     </div>
-                  );
-                } catch (error) {
-                  console.error("Error rendering event:", error, event);
-                  return null;
-                }
-              })
-              .filter(Boolean)}
+                    {height > 40 && (
+                      <div className="text-[8px] sm:text-xs truncate">
+                        {format(start, "h:mm a", { locale })} - {format(end, "h:mm a", { locale })}
+                        {event.requester_name && (
+                          <div className="italic">{event.requester_name}</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
           </div>
         ))}
       </div>

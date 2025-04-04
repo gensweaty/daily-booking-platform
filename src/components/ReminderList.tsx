@@ -38,7 +38,7 @@ export const ReminderList = () => {
   });
 
   const deleteReminderMutation = useMutation({
-    mutationFn: (id: string) => deleteReminder(id),
+    mutationFn: deleteReminder,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
       toast({ 
@@ -70,14 +70,11 @@ export const ReminderList = () => {
 
   if (isLoading) return <div>Loading reminders...</div>;
 
-  // Ensure reminders is treated as Reminder[]
-  const remindersList = reminders as Reminder[];
-
   return (
     <>
-      <ReminderNotificationManager reminders={remindersList} />
+      <ReminderNotificationManager reminders={reminders} />
       <div className="space-y-4">
-        {remindersList?.map((reminder: Reminder) => (
+        {reminders?.map((reminder: Reminder) => (
           <div
             key={reminder.id}
             className="p-4 bg-white rounded-lg shadow border border-gray-200"

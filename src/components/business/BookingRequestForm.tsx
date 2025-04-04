@@ -11,16 +11,12 @@ import { useAuth } from "@/contexts/AuthContext";
 interface BookingRequestFormProps {
   businessId: string;
   selectedDate?: Date;
-  startTime?: string;
-  endTime?: string;
   onSuccess: () => void;
 }
 
 export const BookingRequestForm = ({
   businessId,
   selectedDate,
-  startTime = "09:00",
-  endTime = "10:00",
   onSuccess,
 }: BookingRequestFormProps) => {
   const [name, setName] = useState("");
@@ -28,8 +24,8 @@ export const BookingRequestForm = ({
   const [phone, setPhone] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [localStartTime, setLocalStartTime] = useState(startTime);
-  const [localEndTime, setLocalEndTime] = useState(endTime);
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("10:00");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -50,11 +46,11 @@ export const BookingRequestForm = ({
 
       // Create start and end date objects
       const startDate = new Date(selectedDate);
-      const [startHours, startMinutes] = localStartTime.split(":").map(Number);
+      const [startHours, startMinutes] = startTime.split(":").map(Number);
       startDate.setHours(startHours, startMinutes, 0, 0);
 
       const endDate = new Date(selectedDate);
-      const [endHours, endMinutes] = localEndTime.split(":").map(Number);
+      const [endHours, endMinutes] = endTime.split(":").map(Number);
       endDate.setHours(endHours, endMinutes, 0, 0);
 
       // Insert booking request - if user is logged in, associate with their ID, otherwise just use public booking
@@ -75,7 +71,7 @@ export const BookingRequestForm = ({
 
       toast({
         title: "Success",
-        description: "Your booking request has been submitted! You'll receive a notification when it's approved.",
+        description: "Your booking request has been submitted!",
       });
 
       // Reset form and notify parent component
@@ -148,8 +144,8 @@ export const BookingRequestForm = ({
           <Input
             id="startTime"
             type="time"
-            value={localStartTime}
-            onChange={(e) => setLocalStartTime(e.target.value)}
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
             required
           />
         </div>
@@ -158,8 +154,8 @@ export const BookingRequestForm = ({
           <Input
             id="endTime"
             type="time"
-            value={localEndTime}
-            onChange={(e) => setLocalEndTime(e.target.value)}
+            value={endTime}
+            onChange={(e) => setEndTime(e.target.value)}
             required
           />
         </div>

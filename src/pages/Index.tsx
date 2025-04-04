@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
-import { useSearchParams, useNavigate } from "react-router-dom"
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom"
 import { AuthUI } from "@/components/AuthUI"
 import { DashboardHeader } from "@/components/DashboardHeader"
 import { TrialExpiredDialog } from "@/components/TrialExpiredDialog"
@@ -11,6 +10,8 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
+import { LanguageProvider } from "@/contexts/LanguageContext"
+import { PublicBusinessPage } from "@/components/business/PublicBusinessPage"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -41,8 +42,14 @@ const Index = () => {
   const { toast } = useToast()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const location = useLocation()
   
-  useSubscriptionRedirect()
+  const currentPath = window.location.pathname;
+  const isBusinessPage = currentPath.startsWith('/business/');
+  
+  if (!isBusinessPage) {
+    useSubscriptionRedirect()
+  }
 
   useEffect(() => {
     const code = searchParams.get('code');
@@ -128,6 +135,14 @@ const Index = () => {
     );
   }
 
+  if (isBusinessPage) {
+    return (
+      <LanguageProvider>
+        <PublicBusinessPage />
+      </LanguageProvider>
+    );
+  }
+
   const content = user ? (
     <motion.div 
       className="min-h-screen bg-background p-4"
@@ -161,7 +176,11 @@ const Index = () => {
     </>
   );
 
-  return content;
+  return (
+    <LanguageProvider>
+      {content}
+    </LanguageProvider>
+  );
 }
 
 export default Index;

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -11,6 +10,7 @@ import {
   subMonths,
   setHours,
   startOfDay,
+  parseISO,
 } from "date-fns";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
@@ -23,9 +23,8 @@ import { TimeIndicator } from "./TimeIndicator";
 import { useEventDialog } from "./hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { BookingRequestForm } from "../business/BookingRequestForm";
-import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabase";
+import { BookingRequest } from "@/types/database";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -33,10 +32,7 @@ interface CalendarProps {
   onViewChange?: (view: CalendarViewType) => void;
   isExternalCalendar?: boolean;
   businessId?: string;
-  businessUserId?: string | null;
   showAllEvents?: boolean;
-  allowBookingRequests?: boolean;
-  directEvents?: CalendarEventType[];
 }
 
 export const Calendar = ({ 
@@ -45,81 +41,117 @@ export const Calendar = ({
   onViewChange,
   isExternalCalendar = false,
   businessId,
-  businessUserId,
-  showAllEvents = false,
-  allowBookingRequests = false,
-  directEvents
+  showAllEvents = false
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
-  
-  // Only use the hook if we're not getting directEvents
-  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
-    !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
-    !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
-  );
-  
-  // Use directEvents if provided, otherwise use fetchedEvents
-  const events = directEvents || fetchedEvents;
-  const isLoading = !directEvents && isLoadingFromHook;
-  
-  const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
-  const [bookingStartTime, setBookingStartTime] = useState("09:00");
-  const [bookingDate, setBookingDate] = useState<Date | undefined>(undefined);
+  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(isExternalCalendar ? businessId : undefined);
+  const [approvedBookings, setApprovedBookings] = useState<CalendarEventType[]>([]);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
-  // Update view when currentView prop changes
   useEffect(() => {
     if (currentView) {
       setView(currentView);
     }
   }, [currentView]);
 
-  // Diagnostic logging
+  if (typeof window !== 'undefined') {
+    (window as any).__CALENDAR_EVENTS__ = events;
+  }
+
   useEffect(() => {
-    console.log("[Calendar] Rendering with props:", { 
-      isExternalCalendar, 
-      businessId,
-      businessUserId, 
-      allowBookingRequests,
-      directEvents: directEvents?.length || 0,
-      fetchedEvents: fetchedEvents?.length || 0,
-      eventsCount: events?.length || 0,
-      view,
-      currentUserId: user?.id
-    });
-    
-    if (events?.length > 0) {
-      console.log("[Calendar] First event:", events[0]);
-    }
-  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents, user?.id]);
-
-  // CRITICAL SECURITY FIX: Ensure events belong only to current user
-  const filteredEvents = (() => {
-    if (!user?.id || isExternalCalendar) {
-      return events;
-    }
-    
-    // Apply strict user filtering for non-external calendars
-    const userEvents = events.filter(event => {
-      if (event.user_id !== user.id) {
-        console.error(`SECURITY: Found event (id: ${event.id}, title: ${event.title}) belonging to user ${event.user_id} in calendar for ${user.id}`);
-        return false;
+    const invalidateQueries = () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      if (businessId) {
+        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
       }
-      return true;
-    });
+    };
     
-    if (userEvents.length !== events.length) {
-      console.error(`CRITICAL SECURITY: Filtered out ${events.length - userEvents.length} events that don't belong to current user ${user.id}`);
-    }
-    
-    return userEvents;
-  })();
+    invalidateQueries();
+    const intervalId = setInterval(invalidateQueries, 15000);
+    return () => clearInterval(intervalId);
+  }, [queryClient, businessId]);
 
-  // Use filteredEvents instead of events for all rendering
+  useEffect(() => {
+    const fetchApprovedBookings = async () => {
+      setIsLoadingBookings(true);
+      try {
+        let targetBusinessId = businessId;
+        
+        if (!isExternalCalendar && user?.id) {
+          const { data: businessProfile } = await supabase
+            .from("business_profiles")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+            
+          if (businessProfile?.id) {
+            targetBusinessId = businessProfile.id;
+          }
+        }
+        
+        if (!targetBusinessId && !user?.id) {
+          setIsLoadingBookings(false);
+          return;
+        }
+        
+        const { data, error } = await supabase
+          .from('booking_requests')
+          .select('*')
+          .eq('status', 'approved');
+          
+        if (error) throw error;
+        
+        let filteredData = data;
+        
+        if (targetBusinessId) {
+          filteredData = data.filter((booking: BookingRequest) => 
+            booking.business_id === targetBusinessId
+          );
+        } else if (user?.id) {
+          filteredData = data.filter((booking: BookingRequest) => 
+            booking.user_id === user.id
+          );
+        }
+        
+        console.log("Fetched booking requests:", filteredData);
+        
+        const bookingEvents: CalendarEventType[] = (filteredData || []).map((booking: BookingRequest) => ({
+          id: booking.id,
+          title: booking.title,
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          type: 'booking_request',
+          user_id: booking.user_id || '',
+          created_at: booking.created_at,
+          requester_name: booking.requester_name,
+          requester_email: booking.requester_email,
+        }));
+        
+        setApprovedBookings(bookingEvents);
+      } catch (error) {
+        console.error('Error fetching approved bookings:', error);
+      } finally {
+        setIsLoadingBookings(false);
+      }
+    };
+    
+    fetchApprovedBookings();
+    
+    const intervalId = setInterval(fetchApprovedBookings, 15000);
+    return () => clearInterval(intervalId);
+  }, [user?.id, isExternalCalendar, businessId]);
+  
+  const allEvents = [...(events || []), ...approvedBookings];
+
+  console.log("Calendar props:", { isExternalCalendar, businessId, showAllEvents });
+  console.log("Events from useCalendarEvents:", events?.length || 0);
+  console.log("Approved bookings:", approvedBookings.length);
+  console.log("Combined events to display:", allEvents.length);
+
   const {
     selectedEvent,
     setSelectedEvent,
@@ -132,23 +164,22 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      const result = await createEvent?.(data);
+      const result = await createEvent(data);
       return result;
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
-      const result = await updateEvent?.({
+      const result = await updateEvent({
         id: selectedEvent.id,
         updates: data,
       });
       return result;
     },
     deleteEvent: async (id) => {
-      await deleteEvent?.(id);
+      await deleteEvent(id);
     }
   });
 
-  // Redirect to signin if not authenticated and not on public business page
   if (!isExternalCalendar && !user && !window.location.pathname.includes('/business/')) {
     navigate("/signin");
     return null;
@@ -211,61 +242,36 @@ export const Calendar = ({
   };
 
   const handleCalendarDayClick = (date: Date, hour?: number) => {
+    if (isExternalCalendar) return;
+    
     const clickedDate = new Date(date);
     clickedDate.setHours(hour || 9, 0, 0, 0);
     
-    if (isExternalCalendar && allowBookingRequests) {
-      setBookingDate(clickedDate);
-      const formattedHour = hour?.toString().padStart(2, '0') || '09';
-      setBookingStartTime(`${formattedHour}:00`);
-      setIsBookingFormOpen(true);
-    } else if (!isExternalCalendar) {
-      setDialogSelectedDate(clickedDate);
-      setTimeout(() => setIsNewEventDialogOpen(true), 0);
-    }
+    setDialogSelectedDate(clickedDate);
+    setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
   const handleAddEventClick = () => {
-    if (isExternalCalendar && allowBookingRequests) {
-      const now = new Date();
-      setBookingDate(now);
-      setIsBookingFormOpen(true);
-    } else if (!isExternalCalendar) {
-      const now = new Date();
-      now.setHours(9, 0, 0, 0);
-      
-      setDialogSelectedDate(now);
-      setTimeout(() => setIsNewEventDialogOpen(true), 0);
-    }
+    if (isExternalCalendar) return;
+    
+    const now = new Date();
+    now.setHours(9, 0, 0, 0);
+    
+    setDialogSelectedDate(now);
+    setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
   const handleEventClick = (event: CalendarEventType) => {
-    if (!isExternalCalendar) {
+    if (!isExternalCalendar && !approvedBookings.some(booking => booking.id === event.id)) {
       setSelectedEvent(event);
-    } else if (isExternalCalendar && allowBookingRequests) {
-      toast({
-        title: "Time slot not available",
-        description: "This time slot is already booked. Please select a different time.",
-      });
     }
   };
 
-  const handleBookingSuccess = () => {
-    setIsBookingFormOpen(false);
-    queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
-    
-    toast({
-      title: "Booking request submitted",
-      description: "Your booking request has been submitted and is pending approval."
-    });
-  };
-
-  if (error && !directEvents) {
-    console.error("Calendar error:", error);
+  if (error) {
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
 
-  if (isLoading && !directEvents) {
+  if (isLoading || isLoadingBookings) {
     return (
       <div className="space-y-4">
         <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
@@ -278,11 +284,6 @@ export const Calendar = ({
     );
   }
 
-  // Store events in window for debugging
-  if (typeof window !== "undefined") {
-    (window as any).__CALENDAR_EVENTS__ = filteredEvents;
-  }
-  
   return (
     <div className="h-full flex flex-col gap-4">
       <CalendarHeader
@@ -291,8 +292,7 @@ export const Calendar = ({
         onViewChange={handleViewChange}
         onPrevious={handlePrevious}
         onNext={handleNext}
-        onAddEvent={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleAddEventClick : undefined}
-        isExternalCalendar={isExternalCalendar}
+        onAddEvent={!isExternalCalendar ? handleAddEventClick : undefined}
       />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
@@ -300,10 +300,10 @@ export const Calendar = ({
         <div className="flex-1">
           <CalendarView
             days={getDaysForView()}
-            events={filteredEvents || []} /* Use filteredEvents instead of events */
+            events={allEvents}
             selectedDate={selectedDate}
             view={view}
-            onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}
+            onDayClick={!isExternalCalendar ? handleCalendarDayClick : undefined}
             onEventClick={handleEventClick}
           />
         </div>
@@ -331,22 +331,6 @@ export const Calendar = ({
             />
           )}
         </>
-      )}
-
-      {isExternalCalendar && allowBookingRequests && (
-        <Dialog open={isBookingFormOpen} onOpenChange={setIsBookingFormOpen}>
-          <DialogContent className="max-w-md">
-            {bookingDate && businessId && (
-              <BookingRequestForm
-                businessId={businessId}
-                selectedDate={bookingDate}
-                startTime={bookingStartTime}
-                endTime={`${parseInt(bookingStartTime.split(':')[0]) + 1}:00`}
-                onSuccess={handleBookingSuccess}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
       )}
     </div>
   );
