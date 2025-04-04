@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getNotes, updateNote, deleteNote } from "@/lib/api";
 import { Note } from "@/lib/types";
@@ -34,7 +35,7 @@ export const NoteList = () => {
   });
 
   const deleteNoteMutation = useMutation({
-    mutationFn: deleteNote,
+    mutationFn: (id: string) => deleteNote(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
       toast({ 
@@ -61,9 +62,13 @@ export const NoteList = () => {
 
   const handleDragEnd = (result: any) => {
     if (!result.destination) return;
-    const items = Array.from(notes);
+    
+    // Safely handle the notes array
+    const items = Array.from(notes as Note[]);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
+    
+    // Update the local state
     queryClient.setQueryData(['notes'], items);
   };
 
@@ -79,7 +84,7 @@ export const NoteList = () => {
               ref={provided.innerRef}
               className="space-y-4"
             >
-              {notes?.map((note: Note, index: number) => (
+              {(notes as Note[])?.map((note: Note, index: number) => (
                 <Draggable key={note.id} draggableId={note.id} index={index}>
                   {(provided) => (
                     <div
@@ -90,7 +95,7 @@ export const NoteList = () => {
                       <NoteCard
                         note={note}
                         onEdit={handleEdit}
-                        onDelete={(id) => deleteNoteMutation.mutate(id)}
+                        onDelete={() => deleteNoteMutation.mutate(note.id)}
                       />
                     </div>
                   )}

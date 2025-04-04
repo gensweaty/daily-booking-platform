@@ -2,17 +2,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getTasks, updateTask, deleteTask } from "@/lib/api";
 import { Task } from "@/lib/types";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { Pencil, Trash2, Maximize2, Paperclip } from "lucide-react";
-import { Button } from "./ui/button";
+import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { useState } from "react";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { useToast } from "./ui/use-toast";
 import { AddTaskForm } from "./AddTaskForm";
 import { TaskFullView } from "./tasks/TaskFullView";
-import { supabase } from "@/lib/supabase";
 import { TaskColumn } from "./tasks/TaskColumn";
-import { TaskCard } from "./tasks/TaskCard";
 
 export const TaskList = () => {
   const queryClient = useQueryClient();
@@ -61,16 +57,19 @@ export const TaskList = () => {
       console.log('Fetching tasks in TaskList component');
       const tasks = await getTasks();
       console.log('Tasks received in TaskList:', tasks);
-      return tasks;
+      return tasks as Task[];
     },
   });
 
   if (isLoading) return <div className="text-foreground">Loading tasks...</div>;
 
+  // Type assertion to ensure tasks is treated as Task[]
+  const taskList = tasks as Task[];
+  
   const columns = {
-    todo: tasks.filter((task: Task) => task.status === 'todo'),
-    'inprogress': tasks.filter((task: Task) => task.status === 'inprogress'),
-    done: tasks.filter((task: Task) => task.status === 'done'),
+    todo: taskList.filter((task: Task) => task.status === 'todo'),
+    'inprogress': taskList.filter((task: Task) => task.status === 'inprogress'),
+    done: taskList.filter((task: Task) => task.status === 'done'),
   };
 
   return (
