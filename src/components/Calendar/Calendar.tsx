@@ -4,9 +4,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ChevronLeft,
   ChevronRight,
+  CalendarDays,
   Calendar as CalendarIcon,
-  LayoutDayFASTIcon,
-  MonitorIcon
+  LayoutGrid
 } from "lucide-react";
 import {
   add,
@@ -70,14 +70,12 @@ export function Calendar({
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
 
-  // Use the passed view if provided
   useEffect(() => {
     if (currentView) {
       setView(currentView);
     }
   }, [currentView]);
 
-  // Create a named function for the event dialog handler
   const createEvent = async (data: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     console.log("Creating event:", data);
     if (!user && !businessUserId) {
@@ -85,7 +83,6 @@ export function Calendar({
     }
     
     try {
-      // Insert the event
       const { data: createdEvent, error } = await supabase
         .from("events")
         .insert({
@@ -115,7 +112,6 @@ export function Calendar({
     }
     
     try {
-      // Update the event
       const { data: updatedEvent, error } = await supabase
         .from("events")
         .update(data)
@@ -168,7 +164,6 @@ export function Calendar({
     deleteEvent
   });
 
-  // Reset selected date when current date changes
   useEffect(() => {
     setSelectedDate(currentDate);
   }, [currentDate]);
@@ -180,7 +175,6 @@ export function Calendar({
     }
   };
 
-  // Calculate days to display based on view
   const days = useMemo(() => {
     if (view === "month") {
       const firstDay = startOfMonth(currentDate);
@@ -193,16 +187,13 @@ export function Calendar({
       const endDay = endOfWeek(currentDate);
       return eachDayOfInterval({ start: startDay, end: endDay });
     } else {
-      // Day view
       return [currentDate];
     }
   }, [currentDate, view]);
 
-  // Fetch events from our database
   const { data: eventsData = [], isLoading } = useQuery({
     queryKey: ["events", user?.id, format(currentDate, "yyyy-MM"), view, businessId, businessUserId],
     queryFn: async () => {
-      // If using direct events, return those instead of fetching
       if (directEvents) {
         console.log("Using direct events:", directEvents.length);
         return directEvents;
@@ -218,11 +209,9 @@ export function Calendar({
           .gte("start_date", startRange.toISOString())
           .lt("start_date", endRange.toISOString());
           
-        // Filter by business owner if this is a business calendar
         if (businessUserId) {
           eventsQuery = eventsQuery.eq("user_id", businessUserId);
         } 
-        // Otherwise filter by current user
         else if (user?.id) {
           eventsQuery = eventsQuery.eq("user_id", user.id);
         }
@@ -264,7 +253,6 @@ export function Calendar({
 
   const handleEventClick = (event: CalendarEventType) => {
     if (isExternalCalendar) {
-      // For external calendars, show summary instead of edit dialog
       setSummaryEvent(event);
       setShowSummary(true);
     } else {
