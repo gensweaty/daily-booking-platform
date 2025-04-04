@@ -1,17 +1,18 @@
 
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarViewType } from "@/lib/types/calendar";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarHeaderProps {
   selectedDate: Date;
-  view: "month" | "week" | "day";
-  onViewChange: (view: "month" | "week" | "day") => void;
+  view: CalendarViewType;
+  onViewChange: (view: CalendarViewType) => void;
   onPrevious: () => void;
   onNext: () => void;
   onAddEvent?: () => void;
+  isExternalCalendar?: boolean;
 }
 
 export const CalendarHeader = ({
@@ -21,49 +22,64 @@ export const CalendarHeader = ({
   onPrevious,
   onNext,
   onAddEvent,
+  isExternalCalendar = false,
 }: CalendarHeaderProps) => {
-  const { language, t } = useLanguage();
+  const { t } = useLanguage();
+
+  const getFormattedDate = () => {
+    switch (view) {
+      case "month":
+        return format(selectedDate, "MMMM yyyy");
+      case "week":
+        return `${t("calendar.weekOf")} ${format(selectedDate, "MMM d, yyyy")}`;
+      case "day":
+        return format(selectedDate, "EEEE, MMMM d, yyyy");
+      default:
+        return "";
+    }
+  };
 
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-      <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+    <div className="flex justify-between items-center">
+      <div className="flex items-center gap-2">
         <Button variant="outline" size="icon" onClick={onPrevious}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <h2 className="text-lg sm:text-xl font-semibold">
-          {format(selectedDate, "MMMM yyyy", { locale: language === 'es' ? es : undefined })}
-        </h2>
         <Button variant="outline" size="icon" onClick={onNext}>
           <ChevronRight className="h-4 w-4" />
         </Button>
+        <h2 className="text-xl font-semibold ml-2">{getFormattedDate()}</h2>
       </div>
-      <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-        <div className="flex rounded-lg border border-input overflow-hidden flex-1 sm:flex-none">
+
+      <div className="flex gap-2">
+        <div className="hidden sm:flex gap-1">
           <Button
-            variant={view === "month" ? "default" : "ghost"}
-            className="rounded-none px-2 sm:px-4 text-sm flex-1"
-            onClick={() => onViewChange("month")}
-          >
-            {t("dashboard.month")}
-          </Button>
-          <Button
-            variant={view === "week" ? "default" : "ghost"}
-            className="rounded-none px-2 sm:px-4 text-sm flex-1"
-            onClick={() => onViewChange("week")}
-          >
-            {t("dashboard.week")}
-          </Button>
-          <Button
-            variant={view === "day" ? "default" : "ghost"}
-            className="rounded-none px-2 sm:px-4 text-sm flex-1"
+            variant={view === "day" ? "default" : "outline"}
+            size="sm"
             onClick={() => onViewChange("day")}
           >
-            {t("dashboard.day")}
+            {t("calendar.day")}
+          </Button>
+          <Button
+            variant={view === "week" ? "default" : "outline"}
+            size="sm"
+            onClick={() => onViewChange("week")}
+          >
+            {t("calendar.week")}
+          </Button>
+          <Button
+            variant={view === "month" ? "default" : "outline"}
+            size="sm"
+            onClick={() => onViewChange("month")}
+          >
+            {t("calendar.month")}
           </Button>
         </div>
+        
         {onAddEvent && (
-          <Button onClick={onAddEvent} className="whitespace-nowrap">
-            {t("dashboard.addEvent")}
+          <Button onClick={onAddEvent} size="sm">
+            <Plus className="h-4 w-4 mr-1" />
+            {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
           </Button>
         )}
       </div>
