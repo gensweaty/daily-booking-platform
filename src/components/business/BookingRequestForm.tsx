@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface BookingRequestFormProps {
   businessId: string;
@@ -28,7 +27,6 @@ export const BookingRequestForm = ({
   const [endTime, setEndTime] = useState("10:00");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,10 +51,9 @@ export const BookingRequestForm = ({
       const [endHours, endMinutes] = endTime.split(":").map(Number);
       endDate.setHours(endHours, endMinutes, 0, 0);
 
-      // Insert booking request - if user is logged in, associate with their ID, otherwise just use public booking
+      // Insert booking request
       const { error } = await supabase.from("booking_requests").insert({
         business_id: businessId,
-        user_id: user?.id || null, // Allow null for public bookings
         requester_name: name,
         requester_email: email,
         requester_phone: phone,

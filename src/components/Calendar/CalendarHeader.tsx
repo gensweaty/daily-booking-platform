@@ -11,7 +11,7 @@ interface CalendarHeaderProps {
   onViewChange: (view: "month" | "week" | "day") => void;
   onPrevious: () => void;
   onNext: () => void;
-  onAddEvent?: () => void;
+  onAddEvent: () => void;
 }
 
 export const CalendarHeader = ({
@@ -61,11 +61,9 @@ export const CalendarHeader = ({
             {t("dashboard.day")}
           </Button>
         </div>
-        {onAddEvent && (
-          <Button onClick={onAddEvent} className="whitespace-nowrap">
-            {t("dashboard.addEvent")}
-          </Button>
-        )}
+        <Button onClick={onAddEvent} className="whitespace-nowrap">
+          {t("dashboard.addEvent")}
+        </Button>
       </div>
     </div>
   );

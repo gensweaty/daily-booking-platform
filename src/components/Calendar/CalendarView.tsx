@@ -9,7 +9,7 @@ interface CalendarViewProps {
   events: CalendarEventType[];
   selectedDate: Date;
   view: "month" | "week" | "day";
-  onDayClick?: (date: Date, hour?: number) => void;
+  onDayClick: (date: Date, hour?: number) => void;
   onEventClick: (event: CalendarEventType) => void;
 }
 
@@ -44,34 +44,6 @@ export const CalendarView = ({
     return ((actualHour - 6 + 24) % 24) * 80; // 80px is the height of each hour slot
   };
 
-  // Function to determine event color based on type
-  const getEventColorClass = (eventType: string) => {
-    switch (eventType) {
-      case "birthday":
-        return "bg-primary text-primary-foreground";
-      case "booking_request":
-        return "bg-green-600 text-white";
-      case "private_party":
-        return "bg-amber-500 text-black";
-      default:
-        return "bg-secondary text-secondary-foreground";
-    }
-  };
-
-  // Function to get event icon based on type
-  const getEventIcon = (eventType: string) => {
-    switch (eventType) {
-      case "booking_request":
-        return "📅 ";
-      case "birthday":
-        return "🎂 ";
-      case "private_party":
-        return "🎉 ";
-      default:
-        return "";
-    }
-  };
-
   if (view === "month") {
     // Get the start and end of the month view
     const monthStart = startOfMonth(selectedDate);
@@ -94,12 +66,10 @@ export const CalendarView = ({
           return (
             <div
               key={day.toISOString()}
-              className={`relative bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] ${
-                onDayClick ? 'cursor-pointer hover:bg-muted' : ''
-              } border border-border transition-colors ${
+              className={`relative bg-background p-2 sm:p-4 min-h-[80px] sm:min-h-[120px] cursor-pointer hover:bg-muted border border-border transition-colors ${
                 !isCurrentMonth ? 'bg-opacity-50' : ''
               }`}
-              onClick={onDayClick ? () => onDayClick(day) : undefined}
+              onClick={() => onDayClick(day)}
             >
               <div className={`font-medium ${!isCurrentMonth ? 'text-muted-foreground' : 'text-foreground'}`}>
                 {format(day, "d")}
@@ -109,7 +79,9 @@ export const CalendarView = ({
                   <div
                     key={event.id}
                     className={`text-xs sm:text-sm p-1 rounded ${
-                      getEventColorClass(event.type)
+                      event.type === "birthday"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-secondary-foreground"
                     } cursor-pointer truncate hover:opacity-80 transition-opacity ${
                       !isCurrentMonth ? 'opacity-60' : ''
                     }`}
@@ -117,10 +89,8 @@ export const CalendarView = ({
                       e.stopPropagation();
                       onEventClick(event);
                     }}
-                    title={event.title}
                   >
-                    {getEventIcon(event.type)}{event.title}
-                    {event.requester_name && <span className="block text-[9px] italic truncate">({event.requester_name})</span>}
+                    {event.title}
                   </div>
                 ))}
               </div>
@@ -165,10 +135,8 @@ export const CalendarView = ({
               return (
                 <div
                   key={actualHour}
-                  className={`h-20 border-b border-border ${
-                    onDayClick ? 'hover:bg-muted transition-colors cursor-pointer' : ''
-                  } relative`}
-                  onClick={onDayClick ? () => onDayClick(hourDate, actualHour) : undefined}
+                  className="h-20 border-b border-border hover:bg-muted transition-colors cursor-pointer relative"
+                  onClick={() => onDayClick(hourDate, actualHour)}
                 />
               );
             })}
@@ -187,7 +155,9 @@ export const CalendarView = ({
                   <div
                     key={event.id}
                     className={`absolute left-0.5 right-0.5 rounded px-0.5 sm:px-2 py-1 text-[10px] sm:text-sm ${
-                      getEventColorClass(event.type)
+                      event.type === "birthday"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-secondary-foreground"
                     } cursor-pointer overflow-hidden hover:opacity-80 transition-opacity`}
                     style={{
                       top: `${top}px`,
@@ -197,17 +167,11 @@ export const CalendarView = ({
                       e.stopPropagation();
                       onEventClick(event);
                     }}
-                    title={`${event.title} ${event.requester_name ? `(${event.requester_name})` : ''}`}
                   >
-                    <div className="font-semibold truncate">
-                      {getEventIcon(event.type)}{event.title}
-                    </div>
+                    <div className="font-semibold truncate">{event.title}</div>
                     {height > 40 && (
                       <div className="text-[8px] sm:text-xs truncate">
                         {format(start, "h:mm a", { locale })} - {format(end, "h:mm a", { locale })}
-                        {event.requester_name && (
-                          <div className="italic">{event.requester_name}</div>
-                        )}
                       </div>
                     )}
                   </div>

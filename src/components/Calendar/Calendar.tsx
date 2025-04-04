@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState } from "react";
 import {
   startOfWeek,
   endOfWeek,
@@ -10,147 +11,49 @@ import {
   subMonths,
   setHours,
   startOfDay,
-  parseISO,
 } from "date-fns";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
 import { CalendarView } from "./CalendarView";
 import { EventDialog } from "./EventDialog";
-import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
+import { CalendarViewType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { TimeIndicator } from "./TimeIndicator";
 import { useEventDialog } from "./hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { BookingRequest } from "@/types/database";
+import { useEffect } from "react";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
-  currentView?: CalendarViewType;
-  onViewChange?: (view: CalendarViewType) => void;
-  isExternalCalendar?: boolean;
-  businessId?: string;
-  showAllEvents?: boolean;
 }
 
-export const Calendar = ({ 
-  defaultView = "week", 
-  currentView,
-  onViewChange,
-  isExternalCalendar = false,
-  businessId,
-  showAllEvents = false
-}: CalendarProps) => {
+export const Calendar = ({ defaultView = "week" }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
-  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(isExternalCalendar ? businessId : undefined);
-  const [approvedBookings, setApprovedBookings] = useState<CalendarEventType[]>([]);
-  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (currentView) {
-      setView(currentView);
-    }
-  }, [currentView]);
-
+  // Make events available globally for the useEventDialog hook
   if (typeof window !== 'undefined') {
     (window as any).__CALENDAR_EVENTS__ = events;
   }
 
+  // Regular refresh for sync purposes
   useEffect(() => {
-    const invalidateQueries = () => {
+    // Initial fetch
+    queryClient.invalidateQueries({ queryKey: ['events'] });
+    
+    // Set up regular refresh interval
+    const intervalId = setInterval(() => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
-      if (businessId) {
-        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
-      }
-    };
+    }, 15000); // Refresh every 15 seconds
     
-    invalidateQueries();
-    const intervalId = setInterval(invalidateQueries, 15000);
     return () => clearInterval(intervalId);
-  }, [queryClient, businessId]);
-
-  useEffect(() => {
-    const fetchApprovedBookings = async () => {
-      setIsLoadingBookings(true);
-      try {
-        let targetBusinessId = businessId;
-        
-        if (!isExternalCalendar && user?.id) {
-          const { data: businessProfile } = await supabase
-            .from("business_profiles")
-            .select("id")
-            .eq("user_id", user.id)
-            .maybeSingle();
-            
-          if (businessProfile?.id) {
-            targetBusinessId = businessProfile.id;
-          }
-        }
-        
-        if (!targetBusinessId && !user?.id) {
-          setIsLoadingBookings(false);
-          return;
-        }
-        
-        const { data, error } = await supabase
-          .from('booking_requests')
-          .select('*')
-          .eq('status', 'approved');
-          
-        if (error) throw error;
-        
-        let filteredData = data;
-        
-        if (targetBusinessId) {
-          filteredData = data.filter((booking: BookingRequest) => 
-            booking.business_id === targetBusinessId
-          );
-        } else if (user?.id) {
-          filteredData = data.filter((booking: BookingRequest) => 
-            booking.user_id === user.id
-          );
-        }
-        
-        console.log("Fetched booking requests:", filteredData);
-        
-        const bookingEvents: CalendarEventType[] = (filteredData || []).map((booking: BookingRequest) => ({
-          id: booking.id,
-          title: booking.title,
-          start_date: booking.start_date,
-          end_date: booking.end_date,
-          type: 'booking_request',
-          user_id: booking.user_id || '',
-          created_at: booking.created_at,
-          requester_name: booking.requester_name,
-          requester_email: booking.requester_email,
-        }));
-        
-        setApprovedBookings(bookingEvents);
-      } catch (error) {
-        console.error('Error fetching approved bookings:', error);
-      } finally {
-        setIsLoadingBookings(false);
-      }
-    };
-    
-    fetchApprovedBookings();
-    
-    const intervalId = setInterval(fetchApprovedBookings, 15000);
-    return () => clearInterval(intervalId);
-  }, [user?.id, isExternalCalendar, businessId]);
-  
-  const allEvents = [...(events || []), ...approvedBookings];
-
-  console.log("Calendar props:", { isExternalCalendar, businessId, showAllEvents });
-  console.log("Events from useCalendarEvents:", events?.length || 0);
-  console.log("Approved bookings:", approvedBookings.length);
-  console.log("Combined events to display:", allEvents.length);
+  }, [queryClient]);
 
   const {
     selectedEvent,
@@ -180,7 +83,7 @@ export const Calendar = ({
     }
   });
 
-  if (!isExternalCalendar && !user && !window.location.pathname.includes('/business/')) {
+  if (!user) {
     navigate("/signin");
     return null;
   }
@@ -234,44 +137,31 @@ export const Calendar = ({
     }
   };
 
-  const handleViewChange = (newView: CalendarViewType) => {
-    setView(newView);
-    if (onViewChange) {
-      onViewChange(newView);
-    }
-  };
-
   const handleCalendarDayClick = (date: Date, hour?: number) => {
-    if (isExternalCalendar) return;
-    
     const clickedDate = new Date(date);
     clickedDate.setHours(hour || 9, 0, 0, 0);
     
+    // First set the date
     setDialogSelectedDate(clickedDate);
+    // Then open the dialog
     setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
   const handleAddEventClick = () => {
-    if (isExternalCalendar) return;
-    
     const now = new Date();
     now.setHours(9, 0, 0, 0);
     
+    // First set the date
     setDialogSelectedDate(now);
+    // Then open the dialog
     setTimeout(() => setIsNewEventDialogOpen(true), 0);
-  };
-
-  const handleEventClick = (event: CalendarEventType) => {
-    if (!isExternalCalendar && !approvedBookings.some(booking => booking.id === event.id)) {
-      setSelectedEvent(event);
-    }
   };
 
   if (error) {
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
 
-  if (isLoading || isLoadingBookings) {
+  if (isLoading) {
     return (
       <div className="space-y-4">
         <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
@@ -289,10 +179,10 @@ export const Calendar = ({
       <CalendarHeader
         selectedDate={selectedDate}
         view={view}
-        onViewChange={handleViewChange}
+        onViewChange={setView}
         onPrevious={handlePrevious}
         onNext={handleNext}
-        onAddEvent={!isExternalCalendar ? handleAddEventClick : undefined}
+        onAddEvent={handleAddEventClick}
       />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
@@ -300,37 +190,33 @@ export const Calendar = ({
         <div className="flex-1">
           <CalendarView
             days={getDaysForView()}
-            events={allEvents}
+            events={events || []}
             selectedDate={selectedDate}
             view={view}
-            onDayClick={!isExternalCalendar ? handleCalendarDayClick : undefined}
-            onEventClick={handleEventClick}
+            onDayClick={handleCalendarDayClick}
+            onEventClick={setSelectedEvent}
           />
         </div>
       </div>
 
-      {!isExternalCalendar && (
-        <>
-          <EventDialog
-            key={dialogSelectedDate?.getTime()}
-            open={isNewEventDialogOpen}
-            onOpenChange={setIsNewEventDialogOpen}
-            selectedDate={dialogSelectedDate}
-            onSubmit={handleCreateEvent}
-          />
+      <EventDialog
+        key={dialogSelectedDate?.getTime()} // Force re-render when date changes
+        open={isNewEventDialogOpen}
+        onOpenChange={setIsNewEventDialogOpen}
+        selectedDate={dialogSelectedDate}
+        onSubmit={handleCreateEvent}
+      />
 
-          {selectedEvent && (
-            <EventDialog
-              key={selectedEvent.id}
-              open={!!selectedEvent}
-              onOpenChange={() => setSelectedEvent(null)}
-              selectedDate={new Date(selectedEvent.start_date)}
-              event={selectedEvent}
-              onSubmit={handleUpdateEvent}
-              onDelete={handleDeleteEvent}
-            />
-          )}
-        </>
+      {selectedEvent && (
+        <EventDialog
+          key={selectedEvent.id} // Force re-render when event changes
+          open={!!selectedEvent}
+          onOpenChange={() => setSelectedEvent(null)}
+          selectedDate={new Date(selectedEvent.start_date)} // Use the actual event start date
+          event={selectedEvent}
+          onSubmit={handleUpdateEvent}
+          onDelete={handleDeleteEvent}
+        />
       )}
     </div>
   );

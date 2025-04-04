@@ -3,45 +3,30 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
 
-export const useBookingRequests = (businessId?: string) => {
+export const useBookingRequests = (businessId: string | undefined) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { user } = useAuth();
 
-  // This function now fetches booking requests for a business owner
   const getBookingRequests = async (): Promise<BookingRequest[]> => {
-    if (!user?.id) return [];
-    
-    const { data: userBusinessProfile } = await supabase
-      .from("business_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    
-    if (!userBusinessProfile?.id) return [];
+    if (!businessId) return [];
     
     const { data, error } = await supabase
       .from("booking_requests")
       .select("*")
-      .eq("business_id", userBusinessProfile.id)
+      .eq("business_id", businessId)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
     return data;
   };
 
-  const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">): Promise<BookingRequest> => {
-    // Allow creating booking requests without authentication
+  const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status">): Promise<BookingRequest> => {
+    if (!businessId) throw new Error("Business ID is required to create a booking request");
+    
     const { data, error } = await supabase
       .from("booking_requests")
-      .insert([{ 
-        ...request, 
-        status: "pending",
-        // Set user_id to authenticated user if available, otherwise null
-        user_id: user?.id || null
-      }])
+      .insert([{ ...request, business_id: businessId, status: "pending" }])
       .select()
       .single();
 
@@ -50,21 +35,13 @@ export const useBookingRequests = (businessId?: string) => {
   };
 
   const updateBookingRequest = async ({ id, updates }: { id: string; updates: Partial<BookingRequest> }): Promise<BookingRequest> => {
-    if (!user?.id) throw new Error("User ID is required to update a booking request");
-    
-    const { data: userBusinessProfile } = await supabase
-      .from("business_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    
-    if (!userBusinessProfile?.id) throw new Error("You don't have permission to update this booking request");
+    if (!businessId) throw new Error("Business ID is required to update a booking request");
     
     const { data, error } = await supabase
       .from("booking_requests")
       .update(updates)
       .eq("id", id)
-      .eq("business_id", userBusinessProfile.id)
+      .eq("business_id", businessId)
       .select()
       .single();
 
@@ -73,29 +50,21 @@ export const useBookingRequests = (businessId?: string) => {
   };
 
   const deleteBookingRequest = async (id: string): Promise<void> => {
-    if (!user?.id) throw new Error("User ID is required to delete a booking request");
-    
-    const { data: userBusinessProfile } = await supabase
-      .from("business_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    
-    if (!userBusinessProfile?.id) throw new Error("You don't have permission to delete this booking request");
+    if (!businessId) throw new Error("Business ID is required to delete a booking request");
     
     const { error } = await supabase
       .from("booking_requests")
       .delete()
       .eq("id", id)
-      .eq("business_id", userBusinessProfile.id);
+      .eq("business_id", businessId);
 
     if (error) throw error;
   };
 
   const { data: bookingRequests = [], isLoading, error } = useQuery({
-    queryKey: ["bookingRequests", user?.id],
+    queryKey: ["bookingRequests", businessId],
     queryFn: getBookingRequests,
-    enabled: !!user?.id,
+    enabled: !!businessId,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
@@ -106,9 +75,7 @@ export const useBookingRequests = (businessId?: string) => {
   const createRequestMutation = useMutation({
     mutationFn: createBookingRequest,
     onSuccess: () => {
-      if (user?.id) {
-        queryClient.invalidateQueries({ queryKey: ["bookingRequests", user?.id] });
-      }
+      queryClient.invalidateQueries({ queryKey: ["bookingRequests", businessId] });
       toast({
         title: "Success",
         description: "Booking request submitted successfully",
@@ -126,7 +93,7 @@ export const useBookingRequests = (businessId?: string) => {
   const updateRequestMutation = useMutation({
     mutationFn: updateBookingRequest,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["bookingRequests", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["bookingRequests", businessId] });
       toast({
         title: "Success",
         description: "Booking request updated successfully",
@@ -144,7 +111,7 @@ export const useBookingRequests = (businessId?: string) => {
   const deleteRequestMutation = useMutation({
     mutationFn: deleteBookingRequest,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["bookingRequests", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["bookingRequests", businessId] });
       toast({
         title: "Success",
         description: "Booking request deleted successfully",

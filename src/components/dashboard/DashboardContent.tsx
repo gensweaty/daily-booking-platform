@@ -12,7 +12,6 @@ import { CustomerList } from "@/components/crm/CustomerList"
 import { BusinessPage } from "@/components/business/BusinessPage"
 import { motion, AnimatePresence } from "framer-motion"
 import { useLanguage } from "@/contexts/LanguageContext"
-import { useBusinessProfile } from "@/hooks/useBusinessProfile"
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
