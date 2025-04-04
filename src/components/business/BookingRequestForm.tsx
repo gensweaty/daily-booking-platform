@@ -127,6 +127,7 @@ export const BookingRequestForm = ({
         end_date: endDateTime.toISOString(),
         payment_amount: paymentAmountValue,
         business_id: businessId,
+        payment_status: paymentStatus,
       });
       
       toast({
@@ -177,7 +178,7 @@ export const BookingRequestForm = ({
           setSelectedFile={setSelectedFile}
           fileError={fileError}
           setFileError={setFileError}
-          isBookingRequest={true}
+          isBookingRequest={false}
         />
 
         <div className="flex justify-end space-x-2 pt-4">
