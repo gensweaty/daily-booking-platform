@@ -63,35 +63,15 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("[External Calendar] Starting to fetch events for business ID:", businessId);
       
       try {
-        // 1. First, get events from the API function which includes approved bookings
+        // 1. Get events from the API function which includes approved bookings and user events
         const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
         
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
         
-        // 2. If we have a businessUserId, fetch all regular events directly from the events table
-        let directEvents: CalendarEventType[] = [];
-        if (businessUserId) {
-          const { data: userEvents, error: userEventsError } = await supabase
-            .from('events')
-            .select('*')
-            .eq('user_id', businessUserId);
-            
-          if (userEventsError) {
-            console.error("Error fetching user events:", userEventsError);
-          } else {
-            directEvents = userEvents || [];
-            console.log(`[External Calendar] Fetched ${directEvents.length} direct user events`);
-          }
-        }
-        
-        // Combine all event sources, ensuring all events have proper defaults
+        // Combine all event sources
         const allEvents: CalendarEventType[] = [
           ...(apiEvents || []).map(event => ({
-            ...event,
-            type: event.type || 'event'
-          })),
-          ...(directEvents || []).map(event => ({
             ...event,
             type: event.type || 'event'
           })),
@@ -158,7 +138,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       }
     };
 
-    // Only fetch if we have both ID
+    // Only fetch if we have the business ID
     if (businessId) {
       console.log("[External Calendar] Have business ID, fetching events");
       fetchAllEvents();
@@ -169,7 +149,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         clearInterval(intervalId);
       };
     }
-  }, [businessId, businessUserId, toast, t]);
+  }, [businessId, toast, t]);
 
   if (!businessId) {
     return (

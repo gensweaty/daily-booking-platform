@@ -279,10 +279,9 @@ export const getPublicCalendarEvents = async (businessId: string) => {
     // Fetch regular events from user's calendar if we have the user ID
     let eventsData = [];
     if (businessUserId) {
+      // Use a public function to bypass RLS for the specific business user's events
       const { data: userEvents, error: eventsError } = await supabase
-        .from("events")
-        .select("*")
-        .eq("user_id", businessUserId);
+        .rpc('get_public_events_by_user_id', { user_id_param: businessUserId });
       
       if (eventsError) {
         console.error("Error fetching user events:", eventsError);
