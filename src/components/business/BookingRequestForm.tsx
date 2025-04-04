@@ -1,10 +1,7 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import { Textarea } from "../ui/textarea";
-import { format, addHours } from "date-fns";
 import { useToast } from "../ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { DialogHeader, DialogTitle } from "../ui/dialog";
@@ -13,6 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { createBookingRequest } from "@/lib/api";
 import { Loader2 } from "lucide-react";
+import { EventDialogFields } from "../Calendar/EventDialogFields";
 
 interface BookingRequestFormProps {
   open: boolean;
@@ -54,11 +52,39 @@ export const BookingRequestForm = ({
   const { toast } = useToast();
   const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const formattedDate = format(selectedDate, "yyyy-MM-dd");
   
-  const defaultStartTime = startTime || format(selectedDate, "HH:mm");
-  const defaultEndTime = endTime || format(addHours(selectedDate, 1), "HH:mm");
+  // Event dialog fields state
+  const [title, setTitle] = useState("");
+  const [userSurname, setUserSurname] = useState("");
+  const [userNumber, setUserNumber] = useState("");
+  const [socialNetworkLink, setSocialNetworkLink] = useState("");
+  const [eventNotes, setEventNotes] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
+
+  const formattedDate = selectedDate ? 
+    new Date(selectedDate).toISOString().split('T')[0] : 
+    new Date().toISOString().split('T')[0];
+  
+  const defaultStartTime = startTime || "09:00";
+  const defaultEndTime = endTime || "10:00";
+
+  useEffect(() => {
+    if (selectedDate) {
+      const start = new Date(selectedDate);
+      start.setHours(parseInt(defaultStartTime.split(':')[0]), parseInt(defaultStartTime.split(':')[1]), 0, 0);
+      
+      const end = new Date(selectedDate);
+      end.setHours(parseInt(defaultEndTime.split(':')[0]), parseInt(defaultEndTime.split(':')[1]), 0, 0);
+      
+      setStartDate(start.toISOString().slice(0, 16));
+      setEndDate(end.toISOString().slice(0, 16));
+    }
+  }, [selectedDate, defaultStartTime, defaultEndTime]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(BookingSchema),
@@ -75,30 +101,31 @@ export const BookingRequestForm = ({
     },
   });
 
-  const onSubmit = async (values: FormValues) => {
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     try {
       setIsSubmitting(true);
-      console.log("Submitting booking request:", values);
-
-      const start = new Date(values.start_date);
-      const end = new Date(values.end_date);
       
-      let paymentAmount: number | null = null;
+      const startDateTime = new Date(startDate);
+      const endDateTime = new Date(endDate);
       
-      if (values.payment_amount !== undefined && values.payment_amount !== null && values.payment_amount !== '') {
-        const parsedAmount = Number(values.payment_amount);
-        paymentAmount = isNaN(parsedAmount) ? null : parsedAmount;
+      let paymentAmountValue: number | null = null;
+      
+      if (paymentAmount && paymentAmount !== '') {
+        const parsedAmount = Number(paymentAmount);
+        paymentAmountValue = isNaN(parsedAmount) ? null : parsedAmount;
       }
       
       await createBookingRequest({
-        title: values.title,
-        requester_name: values.requester_name,
-        requester_email: values.requester_email,
-        requester_phone: values.requester_phone || "",
-        description: values.description || "",
-        start_date: start.toISOString(),
-        end_date: end.toISOString(),
-        payment_amount: paymentAmount,
+        title: title,
+        requester_name: userSurname,
+        requester_email: socialNetworkLink,
+        requester_phone: userNumber || "",
+        description: eventNotes || "",
+        start_date: startDateTime.toISOString(),
+        end_date: endDateTime.toISOString(),
+        payment_amount: paymentAmountValue,
         business_id: businessId,
       });
       
@@ -126,144 +153,54 @@ export const BookingRequestForm = ({
       <DialogHeader>
         <DialogTitle>{t("booking.requestTitle")}</DialogTitle>
       </DialogHeader>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
-          <FormField
-            control={form.control}
-            name="title"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("booking.bookingTitle")}</FormLabel>
-                <FormControl>
-                  <Input placeholder={t("booking.bookingTitlePlaceholder")} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+      <form onSubmit={onSubmit} className="space-y-4 mt-4">
+        <EventDialogFields
+          title={title}
+          setTitle={setTitle}
+          userSurname={userSurname}
+          setUserSurname={setUserSurname}
+          userNumber={userNumber}
+          setUserNumber={setUserNumber}
+          socialNetworkLink={socialNetworkLink}
+          setSocialNetworkLink={setSocialNetworkLink}
+          eventNotes={eventNotes}
+          setEventNotes={setEventNotes}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
+          paymentStatus={paymentStatus}
+          setPaymentStatus={setPaymentStatus}
+          paymentAmount={paymentAmount}
+          setPaymentAmount={setPaymentAmount}
+          selectedFile={selectedFile}
+          setSelectedFile={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+          isBookingRequest={false}
+        />
+
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t("booking.submitting")}
+              </>
+            ) : (
+              t("booking.submit")
             )}
-          />
-
-          <FormField
-            control={form.control}
-            name="requester_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("booking.yourName")}</FormLabel>
-                <FormControl>
-                  <Input placeholder={t("booking.yourNamePlaceholder")} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="requester_email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("booking.yourEmail")}</FormLabel>
-                <FormControl>
-                  <Input type="email" placeholder={t("booking.yourEmailPlaceholder")} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="requester_phone"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("booking.yourPhone")}</FormLabel>
-                <FormControl>
-                  <Input placeholder={t("booking.yourPhonePlaceholder")} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="start_date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("booking.startTime")}</FormLabel>
-                  <FormControl>
-                    <Input type="datetime-local" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="end_date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("booking.endTime")}</FormLabel>
-                  <FormControl>
-                    <Input type="datetime-local" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <FormField
-            control={form.control}
-            name="payment_amount"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("booking.paymentAmount")}</FormLabel>
-                <FormControl>
-                  <Input type="number" placeholder="0.00" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("booking.description")}</FormLabel>
-                <FormControl>
-                  <Textarea placeholder={t("booking.descriptionPlaceholder")} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("booking.submitting")}
-                </>
-              ) : (
-                t("booking.submit")
-              )}
-            </Button>
-          </div>
-        </form>
-      </Form>
+          </Button>
+        </div>
+      </form>
     </>
   );
 };

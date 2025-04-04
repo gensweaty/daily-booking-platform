@@ -72,38 +72,6 @@ export const EventDialogFields = ({
 
   const formattedMinDate = format(new Date(), "yyyy-MM-dd'T'HH:mm");
 
-  // If it's a booking request, we only show date and time fields
-  if (isBookingRequest) {
-    return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="start-date">Start Date & Time</Label>
-            <Input
-              id="start-date"
-              type="datetime-local"
-              min={formattedMinDate}
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="end-date">End Date & Time</Label>
-            <Input
-              id="end-date"
-              type="datetime-local"
-              min={startDate || formattedMinDate}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   useEffect(() => {
     // Set default times if no startDate or endDate is provided
     if (!startDate || !endDate) {
