@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -17,6 +16,7 @@ import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
 import { CalendarView } from "./CalendarView";
 import { EventDialog } from "./EventDialog";
+import { ExternalEventDialog } from "./ExternalEventDialog";
 import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -65,6 +65,7 @@ export const Calendar = ({
   const isLoading = !directEvents && isLoadingFromHook;
   
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
+  const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [bookingDate, setBookingDate] = useState<Date | undefined>(undefined);
   const [bookingStartTime, setBookingStartTime] = useState<string>("");
   const [bookingEndTime, setBookingEndTime] = useState<string>("");
@@ -189,22 +190,17 @@ export const Calendar = ({
   };
 
   const handleCalendarDayClick = (date: Date, hour?: number) => {
+    console.log("[Calendar] Day clicked:", date, "hour:", hour);
+    
     const clickedDate = new Date(date);
-    clickedDate.setHours(hour || 9, 0, 0, 0);
+    if (hour !== undefined) {
+      clickedDate.setHours(hour, 0, 0, 0);
+    }
     
     if (isExternalCalendar && allowBookingRequests) {
+      console.log("[Calendar] Opening external event dialog for date:", clickedDate);
       setBookingDate(clickedDate);
-      
-      // Format the time for the form
-      const startHour = format(clickedDate, "HH:mm");
-      const endDate = new Date(clickedDate);
-      endDate.setHours(clickedDate.getHours() + 1);
-      const endHour = format(endDate, "HH:mm");
-      
-      setBookingStartTime(startHour);
-      setBookingEndTime(endHour);
-      
-      setIsBookingFormOpen(true);
+      setIsEventDialogOpen(true);
     } else if (!isExternalCalendar) {
       setDialogSelectedDate(clickedDate);
       setTimeout(() => setIsNewEventDialogOpen(true), 0);
@@ -214,18 +210,10 @@ export const Calendar = ({
   const handleAddEventClick = () => {
     if (isExternalCalendar && allowBookingRequests) {
       const now = new Date();
+      now.setHours(now.getHours(), 0, 0, 0); // Round to current hour
+      console.log("[Calendar] Opening external event dialog for current time:", now);
       setBookingDate(now);
-      
-      // Default to current hour and next hour
-      const startHour = format(now, "HH:mm");
-      const endDate = new Date(now);
-      endDate.setHours(now.getHours() + 1);
-      const endHour = format(endDate, "HH:mm");
-      
-      setBookingStartTime(startHour);
-      setBookingEndTime(endHour);
-      
-      setIsBookingFormOpen(true);
+      setIsEventDialogOpen(true);
     } else if (!isExternalCalendar) {
       const now = new Date();
       now.setHours(9, 0, 0, 0);
@@ -247,8 +235,10 @@ export const Calendar = ({
   };
 
   const handleBookingSuccess = () => {
+    setIsEventDialogOpen(false);
     setIsBookingFormOpen(false);
     queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
+    queryClient.invalidateQueries({ queryKey: ['business-events'] });
     
     toast({
       title: "Booking request submitted",
@@ -294,7 +284,7 @@ export const Calendar = ({
             events={events || []}
             selectedDate={selectedDate}
             view={view}
-            onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}
+            onDayClick={handleCalendarDayClick}
             onEventClick={handleEventClick}
             isExternalCalendar={isExternalCalendar}
           />
@@ -326,21 +316,35 @@ export const Calendar = ({
       )}
 
       {isExternalCalendar && allowBookingRequests && businessId && (
-        <Dialog open={isBookingFormOpen} onOpenChange={setIsBookingFormOpen}>
-          <DialogContent className="max-w-md">
-            {bookingDate && (
-              <BookingRequestForm
-                open={isBookingFormOpen}
-                onOpenChange={setIsBookingFormOpen}
-                businessId={businessId}
-                selectedDate={bookingDate}
-                startTime={bookingStartTime}
-                endTime={bookingEndTime}
-                onSuccess={handleBookingSuccess}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
+        <>
+          {/* Legacy booking form - keeping for backup */}
+          <Dialog open={isBookingFormOpen} onOpenChange={setIsBookingFormOpen}>
+            <DialogContent className="max-w-md">
+              {bookingDate && (
+                <BookingRequestForm
+                  open={isBookingFormOpen}
+                  onOpenChange={setIsBookingFormOpen}
+                  businessId={businessId}
+                  selectedDate={bookingDate}
+                  startTime={bookingStartTime}
+                  endTime={bookingEndTime}
+                  onSuccess={handleBookingSuccess}
+                />
+              )}
+            </DialogContent>
+          </Dialog>
+          
+          {/* New event dialog for external bookings */}
+          {bookingDate && (
+            <ExternalEventDialog
+              open={isEventDialogOpen}
+              onOpenChange={setIsEventDialogOpen}
+              selectedDate={bookingDate}
+              businessId={businessId}
+              onSuccess={handleBookingSuccess}
+            />
+          )}
+        </>
       )}
     </div>
   );

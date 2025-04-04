@@ -1,54 +1,45 @@
 
-import { BusinessProfileForm } from "./BusinessProfileForm";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { BookingRequestsList } from "./BookingRequestsList";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { BusinessSettingsForm } from "./BusinessSettingsForm";
+import { BookingApprovalList } from "./BookingApprovalList";
 import { useBookingRequests } from "@/hooks/useBookingRequests";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare } from "lucide-react";
 
 export const BusinessPage = () => {
+  const [activeTab, setActiveTab] = useState("settings");
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("profile");
-  const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest } = useBookingRequests();
+  const { pendingRequests, isLoading: isLoadingRequests } = useBookingRequests();
   const pendingCount = pendingRequests?.length || 0;
 
-  const { data: businessProfile, isLoading } = useQuery({
-    queryKey: ["businessProfile", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      
-      const { data, error } = await supabase
-        .from("business_profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
-  if (isLoading) {
-    return <div className="text-center p-8">Loading...</div>;
-  }
-
-  const publicUrl = businessProfile?.slug 
-    ? `${window.location.protocol}//${window.location.host}/business/${businessProfile.slug}`
-    : null;
+  // Show approval tab by default when there are pending requests
+  useEffect(() => {
+    if (pendingCount > 0 && activeTab === "settings") {
+      setActiveTab("approvals");
+    }
+  }, [pendingCount]);
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="profile">Business Profile</TabsTrigger>
-          <TabsTrigger value="bookings" className="relative">
-            Booking Requests
+      <div className="flex justify-between items-center">
+        <h2 className="text-3xl font-bold">My Business</h2>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="settings" className="relative">
+            Settings
+          </TabsTrigger>
+          <TabsTrigger value="approvals" className="relative">
+            Booking Approvals
             {pendingCount > 0 && (
               <Badge 
                 variant="destructive" 
@@ -60,63 +51,12 @@ export const BusinessPage = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">My Business Profile</h1>
-            {publicUrl && (
-              <Button 
-                variant="outline"
-                onClick={() => window.open(publicUrl, '_blank')}
-              >
-                View Public Page
-              </Button>
-            )}
-          </div>
-
-          <BusinessProfileForm />
+        <TabsContent value="settings" className="space-y-4">
+          <BusinessSettingsForm />
         </TabsContent>
 
-        <TabsContent value="bookings" className="space-y-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">Booking Requests</h1>
-            {pendingCount > 0 && (
-              <div className="flex items-center gap-2 text-destructive bg-destructive/10 px-3 py-1 rounded-full">
-                <MessageSquare className="h-4 w-4" />
-                <span className="font-medium">{pendingCount} new {pendingCount === 1 ? 'request' : 'requests'}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Pending Requests ({pendingRequests.length})</h2>
-              <BookingRequestsList
-                requests={pendingRequests}
-                type="pending"
-                onApprove={approveRequest}
-                onReject={rejectRequest}
-                onDelete={deleteBookingRequest}
-              />
-            </div>
-
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Approved Requests ({approvedRequests.length})</h2>
-              <BookingRequestsList
-                requests={approvedRequests}
-                type="approved"
-                onDelete={deleteBookingRequest}
-              />
-            </div>
-
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Rejected Requests ({rejectedRequests.length})</h2>
-              <BookingRequestsList
-                requests={rejectedRequests}
-                type="rejected"
-                onDelete={deleteBookingRequest}
-              />
-            </div>
-          </div>
+        <TabsContent value="approvals">
+          <BookingApprovalList />
         </TabsContent>
       </Tabs>
     </div>
