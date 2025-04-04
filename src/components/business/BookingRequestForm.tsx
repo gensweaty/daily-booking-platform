@@ -35,6 +35,7 @@ const BookingSchema = z.object({
     z.number().optional(),
     z.null()
   ]),
+  payment_status: z.string().optional(),
   business_id: z.string(),
 });
 
@@ -50,7 +51,7 @@ export const BookingRequestForm = ({
   endTime,
 }: BookingRequestFormProps) => {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Event dialog fields state
@@ -61,7 +62,7 @@ export const BookingRequestForm = ({
   const [eventNotes, setEventNotes] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("not_paid");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
@@ -97,6 +98,7 @@ export const BookingRequestForm = ({
       start_date: `${formattedDate}T${defaultStartTime}:00`,
       end_date: `${formattedDate}T${defaultEndTime}:00`,
       payment_amount: "",
+      payment_status: "not_paid",
       business_id: businessId,
     },
   });
@@ -152,7 +154,7 @@ export const BookingRequestForm = ({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{t("booking.requestTitle")}</DialogTitle>
+        <DialogTitle>Request Booking</DialogTitle>
       </DialogHeader>
       <form onSubmit={onSubmit} className="space-y-4 mt-4">
         <EventDialogFields
@@ -197,7 +199,7 @@ export const BookingRequestForm = ({
                 {t("common.submitting")}
               </>
             ) : (
-              t("booking.submit")
+              "Submit Request"
             )}
           </Button>
         </div>
