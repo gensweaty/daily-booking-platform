@@ -24,14 +24,14 @@ export const CalendarHeader = ({
   onAddEvent,
   isExternalCalendar = false,
 }: CalendarHeaderProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const getFormattedDate = () => {
     switch (view) {
       case "month":
         return format(selectedDate, "MMMM yyyy");
       case "week":
-        return `${t("calendar.weekOf")} ${format(selectedDate, "MMM d, yyyy")}`;
+        return `Week of ${format(selectedDate, "MMM d, yyyy")}`;
       case "day":
         return format(selectedDate, "EEEE, MMMM d, yyyy");
       default:
@@ -58,28 +58,28 @@ export const CalendarHeader = ({
             size="sm"
             onClick={() => onViewChange("day")}
           >
-            {t("calendar.day")}
+            {t("dashboard.day")}
           </Button>
           <Button
             variant={view === "week" ? "default" : "outline"}
             size="sm"
             onClick={() => onViewChange("week")}
           >
-            {t("calendar.week")}
+            {t("dashboard.week")}
           </Button>
           <Button
             variant={view === "month" ? "default" : "outline"}
             size="sm"
             onClick={() => onViewChange("month")}
           >
-            {t("calendar.month")}
+            {t("dashboard.month")}
           </Button>
         </div>
         
         {onAddEvent && (
           <Button onClick={onAddEvent} size="sm">
             <Plus className="h-4 w-4 mr-1" />
-            {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
+            {isExternalCalendar ? "Book Now" : t("dashboard.addEvent")}
           </Button>
         )}
       </div>

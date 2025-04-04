@@ -123,7 +123,7 @@ export const EditNoteDialog = ({
             </div>
           )}
           <FileUploadField 
-            onChange={setSelectedFile}
+            onFileChange={setSelectedFile}
             fileError={fileError}
             setFileError={setFileError}
           />

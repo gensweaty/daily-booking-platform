@@ -74,7 +74,7 @@ export const ReminderList = () => {
     <>
       <ReminderNotificationManager reminders={reminders} />
       <div className="space-y-4">
-        {(reminders || []).map((reminder: Reminder) => (
+        {reminders?.map((reminder: Reminder) => (
           <div
             key={reminder.id}
             className="p-4 bg-white rounded-lg shadow border border-gray-200"

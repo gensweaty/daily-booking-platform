@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,12 +41,16 @@ export const SignIn = () => {
     }
   };
 
+  // Ensure we clear any old recovery tokens when visiting the forgot password page
   const handleForgotPasswordClick = (e: React.MouseEvent) => {
+    // Prevent default to handle navigation manually
     e.preventDefault();
     e.stopPropagation();
     
+    // Clear any existing Supabase session to avoid conflicts with the password reset flow
     supabase.auth.signOut().then(() => {
       console.log("Signed out before navigating to forgot password");
+      // Navigate to forgot password page
       navigate("/forgot-password");
     });
   };
@@ -53,11 +58,11 @@ export const SignIn = () => {
   return (
     <form onSubmit={handleSignIn} className="space-y-4">
       <div className="mb-4">
-        <Label htmlFor="email" className="block text-sm font-medium mb-1">{t("auth.emailLabel")}</Label>
+        <Label htmlFor="email" className="block text-sm font-medium mb-1">Email</Label>
         <Input
           id="email"
           type="email"
-          placeholder={t("auth.emailLabel")}
+          placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -67,19 +72,19 @@ export const SignIn = () => {
       </div>
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
-          <Label htmlFor="password" className="block text-sm font-medium">{t("auth.passwordLabel")}</Label>
+          <Label htmlFor="password" className="block text-sm font-medium">Password</Label>
           <button 
             type="button"
             className="text-xs text-primary hover:underline focus:outline-none"
             onClick={handleForgotPasswordClick}
           >
-            {t("auth.forgotPassword")}
+            Forgot password?
           </button>
         </div>
         <Input
           id="password"
           type="password"
-          placeholder={t("auth.passwordLabel")}
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -92,7 +97,7 @@ export const SignIn = () => {
         className="w-full bg-primary text-white font-medium"
         disabled={loading}
       >
-        {loading ? t("auth.loading") : t("auth.signInButton")}
+        {loading ? "Signing In..." : "Sign In"}
       </Button>
     </form>
   );

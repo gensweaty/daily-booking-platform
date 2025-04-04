@@ -36,71 +36,41 @@ export const useEventDialog = ({
     console.log('useEventDialog - current selectedDate:', selectedDate);
   }, [isNewEventDialogOpen]);
 
-  const checkTimeSlotAvailability = async (
+  const checkTimeSlotAvailability = (
     startDate: Date,
     endDate: Date,
-    existingEventId?: string
-  ): Promise<{ available: boolean; conflictingEvent?: CalendarEventType }> => {
-    try {
-      // First check regular events
-      const { data: conflictingEvents, error: eventsError } = await supabase
-        .from('events')
-        .select('*')
-        .filter('start_date', 'lt', endDate.toISOString())
-        .filter('end_date', 'gt', startDate.toISOString());
-        
-      if (eventsError) throw eventsError;
+    existingEvents: CalendarEventType[],
+    excludeEventId?: string
+  ): { available: boolean; conflictingEvent?: CalendarEventType } => {
+    const startTime = startDate.getTime();
+    const endTime = endDate.getTime();
+
+    const conflictingEvent = existingEvents.find((event) => {
+      if (excludeEventId && event.id === excludeEventId) return false;
       
-      const eventConflict = conflictingEvents?.find(event => 
-        (!existingEventId || event.id !== existingEventId) &&
-        !(startDate.getTime() === new Date(event.end_date).getTime() || 
-          endDate.getTime() === new Date(event.start_date).getTime())
-      );
-      
-      if (eventConflict) {
-        return { available: false, conflictingEvent: eventConflict };
-      }
-      
-      // Then check approved booking requests
-      const { data: conflictingBookings, error: bookingsError } = await supabase
-        .from('booking_requests')
-        .select('*')
-        .eq('status', 'approved')
-        .filter('start_date', 'lt', endDate.toISOString())
-        .filter('end_date', 'gt', startDate.toISOString());
-        
-      if (bookingsError) throw bookingsError;
-      
-      const bookingConflict = conflictingBookings?.find(booking => 
-        !(startDate.getTime() === new Date(booking.end_date).getTime() || 
-          endDate.getTime() === new Date(booking.start_date).getTime())
-      );
-      
-      if (bookingConflict) {
-        // Convert booking to event format for the response
-        const conflictEvent: CalendarEventType = {
-          id: bookingConflict.id,
-          title: bookingConflict.title,
-          start_date: bookingConflict.start_date,
-          end_date: bookingConflict.end_date,
-          created_at: bookingConflict.created_at || new Date().toISOString(),
-          user_id: bookingConflict.user_id || '',
-          type: 'booking_request'
-        };
-        
-        return { available: false, conflictingEvent: conflictEvent };
+      const eventStart = parseISO(event.start_date).getTime();
+      const eventEnd = parseISO(event.end_date).getTime();
+
+      if (startTime === eventEnd || endTime === eventStart) {
+        return false;
       }
 
-      return { available: true };
-    } catch (error) {
-      console.error("Error checking time slot availability:", error);
-      throw error;
-    }
+      return (
+        (startTime < eventEnd && endTime > eventStart) ||
+        (startTime === eventStart && endTime === eventEnd)
+      );
+    });
+
+    return {
+      available: !conflictingEvent,
+      conflictingEvent,
+    };
   };
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
       console.log('handleCreateEvent - Received data:', data);
+      const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
       
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
@@ -110,9 +80,10 @@ export const useEventDialog = ({
         end: endDate
       });
 
-      const { available, conflictingEvent } = await checkTimeSlotAvailability(
+      const { available, conflictingEvent } = checkTimeSlotAvailability(
         startDate,
-        endDate
+        endDate,
+        allEvents
       );
 
       if (!available && conflictingEvent) {
@@ -148,12 +119,15 @@ export const useEventDialog = ({
     if (!selectedEvent) return;
     
     try {
+      const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
+      
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
 
-      const { available, conflictingEvent } = await checkTimeSlotAvailability(
+      const { available, conflictingEvent } = checkTimeSlotAvailability(
         startDate,
         endDate,
+        allEvents,
         selectedEvent.id
       );
 

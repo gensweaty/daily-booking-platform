@@ -7,7 +7,6 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 import { getPublicCalendarEvents } from "@/lib/api";
-import { useLanguage } from "@/contexts/LanguageContext";
 
 export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [view, setView] = useState<CalendarViewType>("month");
@@ -15,7 +14,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const [businessUserId, setBusinessUserId] = useState<string | null>(null);
-  const { t } = useLanguage();
 
   // Diagnostic logging for businessId
   useEffect(() => {
@@ -69,7 +67,16 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         console.log(`[External Calendar] Fetched ${regularEvents?.length || 0} regular events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
         
-        // Convert booking requests to calendar events format with full details
+        // Log first event of each type for debugging if available
+        if (regularEvents && regularEvents.length > 0) {
+          console.log("Sample regular event data:", JSON.stringify(regularEvents[0]));
+        }
+        
+        if (approvedBookings && approvedBookings.length > 0) {
+          console.log("Sample approved booking data:", JSON.stringify(approvedBookings[0]));
+        }
+        
+        // Convert booking requests to calendar events format
         const bookingEvents: CalendarEventType[] = (approvedBookings || []).map(booking => ({
           id: booking.id,
           title: booking.title || 'Booking',
@@ -78,14 +85,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           type: 'booking_request',
           created_at: booking.created_at || new Date().toISOString(),
           user_id: booking.user_id || '',
-          user_surname: booking.requester_name || '',
-          user_number: booking.requester_phone || '',
-          social_network_link: booking.requester_email || '',
-          event_notes: booking.description || '',
           requester_name: booking.requester_name || '',
           requester_email: booking.requester_email || '',
-          requester_phone: booking.requester_phone || '',
-          description: booking.description || '',
         }));
         
         // Combine both types of events
@@ -122,8 +123,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       } catch (error) {
         console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
         toast({
-          title: t("common.error"),
-          description: t("common.error"),
+          title: "Error loading events",
+          description: "Failed to load calendar events. Please try again later.",
           variant: "destructive"
         });
       } finally {
@@ -142,7 +143,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         clearInterval(intervalId);
       };
     }
-  }, [businessId, toast, t]);
+  }, [businessId, toast]);
 
   if (!businessId) {
     return (
@@ -163,16 +164,18 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           {isLoading && (
             <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
               <Loader2 className="h-8 w-8 text-primary animate-spin" />
-              <span className="ml-2 text-primary">{t("common.loading")}</span>
+              <span className="ml-2 text-primary">Loading calendar events...</span>
             </div>
           )}
           
           <Calendar 
-            view={view}
+            defaultView={view}
+            currentView={view}
             onViewChange={setView}
             isExternalCalendar={true}
             businessId={businessId}
-            businessUserId={businessUserId || undefined}
+            businessUserId={businessUserId}
+            showAllEvents={true}
             allowBookingRequests={true}
             directEvents={events}
           />
