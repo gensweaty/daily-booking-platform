@@ -8,7 +8,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 import { getPublicCalendarEvents } from "@/lib/api";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { BookingRequestDialog } from "./BookingRequestDialog";
 
 export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [view, setView] = useState<CalendarViewType>("month");
@@ -17,8 +16,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const { toast } = useToast();
   const [businessUserId, setBusinessUserId] = useState<string | null>(null);
   const { t } = useLanguage();
-  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   // Diagnostic logging for businessId
   useEffect(() => {
@@ -155,19 +152,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     }
   }, [businessId, toast, t]);
 
-  const handleCalendarDayClick = (date: Date) => {
-    setSelectedDate(date);
-    setIsBookingDialogOpen(true);
-  };
-
-  const handleBookingSuccess = () => {
-    // Could trigger a refresh of events here if needed
-    toast({
-      title: t("common.success"),
-      description: t("business.bookingRequestSubmitted"),
-    });
-  };
-
   if (!businessId) {
     return (
       <Card className="min-h-[calc(100vh-12rem)]">
@@ -201,18 +185,9 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             showAllEvents={true}
             allowBookingRequests={true}
             directEvents={events}
-            onDayClick={handleCalendarDayClick}
           />
         </div>
       </CardContent>
-
-      <BookingRequestDialog 
-        open={isBookingDialogOpen}
-        onOpenChange={setIsBookingDialogOpen}
-        selectedDate={selectedDate}
-        businessId={businessId}
-        onSuccess={handleBookingSuccess}
-      />
     </Card>
   );
 };
