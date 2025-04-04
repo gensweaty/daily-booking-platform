@@ -10,18 +10,11 @@ import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { useToast } from "./ui/use-toast";
 import { ReminderNotificationManager } from "./reminder/ReminderNotificationManager";
-import { useAuth } from "@/contexts/AuthContext";
 
 export const ReminderList = () => {
-  const { user } = useAuth();
-  
   const { data: reminders = [], isLoading } = useQuery({
     queryKey: ['reminders'],
-    queryFn: async () => {
-      if (!user) return [];
-      return getReminders(user.id);
-    },
-    enabled: !!user
+    queryFn: getReminders,
   });
 
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);

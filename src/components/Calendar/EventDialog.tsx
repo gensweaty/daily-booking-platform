@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -48,12 +48,6 @@ export const EventDialog = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
   const [isBookingEvent, setIsBookingEvent] = useState(false);
-
-  useEffect(() => {
-    if (open && isBookingRequest) {
-      console.log("[EventDialog] Opened as booking request dialog with date:", selectedDate);
-    }
-  }, [open, isBookingRequest, selectedDate]);
 
   useEffect(() => {
     if (event) {
@@ -316,19 +310,7 @@ export const EventDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle>
-          {isBookingRequest 
-            ? t("booking.requestTitle") 
-            : event 
-              ? t("events.editEvent") 
-              : t("events.addNewEvent")
-          }
-        </DialogTitle>
-        {isBookingRequest && (
-          <DialogDescription>
-            {t("booking.requestDescription")}
-          </DialogDescription>
-        )}
+        <DialogTitle>{event ? t("events.editEvent") : t("events.addNewEvent")}</DialogTitle>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <EventDialogFields
             title={title}
@@ -361,12 +343,7 @@ export const EventDialog = ({
           
           <div className="flex justify-between gap-4">
             <Button type="submit" className="flex-1">
-              {isBookingRequest 
-                ? t("booking.submit") 
-                : event 
-                  ? t("events.updateEvent") 
-                  : t("events.createEvent")
-              }
+              {event ? t("events.updateEvent") : t("events.createEvent")}
             </Button>
             {event && onDelete && (
               <Button

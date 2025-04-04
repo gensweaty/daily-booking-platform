@@ -164,8 +164,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         requester_email: booking.requester_email || '',
         requester_phone: booking.requester_phone || '',
         description: booking.description || '',
-        payment_amount: booking.payment_amount || null,
-        payment_status: booking.payment_status || null,
       }));
       
       return bookingEvents;
@@ -244,81 +242,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               description: updates.event_notes,
               start_date: updates.start_date,
               end_date: updates.end_date,
-              updated_at: new Date().toISOString(),
-              payment_amount: updates.payment_amount || null,
-              payment_status: updates.payment_status || null
+              updated_at: new Date().toISOString()
             })
             .eq('id', id)
             .select()
             .single();
               
           if (updateError) throw updateError;
-
-          const statusToUse = 'status' in updates ? updates.status : bookingData.status;
-          
-          if (statusToUse === 'approved' && bookingData.status !== 'approved') {
-            try {
-              const { data: existingCustomer, error: customerQueryError } = await supabase
-                .from('customers')
-                .select('id')
-                .eq('title', updatedBooking.title)
-                .maybeSingle();
-
-              if (customerQueryError && customerQueryError.code !== 'PGRST116') {
-                console.error('Error checking for existing customer:', customerQueryError);
-              } else {
-                let customerId;
-                
-                if (!existingCustomer) {
-                  const { data: newCustomer, error: customerError } = await supabase
-                    .from('customers')
-                    .insert({
-                      title: updatedBooking.title,
-                      user_surname: updatedBooking.requester_name,
-                      user_number: updatedBooking.requester_phone,
-                      social_network_link: updatedBooking.requester_email,
-                      event_notes: updatedBooking.description,
-                      payment_status: updates.payment_status || null,
-                      payment_amount: updates.payment_amount || null,
-                      start_date: updatedBooking.start_date,
-                      end_date: updatedBooking.end_date,
-                      user_id: user.id,
-                      type: 'customer'
-                    })
-                    .select()
-                    .single();
-
-                  if (customerError) {
-                    console.error('Error creating customer from booking:', customerError);
-                  } else {
-                    console.log('Created new customer from booking request:', newCustomer);
-                  }
-                } else {
-                  const { error: updateCustomerError } = await supabase
-                    .from('customers')
-                    .update({
-                      user_surname: updatedBooking.requester_name,
-                      user_number: updatedBooking.requester_phone,
-                      social_network_link: updatedBooking.requester_email,
-                      event_notes: updatedBooking.description,
-                      payment_status: updates.payment_status || null,
-                      payment_amount: updates.payment_amount || null,
-                      start_date: updatedBooking.start_date,
-                      end_date: updatedBooking.end_date,
-                    })
-                    .eq('id', existingCustomer.id);
-                    
-                  if (updateCustomerError) {
-                    console.error('Error updating customer from booking:', updateCustomerError);
-                  } else {
-                    console.log('Updated existing customer from booking request');
-                  }
-                }
-              }
-            } catch (error) {
-              console.error('Error managing customer from booking request:', error);
-            }
-          }
           
           toast({
             title: "Booking updated",
@@ -340,8 +270,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             requester_name: updatedBooking.requester_name,
             requester_email: updatedBooking.requester_email,
             requester_phone: updatedBooking.requester_phone || '',
-            payment_amount: updatedBooking.payment_amount || null,
-            payment_status: updatedBooking.payment_status || null,
           } as CalendarEventType;
         }
       } catch (error) {
@@ -445,7 +373,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.error("Error checking for booking request:", error);
     }
     
+    // Find potentially related customer
     try {
+      // Get the event first to use its data
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('title, start_date, end_date')
@@ -454,7 +384,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventError) {
         console.error('Error finding event:', eventError);
+        // Continue with deletion even if we can't find the event data
       } else if (eventData) {
+        // Check for associated customer using event data
         const { data: customer, error: customerError } = await supabase
           .from('customers')
           .select('*')
@@ -465,6 +397,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
         if (customerError && customerError.code !== 'PGRST116') {
           console.error('Error finding associated customer:', customerError);
+          // Don't throw, continue with deletion
         }
 
         if (customer) {
@@ -478,13 +411,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
           if (updateError) {
             console.error('Error updating customer:', updateError);
+            // Don't throw, continue with deletion
           }
         }
       }
     } catch (error) {
       console.error('Error handling customer association:', error);
+      // Continue with deletion even if customer handling fails
     }
 
+    // Check for and delete associated files
     try {
       const { data: files } = await supabase
         .from('event_files')
@@ -509,12 +445,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
         if (filesDeleteError) {
           console.error('Error deleting file records:', filesDeleteError);
+          // Don't throw, continue with deletion
         }
       }
     } catch (error) {
       console.error('Error handling file deletion:', error);
+      // Continue with deletion even if file handling fails
     }
 
+    // Finally delete the event
     const { error } = await supabase
       .from('events')
       .delete()

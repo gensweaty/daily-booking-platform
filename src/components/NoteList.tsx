@@ -7,18 +7,11 @@ import { useToast } from "./ui/use-toast";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { NoteCard } from "./notes/NoteCard";
 import { EditNoteDialog } from "./notes/EditNoteDialog";
-import { useAuth } from "@/contexts/AuthContext";
 
 export const NoteList = () => {
-  const { user } = useAuth();
-  
   const { data: notes = [], isLoading } = useQuery({
     queryKey: ['notes'],
-    queryFn: async () => {
-      if (!user) return [];
-      return getNotes(user.id);
-    },
-    enabled: !!user
+    queryFn: getNotes,
   });
 
   const [editingNote, setEditingNote] = useState<Note | null>(null);

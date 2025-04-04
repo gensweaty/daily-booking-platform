@@ -1,4 +1,3 @@
-
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { CalendarGrid } from "./CalendarGrid";
@@ -51,4 +50,4 @@ export function CalendarView({
       />
     </div>
   );
-}
+};

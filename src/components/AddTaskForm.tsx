@@ -60,8 +60,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       if (editingTask) {
         taskResponse = await updateTask(editingTask.id, taskData);
       } else {
-        // Fixed: Pass the title directly instead of the object
-        taskResponse = await createTask(title, user.id);
+        taskResponse = await createTask(taskData);
       }
 
       if (selectedFile && taskResponse) {
