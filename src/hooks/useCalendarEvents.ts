@@ -9,13 +9,16 @@ export const useCalendarEvents = () => {
   const { user } = useAuth();
 
   const getEvents = async () => {
+    if (!user) return [];
+    
     const { data, error } = await supabase
       .from('events')
       .select('*')
+      .eq('user_id', user.id)
       .order('start_date', { ascending: true });
 
     if (error) throw error;
-    return data;
+    return data || [];
   };
 
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {

@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Note, Task, Reminder, BusinessProfile, BookingRequest } from "@/types/database";
@@ -39,9 +40,17 @@ export const deleteNote = async (id: string) => {
 };
 
 export const getEvents = async () => {
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+  
   const { data, error } = await supabase
     .from('events')
     .select('*')
+    .eq('user_id', user.id)
     .order('start_date', { ascending: true });
 
   if (error) throw error;
@@ -49,9 +58,16 @@ export const getEvents = async () => {
 };
 
 export const createEvent = async (event: Partial<CalendarEventType>) => {
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+  
   const { data, error } = await supabase
     .from('events')
-    .insert([event])
+    .insert([{ ...event, user_id: user.id }])
     .select()
     .single();
 
@@ -60,10 +76,18 @@ export const createEvent = async (event: Partial<CalendarEventType>) => {
 };
 
 export const updateEvent = async (id: string, updates: Partial<CalendarEventType>) => {
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+  
   const { data, error } = await supabase
     .from('events')
     .update(updates)
     .eq('id', id)
+    .eq('user_id', user.id)
     .select()
     .single();
 
@@ -72,10 +96,18 @@ export const updateEvent = async (id: string, updates: Partial<CalendarEventType
 };
 
 export const deleteEvent = async (id: string): Promise<void> => {
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+  
   const { error } = await supabase
     .from('events')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('user_id', user.id);
 
   if (error) throw error;
 };
