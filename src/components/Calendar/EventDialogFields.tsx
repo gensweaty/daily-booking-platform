@@ -40,7 +40,7 @@ export interface EventDialogFieldsProps {
   setFileError: (error: string) => void;
   isBookingRequest?: boolean;
   eventId?: string;
-  onFileDeleted?: () => void;
+  onFileDeleted?: (fileId: string) => void;
   displayedFiles?: Array<{
     id: string;
     filename: string;
@@ -231,7 +231,7 @@ export const EventDialogFields = ({
             files={displayedFiles}
             bucketName="event_attachments"
             allowDelete
-            onDelete={onFileDeleted}
+            onFileDeleted={onFileDeleted}
           />
         </Card>
       )}
