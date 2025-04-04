@@ -20,7 +20,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', user.id) // This ensures we only get this user's events
         .order('start_date', { ascending: true });
 
       if (error) {
@@ -46,7 +46,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         const { data, error } = await supabase
           .from('events')
           .select('*')
-          .eq('user_id', businessUserId)
+          .eq('user_id', businessUserId) // Ensures we only get that business's events
           .order('start_date', { ascending: true });
 
         if (error) {
@@ -90,7 +90,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         const { data, error } = await supabase
           .from('events')
           .select('*')
-          .eq('user_id', businessProfile.user_id)
+          .eq('user_id', businessProfile.user_id) // Ensures we only get that business's events
           .order('start_date', { ascending: true });
 
         if (error) {
@@ -210,7 +210,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       .from('events')
       .update(updates)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', user.id) // Critical: Only update events owned by this user
       .select()
       .single();
 
@@ -232,7 +232,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       .from('events')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('user_id', user.id); // Critical: Only delete events owned by this user
 
     if (error) throw error;
     
@@ -302,7 +302,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   // Combine events based on whether viewing business events or own events
   const allEvents = (businessId || businessUserId) 
     ? [...businessEvents, ...approvedBookings]
-    : [...events, ...approvedBookings];
+    : [...events, ...approvedBookings]; // Only include current user's events or business events
 
   console.log("useCalendarEvents combined data:", {
     userEvents: events.length,
@@ -310,6 +310,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     approvedBookings: approvedBookings.length,
     combined: allEvents.length,
     isExternalCalendar: !!(businessId || businessUserId),
+    currentUserId: user?.id,
     businessUserId
   });
 

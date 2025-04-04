@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -88,13 +87,14 @@ export const Calendar = ({
       directEvents: directEvents?.length || 0,
       fetchedEvents: fetchedEvents?.length || 0,
       eventsCount: events?.length || 0,
-      view
+      view,
+      currentUserId: user?.id
     });
     
     if (events?.length > 0) {
       console.log("[Calendar] First event:", events[0]);
     }
-  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
+  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents, user?.id]);
 
   const {
     selectedEvent,
@@ -254,8 +254,10 @@ export const Calendar = ({
     );
   }
 
-  // Always log events to help debug
-  console.log("[Calendar] Rendering with events count:", events?.length || 0);
+  // Store events in window for debugging
+  if (typeof window !== "undefined") {
+    (window as any).__CALENDAR_EVENTS__ = events;
+  }
   
   return (
     <div className="h-full flex flex-col gap-4">
