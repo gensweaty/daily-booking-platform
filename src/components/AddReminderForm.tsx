@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +5,6 @@ import { createReminder } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import { DialogTitle } from "@/components/ui/dialog";
-import { useAuth } from "@/contexts/AuthContext";
 
 export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
   const [title, setTitle] = useState("");
@@ -14,25 +12,14 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
   const [dueDate, setDueDate] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.id) {
-      toast({
-        title: "Error",
-        description: "You need to be logged in to create reminders",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     try {
       await createReminder({ 
         title, 
         description, 
-        remind_at: dueDate,
-        user_id: user.id
+        due_date: dueDate 
       });
       await queryClient.invalidateQueries({ queryKey: ['reminders'] });
       toast({

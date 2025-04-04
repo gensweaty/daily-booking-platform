@@ -14,24 +14,12 @@ const ALLOWED_DOC_TYPES = [
 ];
 
 interface FileUploadFieldProps {
-  onChange: (file: File | null) => void;
-  onFileChange?: (file: File | null) => void; // For backward compatibility
+  onFileChange: (file: File | null) => void;
   fileError: string;
   setFileError: (error: string) => void;
-  acceptedFileTypes?: string;
-  hideLabel?: boolean;
-  hideDescription?: boolean; // Added to hide the description text
 }
 
-export const FileUploadField = ({ 
-  onChange, 
-  onFileChange, 
-  fileError, 
-  setFileError, 
-  acceptedFileTypes, 
-  hideLabel = false,
-  hideDescription = false
-}: FileUploadFieldProps) => {
+export const FileUploadField = ({ onFileChange, fileError, setFileError }: FileUploadFieldProps) => {
   const { t } = useLanguage();
 
   const validateFile = (file: File) => {
@@ -50,19 +38,6 @@ export const FileUploadField = ({
     return null;
   };
 
-  // Format bytes to human-readable size
-  const formatBytes = (bytes: number, decimals = 2) => {
-    if (bytes === 0) return '0 Bytes';
-    
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-    
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault(); // Prevent default behavior
     const selectedFile = e.target.files?.[0];
@@ -72,25 +47,21 @@ export const FileUploadField = ({
       const error = validateFile(selectedFile);
       if (error) {
         setFileError(error);
-        if (onChange) onChange(null);
-        if (onFileChange) onFileChange(null);
+        onFileChange(null);
         return;
       }
-      if (onChange) onChange(selectedFile);
-      if (onFileChange) onFileChange(selectedFile);
+      onFileChange(selectedFile);
     }
   };
 
   return (
-    <div className={`${hideLabel && hideDescription ? '' : 'space-y-2'}`}>
-      {!hideLabel && (
-        <Label htmlFor="file" className="text-foreground">{t("calendar.attachment")}</Label>
-      )}
+    <div className="space-y-2">
+      <Label htmlFor="file" className="text-foreground">{t("events.attachment")}</Label>
       <Input
         id="file"
         type="file"
         onChange={handleFileChange}
-        accept={acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")}
+        accept={[...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")}
         className="cursor-pointer bg-background border-gray-700"
         onClick={(e) => {
           // Reset value before opening to ensure onChange triggers even if same file is selected
@@ -100,13 +71,11 @@ export const FileUploadField = ({
       {fileError && (
         <p className="text-sm text-red-500 mt-1">{fileError}</p>
       )}
-      {!hideDescription && (
-        <p className="text-xs text-muted-foreground mt-1">
-          {t("calendar.maxSize")} ({formatBytes(MAX_FILE_SIZE_IMAGES)} for images, {formatBytes(MAX_FILE_SIZE_DOCS)} for documents)
-          <br />
-          {t("calendar.supportedFormats")}
-        </p>
-      )}
+      <p className="text-[0.5rem] text-muted-foreground mt-1">
+        {t("events.maxSize")}
+        <br />
+        {t("events.supportedFormats")}
+      </p>
     </div>
   );
 };

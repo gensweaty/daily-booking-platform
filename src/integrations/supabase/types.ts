@@ -9,107 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      booking_requests: {
-        Row: {
-          business_id: string
-          created_at: string | null
-          description: string | null
-          end_date: string
-          id: string
-          requester_email: string
-          requester_name: string
-          requester_phone: string | null
-          start_date: string
-          status: string
-          title: string
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          business_id: string
-          created_at?: string | null
-          description?: string | null
-          end_date: string
-          id?: string
-          requester_email: string
-          requester_name: string
-          requester_phone?: string | null
-          start_date: string
-          status?: string
-          title: string
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          business_id?: string
-          created_at?: string | null
-          description?: string | null
-          end_date?: string
-          id?: string
-          requester_email?: string
-          requester_name?: string
-          requester_phone?: string | null
-          start_date?: string
-          status?: string
-          title?: string
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "booking_requests_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "business_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      business_profiles: {
-        Row: {
-          business_name: string
-          contact_address: string | null
-          contact_email: string | null
-          contact_phone: string | null
-          contact_website: string | null
-          cover_photo_url: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-          slug: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          business_name: string
-          contact_address?: string | null
-          contact_email?: string | null
-          contact_phone?: string | null
-          contact_website?: string | null
-          cover_photo_url?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          slug: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          business_name?: string
-          contact_address?: string | null
-          contact_email?: string | null
-          contact_phone?: string | null
-          contact_website?: string | null
-          cover_photo_url?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          slug?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       businesses: {
         Row: {
           contact_address: string | null
@@ -393,6 +292,7 @@ export type Database = {
       }
       events: {
         Row: {
+          business_id: string | null
           created_at: string | null
           deleted_at: string | null
           end_date: string
@@ -409,6 +309,7 @@ export type Database = {
           user_surname: string | null
         }
         Insert: {
+          business_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           end_date: string
@@ -425,6 +326,7 @@ export type Database = {
           user_surname?: string | null
         }
         Update: {
+          business_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           end_date?: string
@@ -440,7 +342,15 @@ export type Database = {
           user_number?: string | null
           user_surname?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       files: {
         Row: {

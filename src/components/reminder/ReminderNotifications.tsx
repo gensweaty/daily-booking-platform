@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { Reminder } from '@/lib/types';
@@ -18,7 +17,7 @@ export const useReminderNotifications = (reminders: Reminder[]) => {
 
     const checkReminders = () => {
       reminders?.forEach((reminder: Reminder) => {
-        const dueTime = new Date(reminder.remind_at).getTime();
+        const dueTime = new Date(reminder.due_date).getTime();
         const now = new Date().getTime();
         const fiveMinutes = 5 * 60 * 1000;
 
@@ -27,14 +26,14 @@ export const useReminderNotifications = (reminders: Reminder[]) => {
             audioRef.current?.play().catch(console.error);
             
             new Notification("Reminder Due Soon!", {
-              body: `${reminder.title} is due at ${format(new Date(reminder.remind_at), 'pp')}`,
+              body: `${reminder.title} is due at ${format(new Date(reminder.due_date), 'pp')}`,
               icon: "/favicon.ico",
               badge: "/reminder-banner.jpg"
             });
             
             toast({
               title: "Reminder Due Soon!",
-              description: `${reminder.title} is due at ${format(new Date(reminder.remind_at), 'pp')}`,
+              description: `${reminder.title} is due at ${format(new Date(reminder.due_date), 'pp')}`,
               variant: "default",
             });
           }

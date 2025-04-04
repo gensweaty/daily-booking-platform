@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -11,92 +10,59 @@ import {
   subMonths,
   setHours,
   startOfDay,
-  format,
 } from "date-fns";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
 import { CalendarView } from "./CalendarView";
 import { EventDialog } from "./EventDialog";
-import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
+import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { TimeIndicator } from "./TimeIndicator";
 import { useEventDialog } from "./hooks/useEventDialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/components/ui/use-toast";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
-  currentView?: CalendarViewType;
-  onViewChange?: (view: CalendarViewType) => void;
-  isExternalCalendar?: boolean;
+  publicMode?: boolean;
+  externalEvents?: CalendarEventType[];
   businessId?: string;
-  businessUserId?: string | null;
-  showAllEvents?: boolean;
-  allowBookingRequests?: boolean;
-  directEvents?: CalendarEventType[];
 }
 
 export const Calendar = ({ 
   defaultView = "week", 
-  currentView,
-  onViewChange,
-  isExternalCalendar = false,
-  businessId,
-  businessUserId,
-  showAllEvents = false,
-  allowBookingRequests = false,
-  directEvents
+  publicMode = false,
+  externalEvents,
+  businessId
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
-  
-  // Only use the hook if we're not getting directEvents
-  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
-    !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
-    !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
-  );
-  
-  // Use directEvents if provided, otherwise use fetchedEvents
-  const events = directEvents || fetchedEvents;
-  const isLoading = !directEvents && isLoadingFromHook;
-  
-  const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
-  const [bookingDate, setBookingDate] = useState<Date | undefined>(undefined);
-  const [bookingStartTime, setBookingStartTime] = useState<string>("");
-  const [bookingEndTime, setBookingEndTime] = useState<string>("");
+  const { events, isLoading, error, createEvent, updateEvent, deleteEvent, createEventRequest } = useCalendarEvents();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Update view when currentView prop changes
+  // Debug the events we're working with
   useEffect(() => {
-    if (currentView) {
-      setView(currentView);
+    if (publicMode) {
+      console.log("[Calendar] Public mode with external events:", externalEvents?.length || 0, "events");
+      if (externalEvents && externalEvents.length > 0) {
+        console.log("[Calendar] First few external events:", externalEvents.slice(0, 3).map(e => ({ 
+          id: e.id,
+          title: e.title,
+          start: e.start_date
+        })));
+      }
+    } else {
+      console.log("[Calendar] Private mode with internal events:", events?.length || 0, "events");
     }
-  }, [currentView]);
+  }, [publicMode, externalEvents, events]);
 
-  // Diagnostic logging
-  useEffect(() => {
-    console.log("[Calendar] Rendering with props:", { 
-      isExternalCalendar, 
-      businessId,
-      businessUserId, 
-      allowBookingRequests,
-      directEvents: directEvents?.length || 0,
-      fetchedEvents: fetchedEvents?.length || 0,
-      eventsCount: events?.length || 0,
-      view
-    });
-    
-    if (events?.length > 0) {
-      console.log("[Calendar] First event:", events[0]);
-    }
-  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
+  // Make events available globally for the useEventDialog hook
+  if (typeof window !== 'undefined') {
+    (window as any).__CALENDAR_EVENTS__ = events;
+  }
 
   const {
     selectedEvent,
@@ -110,24 +76,54 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      const result = await createEvent?.(data);
-      return result;
+      // If in public mode and businessId is provided, create an event request instead
+      if (publicMode && businessId) {
+        try {
+          console.log("Creating event request with business_id:", businessId);
+          const requestData = {
+            ...data,
+            business_id: businessId,
+            status: 'pending'
+          };
+          
+          const result = await createEventRequest(requestData);
+          
+          toast({
+            title: "Request Sent",
+            description: "Your booking request has been sent to the business owner for approval.",
+          });
+          
+          return result;
+        } catch (error: any) {
+          console.error("Error creating event request:", error);
+          toast({
+            title: "Error",
+            description: error.message || "Failed to create booking request. Please try again.",
+            variant: "destructive",
+          });
+          throw error;
+        }
+      } else {
+        // Normal event creation for authenticated users
+        const result = await createEvent(data);
+        return result;
+      }
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
-      const result = await updateEvent?.({
+      const result = await updateEvent({
         id: selectedEvent.id,
         updates: data,
       });
       return result;
     },
     deleteEvent: async (id) => {
-      await deleteEvent?.(id);
+      await deleteEvent(id);
     }
   });
 
-  // Redirect to signin if not authenticated and not on public business page
-  if (!isExternalCalendar && !user && !window.location.pathname.includes('/business/')) {
+  // In private mode, we require authentication
+  if (!publicMode && !user) {
     navigate("/signin");
     return null;
   }
@@ -181,87 +177,44 @@ export const Calendar = ({
     }
   };
 
-  const handleViewChange = (newView: CalendarViewType) => {
-    setView(newView);
-    if (onViewChange) {
-      onViewChange(newView);
-    }
-  };
-
   const handleCalendarDayClick = (date: Date, hour?: number) => {
     const clickedDate = new Date(date);
     clickedDate.setHours(hour || 9, 0, 0, 0);
     
-    if (isExternalCalendar && allowBookingRequests) {
-      setBookingDate(clickedDate);
-      
-      // Format the time for the form
-      const startHour = format(clickedDate, "HH:mm");
-      const endDate = new Date(clickedDate);
-      endDate.setHours(clickedDate.getHours() + 1);
-      const endHour = format(endDate, "HH:mm");
-      
-      setBookingStartTime(startHour);
-      setBookingEndTime(endHour);
-      
-      setIsBookingFormOpen(true);
-    } else if (!isExternalCalendar) {
-      setDialogSelectedDate(clickedDate);
-      setTimeout(() => setIsNewEventDialogOpen(true), 0);
-    }
+    // First set the date
+    setDialogSelectedDate(clickedDate);
+    // Then open the dialog
+    setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
   const handleAddEventClick = () => {
-    if (isExternalCalendar && allowBookingRequests) {
-      const now = new Date();
-      setBookingDate(now);
-      
-      // Default to current hour and next hour
-      const startHour = format(now, "HH:mm");
-      const endDate = new Date(now);
-      endDate.setHours(now.getHours() + 1);
-      const endHour = format(endDate, "HH:mm");
-      
-      setBookingStartTime(startHour);
-      setBookingEndTime(endHour);
-      
-      setIsBookingFormOpen(true);
-    } else if (!isExternalCalendar) {
-      const now = new Date();
-      now.setHours(9, 0, 0, 0);
-      
-      setDialogSelectedDate(now);
-      setTimeout(() => setIsNewEventDialogOpen(true), 0);
-    }
-  };
-
-  const handleEventClick = (event: CalendarEventType) => {
-    if (!isExternalCalendar) {
-      setSelectedEvent(event);
-    } else if (isExternalCalendar && allowBookingRequests) {
-      toast({
-        title: "Time slot not available",
-        description: "This time slot is already booked. Please select a different time.",
-      });
-    }
-  };
-
-  const handleBookingSuccess = () => {
-    setIsBookingFormOpen(false);
-    queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
+    const now = new Date();
+    now.setHours(9, 0, 0, 0);
     
-    toast({
-      title: "Booking request submitted",
-      description: "Your booking request has been submitted and is pending approval."
-    });
+    // First set the date
+    setDialogSelectedDate(now);
+    // Then open the dialog
+    setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
-  if (error && !directEvents) {
-    console.error("Calendar error:", error);
+  // Choose which events to display based on mode
+  let displayEvents: CalendarEventType[] = [];
+  
+  // In public mode, use provided external events
+  if (publicMode && Array.isArray(externalEvents)) {
+    displayEvents = externalEvents;
+    console.log(`[Calendar] Using ${displayEvents.length} external events in public mode`);
+  } else {
+    // In private mode, use internal events
+    displayEvents = events || [];
+    console.log(`[Calendar] Using ${displayEvents.length} internal events in private mode`);
+  }
+
+  if (error && !publicMode) {
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
 
-  if (isLoading && !directEvents) {
+  if (isLoading && !publicMode && !externalEvents) {
     return (
       <div className="space-y-4">
         <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
@@ -273,17 +226,16 @@ export const Calendar = ({
       </div>
     );
   }
-  
+
   return (
     <div className="h-full flex flex-col gap-4">
       <CalendarHeader
         selectedDate={selectedDate}
         view={view}
-        onViewChange={handleViewChange}
+        onViewChange={setView}
         onPrevious={handlePrevious}
         onNext={handleNext}
-        onAddEvent={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleAddEventClick : undefined}
-        isExternalCalendar={isExternalCalendar}
+        onAddEvent={!publicMode ? handleAddEventClick : undefined}
       />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
@@ -291,56 +243,51 @@ export const Calendar = ({
         <div className="flex-1">
           <CalendarView
             days={getDaysForView()}
-            events={events || []}
+            events={displayEvents}
             selectedDate={selectedDate}
             view={view}
-            onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}
-            onEventClick={handleEventClick}
-            isExternalCalendar={isExternalCalendar}
+            onDayClick={handleCalendarDayClick}
+            onEventClick={!publicMode ? setSelectedEvent : () => {}}
+            publicMode={publicMode}
           />
         </div>
       </div>
 
-      {!isExternalCalendar && (
+      {!publicMode && (
         <>
           <EventDialog
-            key={dialogSelectedDate?.getTime()}
+            key={dialogSelectedDate?.getTime()} // Force re-render when date changes
             open={isNewEventDialogOpen}
             onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
             onSubmit={handleCreateEvent}
+            businessId={businessId}
           />
 
           {selectedEvent && (
             <EventDialog
-              key={selectedEvent.id}
+              key={selectedEvent.id} // Force re-render when event changes
               open={!!selectedEvent}
               onOpenChange={() => setSelectedEvent(null)}
-              selectedDate={new Date(selectedEvent.start_date)}
+              selectedDate={new Date(selectedEvent.start_date)} // Use the actual event start date
               event={selectedEvent}
               onSubmit={handleUpdateEvent}
               onDelete={handleDeleteEvent}
+              businessId={businessId}
             />
           )}
         </>
       )}
-
-      {isExternalCalendar && allowBookingRequests && businessId && (
-        <Dialog open={isBookingFormOpen} onOpenChange={setIsBookingFormOpen}>
-          <DialogContent className="max-w-md">
-            {bookingDate && (
-              <BookingRequestForm
-                open={isBookingFormOpen}
-                onOpenChange={setIsBookingFormOpen}
-                businessId={businessId}
-                selectedDate={bookingDate}
-                startTime={bookingStartTime}
-                endTime={bookingEndTime}
-                onSuccess={handleBookingSuccess}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
+      
+      {publicMode && isNewEventDialogOpen && dialogSelectedDate && (
+        <EventDialog
+          key={dialogSelectedDate?.getTime()} // Force re-render when date changes
+          open={isNewEventDialogOpen}
+          onOpenChange={setIsNewEventDialogOpen}
+          selectedDate={dialogSelectedDate}
+          onSubmit={handleCreateEvent}
+          businessId={businessId}
+        />
       )}
     </div>
   );

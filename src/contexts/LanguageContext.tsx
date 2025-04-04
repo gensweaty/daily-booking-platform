@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { translations } from '@/translations';
-import { Language, LanguageContextType } from '@/translations/types';
+import { Language, LanguageContextType, TranslationType } from '@/translations/types';
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
@@ -15,33 +15,8 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     localStorage.setItem('language', language);
   }, [language]);
 
-  const t = (key: string): string => {
-    if (!key) return '';
-    
-    try {
-      const keys = key.split('.');
-      let result: any = translations[language];
-      
-      // Navigate through the translation object using the keys
-      for (const k of keys) {
-        if (!result || typeof result !== 'object') {
-          console.warn(`Translation key not found: ${key} (at ${k})`);
-          return key; // Return the key if we can't navigate further
-        }
-        result = result[k];
-      }
-      
-      // Return the translated string or fallback to the key
-      if (typeof result === 'string') {
-        return result;
-      } else {
-        console.warn(`Translation missing for key: ${key}`);
-        return key;
-      }
-    } catch (error) {
-      console.error(`Error getting translation for key: ${key}`, error);
-      return key;
-    }
+  const t = (key: keyof TranslationType): string => {
+    return translations[language][key] || key;
   };
 
   return (

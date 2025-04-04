@@ -33,9 +33,8 @@ export const FeatureCard = ({
 }: FeatureCardProps) => {
   const { t } = useLanguage();
   
-  // Fix: Change the return type to string instead of keyof TranslationType
-  const getTranslationKey = (key: string): string => {
-    return `${translationPrefix}.${key}`;
+  const getTranslationKey = (key: string): keyof TranslationType => {
+    return `${translationPrefix}.${key}` as keyof TranslationType;
   };
   
   return (
@@ -69,7 +68,7 @@ export const FeatureCard = ({
               className="flex items-start gap-2"
             >
               <CheckCircle className="w-5 h-5 text-primary mt-1" />
-              <span>{t(getTranslationKey(`feature${idx + 1}`))}</span>
+              <span>{t(getTranslationKey(`feature${idx + 1}` as const))}</span>
             </motion.li>
           ))}
         </ul>
