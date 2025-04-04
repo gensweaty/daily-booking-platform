@@ -300,7 +300,7 @@ export const Calendar = ({
         <div className="flex-1">
           <CalendarView
             days={getDaysForView()}
-            events={filteredEvents || []} {/* Use filteredEvents instead of events */}
+            events={filteredEvents || []} /* Use filteredEvents instead of events */
             selectedDate={selectedDate}
             view={view}
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}
