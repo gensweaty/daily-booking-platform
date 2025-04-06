@@ -3,7 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Download, Trash2 } from "lucide-react";
+import { Download, Trash2, File, Image } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface FileDisplayProps {
@@ -32,6 +32,10 @@ export const FileDisplay = ({
   if (!files || files.length === 0) {
     return null;
   }
+
+  const isImageFile = (contentType?: string) => {
+    return contentType?.startsWith('image/');
+  };
 
   const handleDownload = async (fileId: string, filename: string) => {
     try {
@@ -113,31 +117,50 @@ export const FileDisplay = ({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {files.map((file) => (
-        <Card key={file.id} className="p-3 flex items-center justify-between">
-          <div className="truncate text-sm">
-            {file.filename || file.id}
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleDownload(file.id, file.filename)}
-              disabled={downloading === file.id}
-            >
-              {downloading === file.id ? "..." : <Download className="w-4 h-4" />}
-            </Button>
-            {allowDelete && onFileDeleted && (
+        <Card key={file.id} className="p-3 flex items-center justify-between overflow-hidden">
+          <div className="flex items-center gap-2 w-full">
+            <div className="flex-shrink-0 w-10 h-10 bg-muted rounded flex items-center justify-center">
+              {isImageFile(file.content_type) ? (
+                <Image className="w-6 h-6 text-muted-foreground" />
+              ) : (
+                <File className="w-6 h-6 text-muted-foreground" />
+              )}
+            </div>
+            <div className="truncate text-sm flex-1">
+              {file.filename || file.id}
+            </div>
+            <div className="flex gap-1 flex-shrink-0">
               <Button
                 variant="outline"
-                size="sm"
-                onClick={() => handleDelete(file.id)}
-                disabled={deleting === file.id}
+                size="icon"
+                onClick={() => handleDownload(file.id, file.filename)}
+                disabled={downloading === file.id}
+                className="h-8 w-8"
               >
-                {deleting === file.id ? "..." : <Trash2 className="w-4 h-4 text-destructive" />}
+                {downloading === file.id ? (
+                  <span className="animate-spin">...</span>
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
               </Button>
-            )}
+              {allowDelete && onFileDeleted && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleDelete(file.id)}
+                  disabled={deleting === file.id}
+                  className="h-8 w-8"
+                >
+                  {deleting === file.id ? (
+                    <span className="animate-spin">...</span>
+                  ) : (
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
         </Card>
       ))}

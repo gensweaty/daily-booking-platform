@@ -327,7 +327,10 @@ export const getPublicCalendarEvents = async (businessId: string) => {
       return { events: [], bookings: [] };
     }
     
-    console.log(`[getPublicCalendarEvents] Fetched ${events?.length || 0} events via RPC function`);
+    // Explicitly filter out deleted events client-side as an additional safety measure
+    const filteredEvents = events ? events.filter(event => event.deleted_at === null) : [];
+    
+    console.log(`[getPublicCalendarEvents] Fetched ${events?.length || 0} events via RPC function, filtered to ${filteredEvents.length} active events`);
     
     // Fetch approved booking requests
     const { data: bookings, error: bookingsError } = await supabase
@@ -338,13 +341,13 @@ export const getPublicCalendarEvents = async (businessId: string) => {
     
     if (bookingsError) {
       console.error("Error fetching bookings:", bookingsError);
-      return { events: events || [], bookings: [] };
+      return { events: filteredEvents, bookings: [] };
     }
     
     console.log(`[getPublicCalendarEvents] Fetched ${bookings?.length || 0} approved bookings`);
     
     return { 
-      events: events || [], 
+      events: filteredEvents, 
       bookings: bookings || [] 
     };
   } catch (error) {

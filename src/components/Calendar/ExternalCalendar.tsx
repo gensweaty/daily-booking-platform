@@ -70,9 +70,13 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
         
+        // Ensure we only include events that have not been deleted
+        const activeEvents = apiEvents ? apiEvents.filter(event => event.deleted_at === null) : [];
+        console.log(`[External Calendar] Filtered to ${activeEvents.length} active events (removed deleted events)`);
+        
         // Combine all event sources
         const allEvents: CalendarEventType[] = [
-          ...(apiEvents || []).map(event => ({
+          ...activeEvents.map(event => ({
             ...event,
             type: event.type || 'event'
           })),
