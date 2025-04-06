@@ -79,6 +79,21 @@ export const CustomerDialogFields = ({
   onFileDeleted,
 }: CustomerDialogFieldsProps) => {
   const { t } = useLanguage();
+  const [processedFiles, setProcessedFiles] = useState<any[]>([]);
+  
+  // Process files to ensure they have the correct format for FileDisplay
+  useEffect(() => {
+    if (customerFiles && customerFiles.length > 0) {
+      const files = customerFiles.map(file => ({
+        id: file.file_path,
+        filename: file.filename,
+        content_type: file.content_type,
+      }));
+      setProcessedFiles(files);
+    } else {
+      setProcessedFiles([]);
+    }
+  }, [customerFiles]);
   
   // Function to handle formatted date inputs
   const formatDateForInput = (dateString: string): string => {
@@ -225,15 +240,11 @@ export const CustomerDialogFields = ({
       </div>
 
       {/* Display existing files */}
-      {customerFiles && customerFiles.length > 0 && (
+      {processedFiles.length > 0 && (
         <Card className="p-4 mt-4">
           <Label className="mb-2 block">{t("crm.attachedFiles") || "Attached Files"}</Label>
           <FileDisplay
-            files={customerFiles.map(file => ({
-              id: file.file_path,
-              filename: file.filename,
-              content_type: file.content_type,
-            }))}
+            files={processedFiles}
             bucketName="customer_attachments"
             allowDelete={!!onFileDeleted}
             onFileDeleted={onFileDeleted}

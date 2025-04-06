@@ -24,6 +24,7 @@ export const FileDisplay = ({
 }: FileDisplayProps) => {
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   if (!files.length) {
@@ -34,8 +35,11 @@ export const FileDisplay = ({
     console.log(`Creating signed URL for file: ${fileId} in bucket: ${bucketName}`);
     
     try {
-      // Some file paths might include folder structure with slashes - handle both cases
-      const filePath = fileId.includes('/') ? fileId : fileId;
+      // Ensure the file path is correctly formatted
+      const filePath = fileId;
+      
+      // Debug the file path before creating the signed URL
+      console.log("Getting signed URL for filePath:", filePath);
       
       const { data, error } = await supabase.storage
         .from(bucketName)
@@ -50,6 +54,7 @@ export const FileDisplay = ({
         throw new Error("Could not create URL");
       }
       
+      console.log("Successfully created signed URL");
       return data.signedUrl;
     } catch (error) {
       console.error("Error in getSignedUrl:", error);
@@ -101,8 +106,8 @@ export const FileDisplay = ({
       setIsDeleting(fileId);
       console.log("Deleting file:", fileId, "from bucket:", bucketName);
       
-      // Some file paths include folder structure - handle this
-      const filePath = fileId.includes('/') ? fileId : fileId;
+      // Some file paths include folder structure - use as is
+      const filePath = fileId;
       
       const { error } = await supabase.storage.from(bucketName).remove([filePath]);
 
@@ -152,10 +157,18 @@ export const FileDisplay = ({
     return contentType?.startsWith('image/');
   };
 
-  const getPreviewUrl = async (fileId: string) => {
+  const loadPreviewUrl = async (fileId: string) => {
     try {
-      // For consistency, always use signed URLs for image previews
-      return await getSignedUrl(fileId);
+      if (previewUrls[fileId]) {
+        return previewUrls[fileId];
+      }
+      
+      const url = await getSignedUrl(fileId);
+      setPreviewUrls(prev => ({
+        ...prev,
+        [fileId]: url
+      }));
+      return url;
     } catch (error) {
       console.error("Failed to get image preview URL:", error);
       return null;
@@ -180,16 +193,17 @@ export const FileDisplay = ({
                 alt={file.filename}
                 className="w-full h-full object-cover"
                 onLoad={async (e) => {
-                  try {
-                    const fileId = (e.currentTarget as HTMLImageElement).getAttribute('data-file-id');
-                    if (fileId) {
-                      const url = await getPreviewUrl(fileId);
+                  const target = e.currentTarget as HTMLImageElement;
+                  const fileId = target.getAttribute('data-file-id');
+                  if (fileId) {
+                    try {
+                      const url = await loadPreviewUrl(fileId);
                       if (url) {
-                        (e.currentTarget as HTMLImageElement).src = url;
+                        target.src = url;
                       }
+                    } catch (error) {
+                      console.error("Error loading preview:", error);
                     }
-                  } catch (error) {
-                    console.error("Error loading preview:", error);
                   }
                 }}
               />
