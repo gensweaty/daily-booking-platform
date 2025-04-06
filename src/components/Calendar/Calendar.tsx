@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -111,9 +112,8 @@ export const Calendar = ({
     handleUpdateEvent,
     handleDeleteEvent,
   } = useEventDialog({
-    // Fix #1: Pass only the functions that useEventDialog expects
     createEvent: handleSubmitEvent,
-    updateEvent: handleSubmitEvent, 
+    updateEvent: handleSubmitEvent,
     deleteEvent
   });
 
