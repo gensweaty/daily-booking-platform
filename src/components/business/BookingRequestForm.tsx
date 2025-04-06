@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
@@ -11,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { createBookingRequest } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 import { EventDialogFields } from "../Calendar/EventDialogFields";
+import { supabase } from "@/lib/supabase";
 
 interface BookingRequestFormProps {
   open: boolean;
@@ -54,7 +54,6 @@ export const BookingRequestForm = ({
   const { t, language } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Event dialog fields state
   const [title, setTitle] = useState("");
   const [surname, setSurname] = useState("");
   const [userNumber, setUserNumber] = useState("");
@@ -119,9 +118,8 @@ export const BookingRequestForm = ({
         paymentAmountValue = isNaN(parsedAmount) ? null : parsedAmount;
       }
       
-      // Print debug information to help diagnose the issue
       console.log("Submitting booking request with data:", {
-        title: surname, // Use customer name as the title
+        title: surname,
         requester_name: surname,
         requester_email: socialNetworkLink,
         requester_phone: userNumber,
@@ -133,7 +131,6 @@ export const BookingRequestForm = ({
         business_id: businessId
       });
       
-      // Upload file first if selected
       let fileData = null;
       if (selectedFile) {
         try {
@@ -165,7 +162,7 @@ export const BookingRequestForm = ({
       }
       
       const response = await createBookingRequest({
-        title: surname, // Use customer name as the title
+        title: surname,
         requester_name: surname,
         requester_email: socialNetworkLink,
         requester_phone: userNumber || "",
@@ -177,7 +174,6 @@ export const BookingRequestForm = ({
         business_id: businessId,
       });
       
-      // If we have file data and the booking request was created successfully
       if (fileData && response?.id) {
         try {
           const bookingId = response.id;
