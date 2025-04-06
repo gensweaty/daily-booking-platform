@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -55,10 +54,13 @@ export const Calendar = ({
   const [view, setView] = useState<CalendarViewType>(defaultView);
   
   // Only use the hook if we're not getting directEvents
-  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
-    !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
-    !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
-  );
+  const { 
+    events: fetchedEvents, 
+    isLoading: isLoadingFromHook, 
+    handleSubmitEvent,
+    deleteEvent,
+    checkTimeSlotAvailability 
+  } = useCalendarEvents();
   
   // Use directEvents if provided, otherwise use fetchedEvents
   const events = directEvents || fetchedEvents;
@@ -110,19 +112,19 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      const result = await createEvent?.(data);
+      const result = await handleSubmitEvent(data);
       return result;
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
-      const result = await updateEvent?.({
-        id: selectedEvent.id,
-        updates: data,
+      const result = await handleSubmitEvent({
+        ...data,
+        id: selectedEvent.id
       });
       return result;
     },
     deleteEvent: async (id) => {
-      await deleteEvent?.(id);
+      await deleteEvent(id);
     }
   });
 
@@ -255,11 +257,6 @@ export const Calendar = ({
       description: "Your booking request has been submitted and is pending approval."
     });
   };
-
-  if (error && !directEvents) {
-    console.error("Calendar error:", error);
-    return <div className="text-red-500">Error loading calendar: {error.message}</div>;
-  }
 
   if (isLoading && !directEvents) {
     return (
