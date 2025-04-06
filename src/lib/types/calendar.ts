@@ -19,4 +19,5 @@ export interface CalendarEventType {
   requester_email?: string;
   requester_phone?: string;
   description?: string;
+  booking_request_id?: string; // Added missing property
 }
