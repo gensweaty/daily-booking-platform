@@ -31,6 +31,7 @@ export const FileDisplay = ({
     return <p className="text-sm text-muted-foreground italic">No files attached</p>;
   }
 
+  // Completely rewritten function for more robust URL handling
   const getSignedUrl = async (fileId: string) => {
     try {
       console.log(`Creating signed URL for file: ${fileId} in bucket: ${bucketName}`);
@@ -67,11 +68,19 @@ export const FileDisplay = ({
       setIsDownloading(fileId);
       console.log("Downloading file:", fileId, "from bucket:", bucketName);
       
-      const signedUrl = await getSignedUrl(fileId);
+      // Robust error handling for signed URL
+      let signedUrl;
+      try {
+        signedUrl = await getSignedUrl(fileId);
+      } catch (urlError) {
+        console.error("Failed to get signed URL:", urlError);
+        throw new Error("Unable to generate download link");
+      }
       
       // Use the signed URL to fetch the file
       const response = await fetch(signedUrl);
       if (!response.ok) {
+        console.error("Fetch response not OK:", response.status, response.statusText);
         throw new Error(`Failed to download: ${response.statusText}`);
       }
       
@@ -142,7 +151,14 @@ export const FileDisplay = ({
     try {
       console.log("Opening file in new tab:", fileId, "from bucket:", bucketName);
       
-      const signedUrl = await getSignedUrl(fileId);
+      let signedUrl;
+      try {
+        signedUrl = await getSignedUrl(fileId);
+      } catch (urlError) {
+        console.error("Failed to get signed URL for opening:", urlError);
+        throw new Error("Unable to generate file preview link");
+      }
+      
       window.open(signedUrl, '_blank');
     } catch (error: any) {
       console.error("Full error opening file:", error);

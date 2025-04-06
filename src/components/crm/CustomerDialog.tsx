@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -83,7 +82,8 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         setPaymentAmount(customerData.payment_amount?.toString() || "");
         setCreateEvent(!!customerData.start_date && !!customerData.end_date);
 
-        // Fetch customer files
+        // Fetch customer files with improved logging
+        console.log('Fetching files for customer ID:', customerId);
         const { data: filesData, error: filesError } = await supabase
           .from('customer_files_new')
           .select('*')
@@ -91,9 +91,9 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           
         if (filesError) {
           console.error('Error fetching customer files:', filesError);
-        } else if (filesData) {
+        } else {
           console.log('Fetched customer files:', filesData);
-          setCustomerFiles(filesData);
+          setCustomerFiles(filesData || []);
         }
 
         // If customer has dates, try to find associated event
@@ -132,7 +132,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     if (isOpen && customerId) {
       fetchCustomer();
     }
-  }, [customerId, isOpen, user]); // Removed title from dependencies
+  }, [customerId, isOpen, user, toast, onClose]);
 
   const checkTimeSlotAvailability = async (startDate: string, endDate: string, excludeEventId?: string): Promise<boolean> => {
     const start = new Date(startDate);
@@ -276,16 +276,28 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         }
       }
 
-      // Handle file upload if a file is selected
+      // Handle file upload if a file is selected - improved with better error handling
       if (selectedFile && customerId) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
-        const { error: uploadError } = await supabase.storage
+        console.log('Uploading file to storage:', {
+          bucket: 'customer_attachments',
+          path: filePath,
+          fileName: selectedFile.name,
+          size: selectedFile.size
+        });
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('customer_attachments')
           .upload(filePath, selectedFile);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('Error uploading file to storage:', uploadError);
+          throw uploadError;
+        }
+        
+        console.log('File uploaded successfully:', uploadData);
 
         const fileData = {
           filename: selectedFile.name,
@@ -296,11 +308,18 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           customer_id: customerId
         };
 
+        console.log('Creating file record in database:', fileData);
+        
         const { error: fileError } = await supabase
           .from('customer_files_new')
           .insert([fileData]);
 
-        if (fileError) throw fileError;
+        if (fileError) {
+          console.error('Error creating file record:', fileError);
+          throw fileError;
+        }
+        
+        console.log('File record created successfully');
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
@@ -326,12 +345,19 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
 
   const handleFileDeleted = async (fileId: string) => {
     try {
+      console.log('Deleting file:', fileId);
+      
       // Delete the file from storage
-      const { error: storageError } = await supabase.storage
+      const { data: deleteData, error: storageError } = await supabase.storage
         .from('customer_attachments')
         .remove([fileId]);
 
-      if (storageError) throw storageError;
+      if (storageError) {
+        console.error('Error deleting file from storage:', storageError, fileId);
+        throw storageError;
+      }
+      
+      console.log('File deleted from storage:', deleteData);
 
       // Delete the file record from the database
       const { error: dbError } = await supabase
@@ -339,7 +365,12 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         .delete()
         .eq('file_path', fileId);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error('Error deleting file record:', dbError);
+        throw dbError;
+      }
+      
+      console.log('File record deleted from database');
 
       // Update the local state
       setCustomerFiles(prev => prev.filter(file => file.file_path !== fileId));

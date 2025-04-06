@@ -255,11 +255,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       const startDateTime = new Date(updates.start_date);
       const endDateTime = new Date(updates.end_date);
       
-      // Important fix: pass the event ID to exclude current event from conflict check
+      // Critical fix: Always pass the event ID as excludeEventId to prevent conflict with itself
       const { available, conflictDetails } = await checkTimeSlotAvailability(
         startDateTime,
         endDateTime,
-        id // Pass the event ID to exclude from conflict check
+        id // This ensures we don't get conflicts with the event being edited
       );
       
       if (!available) {
@@ -395,6 +395,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     excludeEventId?: string
   ): Promise<{ available: boolean; conflictDetails: string }> => {
     try {
+      console.log("Checking time slot availability:", { 
+        startDate, 
+        endDate, 
+        excludingEvent: excludeEventId 
+      });
+      
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('id, title, start_date, end_date')
@@ -403,21 +409,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventsError) throw eventsError;
       
-      // Modified: Properly filter out the current event being updated
-      const eventsConflict = conflictingEvents?.some(event => 
+      // Fixed: Properly filter out the current event being updated
+      const actualConflicts = conflictingEvents?.filter(event => 
         excludeEventId !== event.id
-      );
+      ) || [];
       
-      if (eventsConflict && conflictingEvents && conflictingEvents.length > 0) {
-        // Filter out the event being updated
-        const actualConflicts = conflictingEvents.filter(event => 
-          excludeEventId !== event.id
-        );
-        
-        if (actualConflicts.length === 0) {
-          return { available: true, conflictDetails: "" };
-        }
-        
+      if (actualConflicts.length > 0) {
         const conflictEvent = actualConflicts[0];
         return { 
           available: false, 
@@ -435,17 +432,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (bookingsError) throw bookingsError;
       
-      if (conflictingBookings && conflictingBookings.length > 0) {
-        // Filter out the booking being updated
-        const actualConflicts = conflictingBookings.filter(booking => 
-          excludeEventId !== booking.id
-        );
-        
-        if (actualConflicts.length === 0) {
-          return { available: true, conflictDetails: "" };
-        }
-        
-        const conflictBooking = actualConflicts[0];
+      // Fixed: Filter out the booking being updated if excludeEventId is provided
+      const actualBookingConflicts = conflictingBookings?.filter(booking => 
+        excludeEventId !== booking.id
+      ) || [];
+      
+      if (actualBookingConflicts.length > 0) {
+        const conflictBooking = actualBookingConflicts[0];
         return { 
           available: false, 
           conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`

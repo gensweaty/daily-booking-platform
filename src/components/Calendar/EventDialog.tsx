@@ -1,4 +1,3 @@
-
 // Import necessary components and functions
 import { useState, useEffect } from "react";
 import {
@@ -62,7 +61,7 @@ export const EventDialog = ({
   const { toast } = useToast();
   const { t, language } = useLanguage();
 
-  // Query for event files if we have an event
+  // Enhanced query for event files to properly handle both booking files and event files
   const {
     data: eventFiles = [],
     isLoading: isLoadingFiles,
@@ -72,13 +71,18 @@ export const EventDialog = ({
     queryFn: async () => {
       if (!event?.id && !event?.booking_request_id) return [];
       
-      console.log("Fetching files for event:", event.id, "Type:", event.type, "Booking request ID:", event.booking_request_id);
+      console.log("EventDialog - Fetching files for event:", { 
+        id: event.id, 
+        type: event.type, 
+        booking_request_id: event.booking_request_id 
+      });
       
       let fileList = [];
       
-      // First, check if this is a booking request (has event.booking_request_id)
+      // Improved approach: First check for booking files in all possible locations
       if (event.booking_request_id) {
-        console.log("This is an event from a booking request, checking booking files for:", event.booking_request_id);
+        // Case 1: Event created from a booking request (has booking_request_id)
+        console.log("Case 1: Checking booking files for booking_request_id:", event.booking_request_id);
         
         const { data: bookingFiles, error: bookingFilesError } = await supabase
           .from("booking_files")
@@ -88,17 +92,19 @@ export const EventDialog = ({
         if (bookingFilesError) {
           console.error("Error fetching booking files:", bookingFilesError);
         } else if (bookingFiles && bookingFiles.length > 0) {
-          console.log("Found booking files:", bookingFiles);
+          console.log("Found booking files with booking_request_id:", bookingFiles.length);
+          
           fileList = bookingFiles.map(file => ({
             id: file.file_path,
             filename: file.filename,
             content_type: file.content_type,
+            source: 'booking_attachments'
           }));
         }
       } 
-      // If booking_request_id is stored in the event ID field (for pending events)
       else if (event.type === 'booking_request' && event.id) {
-        console.log("This is a booking request event, checking booking files for:", event.id);
+        // Case 2: This is a booking request event (pending, not yet approved)
+        console.log("Case 2: Checking booking files for booking event id:", event.id);
         
         const { data: bookingFiles, error: bookingFilesError } = await supabase
           .from("booking_files")
@@ -108,41 +114,47 @@ export const EventDialog = ({
         if (bookingFilesError) {
           console.error("Error fetching booking files (from ID):", bookingFilesError);
         } else if (bookingFiles && bookingFiles.length > 0) {
-          console.log("Found booking files (from ID):", bookingFiles);
+          console.log("Found booking files with event id:", bookingFiles.length);
+          
           fileList = bookingFiles.map(file => ({
             id: file.file_path,
             filename: file.filename,
             content_type: file.content_type,
+            source: 'booking_attachments'
           }));
         }
       }
       
-      // If we have an event ID, also check the event_files table
+      // Case 3: Always check for event files if we have an event ID
       if (event.id) {
-        const { data: filesData, error } = await supabase
+        console.log("Case 3: Checking event_files for event ID:", event.id);
+        
+        const { data: eventFilesData, error: eventFilesError } = await supabase
           .from("event_files")
           .select("*")
           .eq("event_id", event.id);
           
-        if (error) {
-          console.error("Error fetching event files:", error);
-        } else if (filesData && filesData.length > 0) {
-          console.log("Found event_files:", filesData);
+        if (eventFilesError) {
+          console.error("Error fetching event files:", eventFilesError);
+        } else if (eventFilesData && eventFilesData.length > 0) {
+          console.log("Found event_files:", eventFilesData.length);
+          
           // Only add files that aren't already in the list
           const existingPaths = new Set(fileList.map(f => f.id));
-          const newFiles = filesData
+          const newFiles = eventFilesData
             .filter(file => !existingPaths.has(file.file_path))
             .map(file => ({
               id: file.file_path,
               filename: file.filename,
               content_type: file.content_type,
+              source: 'event_attachments'
             }));
           
           fileList = [...fileList, ...newFiles];
         }
       }
       
-      console.log("Final file list:", fileList);
+      console.log("Final file list for event dialog:", fileList);
       return fileList;
     },
     enabled: open && (!!event?.id || !!event?.booking_request_id),
@@ -335,15 +347,24 @@ export const EventDialog = ({
     }
   };
 
+  // Enhanced file deletion function that handles both booking files and event files
   const handleFileDeleted = async (fileId: string) => {
     try {
       console.log("Handling file deletion for:", fileId);
       
-      // First determine the appropriate table and bucket based on the file path
-      const isEventFile = event?.id && !fileId.includes('booking_attachments');
-      const isBookingFile = fileId.includes('booking_attachments');
+      // Get the file metadata first to determine its source
+      const fileMetadata = eventFiles.find(file => file.id === fileId);
+      if (!fileMetadata) {
+        throw new Error("File metadata not found");
+      }
       
-      if (isBookingFile) {
+      const fileSource = fileMetadata.source || 
+        (fileId.includes('booking_attachments') ? 'booking_attachments' : 'event_attachments');
+      
+      console.log("File source determined as:", fileSource);
+      
+      if (fileSource === 'booking_attachments') {
+        // Handle booking file deletion
         console.log("Handling deletion of booking file:", fileId);
         
         // Get the booking ID - either from booking_request_id or from event.id for pending bookings
@@ -374,7 +395,8 @@ export const EventDialog = ({
           console.error("Error deleting booking file from storage:", storageError);
           throw storageError;
         }
-      } else if (isEventFile) {
+      } else {
+        // Handle event file deletion
         console.log("Handling deletion of event file:", fileId);
         
         // Delete the record from event_files
@@ -397,9 +419,6 @@ export const EventDialog = ({
           console.error("Error deleting event file from storage:", storageError);
           throw storageError;
         }
-      } else {
-        console.error("Could not determine file type for deletion:", fileId);
-        throw new Error("Unknown file type");
       }
       
       // Refresh files list
@@ -445,7 +464,7 @@ export const EventDialog = ({
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {getDialogTitle()}
+              {event ? 'Edit Event' : 'Add Event'}
             </DialogTitle>
           </DialogHeader>
 
