@@ -149,7 +149,31 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       console.log("Fetched approved bookings:", data?.length || 0);
       
-      const bookingEvents = (data || []).map(booking => ({
+      // Check which bookings already have corresponding events
+      const bookingIds = data?.map(booking => booking.id) || [];
+      
+      if (bookingIds.length === 0) {
+        return [];
+      }
+      
+      // Get existing events that match these booking IDs
+      const { data: existingEvents, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .in('booking_request_id', bookingIds);
+        
+      if (eventsError) {
+        console.error("Error checking for existing events:", eventsError);
+        // Continue anyway
+      }
+      
+      // Filter out bookings that already have events
+      const existingBookingIds = new Set(existingEvents?.map(event => event.booking_request_id) || []);
+      const filteredBookings = data?.filter(booking => !existingBookingIds.has(booking.id)) || [];
+      
+      console.log(`Filtered out ${data?.length - filteredBookings.length} bookings that already have events`);
+      
+      const bookingEvents = filteredBookings.map(booking => ({
         id: booking.id,
         title: booking.title || 'Booking',
         start_date: booking.start_date,
@@ -167,6 +191,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         description: booking.description || '',
         payment_status: booking.payment_status || 'not_paid',
         payment_amount: booking.payment_amount || 0,
+        booking_request_id: booking.id, // Keep track of the original booking request ID
       }));
       
       return bookingEvents;
@@ -196,9 +221,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       event.title = event.user_surname;
     }
     
+    const eventData = { ...event, user_id: user.id };
+    
+    // If this is a booking request being converted to an event, add the booking_request_id
+    if (event.id && event.id.includes('-') && event.type === 'booking_request') {
+      eventData.booking_request_id = event.id;
+    }
+    
     const { data, error } = await supabase
       .from('events')
-      .insert([{ ...event, user_id: user.id }])
+      .insert([eventData])
       .select()
       .single();
 
@@ -271,6 +303,40 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               
           if (updateError) throw updateError;
           
+          // Check if there's already an event for this booking
+          const { data: existingEvent } = await supabase
+            .from('events')
+            .select('*')
+            .eq('booking_request_id', id)
+            .maybeSingle();
+            
+          if (existingEvent) {
+            // Update the existing event
+            const { data: updatedEvent, error: eventUpdateError } = await supabase
+              .from('events')
+              .update({
+                title: updates.title,
+                user_surname: updates.user_surname,
+                user_number: updates.user_number,
+                social_network_link: updates.social_network_link,
+                event_notes: updates.event_notes,
+                start_date: updates.start_date,
+                end_date: updates.end_date,
+                payment_status: updates.payment_status,
+                payment_amount: updates.payment_amount,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingEvent.id)
+              .select()
+              .single();
+              
+            if (eventUpdateError) {
+              console.error("Error updating event for booking:", eventUpdateError);
+            } else {
+              console.log("Updated existing event for booking:", updatedEvent);
+            }
+          }
+          
           toast({
             title: "Booking updated",
             description: "The booking request has been updated successfully."
@@ -293,6 +359,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             requester_phone: updatedBooking.requester_phone || '',
             payment_status: updatedBooking.payment_status,
             payment_amount: updatedBooking.payment_amount,
+            booking_request_id: updatedBooking.id,
           } as CalendarEventType;
         }
       } catch (error) {
@@ -410,6 +477,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
         if (error) throw error;
         
+        // Also delete any events created from this booking
+        const { error: eventDeleteError } = await supabase
+          .from('events')
+          .delete()
+          .eq('booking_request_id', id);
+          
+        if (eventDeleteError) {
+          console.error("Error deleting associated event:", eventDeleteError);
+          // Continue with the function
+        }
+        
         toast({
           title: "Booking deleted",
           description: "The booking request has been deleted successfully."
@@ -425,7 +503,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       // Get the event first to use its data
       const { data: eventData, error: eventError } = await supabase
         .from('events')
-        .select('title, start_date, end_date')
+        .select('title, start_date, end_date, booking_request_id')
         .eq('id', id)
         .maybeSingle();
       
@@ -433,6 +511,22 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.error('Error finding event:', eventError);
         // Continue with deletion even if we can't find the event data
       } else if (eventData) {
+        // If this event was created from a booking request, update the booking
+        if (eventData.booking_request_id) {
+          const { error: bookingUpdateError } = await supabase
+            .from('booking_requests')
+            .update({ 
+              status: 'approved',
+              updated_at: new Date().toISOString() 
+            })
+            .eq('id', eventData.booking_request_id);
+            
+          if (bookingUpdateError) {
+            console.error('Error updating booking request:', bookingUpdateError);
+            // Continue with deletion
+          }
+        }
+        
         // Check for associated customer using event data
         const { data: customer, error: customerError } = await supabase
           .from('customers')

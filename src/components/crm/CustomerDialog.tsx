@@ -32,6 +32,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
   const [createEvent, setCreateEvent] = useState(false);
   const [isEventData, setIsEventData] = useState(false);
   const [associatedEventId, setAssociatedEventId] = useState<string | null>(null);
+  const [customerFiles, setCustomerFiles] = useState<any[]>([]);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -81,6 +82,19 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         setPaymentStatus(customerData.payment_status || "");
         setPaymentAmount(customerData.payment_amount?.toString() || "");
         setCreateEvent(!!customerData.start_date && !!customerData.end_date);
+
+        // Fetch customer files
+        const { data: filesData, error: filesError } = await supabase
+          .from('customer_files_new')
+          .select('*')
+          .eq('customer_id', customerId);
+          
+        if (filesError) {
+          console.error('Error fetching customer files:', filesError);
+        } else if (filesData) {
+          console.log('Fetched customer files:', filesData);
+          setCustomerFiles(filesData);
+        }
 
         // If customer has dates, try to find associated event
         if (customerData.start_date && customerData.end_date) {
@@ -232,11 +246,18 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         }
       } else {
         // Create new customer
-        const { error: customerError } = await supabase
+        const { data: newCustomer, error: customerError } = await supabase
           .from('customers')
-          .insert([customerData]);
+          .insert([customerData])
+          .select()
+          .single();
 
         if (customerError) throw customerError;
+
+        // Set customerId for file upload
+        if (newCustomer) {
+          customerId = newCustomer.id;
+        }
 
         // Create new event if needed
         if (createEvent) {
@@ -256,7 +277,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       }
 
       // Handle file upload if a file is selected
-      if (selectedFile) {
+      if (selectedFile && customerId) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
@@ -303,6 +324,40 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     }
   };
 
+  const handleFileDeleted = async (fileId: string) => {
+    try {
+      // Delete the file from storage
+      const { error: storageError } = await supabase.storage
+        .from('customer_attachments')
+        .remove([fileId]);
+
+      if (storageError) throw storageError;
+
+      // Delete the file record from the database
+      const { error: dbError } = await supabase
+        .from('customer_files_new')
+        .delete()
+        .eq('file_path', fileId);
+
+      if (dbError) throw dbError;
+
+      // Update the local state
+      setCustomerFiles(prev => prev.filter(file => file.file_path !== fileId));
+
+      toast({
+        title: "Success",
+        description: "File deleted successfully",
+      });
+    } catch (error: any) {
+      console.error('Error deleting file:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete file",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleClose = () => {
     if (!loading) {
       resetForm();
@@ -325,6 +380,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     setCreateEvent(false);
     setIsEventData(false);
     setAssociatedEventId(null);
+    setCustomerFiles([]);
   };
 
   return (
@@ -365,6 +421,8 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             setCreateEvent={setCreateEvent}
             isEventData={isEventData}
             isOpen={isOpen}
+            customerFiles={customerFiles}
+            onFileDeleted={handleFileDeleted}
           />
 
           <div className="flex justify-end gap-2 mt-4">

@@ -1,9 +1,8 @@
-
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
 
-export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">) => {
+export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">, file?: File) => {
   // Get current user if available
   const { data: userData } = await supabase.auth.getUser();
   
@@ -42,6 +41,40 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
     }
     
     console.log("Created booking request:", data);
+    
+    // Handle file upload if provided
+    if (file && data?.id) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${file.name}`;
+      const filePath = `${data.id}/${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from("booking_attachments")
+        .upload(filePath, file);
+        
+      if (uploadError) {
+        console.error("Error uploading booking file:", uploadError);
+        // Continue anyway, booking was created
+      } else {
+        // Create file record
+        const fileData = {
+          booking_id: data.id,
+          filename: file.name,
+          file_path: filePath,
+          content_type: file.type,
+          size: file.size
+        };
+        
+        const { error: fileRecordError } = await supabase
+          .from("booking_files")
+          .insert([fileData]);
+          
+        if (fileRecordError) {
+          console.error("Error creating booking file record:", fileRecordError);
+        }
+      }
+    }
+    
     return data;
   } catch (error: any) {
     console.error("Error in createBookingRequest:", error);

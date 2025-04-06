@@ -74,6 +74,29 @@ export const EventDialog = ({
       
       console.log("Fetching files for event:", event.id);
       
+      // First, check if this is a booking request (has a hyphen in ID)
+      if (event.id.includes('-')) {
+        const { data: bookingFiles, error: bookingFilesError } = await supabase
+          .from("booking_files")
+          .select("*")
+          .eq("booking_id", event.id);
+          
+        if (bookingFilesError) {
+          console.error("Error fetching booking files:", bookingFilesError);
+          return [];
+        }
+        
+        if (bookingFiles && bookingFiles.length > 0) {
+          console.log("Found booking files:", bookingFiles);
+          return bookingFiles.map(file => ({
+            id: file.file_path,
+            filename: file.filename,
+            content_type: file.content_type,
+          }));
+        }
+      }
+      
+      // Regular event files
       const { data: filesData, error } = await supabase
         .from("event_files")
         .select("*")
@@ -275,11 +298,26 @@ export const EventDialog = ({
 
   const handleFileDeleted = async (fileId: string) => {
     try {
-      // Delete file record from database
+      // First check if this is a booking file (for booking requests)
+      if (event?.id && event.id.includes('-')) {
+        // Try to find and delete from booking_files
+        const { error: bookingFileError } = await supabase
+          .from("booking_files")
+          .delete()
+          .eq("file_path", fileId);
+          
+        if (!bookingFileError) {
+          // Successfully deleted from booking_files
+          refetchFiles();
+          return;
+        }
+      }
+      
+      // Regular event file
       const { error } = await supabase
         .from("event_files")
         .delete()
-        .eq("id", fileId);
+        .eq("file_path", fileId);
         
       if (error) {
         console.error("Error deleting file record:", error);
@@ -350,7 +388,7 @@ export const EventDialog = ({
             eventId={event?.id}
             onFileDeleted={handleFileDeleted}
             displayedFiles={eventFiles.map(file => ({
-              id: file.file_path,
+              id: file.id || file.file_path,
               filename: file.filename,
               content_type: file.content_type,
             }))}

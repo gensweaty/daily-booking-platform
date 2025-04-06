@@ -115,19 +115,6 @@ export const FileDisplay = ({
     return contentType?.startsWith('image/');
   };
 
-  const getThumbnailUrl = async (fileId: string) => {
-    try {
-      const { data: urlData } = await supabase.storage
-        .from(bucketName)
-        .createSignedUrl(fileId, 3600); // 1 hour expiry
-      
-      return urlData?.signedUrl || null;
-    } catch (error) {
-      console.error("Error getting thumbnail URL:", error);
-      return null;
-    }
-  };
-
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {files.map((file) => (
