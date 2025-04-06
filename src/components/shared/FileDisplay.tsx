@@ -3,7 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Download, Trash2, File, Image } from "lucide-react";
+import { Download, Trash2, File, Image, ExternalLink } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface FileDisplayProps {
@@ -116,51 +116,55 @@ export const FileDisplay = ({
     }
   };
 
+  // Return to the original file display style with a list of file cards
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+    <div className="space-y-3">
       {files.map((file) => (
-        <Card key={file.id} className="p-3 flex flex-col items-center justify-between h-full">
-          <div className="w-full flex items-center mb-2">
-            <div className="flex-shrink-0 w-10 h-10 bg-muted rounded flex items-center justify-center mr-2">
+        <Card key={file.id} className="p-4 relative overflow-hidden">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 w-12 h-12 bg-muted rounded flex items-center justify-center mr-3">
               {isImageFile(file.content_type) ? (
-                <Image className="w-6 h-6 text-muted-foreground" />
+                <Image className="w-7 h-7 text-muted-foreground" />
               ) : (
-                <File className="w-6 h-6 text-muted-foreground" />
+                <File className="w-7 h-7 text-muted-foreground" />
               )}
             </div>
-            <div className="truncate text-sm flex-1">
-              {file.filename || file.id}
+            <div className="overflow-hidden">
+              <p className="font-medium text-sm truncate">{file.filename || file.id}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {file.content_type || "Unknown file type"}
+              </p>
             </div>
-          </div>
-          <div className="flex gap-2 w-full justify-end mt-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleDownload(file.id, file.filename)}
-              disabled={downloading === file.id}
-              className="h-8 w-8"
-            >
-              {downloading === file.id ? (
-                <span className="animate-spin">...</span>
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
-            </Button>
-            {allowDelete && onFileDeleted && (
+            <div className="ml-auto flex space-x-1">
               <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleDelete(file.id)}
-                disabled={deleting === file.id}
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDownload(file.id, file.filename)}
+                disabled={downloading === file.id}
                 className="h-8 w-8"
               >
-                {deleting === file.id ? (
+                {downloading === file.id ? (
                   <span className="animate-spin">...</span>
                 ) : (
-                  <Trash2 className="w-4 h-4 text-destructive" />
+                  <Download className="w-4 h-4" />
                 )}
               </Button>
-            )}
+              {allowDelete && onFileDeleted && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDelete(file.id)}
+                  disabled={deleting === file.id}
+                  className="h-8 w-8"
+                >
+                  {deleting === file.id ? (
+                    <span className="animate-spin">...</span>
+                  ) : (
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
         </Card>
       ))}

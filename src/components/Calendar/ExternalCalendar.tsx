@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,7 +54,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     getBusinessUserId();
   }, [businessId]);
 
-  // Step 2: Fetch all events using the getPublicCalendarEvents API which uses our new RPC function
+  // Step 2: Fetch all events using the getPublicCalendarEvents API
   useEffect(() => {
     const fetchAllEvents = async () => {
       if (!businessId) return;
@@ -63,7 +64,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       
       try {
         // Get events from the API function which includes approved bookings and user events
-        // This now uses our security definer function to bypass RLS
         const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
         
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
@@ -81,7 +81,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           })),
           ...(approvedBookings || []).map(booking => ({
             id: booking.id,
-            title: booking.requester_name || 'Booking',
+            title: booking.requester_name || 'Booking', // Use requester_name as title
             start_date: booking.start_date,
             end_date: booking.end_date,
             type: 'booking_request',
@@ -105,7 +105,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             // Check if start_date and end_date are valid
             const startValid = !!new Date(event.start_date).getTime();
             const endValid = !!new Date(event.end_date).getTime();
-            return startValid && endValid;
+            return startValid && endValid && event.deleted_at === null;
           } catch (err) {
             console.error("Invalid date in event:", event);
             return false;
@@ -113,7 +113,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         });
         
         if (validEvents.length !== allEvents.length) {
-          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates`);
+          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates or deleted status`);
         }
         
         // Remove duplicate events (same time slot)

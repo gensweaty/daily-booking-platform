@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -149,16 +150,14 @@ export const useBookingRequests = () => {
         throw existingEventsError;
       }
       
-      const hasExistingEvent = existingEvents && existingEvents.length > 0;
-      
-      console.log(`Approving booking ${bookingId}, already has event: ${hasExistingEvent}`);
-      
-      if (!hasExistingEvent) {
+      // Create event only if one doesn't already exist
+      if (!existingEvents || existingEvents.length === 0) {
         console.log('Creating event from booking request:', booking);
         
         // Create an event record from the booking request
+        // Use the requester_name (customer name) as the title
         const eventToInsert = {
-          title: booking.requester_name || booking.title, // Prioritize requester_name
+          title: booking.requester_name || booking.title,
           user_surname: booking.requester_name,
           user_number: booking.requester_phone || "",
           social_network_link: booking.requester_email || "",
@@ -175,115 +174,101 @@ export const useBookingRequests = () => {
         
         console.log('Event data to insert:', eventToInsert);
         
-        try {
-          const { data: createdEvent, error: eventError } = await supabase
-            .from('events')
-            .insert(eventToInsert)
-            .select()
-            .single();
-          
-          if (eventError) {
-            console.error('Error creating event from booking:', eventError);
-            throw new Error('Failed to create event from booking');
-          }
-          
-          console.log('Created event:', createdEvent);
-          
-          // Create a customer record from the booking request for CRM
-          if (createdEvent) {
-            try {
-              const { data: customerData, error: customerError } = await supabase
-                .from('customers')
-                .insert({
-                  title: booking.requester_name,
-                  user_surname: booking.requester_name,
-                  user_number: booking.requester_phone || "",
-                  social_network_link: booking.requester_email,
-                  event_notes: booking.description,
-                  start_date: booking.start_date,
-                  end_date: booking.end_date,
-                  payment_status: booking.payment_status,
-                  payment_amount: booking.payment_amount,
-                  user_id: user?.id,
-                  type: 'booking_request'
-                })
-                .select()
-                .single();
+        const { data: createdEvent, error: eventError } = await supabase
+          .from('events')
+          .insert([eventToInsert])
+          .select()
+          .single();
+        
+        if (eventError) {
+          console.error('Error creating event from booking:', eventError);
+          throw new Error('Failed to create event from booking');
+        }
+        
+        console.log('Created event:', createdEvent);
+        
+        // Create a customer record from the booking request for CRM
+        if (createdEvent) {
+          try {
+            const { data: customerData, error: customerError } = await supabase
+              .from('customers')
+              .insert({
+                title: booking.requester_name,
+                user_surname: booking.requester_name,
+                user_number: booking.requester_phone || "",
+                social_network_link: booking.requester_email,
+                event_notes: booking.description,
+                start_date: booking.start_date,
+                end_date: booking.end_date,
+                payment_status: booking.payment_status,
+                payment_amount: booking.payment_amount,
+                user_id: user?.id,
+                type: 'booking_request'
+              })
+              .select()
+              .single();
+            
+            if (customerError) {
+              console.error('Error creating customer from booking:', customerError);
+            } else {
+              console.log('Created customer:', customerData);
               
-              if (customerError) {
-                console.error('Error creating customer from booking:', customerError);
-              } else {
-                console.log('Created customer:', customerData);
+              // Check if there are any files attached to the booking
+              const { data: bookingFiles, error: filesError } = await supabase
+                .from('booking_files')
+                .select('*')
+                .eq('booking_id', bookingId);
                 
-                // Check if there are any files attached to the booking
-                const { data: bookingFiles, error: filesError } = await supabase
-                  .from('booking_files')
-                  .select('*')
-                  .eq('booking_id', bookingId);
-                  
-                if (filesError) {
-                  console.error('Error checking for booking files:', filesError);
-                } else if (bookingFiles && bookingFiles.length > 0) {
-                  console.log('Found booking files to copy:', bookingFiles.length);
-                  
-                  for (const file of bookingFiles) {
-                    if (customerData?.id) {
-                      // Create customer file record
-                      const { error: fileError } = await supabase
-                        .from('customer_files_new')
-                        .insert({
-                          filename: file.filename,
-                          file_path: file.file_path,
-                          content_type: file.content_type,
-                          size: file.size,
-                          user_id: user?.id,
-                          customer_id: customerData.id
-                        });
-                        
-                      if (fileError) {
-                        console.error('Error copying booking file to customer:', fileError);
-                      }
+              if (filesError) {
+                console.error('Error checking for booking files:', filesError);
+              } else if (bookingFiles && bookingFiles.length > 0) {
+                console.log('Found booking files to copy:', bookingFiles.length);
+                
+                for (const file of bookingFiles) {
+                  if (customerData?.id) {
+                    // Create customer file record
+                    const { error: fileError } = await supabase
+                      .from('customer_files_new')
+                      .insert({
+                        filename: file.filename,
+                        file_path: file.file_path,
+                        content_type: file.content_type,
+                        size: file.size,
+                        user_id: user?.id,
+                        customer_id: customerData.id
+                      });
+                      
+                    if (fileError) {
+                      console.error('Error copying booking file to customer:', fileError);
                     }
-                    
-                    if (createdEvent?.id) {
-                      // Create event file record
-                      const { error: eventFileError } = await supabase
-                        .from('event_files')
-                        .insert({
-                          filename: file.filename,
-                          file_path: file.file_path,
-                          content_type: file.content_type,
-                          size: file.size,
-                          user_id: user?.id,
-                          event_id: createdEvent.id
-                        });
-                        
-                      if (eventFileError) {
-                        console.error('Error copying booking file to event:', eventFileError);
-                      }
+                  }
+                  
+                  if (createdEvent?.id) {
+                    // Create event file record
+                    const { error: eventFileError } = await supabase
+                      .from('event_files')
+                      .insert({
+                        filename: file.filename,
+                        file_path: file.file_path,
+                        content_type: file.content_type,
+                        size: file.size,
+                        user_id: user?.id,
+                        event_id: createdEvent.id
+                      });
+                      
+                    if (eventFileError) {
+                      console.error('Error copying booking file to event:', eventFileError);
                     }
                   }
                 }
               }
-            } catch (customerError) {
-              console.error('Error in customer creation:', customerError);
             }
+          } catch (customerError) {
+            console.error('Error in customer creation:', customerError);
           }
-          
-          return { booking, event: createdEvent };
-        } catch (err) {
-          console.error('Error creating event from booking:', err);
-          // Try to revert booking approval on event creation failure
-          try {
-            await supabase
-              .from('booking_requests')
-              .update({ status: 'pending' })
-              .eq('id', bookingId);
-          } catch (revertError) {
-            console.error('Failed to revert booking status:', revertError);
-          }
-          throw new Error('Failed to create event from booking');
         }
+        
+        return { booking, event: createdEvent };
       } else {
         console.log('Event already exists for this booking, not creating a new one');
         return { booking, event: existingEvents[0] };

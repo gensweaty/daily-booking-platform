@@ -121,7 +121,7 @@ export const BookingRequestForm = ({
       
       // Print debug information to help diagnose the issue
       console.log("Submitting booking request with data:", {
-        title: surname, // Use customer name (surname) as the title
+        title: surname, // Use customer name as the title
         requester_name: surname,
         requester_email: socialNetworkLink,
         requester_phone: userNumber,
@@ -133,8 +133,39 @@ export const BookingRequestForm = ({
         business_id: businessId
       });
       
-      await createBookingRequest({
-        title: surname, // Use customer name (surname) as the title
+      // Upload file first if selected
+      let fileData = null;
+      if (selectedFile) {
+        try {
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `${crypto.randomUUID()}.${fileExt}`;
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('booking_attachments')
+            .upload(filePath, selectedFile);
+  
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            toast({
+              title: "File Upload Error",
+              description: uploadError.message,
+              variant: "destructive",
+            });
+          } else {
+            fileData = {
+              filename: selectedFile.name,
+              file_path: filePath,
+              content_type: selectedFile.type,
+              size: selectedFile.size
+            };
+          }
+        } catch (fileError) {
+          console.error("Error handling file upload:", fileError);
+        }
+      }
+      
+      const response = await createBookingRequest({
+        title: surname, // Use customer name as the title
         requester_name: surname,
         requester_email: socialNetworkLink,
         requester_phone: userNumber || "",
@@ -145,6 +176,29 @@ export const BookingRequestForm = ({
         payment_status: paymentStatus,
         business_id: businessId,
       });
+      
+      // If we have file data and the booking request was created successfully
+      if (fileData && response?.id) {
+        try {
+          const bookingId = response.id;
+          fileData.booking_id = bookingId;
+          
+          const { error: fileRecordError } = await supabase
+            .from('booking_files')
+            .insert([fileData]);
+  
+          if (fileRecordError) {
+            console.error('Error creating file record:', fileRecordError);
+            toast({
+              title: "File Record Error",
+              description: fileRecordError.message,
+              variant: "destructive",
+            });
+          }
+        } catch (fileError) {
+          console.error("Error saving file record:", fileError);
+        }
+      }
       
       toast({
         title: "Success",
