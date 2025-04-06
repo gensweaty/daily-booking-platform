@@ -47,7 +47,6 @@ export const EventDialog = ({
   onDelete,
 }: EventDialogProps) => {
   // Set up state for event data
-  const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
   const [userNumber, setUserNumber] = useState("");
   const [socialNetworkLink, setSocialNetworkLink] = useState("");
@@ -61,7 +60,7 @@ export const EventDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   // Query for event files if we have an event
   const {
@@ -92,7 +91,6 @@ export const EventDialog = ({
   useEffect(() => {
     if (open) {
       if (event) {
-        setTitle(event.title || "");
         setUserSurname(event.user_surname || event.requester_name || "");
         setUserNumber(event.user_number || event.requester_phone || "");
         setSocialNetworkLink(event.social_network_link || event.requester_email || "");
@@ -106,7 +104,6 @@ export const EventDialog = ({
         const endDateValue = new Date(selectedDate);
         endDateValue.setHours(endDateValue.getHours() + 1);
         
-        setTitle("");
         setUserSurname("");
         setUserNumber("");
         setSocialNetworkLink("");
@@ -124,7 +121,7 @@ export const EventDialog = ({
 
   const handleSubmit = async () => {
     try {
-      // Validate customer name instead of title
+      // Validate customer name
       if (!userSurname) {
         toast({
           title: "Error",
@@ -165,8 +162,8 @@ export const EventDialog = ({
 
       setIsSubmitting(true);
 
-      // Use customer name as the title if title is empty
-      const eventTitle = title || userSurname;
+      // Use customer name as the title
+      const eventTitle = userSurname;
 
       // Prepare event data for submission
       const eventData: Partial<CalendarEventType> = {
@@ -289,19 +286,46 @@ export const EventDialog = ({
     }
   };
 
+  // Get button text based on language and state
+  const getButtonText = () => {
+    if (isSubmitting) {
+      return language === 'es' ? 'Guardando...' : 'Saving...';
+    }
+    if (event) {
+      return language === 'es' ? 'Actualizar' : 'Update';
+    }
+    return language === 'es' ? 'Crear' : 'Create';
+  };
+
+  // Get dialog title based on language and state
+  const getDialogTitle = () => {
+    if (event) {
+      return language === 'es' ? 'Editar Evento' : 'Edit Event';
+    }
+    return language === 'es' ? 'Añadir Evento' : 'Add Event';
+  };
+
+  // Get delete button text
+  const getDeleteText = () => {
+    return language === 'es' ? 'Eliminar' : 'Delete';
+  };
+
+  // Get cancel text
+  const getCancelText = () => {
+    return language === 'es' ? 'Cancelar' : 'Cancel';
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {event ? t("calendar.editEvent") : t("calendar.addEvent")}
+              {getDialogTitle()}
             </DialogTitle>
           </DialogHeader>
 
           <EventDialogFields
-            title={title}
-            setTitle={setTitle}
             userSurname={userSurname}
             setUserSurname={setUserSurname}
             userNumber={userNumber}
@@ -345,35 +369,33 @@ export const EventDialog = ({
                     className="gap-1 text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />
-                    {t("common.delete")}
+                    {getDeleteText()}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>
-                      {t("calendar.deleteEventConfirmTitle")}
+                      {language === 'es' ? 'Confirmar eliminación' : 'Confirm Deletion'}
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      {t("calendar.deleteEventConfirmDesc")}
+                      {language === 'es' 
+                        ? '¿Estás seguro de que quieres eliminar este evento?' 
+                        : 'Are you sure you want to delete this event?'}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>
-                      {t("common.cancel")}
+                      {getCancelText()}
                     </AlertDialogCancel>
                     <AlertDialogAction onClick={handleDelete}>
-                      {t("common.delete")}
+                      {getDeleteText()}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
             )}
             <Button onClick={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting
-                ? t("common.saving")
-                : event
-                ? t("common.update")
-                : t("common.create")}
+              {getButtonText()}
             </Button>
           </DialogFooter>
         </DialogContent>

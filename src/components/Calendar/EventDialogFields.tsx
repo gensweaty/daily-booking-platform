@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,8 +16,6 @@ import { FileUploadField } from "../shared/FileUploadField";
 
 // Define field props for easier testing and integration
 export interface EventDialogFieldsProps {
-  title: string;
-  setTitle: (title: string) => void;
   userSurname: string;
   setUserSurname: (surname: string) => void;
   userNumber: string;
@@ -50,8 +47,6 @@ export interface EventDialogFieldsProps {
 }
 
 export const EventDialogFields = ({
-  title,
-  setTitle,
   userSurname,
   setUserSurname,
   userNumber,
@@ -114,19 +109,6 @@ export const EventDialogFields = ({
           onChange={(e) => setUserSurname(e.target.value)}
           placeholder="Enter name"
           required
-        />
-      </div>
-
-      {/* Optional Event Title */}
-      <div className="space-y-2">
-        <Label htmlFor="title">
-          Event Title <span className="text-sm text-muted-foreground">(Optional - defaults to customer name)</span>
-        </Label>
-        <Input
-          id="title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Enter event title"
         />
       </div>
 
@@ -228,7 +210,6 @@ export const EventDialogFields = ({
       {/* Existing Files */}
       {eventId && displayedFiles.length > 0 && (
         <Card className="p-4">
-          <Label className="mb-2 block">Attached Files</Label>
           <FileDisplay
             files={displayedFiles}
             bucketName="event_attachments"
@@ -238,15 +219,14 @@ export const EventDialogFields = ({
         </Card>
       )}
 
-      {/* File Upload */}
-      <div className="space-y-2">
-        <Label>Attach File</Label>
-        <FileUploadField
-          onChange={setSelectedFile}
-          fileError={fileError}
-          setFileError={setFileError}
-        />
-      </div>
+      {/* File Upload - simplified */}
+      <FileUploadField
+        onChange={setSelectedFile}
+        fileError={fileError}
+        setFileError={setFileError}
+        hideLabel={true}
+        hideDescription={true}
+      />
     </div>
   );
 };
