@@ -121,7 +121,7 @@ export const BookingRequestForm = ({
       
       // Print debug information to help diagnose the issue
       console.log("Submitting booking request with data:", {
-        title: surname, // Use customer name as the title
+        title: surname, // Use customer name (surname) as the title
         requester_name: surname,
         requester_email: socialNetworkLink,
         requester_phone: userNumber,
@@ -134,7 +134,7 @@ export const BookingRequestForm = ({
       });
       
       await createBookingRequest({
-        title: surname, // Use customer name as the title
+        title: surname, // Use customer name (surname) as the title
         requester_name: surname,
         requester_email: socialNetworkLink,
         requester_phone: userNumber || "",

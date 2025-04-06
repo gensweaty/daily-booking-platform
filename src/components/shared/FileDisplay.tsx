@@ -117,11 +117,11 @@ export const FileDisplay = ({
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
       {files.map((file) => (
-        <Card key={file.id} className="p-3 flex items-center justify-between overflow-hidden">
-          <div className="flex items-center gap-2 w-full">
-            <div className="flex-shrink-0 w-10 h-10 bg-muted rounded flex items-center justify-center">
+        <Card key={file.id} className="p-3 flex flex-col items-center justify-between h-full">
+          <div className="w-full flex items-center mb-2">
+            <div className="flex-shrink-0 w-10 h-10 bg-muted rounded flex items-center justify-center mr-2">
               {isImageFile(file.content_type) ? (
                 <Image className="w-6 h-6 text-muted-foreground" />
               ) : (
@@ -131,36 +131,36 @@ export const FileDisplay = ({
             <div className="truncate text-sm flex-1">
               {file.filename || file.id}
             </div>
-            <div className="flex gap-1 flex-shrink-0">
+          </div>
+          <div className="flex gap-2 w-full justify-end mt-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleDownload(file.id, file.filename)}
+              disabled={downloading === file.id}
+              className="h-8 w-8"
+            >
+              {downloading === file.id ? (
+                <span className="animate-spin">...</span>
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+            </Button>
+            {allowDelete && onFileDeleted && (
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => handleDownload(file.id, file.filename)}
-                disabled={downloading === file.id}
+                onClick={() => handleDelete(file.id)}
+                disabled={deleting === file.id}
                 className="h-8 w-8"
               >
-                {downloading === file.id ? (
+                {deleting === file.id ? (
                   <span className="animate-spin">...</span>
                 ) : (
-                  <Download className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4 text-destructive" />
                 )}
               </Button>
-              {allowDelete && onFileDeleted && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleDelete(file.id)}
-                  disabled={deleting === file.id}
-                  className="h-8 w-8"
-                >
-                  {deleting === file.id ? (
-                    <span className="animate-spin">...</span>
-                  ) : (
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  )}
-                </Button>
-              )}
-            </div>
+            )}
           </div>
         </Card>
       ))}

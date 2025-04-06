@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -84,25 +83,33 @@ export const useBookingRequests = () => {
       console.log('Fetched booking details:', booking);
       
       // Check for time slot conflicts before approving
+      const startISO = new Date(booking.start_date).toISOString();
+      const endISO = new Date(booking.end_date).toISOString();
+      
+      console.log("Checking for conflicts with time slot:", { start: startISO, end: endISO });
+      
+      // Check for conflicts with events
       const { data: conflictingEvents, error: eventsError } = await supabase
-        .from('events')
-        .select('id, title')
-        .lt('start_date', booking.end_date)
-        .gt('end_date', booking.start_date)
-        .is('deleted_at', null);
+        .from("events")
+        .select("id, title")
+        .is("deleted_at", null)
+        // Proper overlap check: Event starts before new event ends AND event ends after new event starts
+        .lt("start_date", endISO)
+        .gt("end_date", startISO);
       
       if (eventsError) {
         console.error('Error checking for conflicting events:', eventsError);
         throw eventsError;
       }
       
+      // Check for conflicts with other approved bookings
       const { data: conflictingBookings, error: bookingsError } = await supabase
         .from('booking_requests')
         .select('id, title')
         .eq('status', 'approved')
         .not('id', 'eq', bookingId)
-        .lt('start_date', booking.end_date)
-        .gt('end_date', booking.start_date);
+        .lt('start_date', endISO)
+        .gt('end_date', startISO);
       
       if (bookingsError) {
         console.error('Error checking for conflicting bookings:', bookingsError);
@@ -151,11 +158,11 @@ export const useBookingRequests = () => {
         
         // Create an event record from the booking request
         const eventToInsert = {
-          title: booking.title || booking.requester_name,
+          title: booking.requester_name || booking.title, // Prioritize requester_name
           user_surname: booking.requester_name,
-          user_number: booking.requester_phone || booking.user_number,
-          social_network_link: booking.requester_email || booking.social_network_link,
-          event_notes: booking.description || booking.event_notes,
+          user_number: booking.requester_phone || "",
+          social_network_link: booking.requester_email || "",
+          event_notes: booking.description || "",
           start_date: booking.start_date,
           end_date: booking.end_date,
           type: 'booking_request',
@@ -190,7 +197,7 @@ export const useBookingRequests = () => {
                 .insert({
                   title: booking.requester_name,
                   user_surname: booking.requester_name,
-                  user_number: booking.requester_phone || booking.user_number,
+                  user_number: booking.requester_phone || "",
                   social_network_link: booking.requester_email,
                   event_notes: booking.description,
                   start_date: booking.start_date,

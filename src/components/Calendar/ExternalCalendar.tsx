@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -82,7 +81,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           })),
           ...(approvedBookings || []).map(booking => ({
             id: booking.id,
-            title: booking.title || 'Booking',
+            title: booking.requester_name || 'Booking',
             start_date: booking.start_date,
             end_date: booking.end_date,
             type: 'booking_request',
@@ -94,6 +93,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             event_notes: booking.description || '',
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
+            status: booking.status || 'approved'
           }))
         ];
         
