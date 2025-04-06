@@ -20,5 +20,5 @@ export interface CalendarEventType {
   requester_phone?: string;
   description?: string;
   booking_request_id?: string;
-  status?: 'pending' | 'approved' | 'rejected' | string; // Added missing status property
+  status?: 'pending' | 'approved' | 'rejected' | string; // Added the status property
 }
