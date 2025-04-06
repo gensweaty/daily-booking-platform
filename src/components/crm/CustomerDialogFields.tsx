@@ -227,7 +227,7 @@ export const CustomerDialogFields = ({
       {/* Display existing files */}
       {customerFiles && customerFiles.length > 0 && (
         <Card className="p-4 mt-4">
-          <Label className="mb-2 block">{t("crm.attachedFiles")}</Label>
+          <Label className="mb-2 block">{t("crm.attachedFiles") || "Attached Files"}</Label>
           <FileDisplay
             files={customerFiles.map(file => ({
               id: file.file_path,

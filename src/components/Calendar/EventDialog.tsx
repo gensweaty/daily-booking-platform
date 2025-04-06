@@ -1,4 +1,3 @@
-
 // Import necessary components and functions
 import { useState, useEffect } from "react";
 import {
@@ -317,60 +316,57 @@ export const EventDialog = ({
 
   const handleFileDeleted = async (fileId: string) => {
     try {
-      // First check if this is a booking file (for booking requests)
-      if (event?.booking_request_id) {
-        console.log("Checking if file belongs to booking:", fileId);
-        // Try to find and delete from booking_files
-        const { data: bookingFile, error: findError } = await supabase
+      // First determine if this is a booking file or event file
+      const isBookingFile = fileId.includes('/') && event?.booking_request_id;
+      
+      if (isBookingFile) {
+        console.log("Handling deletion of booking file:", fileId);
+        
+        // Delete the record from booking_files
+        const { error: fileRecordError } = await supabase
           .from("booking_files")
-          .select("*")
-          .eq("file_path", fileId)
-          .maybeSingle();
+          .delete()
+          .eq("file_path", fileId);
           
-        if (findError) {
-          console.error("Error finding booking file:", findError);
+        if (fileRecordError) {
+          console.error("Error deleting booking file record:", fileRecordError);
+          throw fileRecordError;
         }
         
-        if (bookingFile) {
-          console.log("Found booking file, deleting it:", bookingFile);
-          const { error: bookingFileError } = await supabase
-            .from("booking_files")
-            .delete()
-            .eq("file_path", fileId);
-            
-          if (!bookingFileError) {
-            console.log("Successfully deleted from booking_files");
-            // Also delete from storage
-            await supabase.storage
-              .from("booking_attachments")
-              .remove([fileId]);
-              
-            // Successfully deleted from booking_files
-            refetchFiles();
-            return;
-          } else {
-            console.error("Error deleting booking file:", bookingFileError);
-          }
+        // Delete the file from storage
+        const { error: storageError } = await supabase.storage
+          .from("booking_attachments")
+          .remove([fileId]);
+          
+        if (storageError) {
+          console.error("Error deleting booking file from storage:", storageError);
+          throw storageError;
+        }
+      } else {
+        console.log("Handling deletion of event file:", fileId);
+        
+        // Delete the record from event_files
+        const { error: fileRecordError } = await supabase
+          .from("event_files")
+          .delete()
+          .eq("file_path", fileId);
+          
+        if (fileRecordError) {
+          console.error("Error deleting event file record:", fileRecordError);
+          throw fileRecordError;
+        }
+        
+        // Delete the file from storage
+        const { error: storageError } = await supabase.storage
+          .from("event_attachments")
+          .remove([fileId]);
+          
+        if (storageError) {
+          console.error("Error deleting event file from storage:", storageError);
+          throw storageError;
         }
       }
       
-      // Regular event file
-      console.log("Deleting event file:", fileId);
-      const { error } = await supabase
-        .from("event_files")
-        .delete()
-        .eq("file_path", fileId);
-        
-      if (error) {
-        console.error("Error deleting file record:", error);
-        throw error;
-      }
-      
-      // Also delete from storage
-      await supabase.storage
-        .from("event_attachments")
-        .remove([fileId]);
-        
       // Refresh files list
       refetchFiles();
       

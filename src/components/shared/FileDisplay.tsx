@@ -34,9 +34,12 @@ export const FileDisplay = ({
     console.log(`Creating signed URL for file: ${fileId} in bucket: ${bucketName}`);
     
     try {
+      // Some file paths might include folder structure with slashes - handle both cases
+      const filePath = fileId.includes('/') ? fileId : fileId;
+      
       const { data, error } = await supabase.storage
         .from(bucketName)
-        .createSignedUrl(fileId, 3600); // 1 hour expiry
+        .createSignedUrl(filePath, 3600); // 1 hour expiry
       
       if (error) {
         console.error("Error creating signed URL:", error);
@@ -98,7 +101,10 @@ export const FileDisplay = ({
       setIsDeleting(fileId);
       console.log("Deleting file:", fileId, "from bucket:", bucketName);
       
-      const { error } = await supabase.storage.from(bucketName).remove([fileId]);
+      // Some file paths include folder structure - handle this
+      const filePath = fileId.includes('/') ? fileId : fileId;
+      
+      const { error } = await supabase.storage.from(bucketName).remove([filePath]);
 
       if (error) {
         console.error("Delete error:", error);
@@ -146,12 +152,13 @@ export const FileDisplay = ({
     return contentType?.startsWith('image/');
   };
 
-  const loadImageSrc = async (fileId: string) => {
+  const getPreviewUrl = async (fileId: string) => {
     try {
+      // For consistency, always use signed URLs for image previews
       return await getSignedUrl(fileId);
     } catch (error) {
-      console.error("Failed to get image URL:", error);
-      return '/placeholder.svg';
+      console.error("Failed to get image preview URL:", error);
+      return null;
     }
   };
 
@@ -163,21 +170,26 @@ export const FileDisplay = ({
           className="flex flex-col items-center"
         >
           <div 
-            className="relative w-24 h-24 rounded-md overflow-hidden border border-muted mb-1 cursor-pointer"
+            className="relative w-24 h-24 rounded-md overflow-hidden border border-muted mb-1 cursor-pointer group"
             onClick={() => openFileInNewTab(file.id)}
           >
             {isImageFile(file.content_type) ? (
               <img 
-                src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${bucketName}/${file.id}`}
+                src="/placeholder.svg"
+                data-file-id={file.id}
                 alt={file.filename}
                 className="w-full h-full object-cover"
-                onError={async (e) => {
-                  console.log("Image failed to load, trying signed URL for:", file.id);
+                onLoad={async (e) => {
                   try {
-                    const signedUrl = await loadImageSrc(file.id);
-                    (e.currentTarget as HTMLImageElement).src = signedUrl;
+                    const fileId = (e.currentTarget as HTMLImageElement).getAttribute('data-file-id');
+                    if (fileId) {
+                      const url = await getPreviewUrl(fileId);
+                      if (url) {
+                        (e.currentTarget as HTMLImageElement).src = url;
+                      }
+                    }
                   } catch (error) {
-                    (e.currentTarget as HTMLImageElement).src = '/placeholder.svg';
+                    console.error("Error loading preview:", error);
                   }
                 }}
               />
@@ -186,6 +198,9 @@ export const FileDisplay = ({
                 <FileIcon className="h-8 w-8 opacity-70" />
               </div>
             )}
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+              <ExternalLink className="h-6 w-6 text-white" />
+            </div>
           </div>
           
           <div className="text-xs truncate max-w-[96px] text-center mb-1">{file.filename}</div>
