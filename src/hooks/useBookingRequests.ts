@@ -1,14 +1,16 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "@/components/ui/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { BookingRequest } from "@/types/database";
 
 export const useBookingRequests = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const { toast } = useToast();
   
   // Fetch the business profile for the current user
   useEffect(() => {
@@ -85,8 +87,9 @@ export const useBookingRequests = () => {
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('id, title')
-        .filter('start_date', 'lt', booking.end_date)
-        .filter('end_date', 'gt', booking.start_date);
+        .lt('start_date', booking.end_date)
+        .gt('end_date', booking.start_date)
+        .is('deleted_at', null);
       
       if (eventsError) {
         console.error('Error checking for conflicting events:', eventsError);
@@ -98,8 +101,8 @@ export const useBookingRequests = () => {
         .select('id, title')
         .eq('status', 'approved')
         .not('id', 'eq', bookingId)
-        .filter('start_date', 'lt', booking.end_date)
-        .filter('end_date', 'gt', booking.start_date);
+        .lt('start_date', booking.end_date)
+        .gt('end_date', booking.start_date);
       
       if (bookingsError) {
         console.error('Error checking for conflicting bookings:', bookingsError);
@@ -160,7 +163,8 @@ export const useBookingRequests = () => {
           payment_status: booking.payment_status,
           payment_amount: booking.payment_amount,
           user_id: user?.id,
-          booking_request_id: bookingId // Critical: Store reference to original booking
+          booking_request_id: bookingId, // Critical: Store reference to original booking
+          status: 'approved'
         };
         
         console.log('Event data to insert:', eventToInsert);
