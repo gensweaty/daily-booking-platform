@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -90,7 +91,8 @@ export const useEventDialog = ({
           end_date: bookingConflict.end_date,
           created_at: bookingConflict.created_at || new Date().toISOString(),
           user_id: bookingConflict.user_id || '',
-          type: 'booking_request'
+          type: 'booking_request',
+          status: bookingConflict.status // Make sure to pass the status
         };
         
         return { available: false, conflictingEvent: conflictEvent };
