@@ -1,3 +1,4 @@
+
 // This file is being created/modified to fix the time slot conflict issue
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -36,22 +37,25 @@ export const useCalendarEvents = () => {
     enabled: !!user,
   });
 
-  // Fixed function to check time slot availability - now properly excludes the current event
+  // Improved function to check time slot availability with proper conflict detection
   const checkTimeSlotAvailability = async (
     startDateTime: string,
     endDateTime: string,
     eventId?: string
-  ): Promise<boolean> => {
+  ): Promise<{ available: boolean; conflictingEvent?: any }> => {
     try {
+      const startISO = new Date(startDateTime).toISOString();
+      const endISO = new Date(endDateTime).toISOString();
+      
       console.log("Checking time slot availability:", { 
         startDateTime, 
         endDateTime, 
         eventId,
-        start: new Date(startDateTime).toISOString(),
-        end: new Date(endDateTime).toISOString()
+        start: startISO,
+        end: endISO
       });
       
-      // Skip check for approved booking events
+      // If we're editing an approved booking event, skip the conflict check
       if (eventId) {
         // Check if this is an approved booking event
         const { data: eventData, error: eventError } = await supabase
@@ -62,65 +66,77 @@ export const useCalendarEvents = () => {
           
         if (!eventError && eventData && eventData.type === 'booking_request' && eventData.status === 'approved') {
           console.log("Skipping conflict check for approved booking event:", eventId);
-          return true;
+          return { available: true };
         }
       }
       
-      // Build the query with explicit exclusion of the current event
-      let query = supabase
+      // Query for events that would overlap with the requested time slot
+      let eventQuery = supabase
         .from("events")
         .select("*")
-        .is("deleted_at", null);
-      
-      // We need to add the time filter using .or() to check for overlaps
-      query = query.or(`start_date.lt.${new Date(endDateTime).toISOString()},end_date.gt.${new Date(startDateTime).toISOString()}`);
+        .is("deleted_at", null)
+        // Proper overlap check: Event starts before new event ends AND event ends after new event starts
+        .lt("start_date", endISO)
+        .gt("end_date", startISO);
       
       // If we're updating an existing event, exclude it from the conflict check
       if (eventId) {
-        query = query.neq("id", eventId);
+        eventQuery = eventQuery.neq("id", eventId);
       }
       
-      // Execute the query
-      const { data: existingEvents, error } = await query;
-
-      if (error) {
-        console.error("Error checking time slot availability:", error);
-        return false;
+      const { data: conflictingEvents, error: eventsError } = await eventQuery;
+      
+      if (eventsError) {
+        console.error("Error checking events for conflicts:", eventsError);
+        return { available: false };
       }
-
-      console.log(`Found ${existingEvents?.length || 0} potential conflicts`);
       
-      // If there are no events at all or no events in the timeframe, the slot is available
-      if (!existingEvents || existingEvents.length === 0) return true;
+      if (conflictingEvents && conflictingEvents.length > 0) {
+        console.log("Conflict found with event:", conflictingEvents[0]);
+        return { available: false, conflictingEvent: conflictingEvents[0] };
+      }
       
-      // Check if any of the events actually conflict with the requested time slot
-      const conflicts = existingEvents.filter(event => {
-        const eventStart = new Date(event.start_date);
-        const eventEnd = new Date(event.end_date);
-        const requiredStart = new Date(startDateTime);
-        const requiredEnd = new Date(endDateTime);
-        
-        // Check for overlap - the standard algorithm
-        const hasOverlap = requiredStart < eventEnd && requiredEnd > eventStart;
-        
-        if (hasOverlap) {
-          console.log("Conflict detected with event:", {
-            id: event.id,
-            title: event.title,
-            start: event.start_date,
-            end: event.end_date,
-            requestedStart: startDateTime,
-            requestedEnd: endDateTime
-          });
+      // Also check approved booking requests for conflicts
+      // We only need to do this if we're not checking an approved booking itself
+      let bookingQuery = supabase
+        .from("booking_requests")
+        .select("*")
+        .eq("status", "approved")
+        .lt("start_date", endISO)
+        .gt("end_date", startISO);
+      
+      // Skip checking against the booking request if we're editing an event that was created from it
+      if (eventId) {
+        // First check if this event has a booking_request_id
+        const { data: eventData, error: eventError } = await supabase
+          .from("events")
+          .select("booking_request_id")
+          .eq("id", eventId)
+          .single();
+          
+        if (!eventError && eventData && eventData.booking_request_id) {
+          console.log("Excluding booking request from conflict check:", eventData.booking_request_id);
+          bookingQuery = bookingQuery.neq("id", eventData.booking_request_id);
         }
-        
-        return hasOverlap;
-      });
+      }
       
-      return conflicts.length === 0;
+      const { data: conflictingBookings, error: bookingsError } = await bookingQuery;
+      
+      if (bookingsError) {
+        console.error("Error checking bookings for conflicts:", bookingsError);
+        return { available: false };
+      }
+      
+      if (conflictingBookings && conflictingBookings.length > 0) {
+        console.log("Conflict found with booking request:", conflictingBookings[0]);
+        return { available: false, conflictingEvent: conflictingBookings[0] };
+      }
+      
+      console.log("Time slot is available - no conflicts found");
+      return { available: true };
     } catch (error) {
       console.error("Error in checkTimeSlotAvailability:", error);
-      return false;
+      return { available: false };
     }
   };
 
@@ -129,17 +145,15 @@ export const useCalendarEvents = () => {
     mutationFn: async (eventData: Partial<CalendarEventType>) => {
       if (!user) throw new Error("User not authenticated");
 
-      // First check time slot availability - but only for new events (no ID)
-      // For updates, this check is done separately in updateEventMutation
-      if (!eventData.id) {
-        const isAvailable = await checkTimeSlotAvailability(
-          eventData.start_date!,
-          eventData.end_date!
-        );
+      // Check time slot availability for new events
+      const { available, conflictingEvent } = await checkTimeSlotAvailability(
+        eventData.start_date!,
+        eventData.end_date!
+      );
 
-        if (!isAvailable) {
-          throw new Error("Time slot is not available");
-        }
+      if (!available) {
+        const conflictTitle = conflictingEvent?.title || 'another event';
+        throw new Error(`Time slot conflicts with "${conflictTitle}"`);
       }
 
       const newEvent = {
@@ -158,7 +172,18 @@ export const useCalendarEvents = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
+      toast({
+        title: "Success",
+        description: "Event created successfully",
+      });
     },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create event",
+        variant: "destructive",
+      });
+    }
   });
 
   // Update an existing event
@@ -167,30 +192,16 @@ export const useCalendarEvents = () => {
       if (!user) throw new Error("User not authenticated");
       if (!eventData.id) throw new Error("Event ID is required");
 
-      // Special handling for approved booking events
-      if (eventData.type === 'booking_request' && eventData.status === 'approved') {
-        console.log("Skipping time slot check for approved booking event");
-        
-        const { data, error } = await supabase
-          .from("events")
-          .update(eventData)
-          .eq("id", eventData.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-        return data;
-      }
-
       // Check time slot availability for the update, excluding the current event
-      const isAvailable = await checkTimeSlotAvailability(
+      const { available, conflictingEvent } = await checkTimeSlotAvailability(
         eventData.start_date!,
         eventData.end_date!,
         eventData.id
       );
 
-      if (!isAvailable) {
-        throw new Error("Time slot is not available");
+      if (!available) {
+        const conflictTitle = conflictingEvent?.title || 'another event';
+        throw new Error(`Time slot conflicts with "${conflictTitle}"`);
       }
 
       const { data, error } = await supabase
@@ -205,7 +216,18 @@ export const useCalendarEvents = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
+      toast({
+        title: "Success",
+        description: "Event updated successfully",
+      });
     },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update event",
+        variant: "destructive",
+      });
+    }
   });
 
   // Submit handler for both create and update
@@ -221,11 +243,7 @@ export const useCalendarEvents = () => {
         return await createEventMutation.mutateAsync(eventData);
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save event",
-        variant: "destructive",
-      });
+      console.error("Error in handleSubmitEvent:", error);
       throw error;
     }
   };
