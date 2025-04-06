@@ -1,3 +1,4 @@
+
 // Import necessary components and functions
 import { useState, useEffect } from "react";
 import {
@@ -67,7 +68,7 @@ export const EventDialog = ({
     isLoading: isLoadingFiles,
     refetch: refetchFiles,
   } = useQuery({
-    queryKey: ["event-files", event?.id],
+    queryKey: ["event-files", event?.id, event?.booking_request_id],
     queryFn: async () => {
       if (!event?.id) return [];
       
@@ -265,6 +266,7 @@ export const EventDialog = ({
               file_path: filePath,
               content_type: selectedFile.type,
               size: selectedFile.size,
+              user_id: savedEvent.user_id
             });
             
           if (fileRecordError) {

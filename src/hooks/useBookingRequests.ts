@@ -149,7 +149,7 @@ export const useBookingRequests = () => {
         console.log('Creating event from booking request:', booking);
         
         // Create an event record from the booking request
-        const eventData = {
+        const eventToInsert = {
           title: booking.title || booking.requester_name,
           user_surname: booking.requester_name,
           user_number: booking.requester_phone || booking.user_number,
@@ -164,11 +164,11 @@ export const useBookingRequests = () => {
           booking_request_id: bookingId // Critical: Store reference to original booking
         };
         
-        console.log('Event data to insert:', eventData);
+        console.log('Event data to insert:', eventToInsert);
         
-        const { data: eventData, error: eventError } = await supabase
+        const { data: createdEventData, error: eventError } = await supabase
           .from('events')
-          .insert(eventData)
+          .insert(eventToInsert)
           .select()
           .single();
         
@@ -182,7 +182,7 @@ export const useBookingRequests = () => {
           throw new Error('Failed to create event from booking');
         }
         
-        console.log('Created event:', eventData);
+        console.log('Created event:', createdEventData);
         
         // Create a customer record from the booking request for CRM
         const { data: customerData, error: customerError } = await supabase
@@ -242,7 +242,7 @@ export const useBookingRequests = () => {
               }
             }
             
-            if (eventData?.id) {
+            if (createdEventData?.id) {
               // Create event file record
               const { error: eventFileError } = await supabase
                 .from('event_files')
@@ -252,7 +252,7 @@ export const useBookingRequests = () => {
                   content_type: file.content_type,
                   size: file.size,
                   user_id: user?.id,
-                  event_id: eventData.id
+                  event_id: createdEventData.id
                 });
                 
               if (eventFileError) {
@@ -261,11 +261,12 @@ export const useBookingRequests = () => {
             }
           }
         }
+        
+        return { booking, event: createdEventData };
       } else {
         console.log('Event already exists for this booking, not creating a new one');
+        return { booking, event: existingEvents[0] };
       }
-      
-      return { booking };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });

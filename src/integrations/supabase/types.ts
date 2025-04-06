@@ -399,6 +399,7 @@ export type Database = {
       }
       events: {
         Row: {
+          booking_request_id: string | null
           created_at: string | null
           deleted_at: string | null
           end_date: string
@@ -415,6 +416,7 @@ export type Database = {
           user_surname: string | null
         }
         Insert: {
+          booking_request_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           end_date: string
@@ -431,6 +433,7 @@ export type Database = {
           user_surname?: string | null
         }
         Update: {
+          booking_request_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           end_date?: string
@@ -757,6 +760,7 @@ export type Database = {
           user_id_param: string
         }
         Returns: {
+          booking_request_id: string | null
           created_at: string | null
           deleted_at: string | null
           end_date: string

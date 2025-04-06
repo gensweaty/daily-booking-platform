@@ -30,27 +30,39 @@ export const FileDisplay = ({
     return <p className="text-sm text-muted-foreground italic">No files attached</p>;
   }
 
+  const getSignedUrl = async (fileId: string) => {
+    console.log(`Creating signed URL for file: ${fileId} in bucket: ${bucketName}`);
+    
+    try {
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .createSignedUrl(fileId, 3600); // 1 hour expiry
+      
+      if (error) {
+        console.error("Error creating signed URL:", error);
+        throw error;
+      }
+      
+      if (!data?.signedUrl) {
+        throw new Error("Could not create URL");
+      }
+      
+      return data.signedUrl;
+    } catch (error) {
+      console.error("Error in getSignedUrl:", error);
+      throw error;
+    }
+  };
+
   const handleDownload = async (fileId: string, filename: string) => {
     try {
       setIsDownloading(fileId);
       console.log("Downloading file:", fileId, "from bucket:", bucketName);
       
-      // Create a signed URL first to ensure access
-      const { data: urlData, error: urlError } = await supabase.storage
-        .from(bucketName)
-        .createSignedUrl(fileId, 3600); // 1 hour expiry
-        
-      if (urlError) {
-        console.error("Error creating signed URL:", urlError);
-        throw urlError;
-      }
-      
-      if (!urlData?.signedUrl) {
-        throw new Error("Could not create download URL");
-      }
+      const signedUrl = await getSignedUrl(fileId);
       
       // Use the signed URL to fetch the file
-      const response = await fetch(urlData.signedUrl);
+      const response = await fetch(signedUrl);
       if (!response.ok) {
         throw new Error(`Failed to download: ${response.statusText}`);
       }
@@ -118,21 +130,8 @@ export const FileDisplay = ({
     try {
       console.log("Opening file in new tab:", fileId, "from bucket:", bucketName);
       
-      const { data: urlData, error } = await supabase.storage
-        .from(bucketName)
-        .createSignedUrl(fileId, 3600); // 1 hour expiry
-
-      if (error) {
-        console.error("Error creating signed URL:", error);
-        throw error;
-      }
-
-      if (urlData?.signedUrl) {
-        window.open(urlData.signedUrl, '_blank');
-      } else {
-        console.error("No signed URL returned");
-        throw new Error("Could not create file URL");
-      }
+      const signedUrl = await getSignedUrl(fileId);
+      window.open(signedUrl, '_blank');
     } catch (error: any) {
       console.error("Full error opening file:", error);
       toast({
@@ -145,6 +144,15 @@ export const FileDisplay = ({
 
   const isImageFile = (contentType?: string) => {
     return contentType?.startsWith('image/');
+  };
+
+  const loadImageSrc = async (fileId: string) => {
+    try {
+      return await getSignedUrl(fileId);
+    } catch (error) {
+      console.error("Failed to get image URL:", error);
+      return '/placeholder.svg';
+    }
   };
 
   return (
@@ -163,27 +171,14 @@ export const FileDisplay = ({
                 src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${bucketName}/${file.id}`}
                 alt={file.filename}
                 className="w-full h-full object-cover"
-                onError={(e) => {
-                  console.error("Image load error for:", file.id);
-                  // Try with a signed URL instead
-                  const getSignedUrl = async () => {
-                    try {
-                      const { data, error } = await supabase.storage
-                        .from(bucketName)
-                        .createSignedUrl(file.id, 60);
-                        
-                      if (error) throw error;
-                      if (data?.signedUrl) {
-                        (e.currentTarget as HTMLImageElement).src = data.signedUrl;
-                      } else {
-                        (e.currentTarget as HTMLImageElement).src = '/placeholder.svg';
-                      }
-                    } catch (error) {
-                      console.error("Failed to get signed URL:", error);
-                      (e.currentTarget as HTMLImageElement).src = '/placeholder.svg';
-                    }
-                  };
-                  getSignedUrl();
+                onError={async (e) => {
+                  console.log("Image failed to load, trying signed URL for:", file.id);
+                  try {
+                    const signedUrl = await loadImageSrc(file.id);
+                    (e.currentTarget as HTMLImageElement).src = signedUrl;
+                  } catch (error) {
+                    (e.currentTarget as HTMLImageElement).src = '/placeholder.svg';
+                  }
                 }}
               />
             ) : (
