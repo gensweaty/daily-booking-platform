@@ -55,7 +55,6 @@ export const BookingRequestForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Event dialog fields state
-  const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
   const [userNumber, setUserNumber] = useState("");
   const [socialNetworkLink, setSocialNetworkLink] = useState("");
@@ -121,7 +120,7 @@ export const BookingRequestForm = ({
       
       // Print debug information to help diagnose the issue
       console.log("Submitting booking request with data:", {
-        title,
+        title: userSurname, // Use customer name as the title
         requester_name: userSurname,
         requester_email: socialNetworkLink,
         requester_phone: userNumber,
@@ -134,7 +133,7 @@ export const BookingRequestForm = ({
       });
       
       await createBookingRequest({
-        title: title,
+        title: userSurname, // Use customer name as the title
         requester_name: userSurname,
         requester_email: socialNetworkLink,
         requester_phone: userNumber || "",
@@ -172,8 +171,6 @@ export const BookingRequestForm = ({
       </DialogHeader>
       <form onSubmit={onSubmit} className="space-y-4 mt-4">
         <EventDialogFields
-          title={title}
-          setTitle={setTitle}
           userSurname={userSurname}
           setUserSurname={setUserSurname}
           userNumber={userNumber}
@@ -204,13 +201,13 @@ export const BookingRequestForm = ({
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
           >
-            {t("common.cancel")}
+            Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("common.submitting")}
+                Submitting...
               </>
             ) : (
               "Submit Request"
