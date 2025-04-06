@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -166,7 +165,7 @@ export const useBookingRequests = () => {
         
         console.log('Event data to insert:', eventToInsert);
         
-        const { data: createdEventData, error: eventError } = await supabase
+        const { data: createdEvent, error: eventError } = await supabase
           .from('events')
           .insert(eventToInsert)
           .select()
@@ -182,7 +181,7 @@ export const useBookingRequests = () => {
           throw new Error('Failed to create event from booking');
         }
         
-        console.log('Created event:', createdEventData);
+        console.log('Created event:', createdEvent);
         
         // Create a customer record from the booking request for CRM
         const { data: customerData, error: customerError } = await supabase
@@ -242,7 +241,7 @@ export const useBookingRequests = () => {
               }
             }
             
-            if (createdEventData?.id) {
+            if (createdEvent?.id) {
               // Create event file record
               const { error: eventFileError } = await supabase
                 .from('event_files')
@@ -252,7 +251,7 @@ export const useBookingRequests = () => {
                   content_type: file.content_type,
                   size: file.size,
                   user_id: user?.id,
-                  event_id: createdEventData.id
+                  event_id: createdEvent.id
                 });
                 
               if (eventFileError) {
@@ -262,7 +261,7 @@ export const useBookingRequests = () => {
           }
         }
         
-        return { booking, event: createdEventData };
+        return { booking, event: createdEvent };
       } else {
         console.log('Event already exists for this booking, not creating a new one');
         return { booking, event: existingEvents[0] };
