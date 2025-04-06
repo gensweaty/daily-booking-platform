@@ -55,7 +55,8 @@ export const BookingRequestForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Event dialog fields state
-  const [userSurname, setUserSurname] = useState("");
+  const [title, setTitle] = useState("");
+  const [surname, setSurname] = useState("");
   const [userNumber, setUserNumber] = useState("");
   const [socialNetworkLink, setSocialNetworkLink] = useState("");
   const [eventNotes, setEventNotes] = useState("");
@@ -120,8 +121,8 @@ export const BookingRequestForm = ({
       
       // Print debug information to help diagnose the issue
       console.log("Submitting booking request with data:", {
-        title: userSurname, // Use customer name as the title
-        requester_name: userSurname,
+        title: surname, // Use customer name as the title
+        requester_name: surname,
         requester_email: socialNetworkLink,
         requester_phone: userNumber,
         description: eventNotes,
@@ -133,8 +134,8 @@ export const BookingRequestForm = ({
       });
       
       await createBookingRequest({
-        title: userSurname, // Use customer name as the title
-        requester_name: userSurname,
+        title: surname, // Use customer name as the title
+        requester_name: surname,
         requester_email: socialNetworkLink,
         requester_phone: userNumber || "",
         description: eventNotes || "",
@@ -171,8 +172,10 @@ export const BookingRequestForm = ({
       </DialogHeader>
       <form onSubmit={onSubmit} className="space-y-4 mt-4">
         <EventDialogFields
-          userSurname={userSurname}
-          setUserSurname={setUserSurname}
+          title={title}
+          setTitle={setTitle}
+          surname={surname}
+          setSurname={setSurname}
           userNumber={userNumber}
           setUserNumber={setUserNumber}
           socialNetworkLink={socialNetworkLink}
