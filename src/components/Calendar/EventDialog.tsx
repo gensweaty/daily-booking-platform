@@ -1,3 +1,4 @@
+
 // Import necessary components and functions
 import { useState, useEffect } from "react";
 import {
@@ -446,14 +447,6 @@ export const EventDialog = ({
       return 'Update';
     }
     return 'Create';
-  };
-
-  // Get dialog title based on state
-  const getDialogTitle = () => {
-    if (event) {
-      return 'Edit Event';
-    }
-    return 'Add Event';
   };
 
   console.log("EventDialog - Files to display:", eventFiles);

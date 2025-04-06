@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -93,7 +94,16 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           console.error('Error fetching customer files:', filesError);
         } else {
           console.log('Fetched customer files:', filesData);
-          setCustomerFiles(filesData || []);
+          
+          // Transform the data to match the format expected by FileDisplay
+          const transformedFiles = filesData?.map(file => ({
+            id: file.file_path,
+            filename: file.filename,
+            content_type: file.content_type,
+            source: 'customer_attachments'
+          })) || [];
+          
+          setCustomerFiles(transformedFiles);
         }
 
         // If customer has dates, try to find associated event
@@ -138,26 +148,58 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     const start = new Date(startDate);
     const end = new Date(endDate);
     
-    const { data: existingEvents, error } = await supabase
+    console.log("Checking time slot availability:", { 
+      startDate, 
+      endDate, 
+      excludeEventId,
+      start: start.toISOString(),
+      end: end.toISOString()
+    });
+    
+    // Build the query with explicit exclusion of the current event
+    let query = supabase
       .from('events')
       .select('*')
-      .or(`start_date.lte.${end.toISOString()},end_date.gte.${start.toISOString()}`);
+      .filter('deleted_at', 'is', null)
+      .or(`start_date.lt.${end.toISOString()},end_date.gt.${start.toISOString()}`);
+    
+    // If we're updating an existing event, exclude it from the conflict check
+    if (excludeEventId) {
+      query = query.neq('id', excludeEventId);
+    }
+    
+    // Execute the query
+    const { data: existingEvents, error } = await query;
 
     if (error) {
       console.error('Error checking time slot availability:', error);
       return false;
     }
 
-    if (!existingEvents) return true;
+    console.log(`Found ${existingEvents?.length || 0} potential conflicts`);
+    
+    if (!existingEvents || existingEvents.length === 0) return true;
 
-    return !existingEvents.some(event => {
-      if (excludeEventId && event.id === excludeEventId) return false;
-      
+    // Check each event for actual overlap
+    const conflicts = existingEvents.filter(event => {
       const eventStart = parseISO(event.start_date);
       const eventEnd = parseISO(event.end_date);
       
-      return (start < eventEnd && end > eventStart);
+      const hasOverlap = start < eventEnd && end > eventStart;
+      
+      if (hasOverlap) {
+        console.log("Conflict detected with event:", {
+          id: event.id,
+          title: event.title,
+          start: event.start_date,
+          end: event.end_date
+        });
+      }
+      
+      return hasOverlap;
     });
+    
+    return conflicts.length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -209,6 +251,8 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         end_date: formattedEndDate,
       };
 
+      let customerId_local = customerId;
+
       if (customerId) {
         // Update customer
         const { error: customerError } = await supabase
@@ -256,7 +300,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
 
         // Set customerId for file upload
         if (newCustomer) {
-          customerId = newCustomer.id;
+          customerId_local = newCustomer.id;
         }
 
         // Create new event if needed
@@ -277,7 +321,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       }
 
       // Handle file upload if a file is selected - improved with better error handling
-      if (selectedFile && customerId) {
+      if (selectedFile && customerId_local) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
@@ -305,7 +349,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           content_type: selectedFile.type,
           size: selectedFile.size,
           user_id: user.id,
-          customer_id: customerId
+          customer_id: customerId_local
         };
 
         console.log('Creating file record in database:', fileData);
@@ -347,7 +391,20 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     try {
       console.log('Deleting file:', fileId);
       
-      // Delete the file from storage
+      // Delete the file record from the database first
+      const { error: dbError } = await supabase
+        .from('customer_files_new')
+        .delete()
+        .eq('file_path', fileId);
+
+      if (dbError) {
+        console.error('Error deleting file record:', dbError, fileId);
+        throw dbError;
+      }
+      
+      console.log('File record deleted from database');
+      
+      // Delete the file from storage next
       const { data: deleteData, error: storageError } = await supabase.storage
         .from('customer_attachments')
         .remove([fileId]);
@@ -359,21 +416,8 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       
       console.log('File deleted from storage:', deleteData);
 
-      // Delete the file record from the database
-      const { error: dbError } = await supabase
-        .from('customer_files_new')
-        .delete()
-        .eq('file_path', fileId);
-
-      if (dbError) {
-        console.error('Error deleting file record:', dbError);
-        throw dbError;
-      }
-      
-      console.log('File record deleted from database');
-
       // Update the local state
-      setCustomerFiles(prev => prev.filter(file => file.file_path !== fileId));
+      setCustomerFiles(prev => prev.filter(file => file.id !== fileId));
 
       toast({
         title: "Success",
