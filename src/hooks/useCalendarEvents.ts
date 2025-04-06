@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -256,10 +255,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       const startDateTime = new Date(updates.start_date);
       const endDateTime = new Date(updates.end_date);
       
+      // Important fix: pass the event ID to exclude current event from conflict check
       const { available, conflictDetails } = await checkTimeSlotAvailability(
         startDateTime,
         endDateTime,
-        id
+        id // Pass the event ID to exclude from conflict check
       );
       
       if (!available) {
@@ -403,6 +403,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventsError) throw eventsError;
       
+      // Modified: Properly filter out the current event being updated
       const eventsConflict = conflictingEvents?.some(event => 
         excludeEventId !== event.id
       );

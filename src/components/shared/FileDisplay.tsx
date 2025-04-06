@@ -32,15 +32,15 @@ export const FileDisplay = ({
   }
 
   const getSignedUrl = async (fileId: string) => {
-    console.log(`Creating signed URL for file: ${fileId} in bucket: ${bucketName}`);
-    
     try {
+      console.log(`Creating signed URL for file: ${fileId} in bucket: ${bucketName}`);
+      
       // Ensure the file path is correctly formatted
       const filePath = fileId;
       
-      // Debug the file path before creating the signed URL
       console.log("Getting signed URL for filePath:", filePath);
       
+      // Create a signed URL using the storage API
       const { data, error } = await supabase.storage
         .from(bucketName)
         .createSignedUrl(filePath, 3600); // 1 hour expiry
@@ -54,7 +54,7 @@ export const FileDisplay = ({
         throw new Error("Could not create URL");
       }
       
-      console.log("Successfully created signed URL");
+      console.log("Successfully created signed URL:", data.signedUrl);
       return data.signedUrl;
     } catch (error) {
       console.error("Error in getSignedUrl:", error);
@@ -109,6 +109,7 @@ export const FileDisplay = ({
       // Some file paths include folder structure - use as is
       const filePath = fileId;
       
+      // Delete from storage
       const { error } = await supabase.storage.from(bucketName).remove([filePath]);
 
       if (error) {
@@ -116,7 +117,7 @@ export const FileDisplay = ({
         throw error;
       }
 
-      // Call the onFileDeleted callback
+      // Call the onFileDeleted callback with the fileId
       if (onFileDeleted) {
         onFileDeleted(fileId);
       }
