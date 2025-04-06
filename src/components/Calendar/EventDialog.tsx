@@ -1,5 +1,3 @@
-
-// Modify EventDialog.tsx to display files attached to the event
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -48,10 +46,10 @@ export const EventDialog = ({
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [eventFiles, setEventFiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [fileError, setFileError] = useState("");
 
   const { toast } = useToast();
 
-  // Initialize form with event data or default values
   useEffect(() => {
     if (event) {
       setTitle(event.title || "");
@@ -74,10 +72,8 @@ export const EventDialog = ({
         event.payment_amount ? event.payment_amount.toString() : ""
       );
       
-      // Fetch event files
       fetchEventFiles(event.id);
     } else if (selectedDate) {
-      // Set default values for new event
       const defaultStartDate = new Date(selectedDate);
       defaultStartDate.setHours(defaultStartDate.getHours(), 0, 0, 0);
       
@@ -100,7 +96,6 @@ export const EventDialog = ({
   const fetchEventFiles = async (eventId: string) => {
     setIsLoading(true);
     try {
-      // First check if this is a booking request event
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('booking_request_id')
@@ -110,7 +105,6 @@ export const EventDialog = ({
       if (eventError) {
         console.error('Error fetching event data:', eventError);
       } else if (eventData?.booking_request_id) {
-        // It's a booking request event, check booking_files
         const bookingId = eventData.booking_request_id;
         console.log('Fetching files for booking ID:', bookingId);
         
@@ -134,7 +128,6 @@ export const EventDialog = ({
         }
       }
       
-      // If not a booking event or no booking files found, check event_files
       console.log('Fetching files for event ID:', eventId);
       const { data: files, error: filesError } = await supabase
         .from('event_files')
@@ -185,12 +178,10 @@ export const EventDialog = ({
 
       const result = await onSubmit(eventData);
 
-      // Handle file upload if a file is selected and we have an event ID
       if (selectedFile && result?.id) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
-        // Upload file to storage
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('event_attachments')
           .upload(filePath, selectedFile);
@@ -203,7 +194,6 @@ export const EventDialog = ({
             variant: "destructive",
           });
         } else {
-          // Create file record in database
           const fileData = {
             filename: selectedFile.name,
             file_path: filePath,
@@ -263,7 +253,6 @@ export const EventDialog = ({
     try {
       console.log('Deleting file:', fileId);
       
-      // Delete the file record from the database first
       const { error: dbError } = await supabase
         .from('event_files')
         .delete()
@@ -276,7 +265,6 @@ export const EventDialog = ({
       
       console.log('File record deleted from database');
       
-      // Delete the file from storage next
       const { data: deleteData, error: storageError } = await supabase.storage
         .from('event_attachments')
         .remove([fileId]);
@@ -288,7 +276,6 @@ export const EventDialog = ({
       
       console.log('File deleted from storage:', deleteData);
 
-      // Update the local state
       setEventFiles(prev => prev.filter(file => file.id !== fileId));
 
       toast({
@@ -345,24 +332,12 @@ export const EventDialog = ({
             setPaymentAmount={setPaymentAmount}
             selectedFile={selectedFile}
             setSelectedFile={setSelectedFile}
+            fileError={fileError}
+            setFileError={setFileError}
+            displayedFiles={eventFiles}
+            onFileDeleted={handleFileDeleted}
           />
           
-          {/* Display attached files */}
-          {eventFiles.length > 0 && (
-            <div className="mb-4">
-              <Card className="p-4">
-                <Label className="mb-2 block">Attached Files</Label>
-                <FileDisplay 
-                  files={eventFiles} 
-                  bucketName={eventFiles[0].source === 'booking_attachments' ? 'booking_attachments' : 'event_attachments'}
-                  source={eventFiles[0].source}
-                  allowDelete={eventFiles[0].source === 'event_attachments'}
-                  onFileDeleted={handleFileDeleted}
-                />
-              </Card>
-            </div>
-          )}
-
           <DialogFooter>
             {event?.id && onDelete && (
               <Button

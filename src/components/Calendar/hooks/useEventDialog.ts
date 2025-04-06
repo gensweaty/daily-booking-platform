@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -22,11 +21,11 @@ export interface UseEventDialogReturn {
   handleUpdateEvent: (eventData: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   handleDeleteEvent: (eventId: string) => Promise<void>;
   checkTimeSlotAvailability: (startDateTime: string, endDateTime: string, eventId?: string) => Promise<{ available: boolean; conflictingEvent?: any }>;
-  // Add the missing properties that Calendar.tsx is expecting
   selectedEvent: CalendarEventType | null;
   setSelectedEvent: React.Dispatch<React.SetStateAction<CalendarEventType | null>>;
   isNewEventDialogOpen: boolean;
   setIsNewEventDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  eventFiles: any[];
 }
 
 export const useEventDialog = (props?: UseEventDialogProps): UseEventDialogReturn => {
@@ -40,7 +39,6 @@ export const useEventDialog = (props?: UseEventDialogProps): UseEventDialogRetur
   const { handleSubmitEvent, checkTimeSlotAvailability } = useCalendarEvents();
   const { toast } = useToast();
 
-  // Fetch event files when an event is selected
   useEffect(() => {
     const fetchEventFiles = async () => {
       if (selectedEvent?.id || event?.id) {
@@ -48,10 +46,8 @@ export const useEventDialog = (props?: UseEventDialogProps): UseEventDialogRetur
         console.log("Fetching files for event ID:", eventId);
         
         try {
-          // First check if this is a booking request event
           if (selectedEvent?.booking_request_id || event?.booking_request_id) {
             const bookingId = selectedEvent?.booking_request_id || event?.booking_request_id;
-            // Fetch files from booking_files for the booking request
             const { data: bookingFiles, error: bookingFilesError } = await supabase
               .from('booking_files')
               .select('*')
@@ -71,7 +67,6 @@ export const useEventDialog = (props?: UseEventDialogProps): UseEventDialogRetur
             }
           }
           
-          // If no booking files or not a booking event, check event_files
           const { data: files, error } = await supabase
             .from('event_files')
             .select('*')
@@ -108,7 +103,6 @@ export const useEventDialog = (props?: UseEventDialogProps): UseEventDialogRetur
 
   const handleCreateEvent = async (eventData: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     try {
-      // Use the provided createEvent function or fall back to handleSubmitEvent
       const submitFn = props?.createEvent || handleSubmitEvent;
       const result = await submitFn(eventData);
       
@@ -130,7 +124,6 @@ export const useEventDialog = (props?: UseEventDialogProps): UseEventDialogRetur
 
   const handleUpdateEvent = async (eventData: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     try {
-      // Use the provided updateEvent function or fall back to handleSubmitEvent
       const submitFn = props?.updateEvent || handleSubmitEvent;
       const result = await submitFn(eventData);
       
@@ -152,7 +145,6 @@ export const useEventDialog = (props?: UseEventDialogProps): UseEventDialogRetur
 
   const handleDeleteEvent = async (eventId: string): Promise<void> => {
     try {
-      // Use the provided deleteEvent function or a placeholder that throws an error
       const deleteFn = props?.deleteEvent || ((_id: string) => {
         throw new Error("Delete function not provided");
       });
@@ -184,12 +176,10 @@ export const useEventDialog = (props?: UseEventDialogProps): UseEventDialogRetur
     handleUpdateEvent,
     handleDeleteEvent,
     checkTimeSlotAvailability,
-    // Add the missing properties that Calendar.tsx is expecting
     selectedEvent,
     setSelectedEvent,
     isNewEventDialogOpen,
     setIsNewEventDialogOpen,
-    // Also expose event files for use in the dialog
     eventFiles,
   };
 };

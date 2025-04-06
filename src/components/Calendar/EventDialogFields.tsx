@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,8 +17,10 @@ import { FileUploadField } from "../shared/FileUploadField";
 
 // Define field props for easier testing and integration
 export interface EventDialogFieldsProps {
-  userSurname: string;
-  setUserSurname: (surname: string) => void;
+  title: string;
+  setTitle: (title: string) => void;
+  surname: string;
+  setSurname: (surname: string) => void;
   userNumber: string;
   setUserNumber: (number: string) => void;
   socialNetworkLink: string;
@@ -34,8 +37,8 @@ export interface EventDialogFieldsProps {
   setPaymentAmount: (amount: string) => void;
   selectedFile: File | null;
   setSelectedFile: (file: File | null) => void;
-  fileError: string;
-  setFileError: (error: string) => void;
+  fileError?: string;
+  setFileError?: (error: string) => void;
   isBookingRequest?: boolean;
   eventId?: string;
   onFileDeleted?: (fileId: string) => void;
@@ -47,8 +50,10 @@ export interface EventDialogFieldsProps {
 }
 
 export const EventDialogFields = ({
-  userSurname,
-  setUserSurname,
+  title,
+  setTitle,
+  surname,
+  setSurname,
   userNumber,
   setUserNumber,
   socialNetworkLink,
@@ -65,8 +70,8 @@ export const EventDialogFields = ({
   setPaymentAmount,
   selectedFile,
   setSelectedFile,
-  fileError,
-  setFileError,
+  fileError = "",
+  setFileError = () => {},
   eventId,
   onFileDeleted,
   displayedFiles = [],
@@ -102,13 +107,25 @@ export const EventDialogFields = ({
 
   return (
     <div className="space-y-4">
-      {/* Customer Name - This is now the primary identifier */}
+      {/* Title field */}
       <div className="space-y-2">
-        <Label htmlFor="userSurname">{customerLabel}</Label>
+        <Label htmlFor="title">Event Title</Label>
         <Input
-          id="userSurname"
-          value={userSurname}
-          onChange={(e) => setUserSurname(e.target.value)}
+          id="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Enter event title"
+          required
+        />
+      </div>
+
+      {/* Customer Name */}
+      <div className="space-y-2">
+        <Label htmlFor="surname">{customerLabel}</Label>
+        <Input
+          id="surname"
+          value={surname}
+          onChange={(e) => setSurname(e.target.value)}
           placeholder="Enter name"
           required
         />
@@ -236,7 +253,7 @@ export const EventDialogFields = ({
           onChange={(e) => {
             if (e.target.files && e.target.files[0]) {
               setSelectedFile(e.target.files[0]);
-              setFileError("");
+              if (setFileError) setFileError("");
             }
           }}
         />
