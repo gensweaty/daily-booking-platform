@@ -74,6 +74,8 @@ export const EventDialogFields = ({
 }: EventDialogFieldsProps) => {
   const { t, language } = useLanguage();
 
+  console.log("EventDialogFields - displayedFiles:", displayedFiles);
+
   // Reset payment amount when payment status changes to "not_paid"
   useEffect(() => {
     if (paymentStatus === "not_paid") {
@@ -208,25 +210,38 @@ export const EventDialogFields = ({
       </div>
 
       {/* Existing Files */}
-      {eventId && displayedFiles.length > 0 && (
+      {displayedFiles.length > 0 && (
         <Card className="p-4">
           <FileDisplay
             files={displayedFiles}
             bucketName="event_attachments"
-            allowDelete
+            allowDelete={!!onFileDeleted}
             onFileDeleted={onFileDeleted}
           />
         </Card>
       )}
 
       {/* File Upload - simplified */}
-      <FileUploadField
-        onChange={setSelectedFile}
-        fileError={fileError}
-        setFileError={setFileError}
-        hideLabel={true}
-        hideDescription={true}
-      />
+      <div className="space-y-2">
+        <input
+          type="file"
+          id="file"
+          className="block w-full text-sm text-slate-500
+            file:mr-4 file:py-2 file:px-4
+            file:rounded-md file:border-0
+            file:text-sm file:font-semibold
+            file:bg-primary file:text-primary-foreground
+            hover:file:bg-primary/90
+            cursor-pointer"
+          onChange={(e) => {
+            if (e.target.files && e.target.files[0]) {
+              setSelectedFile(e.target.files[0]);
+              setFileError("");
+            }
+          }}
+        />
+        {fileError && <p className="text-sm text-destructive">{fileError}</p>}
+      </div>
     </div>
   );
 };

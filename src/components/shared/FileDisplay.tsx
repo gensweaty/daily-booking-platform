@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Trash2, Download, FileIcon, Loader2 } from "lucide-react";
+import { Trash2, Download, FileIcon, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -89,43 +89,116 @@ export const FileDisplay = ({
     }
   };
 
+  const openFileInNewTab = async (fileId: string) => {
+    try {
+      const { data: urlData, error } = await supabase.storage
+        .from(bucketName)
+        .createSignedUrl(fileId, 3600); // 1 hour expiry
+
+      if (error) {
+        throw error;
+      }
+
+      if (urlData?.signedUrl) {
+        window.open(urlData.signedUrl, '_blank');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error opening file",
+        description: error.message || "File could not be opened",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const isImageFile = (contentType?: string) => {
+    return contentType?.startsWith('image/');
+  };
+
+  const getThumbnailUrl = async (fileId: string) => {
+    try {
+      const { data: urlData } = await supabase.storage
+        .from(bucketName)
+        .createSignedUrl(fileId, 3600); // 1 hour expiry
+      
+      return urlData?.signedUrl || null;
+    } catch (error) {
+      console.error("Error getting thumbnail URL:", error);
+      return null;
+    }
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {files.map((file) => (
         <div
           key={file.id}
-          className="flex items-center justify-between p-2 rounded-md bg-muted/30"
+          className="flex flex-col items-center"
         >
-          <div className="flex items-center gap-2 text-sm">
-            <FileIcon className="h-4 w-4 opacity-70" />
-            <span className="truncate max-w-[200px]">{file.filename}</span>
+          <div 
+            className="relative w-24 h-24 rounded-md overflow-hidden border border-muted mb-1 cursor-pointer"
+            onClick={() => openFileInNewTab(file.id)}
+          >
+            {isImageFile(file.content_type) ? (
+              <img 
+                src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${bucketName}/${file.id}`}
+                alt={file.filename}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = '/placeholder.svg';
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-muted/30">
+                <FileIcon className="h-8 w-8 opacity-70" />
+              </div>
+            )}
           </div>
+          
+          <div className="text-xs truncate max-w-[96px] text-center mb-1">{file.filename}</div>
+          
           <div className="flex gap-1">
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8"
+              className="h-7 w-7"
               onClick={() => handleDownload(file.id, file.filename)}
               disabled={isDownloading === file.id}
+              title="Download"
             >
               {isDownloading === file.id ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <Download className="h-4 w-4" />
+                <Download className="h-3 w-3" />
               )}
             </Button>
+            
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={() => openFileInNewTab(file.id)}
+              title="Open"
+            >
+              <ExternalLink className="h-3 w-3" />
+            </Button>
+            
             {allowDelete && (
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-8 w-8 hover:text-destructive"
-                onClick={() => handleDelete(file.id)}
+                className="h-7 w-7 hover:text-destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(file.id);
+                }}
                 disabled={isDeleting === file.id}
+                title="Delete"
               >
                 {isDeleting === file.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3 w-3" />
                 )}
               </Button>
             )}

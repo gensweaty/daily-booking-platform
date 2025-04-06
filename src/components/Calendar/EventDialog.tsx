@@ -72,6 +72,8 @@ export const EventDialog = ({
     queryFn: async () => {
       if (!event?.id) return [];
       
+      console.log("Fetching files for event:", event.id);
+      
       const { data: filesData, error } = await supabase
         .from("event_files")
         .select("*")
@@ -82,9 +84,13 @@ export const EventDialog = ({
         return [];
       }
       
+      console.log("Found files:", filesData);
       return filesData || [];
     },
-    enabled: !!event?.id,
+    enabled: !!event?.id && open,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   // Set initial values when dialog opens or event changes
@@ -99,6 +105,11 @@ export const EventDialog = ({
         setEndDate(event.end_date || "");
         setPaymentStatus(event.payment_status || "not_paid");
         setPaymentAmount(event.payment_amount?.toString() || "");
+        
+        // Force refetch of files
+        if (event.id) {
+          refetchFiles();
+        }
       } else if (selectedDate) {
         const formattedDate = format(selectedDate, "yyyy-MM-dd'T'HH:mm");
         const endDateValue = new Date(selectedDate);
@@ -117,7 +128,7 @@ export const EventDialog = ({
       setSelectedFile(null);
       setFileError("");
     }
-  }, [open, event, selectedDate]);
+  }, [open, event, selectedDate, refetchFiles]);
 
   const handleSubmit = async () => {
     try {
@@ -286,33 +297,23 @@ export const EventDialog = ({
     }
   };
 
-  // Get button text based on language and state
+  // Get button text based on state
   const getButtonText = () => {
     if (isSubmitting) {
-      return language === 'es' ? 'Guardando...' : 'Saving...';
+      return 'Saving...';
     }
     if (event) {
-      return language === 'es' ? 'Actualizar' : 'Update';
+      return 'Update';
     }
-    return language === 'es' ? 'Crear' : 'Create';
+    return 'Create';
   };
 
-  // Get dialog title based on language and state
+  // Get dialog title based on state
   const getDialogTitle = () => {
     if (event) {
-      return language === 'es' ? 'Editar Evento' : 'Edit Event';
+      return 'Edit Event';
     }
-    return language === 'es' ? 'Añadir Evento' : 'Add Event';
-  };
-
-  // Get delete button text
-  const getDeleteText = () => {
-    return language === 'es' ? 'Eliminar' : 'Delete';
-  };
-
-  // Get cancel text
-  const getCancelText = () => {
-    return language === 'es' ? 'Cancelar' : 'Cancel';
+    return 'Add Event';
   };
 
   return (
@@ -349,7 +350,7 @@ export const EventDialog = ({
             eventId={event?.id}
             onFileDeleted={handleFileDeleted}
             displayedFiles={eventFiles.map(file => ({
-              id: file.id,
+              id: file.file_path,
               filename: file.filename,
               content_type: file.content_type,
             }))}
@@ -369,26 +370,24 @@ export const EventDialog = ({
                     className="gap-1 text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />
-                    {getDeleteText()}
+                    Delete
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>
-                      {language === 'es' ? 'Confirmar eliminación' : 'Confirm Deletion'}
+                      Confirm Deletion
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      {language === 'es' 
-                        ? '¿Estás seguro de que quieres eliminar este evento?' 
-                        : 'Are you sure you want to delete this event?'}
+                      Are you sure you want to delete this event?
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>
-                      {getCancelText()}
+                      Cancel
                     </AlertDialogCancel>
                     <AlertDialogAction onClick={handleDelete}>
-                      {getDeleteText()}
+                      Delete
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
