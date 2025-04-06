@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -104,19 +105,7 @@ export const EventDialogFields = ({
 
   return (
     <div className="space-y-4">
-      {/* Event Title */}
-      <div className="space-y-2">
-        <Label htmlFor="title">Event Title</Label>
-        <Input
-          id="title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Enter event title"
-          required
-        />
-      </div>
-
-      {/* Customer Name */}
+      {/* Customer Name - This is now the primary identifier */}
       <div className="space-y-2">
         <Label htmlFor="userSurname">{customerLabel}</Label>
         <Input
@@ -125,6 +114,19 @@ export const EventDialogFields = ({
           onChange={(e) => setUserSurname(e.target.value)}
           placeholder="Enter name"
           required
+        />
+      </div>
+
+      {/* Optional Event Title */}
+      <div className="space-y-2">
+        <Label htmlFor="title">
+          Event Title <span className="text-sm text-muted-foreground">(Optional - defaults to customer name)</span>
+        </Label>
+        <Input
+          id="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Enter event title"
         />
       </div>
 

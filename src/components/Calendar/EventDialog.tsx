@@ -1,3 +1,4 @@
+
 // Import necessary components and functions
 import { useState, useEffect } from "react";
 import {
@@ -123,10 +124,11 @@ export const EventDialog = ({
 
   const handleSubmit = async () => {
     try {
-      if (!title) {
+      // Validate customer name instead of title
+      if (!userSurname) {
         toast({
           title: "Error",
-          description: "Please enter an event title",
+          description: "Please enter a customer name",
           variant: "destructive",
         });
         return;
@@ -163,9 +165,12 @@ export const EventDialog = ({
 
       setIsSubmitting(true);
 
+      // Use customer name as the title if title is empty
+      const eventTitle = title || userSurname;
+
       // Prepare event data for submission
       const eventData: Partial<CalendarEventType> = {
-        title,
+        title: eventTitle,
         user_surname: userSurname,
         user_number: userNumber,
         social_network_link: socialNetworkLink,
@@ -176,6 +181,11 @@ export const EventDialog = ({
         payment_amount: paymentStatus !== "not_paid" ? parseFloat(paymentAmount) : undefined,
         type: event?.type || "private_party",
       };
+
+      // If this is an update and we have an ID, include it
+      if (event?.id) {
+        eventData.id = event.id;
+      }
 
       // Submit event data
       const savedEvent = await onSubmit(eventData);

@@ -191,6 +191,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       throw new Error(`Time slot already booked: ${conflictDetails}`);
     }
     
+    // If no title is provided, use the customer name
+    if (!event.title && event.user_surname) {
+      event.title = event.user_surname;
+    }
+    
     const { data, error } = await supabase
       .from('events')
       .insert([{ ...event, user_id: user.id }])
@@ -209,6 +214,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
   const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
+    
+    // If no title is provided but customer name exists, use customer name
+    if ((!updates.title || updates.title === '') && updates.user_surname) {
+      updates.title = updates.user_surname;
+    }
     
     if (updates.start_date && updates.end_date) {
       const startDateTime = new Date(updates.start_date);
@@ -235,6 +245,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
         if (!bookingError && bookingData) {
           console.log("Updating booking request:", id);
+          
+          // If no title but user_surname exists, use that
+          if ((!updates.title || updates.title === '') && updates.user_surname) {
+            updates.title = updates.user_surname;
+          }
+          
           const { data: updatedBooking, error: updateError } = await supabase
             .from('booking_requests')
             .update({
@@ -245,6 +261,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               description: updates.event_notes,
               start_date: updates.start_date,
               end_date: updates.end_date,
+              payment_status: updates.payment_status || 'not_paid',
+              payment_amount: updates.payment_amount,
               updated_at: new Date().toISOString()
             })
             .eq('id', id)
@@ -260,7 +278,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           return {
             id: updatedBooking.id,
-            title: updatedBooking.title,
+            title: updatedBooking.requester_name, // Use name as title
             start_date: updatedBooking.start_date,
             end_date: updatedBooking.end_date,
             user_id: updatedBooking.user_id || '',
@@ -273,11 +291,18 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             requester_name: updatedBooking.requester_name,
             requester_email: updatedBooking.requester_email,
             requester_phone: updatedBooking.requester_phone || '',
+            payment_status: updatedBooking.payment_status,
+            payment_amount: updatedBooking.payment_amount,
           } as CalendarEventType;
         }
       } catch (error) {
         console.error("Error checking for booking request:", error);
       }
+    }
+    
+    // If no title but user_surname exists, use that
+    if ((!updates.title || updates.title === '') && updates.user_surname) {
+      updates.title = updates.user_surname;
     }
     
     const { data, error } = await supabase
@@ -316,13 +341,23 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       );
       
       if (eventsConflict && conflictingEvents && conflictingEvents.length > 0) {
-        const conflictEvent = conflictingEvents[0];
+        // Filter out the event being updated
+        const actualConflicts = conflictingEvents.filter(event => 
+          excludeEventId !== event.id
+        );
+        
+        if (actualConflicts.length === 0) {
+          return { available: true, conflictDetails: "" };
+        }
+        
+        const conflictEvent = actualConflicts[0];
         return { 
           available: false, 
           conflictDetails: `Conflicts with "${conflictEvent.title}" at ${new Date(conflictEvent.start_date).toLocaleTimeString()}`
         };
       }
       
+      // Don't check for conflicts with the booking being updated
       const { data: conflictingBookings, error: bookingsError } = await supabase
         .from('booking_requests')
         .select('id, title, start_date, end_date')
@@ -333,7 +368,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       if (bookingsError) throw bookingsError;
       
       if (conflictingBookings && conflictingBookings.length > 0) {
-        const conflictBooking = conflictingBookings[0];
+        // Filter out the booking being updated
+        const actualConflicts = conflictingBookings.filter(booking => 
+          excludeEventId !== booking.id
+        );
+        
+        if (actualConflicts.length === 0) {
+          return { available: true, conflictDetails: "" };
+        }
+        
+        const conflictBooking = actualConflicts[0];
         return { 
           available: false, 
           conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`
