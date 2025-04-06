@@ -1,4 +1,3 @@
-
 // Import necessary components and functions
 import { useState, useEffect } from "react";
 import {
@@ -74,6 +73,8 @@ export const EventDialog = ({
       
       console.log("Fetching files for event:", event.id, "Type:", event.type, "Booking request ID:", event.booking_request_id);
       
+      let fileList = [];
+      
       // First, check if this is a booking request (has event.booking_request_id)
       if (event.booking_request_id) {
         console.log("This is an event from a booking request, checking booking files for:", event.booking_request_id);
@@ -85,12 +86,9 @@ export const EventDialog = ({
           
         if (bookingFilesError) {
           console.error("Error fetching booking files:", bookingFilesError);
-          return [];
-        }
-        
-        if (bookingFiles && bookingFiles.length > 0) {
+        } else if (bookingFiles && bookingFiles.length > 0) {
           console.log("Found booking files:", bookingFiles);
-          return bookingFiles.map(file => ({
+          fileList = bookingFiles.map(file => ({
             id: file.file_path,
             filename: file.filename,
             content_type: file.content_type,
@@ -106,15 +104,23 @@ export const EventDialog = ({
         
       if (error) {
         console.error("Error fetching event files:", error);
-        return [];
+      } else if (filesData && filesData.length > 0) {
+        console.log("Found event_files:", filesData);
+        // Only add files that aren't already in the list
+        const existingPaths = new Set(fileList.map(f => f.id));
+        const newFiles = filesData
+          .filter(file => !existingPaths.has(file.file_path))
+          .map(file => ({
+            id: file.file_path,
+            filename: file.filename,
+            content_type: file.content_type,
+          }));
+        
+        fileList = [...fileList, ...newFiles];
       }
       
-      console.log("Found event_files:", filesData);
-      return filesData?.map(file => ({
-        id: file.file_path,
-        filename: file.filename,
-        content_type: file.content_type,
-      })) || [];
+      console.log("Final file list:", fileList);
+      return fileList;
     },
     enabled: !!event?.id && open,
     staleTime: 0,
@@ -311,21 +317,43 @@ export const EventDialog = ({
     try {
       // First check if this is a booking file (for booking requests)
       if (event?.booking_request_id) {
+        console.log("Checking if file belongs to booking:", fileId);
         // Try to find and delete from booking_files
-        const { error: bookingFileError } = await supabase
+        const { data: bookingFile, error: findError } = await supabase
           .from("booking_files")
-          .delete()
-          .eq("file_path", fileId);
+          .select("*")
+          .eq("file_path", fileId)
+          .maybeSingle();
           
-        if (!bookingFileError) {
-          console.log("Successfully deleted from booking_files");
-          // Successfully deleted from booking_files
-          refetchFiles();
-          return;
+        if (findError) {
+          console.error("Error finding booking file:", findError);
+        }
+        
+        if (bookingFile) {
+          console.log("Found booking file, deleting it:", bookingFile);
+          const { error: bookingFileError } = await supabase
+            .from("booking_files")
+            .delete()
+            .eq("file_path", fileId);
+            
+          if (!bookingFileError) {
+            console.log("Successfully deleted from booking_files");
+            // Also delete from storage
+            await supabase.storage
+              .from("booking_attachments")
+              .remove([fileId]);
+              
+            // Successfully deleted from booking_files
+            refetchFiles();
+            return;
+          } else {
+            console.error("Error deleting booking file:", bookingFileError);
+          }
         }
       }
       
       // Regular event file
+      console.log("Deleting event file:", fileId);
       const { error } = await supabase
         .from("event_files")
         .delete()
@@ -336,12 +364,22 @@ export const EventDialog = ({
         throw error;
       }
       
+      // Also delete from storage
+      await supabase.storage
+        .from("event_attachments")
+        .remove([fileId]);
+        
       // Refresh files list
       refetchFiles();
+      
+      toast({
+        title: "Success",
+        description: "File deleted successfully"
+      });
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete file record",
+        description: error.message || "Failed to delete file",
         variant: "destructive",
       });
     }

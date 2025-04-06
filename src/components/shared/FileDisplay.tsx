@@ -35,16 +35,28 @@ export const FileDisplay = ({
       setIsDownloading(fileId);
       console.log("Downloading file:", fileId, "from bucket:", bucketName);
       
-      const { data, error } = await supabase.storage
+      // Create a signed URL first to ensure access
+      const { data: urlData, error: urlError } = await supabase.storage
         .from(bucketName)
-        .download(fileId);
-
-      if (error) {
-        console.error("Download error:", error);
-        throw error;
+        .createSignedUrl(fileId, 3600); // 1 hour expiry
+        
+      if (urlError) {
+        console.error("Error creating signed URL:", urlError);
+        throw urlError;
       }
-
-      const url = URL.createObjectURL(data);
+      
+      if (!urlData?.signedUrl) {
+        throw new Error("Could not create download URL");
+      }
+      
+      // Use the signed URL to fetch the file
+      const response = await fetch(urlData.signedUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download: ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = filename;
@@ -52,6 +64,11 @@ export const FileDisplay = ({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Download successful",
+        description: `${filename} has been downloaded`,
+      });
     } catch (error: any) {
       console.error("Full download error:", error);
       toast({
@@ -148,7 +165,25 @@ export const FileDisplay = ({
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   console.error("Image load error for:", file.id);
-                  e.currentTarget.src = '/placeholder.svg';
+                  // Try with a signed URL instead
+                  const getSignedUrl = async () => {
+                    try {
+                      const { data, error } = await supabase.storage
+                        .from(bucketName)
+                        .createSignedUrl(file.id, 60);
+                        
+                      if (error) throw error;
+                      if (data?.signedUrl) {
+                        (e.currentTarget as HTMLImageElement).src = data.signedUrl;
+                      } else {
+                        (e.currentTarget as HTMLImageElement).src = '/placeholder.svg';
+                      }
+                    } catch (error) {
+                      console.error("Failed to get signed URL:", error);
+                      (e.currentTarget as HTMLImageElement).src = '/placeholder.svg';
+                    }
+                  };
+                  getSignedUrl();
                 }}
               />
             ) : (
