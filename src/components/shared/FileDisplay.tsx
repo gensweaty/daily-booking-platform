@@ -33,11 +33,14 @@ export const FileDisplay = ({
   const handleDownload = async (fileId: string, filename: string) => {
     try {
       setIsDownloading(fileId);
+      console.log("Downloading file:", fileId, "from bucket:", bucketName);
+      
       const { data, error } = await supabase.storage
         .from(bucketName)
         .download(fileId);
 
       if (error) {
+        console.error("Download error:", error);
         throw error;
       }
 
@@ -50,6 +53,7 @@ export const FileDisplay = ({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (error: any) {
+      console.error("Full download error:", error);
       toast({
         title: "Download failed",
         description: error.message || "File could not be downloaded",
@@ -63,9 +67,12 @@ export const FileDisplay = ({
   const handleDelete = async (fileId: string) => {
     try {
       setIsDeleting(fileId);
+      console.log("Deleting file:", fileId, "from bucket:", bucketName);
+      
       const { error } = await supabase.storage.from(bucketName).remove([fileId]);
 
       if (error) {
+        console.error("Delete error:", error);
         throw error;
       }
 
@@ -79,6 +86,7 @@ export const FileDisplay = ({
         description: "The file has been removed successfully",
       });
     } catch (error: any) {
+      console.error("Full delete error:", error);
       toast({
         title: "Deletion failed",
         description: error.message || "File could not be deleted",
@@ -91,18 +99,25 @@ export const FileDisplay = ({
 
   const openFileInNewTab = async (fileId: string) => {
     try {
+      console.log("Opening file in new tab:", fileId, "from bucket:", bucketName);
+      
       const { data: urlData, error } = await supabase.storage
         .from(bucketName)
         .createSignedUrl(fileId, 3600); // 1 hour expiry
 
       if (error) {
+        console.error("Error creating signed URL:", error);
         throw error;
       }
 
       if (urlData?.signedUrl) {
         window.open(urlData.signedUrl, '_blank');
+      } else {
+        console.error("No signed URL returned");
+        throw new Error("Could not create file URL");
       }
     } catch (error: any) {
+      console.error("Full error opening file:", error);
       toast({
         title: "Error opening file",
         description: error.message || "File could not be opened",
@@ -132,6 +147,7 @@ export const FileDisplay = ({
                 alt={file.filename}
                 className="w-full h-full object-cover"
                 onError={(e) => {
+                  console.error("Image load error for:", file.id);
                   e.currentTarget.src = '/placeholder.svg';
                 }}
               />
@@ -149,7 +165,10 @@ export const FileDisplay = ({
               size="icon"
               variant="ghost"
               className="h-7 w-7"
-              onClick={() => handleDownload(file.id, file.filename)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDownload(file.id, file.filename);
+              }}
               disabled={isDownloading === file.id}
               title="Download"
             >
@@ -164,7 +183,10 @@ export const FileDisplay = ({
               size="icon"
               variant="ghost"
               className="h-7 w-7"
-              onClick={() => openFileInNewTab(file.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                openFileInNewTab(file.id);
+              }}
               title="Open"
             >
               <ExternalLink className="h-3 w-3" />
