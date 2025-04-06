@@ -1,4 +1,3 @@
-
 // Import necessary components and functions
 import { useState, useEffect } from "react";
 import {
@@ -177,6 +176,14 @@ export const EventDialog = ({
         setPaymentStatus(event.payment_status || "not_paid");
         setPaymentAmount(event.payment_amount?.toString() || "");
         
+        // Log event data for debugging
+        console.log("Event data being loaded:", {
+          id: event.id,
+          type: event.type,
+          status: event.status,
+          booking_request_id: event.booking_request_id
+        });
+        
         // Force refetch of files
         refetchFiles();
       } else if (selectedDate) {
@@ -264,10 +271,17 @@ export const EventDialog = ({
         eventData.id = event.id;
       }
       
-      // Preserve booking_request_id when updating
+      // Preserve booking_request_id and status when updating
       if (event?.booking_request_id) {
         eventData.booking_request_id = event.booking_request_id;
       }
+      
+      // Preserve status when updating
+      if (event?.status) {
+        eventData.status = event.status;
+      }
+
+      console.log("Submitting event data:", eventData);
 
       // Submit event data
       const savedEvent = await onSubmit(eventData);

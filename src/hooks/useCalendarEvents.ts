@@ -52,6 +52,21 @@ export const useCalendarEvents = () => {
         end: new Date(endDateTime).toISOString()
       });
       
+      // Skip check for approved booking events
+      if (eventId) {
+        // Check if this is an approved booking event
+        const { data: eventData, error: eventError } = await supabase
+          .from("events")
+          .select("type, status")
+          .eq("id", eventId)
+          .single();
+          
+        if (!eventError && eventData && eventData.type === 'booking_request' && eventData.status === 'approved') {
+          console.log("Skipping conflict check for approved booking event:", eventId);
+          return true;
+        }
+      }
+      
       // Build the query with explicit exclusion of the current event
       let query = supabase
         .from("events")
@@ -152,6 +167,21 @@ export const useCalendarEvents = () => {
     mutationFn: async (eventData: Partial<CalendarEventType>) => {
       if (!user) throw new Error("User not authenticated");
       if (!eventData.id) throw new Error("Event ID is required");
+
+      // Special handling for approved booking events
+      if (eventData.type === 'booking_request' && eventData.status === 'approved') {
+        console.log("Skipping time slot check for approved booking event");
+        
+        const { data, error } = await supabase
+          .from("events")
+          .update(eventData)
+          .eq("id", eventData.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      }
 
       // Check time slot availability for the update, excluding the current event
       const isAvailable = await checkTimeSlotAvailability(
