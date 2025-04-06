@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -112,21 +111,10 @@ export const Calendar = ({
     handleUpdateEvent,
     handleDeleteEvent,
   } = useEventDialog({
-    createEvent: async (data) => {
-      const result = await handleSubmitEvent(data);
-      return result;
-    },
-    updateEvent: async (data) => {
-      if (!selectedEvent) throw new Error("No event selected");
-      const result = await handleSubmitEvent({
-        ...data,
-        id: selectedEvent.id
-      });
-      return result;
-    },
-    deleteEvent: async (id) => {
-      await deleteEvent(id);
-    }
+    // Fix #1: Pass only the functions that useEventDialog expects
+    createEvent: handleSubmitEvent,
+    updateEvent: handleSubmitEvent, 
+    deleteEvent
   });
 
   // Redirect to signin if not authenticated and not on public business page

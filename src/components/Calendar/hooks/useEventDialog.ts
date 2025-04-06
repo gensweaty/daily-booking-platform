@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -42,6 +41,12 @@ export const useEventDialog = ({
     existingEventId?: string
   ): Promise<{ available: boolean; conflictingEvent?: CalendarEventType }> => {
     try {
+      // Skip conflict check for approved events - Fix for issue #1
+      if (existingEventId && selectedEvent?.type === 'booking_request' && selectedEvent.status === 'approved') {
+        console.log("Skipping conflict check for approved booking event:", existingEventId);
+        return { available: true };
+      }
+
       // First check regular events
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
@@ -151,19 +156,30 @@ export const useEventDialog = ({
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
 
-      const { available, conflictingEvent } = await checkTimeSlotAvailability(
-        startDate,
-        endDate,
-        selectedEvent.id
-      );
+      // Fix for issue #1: Skip conflict check for certain event types
+      let skipConflictCheck = false;
+      
+      // Skip conflict check for approved booking requests
+      if (selectedEvent.type === 'booking_request' && selectedEvent.status === 'approved') {
+        console.log("Skipping conflict check for approved booking:", selectedEvent.id);
+        skipConflictCheck = true;
+      }
 
-      if (!available && conflictingEvent) {
-        toast({
-          title: "Time Slot Unavailable",
-          description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
-          variant: "destructive",
-        });
-        throw new Error("Time slot conflict");
+      if (!skipConflictCheck) {
+        const { available, conflictingEvent } = await checkTimeSlotAvailability(
+          startDate,
+          endDate,
+          selectedEvent.id
+        );
+
+        if (!available && conflictingEvent) {
+          toast({
+            title: "Time Slot Unavailable",
+            description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
+            variant: "destructive",
+          });
+          throw new Error("Time slot conflict");
+        }
       }
 
       const result = await updateEvent(data);

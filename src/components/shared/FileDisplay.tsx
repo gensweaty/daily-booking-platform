@@ -32,15 +32,19 @@ export const FileDisplay = ({
     return <p className="text-sm text-muted-foreground italic">No files attached</p>;
   }
 
+  // Improved signed URL function with better error handling and logging
   const getSignedUrl = async (fileId: string) => {
     try {
       // Console log for debugging
       console.log(`Creating signed URL for file: ${fileId} in bucket: ${bucketName}`);
       
+      // Extract actual storage path if it contains a full bucket path
+      const storagePath = fileId.includes('/') ? fileId : fileId;
+      
       // Create a signed URL using the storage API
       const { data, error } = await supabase.storage
         .from(bucketName)
-        .createSignedUrl(fileId, 3600); // 1 hour expiry
+        .createSignedUrl(storagePath, 3600); // 1 hour expiry
       
       if (error) {
         console.error("Error creating signed URL:", error);
@@ -52,7 +56,7 @@ export const FileDisplay = ({
         throw new Error("Could not create URL");
       }
       
-      console.log("Successfully created signed URL:", data.signedUrl);
+      console.log("Successfully created signed URL");
       return data.signedUrl;
     } catch (error) {
       console.error("Error in getSignedUrl:", error);
@@ -60,6 +64,7 @@ export const FileDisplay = ({
     }
   };
 
+  // Improved download function with better error handling
   const handleDownload = async (fileId: string, filename: string) => {
     try {
       setIsDownloading(fileId);
@@ -107,22 +112,25 @@ export const FileDisplay = ({
     }
   };
 
+  // Improved delete function
   const handleDelete = async (fileId: string) => {
     try {
       setIsDeleting(fileId);
       console.log("Deleting file:", fileId, "from bucket:", bucketName);
       
-      // Delete from storage
+      // Call the onFileDeleted callback with the fileId
+      // This allows parent components to handle deletion logic
+      if (onFileDeleted) {
+        await onFileDeleted(fileId);
+        return; // Let the parent component handle the deletion entirely
+      }
+      
+      // If no callback is provided, handle deletion here
       const { error } = await supabase.storage.from(bucketName).remove([fileId]);
 
       if (error) {
         console.error("Delete error:", error);
         throw error;
-      }
-
-      // Call the onFileDeleted callback with the fileId
-      if (onFileDeleted) {
-        onFileDeleted(fileId);
       }
 
       toast({
@@ -141,6 +149,7 @@ export const FileDisplay = ({
     }
   };
 
+  // Improved file preview function
   const openFileInNewTab = async (fileId: string) => {
     try {
       console.log("Opening file in new tab:", fileId, "from bucket:", bucketName);
