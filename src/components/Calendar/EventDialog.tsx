@@ -1,4 +1,3 @@
-
 // Import necessary components and functions
 import { useState, useEffect } from "react";
 import {
@@ -27,7 +26,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/lib/supabase";
-import { getEventFilesQuery } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 
 interface EventDialogProps {
