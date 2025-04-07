@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -147,11 +148,14 @@ export const EventDialog = ({
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
 
-      if (selectedFile && createdEvent?.id && user) {
+      // Get the correct event ID - use either the updated event ID or the original event ID
+      const eventId = createdEvent?.id || event?.id;
+
+      if (selectedFile && eventId && user) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
-        console.log('Uploading file for ID:', createdEvent.id, filePath);
+        console.log('Uploading file for ID:', eventId, filePath);
         
         const { error: uploadError } = await supabase.storage
           .from('event_attachments')
@@ -168,7 +172,7 @@ export const EventDialog = ({
           content_type: selectedFile.type,
           size: selectedFile.size,
           user_id: user.id,
-          event_id: createdEvent.id
+          event_id: eventId // Using the correct event ID
         };
 
         console.log('Inserting file record:', fileData);
@@ -309,6 +313,7 @@ export const EventDialog = ({
 
       onOpenChange(false);
       
+      // Invalidate all relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
       queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });

@@ -85,15 +85,30 @@ export const FileDisplay = ({
         .from(bucketName)
         .remove([filePath]);
 
-      if (storageError) throw storageError;
+      if (storageError) {
+        console.error('Error deleting file from storage:', storageError);
+        // Continue with deleting the database record even if storage deletion fails
+      }
       
-      // Then delete the database record
+      // Determine the table to delete from based on file metadata or props
+      let tableName = 'event_files';
+      
+      if (parentType === 'customer') {
+        tableName = 'customer_files_new';
+      } else if (filePath.includes('task')) {
+        tableName = 'files'; // For task files
+      }
+      
+      // Delete from the appropriate database table
       const { error: dbError } = await supabase
-        .from('files')
+        .from(tableName)
         .delete()
         .eq('id', fileId);
         
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error(`Error deleting file record from ${tableName}:`, dbError);
+        throw dbError;
+      }
       
       // Notify parent component
       if (onFileDeleted) {
@@ -103,6 +118,8 @@ export const FileDisplay = ({
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['files'] });
       queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       
       toast({
         title: t("common.success"),

@@ -62,4 +62,3 @@ DROP TRIGGER IF EXISTS validate_event_id_trigger ON event_files;
 CREATE TRIGGER validate_event_id_trigger
 BEFORE INSERT OR UPDATE ON event_files
 FOR EACH ROW EXECUTE FUNCTION validate_event_id();
-
