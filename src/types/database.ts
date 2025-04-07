@@ -69,6 +69,18 @@ export interface BookingRequest {
   has_files?: boolean;
 }
 
+export interface FileAttachment {
+  id: string;
+  filename: string;
+  file_path: string;
+  content_type?: string;
+  size?: number;
+  created_at: string;
+  user_id: string;
+  event_id?: string;
+  customer_id?: string;
+}
+
 export interface Event {
   id: string;
   title: string;

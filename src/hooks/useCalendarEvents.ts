@@ -29,6 +29,36 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
       
       console.log("Fetched user events:", data?.length || 0);
+      
+      if (data && data.length > 0) {
+        const eventIds = data.map(event => event.id);
+        
+        const { data: eventFiles, error: filesError } = await supabase
+          .from('event_files')
+          .select('*')
+          .in('event_id', eventIds);
+        
+        if (filesError) {
+          console.error("Error fetching event files:", filesError);
+        } else if (eventFiles && eventFiles.length > 0) {
+          console.log("Found files for events:", eventFiles.length);
+          
+          const fileMap: Record<string, any> = {};
+          eventFiles.forEach(file => {
+            fileMap[file.event_id] = file;
+          });
+          
+          data.forEach(event => {
+            const file = fileMap[event.id];
+            if (file) {
+              event.file_path = file.file_path;
+              event.filename = file.filename;
+              event.has_files = true;
+            }
+          });
+        }
+      }
+      
       return data || [];
     } catch (err) {
       console.error("Exception in getEvents:", err);
@@ -91,6 +121,36 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
       
       console.log("Fetched business events:", data?.length || 0);
+      
+      if (data && data.length > 0) {
+        const eventIds = data.map(event => event.id);
+        
+        const { data: eventFiles, error: filesError } = await supabase
+          .from('event_files')
+          .select('*')
+          .in('event_id', eventIds);
+        
+        if (filesError) {
+          console.error("Error fetching event files:", filesError);
+        } else if (eventFiles && eventFiles.length > 0) {
+          console.log("Found files for business events:", eventFiles.length);
+          
+          const fileMap: Record<string, any> = {};
+          eventFiles.forEach(file => {
+            fileMap[file.event_id] = file;
+          });
+          
+          data.forEach(event => {
+            const file = fileMap[event.id];
+            if (file) {
+              event.file_path = file.file_path;
+              event.filename = file.filename;
+              event.has_files = true;
+            }
+          });
+        }
+      }
+      
       return data || [];
     } catch (error) {
       console.error("Error fetching business events:", error);
@@ -148,33 +208,35 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       console.log("Fetched approved bookings:", bookingRequests?.length || 0);
       
-      const bookingIds = bookingRequests?.map(booking => booking.id) || [];
+      if (!bookingRequests || bookingRequests.length === 0) {
+        return [];
+      }
+      
+      const bookingIds = bookingRequests.map(booking => booking.id);
       
       let filesMap: Record<string, any[]> = {};
       
-      if (bookingIds.length > 0) {
-        console.log("Fetching files for booking IDs:", bookingIds);
+      console.log("Fetching files for booking IDs:", bookingIds);
+      
+      const { data: bookingFiles, error: filesError } = await supabase
+        .from('event_files')
+        .select('*')
+        .in('event_id', bookingIds);
         
-        const { data: bookingFiles, error: filesError } = await supabase
-          .from('event_files')
-          .select('*')
-          .in('event_id', bookingIds);
-          
-        if (filesError) {
-          console.error("Error fetching booking files:", filesError);
-        } else if (bookingFiles && bookingFiles.length > 0) {
-          console.log("Found files for bookings:", bookingFiles.length);
-          
-          bookingFiles.forEach(file => {
-            if (!filesMap[file.event_id]) {
-              filesMap[file.event_id] = [];
-            }
-            filesMap[file.event_id].push(file);
-          });
-        }
+      if (filesError) {
+        console.error("Error fetching booking files:", filesError);
+      } else if (bookingFiles && bookingFiles.length > 0) {
+        console.log("Found files for bookings:", bookingFiles.length);
+        
+        bookingFiles.forEach(file => {
+          if (!filesMap[file.event_id]) {
+            filesMap[file.event_id] = [];
+          }
+          filesMap[file.event_id].push(file);
+        });
       }
       
-      const bookingEvents = (bookingRequests || []).map(booking => {
+      const bookingEvents = bookingRequests.map(booking => {
         const files = filesMap[booking.id] || [];
         const firstFile = files.length > 0 ? files[0] : null;
         
