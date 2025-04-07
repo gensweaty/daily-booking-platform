@@ -135,7 +135,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       console.log("Fetching approved bookings for business ID:", businessProfileId);
       
-      const { data, error } = await supabase
+      const { data: bookingRequests, error } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('business_id', businessProfileId)
@@ -146,29 +146,61 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         return [];
       }
       
-      console.log("Fetched approved bookings:", data?.length || 0);
+      console.log("Fetched approved bookings:", bookingRequests?.length || 0);
       
-      const bookingEvents = (data || []).map(booking => ({
-        id: booking.id,
-        title: booking.title || 'Booking',
-        start_date: booking.start_date,
-        end_date: booking.end_date,
-        type: 'booking_request',
-        created_at: booking.created_at || new Date().toISOString(),
-        user_id: booking.user_id || '',
-        user_surname: booking.requester_name || '',
-        user_number: booking.requester_phone || '',
-        social_network_link: booking.requester_email || '',
-        event_notes: booking.description || '',
-        requester_name: booking.requester_name || '',
-        requester_email: booking.requester_email || '',
-        requester_phone: booking.requester_phone || '',
-        description: booking.description || '',
-        payment_status: booking.payment_status || 'not_paid',
-        payment_amount: booking.payment_amount || null,
-        file_path: booking.file_path || null,
-        filename: booking.filename || null
-      }));
+      const bookingIds = bookingRequests?.map(booking => booking.id) || [];
+      
+      let filesMap: Record<string, any[]> = {};
+      
+      if (bookingIds.length > 0) {
+        console.log("Fetching files for booking IDs:", bookingIds);
+        
+        const { data: bookingFiles, error: filesError } = await supabase
+          .from('event_files')
+          .select('*')
+          .in('event_id', bookingIds);
+          
+        if (filesError) {
+          console.error("Error fetching booking files:", filesError);
+        } else if (bookingFiles && bookingFiles.length > 0) {
+          console.log("Found files for bookings:", bookingFiles.length);
+          
+          bookingFiles.forEach(file => {
+            if (!filesMap[file.event_id]) {
+              filesMap[file.event_id] = [];
+            }
+            filesMap[file.event_id].push(file);
+          });
+        }
+      }
+      
+      const bookingEvents = (bookingRequests || []).map(booking => {
+        const files = filesMap[booking.id] || [];
+        const firstFile = files.length > 0 ? files[0] : null;
+        
+        return {
+          id: booking.id,
+          title: booking.title || 'Booking',
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          type: 'booking_request',
+          created_at: booking.created_at || new Date().toISOString(),
+          user_id: booking.user_id || '',
+          user_surname: booking.requester_name || '',
+          user_number: booking.requester_phone || '',
+          social_network_link: booking.requester_email || '',
+          event_notes: booking.description || '',
+          requester_name: booking.requester_name || '',
+          requester_email: booking.requester_email || '',
+          requester_phone: booking.requester_phone || '',
+          description: booking.description || '',
+          payment_status: booking.payment_status || 'not_paid',
+          payment_amount: booking.payment_amount || null,
+          file_path: firstFile ? firstFile.file_path : null,
+          filename: firstFile ? firstFile.filename : null,
+          has_files: files.length > 0
+        };
+      });
       
       return bookingEvents;
     } catch (error) {

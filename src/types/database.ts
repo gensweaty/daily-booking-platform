@@ -66,4 +66,30 @@ export interface BookingRequest {
   payment_amount?: number | null;
   file_path?: string;
   filename?: string;
+  has_files?: boolean;
+}
+
+export interface Event {
+  id: string;
+  title: string;
+  description?: string;
+  start_date: string;
+  end_date: string;
+  type?: string;
+  created_at: string;
+  user_id: string;
+  // Additional fields
+  user_surname?: string;
+  user_number?: string;
+  social_network_link?: string;
+  event_notes?: string;
+  payment_status?: string;
+  payment_amount?: number | null;
+  file_path?: string;
+  filename?: string;
+  has_files?: boolean;
+  // Fields for booking requests
+  requester_name?: string;
+  requester_email?: string;
+  requester_phone?: string;
 }

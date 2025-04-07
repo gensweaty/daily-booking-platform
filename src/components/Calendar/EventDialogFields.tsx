@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -72,37 +73,6 @@ export const EventDialogFields = ({
   const { t, language } = useLanguage();
 
   const formattedMinDate = format(new Date(), "yyyy-MM-dd'T'HH:mm");
-
-  if (isBookingRequest) {
-    return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="start-date">Start Date & Time</Label>
-            <Input
-              id="start-date"
-              type="datetime-local"
-              min={formattedMinDate}
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="end-date">End Date & Time</Label>
-            <Input
-              id="end-date"
-              type="datetime-local"
-              min={startDate || formattedMinDate}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   useEffect(() => {
     if (!startDate || !endDate) {
@@ -215,6 +185,41 @@ export const EventDialogFields = ({
     },
     enabled: !!(eventId || title),
   });
+
+  // Use either the manually passed displayedFiles or the ones from the query
+  const filesToDisplay = displayedFiles?.length > 0 ? displayedFiles : allFiles;
+
+  // For booking requests, only show the date/time fields
+  if (isBookingRequest) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="start-date">Start Date & Time</Label>
+            <Input
+              id="start-date"
+              type="datetime-local"
+              min={formattedMinDate}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="end-date">End Date & Time</Label>
+            <Input
+              id="end-date"
+              type="datetime-local"
+              min={startDate || formattedMinDate}
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              required
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -332,13 +337,14 @@ export const EventDialogFields = ({
         />
       </div>
 
-      {(eventId || title) && ((allFiles && allFiles.length > 0) || (displayedFiles && displayedFiles.length > 0)) && (
+      {filesToDisplay && filesToDisplay.length > 0 && (
         <div className="space-y-2">
           <FileDisplay 
-            files={displayedFiles?.length > 0 ? displayedFiles : allFiles} 
+            files={filesToDisplay} 
             bucketName="event_attachments"
             allowDelete
             onFileDeleted={onFileDeleted}
+            parentId={eventId}
           />
         </div>
       )}
