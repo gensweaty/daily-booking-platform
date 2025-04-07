@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -122,7 +123,8 @@ export const EventDialog = ({
       payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
     };
 
-    if (isBookingEvent && event?.id) {
+    // For updates, include the event ID
+    if (event?.id) {
       eventData.id = event.id;
     }
 

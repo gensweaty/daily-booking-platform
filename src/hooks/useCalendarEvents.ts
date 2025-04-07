@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -211,6 +212,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       const startDateTime = new Date(updates.start_date);
       const endDateTime = new Date(updates.end_date);
       
+      // When updating an event, pass the current event id to exclude it from conflict checking
       const { available, conflictDetails } = await checkTimeSlotAvailability(
         startDateTime,
         endDateTime,
@@ -300,6 +302,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     excludeEventId?: string
   ): Promise<{ available: boolean; conflictDetails: string }> => {
     try {
+      console.log("Checking availability for:", {
+        start: startDate,
+        end: endDate,
+        excludeEventId
+      });
+      
+      // Query for conflicting events
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('id, title, start_date, end_date')
@@ -308,18 +317,22 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventsError) throw eventsError;
       
-      const eventsConflict = conflictingEvents?.some(event => 
+      // Filter out the current event being updated
+      const eventsConflict = conflictingEvents?.filter(event => 
         excludeEventId !== event.id
       );
       
-      if (eventsConflict && conflictingEvents && conflictingEvents.length > 0) {
-        const conflictEvent = conflictingEvents[0];
+      console.log("Conflicting events (excluding current):", eventsConflict);
+      
+      if (eventsConflict && eventsConflict.length > 0) {
+        const conflictEvent = eventsConflict[0];
         return { 
           available: false, 
           conflictDetails: `Conflicts with "${conflictEvent.title}" at ${new Date(conflictEvent.start_date).toLocaleTimeString()}`
         };
       }
       
+      // Also check for booking conflicts
       const { data: conflictingBookings, error: bookingsError } = await supabase
         .from('booking_requests')
         .select('id, title, start_date, end_date')
@@ -329,8 +342,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (bookingsError) throw bookingsError;
       
-      if (conflictingBookings && conflictingBookings.length > 0) {
-        const conflictBooking = conflictingBookings[0];
+      // Filter out the current booking being updated
+      const bookingsConflict = conflictingBookings?.filter(booking => 
+        excludeEventId !== booking.id
+      );
+      
+      console.log("Conflicting bookings (excluding current):", bookingsConflict);
+      
+      if (bookingsConflict && bookingsConflict.length > 0) {
+        const conflictBooking = bookingsConflict[0];
         return { 
           available: false, 
           conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`

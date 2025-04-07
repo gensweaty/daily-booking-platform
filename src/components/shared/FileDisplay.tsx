@@ -46,7 +46,29 @@ export const FileDisplay = ({
     try {
       console.log(`Attempting to download file from ${bucketName}/${filePath}`);
       
-      // Create the signed URL for the file
+      // First try to get the public URL
+      const { data: publicUrlData } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(filePath);
+
+      if (publicUrlData?.publicUrl) {
+        // Create a temporary link element to trigger download
+        const a = document.createElement('a');
+        a.href = publicUrlData.publicUrl;
+        a.download = fileName;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        toast({
+          title: t("common.success"),
+          description: t("common.downloadStarted"),
+        });
+        return;
+      }
+      
+      // If public URL doesn't work, try creating a signed URL
       const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from(bucketName)
         .createSignedUrl(filePath, 60); // 60 seconds expiry
@@ -54,7 +76,7 @@ export const FileDisplay = ({
       if (signedUrlError) {
         console.error('Error creating signed URL:', signedUrlError);
         
-        // Try direct download as fallback
+        // Try direct download as last resort
         const { data, error } = await supabase.storage
           .from(bucketName)
           .download(filePath);
@@ -117,20 +139,39 @@ export const FileDisplay = ({
 
   const handleOpenFile = (filePath: string) => {
     try {
-      // Get the public URL for the file
-      const { data } = supabase.storage
+      // First try to get the public URL
+      const { data: publicUrlData } = supabase.storage
         .from(bucketName)
         .getPublicUrl(filePath);
-        
-      if (data?.publicUrl) {
-        window.open(data.publicUrl, '_blank');
-      } else {
-        toast({
-          title: t("common.error"),
-          description: t("common.downloadError"),
-          variant: "destructive",
-        });
+      
+      if (publicUrlData?.publicUrl) {
+        window.open(publicUrlData.publicUrl, '_blank');
+        return;
       }
+      
+      // If public URL doesn't work, try creating a signed URL
+      supabase.storage
+        .from(bucketName)
+        .createSignedUrl(filePath, 60)
+        .then(({ data, error }) => {
+          if (error) {
+            throw error;
+          }
+          
+          if (data?.signedUrl) {
+            window.open(data.signedUrl, '_blank');
+          } else {
+            throw new Error('Could not generate signed URL');
+          }
+        })
+        .catch((error) => {
+          console.error('Error opening file:', error);
+          toast({
+            title: t("common.error"),
+            description: t("common.downloadError"),
+            variant: "destructive",
+          });
+        });
     } catch (error) {
       console.error('Error opening file:', error);
       toast({
@@ -274,18 +315,16 @@ export const FileDisplay = ({
                 </div>
               </div>
               
-              {/* Open button */}
-              {publicUrl && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full rounded-none border-t flex items-center justify-center gap-2 py-1.5"
-                  onClick={() => handleOpenFile(file.file_path)}
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Open
-                </Button>
-              )}
+              {/* Open button that matches the design */}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full rounded-none border-t flex items-center justify-center gap-2 py-1.5"
+                onClick={() => handleOpenFile(file.file_path)}
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open
+              </Button>
             </div>
           );
         })}

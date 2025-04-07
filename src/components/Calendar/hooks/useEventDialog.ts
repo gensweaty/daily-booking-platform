@@ -42,6 +42,12 @@ export const useEventDialog = ({
     existingEventId?: string
   ): Promise<{ available: boolean; conflictingEvent?: CalendarEventType }> => {
     try {
+      console.log("Checking time slot availability:", {
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+        excludeId: existingEventId
+      });
+      
       // First check regular events
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
@@ -51,11 +57,15 @@ export const useEventDialog = ({
         
       if (eventsError) throw eventsError;
       
+      // Filter out the current event being edited
       const eventConflict = conflictingEvents?.find(event => 
         (!existingEventId || event.id !== existingEventId) &&
         !(startDate.getTime() === new Date(event.end_date).getTime() || 
           endDate.getTime() === new Date(event.start_date).getTime())
       );
+      
+      console.log("Conflicting events (excluding current):", 
+        conflictingEvents?.filter(e => e.id !== existingEventId));
       
       if (eventConflict) {
         return { available: false, conflictingEvent: eventConflict };
@@ -71,10 +81,15 @@ export const useEventDialog = ({
         
       if (bookingsError) throw bookingsError;
       
+      // Filter out the current booking being edited
       const bookingConflict = conflictingBookings?.find(booking => 
+        booking.id !== existingEventId &&
         !(startDate.getTime() === new Date(booking.end_date).getTime() || 
           endDate.getTime() === new Date(booking.start_date).getTime())
       );
+      
+      console.log("Conflicting bookings (excluding current):", 
+        conflictingBookings?.filter(b => b.id !== existingEventId));
       
       if (bookingConflict) {
         // Convert booking to event format for the response
@@ -148,25 +163,42 @@ export const useEventDialog = ({
     if (!selectedEvent) return;
     
     try {
+      console.log('handleUpdateEvent - Updating event:', selectedEvent.id);
+      console.log('handleUpdateEvent - With data:', data);
+      
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
 
-      const { available, conflictingEvent } = await checkTimeSlotAvailability(
-        startDate,
-        endDate,
-        selectedEvent.id
-      );
+      // Only check for conflicts if the dates have changed
+      if (
+        startDate.toISOString() !== new Date(selectedEvent.start_date).toISOString() || 
+        endDate.toISOString() !== new Date(selectedEvent.end_date).toISOString()
+      ) {
+        console.log('Dates changed, checking for conflicts');
+        
+        const { available, conflictingEvent } = await checkTimeSlotAvailability(
+          startDate,
+          endDate,
+          selectedEvent.id
+        );
 
-      if (!available && conflictingEvent) {
-        toast({
-          title: "Time Slot Unavailable",
-          description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
-          variant: "destructive",
-        });
-        throw new Error("Time slot conflict");
+        if (!available && conflictingEvent) {
+          toast({
+            title: "Time Slot Unavailable",
+            description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
+            variant: "destructive",
+          });
+          throw new Error("Time slot conflict");
+        }
+      } else {
+        console.log('Dates unchanged, skipping conflict check');
       }
 
-      const result = await updateEvent(data);
+      const result = await updateEvent({
+        id: selectedEvent.id,
+        updates: data
+      });
+      
       setSelectedEvent(null);
       toast({
         title: "Success",
