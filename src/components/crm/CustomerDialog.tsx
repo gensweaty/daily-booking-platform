@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -83,34 +82,25 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         setPaymentAmount(customerData.payment_amount?.toString() || "");
         setCreateEvent(!!customerData.start_date && !!customerData.end_date);
 
-        // Fetch customer files
-        const { data: files, error: filesError } = await supabase
-          .from('customer_files_new')
-          .select('*')
-          .eq('customer_id', customerId);
-          
-        if (filesError) {
-          console.error('Error fetching customer files:', filesError);
-        } else if (files && files.length > 0) {
-          console.log('Found customer files:', files);
-          setCustomerFiles(files);
-        } else {
-          console.log('No customer files found. Checking for related files...');
-          
-          // If no direct files found, check for any related files through RPC
-          const { data: relatedFiles, error: relatedError } = await supabase.rpc('get_all_related_files', {
+        // Use the get_all_related_files function to find ALL related files
+        const { data: allFiles, error: allFilesError } = await supabase.rpc(
+          'get_all_related_files',
+          { 
             customer_id_param: customerId,
             entity_name_param: customerData.title
-          });
+          }
+        );
+        
+        if (allFilesError) {
+          console.error('Error fetching all related files:', allFilesError);
+        } else if (allFiles && allFiles.length > 0) {
+          console.log('Found related files using get_all_related_files:', allFiles);
+          setCustomerFiles(allFiles);
           
-          if (relatedError) {
-            console.error('Error fetching related files:', relatedError);
-          } else if (relatedFiles && relatedFiles.length > 0) {
-            console.log('Found related files:', relatedFiles);
-            setCustomerFiles(relatedFiles);
-            
-            // Copy these files to the customer if they don't exist
-            for (const file of relatedFiles) {
+          // For files found related to events, copy them to customer files if not there already
+          for (const file of allFiles) {
+            if (file.source.includes('event') || file.source.includes('booking')) {
+              // Check if already exists as customer file
               const { data: existingFile } = await supabase
                 .from('customer_files_new')
                 .select('id')
@@ -121,6 +111,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
               if (!existingFile) {
                 console.log(`Copying related file ${file.filename} to customer ${customerId}`);
                 
+                // Copy file record to customer_files_new
                 const { error: copyError } = await supabase
                   .from('customer_files_new')
                   .insert({
@@ -131,7 +122,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
                     user_id: user.id,
                     customer_id: customerId
                   });
-                  
+                
                 if (copyError) {
                   console.error('Error copying related file to customer:', copyError);
                 } else {
@@ -140,6 +131,8 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
               }
             }
           }
+        } else {
+          console.log('No related files found for customer');
         }
 
         // If customer has dates, try to find associated event
@@ -178,7 +171,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     if (isOpen && customerId) {
       fetchCustomer();
     }
-  }, [customerId, isOpen, user]); // Removed title from dependencies
+  }, [customerId, isOpen, user]);
 
   const checkTimeSlotAvailability = async (startDate: string, endDate: string, excludeEventId?: string): Promise<boolean> => {
     const start = new Date(startDate);

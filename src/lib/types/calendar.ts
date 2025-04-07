@@ -21,4 +21,6 @@ export interface CalendarEventType {
   description?: string;
   file_path?: string;
   filename?: string;
+  has_files?: boolean;
+  files?: any[];
 }

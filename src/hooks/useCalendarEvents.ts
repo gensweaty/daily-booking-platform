@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { CalendarEventType } from "@/lib/types/calendar";
+import { Event, FileAttachment } from "@/types/database";
 
 export const useCalendarEvents = () => {
   const { user } = useAuth();
@@ -33,14 +34,14 @@ export const useCalendarEvents = () => {
               ...event,
               has_files: false,
               files: []
-            };
+            } as CalendarEventType;
           }
           
           return {
             ...event,
             has_files: files && files.length > 0,
             files: files || []
-          };
+          } as CalendarEventType;
         })
       );
       
@@ -131,9 +132,59 @@ export const useCalendarEvents = () => {
   // Combine regular events and approved bookings
   const allEvents = [...events, ...approvedBookings];
 
+  // Create/Update/Delete functions for events
+  const createEvent = async (data: Partial<Event>): Promise<CalendarEventType> => {
+    if (!user) throw new Error("User not authenticated");
+    
+    const eventData = {
+      ...data,
+      user_id: user.id,
+      created_at: new Date().toISOString()
+    };
+    
+    const { data: newEvent, error } = await supabase
+      .from('events')
+      .insert([eventData])
+      .select()
+      .single();
+      
+    if (error) throw error;
+    
+    return newEvent as CalendarEventType;
+  };
+  
+  const updateEvent = async (data: Partial<Event>): Promise<CalendarEventType> => {
+    if (!user || !data.id) throw new Error("User not authenticated or missing event ID");
+    
+    const { data: updatedEvent, error } = await supabase
+      .from('events')
+      .update(data)
+      .eq('id', data.id)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    
+    return updatedEvent as CalendarEventType;
+  };
+  
+  const deleteEvent = async (id: string): Promise<void> => {
+    if (!user) throw new Error("User not authenticated");
+    
+    const { error } = await supabase
+      .from('events')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
+      
+    if (error) throw error;
+  };
+
   return {
     events: allEvents,
     isLoading: eventsLoading || bookingsLoading,
     error: eventsError || bookingsError,
+    createEvent,
+    updateEvent,
+    deleteEvent
   };
 };
