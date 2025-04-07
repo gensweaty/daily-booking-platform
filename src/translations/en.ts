@@ -1,4 +1,3 @@
-
 const en = {
   landing: {
     heroTitle: "Unleash Your Potential with Our Productivity Platform",
