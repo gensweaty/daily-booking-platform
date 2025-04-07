@@ -77,7 +77,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         const allEvents: CalendarEventType[] = [
           ...activeEvents.map(event => ({
             ...event,
-            type: event.type || 'event'
+            type: event.type || 'event',
+            deleted_at: event.deleted_at // Make sure deleted_at is passed through
           })),
           ...(approvedBookings || []).map(booking => ({
             id: booking.id,

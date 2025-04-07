@@ -21,5 +21,5 @@ export interface CalendarEventType {
   description?: string;
   booking_request_id?: string;
   status?: 'pending' | 'approved' | 'rejected' | string;
-  deleted_at?: string | null; // Adding the deleted_at property
+  deleted_at: string | null; // Explicitly define deleted_at property
 }
