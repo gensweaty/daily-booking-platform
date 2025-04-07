@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -188,52 +189,6 @@ export const useEventDialog = ({
         throw new Error("Time slot conflict");
       }
 
-      // Special handling for events that originated from booking_requests
-      if (selectedEvent.type === 'booking_request') {
-        console.log("Updating event from booking request:", selectedEvent.id);
-        
-        // Check if a customer exists with this title and event data
-        const { data: existingCustomer, error: customerError } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('title', selectedEvent.title)
-          .eq('start_date', selectedEvent.start_date)
-          .eq('end_date', selectedEvent.end_date)
-          .maybeSingle();
-        
-        if (customerError && customerError.code !== 'PGRST116') {
-          console.error("Error checking for existing customer:", customerError);
-        }
-        
-        // If a customer exists, update it with the new event data
-        if (existingCustomer) {
-          console.log("Found existing customer to update:", existingCustomer.id);
-          
-          const customerData = {
-            title: data.title,
-            user_surname: data.user_surname,
-            user_number: data.user_number,
-            social_network_link: data.social_network_link,
-            event_notes: data.event_notes,
-            payment_status: data.payment_status,
-            payment_amount: data.payment_amount,
-            start_date: data.start_date,
-            end_date: data.end_date
-          };
-          
-          const { error: updateError } = await supabase
-            .from('customers')
-            .update(customerData)
-            .eq('id', existingCustomer.id);
-            
-          if (updateError) {
-            console.error("Error updating customer:", updateError);
-          } else {
-            console.log("Updated customer successfully");
-          }
-        }
-      }
-
       const result = await updateEvent(data);
       setSelectedEvent(null);
       toast({
@@ -304,7 +259,7 @@ export const useEventDialog = ({
         .from('event_files')
         .select('*')
         .eq('event_id', selectedEvent.id);
-    
+      
       if (fileQueryError) {
         console.error('Error querying event files:', fileQueryError);
       }
@@ -312,9 +267,20 @@ export const useEventDialog = ({
       if (files && files.length > 0) {
         console.log(`Found ${files.length} files to delete for event ${selectedEvent.id}`);
         
-        // We won't delete the actual files from storage to preserve them for customers
-        // But we will delete the event_files records
-        
+        // Delete files from storage
+        for (const file of files) {
+          const { error: storageError } = await supabase.storage
+            .from('event_attachments')
+            .remove([file.file_path]);
+
+          if (storageError) {
+            console.error('Error deleting file from storage:', storageError);
+          } else {
+            console.log(`Deleted file ${file.filename} from storage`);
+          }
+        }
+
+        // Delete file records from database
         const { error: filesDeleteError } = await supabase
           .from('event_files')
           .delete()

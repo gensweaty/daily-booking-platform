@@ -67,7 +67,6 @@ export interface BookingRequest {
   file_path?: string;
   filename?: string;
   has_files?: boolean;
-  files?: FileAttachment[];
 }
 
 export interface FileAttachment {
@@ -80,7 +79,6 @@ export interface FileAttachment {
   user_id: string;
   event_id?: string;
   customer_id?: string;
-  source?: string; // To track the source of the file (event, customer, etc.)
 }
 
 export interface Event {
@@ -102,7 +100,6 @@ export interface Event {
   file_path?: string;
   filename?: string;
   has_files?: boolean;
-  files?: FileAttachment[];
   // Fields for booking requests
   requester_name?: string;
   requester_email?: string;

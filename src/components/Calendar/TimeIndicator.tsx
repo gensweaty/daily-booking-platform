@@ -1,31 +1,30 @@
 
-import { useState, useEffect } from "react";
-import { differenceInMinutes, setHours, setMinutes } from "date-fns";
+import { format } from "date-fns";
 
-interface TimeIndicatorProps {
-  currentDate: Date;
-}
+// Reorder hours to start from 6 AM
+const HOURS = [
+  ...Array.from({ length: 18 }, (_, i) => i + 6), // 6 AM to 23 PM
+  ...Array.from({ length: 6 }, (_, i) => i) // 0 AM to 5 AM
+];
 
-export const TimeIndicator: React.FC<TimeIndicatorProps> = ({ currentDate }) => {
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000); // Update every minute
-
-    return () => clearInterval(intervalId);
-  }, []);
-
-  const startOfDay = setHours(setMinutes(currentDate, 0), 0);
-  const currentPosition = differenceInMinutes(currentTime, startOfDay);
-
+export const TimeIndicator = () => {
   return (
-    <div
-      className="absolute left-0 right-0 border-t-2 border-red-500 z-10"
-      style={{ top: currentPosition }}
-    >
-      <div className="absolute -top-2 -left-2 w-4 h-4 rounded-full bg-red-500" />
+    <div className="w-16 flex-shrink-0 border-r border-border bg-background">
+      {HOURS.map((hour, index) => {
+        const date = new Date();
+        date.setHours(hour, 0, 0, 0);
+        
+        return (
+          <div
+            key={hour}
+            className="h-24 border-b border-border text-xs text-muted-foreground relative"
+          >
+            <span className="absolute -top-2.5 left-2">
+              {format(date, 'h a')}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 };

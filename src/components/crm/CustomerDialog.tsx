@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
   const [createEvent, setCreateEvent] = useState(false);
   const [isEventData, setIsEventData] = useState(false);
   const [associatedEventId, setAssociatedEventId] = useState<string | null>(null);
-  const [customerFiles, setCustomerFiles] = useState<any[]>([]);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -82,59 +82,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         setPaymentAmount(customerData.payment_amount?.toString() || "");
         setCreateEvent(!!customerData.start_date && !!customerData.end_date);
 
-        // Use the get_all_related_files function to find ALL related files
-        const { data: allFiles, error: allFilesError } = await supabase.rpc(
-          'get_all_related_files',
-          { 
-            customer_id_param: customerId,
-            entity_name_param: customerData.title
-          }
-        );
-        
-        if (allFilesError) {
-          console.error('Error fetching all related files:', allFilesError);
-        } else if (allFiles && allFiles.length > 0) {
-          console.log('Found related files using get_all_related_files:', allFiles);
-          setCustomerFiles(allFiles);
-          
-          // For files found related to events, copy them to customer files if not there already
-          for (const file of allFiles) {
-            if (file.source.includes('event') || file.source.includes('booking')) {
-              // Check if already exists as customer file
-              const { data: existingFile } = await supabase
-                .from('customer_files_new')
-                .select('id')
-                .eq('file_path', file.file_path)
-                .eq('customer_id', customerId)
-                .maybeSingle();
-                
-              if (!existingFile) {
-                console.log(`Copying related file ${file.filename} to customer ${customerId}`);
-                
-                // Copy file record to customer_files_new
-                const { error: copyError } = await supabase
-                  .from('customer_files_new')
-                  .insert({
-                    filename: file.filename,
-                    file_path: file.file_path,
-                    content_type: file.content_type || 'application/octet-stream',
-                    size: file.size || 0,
-                    user_id: user.id,
-                    customer_id: customerId
-                  });
-                
-                if (copyError) {
-                  console.error('Error copying related file to customer:', copyError);
-                } else {
-                  console.log(`Successfully copied related file ${file.filename} to customer ${customerId}`);
-                }
-              }
-            }
-          }
-        } else {
-          console.log('No related files found for customer');
-        }
-
         // If customer has dates, try to find associated event
         if (customerData.start_date && customerData.end_date) {
           const { data: existingEvent, error: eventError } = await supabase
@@ -171,7 +118,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     if (isOpen && customerId) {
       fetchCustomer();
     }
-  }, [customerId, isOpen, user]);
+  }, [customerId, isOpen, user]); // Removed title from dependencies
 
   const checkTimeSlotAvailability = async (startDate: string, endDate: string, excludeEventId?: string): Promise<boolean> => {
     const start = new Date(startDate);
@@ -248,8 +195,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         end_date: formattedEndDate,
       };
 
-      let updatedCustomerId = customerId;
-
       if (customerId) {
         // Update customer
         const { error: customerError } = await supabase
@@ -287,16 +232,11 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         }
       } else {
         // Create new customer
-        const { data: newCustomer, error: customerError } = await supabase
+        const { error: customerError } = await supabase
           .from('customers')
-          .insert([customerData])
-          .select()
-          .single();
+          .insert([customerData]);
 
         if (customerError) throw customerError;
-        
-        updatedCustomerId = newCustomer.id;
-        console.log('Created new customer:', newCustomer);
 
         // Create new event if needed
         if (createEvent) {
@@ -316,12 +256,12 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       }
 
       // Handle file upload if a file is selected
-      if (selectedFile && user && updatedCustomerId) {
+      if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
-          .from('event_attachments')
+          .from('customer_attachments')
           .upload(filePath, selectedFile);
 
         if (uploadError) throw uploadError;
@@ -332,7 +272,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           content_type: selectedFile.type,
           size: selectedFile.size,
           user_id: user.id,
-          customer_id: updatedCustomerId
+          customer_id: customerId
         };
 
         const { error: fileError } = await supabase
@@ -340,13 +280,10 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           .insert([fileData]);
 
         if (fileError) throw fileError;
-        
-        console.log('Added new file to customer:', fileData);
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       
       toast({
         title: "Success",
@@ -388,11 +325,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     setCreateEvent(false);
     setIsEventData(false);
     setAssociatedEventId(null);
-    setCustomerFiles([]);
-  };
-
-  const handleFileDeleted = (fileId: string) => {
-    setCustomerFiles(prev => prev.filter(file => file.id !== fileId));
   };
 
   return (
@@ -433,8 +365,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             setCreateEvent={setCreateEvent}
             isEventData={isEventData}
             isOpen={isOpen}
-            displayedFiles={customerFiles}
-            onFileDeleted={handleFileDeleted}
           />
 
           <div className="flex justify-end gap-2 mt-4">
