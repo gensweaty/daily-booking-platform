@@ -194,9 +194,10 @@ export const useEventDialog = ({
         console.log('Dates unchanged, skipping conflict check');
       }
 
+      // Fix: Pass the event ID directly in the data object instead of using a nested 'updates' property
       const result = await updateEvent({
-        id: selectedEvent.id,
-        updates: data
+        ...data,
+        id: selectedEvent.id
       });
       
       setSelectedEvent(null);
