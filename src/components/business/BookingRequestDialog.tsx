@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -142,7 +141,11 @@ export const BookingRequestDialog = ({
         }
       }
       
-      const bookingData = {
+      const numericPaymentAmount = paymentAmount 
+        ? parseFloat(paymentAmount.toString()) 
+        : null;
+      
+      const bookingData: Partial<BookingRequest> = {
         business_id: businessId,
         requester_name: title,
         requester_email: socialNetworkLink,
@@ -155,9 +158,9 @@ export const BookingRequestDialog = ({
         event_notes: eventNotes,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
-        status: "pending",
-        payment_status: paymentStatus || "not_paid",
-        payment_amount: paymentStatus !== 'not_paid' ? Number(paymentAmount) || null : null,
+        status: 'pending' as 'pending' | 'approved' | 'rejected',
+        payment_status: paymentStatus as string,
+        payment_amount: numericPaymentAmount,
         file_path: filePath,
         filename: fileName
       };

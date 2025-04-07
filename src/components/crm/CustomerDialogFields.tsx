@@ -38,6 +38,9 @@ interface CustomerDialogFieldsProps {
   setCreateEvent: (value: boolean) => void;
   isEventData: boolean;
   isOpen: boolean;
+  onFileChange: (file: File | null) => void;
+  resetOnDialogClose: boolean;
+  dialogOpen: boolean;
 }
 
 export const CustomerDialogFields = ({
@@ -68,6 +71,9 @@ export const CustomerDialogFields = ({
   setCreateEvent,
   isEventData,
   isOpen,
+  onFileChange,
+  resetOnDialogClose,
+  dialogOpen,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
 
@@ -169,37 +175,37 @@ export const CustomerDialogFields = ({
   });
 
   useEffect(() => {
-    if (customerId && !isEventData) {
-      const fetchCustomerData = async () => {
-        try {
-          const { data: customer, error } = await supabase
-            .from('customers')
-            .select('*')
-            .eq('id', customerId)
-            .maybeSingle();
+    if (!customerId) return;
+    
+    const fetchCustomerData = async () => {
+      try {
+        const { data: customer, error } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('id', customerId)
+          .maybeSingle();
 
-          if (error) {
-            console.error('Error fetching customer:', error);
-            return;
-          }
-
-          if (customer) {
-            const hasEvent = customer.start_date !== null && customer.end_date !== null;
-            setCreateEvent(hasEvent);
-            
-            if (!hasEvent) {
-              setStartDate('');
-              setEndDate('');
-            }
-          }
-        } catch (error) {
-          console.error('Error in fetchCustomerData:', error);
+        if (error) {
+          console.error('Error fetching customer:', error);
+          return;
         }
-      };
 
-      fetchCustomerData();
-    }
-  }, [customerId, isEventData, setCreateEvent, setStartDate, setEndDate]);
+        if (customer) {
+          const hasEvent = customer.start_date !== null && customer.end_date !== null;
+          setCreateEvent(hasEvent);
+          
+          if (!hasEvent) {
+            setStartDate('');
+            setEndDate('');
+          }
+        }
+      } catch (error) {
+        console.error('Error in fetchCustomerData:', error);
+      }
+    };
+
+    fetchCustomerData();
+  }, [customerId, setCreateEvent, setStartDate, setEndDate]);
 
   const allFiles = useMemo(() => fetchedFiles, [fetchedFiles]);
 
@@ -339,11 +345,12 @@ export const CustomerDialogFields = ({
         </div>
       )}
 
-      <FileUploadField 
-        onChange={setSelectedFile}
-        onFileChange={setSelectedFile}
+      <FileUploadField
+        onChange={(file) => onFileChange(file)}
         fileError={fileError}
         setFileError={setFileError}
+        resetOnDialogClose
+        dialogOpen={dialogOpen}
       />
     </div>
   );
