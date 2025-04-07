@@ -1,5 +1,4 @@
 
-// This file is being created/modified to fix the time slot conflict issue
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -60,18 +59,23 @@ export const useCalendarEvents = () => {
         // Check if this is an approved booking event
         const { data: eventData, error: eventError } = await supabase
           .from("events")
-          .select("type, status")
+          .select("type, status, booking_request_id")
           .eq("id", eventId)
           .single();
           
-        if (!eventError && eventData && eventData.type === 'booking_request' && eventData.status === 'approved') {
-          console.log("Skipping conflict check for approved booking event:", eventId);
-          return { available: true };
+        if (!eventError && eventData) {
+          console.log("Event data for conflict check:", eventData);
+          
+          // Skip conflict check for approved booking events
+          if (eventData.type === 'booking_request' || eventData.booking_request_id) {
+            console.log("Skipping conflict check for booking event:", eventId);
+            return { available: true };
+          }
         }
       }
       
       // Query for events that would overlap with the requested time slot
-      let eventQuery = supabase
+      const eventQuery = supabase
         .from("events")
         .select("*")
         .is("deleted_at", null)
@@ -80,11 +84,12 @@ export const useCalendarEvents = () => {
         .gt("end_date", startISO);
       
       // If we're updating an existing event, exclude it from the conflict check
+      let filteredQuery = eventQuery;
       if (eventId) {
-        eventQuery = eventQuery.neq("id", eventId);
+        filteredQuery = eventQuery.neq("id", eventId);
       }
       
-      const { data: conflictingEvents, error: eventsError } = await eventQuery;
+      const { data: conflictingEvents, error: eventsError } = await filteredQuery;
       
       if (eventsError) {
         console.error("Error checking events for conflicts:", eventsError);
@@ -97,7 +102,6 @@ export const useCalendarEvents = () => {
       }
       
       // Also check approved booking requests for conflicts
-      // We only need to do this if we're not checking an approved booking itself
       let bookingQuery = supabase
         .from("booking_requests")
         .select("*")

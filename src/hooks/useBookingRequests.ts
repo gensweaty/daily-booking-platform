@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -86,7 +87,8 @@ export const useBookingRequests = () => {
         .from('events')
         .select('id, title')
         .filter('start_date', 'lt', booking.end_date)
-        .filter('end_date', 'gt', booking.start_date);
+        .filter('end_date', 'gt', booking.start_date)
+        .is('deleted_at', null); // Only check non-deleted events
       
       if (eventsError) {
         console.error('Error checking for conflicting events:', eventsError);
@@ -209,7 +211,9 @@ export const useBookingRequests = () => {
           console.log('Created customer:', customerData);
         }
         
-        // Check if there are any files attached to the booking
+        // Check if there are any files attached to the booking - fixed file handling here!
+        console.log('Checking for booking files to copy for booking ID:', bookingId);
+        
         const { data: bookingFiles, error: filesError } = await supabase
           .from('booking_files')
           .select('*')
@@ -220,45 +224,68 @@ export const useBookingRequests = () => {
         }
         
         if (bookingFiles && bookingFiles.length > 0) {
-          console.log('Found booking files to copy:', bookingFiles.length);
+          console.log('Found booking files to copy:', bookingFiles.length, bookingFiles);
+          
+          // Copy files to both customer and event records
+          const promises = [];
           
           for (const file of bookingFiles) {
-            if (customerData?.id) {
-              // Create customer file record
-              const { error: fileError } = await supabase
-                .from('customer_files_new')
-                .insert({
-                  filename: file.filename,
-                  file_path: file.file_path,
-                  content_type: file.content_type,
-                  size: file.size,
-                  user_id: user?.id,
-                  customer_id: customerData.id
-                });
-                
-              if (fileError) {
-                console.error('Error copying booking file to customer:', fileError);
-              }
-            }
-            
+            // Create event file record - Now with proper error handling
             if (createdEvent?.id) {
-              // Create event file record
-              const { error: eventFileError } = await supabase
+              console.log(`Creating event file record for event ${createdEvent.id}:`, file);
+              
+              const eventFilePromise = supabase
                 .from('event_files')
                 .insert({
+                  event_id: createdEvent.id,
                   filename: file.filename,
                   file_path: file.file_path,
                   content_type: file.content_type,
                   size: file.size,
-                  user_id: user?.id,
-                  event_id: createdEvent.id
+                  user_id: user?.id
                 });
                 
-              if (eventFileError) {
-                console.error('Error copying booking file to event:', eventFileError);
-              }
+              promises.push(eventFilePromise);
+            }
+            
+            // Create customer file record - Now with proper error handling
+            if (customerData?.id) {
+              console.log(`Creating customer file record for customer ${customerData.id}:`, file);
+              
+              const customerFilePromise = supabase
+                .from('customer_files_new')
+                .insert({
+                  customer_id: customerData.id,
+                  filename: file.filename,
+                  file_path: file.file_path,
+                  content_type: file.content_type,
+                  size: file.size,
+                  user_id: user?.id
+                });
+                
+              promises.push(customerFilePromise);
             }
           }
+          
+          // Wait for all file copying to complete
+          if (promises.length > 0) {
+            try {
+              const results = await Promise.all(promises);
+              console.log('File copy results:', results);
+              
+              // Check if any errors occurred
+              const errors = results.filter(r => r.error);
+              if (errors.length > 0) {
+                console.error('Some file copies failed:', errors);
+              } else {
+                console.log('All files copied successfully');
+              }
+            } catch (error) {
+              console.error('Error copying files:', error);
+            }
+          }
+        } else {
+          console.log('No booking files found to copy');
         }
         
         return { booking, event: createdEvent };

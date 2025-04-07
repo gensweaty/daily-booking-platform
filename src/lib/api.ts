@@ -7,6 +7,7 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
   const { data: userData } = await supabase.auth.getUser();
   
   console.log("Creating booking request:", request);
+  console.log("With file:", file ? `${file.name} (${file.size} bytes)` : 'none');
   
   try {
     // Ensure payment_amount is properly handled when saving to the database
@@ -44,19 +45,25 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
     
     // Handle file upload if provided
     if (file && data?.id) {
+      console.log("Uploading file for booking request:", file.name);
+      
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${file.name}`;
       const filePath = `${data.id}/${fileName}`;
       
-      const { error: uploadError } = await supabase.storage
+      // First, upload the file to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from("booking_attachments")
         .upload(filePath, file);
         
       if (uploadError) {
         console.error("Error uploading booking file:", uploadError);
+        console.log("Upload error details:", uploadError);
         // Continue anyway, booking was created
       } else {
-        // Create file record
+        console.log("File uploaded successfully:", uploadData);
+        
+        // Create file record with all necessary information
         const fileData = {
           booking_id: data.id,
           filename: file.name,
@@ -65,12 +72,19 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
           size: file.size
         };
         
-        const { error: fileRecordError } = await supabase
+        console.log("Creating booking file record:", fileData);
+        
+        const { data: fileRecord, error: fileRecordError } = await supabase
           .from("booking_files")
-          .insert([fileData]);
+          .insert([fileData])
+          .select()
+          .single();
           
         if (fileRecordError) {
           console.error("Error creating booking file record:", fileRecordError);
+          console.log("File record error details:", fileRecordError);
+        } else {
+          console.log("Booking file record created successfully:", fileRecord);
         }
       }
     }

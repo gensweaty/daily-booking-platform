@@ -1,16 +1,12 @@
 
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
 import { useToast } from "../ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { DialogHeader, DialogTitle } from "../ui/dialog";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
-import { createBookingRequest } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 import { EventDialogFields } from "../Calendar/EventDialogFields";
+import { createBookingRequest } from "@/lib/api";
 
 interface BookingRequestFormProps {
   open: boolean;
@@ -22,25 +18,6 @@ interface BookingRequestFormProps {
   endTime?: string;
 }
 
-const BookingSchema = z.object({
-  title: z.string().min(2, "Title is required"),
-  requester_name: z.string().min(2, "Name is required"),
-  requester_email: z.string().email("Valid email is required"),
-  requester_phone: z.string().optional(),
-  description: z.string().optional(),
-  start_date: z.string(),
-  end_date: z.string(),
-  payment_amount: z.union([
-    z.string().optional(), 
-    z.number().optional(),
-    z.null()
-  ]),
-  payment_status: z.string().optional(),
-  business_id: z.string(),
-});
-
-type FormValues = z.infer<typeof BookingSchema>;
-
 export const BookingRequestForm = ({
   open,
   onOpenChange,
@@ -51,7 +28,7 @@ export const BookingRequestForm = ({
   endTime,
 }: BookingRequestFormProps) => {
   const { toast } = useToast();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Event dialog fields state
@@ -86,22 +63,6 @@ export const BookingRequestForm = ({
     }
   }, [selectedDate, defaultStartTime, defaultEndTime]);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(BookingSchema),
-    defaultValues: {
-      title: "",
-      requester_name: "",
-      requester_email: "",
-      requester_phone: "",
-      description: "",
-      start_date: `${formattedDate}T${defaultStartTime}:00`,
-      end_date: `${formattedDate}T${defaultEndTime}:00`,
-      payment_amount: "",
-      payment_status: "not_paid",
-      business_id: businessId,
-    },
-  });
-
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -129,9 +90,11 @@ export const BookingRequestForm = ({
         end_date: endDateTime.toISOString(),
         payment_amount: paymentAmountValue,
         payment_status: paymentStatus,
-        business_id: businessId
+        business_id: businessId,
+        selectedFile: selectedFile ? `${selectedFile.name} (${selectedFile.size} bytes)` : 'none'
       });
       
+      // Pass both the booking request data and the file
       await createBookingRequest({
         title: userSurname, // Use customer name as the title
         requester_name: userSurname,
@@ -143,7 +106,7 @@ export const BookingRequestForm = ({
         payment_amount: paymentAmountValue,
         payment_status: paymentStatus,
         business_id: businessId,
-      });
+      }, selectedFile); // Pass the selected file
       
       toast({
         title: "Success",
