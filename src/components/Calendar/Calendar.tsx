@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -53,11 +54,13 @@ export const Calendar = ({
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
   
+  // Only use the hook if we're not getting directEvents
   const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
     !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
   );
   
+  // Use directEvents if provided, otherwise use fetchedEvents
   const events = directEvents || fetchedEvents;
   const isLoading = !directEvents && isLoadingFromHook;
   
@@ -70,12 +73,14 @@ export const Calendar = ({
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Update view when currentView prop changes
   useEffect(() => {
     if (currentView) {
       setView(currentView);
     }
   }, [currentView]);
 
+  // Diagnostic logging
   useEffect(() => {
     console.log("[Calendar] Rendering with props:", { 
       isExternalCalendar, 
@@ -121,6 +126,7 @@ export const Calendar = ({
     }
   });
 
+  // Redirect to signin if not authenticated and not on public business page
   if (!isExternalCalendar && !user && !window.location.pathname.includes('/business/')) {
     navigate("/signin");
     return null;
@@ -189,6 +195,7 @@ export const Calendar = ({
     if (isExternalCalendar && allowBookingRequests) {
       setBookingDate(clickedDate);
       
+      // Format the time for the form
       const startHour = format(clickedDate, "HH:mm");
       const endDate = new Date(clickedDate);
       endDate.setHours(clickedDate.getHours() + 1);
@@ -209,6 +216,7 @@ export const Calendar = ({
       const now = new Date();
       setBookingDate(now);
       
+      // Default to current hour and next hour
       const startHour = format(now, "HH:mm");
       const endDate = new Date(now);
       endDate.setHours(now.getHours() + 1);
@@ -319,7 +327,7 @@ export const Calendar = ({
 
       {isExternalCalendar && allowBookingRequests && businessId && (
         <Dialog open={isBookingFormOpen} onOpenChange={setIsBookingFormOpen}>
-          <DialogContent className="max-w-md sm:max-w-lg bg-background overflow-y-auto max-h-[90vh]">
+          <DialogContent className="max-w-md">
             {bookingDate && (
               <BookingRequestForm
                 open={isBookingFormOpen}

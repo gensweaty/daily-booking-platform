@@ -97,7 +97,7 @@ export const BookingRequestForm = ({
       setSelectedFile(null);
       setFileError("");
     }
-  }, [open, businessId, startDateTime, endDateTime, form]);
+  }, [open, businessId, startDateTime, endDateTime]);
 
   const paymentStatus = form.watch("payment_status");
 
@@ -184,7 +184,7 @@ export const BookingRequestForm = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
       <h2 className="text-2xl font-bold mb-4">{t("bookings.requestBooking")}</h2>
       
       <Form {...form}>
@@ -201,7 +201,6 @@ export const BookingRequestForm = ({
                       {...field} 
                       placeholder={t("events.fullName")} 
                       required 
-                      className="bg-background border-input"
                     />
                   </FormControl>
                   <FormMessage />
@@ -222,7 +221,6 @@ export const BookingRequestForm = ({
                       {...field} 
                       type="tel" 
                       placeholder={t("events.phoneNumber")} 
-                      className="bg-background border-input"
                     />
                   </FormControl>
                   <FormMessage />
@@ -243,7 +241,6 @@ export const BookingRequestForm = ({
                       {...field} 
                       type="text" 
                       placeholder={t("events.socialLinkEmail")} 
-                      className="bg-background border-input"
                     />
                   </FormControl>
                   <FormMessage />
@@ -406,7 +403,6 @@ export const BookingRequestForm = ({
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isLoading}
-              className="bg-background"
             >
               {t("common.cancel")}
             </Button>
