@@ -1,139 +1,133 @@
 
-import { Input } from "@/components/ui/input";
+import { useState, useRef, useEffect } from "react";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useEffect, useRef } from "react";
-
-const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
-const MAX_FILE_SIZE_IMAGES = 2048 * 1024; // 2MB
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-const ALLOWED_DOC_TYPES = [
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
-];
 
 interface FileUploadFieldProps {
   onChange: (file: File | null) => void;
-  onFileChange?: (file: File | null) => void; // For backward compatibility
   fileError: string;
   setFileError: (error: string) => void;
-  acceptedFileTypes?: string;
   hideLabel?: boolean;
-  hideDescription?: boolean; // Added to hide the description text
-  resetOnDialogClose?: boolean; // New prop to reset state when dialog closes
-  dialogOpen?: boolean; // To track dialog open state
+  resetOnDialogClose?: boolean;
+  dialogOpen?: boolean;
 }
 
-export const FileUploadField = ({ 
-  onChange, 
-  onFileChange, 
-  fileError, 
-  setFileError, 
-  acceptedFileTypes, 
+export const FileUploadField = ({
+  onChange,
+  fileError,
+  setFileError,
   hideLabel = false,
-  hideDescription = false,
   resetOnDialogClose = false,
-  dialogOpen = true
+  dialogOpen = true,
 }: FileUploadFieldProps) => {
-  const { t } = useLanguage();
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { t } = useLanguage();
 
-  // Reset state when dialog closes
+  // Effect to reset file input when dialog closes
   useEffect(() => {
     if (resetOnDialogClose && !dialogOpen) {
-      console.log("Resetting file input state", { dialogOpen, resetOnDialogClose });
-      setFileError("");
+      setSelectedFileName(null);
       onChange(null);
-      if (onFileChange) onFileChange(null);
-      
-      // Reset the file input element
+      setFileError("");
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
-  }, [dialogOpen, resetOnDialogClose, onChange, onFileChange, setFileError]);
-
-  const validateFile = (file: File) => {
-    const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
-    const isDoc = ALLOWED_DOC_TYPES.includes(file.type);
-    
-    if (!isImage && !isDoc) {
-      return "Invalid file type. Please upload an image (jpg, jpeg, png, webp) or document (pdf, docx, xlsx, pptx)";
-    }
-
-    const maxSize = isImage ? MAX_FILE_SIZE_IMAGES : MAX_FILE_SIZE_DOCS;
-    if (file.size > maxSize) {
-      return `File size exceeds ${maxSize / (1024 * 1024)}MB limit`;
-    }
-
-    return null;
-  };
-
-  // Format bytes to human-readable size
-  const formatBytes = (bytes: number, decimals = 2) => {
-    if (bytes === 0) return '0 Bytes';
-    
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-    
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-  };
+  }, [dialogOpen, resetOnDialogClose, onChange, setFileError]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.preventDefault(); // Prevent default behavior
-    const selectedFile = e.target.files?.[0];
-    setFileError("");
+    const file = e.target.files?.[0] || null;
     
-    console.log("File selected:", selectedFile);
-
-    if (selectedFile) {
-      const error = validateFile(selectedFile);
-      if (error) {
-        setFileError(error);
-        if (onChange) onChange(null);
-        if (onFileChange) onFileChange(null);
+    if (file) {
+      // Validate file size (5MB max)
+      const maxSizeInBytes = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSizeInBytes) {
+        setFileError(t("common.fileTooLarge"));
+        setSelectedFileName(null);
+        onChange(null);
         return;
       }
-      if (onChange) onChange(selectedFile);
-      if (onFileChange) onFileChange(selectedFile);
+      
+      // Validate file type
+      const allowedTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        setFileError(t("common.invalidFileType"));
+        setSelectedFileName(null);
+        onChange(null);
+        return;
+      }
+      
+      setSelectedFileName(file.name);
+      onChange(file);
+      setFileError("");
     } else {
-      // If no file is selected (user cancelled the file selection)
-      if (onChange) onChange(null);
-      if (onFileChange) onFileChange(null);
+      setSelectedFileName(null);
+      onChange(null);
+      setFileError("");
+    }
+  };
+
+  const handleClearFile = () => {
+    setSelectedFileName(null);
+    onChange(null);
+    setFileError("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
   return (
-    <div className={`${hideLabel && hideDescription ? '' : 'space-y-2'}`}>
+    <div className="space-y-2">
       {!hideLabel && (
-        <Label htmlFor="file" className="text-foreground">{t("calendar.attachment")}</Label>
+        <Label htmlFor="file-upload" className="block text-sm font-medium text-gray-700">
+          {t("common.uploadFile")}
+        </Label>
       )}
-      <Input
-        id="file"
-        ref={fileInputRef}
-        type="file"
-        onChange={handleFileChange}
-        accept={acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")}
-        className="cursor-pointer bg-background border-gray-700"
-        onClick={(e) => {
-          // Reset value before opening to ensure onChange triggers even if same file is selected
-          (e.target as HTMLInputElement).value = '';
-        }}
-      />
+      
+      <div className="flex items-center space-x-2">
+        <div className="relative flex-1">
+          <Input
+            ref={fileInputRef}
+            id="file-upload"
+            type="file"
+            className={`w-full cursor-pointer ${
+              selectedFileName ? "opacity-0 absolute" : ""
+            }`}
+            onChange={handleFileChange}
+            accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx"
+          />
+          
+          {selectedFileName && (
+            <div className="flex items-center justify-between px-3 py-2 border rounded-md">
+              <span className="truncate max-w-[200px]">{selectedFileName}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={handleClearFile}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+      
       {fileError && (
-        <p className="text-sm text-red-500 mt-1">{fileError}</p>
-      )}
-      {!hideDescription && (
-        <p className="text-xs text-muted-foreground mt-1">
-          {t("calendar.maxSize")} ({formatBytes(MAX_FILE_SIZE_IMAGES)} for images, {formatBytes(MAX_FILE_SIZE_DOCS)} for documents)
-          <br />
-          {t("calendar.supportedFormats")}
-        </p>
+        <p className="text-sm text-red-500">{fileError}</p>
       )}
     </div>
   );
