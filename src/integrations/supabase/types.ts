@@ -740,6 +740,38 @@ export type Database = {
         Args: { n: number }
         Returns: string
       }
+      get_all_related_files: {
+        Args: {
+          event_id_param?: string
+          customer_id_param?: string
+          entity_name_param?: string
+        }
+        Returns: {
+          id: string
+          filename: string
+          file_path: string
+          content_type: string
+          size: number
+          created_at: string
+          user_id: string
+          event_id: string
+          customer_id: string
+          source: string
+        }[]
+      }
+      get_booking_request_files: {
+        Args: { booking_id_param: string }
+        Returns: {
+          id: string
+          filename: string
+          file_path: string
+          content_type: string
+          size: number
+          created_at: string
+          user_id: string
+          event_id: string
+        }[]
+      }
       get_public_events_by_user_id: {
         Args: { user_id_param: string }
         Returns: {
