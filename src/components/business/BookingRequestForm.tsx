@@ -30,7 +30,6 @@ interface BookingRequestFormProps {
 }
 
 const BookingSchema = z.object({
-  title: z.string().min(2, "Title is required"),
   requester_name: z.string().min(2, "Name is required"),
   requester_email: z.string().email("Valid email is required"),
   requester_phone: z.string().optional(),
@@ -73,7 +72,6 @@ export const BookingRequestForm = ({
   const form = useForm<FormValues>({
     resolver: zodResolver(BookingSchema),
     defaultValues: {
-      title: "",
       requester_name: "",
       requester_email: "",
       requester_phone: "",
@@ -81,11 +79,13 @@ export const BookingRequestForm = ({
       start_date: `${formattedDate}T${defaultStartTime}:00`,
       end_date: `${formattedDate}T${defaultEndTime}:00`,
       payment_amount: "",
-      payment_status: "pending",
+      payment_status: "not_paid",
       event_type: "booking_request",
       business_id: businessId,
     },
   });
+
+  const paymentStatus = form.watch("payment_status");
 
   const onSubmit = async (values: FormValues) => {
     try {
@@ -103,7 +103,7 @@ export const BookingRequestForm = ({
       }
       
       const result = await createBookingRequest({
-        title: values.title,
+        title: values.requester_name, // Use requester_name as the title
         requester_name: values.requester_name,
         requester_email: values.requester_email,
         requester_phone: values.requester_phone || "",
@@ -111,8 +111,7 @@ export const BookingRequestForm = ({
         start_date: start.toISOString(),
         end_date: end.toISOString(),
         payment_amount: paymentAmount,
-        payment_status: values.payment_status || "pending",
-        type: values.event_type || "booking_request",
+        payment_status: values.payment_status || "not_paid",
         business_id: businessId,
       });
       
@@ -179,31 +178,13 @@ export const BookingRequestForm = ({
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
           <FormField
             control={form.control}
-            name="title"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("calendar.eventTitle")}</FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder={t("booking.bookingTitlePlaceholder") || "Enter event title"} 
-                    {...field} 
-                    className="bg-background border border-input"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
             name="requester_name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("events.fullName")}</FormLabel>
+                <FormLabel>{t("events.fullNameRequired")}</FormLabel>
                 <FormControl>
                   <Input 
-                    placeholder={t("booking.yourNamePlaceholder") || "Enter your full name"} 
+                    placeholder={t("events.fullName") || "Enter your full name"} 
                     {...field} 
                     className="bg-background border border-input"
                   />
@@ -240,7 +221,7 @@ export const BookingRequestForm = ({
                 <FormLabel>{t("events.phoneNumber")}</FormLabel>
                 <FormControl>
                   <Input 
-                    placeholder={t("booking.yourPhonePlaceholder") || "Enter your phone number"} 
+                    placeholder={t("events.phoneNumber") || "Enter your phone number"} 
                     {...field} 
                     className="bg-background border border-input"
                   />
@@ -252,7 +233,7 @@ export const BookingRequestForm = ({
 
           <FormField
             control={form.control}
-            name="event_type"
+            name="payment_status"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>{t("events.paymentStatus")}</FormLabel>
@@ -262,19 +243,40 @@ export const BookingRequestForm = ({
                 >
                   <FormControl>
                     <SelectTrigger className="bg-background border border-input">
-                      <SelectValue placeholder={t("events.selectPaymentStatus") || "Select event type"} />
+                      <SelectValue placeholder={t("events.selectPaymentStatus") || "Select payment status"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="bg-background">
-                    <SelectItem value="booking_request">{t("events.booked") || "Booking"}</SelectItem>
-                    <SelectItem value="private_party">{t("business.events") || "Event"}</SelectItem>
-                    <SelectItem value="birthday">{t("business.beauty") || "Birthday"}</SelectItem>
+                    <SelectItem value="not_paid">{t("crm.notPaid") || "Not Paid"}</SelectItem>
+                    <SelectItem value="partly">{t("crm.paidPartly") || "Partly Paid"}</SelectItem>
+                    <SelectItem value="fully">{t("crm.paidFully") || "Fully Paid"}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          {(paymentStatus === "partly" || paymentStatus === "fully") && (
+            <FormField
+              control={form.control}
+              name="payment_amount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("events.paymentAmount")}</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      placeholder="0.00" 
+                      {...field} 
+                      className="bg-background border border-input"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <FormField
@@ -316,33 +318,13 @@ export const BookingRequestForm = ({
 
           <FormField
             control={form.control}
-            name="payment_amount"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("events.paymentAmount")}</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    placeholder="0.00" 
-                    {...field} 
-                    className="bg-background border border-input"
-                  />
-                </FormControl>
-                <FormMessage />
-                <p className="text-sm text-muted-foreground">{t("crm.paymentStatusNote")}</p>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("calendar.eventDescription")}</FormLabel>
+                <FormLabel>{t("events.eventNotes")}</FormLabel>
                 <FormControl>
                   <Textarea 
-                    placeholder={t("booking.descriptionPlaceholder") || "Enter description"} 
+                    placeholder={t("events.addEventNotes") || "Enter notes"} 
                     {...field} 
                     className="bg-background border border-input min-h-[80px]"
                   />
@@ -358,13 +340,8 @@ export const BookingRequestForm = ({
               onChange={setSelectedFile}
               fileError={fileError}
               setFileError={setFileError}
+              hideDescription={true}
             />
-            <p className="text-sm text-muted-foreground">
-              {t("calendar.maxSize")}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {t("calendar.supportedFormats")}
-            </p>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
