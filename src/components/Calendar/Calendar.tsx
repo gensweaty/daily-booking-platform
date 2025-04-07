@@ -319,7 +319,7 @@ export const Calendar = ({
 
       {isExternalCalendar && allowBookingRequests && businessId && (
         <Dialog open={isBookingFormOpen} onOpenChange={setIsBookingFormOpen}>
-          <DialogContent className="max-w-md bg-background overflow-y-auto max-h-[90vh]">
+          <DialogContent className="max-w-md sm:max-w-lg bg-background overflow-y-auto max-h-[90vh]">
             {bookingDate && (
               <BookingRequestForm
                 open={isBookingFormOpen}
