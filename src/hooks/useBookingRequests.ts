@@ -171,39 +171,69 @@ export const useBookingRequests = () => {
       console.log('Found booking files:', bookingFiles);
         
       if (bookingFiles && bookingFiles.length > 0) {
+        console.log(`Processing ${bookingFiles.length} files for the booking`);
+        
         for (const file of bookingFiles) {
-          // First, copy the file record to associate with the new event
-          const { error: eventFileError } = await supabase
-            .from('event_files')
-            .insert({
-              filename: file.filename,
-              file_path: file.file_path,
-              content_type: file.content_type,
-              size: file.size,
-              user_id: user?.id,
-              event_id: eventData.id
-            });
+          try {
+            console.log(`Processing file: ${file.filename}, path: ${file.file_path}`);
             
-          if (eventFileError) {
-            console.error('Error copying file to event:', eventFileError);
-          }
-          
-          // Then create customer file record if customer was created
-          if (customerData) {
-            const { error: customerFileError } = await supabase
-              .from('customer_files_new')
+            // Copy the file in storage from booking_attachments to event_attachments
+            const { data: fileData, error: fileError } = await supabase.storage
+              .from('booking_attachments')
+              .download(file.file_path);
+              
+            if (fileError) {
+              console.error('Error downloading file from booking_attachments:', fileError);
+              continue;
+            }
+            
+            const newFilePath = `${Date.now()}_${file.filename.replace(/\s+/g, '_')}`;
+            const { error: uploadError } = await supabase.storage
+              .from('event_attachments')
+              .upload(newFilePath, fileData);
+              
+            if (uploadError) {
+              console.error('Error uploading file to event_attachments:', uploadError);
+              continue;
+            }
+            
+            console.log(`Successfully copied file to event_attachments/${newFilePath}`);
+            
+            // First, create a file record for the event
+            const { error: eventFileError } = await supabase
+              .from('event_files')
               .insert({
                 filename: file.filename,
-                file_path: file.file_path,
+                file_path: newFilePath,
                 content_type: file.content_type,
                 size: file.size,
                 user_id: user?.id,
-                customer_id: customerData.id
+                event_id: eventData.id
               });
               
-            if (customerFileError) {
-              console.error('Error copying file to customer:', customerFileError);
+            if (eventFileError) {
+              console.error('Error creating event file record:', eventFileError);
             }
+            
+            // Then create customer file record if customer was created
+            if (customerData) {
+              const { error: customerFileError } = await supabase
+                .from('customer_files_new')
+                .insert({
+                  filename: file.filename,
+                  file_path: newFilePath,
+                  content_type: file.content_type,
+                  size: file.size,
+                  user_id: user?.id,
+                  customer_id: customerData.id
+                });
+                
+              if (customerFileError) {
+                console.error('Error creating customer file record:', customerFileError);
+              }
+            }
+          } catch (error) {
+            console.error('Error processing file:', error);
           }
         }
       }
@@ -217,6 +247,8 @@ export const useBookingRequests = () => {
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
       queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       toast({
         title: "Success",
         description: "Booking request approved successfully"
