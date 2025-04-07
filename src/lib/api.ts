@@ -7,11 +7,11 @@ export const getFileUrl = (bucketName: string, filePath: string) => {
   const baseUrl = import.meta.env.VITE_SUPABASE_URL;
   const normalizedPath = normalizeFilePath(filePath);
   
-  // For files with b22b pattern (UUID format from events), always use event_attachments
-  // This ensures consistency between different views
+  // Better bucket determination logic based on file path patterns
   let effectiveBucket = bucketName;
   
-  if (filePath && filePath.includes("b22b")) {
+  // Files with b22b pattern (UUID format) or timestamp patterns are always from event_attachments
+  if (filePath && (filePath.includes("b22b") || /^\d{13}_/.test(filePath))) {
     effectiveBucket = "event_attachments";
   }
   
@@ -337,8 +337,11 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
   try {
     console.log(`Attempting to download file from ${bucketName}/${filePath}`);
     
-    // Determine the effective bucket (always prefer event_attachments for b22b pattern files)
-    const effectiveBucket = filePath && filePath.includes("b22b") ? "event_attachments" : bucketName;
+    // Improved bucket determination logic
+    let effectiveBucket = bucketName;
+    if (filePath && (filePath.includes("b22b") || /^\d{13}_/.test(filePath))) {
+      effectiveBucket = "event_attachments";
+    }
     console.log(`Using effective bucket: ${effectiveBucket}`);
     
     // Just use direct URL for download which is most reliable
@@ -361,8 +364,12 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
 
 export const openFile = async (bucketName: string, filePath: string) => {
   try {
-    // Use the effective bucket for consistency
-    const effectiveBucket = filePath && filePath.includes("b22b") ? "event_attachments" : bucketName;
+    // Improved bucket determination
+    let effectiveBucket = bucketName;
+    if (filePath && (filePath.includes("b22b") || /^\d{13}_/.test(filePath))) {
+      effectiveBucket = "event_attachments";
+    }
+    
     const directUrl = getFileUrl(effectiveBucket, filePath);
     
     console.log('Opening file with direct URL:', directUrl);

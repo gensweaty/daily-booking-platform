@@ -36,12 +36,12 @@ export const FileDisplay = ({
     files.forEach(file => {
       if (file.file_path) {
         const normalizedPath = normalizeFilePath(file.file_path);
-        const effectiveBucket = getEffectiveBucket(file.file_path);
+        const effectiveBucket = determineEffectiveBucket(file.file_path, parentType);
         newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
       }
     });
     setFileURLs(newURLs);
-  }, [files]);
+  }, [files, parentType]);
 
   const getFileExtension = (filename: string): string => {
     return filename.split('.').pop()?.toLowerCase() || '';
@@ -56,17 +56,16 @@ export const FileDisplay = ({
     return <FileIcon className="h-5 w-5" />;
   };
 
-  // For files that were uploaded via events and potentially shared with customers,
-  // we need to ensure we use the correct bucket based on the file path pattern
-  const getEffectiveBucket = (filePath: string): string => {
-    // Special handling for b22b pattern (UUID format from events)
-    // These files are ALWAYS in event_attachments bucket
-    if (filePath && filePath.includes("b22b")) {
+  // Determine the correct bucket based on file path and parent type
+  const determineEffectiveBucket = (filePath: string, parentType?: string): string => {
+    // Special handling for b22b pattern (UUID format from events) or timestamps which indicate
+    // files originating from events/requests
+    if (filePath && (filePath.includes("b22b") || /^\d{13}_/.test(filePath))) {
       return "event_attachments";
     }
     
-    // Customer attachments in the CRM should use the customer_attachments bucket
-    if (parentType === "customer" && filePath && !filePath.includes("b22b")) {
+    // For customer attachments in the CRM
+    if (parentType === "customer" && filePath && !filePath.includes("b22b") && !/^\d{13}_/.test(filePath)) {
       return "customer_attachments";
     }
     
@@ -84,7 +83,10 @@ export const FileDisplay = ({
       console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
       
       // Use cached URL if available
-      const directUrl = fileURLs[fileId] || getDirectFileUrl(filePath);
+      const effectiveBucket = determineEffectiveBucket(filePath, parentType);
+      const directUrl = fileURLs[fileId] || 
+        `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
+      
       console.log('Using direct URL for download:', directUrl);
       
       const a = document.createElement('a');
@@ -109,11 +111,16 @@ export const FileDisplay = ({
   };
 
   // Get direct URL that works consistently across both views
-  const getDirectFileUrl = (filePath: string): string => {
+  const getDirectFileUrl = (filePath: string, fileId: string): string => {
     if (!filePath) return '';
     
+    // Use the cached URL if available for better performance
+    if (fileURLs[fileId]) {
+      return fileURLs[fileId];
+    }
+    
     const normalizedPath = normalizeFilePath(filePath);
-    const effectiveBucket = getEffectiveBucket(filePath);
+    const effectiveBucket = determineEffectiveBucket(filePath, parentType);
     
     // Create a public URL for the file
     return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
@@ -125,8 +132,8 @@ export const FileDisplay = ({
         throw new Error('File path is missing');
       }
       
-      // Use cached URL if available
-      const directUrl = fileURLs[fileId] || getDirectFileUrl(filePath);
+      // Use direct URL construction for consistency
+      const directUrl = getDirectFileUrl(filePath, fileId);
       console.log('Opening file with direct URL:', directUrl);
       window.open(directUrl, '_blank');
     } catch (error) {
@@ -144,7 +151,7 @@ export const FileDisplay = ({
       setDeletingFileId(fileId);
       
       // Use the effective bucket for deletion
-      const effectiveBucket = getEffectiveBucket(filePath);
+      const effectiveBucket = determineEffectiveBucket(filePath, parentType);
       
       // First delete the file from storage
       const { error: storageError } = await supabase.storage
@@ -222,8 +229,10 @@ export const FileDisplay = ({
             ? file.filename.substring(0, 20) + '...' 
             : file.filename;
           
-          // Use cached URL if available
-          const imageUrl = fileURLs[file.id] || getDirectFileUrl(file.file_path);
+          // Determine the correct bucket and build the image URL
+          const effectiveBucket = determineEffectiveBucket(file.file_path, parentType);
+          const imageUrl = fileURLs[file.id] || 
+            `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(file.file_path)}`;
             
           return (
             <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">
@@ -236,7 +245,7 @@ export const FileDisplay = ({
                         alt={file.filename}
                         className="h-full w-full object-cover"
                         onError={(e) => {
-                          console.error('Image failed to load', e);
+                          console.error('Image failed to load', e, 'URL:', imageUrl);
                           e.currentTarget.src = '/placeholder.svg';
                         }}
                       />

@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -121,6 +122,7 @@ export const CustomerDialogFields = ({
         let files = [];
         const uniqueFilePaths = new Map();
         
+        // Fetch customer files directly if we have a customer ID
         if (customerId) {
           const { data: customerFiles, error: customerFilesError } = await supabase
             .from('customer_files_new')
@@ -140,6 +142,7 @@ export const CustomerDialogFields = ({
           }
         }
         
+        // If we have a title, look for related events and their files
         if (title) {
           const { data: events, error: eventsError } = await supabase
             .from('events')
@@ -360,7 +363,7 @@ export const CustomerDialogFields = ({
           <Label>{t("crm.attachments")}</Label>
           <FileDisplay 
             files={allFiles} 
-            bucketName="event_attachments"
+            bucketName="event_attachments" // Default bucket, but the component logic will determine the correct one
             allowDelete
             onFileDeleted={handleFileDeleted}
             parentId={customerId}
