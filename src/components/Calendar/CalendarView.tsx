@@ -10,7 +10,7 @@ interface CalendarViewProps {
   events: CalendarEventType[];
   selectedDate: Date;
   view: CalendarViewType;
-  onDayClick?: (date: Date, hour?: number) => void;
+  onDayClick?: (date: Date, startTime?: string, endTime?: string) => void;
   onEventClick?: (event: CalendarEventType) => void;
   isExternalCalendar?: boolean;
 }

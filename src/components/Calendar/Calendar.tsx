@@ -89,7 +89,9 @@ export const Calendar = ({
   };
 
   const handleDeleteEventClick = (eventId: string) => {
-    handleDeleteEvent(eventId);
+    if (eventId) {
+      handleDeleteEvent(eventId);
+    }
   };
 
   const handleTimeSlotClick = (date: Date, startTime?: string, endTime?: string) => {
