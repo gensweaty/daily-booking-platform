@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,22 +40,18 @@ export const BookingRequestForm = ({
   const { toast } = useToast();
   const { t, language } = useLanguage();
   
-  // Create date strings from the selected date and times
   const startDateTime = new Date(selectedDate);
   const endDateTime = new Date(selectedDate);
   
-  // If startTime is provided, set the hours and minutes
   if (startTime) {
     const [hours, minutes] = startTime.split(":").map(Number);
     startDateTime.setHours(hours, minutes, 0, 0);
   }
   
-  // If endTime is provided, set the hours and minutes
   if (endTime) {
     const [hours, minutes] = endTime.split(":").map(Number);
     endDateTime.setHours(hours, minutes, 0, 0);
   } else {
-    // Default to 1 hour later if no end time provided
     endDateTime.setHours(startDateTime.getHours() + 1);
   }
 
@@ -80,7 +75,6 @@ export const BookingRequestForm = ({
     }
   });
 
-  // When the dialog is opened, reset the form
   useEffect(() => {
     if (open) {
       form.reset({
@@ -105,14 +99,12 @@ export const BookingRequestForm = ({
     }
   }, [open, businessId, startDateTime, endDateTime]);
 
-  // Get the watch function from form
   const paymentStatus = form.watch("payment_status");
 
   const onSubmit = async (data: BookingRequest) => {
     setIsLoading(true);
     
     try {
-      // First handle file upload if there's a file
       let filePath = null;
       let fileName = null;
       
@@ -135,11 +127,10 @@ export const BookingRequestForm = ({
         filePath = path;
         fileName = selectedFile.name;
         
-        // Create a record in the booking_files table
         const { error: fileRecordError } = await supabase
           .from("booking_files")
           .insert({
-            booking_id: null, // Will be updated after booking is created
+            booking_id: null,
             filename: selectedFile.name,
             file_path: path,
             content_type: selectedFile.type,
@@ -148,23 +139,18 @@ export const BookingRequestForm = ({
           
         if (fileRecordError) {
           console.error("Error creating file record:", fileRecordError);
-          // Continue with booking creation even if file record fails
         }
       }
       
-      // Prepare booking data
       const bookingData = {
         ...data,
-        // Only include payment_amount if payment_status is not 'not_paid'
         payment_amount: data.payment_status !== 'not_paid' ? data.payment_amount : null,
         file_path: filePath,
         filename: fileName
       };
       
-      // Create booking request
       const response = await createBookingRequest(bookingData);
       
-      // If there's a file and it was uploaded successfully, update the booking_files record
       if (selectedFile && filePath) {
         const { error: updateFileError } = await supabase
           .from("booking_files")
@@ -173,17 +159,14 @@ export const BookingRequestForm = ({
           
         if (updateFileError) {
           console.error("Error updating file record with booking ID:", updateFileError);
-          // Continue even if this update fails
         }
       }
       
-      // Show success message
       toast({
         title: t("bookings.requestSubmitted"),
         description: t("bookings.requestSubmittedDesc"),
       });
       
-      // Close the dialog and call onSuccess callback
       onOpenChange(false);
       if (onSuccess) {
         onSuccess();

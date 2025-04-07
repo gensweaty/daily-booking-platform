@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -275,6 +274,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             requester_name: updatedBooking.requester_name,
             requester_email: updatedBooking.requester_email,
             requester_phone: updatedBooking.requester_phone || '',
+            payment_status: updatedBooking.payment_status || '',
+            payment_amount: updatedBooking.payment_amount || null,
+            file_path: updatedBooking.file_path || null,
+            filename: updatedBooking.filename || null,
           } as CalendarEventType;
         }
       } catch (error) {
@@ -305,6 +308,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     excludeEventId?: string
   ): Promise<{ available: boolean; conflictDetails: string }> => {
     try {
+      console.log("Checking availability with excludeEventId:", excludeEventId);
+      
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('id, title, start_date, end_date')
@@ -313,15 +318,24 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventsError) throw eventsError;
       
-      const eventsConflict = conflictingEvents?.some(event => 
-        excludeEventId !== event.id
-      );
+      const eventConflict = conflictingEvents?.find(event => {
+        if (excludeEventId && event.id === excludeEventId) {
+          console.log("Excluding event from conflict check:", event.id);
+          return false;
+        }
+        
+        const eventStart = new Date(event.start_date);
+        const eventEnd = new Date(event.end_date);
+        
+        return !(startDate.getTime() >= eventEnd.getTime() || 
+                endDate.getTime() <= eventStart.getTime());
+      });
       
-      if (eventsConflict && conflictingEvents && conflictingEvents.length > 0) {
-        const conflictEvent = conflictingEvents[0];
+      if (eventConflict) {
+        console.log("Found conflicting event:", eventConflict);
         return { 
           available: false, 
-          conflictDetails: `Conflicts with "${conflictEvent.title}" at ${new Date(conflictEvent.start_date).toLocaleTimeString()}`
+          conflictDetails: `Conflicts with "${eventConflict.title}" at ${new Date(eventConflict.start_date).toLocaleTimeString()}`
         };
       }
       
@@ -334,11 +348,24 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (bookingsError) throw bookingsError;
       
-      if (conflictingBookings && conflictingBookings.length > 0) {
-        const conflictBooking = conflictingBookings[0];
+      const bookingConflict = conflictingBookings?.find(booking => {
+        if (excludeEventId && booking.id === excludeEventId) {
+          console.log("Excluding booking from conflict check:", booking.id);
+          return false;
+        }
+        
+        const bookingStart = new Date(booking.start_date);
+        const bookingEnd = new Date(booking.end_date);
+        
+        return !(startDate.getTime() >= bookingEnd.getTime() || 
+                endDate.getTime() <= bookingStart.getTime());
+      });
+      
+      if (bookingConflict) {
+        console.log("Found conflicting booking:", bookingConflict);
         return { 
           available: false, 
-          conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`
+          conflictDetails: `Conflicts with approved booking "${bookingConflict.title}" at ${new Date(bookingConflict.start_date).toLocaleTimeString()}`
         };
       }
       
@@ -378,9 +405,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.error("Error checking for booking request:", error);
     }
     
-    // Find potentially related customer
     try {
-      // Get the event first to use its data
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('title, start_date, end_date')
@@ -389,9 +414,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventError) {
         console.error('Error finding event:', eventError);
-        // Continue with deletion even if we can't find the event data
       } else if (eventData) {
-        // Check for associated customer using event data
         const { data: customer, error: customerError } = await supabase
           .from('customers')
           .select('*')
@@ -402,7 +425,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
         if (customerError && customerError.code !== 'PGRST116') {
           console.error('Error finding associated customer:', customerError);
-          // Don't throw, continue with deletion
         }
 
         if (customer) {
@@ -416,16 +438,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
           if (updateError) {
             console.error('Error updating customer:', updateError);
-            // Don't throw, continue with deletion
           }
         }
       }
     } catch (error) {
       console.error('Error handling customer association:', error);
-      // Continue with deletion even if customer handling fails
     }
 
-    // Check for and delete associated files
     try {
       const { data: files } = await supabase
         .from('event_files')
@@ -450,15 +469,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
         if (filesDeleteError) {
           console.error('Error deleting file records:', filesDeleteError);
-          // Don't throw, continue with deletion
         }
       }
     } catch (error) {
       console.error('Error handling file deletion:', error);
-      // Continue with deletion even if file handling fails
     }
 
-    // Finally delete the event
     const { error } = await supabase
       .from('events')
       .delete()
@@ -528,7 +544,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   if (businessId || businessUserId) {
     allEvents = [...businessEvents, ...approvedBookings];
   } else if (user) {
-    // For internal dashboard, show both user's own events and their business's approved bookings
     allEvents = [...events, ...approvedBookings];
   }
 
