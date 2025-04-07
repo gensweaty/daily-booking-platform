@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -59,7 +59,7 @@ export const BookingRequestForm = ({
   isExternalBooking = false,
 }: BookingRequestFormProps) => {
   const { toast } = useToast();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
@@ -103,7 +103,7 @@ export const BookingRequestForm = ({
       }
       
       const result = await createBookingRequest({
-        title: values.requester_name, // Use requester_name as the title
+        title: values.requester_name, // Use requester name as the title
         requester_name: values.requester_name,
         requester_email: values.requester_email,
         requester_phone: values.requester_phone || "",
@@ -334,7 +334,7 @@ export const BookingRequestForm = ({
             )}
           />
 
-          <div className="space-y-2">
+          <div>
             <Label>{t("calendar.attachment")}</Label>
             <FileUploadField
               onChange={setSelectedFile}

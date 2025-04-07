@@ -1,6 +1,5 @@
 
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
@@ -50,19 +49,6 @@ export const FileUploadField = ({
     return null;
   };
 
-  // Format bytes to human-readable size
-  const formatBytes = (bytes: number, decimals = 2) => {
-    if (bytes === 0) return '0 Bytes';
-    
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-    
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault(); // Prevent default behavior
     const selectedFile = e.target.files?.[0];
@@ -84,14 +70,14 @@ export const FileUploadField = ({
   return (
     <div className={`${hideLabel && hideDescription ? '' : 'space-y-2'}`}>
       {!hideLabel && (
-        <Label htmlFor="file" className="text-foreground">{t("calendar.attachment")}</Label>
+        <label htmlFor="file" className="block text-gray-700">{t("calendar.attachment")}</label>
       )}
       <Input
         id="file"
         type="file"
         onChange={handleFileChange}
         accept={acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")}
-        className="cursor-pointer bg-background border-gray-700"
+        className="cursor-pointer bg-background border-gray-300"
         onClick={(e) => {
           // Reset value before opening to ensure onChange triggers even if same file is selected
           (e.target as HTMLInputElement).value = '';
@@ -99,13 +85,6 @@ export const FileUploadField = ({
       />
       {fileError && (
         <p className="text-sm text-red-500 mt-1">{fileError}</p>
-      )}
-      {!hideDescription && (
-        <p className="text-xs text-muted-foreground mt-1">
-          {t("calendar.maxSize")} ({formatBytes(MAX_FILE_SIZE_IMAGES)} for images, {formatBytes(MAX_FILE_SIZE_DOCS)} for documents)
-          <br />
-          {t("calendar.supportedFormats")}
-        </p>
       )}
     </div>
   );
