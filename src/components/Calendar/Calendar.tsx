@@ -88,9 +88,12 @@ export const Calendar = ({
     closeDialog();
   };
 
+  // Fix #1: This function takes an eventId parameter but handleDeleteEvent doesn't expect arguments
+  // We need to fix this by creating a wrapper function
   const handleDeleteEventClick = (eventId: string) => {
     if (eventId) {
-      handleDeleteEvent(eventId);
+      // Fix: Call handleDeleteEvent without passing any arguments
+      handleDeleteEvent();
     }
   };
 
@@ -214,7 +217,10 @@ export const Calendar = ({
         event={selectedEvent}
         businessId={businessId}
         businessUserId={businessUserId}
-        onDelete={handleDeleteEventClick}
+        // Fix #2: The onDelete prop expects a function with no parameters
+        // but handleDeleteEventClick expects an eventId
+        // Update the prop to pass a function that meets the expected signature
+        onDelete={() => selectedEvent && handleDeleteEventClick(selectedEvent.id)}
       />
     </div>
   );
