@@ -76,8 +76,10 @@ export const BookingRequestForm = ({
     }
   });
 
+  // Reset form when dialog opens
   useEffect(() => {
     if (open) {
+      console.log("Resetting form state for booking request");
       form.reset({
         business_id: businessId,
         requester_name: "",
@@ -98,7 +100,7 @@ export const BookingRequestForm = ({
       setSelectedFile(null);
       setFileError("");
     }
-  }, [open, businessId, startDateTime, endDateTime]);
+  }, [open, businessId, startDateTime, endDateTime, form]);
 
   const paymentStatus = form.watch("payment_status");
 
@@ -106,6 +108,7 @@ export const BookingRequestForm = ({
     setIsLoading(true);
     
     try {
+      console.log("Submitting booking request data:", data);
       let filePath = null;
       let fileName = null;
       
@@ -150,7 +153,9 @@ export const BookingRequestForm = ({
         filename: fileName
       };
       
+      console.log("Sending booking data to API:", bookingData);
       const response = await createBookingRequest(bookingData);
+      console.log("Booking request response:", response);
       
       if (selectedFile && filePath) {
         const { error: updateFileError } = await supabase
@@ -346,7 +351,6 @@ export const BookingRequestForm = ({
                     </FormLabel>
                     <FormControl>
                       <Input
-                        {...field}
                         type="number"
                         step="0.01"
                         placeholder={`${t("events.paymentAmount")} ${language === 'es' ? '(€)' : '($)'}`}

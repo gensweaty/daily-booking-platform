@@ -43,6 +43,7 @@ export const FileUploadField = ({
   // Reset state when dialog closes
   useEffect(() => {
     if (resetOnDialogClose && !dialogOpen) {
+      console.log("Resetting file input state", { dialogOpen, resetOnDialogClose });
       setFileError("");
       onChange(null);
       if (onFileChange) onFileChange(null);
@@ -87,6 +88,8 @@ export const FileUploadField = ({
     e.preventDefault(); // Prevent default behavior
     const selectedFile = e.target.files?.[0];
     setFileError("");
+    
+    console.log("File selected:", selectedFile);
 
     if (selectedFile) {
       const error = validateFile(selectedFile);

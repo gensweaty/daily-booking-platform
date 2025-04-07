@@ -67,9 +67,12 @@ export const PublicBusinessPage = () => {
     const fetchProfile = async () => {
       try {
         const { data: buckets } = await supabase.storage.listBuckets();
+        console.log("Available storage buckets:", buckets);
+        
         const bookingBucketExists = buckets?.some(b => b.name === 'booking_attachments');
         
         if (!bookingBucketExists) {
+          console.log("Creating booking_attachments bucket");
           await supabase.storage.createBucket('booking_attachments', {
             public: false,
             allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
