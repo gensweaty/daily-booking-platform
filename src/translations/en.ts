@@ -165,6 +165,17 @@ const en = {
     fromAllEvents: "From All Events",
     exportSuccessful: "Export Successful",
     exportSuccessMessage: "Your data has been exported to Excel",
+    changePassword: "Change Password",
+    subtitle: "Manage your tasks, events, and business operations",
+    profile: "Profile",
+    category: "Category",
+    details: "Details",
+    additionalInfo: "Additional Info",
+    taskStatistics: "Task Statistics",
+    eventStatistics: "Event Statistics",
+    financialSummary: "Financial Summary",
+    summaryStatistics: "Summary Statistics",
+    eventsData: "Events Data"
   },
   events: {
     addNewEvent: "Add New Event",
@@ -380,6 +391,8 @@ const en = {
     notFound: "Customer not found",
     searchCustomers: "Search Customers",
     paymentStatusNote: "Payment status will be set after your booking is approved",
+    noDataToExport: "No data to export",
+    error: "Error"
   },
   common: {
     loading: "Loading...",

@@ -248,6 +248,8 @@ export type TranslationType = {
     notFound: string;
     searchCustomers: string;
     paymentStatusNote: string;
+    noDataToExport: string;
+    error: string;
   };
   footer: {
     description: string;
@@ -340,6 +342,17 @@ export type TranslationType = {
     fromAllEvents: string;
     exportSuccessful: string;
     exportSuccessMessage: string;
+    changePassword: string;
+    subtitle: string;
+    profile: string;
+    category: string;
+    details: string;
+    additionalInfo: string;
+    taskStatistics: string;
+    eventStatistics: string;
+    financialSummary: string;
+    summaryStatistics: string;
+    eventsData: string;
   };
   events: {
     title: string;
