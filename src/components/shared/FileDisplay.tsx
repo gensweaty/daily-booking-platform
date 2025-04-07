@@ -88,7 +88,7 @@ export const FileDisplay = ({
       console.error('Error downloading file:', error);
       toast({
         title: t("common.error"),
-        description: "An unexpected error occurred while downloading the file",
+        description: t("common.downloadError"),
         variant: "destructive",
       });
     }
