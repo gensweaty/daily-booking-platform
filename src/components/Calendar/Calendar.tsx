@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Calendar as ShadcnCalendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -15,7 +16,7 @@ import { useEventDialog } from "./hooks/useEventDialog";
 export function Calendar() {
   const [date, setDate] = useState<Date>(new Date());
   
-  // Update to include the CRUD methods from useCalendarEvents
+  // Use the calendar events hook with all its methods
   const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents();
   const { selectedView, setSelectedView } = useCalendarView();
   
@@ -49,7 +50,7 @@ export function Calendar() {
             variant="outline"
             size="sm"
             onClick={() => setSelectedView('month')}
-            active={selectedView === 'month'}
+            className={selectedView === 'month' ? "bg-primary text-primary-foreground" : ""}
           >
             Month
           </Button>
@@ -57,7 +58,7 @@ export function Calendar() {
             variant="outline"
             size="sm"
             onClick={() => setSelectedView('week')}
-            active={selectedView === 'week'}
+            className={selectedView === 'week' ? "bg-primary text-primary-foreground" : ""}
           >
             Week
           </Button>
@@ -65,7 +66,7 @@ export function Calendar() {
             variant="outline"
             size="sm"
             onClick={() => setSelectedView('day')}
-            active={selectedView === 'day'}
+            className={selectedView === 'day' ? "bg-primary text-primary-foreground" : ""}
           >
             Day
           </Button>
@@ -94,7 +95,7 @@ export function Calendar() {
         </div>
       </div>
       <CalendarView
-        date={date}
+        selectedDate={date}
         selectedView={selectedView}
         events={events}
         onSelectEvent={(event) => {
@@ -113,13 +114,12 @@ export function Calendar() {
         setIsNewEventDialogOpen(true);
       }}>Add Event</Button>
       <EventDialog
-        isOpen={isNewEventDialogOpen}
-        onClose={() => setIsNewEventDialogOpen(false)}
-        selectedEvent={selectedEvent}
+        open={isNewEventDialogOpen}
+        onOpenChange={setIsNewEventDialogOpen}
         selectedDate={selectedDate}
-        onCreate={handleCreateEvent}
-        onUpdate={handleUpdateEvent}
-        onDelete={handleDeleteEvent}
+        onSubmit={selectedEvent ? handleUpdateEvent : handleCreateEvent}
+        onDelete={selectedEvent ? handleDeleteEvent : undefined}
+        event={selectedEvent}
       />
     </div>
   );

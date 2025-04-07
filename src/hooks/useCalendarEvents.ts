@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -150,7 +149,11 @@ export const useCalendarEvents = () => {
       
     if (error) throw error;
     
-    return newEvent as CalendarEventType;
+    return {
+      ...newEvent,
+      has_files: false,
+      files: []
+    } as CalendarEventType;
   };
   
   const updateEvent = async (data: Partial<Event>): Promise<CalendarEventType> => {
@@ -165,7 +168,11 @@ export const useCalendarEvents = () => {
       
     if (error) throw error;
     
-    return updatedEvent as CalendarEventType;
+    return {
+      ...updatedEvent,
+      has_files: false,
+      files: []
+    } as CalendarEventType;
   };
   
   const deleteEvent = async (id: string): Promise<void> => {
