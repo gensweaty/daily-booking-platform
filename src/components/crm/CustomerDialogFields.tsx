@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -344,7 +343,7 @@ export const CustomerDialogFields = ({
           <Label>{t("crm.attachments")}</Label>
           <FileDisplay 
             files={allFiles} 
-            bucketName="customer_attachments"
+            bucketName={isEventData ? "event_attachments" : "customer_attachments"}
             allowDelete
             onFileDeleted={handleFileDeleted}
             parentId={customerId}

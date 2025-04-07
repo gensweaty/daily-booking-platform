@@ -104,10 +104,7 @@ export const FileDisplay = ({
 
   const handleOpenFile = async (filePath: string) => {
     try {
-      // Normalize the file path first
-      const normalizedPath = normalizeFilePath(filePath);
-      
-      // Use direct URL access
+      // Use direct URL with normalized path
       const directUrl = getFileUrl(filePath);
       console.log('Opening file with direct URL:', directUrl);
       window.open(directUrl, '_blank');
