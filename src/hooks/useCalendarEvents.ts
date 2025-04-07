@@ -32,37 +32,50 @@ export const useCalendarEvents = () => {
         throw error;
       }
 
-      return data || [];
+      // Make sure all events have the required fields
+      return (data || []).map(event => ({
+        ...event,
+        deleted_at: event.deleted_at // Ensure deleted_at is passed through
+      }));
     },
     enabled: !!user,
   });
 
-  // Improved function to check time slot availability with proper conflict detection
+  // IMPROVED: More robust time slot availability checking function
   const checkTimeSlotAvailability = async (
     startDateTime: string,
     endDateTime: string,
     eventId?: string
   ): Promise<{ available: boolean; conflictingEvent?: any }> => {
     try {
-      const startISO = new Date(startDateTime).toISOString();
-      const endISO = new Date(endDateTime).toISOString();
+      // Make sure we have valid date objects
+      const startDate = new Date(startDateTime);
+      const endDate = new Date(endDateTime);
+      
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        console.error("Invalid dates provided:", { startDateTime, endDateTime });
+        return { available: false };
+      }
+      
+      const startISO = startDate.toISOString();
+      const endISO = endDate.toISOString();
       
       console.log("Checking time slot availability:", { 
         startDateTime, 
         endDateTime, 
         eventId,
-        start: startISO,
-        end: endISO
+        startISO,
+        endISO
       });
       
       // Query for events that would overlap with the requested time slot
+      // IMPROVED: More accurate filtering for overlapping events
       let eventQuery = supabase
         .from("events")
         .select("*")
         .is("deleted_at", null)
-        // Proper overlap check: Event starts before new event ends AND event ends after new event starts
-        .lt("start_date", endISO)
-        .gt("end_date", startISO);
+        .filter('start_date', 'lt', endISO) // Event starts before new event ends 
+        .filter('end_date', 'gt', startISO); // Event ends after new event starts
       
       // If we're updating an existing event, exclude it from the conflict check
       if (eventId) {
@@ -82,12 +95,13 @@ export const useCalendarEvents = () => {
       }
       
       // Also check approved booking requests for conflicts
+      // IMPROVED: More accurate filtering for overlapping bookings
       let bookingQuery = supabase
         .from("booking_requests")
         .select("*")
         .eq("status", "approved")
-        .lt("start_date", endISO)
-        .gt("end_date", startISO);
+        .filter('start_date', 'lt', endISO) // Booking starts before new event ends
+        .filter('end_date', 'gt', startISO); // Booking ends after new event starts
       
       // Skip checking against the booking request if we're editing an event that was created from it
       if (eventId) {

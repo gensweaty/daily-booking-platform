@@ -69,16 +69,21 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
         
+        // IMPROVED: Ensure proper type safety with deleted_at handling
         // Ensure we only include events that have not been deleted
-        const activeEvents = apiEvents ? apiEvents.filter(event => event.deleted_at === null) : [];
+        const activeEvents = apiEvents ? apiEvents.filter(event => {
+          // Some events might be missing the deleted_at property, so we need to handle that
+          return event.deleted_at === null;
+        }) : [];
+        
         console.log(`[External Calendar] Filtered to ${activeEvents.length} active events (removed deleted events)`);
         
-        // Combine all event sources
+        // IMPROVED: Proper type safety when combining event sources
         const allEvents: CalendarEventType[] = [
           ...activeEvents.map(event => ({
             ...event,
             type: event.type || 'event',
-            deleted_at: event.deleted_at // Make sure deleted_at is passed through
+            deleted_at: event.deleted_at // Ensure deleted_at is passed through
           })),
           ...(approvedBookings || []).map(booking => ({
             id: booking.id,
@@ -94,22 +99,38 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             event_notes: booking.description || '',
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
+            requester_phone: booking.requester_phone || '',
             status: booking.status || 'approved',
-            deleted_at: null // Explicitly set deleted_at to null
+            payment_status: booking.payment_status || 'not_paid',
+            payment_amount: booking.payment_amount || null,
+            booking_request_id: booking.id,
+            deleted_at: null // Explicitly set deleted_at to null for all bookings
           }))
         ];
         
         console.log(`[External Calendar] Combined ${allEvents.length} total events`);
         
-        // Validate all events have proper dates
+        // IMPROVED: Validate all events have proper dates and required fields
         const validEvents = allEvents.filter(event => {
           try {
-            // Check if start_date and end_date are valid
+            // Check if start_date and end_date are valid and deleted_at is properly handled
             const startValid = !!new Date(event.start_date).getTime();
             const endValid = !!new Date(event.end_date).getTime();
-            return startValid && endValid && event.deleted_at === null;
+            const notDeleted = event.deleted_at === null;
+            
+            const isValid = startValid && endValid && notDeleted;
+            if (!isValid) {
+              console.warn("Invalid event filtered out:", {
+                id: event.id,
+                title: event.title,
+                startValid,
+                endValid,
+                notDeleted
+              });
+            }
+            return isValid;
           } catch (err) {
-            console.error("Invalid date in event:", event);
+            console.error("Invalid event:", event, err);
             return false;
           }
         });

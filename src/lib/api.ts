@@ -316,23 +316,53 @@ export const getPublicCalendarEvents = async (businessId: string) => {
     
     console.log("[getPublicCalendarEvents] Using business user ID:", business.user_id);
     
-    // Use the security definer function to get events bypassing RLS
-    const { data: events, error: eventsError } = await supabase
-      .rpc('get_public_events_by_user_id', {
-        user_id_param: business.user_id
-      });
-    
-    if (eventsError) {
-      console.error("Error fetching events with RPC:", eventsError);
-      return { events: [], bookings: [] };
+    // IMPROVED: Use the security definer function to get events bypassing RLS
+    // but also add a direct query as a backup
+    let events;
+    try {
+      // Try using the RPC function first
+      const { data: rpcEvents, error: rpcError } = await supabase
+        .rpc('get_public_events_by_user_id', {
+          user_id_param: business.user_id
+        });
+      
+      if (rpcError) {
+        throw rpcError;
+      }
+      
+      events = rpcEvents;
+    } catch (rpcError) {
+      // Fallback to direct query if RPC fails
+      console.error("Error using RPC function, falling back to direct query:", rpcError);
+      
+      const { data: directEvents, error: directError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', business.user_id)
+        .is('deleted_at', null);
+        
+      if (directError) {
+        console.error("Error in fallback query:", directError);
+        return { events: [], bookings: [] };
+      }
+      
+      events = directEvents;
     }
     
     // Explicitly filter out deleted events client-side as an additional safety measure
-    const filteredEvents = events ? events.filter(event => event.deleted_at === null) : [];
+    const filteredEvents = events ? events.filter(event => {
+      // Some events might be missing the deleted_at property, so we need to handle that safely
+      if (event.deleted_at === undefined) {
+        // If deleted_at is undefined, we'll include the event but log it
+        console.warn("Event missing deleted_at property:", event.id);
+        return true;
+      }
+      return event.deleted_at === null;
+    }) : [];
     
-    console.log(`[getPublicCalendarEvents] Fetched ${events?.length || 0} events via RPC function, filtered to ${filteredEvents.length} active events`);
+    console.log(`[getPublicCalendarEvents] Fetched ${events?.length || 0} events, filtered to ${filteredEvents.length} active events`);
     
-    // Fetch approved booking requests
+    // IMPROVED: Fetch approved booking requests with more details
     const { data: bookings, error: bookingsError } = await supabase
       .from('booking_requests')
       .select('*')
