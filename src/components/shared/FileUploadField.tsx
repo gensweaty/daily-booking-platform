@@ -2,6 +2,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useEffect } from "react";
 
 const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
 const MAX_FILE_SIZE_IMAGES = 2048 * 1024; // 2MB
@@ -21,6 +22,8 @@ interface FileUploadFieldProps {
   acceptedFileTypes?: string;
   hideLabel?: boolean;
   hideDescription?: boolean; // Added to hide the description text
+  resetOnDialogClose?: boolean; // New prop to reset state when dialog closes
+  dialogOpen?: boolean; // To track dialog open state
 }
 
 export const FileUploadField = ({ 
@@ -30,9 +33,20 @@ export const FileUploadField = ({
   setFileError, 
   acceptedFileTypes, 
   hideLabel = false,
-  hideDescription = false
+  hideDescription = false,
+  resetOnDialogClose = false,
+  dialogOpen = true
 }: FileUploadFieldProps) => {
   const { t } = useLanguage();
+
+  // Reset state when dialog closes
+  useEffect(() => {
+    if (resetOnDialogClose && !dialogOpen) {
+      setFileError("");
+      onChange(null);
+      if (onFileChange) onFileChange(null);
+    }
+  }, [dialogOpen, resetOnDialogClose, onChange, onFileChange, setFileError]);
 
   const validateFile = (file: File) => {
     const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);

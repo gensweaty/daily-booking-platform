@@ -213,16 +213,18 @@ export const useEventDialog = ({
     if (!selectedEvent) return;
     
     try {
-      const { data: bookingFiles, error: bookingFilesError } = await supabase
+      // Check if this is a booking request
+      const { data: bookingRequest, error: bookingError } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('id', selectedEvent.id)
         .maybeSingle();
 
-      if (bookingFilesError && bookingFilesError.code !== 'PGRST116') {
-        console.error('Error checking for booking files:', bookingFilesError);
+      if (bookingError && bookingError.code !== 'PGRST116') {
+        console.error('Error checking for booking request:', bookingError);
       }
 
+      // Find associated customer record
       const { data: customer, error: customerError } = await supabase
         .from('customers')
         .select('*')
@@ -236,6 +238,7 @@ export const useEventDialog = ({
         throw customerError;
       }
 
+      // Update customer if found
       if (customer) {
         const { error: updateError } = await supabase
           .from('customers')
@@ -251,6 +254,7 @@ export const useEventDialog = ({
         }
       }
 
+      // Delete associated files
       const { data: files } = await supabase
         .from('event_files')
         .select('*')
@@ -278,7 +282,21 @@ export const useEventDialog = ({
         }
       }
 
-      await deleteEvent(selectedEvent.id);
+      // Handle deletion of booking request or regular event
+      if (bookingRequest) {
+        const { error: deleteError } = await supabase
+          .from('booking_requests')
+          .delete()
+          .eq('id', selectedEvent.id);
+          
+        if (deleteError) {
+          console.error('Error deleting booking request:', deleteError);
+          throw deleteError;
+        }
+      } else {
+        await deleteEvent(selectedEvent.id);
+      }
+      
       setSelectedEvent(null);
       toast({
         title: "Success",

@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -89,22 +88,6 @@ export const EventDialog = ({
     const loadFiles = async () => {
       if (event?.id) {
         try {
-          if (event.type === 'booking_request') {
-            // Fetch files associated with this booking request
-            const { data: bookingFiles, error: bookingFilesError } = await supabase
-              .from('event_files')  // We're using event_files for both events and bookings
-              .select('*')
-              .eq('event_id', event.id);
-              
-            if (bookingFilesError) {
-              console.error("Error loading booking files:", bookingFilesError);
-            } else if (bookingFiles && bookingFiles.length > 0) {
-              console.log("Loaded booking files:", bookingFiles);
-              setDisplayedFiles(bookingFiles);
-              return;
-            }
-          }
-          
           const { data, error } = await supabase
             .from('event_files')
             .select('*')
@@ -116,8 +99,10 @@ export const EventDialog = ({
           }
           
           if (data && data.length > 0) {
-            console.log("Loaded event files:", data);
+            console.log("Loaded files for ID:", event.id, data);
             setDisplayedFiles(data);
+          } else {
+            console.log("No files found for ID:", event.id);
           }
         } catch (err) {
           console.error("Exception loading event files:", err);
@@ -159,6 +144,42 @@ export const EventDialog = ({
     try {
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
+
+      if (selectedFile && createdEvent?.id && user) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        
+        console.log('Uploading file for ID:', createdEvent.id, filePath);
+        
+        const { error: uploadError } = await supabase.storage
+          .from('event_attachments')
+          .upload(filePath, selectedFile);
+
+        if (uploadError) {
+          console.error('Error uploading file:', uploadError);
+          throw uploadError;
+        }
+
+        const fileData = {
+          filename: selectedFile.name,
+          file_path: filePath,
+          content_type: selectedFile.type,
+          size: selectedFile.size,
+          user_id: user.id,
+          event_id: createdEvent.id
+        };
+
+        const { error: fileError } = await supabase
+          .from('event_files')
+          .insert(fileData);
+          
+        if (fileError) {
+          console.error('Error creating file record:', fileError);
+          throw fileError;
+        }
+        
+        console.log('File record created successfully');
+      }
 
       if (!isBookingEvent) {
         const { data: existingCustomer, error: customerQueryError } = await supabase
@@ -315,7 +336,6 @@ export const EventDialog = ({
           }
         }
         
-        // Handle file upload for booking requests
         if (selectedFile && event?.id && user) {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;
