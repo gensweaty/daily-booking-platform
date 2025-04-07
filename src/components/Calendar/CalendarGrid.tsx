@@ -89,7 +89,14 @@ export const CalendarGrid = ({
                   className={`border-r border-gray-200 p-1 relative ${
                     !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
                   }`}
-                  onClick={() => onDayClick?.(day, hourIndex)}
+                  onClick={() => {
+                    if (onDayClick) {
+                      // Create start and end times in 24-hour format as strings
+                      const startTime = `${hourIndex.toString().padStart(2, '0')}:00`;
+                      const endTime = `${(hourIndex + 1).toString().padStart(2, '0')}:00`;
+                      onDayClick(day, startTime, endTime);
+                    }
+                  }}
                 >
                   {/* Render events that start in this hour */}
                   {events
@@ -120,7 +127,9 @@ export const CalendarGrid = ({
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            onEventClick?.(event);
+                            if (onEventClick) {
+                              onEventClick(event);
+                            }
                           }}
                         >
                           <div className="flex items-center">
@@ -158,7 +167,7 @@ export const CalendarGrid = ({
           className={`bg-white p-4 min-h-[120px] cursor-pointer hover:bg-gray-50 ${
             !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
           }`}
-          onClick={() => onDayClick?.(day)}
+          onClick={() => onDayClick && onDayClick(day)}
         >
           <div className="font-medium">{format(day, "d")}</div>
           <div className="mt-2 space-y-1">
@@ -170,7 +179,9 @@ export const CalendarGrid = ({
                   className={`text-sm p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onEventClick?.(event);
+                    if (onEventClick) {
+                      onEventClick(event);
+                    }
                   }}
                 >
                   <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />

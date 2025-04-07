@@ -1,7 +1,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getNotes, updateNote, deleteNote } from "@/lib/api";
-import { Note } from "@/lib/types";
+import { Note } from "@/types/database";
 import { useState } from "react";
 import { useToast } from "./ui/use-toast";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
@@ -80,7 +80,7 @@ export const NoteList = () => {
               ref={provided.innerRef}
               className="space-y-4"
             >
-              {(notes || []).map((note: Note, index: number) => (
+              {(notes || []).map((note, index) => (
                 <Draggable key={note.id} draggableId={note.id} index={index}>
                   {(provided) => (
                     <div
