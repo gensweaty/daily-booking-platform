@@ -44,13 +44,11 @@ export const FileDisplay = ({
 
   const handleDownload = async (filePath: string, fileName: string) => {
     try {
-      console.log("Downloading file:", filePath, fileName);
       const { data, error } = await supabase.storage
         .from(bucketName)
         .download(filePath);
 
       if (error) {
-        console.error("Download error:", error);
         toast({
           title: t("common.error"),
           description: t("common.downloadError"),
@@ -81,7 +79,6 @@ export const FileDisplay = ({
   const handleDelete = async (fileId: string, filePath: string) => {
     try {
       setDeletingFileId(fileId);
-      console.log("Deleting file:", fileId, filePath, "Parent type:", parentType);
       
       // First delete the file from storage
       const { error: storageError } = await supabase.storage
@@ -93,7 +90,7 @@ export const FileDisplay = ({
         // Continue with deleting the database record even if storage deletion fails
       }
       
-      // Determine the table to delete from based on parentType
+      // Determine the table to delete from based on file metadata or props
       let tableName = 'event_files';
       
       if (parentType === 'customer') {
@@ -101,8 +98,6 @@ export const FileDisplay = ({
       } else if (filePath.includes('task')) {
         tableName = 'files'; // For task files
       }
-      
-      console.log(`Deleting file record from ${tableName} table with ID:`, fileId);
       
       // Delete from the appropriate database table
       const { error: dbError } = await supabase
