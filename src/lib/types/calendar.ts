@@ -19,6 +19,4 @@ export interface CalendarEventType {
   requester_email?: string;
   requester_phone?: string;
   description?: string;
-  file_path?: string;
-  filename?: string;
 }

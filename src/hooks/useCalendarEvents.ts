@@ -164,10 +164,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         requester_email: booking.requester_email || '',
         requester_phone: booking.requester_phone || '',
         description: booking.description || '',
-        payment_status: booking.payment_status || 'not_paid',
-        payment_amount: booking.payment_amount || null,
-        file_path: booking.file_path || null,
-        filename: booking.filename || null
       }));
       
       return bookingEvents;
@@ -274,10 +270,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             requester_name: updatedBooking.requester_name,
             requester_email: updatedBooking.requester_email,
             requester_phone: updatedBooking.requester_phone || '',
-            payment_status: updatedBooking.payment_status || '',
-            payment_amount: updatedBooking.payment_amount || null,
-            file_path: updatedBooking.file_path || null,
-            filename: updatedBooking.filename || null,
           } as CalendarEventType;
         }
       } catch (error) {
@@ -308,8 +300,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     excludeEventId?: string
   ): Promise<{ available: boolean; conflictDetails: string }> => {
     try {
-      console.log("Checking availability with excludeEventId:", excludeEventId);
-      
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('id, title, start_date, end_date')
@@ -318,24 +308,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventsError) throw eventsError;
       
-      const eventConflict = conflictingEvents?.find(event => {
-        if (excludeEventId && event.id === excludeEventId) {
-          console.log("Excluding event from conflict check:", event.id);
-          return false;
-        }
-        
-        const eventStart = new Date(event.start_date);
-        const eventEnd = new Date(event.end_date);
-        
-        return !(startDate.getTime() >= eventEnd.getTime() || 
-                endDate.getTime() <= eventStart.getTime());
-      });
+      const eventsConflict = conflictingEvents?.some(event => 
+        excludeEventId !== event.id
+      );
       
-      if (eventConflict) {
-        console.log("Found conflicting event:", eventConflict);
+      if (eventsConflict && conflictingEvents && conflictingEvents.length > 0) {
+        const conflictEvent = conflictingEvents[0];
         return { 
           available: false, 
-          conflictDetails: `Conflicts with "${eventConflict.title}" at ${new Date(eventConflict.start_date).toLocaleTimeString()}`
+          conflictDetails: `Conflicts with "${conflictEvent.title}" at ${new Date(conflictEvent.start_date).toLocaleTimeString()}`
         };
       }
       
@@ -348,24 +329,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (bookingsError) throw bookingsError;
       
-      const bookingConflict = conflictingBookings?.find(booking => {
-        if (excludeEventId && booking.id === excludeEventId) {
-          console.log("Excluding booking from conflict check:", booking.id);
-          return false;
-        }
-        
-        const bookingStart = new Date(booking.start_date);
-        const bookingEnd = new Date(booking.end_date);
-        
-        return !(startDate.getTime() >= bookingEnd.getTime() || 
-                endDate.getTime() <= bookingStart.getTime());
-      });
-      
-      if (bookingConflict) {
-        console.log("Found conflicting booking:", bookingConflict);
+      if (conflictingBookings && conflictingBookings.length > 0) {
+        const conflictBooking = conflictingBookings[0];
         return { 
           available: false, 
-          conflictDetails: `Conflicts with approved booking "${bookingConflict.title}" at ${new Date(bookingConflict.start_date).toLocaleTimeString()}`
+          conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`
         };
       }
       
@@ -405,7 +373,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.error("Error checking for booking request:", error);
     }
     
+    // Find potentially related customer
     try {
+      // Get the event first to use its data
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('title, start_date, end_date')
@@ -414,7 +384,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventError) {
         console.error('Error finding event:', eventError);
+        // Continue with deletion even if we can't find the event data
       } else if (eventData) {
+        // Check for associated customer using event data
         const { data: customer, error: customerError } = await supabase
           .from('customers')
           .select('*')
@@ -425,6 +397,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
         if (customerError && customerError.code !== 'PGRST116') {
           console.error('Error finding associated customer:', customerError);
+          // Don't throw, continue with deletion
         }
 
         if (customer) {
@@ -438,13 +411,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
           if (updateError) {
             console.error('Error updating customer:', updateError);
+            // Don't throw, continue with deletion
           }
         }
       }
     } catch (error) {
       console.error('Error handling customer association:', error);
+      // Continue with deletion even if customer handling fails
     }
 
+    // Check for and delete associated files
     try {
       const { data: files } = await supabase
         .from('event_files')
@@ -469,12 +445,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
         if (filesDeleteError) {
           console.error('Error deleting file records:', filesDeleteError);
+          // Don't throw, continue with deletion
         }
       }
     } catch (error) {
       console.error('Error handling file deletion:', error);
+      // Continue with deletion even if file handling fails
     }
 
+    // Finally delete the event
     const { error } = await supabase
       .from('events')
       .delete()
@@ -505,7 +484,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   });
 
   const { data: approvedBookings = [], isLoading: isLoadingBookings } = useQuery({
-    queryKey: ['approved-bookings', businessId, businessUserId, user?.id],
+    queryKey: ['approved-bookings', businessId, businessUserId],
     queryFn: getApprovedBookings,
     enabled: !!(businessId || businessUserId || (user && !businessId && !businessUserId)),
     staleTime: 1000 * 30,
@@ -544,7 +523,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   if (businessId || businessUserId) {
     allEvents = [...businessEvents, ...approvedBookings];
   } else if (user) {
-    allEvents = [...events, ...approvedBookings];
+    const isUserBusiness = approvedBookings.length > 0 && approvedBookings[0].user_id === user.id;
+    allEvents = [...events, ...(isUserBusiness ? approvedBookings : [])];
   }
 
   console.log("useCalendarEvents combined data:", {

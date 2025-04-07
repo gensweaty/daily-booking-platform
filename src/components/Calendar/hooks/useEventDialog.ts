@@ -42,8 +42,6 @@ export const useEventDialog = ({
     existingEventId?: string
   ): Promise<{ available: boolean; conflictingEvent?: CalendarEventType }> => {
     try {
-      console.log("Checking availability with existingEventId:", existingEventId);
-      
       // First check regular events
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
@@ -53,23 +51,13 @@ export const useEventDialog = ({
         
       if (eventsError) throw eventsError;
       
-      const eventConflict = conflictingEvents?.find(event => {
-        // Skip the current event being updated
-        if (existingEventId && event.id === existingEventId) {
-          console.log("Excluding event from conflict check:", event.id);
-          return false;
-        }
-        
-        // Check for actual conflicts (not just edge touching)
-        const eventStart = new Date(event.start_date);
-        const eventEnd = new Date(event.end_date);
-        
-        return !(startDate.getTime() >= eventEnd.getTime() || 
-                 endDate.getTime() <= eventStart.getTime());
-      });
+      const eventConflict = conflictingEvents?.find(event => 
+        (!existingEventId || event.id !== existingEventId) &&
+        !(startDate.getTime() === new Date(event.end_date).getTime() || 
+          endDate.getTime() === new Date(event.start_date).getTime())
+      );
       
       if (eventConflict) {
-        console.log("Found conflicting event:", eventConflict);
         return { available: false, conflictingEvent: eventConflict };
       }
       
@@ -83,20 +71,10 @@ export const useEventDialog = ({
         
       if (bookingsError) throw bookingsError;
       
-      const bookingConflict = conflictingBookings?.find(booking => {
-        // Skip the current booking being updated
-        if (existingEventId && booking.id === existingEventId) {
-          console.log("Excluding booking from conflict check:", booking.id);
-          return false;
-        }
-        
-        // Check for actual conflicts (not just edge touching)
-        const bookingStart = new Date(booking.start_date);
-        const bookingEnd = new Date(booking.end_date);
-        
-        return !(startDate.getTime() >= bookingEnd.getTime() || 
-                 endDate.getTime() <= bookingStart.getTime());
-      });
+      const bookingConflict = conflictingBookings?.find(booking => 
+        !(startDate.getTime() === new Date(booking.end_date).getTime() || 
+          endDate.getTime() === new Date(booking.start_date).getTime())
+      );
       
       if (bookingConflict) {
         // Convert booking to event format for the response
@@ -173,7 +151,6 @@ export const useEventDialog = ({
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
 
-      // Pass the current event ID to exclude it from conflict checking
       const { available, conflictingEvent } = await checkTimeSlotAvailability(
         startDate,
         endDate,
@@ -213,16 +190,6 @@ export const useEventDialog = ({
     if (!selectedEvent) return;
     
     try {
-      const { data: bookingFiles, error: bookingFilesError } = await supabase
-        .from('booking_requests')
-        .select('*')
-        .eq('id', selectedEvent.id)
-        .maybeSingle();
-
-      if (bookingFilesError && bookingFilesError.code !== 'PGRST116') {
-        console.error('Error checking for booking files:', bookingFilesError);
-      }
-
       const { data: customer, error: customerError } = await supabase
         .from('customers')
         .select('*')

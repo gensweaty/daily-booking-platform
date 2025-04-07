@@ -64,6 +64,4 @@ export interface BookingRequest {
   event_notes?: string;
   payment_status?: string;
   payment_amount?: number | null;
-  file_path?: string;
-  filename?: string;
 }

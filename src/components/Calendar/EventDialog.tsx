@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -64,15 +63,6 @@ export const EventDialog = ({
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
       setIsBookingEvent(event.type === 'booking_request');
-      
-      if (event.file_path || event.filename) {
-        console.log("Event with file attachment:", {
-          id: event.id,
-          title: event.title,
-          file_path: event.file_path,
-          filename: event.filename
-        });
-      }
     } else if (selectedDate) {
       const start = new Date(selectedDate.getTime());
       const end = new Date(selectedDate.getTime());
@@ -89,22 +79,6 @@ export const EventDialog = ({
     const loadFiles = async () => {
       if (event?.id) {
         try {
-          if (event.type === 'booking_request') {
-            // Fetch files associated with this booking request
-            const { data: bookingFiles, error: bookingFilesError } = await supabase
-              .from('event_files')  // We're using event_files for both events and bookings
-              .select('*')
-              .eq('event_id', event.id);
-              
-            if (bookingFilesError) {
-              console.error("Error loading booking files:", bookingFilesError);
-            } else if (bookingFiles && bookingFiles.length > 0) {
-              console.log("Loaded booking files:", bookingFiles);
-              setDisplayedFiles(bookingFiles);
-              return;
-            }
-          }
-          
           const { data, error } = await supabase
             .from('event_files')
             .select('*')
@@ -150,10 +124,6 @@ export const EventDialog = ({
 
     if (isBookingEvent && event?.id) {
       eventData.id = event.id;
-      eventData.type = 'booking_request';
-      
-      if (event.file_path) eventData.file_path = event.file_path;
-      if (event.filename) eventData.filename = event.filename;
     }
 
     try {
@@ -302,8 +272,6 @@ export const EventDialog = ({
                 description: eventNotes,
                 start_date: startDateTime.toISOString(),
                 end_date: endDateTime.toISOString(),
-                payment_status: paymentStatus || 'not_paid',
-                payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
               })
               .eq('id', event.id);
               
@@ -313,43 +281,6 @@ export const EventDialog = ({
               console.log('Updated booking request successfully');
             }
           }
-        }
-        
-        // Handle file upload for booking requests
-        if (selectedFile && event?.id && user) {
-          const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${crypto.randomUUID()}.${fileExt}`;
-          
-          console.log('Uploading file for booking:', filePath);
-          
-          const { error: uploadError } = await supabase.storage
-            .from('event_attachments')
-            .upload(filePath, selectedFile);
-
-          if (uploadError) {
-            console.error('Error uploading booking file:', uploadError);
-            throw uploadError;
-          }
-
-          const fileData = {
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            user_id: user.id,
-            event_id: event.id
-          };
-
-          const { error: fileError } = await supabase
-            .from('event_files')
-            .insert(fileData);
-            
-          if (fileError) {
-            console.error('Error creating booking file record:', fileError);
-            throw fileError;
-          }
-          
-          console.log('Booking file record created successfully');
         }
       }
 
