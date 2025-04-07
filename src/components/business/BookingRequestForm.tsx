@@ -202,6 +202,7 @@ export const BookingRequestForm = ({
                       {...field} 
                       placeholder={t("events.fullName")} 
                       required 
+                      className="bg-background"
                     />
                   </FormControl>
                   <FormMessage />
@@ -222,6 +223,7 @@ export const BookingRequestForm = ({
                       {...field} 
                       type="tel" 
                       placeholder={t("events.phoneNumber")} 
+                      className="bg-background"
                     />
                   </FormControl>
                   <FormMessage />
@@ -242,6 +244,7 @@ export const BookingRequestForm = ({
                       {...field} 
                       type="text" 
                       placeholder={t("events.socialLinkEmail")} 
+                      className="bg-background"
                     />
                   </FormControl>
                   <FormMessage />
@@ -404,6 +407,7 @@ export const BookingRequestForm = ({
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isLoading}
+              className="bg-background"
             >
               {t("common.cancel")}
             </Button>
