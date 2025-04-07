@@ -539,12 +539,40 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     },
   });
 
+  const deduplicateEvents = (eventsArray: CalendarEventType[], bookingsArray: CalendarEventType[]) => {
+    const eventMap = new Map<string, CalendarEventType>();
+    
+    eventsArray.forEach(event => {
+      const key = `${event.start_date}|${event.end_date}|${event.title}`;
+      eventMap.set(key, event);
+    });
+    
+    bookingsArray.forEach(booking => {
+      const key = `${booking.start_date}|${booking.end_date}|${booking.title}`;
+      
+      if (eventMap.has(key)) {
+        const existingEvent = eventMap.get(key)!;
+        
+        if (booking.file_path && !existingEvent.file_path) {
+          eventMap.set(key, booking);
+        } else if ((booking.requester_name && !existingEvent.user_surname) || 
+                 (booking.requester_phone && !existingEvent.user_number)) {
+          eventMap.set(key, booking);
+        }
+      } else {
+        eventMap.set(key, booking);
+      }
+    });
+    
+    return Array.from(eventMap.values());
+  };
+
   let allEvents: CalendarEventType[] = [];
   
   if (businessId || businessUserId) {
-    allEvents = [...businessEvents, ...approvedBookings];
+    allEvents = deduplicateEvents(businessEvents, approvedBookings);
   } else if (user) {
-    allEvents = [...events, ...approvedBookings];
+    allEvents = deduplicateEvents(events, approvedBookings);
   }
 
   console.log("useCalendarEvents combined data:", {

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -70,33 +69,72 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
         
-        // Combine all event sources
-        const allEvents: CalendarEventType[] = [
-          ...(apiEvents || []).map(event => ({
-            ...event,
-            type: event.type || 'event'
-          })),
-          ...(approvedBookings || []).map(booking => ({
-            id: booking.id,
-            title: booking.title || 'Booking',
-            start_date: booking.start_date,
-            end_date: booking.end_date,
-            type: 'booking_request',
-            created_at: booking.created_at || new Date().toISOString(),
-            user_id: booking.user_id || '',
-            user_surname: booking.requester_name || '',
-            user_number: booking.requester_phone || '',
-            social_network_link: booking.requester_email || '',
-            event_notes: booking.description || '',
-            requester_name: booking.requester_name || '',
-            requester_email: booking.requester_email || '',
-          }))
-        ];
+        // Map events to the correct format
+        const formattedApiEvents = (apiEvents || []).map(event => ({
+          ...event,
+          type: event.type || 'event'
+        }));
         
-        console.log(`[External Calendar] Combined ${allEvents.length} total events`);
+        // Map bookings to the correct format
+        const formattedBookings = (approvedBookings || []).map(booking => ({
+          id: booking.id,
+          title: booking.title || 'Booking',
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          type: 'booking_request',
+          created_at: booking.created_at || new Date().toISOString(),
+          user_id: booking.user_id || '',
+          user_surname: booking.requester_name || '',
+          user_number: booking.requester_phone || '',
+          social_network_link: booking.requester_email || '',
+          event_notes: booking.description || '',
+          requester_name: booking.requester_name || '',
+          requester_email: booking.requester_email || '',
+          file_path: booking.file_path || null,
+          filename: booking.filename || null
+        }));
+        
+        // Deduplicate events by creating a map with a unique key for each time slot
+        const deduplicateEvents = (eventsArray: CalendarEventType[], bookingsArray: CalendarEventType[]) => {
+          const eventMap = new Map<string, CalendarEventType>();
+          
+          // First add all regular events to the map
+          eventsArray.forEach(event => {
+            const key = `${event.start_date}|${event.end_date}|${event.title}`;
+            eventMap.set(key, event);
+          });
+          
+          // Then process booking events - check if we already have a regular event for this slot
+          bookingsArray.forEach(booking => {
+            const key = `${booking.start_date}|${booking.end_date}|${booking.title}`;
+            
+            // If we already have an event with this key, check which one to keep
+            if (eventMap.has(key)) {
+              const existingEvent = eventMap.get(key)!;
+              
+              // Prefer the booking event if it has a file attached but the regular event doesn't
+              if (booking.file_path && !existingEvent.file_path) {
+                eventMap.set(key, booking);
+              }
+              // Or if both have files or neither has files, prefer the booking event which has more fields populated
+              else if ((booking.requester_name && !existingEvent.user_surname) || 
+                      (booking.requester_phone && !existingEvent.user_number)) {
+                eventMap.set(key, booking);
+              }
+            } else {
+              // If no event exists with this key, add the booking
+              eventMap.set(key, booking);
+            }
+          });
+          
+          return Array.from(eventMap.values());
+        };
+        
+        // Deduplicate events
+        const dedupedEvents = deduplicateEvents(formattedApiEvents, formattedBookings);
         
         // Validate all events have proper dates
-        const validEvents = allEvents.filter(event => {
+        const validEvents = dedupedEvents.filter(event => {
           try {
             // Check if start_date and end_date are valid
             const startValid = !!new Date(event.start_date).getTime();
@@ -108,25 +146,14 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           }
         });
         
-        if (validEvents.length !== allEvents.length) {
-          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates`);
+        if (validEvents.length !== dedupedEvents.length) {
+          console.warn(`Filtered out ${dedupedEvents.length - validEvents.length} events with invalid dates`);
         }
         
-        // Remove duplicate events (same time slot)
-        const eventMap = new Map();
-        validEvents.forEach(event => {
-          const key = `${event.start_date}-${event.end_date}`;
-          // Prioritize booking_request type events
-          if (!eventMap.has(key) || event.type === 'booking_request') {
-            eventMap.set(key, event);
-          }
-        });
-        
-        const uniqueEvents = Array.from(eventMap.values());
-        console.log(`[External Calendar] Final unique events: ${uniqueEvents.length}`);
+        console.log(`[External Calendar] Final unique events: ${validEvents.length}`);
         
         // Update state with fetched events
-        setEvents(uniqueEvents);
+        setEvents(validEvents);
       } catch (error) {
         console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
         toast({
