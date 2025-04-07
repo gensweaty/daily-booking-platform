@@ -9,7 +9,11 @@ import { Loader2 } from "lucide-react";
 import { getPublicCalendarEvents } from "@/lib/api";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
+interface ExternalCalendarProps {
+  businessId: string;
+}
+
+export const ExternalCalendar = ({ businessId }: ExternalCalendarProps) => {
   const [view, setView] = useState<CalendarViewType>("month");
   const [events, setEvents] = useState<CalendarEventType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -90,6 +94,13 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             event_notes: booking.description || '',
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
+            requester_phone: booking.requester_phone || '',
+            description: booking.description || '',
+            payment_status: booking.payment_status || 'not_paid',
+            payment_amount: booking.payment_amount || null,
+            file_path: booking.file_path,
+            filename: booking.filename,
+            has_files: booking.has_files
           }))
         ];
         
