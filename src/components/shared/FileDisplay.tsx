@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { supabase, getStorageUrl } from "@/lib/supabase";
+import { supabase, getStorageUrl, normalizeFilePath } from "@/lib/supabase";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
@@ -41,14 +41,20 @@ export const FileDisplay = ({
     return <FileIcon className="h-5 w-5" />;
   };
 
+  const getFileUrl = (filePath: string) => {
+    const normalizedPath = normalizeFilePath(filePath);
+    return `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
+  };
+
   const handleDownload = async (filePath: string, fileName: string) => {
     try {
       console.log(`Attempting to download file from ${bucketName}/${filePath}`);
       
-      // Try direct download first
+      // Try direct download with normalized path
+      const normalizedPath = normalizeFilePath(filePath);
       const { data, error } = await supabase.storage
         .from(bucketName)
-        .download(filePath);
+        .download(normalizedPath);
         
       if (error) {
         console.error('Error downloading file:', error);
@@ -56,14 +62,25 @@ export const FileDisplay = ({
         // If direct download fails, try to get a signed URL
         const { data: signedUrlData, error: signedUrlError } = await supabase.storage
           .from(bucketName)
-          .createSignedUrl(filePath, 60); // 60 seconds expiry
+          .createSignedUrl(normalizedPath, 60); // 60 seconds expiry
         
         if (signedUrlError) {
           console.error('Error creating signed URL:', signedUrlError);
+          
+          // Fall back to direct URL
+          const directUrl = getFileUrl(filePath);
+          console.log('Falling back to direct URL:', directUrl);
+          
+          const a = document.createElement('a');
+          a.href = directUrl;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          
           toast({
-            title: t("common.error"),
-            description: t("common.downloadError"),
-            variant: "destructive",
+            title: t("common.success"),
+            description: t("common.downloadStarted"),
           });
           return;
         }
@@ -117,49 +134,13 @@ export const FileDisplay = ({
 
   const handleOpenFile = async (filePath: string) => {
     try {
-      // Try direct download first to verify the file exists
-      const { data, error } = await supabase.storage
-        .from(bucketName)
-        .download(filePath);
-        
-      if (error) {
-        console.error('Error accessing file:', error);
-        
-        // Try using a signed URL
-        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-          .from(bucketName)
-          .createSignedUrl(filePath, 3600); // 1 hour expiry for viewing
-        
-        if (signedUrlError) {
-          console.error('Error creating signed URL:', signedUrlError);
-          toast({
-            title: t("common.error"),
-            description: t("common.fileAccessError"),
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        if (signedUrlData?.signedUrl) {
-          window.open(signedUrlData.signedUrl, '_blank');
-        } else {
-          toast({
-            title: t("common.error"),
-            description: t("common.fileAccessError"),
-            variant: "destructive",
-          });
-        }
-        return;
-      }
+      // Normalize the file path first
+      const normalizedPath = normalizeFilePath(filePath);
       
-      // If direct download succeeded, create a blob URL and open it
-      const url = URL.createObjectURL(data);
-      window.open(url, '_blank');
-      
-      // Clean up the URL after a delay
-      setTimeout(() => {
-        URL.revokeObjectURL(url);
-      }, 100);
+      // Try direct access first
+      const directUrl = getFileUrl(filePath);
+      console.log('Opening file with direct URL:', directUrl);
+      window.open(directUrl, '_blank');
     } catch (error) {
       console.error('Error opening file:', error);
       toast({
@@ -252,7 +233,7 @@ export const FileDisplay = ({
                   {isImage(file.filename) ? (
                     <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                       <img 
-                        src={`${getStorageUrl()}/object/public/${bucketName}/${file.file_path}`}
+                        src={getFileUrl(file.file_path)}
                         alt={file.filename}
                         className="h-full w-full object-cover"
                         onError={(e) => {

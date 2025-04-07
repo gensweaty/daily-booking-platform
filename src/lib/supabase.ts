@@ -20,6 +20,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // Export the storage URL as a standalone function instead of attaching to supabase
 export const getStorageUrl = () => `${supabaseUrl}/storage/v1`;
 
+// Helper to normalize file paths for storage URLs (handle double slashes)
+export const normalizeFilePath = (filePath: string) => {
+  if (!filePath) return "";
+  // Remove any leading slashes
+  return filePath.replace(/^\/+/, '');
+};
+
 // Enhanced debug listener for auth events with more detailed information
 supabase.auth.onAuthStateChange((event, session) => {
   console.log(`Auth state changed: ${event}`, {
