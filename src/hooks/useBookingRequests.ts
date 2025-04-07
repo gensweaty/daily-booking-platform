@@ -61,6 +61,8 @@ export const useBookingRequests = () => {
   // Mutation to approve a booking request
   const approveMutation = useMutation({
     mutationFn: async (bookingId: string) => {
+      console.log('Starting approval process for booking:', bookingId);
+      
       // Fetch the booking request details first
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
@@ -70,6 +72,8 @@ export const useBookingRequests = () => {
       
       if (fetchError) throw fetchError;
       if (!booking) throw new Error('Booking request not found');
+      
+      console.log('Fetched booking request:', booking);
       
       // Check for time slot conflicts before approving
       const { data: conflictingEvents } = await supabase
@@ -99,57 +103,119 @@ export const useBookingRequests = () => {
       
       if (updateError) throw updateError;
       
+      console.log('Booking request approved, creating event entry');
+      
+      // Create an event entry for the booking
+      const { data: eventData, error: eventError } = await supabase
+        .from('events')
+        .insert({
+          title: booking.title,
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          user_id: user?.id,
+          user_surname: booking.requester_name,
+          user_number: booking.requester_phone || booking.user_number || null,
+          social_network_link: booking.requester_email || booking.social_network_link || null,
+          event_notes: booking.description || booking.event_notes || null,
+          type: 'booking_request',
+          booking_request_id: booking.id,
+          payment_status: booking.payment_status || 'not_paid',
+          payment_amount: booking.payment_amount
+        })
+        .select()
+        .single();
+      
+      if (eventError) {
+        console.error('Error creating event from booking:', eventError);
+        throw eventError;
+      }
+      
+      console.log('Created event:', eventData);
+      
       // Create a customer record from the booking request
-      const { error: customerError } = await supabase
+      const { data: customerData, error: customerError } = await supabase
         .from('customers')
         .insert({
           title: booking.requester_name,
           user_surname: booking.user_surname || null,
           user_number: booking.requester_phone || booking.user_number || null,
-          social_network_link: booking.social_network_link || null,
-          event_notes: booking.event_notes || booking.description || null,
+          social_network_link: booking.requester_email || booking.social_network_link || null,
+          event_notes: booking.description || booking.event_notes || null,
           start_date: booking.start_date,
           end_date: booking.end_date,
           user_id: user?.id,
-          type: 'booking_request'
-        });
+          type: 'booking_request',
+          payment_status: booking.payment_status,
+          payment_amount: booking.payment_amount
+        })
+        .select()
+        .single();
       
       if (customerError) {
         console.error('Error creating customer from booking:', customerError);
         // Continue with the approval even if customer creation fails
+      } else {
+        console.log('Created customer:', customerData);
       }
       
       // Check if there are any files attached to the booking
-      const { data: bookingFiles } = await supabase
-        .from('booking_files')
+      const { data: bookingFiles, error: filesError } = await supabase
+        .from('event_files')
         .select('*')
-        .eq('booking_id', bookingId);
+        .eq('event_id', bookingId);
+        
+      if (filesError) {
+        console.error('Error fetching booking files:', filesError);
+      }
+      
+      console.log('Found booking files:', bookingFiles);
         
       if (bookingFiles && bookingFiles.length > 0) {
         for (const file of bookingFiles) {
-          // Create customer file record
-          const { error: fileError } = await supabase
-            .from('customer_files_new')
+          // First, copy the file record to associate with the new event
+          const { error: eventFileError } = await supabase
+            .from('event_files')
             .insert({
               filename: file.filename,
               file_path: file.file_path,
               content_type: file.content_type,
               size: file.size,
               user_id: user?.id,
-              // Link to the newly created customer
-              customer_id: booking.id
+              event_id: eventData.id
             });
             
-          if (fileError) {
-            console.error('Error copying booking file to customer:', fileError);
+          if (eventFileError) {
+            console.error('Error copying file to event:', eventFileError);
+          }
+          
+          // Then create customer file record if customer was created
+          if (customerData) {
+            const { error: customerFileError } = await supabase
+              .from('customer_files_new')
+              .insert({
+                filename: file.filename,
+                file_path: file.file_path,
+                content_type: file.content_type,
+                size: file.size,
+                user_id: user?.id,
+                customer_id: customerData.id
+              });
+              
+            if (customerFileError) {
+              console.error('Error copying file to customer:', customerFileError);
+            }
           }
         }
       }
       
+      console.log('Booking approval process completed successfully');
       return booking;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast({
         title: "Success",
@@ -157,6 +223,7 @@ export const useBookingRequests = () => {
       });
     },
     onError: (error: Error) => {
+      console.error('Error in approval mutation:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to approve booking request",

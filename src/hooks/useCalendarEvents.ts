@@ -348,6 +348,29 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     if (!user) throw new Error("User must be authenticated to delete events");
     
     try {
+      // Check if this is a booking event
+      const { data: eventData, error: eventError } = await supabase
+        .from('events')
+        .select('booking_request_id')
+        .eq('id', id)
+        .maybeSingle();
+        
+      if (eventError) {
+        console.error("Error checking for booking association:", eventError);
+      } else if (eventData?.booking_request_id) {
+        console.log("This is a booking event. Will also update booking request status.");
+        // Update the booking request status to rejected/deleted
+        const { error: bookingError } = await supabase
+          .from('booking_requests')
+          .update({ status: 'rejected' })
+          .eq('id', eventData.booking_request_id);
+          
+        if (bookingError) {
+          console.error("Error updating associated booking:", bookingError);
+        }
+      }
+      
+      // Also check if this is a direct booking request ID
       const { data: bookingData, error: bookingError } = await supabase
         .from('booking_requests')
         .select('*')
