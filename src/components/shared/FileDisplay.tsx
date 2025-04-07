@@ -43,13 +43,24 @@ export const FileDisplay = ({
   };
 
   // For files that were uploaded via events and potentially shared with customers,
-  // we need to ensure we use event_attachments bucket for consistency
+  // we need to ensure we use the correct bucket based on the file path pattern
   const getEffectiveBucket = (filePath: string): string => {
-    // Always prefer event_attachments for shared files
-    // These will be files that might exist in both buckets due to relationships
-    if (filePath.includes("b22b") || parentType === "event") {
+    // Files with b22b pattern are always in event_attachments bucket, regardless of context
+    if (filePath.includes("b22b")) {
       return "event_attachments";
     }
+    
+    // Customer attachments in the CRM should use the customer_attachments bucket
+    if (parentType === "customer" && !filePath.includes("b22b")) {
+      return "customer_attachments";
+    }
+    
+    // Events should always use event_attachments
+    if (parentType === "event") {
+      return "event_attachments";
+    }
+    
+    // For all other cases, use the provided bucket name
     return bucketName;
   };
 
@@ -57,52 +68,25 @@ export const FileDisplay = ({
   const getDirectFileUrl = (filePath: string): string => {
     const normalizedPath = normalizeFilePath(filePath);
     const effectiveBucket = getEffectiveBucket(filePath);
+    
+    // Create a public URL for the file
     return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
   };
 
   const handleDownload = async (filePath: string, fileName: string) => {
     try {
       console.log(`Attempting to download file from ${filePath}`);
+      console.log(`File name: ${fileName}`);
       
-      // Get the effective bucket for this file
-      const effectiveBucket = getEffectiveBucket(filePath);
-      console.log(`Using bucket: ${effectiveBucket} for download`);
+      // First try direct URL download which is most reliable
+      const directUrl = getDirectFileUrl(filePath);
+      console.log('Using direct URL for download:', directUrl);
       
-      // Try direct download with normalized path
-      const normalizedPath = normalizeFilePath(filePath);
-      const { data, error } = await supabase.storage
-        .from(effectiveBucket)
-        .download(normalizedPath);
-        
-      if (error) {
-        console.error('Error downloading file:', error);
-        
-        // Fall back to direct URL
-        const directUrl = getDirectFileUrl(filePath);
-        console.log('Falling back to direct URL:', directUrl);
-        
-        const a = document.createElement('a');
-        a.href = directUrl;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        
-        toast({
-          title: t("common.success"),
-          description: t("common.downloadStarted"),
-        });
-        return;
-      }
-      
-      // If direct download succeeds
-      const url = URL.createObjectURL(data);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = directUrl;
       a.download = fileName;
       document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
       toast({
@@ -152,13 +136,13 @@ export const FileDisplay = ({
         throw storageError;
       }
       
-      // Then delete the database record
+      // Then delete the database record based on the file type
       let tableName = 'files';
-      if (effectiveBucket === 'event_attachments' || effectiveBucket === 'booking_attachments') {
+      if (effectiveBucket === 'event_attachments' || parentType === 'event') {
         tableName = 'event_files';
-      } else if (effectiveBucket === 'customer_attachments') {
+      } else if (effectiveBucket === 'customer_attachments' || parentType === 'customer') {
         tableName = 'customer_files_new';
-      } else if (effectiveBucket === 'note_attachments') {
+      } else if (effectiveBucket === 'note_attachments' || parentType === 'note') {
         tableName = 'note_files';
       }
       

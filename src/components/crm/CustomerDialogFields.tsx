@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -110,35 +111,21 @@ export const CustomerDialogFields = ({
     }
   }, [isOpen]);
 
+  // This function will fetch files from both customer_files_new and event_files tables
+  // to ensure we get all files related to this customer
   const { data: fetchedFiles = [], isError, refetch } = useQuery({
-    queryKey: ['customerFiles', customerId, isEventData],
+    queryKey: ['customerFiles', customerId, title, isEventData],
     queryFn: async () => {
-      if (!customerId) return [];
+      if (!customerId && !title) return [];
       
-      console.log('Fetching files for customer:', customerId, 'isEventData:', isEventData);
+      console.log('Fetching files for customer:', customerId, 'with title:', title, 'isEventData:', isEventData);
       
       try {
         let files = [];
         const uniqueFilePaths = new Map();
         
-        if (isEventData) {
-          // Get files from event_files
-          const { data: eventFiles, error: eventFilesError } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', customerId);
-            
-          if (eventFilesError) {
-            console.error('Error fetching event files:', eventFilesError);
-          } else {
-            eventFiles?.forEach(file => {
-              if (!uniqueFilePaths.has(file.file_path)) {
-                uniqueFilePaths.set(file.file_path, file);
-              }
-            });
-          }
-        } else {
-          // Get files from customer_files_new
+        // First, get customer's direct files
+        if (customerId) {
           const { data: customerFiles, error: customerFilesError } = await supabase
             .from('customer_files_new')
             .select('*')
@@ -146,24 +133,59 @@ export const CustomerDialogFields = ({
             
           if (customerFilesError) {
             console.error('Error fetching customer files:', customerFilesError);
-          } else {
-            customerFiles?.forEach(file => {
-              if (!uniqueFilePaths.has(file.file_path)) {
-                uniqueFilePaths.set(file.file_path, file);
-              }
+          } else if (customerFiles) {
+            console.log('Found customer files:', customerFiles.length);
+            customerFiles.forEach(file => {
+              uniqueFilePaths.set(file.file_path, file);
             });
           }
         }
         
+        // Next, check if there are any associated events with this customer name
+        if (title) {
+          const { data: events, error: eventsError } = await supabase
+            .from('events')
+            .select('id, title')
+            .eq('title', title);
+            
+          if (eventsError) {
+            console.error('Error fetching related events:', eventsError);
+          } else if (events && events.length > 0) {
+            console.log('Found related events:', events.length);
+            
+            // Get files from all related events
+            for (const event of events) {
+              const { data: eventFiles, error: eventFilesError } = await supabase
+                .from('event_files')
+                .select('*')
+                .eq('event_id', event.id);
+                
+              if (eventFilesError) {
+                console.error(`Error fetching files for event ${event.id}:`, eventFilesError);
+              } else if (eventFiles) {
+                console.log(`Found ${eventFiles.length} files for event ${event.id}`);
+                eventFiles.forEach(file => {
+                  // Add source info to distinguish the file source
+                  uniqueFilePaths.set(file.file_path, {
+                    ...file,
+                    source: 'event'
+                  });
+                });
+              }
+            }
+          }
+        }
+        
+        // Convert Map to array
         files = Array.from(uniqueFilePaths.values());
-        console.log('Found unique files:', files);
+        console.log('Total unique files found:', files.length);
         return files;
       } catch (error) {
         console.error('Error in file fetching:', error);
         return [];
       }
     },
-    enabled: !!customerId,
+    enabled: !!(customerId || title),
     staleTime: 0,
     gcTime: Infinity,
     refetchOnWindowFocus: true,
@@ -343,7 +365,7 @@ export const CustomerDialogFields = ({
           <Label>{t("crm.attachments")}</Label>
           <FileDisplay 
             files={allFiles} 
-            bucketName={isEventData ? "event_attachments" : "customer_attachments"}
+            bucketName="event_attachments" // Always default to event_attachments for shared files
             allowDelete
             onFileDeleted={handleFileDeleted}
             parentId={customerId}

@@ -2,14 +2,18 @@ import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
 
-// Helper function to get file URL
+// Helper function to get file URL with consistent bucket handling
 export const getFileUrl = (bucketName: string, filePath: string) => {
   const baseUrl = import.meta.env.VITE_SUPABASE_URL;
   const normalizedPath = normalizeFilePath(filePath);
   
-  // Always prefer event_attachments for files that might be shared
-  // This ensures consistency between the event popup and CRM views
-  const effectiveBucket = filePath.includes("b22b") ? "event_attachments" : bucketName;
+  // For files with b22b pattern (UUID format from events), always use event_attachments
+  // This ensures consistency between different views
+  let effectiveBucket = bucketName;
+  
+  if (filePath.includes("b22b")) {
+    effectiveBucket = "event_attachments";
+  }
   
   return `${baseUrl}/storage/v1/object/public/${effectiveBucket}/${normalizedPath}`;
 };
@@ -328,45 +332,24 @@ export const getPublicCalendarEvents = async (businessId: string) => {
   }
 };
 
-// File handling functions
+// Enhanced file handling functions with consistent bucket handling
 export const downloadFile = async (bucketName: string, filePath: string, fileName: string) => {
   try {
     console.log(`Attempting to download file from ${bucketName}/${filePath}`);
     
     // Determine the effective bucket (prefer event_attachments for shared files)
     const effectiveBucket = filePath.includes("b22b") ? "event_attachments" : bucketName;
+    console.log(`Using effective bucket: ${effectiveBucket}`);
     
-    // Try direct download with normalized path
-    const normalizedPath = normalizeFilePath(filePath);
-    const { data, error } = await supabase.storage
-      .from(effectiveBucket)
-      .download(normalizedPath);
-      
-    if (error) {
-      console.error('Error downloading file:', error);
-      
-      // Fall back to direct URL
-      const directUrl = getFileUrl(effectiveBucket, filePath);
-      console.log('Falling back to direct URL:', directUrl);
-      
-      const a = document.createElement('a');
-      a.href = directUrl;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      
-      return { success: true, message: 'Download started via direct URL' };
-    }
+    // Just use direct URL for download which is most reliable
+    const directUrl = getFileUrl(effectiveBucket, filePath);
+    console.log('Using direct URL for download:', directUrl);
     
-    // If direct download succeeds
-    const url = URL.createObjectURL(data);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = directUrl;
     a.download = fileName;
     document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
     document.body.removeChild(a);
     
     return { success: true, message: 'Download started' };
