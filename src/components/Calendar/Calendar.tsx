@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { CalendarHeader } from "./CalendarHeader";
 import { CalendarGrid } from "./CalendarGrid";
@@ -42,7 +41,6 @@ export const Calendar = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
   
-  // Initialize the calendar events hook
   const {
     createEvent,
     updateEvent,
@@ -50,7 +48,6 @@ export const Calendar = ({
     events: calendarEvents
   } = useCalendarEvents(businessId, businessUserId);
 
-  // Initialize the event dialog hook with the event handlers
   const { 
     isDialogOpen, 
     openDialog, 
@@ -88,11 +85,8 @@ export const Calendar = ({
     closeDialog();
   };
 
-  // Fix #1: This function takes an eventId parameter but handleDeleteEvent doesn't expect arguments
-  // We need to fix this by creating a wrapper function
   const handleDeleteEventClick = (eventId: string) => {
     if (eventId) {
-      // Fix: Call handleDeleteEvent without passing any arguments
       handleDeleteEvent();
     }
   };
@@ -115,7 +109,6 @@ export const Calendar = ({
     }
   };
 
-  // Generate days array based on current view
   const generateDaysArray = (): Date[] => {
     const days: Date[] = [];
     if (view === "day") {
@@ -135,7 +128,6 @@ export const Calendar = ({
       const firstDay = new Date(year, month, 1);
       const lastDay = new Date(year, month + 1, 0);
       
-      // Include days from previous month to fill the first week
       const firstDayWeekday = firstDay.getDay();
       for (let i = 0; i < firstDayWeekday; i++) {
         const d = new Date(firstDay);
@@ -143,12 +135,10 @@ export const Calendar = ({
         days.push(d);
       }
       
-      // Add all days of current month
       for (let i = 1; i <= lastDay.getDate(); i++) {
         days.push(new Date(year, month, i));
       }
       
-      // Add days from next month to fill the last week
       const lastDayWeekday = lastDay.getDay();
       for (let i = 1; i < 7 - lastDayWeekday; i++) {
         const d = new Date(lastDay);
@@ -159,7 +149,6 @@ export const Calendar = ({
     return days;
   };
 
-  // Get the events to display
   const eventsToDisplay = directEvents || calendarEvents || [];
 
   return (
@@ -169,7 +158,6 @@ export const Calendar = ({
         view={view}
         onViewChange={handleViewChange}
         onPrevious={() => {
-          // Handle previous date based on current view
           const newDate = new Date(currentDate);
           if (view === "day") {
             newDate.setDate(newDate.getDate() - 1);
@@ -181,7 +169,6 @@ export const Calendar = ({
           setCurrentDate(newDate);
         }}
         onNext={() => {
-          // Handle next date based on current view
           const newDate = new Date(currentDate);
           if (view === "day") {
             newDate.setDate(newDate.getDate() + 1);
@@ -212,15 +199,14 @@ export const Calendar = ({
       </div>
 
       <EventDialog
-        isOpen={isDialogOpen}
-        onClose={handleCloseDialog}
+        open={isDialogOpen}
+        onOpenChange={closeDialog}
+        selectedDate={selectedEvent ? new Date(selectedEvent.start_date) : null}
         event={selectedEvent}
         businessId={businessId}
         businessUserId={businessUserId}
-        // Fix #2: The onDelete prop expects a function with no parameters
-        // but handleDeleteEventClick expects an eventId
-        // Update the prop to pass a function that meets the expected signature
         onDelete={() => selectedEvent && handleDeleteEventClick(selectedEvent.id)}
+        onSubmit={createEvent}
       />
     </div>
   );
