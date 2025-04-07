@@ -147,6 +147,15 @@ export type TranslationType = {
     feature2: string;
     feature3: string;
     feature4: string;
+    requestTitle: string;
+    requestSubmitted: string;
+    bookingTitlePlaceholder: string;
+    yourNamePlaceholder: string;
+    yourEmailPlaceholder: string;
+    yourPhonePlaceholder: string;
+    descriptionPlaceholder: string;
+    submit: string;
+    submitting: string;
   };
   analytics: {
     title: string;
@@ -188,6 +197,36 @@ export type TranslationType = {
   };
   crm: {
     title: string;
+    customersPerPage: string;
+    editCustomer: string;
+    newCustomer: string;
+    fullName: string;
+    phoneNumber: string;
+    socialLinkEmail: string;
+    paymentStatus: string;
+    dates: string;
+    comment: string;
+    actions: string;
+    addCustomer: string;
+    notPaid: string;
+    paidPartly: string;
+    paidFully: string;
+    yes: string;
+    no: string;
+    cancel: string;
+    create: string;
+    update: string;
+    open: string;
+    fullNameRequired: string;
+    fullNamePlaceholder: string;
+    phoneNumberPlaceholder: string;
+    socialLinkEmailPlaceholder: string;
+    createEventForCustomer: string;
+    selectPaymentStatus: string;
+    paymentAmount: string;
+    paymentAmountPlaceholder: string;
+    commentPlaceholder: string;
+    attachments: string;
     description: string;
     feature1: string;
     feature2: string;
@@ -199,8 +238,6 @@ export type TranslationType = {
     customerEmail: string;
     customerPhone: string;
     customerAddress: string;
-    addCustomer: string;
-    editCustomer: string;
     deleteCustomer: string;
     viewCustomer: string;
     customerDetails: string;
@@ -210,10 +247,6 @@ export type TranslationType = {
     addNote: string;
     notFound: string;
     searchCustomers: string;
-    newCustomer: string;
-    notPaid: string;
-    paidPartly: string;
-    paidFully: string;
     paymentStatusNote: string;
   };
   footer: {
@@ -296,10 +329,35 @@ export type TranslationType = {
     day: string;
     week: string;
     month: string;
+    totalTasks: string;
+    completed: string;
+    inProgress: string;
+    todo: string;
+    totalEvents: string;
+    partlyPaid: string;
+    fullyPaid: string;
+    totalIncome: string;
+    fromAllEvents: string;
+    exportSuccessful: string;
+    exportSuccessMessage: string;
   };
   events: {
-    addNewEvent: string;
+    title: string;
+    newEvent: string;
+    titleLabel: string;
+    descriptionLabel: string;
+    titlePlaceholder: string;
+    descriptionPlaceholder: string;
+    createEvent: string;
     editEvent: string;
+    updateEvent: string;
+    deleteEvent: string;
+    eventDetails: string;
+    noEvents: string;
+    date: string;
+    endDate: string;
+    time: string;
+    addNewEvent: string;
     fullNameRequired: string;
     fullName: string;
     phoneNumber: string;
@@ -311,9 +369,6 @@ export type TranslationType = {
     selectPaymentStatus: string;
     eventNotes: string;
     addEventNotes: string;
-    createEvent: string;
-    updateEvent: string;
-    deleteEvent: string;
     eventDeleted: string;
     submitBookingRequest: string;
     bookingCreated: string;
@@ -322,6 +377,7 @@ export type TranslationType = {
     paymentAmount: string;
     enterAmount: string;
     paymentStatusNote: string;
+    booked: string;
   };
   reminders: {
     newReminder: string;
@@ -391,6 +447,20 @@ export type TranslationType = {
     reject: string;
     approve: string;
     submitting: string;
+    attachments: string;
+    download: string;
+    fileDeleted: string;
+    deleteError: string;
+    downloadError: string;
+    downloadStarted: string;
+    fileAccessError: string;
+    of: string;
+    description: string;
+    noDescription: string;
+    missingUserInfo: string;
+    deleteSuccess: string;
+    copiedToClipboard: string;
+    copyError: string;
   };
   stats: {
     title: string;
@@ -422,7 +492,6 @@ export type TranslationType = {
     unpaidBookings: string;
     partiallyPaidBookings: string;
   };
-  [key: string]: any;  // Allow for other sections to be added
 };
 
 export type LanguageContextType = {
