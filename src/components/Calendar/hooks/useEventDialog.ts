@@ -6,19 +6,16 @@ import { parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 
 interface UseEventDialogProps {
-  createEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  updateEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  deleteEvent: (id: string) => Promise<void>;
+  createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
+  updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
+  deleteEvent?: (id: string) => Promise<void>;
 }
 
-export const useEventDialog = ({
-  createEvent,
-  updateEvent,
-  deleteEvent,
-}: UseEventDialogProps) => {
+export const useEventDialog = (props?: UseEventDialogProps) => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -35,6 +32,14 @@ export const useEventDialog = ({
     console.log('useEventDialog - dialog open state changed:', isNewEventDialogOpen);
     console.log('useEventDialog - current selectedDate:', selectedDate);
   }, [isNewEventDialogOpen]);
+
+  const openDialog = () => {
+    setIsDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setIsDialogOpen(false);
+  };
 
   const checkTimeSlotAvailability = async (
     startDate: Date,
@@ -121,6 +126,16 @@ export const useEventDialog = ({
   };
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
+    if (!props?.createEvent) {
+      console.error("createEvent function not provided");
+      toast({
+        title: "Error",
+        description: "Cannot create event: createEvent function not provided",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       console.log('handleCreateEvent - Received data:', data);
       
@@ -146,7 +161,7 @@ export const useEventDialog = ({
         throw new Error("Time slot conflict");
       }
 
-      const result = await createEvent(data);
+      const result = await props.createEvent(data);
       setIsNewEventDialogOpen(false);
       toast({
         title: "Success",
@@ -168,6 +183,15 @@ export const useEventDialog = ({
 
   const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
     if (!selectedEvent) return;
+    if (!props?.updateEvent) {
+      console.error("updateEvent function not provided");
+      toast({
+        title: "Error",
+        description: "Cannot update event: updateEvent function not provided",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
       const startDate = new Date(data.start_date as string);
@@ -189,7 +213,7 @@ export const useEventDialog = ({
         throw new Error("Time slot conflict");
       }
 
-      const result = await updateEvent(data);
+      const result = await props.updateEvent(data);
       setSelectedEvent(null);
       toast({
         title: "Success",
@@ -211,6 +235,15 @@ export const useEventDialog = ({
 
   const handleDeleteEvent = async () => {
     if (!selectedEvent) return;
+    if (!props?.deleteEvent) {
+      console.error("deleteEvent function not provided");
+      toast({
+        title: "Error",
+        description: "Cannot delete event: deleteEvent function not provided",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
       // Check if this is a booking request
@@ -307,7 +340,7 @@ export const useEventDialog = ({
         }
         console.log(`Deleted booking request with ID ${selectedEvent.id}`);
       } else {
-        await deleteEvent(selectedEvent.id);
+        await props.deleteEvent(selectedEvent.id);
         console.log(`Deleted regular event with ID ${selectedEvent.id}`);
       }
       
@@ -334,6 +367,9 @@ export const useEventDialog = ({
     setIsNewEventDialogOpen,
     selectedDate,
     setSelectedDate,
+    isDialogOpen,
+    openDialog,
+    closeDialog,
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,

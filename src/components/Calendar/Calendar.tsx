@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { CalendarHeader } from "./CalendarHeader";
 import { CalendarGrid } from "./CalendarGrid";
@@ -7,6 +8,8 @@ import { useEventDialog } from "./hooks/useEventDialog";
 import { EventDialog } from "./EventDialog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { supabase } from "@/lib/supabase";
+import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 
 export interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -36,24 +39,28 @@ export const Calendar = ({
   const [view, setView] = useState<CalendarViewType>(currentView || defaultView);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
-  const { isDialogOpen, openDialog, closeDialog } = useEventDialog();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
+  
+  // Initialize the calendar events hook
+  const {
+    createEvent,
+    updateEvent,
+    deleteEvent
+  } = useCalendarEvents(businessId, businessUserId);
 
-  const { mutate: deleteEventMutation } = useMutation(
-    async (eventId: string) => {
-      const { error } = await supabase.from("events").delete().eq("id", eventId);
-      if (error) {
-        throw new Error(error.message);
-      }
-    },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(["events"]);
-        closeDialog();
-      },
-    }
-  );
+  // Initialize the event dialog hook with the event handlers
+  const { 
+    isDialogOpen, 
+    openDialog, 
+    closeDialog,
+    handleDeleteEvent,
+    setSelectedEvent: setDialogSelectedEvent
+  } = useEventDialog({
+    createEvent,
+    updateEvent,
+    deleteEvent
+  });
 
   useEffect(() => {
     if (onViewChange) {
@@ -71,6 +78,7 @@ export const Calendar = ({
 
   const handleEventClick = (event: CalendarEventType) => {
     setSelectedEvent(event);
+    setDialogSelectedEvent(event);
     openDialog();
   };
 
@@ -79,8 +87,8 @@ export const Calendar = ({
     closeDialog();
   };
 
-  const handleDeleteEvent = (eventId: string) => {
-    deleteEventMutation(eventId);
+  const handleDeleteEventClick = (eventId: string) => {
+    handleDeleteEvent();
   };
 
   const handleTimeSlotClick = (date: Date, startTime?: string, endTime?: string) => {
@@ -96,6 +104,7 @@ export const Calendar = ({
         user_id: businessUserId || '',
       };
       setSelectedEvent(newEvent);
+      setDialogSelectedEvent(newEvent);
       openDialog();
     }
   };
@@ -131,7 +140,7 @@ export const Calendar = ({
         event={selectedEvent}
         businessId={businessId}
         businessUserId={businessUserId}
-        onDelete={handleDeleteEvent}
+        onDelete={handleDeleteEventClick}
       />
     </div>
   );

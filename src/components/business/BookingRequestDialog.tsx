@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { createBookingRequest } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Loader2 } from "lucide-react";
+import { BookingRequest } from "@/types/database";
 
 interface BookingRequestDialogProps {
   open: boolean;
@@ -158,8 +160,8 @@ export const BookingRequestDialog = ({
         event_notes: eventNotes,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
-        status: 'pending' as 'pending' | 'approved' | 'rejected',
-        payment_status: paymentStatus as string,
+        status: 'pending',
+        payment_status: paymentStatus,
         payment_amount: numericPaymentAmount,
         file_path: filePath,
         filename: fileName

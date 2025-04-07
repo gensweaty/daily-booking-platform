@@ -1,5 +1,6 @@
+
 import { supabase } from "./supabase";
-import { BookingRequest } from "@/types/database";
+import { BookingRequest, Task, Note, Reminder } from "@/types/database";
 
 // Function to create a booking request
 export const createBookingRequest = async (data: Partial<BookingRequest>) => {
