@@ -66,6 +66,7 @@ export const PublicBusinessPage = () => {
 
     const fetchProfile = async () => {
       try {
+        // Ensure booking_attachments bucket exists
         const { data: buckets } = await supabase.storage.listBuckets();
         console.log("Available storage buckets:", buckets);
         
@@ -73,13 +74,17 @@ export const PublicBusinessPage = () => {
         
         if (!bookingBucketExists) {
           console.log("Creating booking_attachments bucket");
-          await supabase.storage.createBucket('booking_attachments', {
-            public: false,
-            allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-            fileSizeLimit: 5000000 // 5MB
-          });
-          
-          console.log('Created booking_attachments storage bucket');
+          try {
+            await supabase.storage.createBucket('booking_attachments', {
+              public: false,
+              allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+              fileSizeLimit: 5000000 // 5MB
+            });
+            
+            console.log('Created booking_attachments storage bucket');
+          } catch (bucketError) {
+            console.error('Error creating booking_attachments bucket:', bucketError);
+          }
         }
       } catch (error) {
         console.error('Error checking/creating storage buckets:', error);

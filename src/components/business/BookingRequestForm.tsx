@@ -148,7 +148,7 @@ export const BookingRequestForm = ({
       
       const bookingData = {
         ...data,
-        payment_amount: data.payment_status !== 'not_paid' ? data.payment_amount : null,
+        payment_amount: data.payment_status !== 'not_paid' ? Number(data.payment_amount) || null : null,
         file_path: filePath,
         filename: fileName
       };
