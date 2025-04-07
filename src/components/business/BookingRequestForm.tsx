@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -202,7 +201,7 @@ export const BookingRequestForm = ({
                       {...field} 
                       placeholder={t("events.fullName")} 
                       required 
-                      className="bg-background"
+                      className="bg-background border-input"
                     />
                   </FormControl>
                   <FormMessage />
@@ -223,7 +222,7 @@ export const BookingRequestForm = ({
                       {...field} 
                       type="tel" 
                       placeholder={t("events.phoneNumber")} 
-                      className="bg-background"
+                      className="bg-background border-input"
                     />
                   </FormControl>
                   <FormMessage />
@@ -244,7 +243,7 @@ export const BookingRequestForm = ({
                       {...field} 
                       type="text" 
                       placeholder={t("events.socialLinkEmail")} 
-                      className="bg-background"
+                      className="bg-background border-input"
                     />
                   </FormControl>
                   <FormMessage />
