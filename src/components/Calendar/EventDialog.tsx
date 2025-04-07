@@ -12,7 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-interface EventDialogProps {
+export interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate: Date | null;
