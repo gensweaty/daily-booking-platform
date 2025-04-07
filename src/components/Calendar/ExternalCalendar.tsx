@@ -54,7 +54,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     getBusinessUserId();
   }, [businessId]);
 
-  // Step 2: Fetch all events using the getPublicCalendarEvents API
+  // Step 2: Fetch all events using the getPublicCalendarEvents API which uses our new RPC function
   useEffect(() => {
     const fetchAllEvents = async () => {
       if (!businessId) return;
@@ -64,35 +64,21 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       
       try {
         // Get events from the API function which includes approved bookings and user events
+        // This now uses our security definer function to bypass RLS
         const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
         
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
         
-        // Debug the events to check deleted_at field
-        if (apiEvents && apiEvents.length > 0) {
-          console.log("Sample event deleted_at value:", apiEvents[0].deleted_at);
-          console.log("Type of deleted_at:", typeof apiEvents[0].deleted_at);
-        }
-        
-        // Only include events that have not been deleted
-        const activeEvents = apiEvents ? apiEvents.filter(event => {
-          // Some events might be missing the deleted_at property, so ensure it exists and is null
-          return event.deleted_at === null;
-        }) : [];
-        
-        console.log(`[External Calendar] Filtered to ${activeEvents.length} active events (removed deleted events)`);
-        
-        // Handle type safety when combining events
+        // Combine all event sources
         const allEvents: CalendarEventType[] = [
-          ...activeEvents.map(event => ({
+          ...(apiEvents || []).map(event => ({
             ...event,
-            type: event.type || 'event',
-            deleted_at: event.deleted_at // Ensure deleted_at is passed through
+            type: event.type || 'event'
           })),
           ...(approvedBookings || []).map(booking => ({
             id: booking.id,
-            title: booking.requester_name || 'Booking',
+            title: booking.title || 'Booking',
             start_date: booking.start_date,
             end_date: booking.end_date,
             type: 'booking_request',
@@ -104,51 +90,26 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             event_notes: booking.description || '',
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
-            requester_phone: booking.requester_phone || '',
-            status: booking.status || 'approved',
-            payment_status: booking.payment_status || 'not_paid',
-            payment_amount: booking.payment_amount || null,
-            booking_request_id: booking.id,
-            deleted_at: null // Explicitly set deleted_at to null for all bookings
           }))
         ];
         
         console.log(`[External Calendar] Combined ${allEvents.length} total events`);
         
-        // Validate all events have proper dates and required fields
+        // Validate all events have proper dates
         const validEvents = allEvents.filter(event => {
           try {
-            // Check if start_date and end_date are valid and deleted_at is properly handled
+            // Check if start_date and end_date are valid
             const startValid = !!new Date(event.start_date).getTime();
             const endValid = !!new Date(event.end_date).getTime();
-            const notDeleted = event.deleted_at === null;
-            
-            if (!startValid || !endValid) {
-              console.warn("Event with invalid dates filtered out:", {
-                id: event.id,
-                title: event.title,
-                start: event.start_date,
-                end: event.end_date
-              });
-            }
-            
-            if (!notDeleted) {
-              console.warn("Deleted event filtered out:", {
-                id: event.id,
-                title: event.title,
-                deleted_at: event.deleted_at
-              });
-            }
-            
-            return startValid && endValid && notDeleted;
+            return startValid && endValid;
           } catch (err) {
-            console.error("Error validating event:", event, err);
+            console.error("Invalid date in event:", event);
             return false;
           }
         });
         
         if (validEvents.length !== allEvents.length) {
-          console.warn(`Filtered out ${allEvents.length - validEvents.length} invalid events`);
+          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates`);
         }
         
         // Remove duplicate events (same time slot)

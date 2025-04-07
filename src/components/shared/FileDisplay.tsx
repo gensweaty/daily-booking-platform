@@ -1,172 +1,297 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { Trash2, Download, FileIcon, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Download, Trash2, File, Image, ExternalLink } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
-interface FileDisplayProps {
-  files: {
+export interface FileDisplayProps {
+  files: Array<{
     id: string;
     filename: string;
     content_type?: string;
-  }[];
-  bucketName?: string;
-  source?: string;
+    source?: string;
+  }>;
+  bucketName: string;
   allowDelete?: boolean;
   onFileDeleted?: (fileId: string) => void;
 }
 
-export const FileDisplay = ({ 
-  files, 
-  bucketName = "customer_attachments", 
-  source = "customer_attachments",
+export const FileDisplay = ({
+  files,
+  bucketName,
   allowDelete = false,
-  onFileDeleted 
+  onFileDeleted,
 }: FileDisplayProps) => {
-  const [downloading, setDownloading] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
-  if (!files || files.length === 0) {
-    return null;
+  if (!files.length) {
+    return <p className="text-sm text-muted-foreground italic">No files attached</p>;
   }
+
+  // Improved signed URL function with better error handling and logging
+  const getSignedUrl = async (fileId: string) => {
+    try {
+      // Console log for debugging
+      console.log(`Creating signed URL for file: ${fileId} in bucket: ${bucketName}`);
+      
+      // Extract actual storage path if it contains a full bucket path
+      const storagePath = fileId.includes('/') ? fileId : fileId;
+      
+      // Create a signed URL using the storage API
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .createSignedUrl(storagePath, 3600); // 1 hour expiry
+      
+      if (error) {
+        console.error("Error creating signed URL:", error);
+        throw error;
+      }
+      
+      if (!data?.signedUrl) {
+        console.error("No signed URL returned from Supabase");
+        throw new Error("Could not create URL");
+      }
+      
+      console.log("Successfully created signed URL");
+      return data.signedUrl;
+    } catch (error) {
+      console.error("Error in getSignedUrl:", error);
+      throw error;
+    }
+  };
+
+  // Improved download function with better error handling
+  const handleDownload = async (fileId: string, filename: string) => {
+    try {
+      setIsDownloading(fileId);
+      console.log("Downloading file:", fileId, "from bucket:", bucketName);
+      
+      // Robust error handling for signed URL
+      let signedUrl;
+      try {
+        signedUrl = await getSignedUrl(fileId);
+      } catch (urlError) {
+        console.error("Failed to get signed URL:", urlError);
+        throw new Error("Unable to generate download link");
+      }
+      
+      // Use the signed URL to fetch the file
+      const response = await fetch(signedUrl);
+      if (!response.ok) {
+        console.error("Fetch response not OK:", response.status, response.statusText);
+        throw new Error(`Failed to download: ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Download successful",
+        description: `${filename} has been downloaded`,
+      });
+    } catch (error: any) {
+      console.error("Full download error:", error);
+      toast({
+        title: "Download failed",
+        description: error.message || "File could not be downloaded",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloading(null);
+    }
+  };
+
+  // Improved delete function
+  const handleDelete = async (fileId: string) => {
+    try {
+      setIsDeleting(fileId);
+      console.log("Deleting file:", fileId, "from bucket:", bucketName);
+      
+      // Call the onFileDeleted callback with the fileId
+      // This allows parent components to handle deletion logic
+      if (onFileDeleted) {
+        await onFileDeleted(fileId);
+        return; // Let the parent component handle the deletion entirely
+      }
+      
+      // If no callback is provided, handle deletion here
+      const { error } = await supabase.storage.from(bucketName).remove([fileId]);
+
+      if (error) {
+        console.error("Delete error:", error);
+        throw error;
+      }
+
+      toast({
+        title: "File deleted",
+        description: "The file has been removed successfully",
+      });
+    } catch (error: any) {
+      console.error("Full delete error:", error);
+      toast({
+        title: "Deletion failed",
+        description: error.message || "File could not be deleted",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  // Improved file preview function
+  const openFileInNewTab = async (fileId: string) => {
+    try {
+      console.log("Opening file in new tab:", fileId, "from bucket:", bucketName);
+      
+      let signedUrl;
+      try {
+        signedUrl = await getSignedUrl(fileId);
+      } catch (urlError) {
+        console.error("Failed to get signed URL for opening:", urlError);
+        throw new Error("Unable to generate file preview link");
+      }
+      
+      window.open(signedUrl, '_blank');
+    } catch (error: any) {
+      console.error("Full error opening file:", error);
+      toast({
+        title: "Error opening file",
+        description: error.message || "File could not be opened",
+        variant: "destructive",
+      });
+    }
+  };
 
   const isImageFile = (contentType?: string) => {
     return contentType?.startsWith('image/');
   };
 
-  const handleDownload = async (fileId: string, filename: string) => {
+  const loadPreviewUrl = async (fileId: string) => {
     try {
-      setDownloading(fileId);
-      console.log("Downloading file:", { fileId, filename, source });
-      
-      // Determine storage bucket based on source or bucketName
-      const storageBucket = source === "booking_attachments" ? "booking_attachments" : 
-                           (source === "event_attachments" ? "event_attachments" : bucketName);
-      
-      console.log("Using storage bucket:", storageBucket);
-      
-      const { data, error } = await supabase.storage
-        .from(storageBucket)
-        .download(fileId);
-
-      if (error) {
-        console.error("Error downloading file:", error);
-        toast({
-          title: "Download Error",
-          description: `Failed to download file: ${error.message}`,
-          variant: "destructive",
-        });
-        return;
+      if (previewUrls[fileId]) {
+        return previewUrls[fileId];
       }
-
-      if (!data) {
-        toast({
-          title: "Download Error",
-          description: "File not found",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Create blob URL and trigger download
-      const blob = new Blob([data], { type: "application/octet-stream" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename || "download";
-      document.body.appendChild(a);
-      a.click();
-      URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast({
-        title: "Download Success",
-        description: "File downloaded successfully",
-      });
-    } catch (error: any) {
-      console.error("Exception downloading file:", error);
-      toast({
-        title: "Download Error",
-        description: error.message || "Failed to download file",
-        variant: "destructive",
-      });
-    } finally {
-      setDownloading(null);
+      
+      const url = await getSignedUrl(fileId);
+      setPreviewUrls(prev => ({
+        ...prev,
+        [fileId]: url
+      }));
+      return url;
+    } catch (error) {
+      console.error("Failed to get image preview URL:", error);
+      return null;
     }
   };
 
-  const handleDelete = async (fileId: string) => {
-    if (!allowDelete || !onFileDeleted) return;
-    
-    try {
-      setDeleting(fileId);
-      onFileDeleted(fileId);
-    } catch (error: any) {
-      console.error("Error deleting file:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete file",
-        variant: "destructive",
-      });
-    } finally {
-      setDeleting(null);
-    }
-  };
-
-  // Return to the original file display style with a list of file cards
   return (
-    <div className="space-y-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {files.map((file) => (
-        <Card key={file.id} className="p-4 relative overflow-hidden">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 w-12 h-12 bg-muted rounded flex items-center justify-center mr-3">
-              {isImageFile(file.content_type) ? (
-                <Image className="w-7 h-7 text-muted-foreground" />
-              ) : (
-                <File className="w-7 h-7 text-muted-foreground" />
-              )}
-            </div>
-            <div className="overflow-hidden">
-              <p className="font-medium text-sm truncate">{file.filename || file.id}</p>
-              <p className="text-xs text-muted-foreground truncate">
-                {file.content_type || "Unknown file type"}
-              </p>
-            </div>
-            <div className="ml-auto flex space-x-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDownload(file.id, file.filename)}
-                disabled={downloading === file.id}
-                className="h-8 w-8"
-              >
-                {downloading === file.id ? (
-                  <span className="animate-spin">...</span>
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-              </Button>
-              {allowDelete && onFileDeleted && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDelete(file.id)}
-                  disabled={deleting === file.id}
-                  className="h-8 w-8"
-                >
-                  {deleting === file.id ? (
-                    <span className="animate-spin">...</span>
-                  ) : (
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  )}
-                </Button>
-              )}
+        <div
+          key={file.id}
+          className="flex flex-col items-center"
+        >
+          <div 
+            className="relative w-24 h-24 rounded-md overflow-hidden border border-muted mb-1 cursor-pointer group"
+            onClick={() => openFileInNewTab(file.id)}
+          >
+            {isImageFile(file.content_type) ? (
+              <img 
+                src="/placeholder.svg"
+                data-file-id={file.id}
+                alt={file.filename}
+                className="w-full h-full object-cover"
+                onLoad={async (e) => {
+                  const target = e.currentTarget as HTMLImageElement;
+                  const fileId = target.getAttribute('data-file-id');
+                  if (fileId) {
+                    try {
+                      const url = await loadPreviewUrl(fileId);
+                      if (url) {
+                        target.src = url;
+                      }
+                    } catch (error) {
+                      console.error("Error loading preview:", error);
+                    }
+                  }
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-muted/30">
+                <FileIcon className="h-8 w-8 opacity-70" />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+              <ExternalLink className="h-6 w-6 text-white" />
             </div>
           </div>
-        </Card>
+          
+          <div className="text-xs truncate max-w-[96px] text-center mb-1">{file.filename}</div>
+          
+          <div className="flex gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDownload(file.id, file.filename);
+              }}
+              disabled={isDownloading === file.id}
+              title="Download"
+            >
+              {isDownloading === file.id ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Download className="h-3 w-3" />
+              )}
+            </Button>
+            
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={(e) => {
+                e.stopPropagation();
+                openFileInNewTab(file.id);
+              }}
+              title="Open"
+            >
+              <ExternalLink className="h-3 w-3" />
+            </Button>
+            
+            {allowDelete && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 hover:text-destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(file.id);
+                }}
+                disabled={isDeleting === file.id}
+                title="Delete"
+              >
+                {isDeleting === file.id ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3 w-3" />
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
       ))}
     </div>
   );

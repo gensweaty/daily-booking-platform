@@ -1,27 +1,32 @@
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
-import { CalendarEventType } from "@/lib/types/calendar";
 
 export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">, file?: File) => {
+  // Get current user if available
   const { data: userData } = await supabase.auth.getUser();
   
   console.log("Creating booking request:", request);
   
   try {
+    // Ensure payment_amount is properly handled when saving to the database
     const bookingData = {
       ...request,
       status: 'pending',
-      user_id: userData?.user?.id || null
+      user_id: userData?.user?.id || null // Allow null for public bookings
     };
     
+    // Make sure payment_amount is correctly formatted as a number or null
     if (request.payment_amount !== undefined && request.payment_amount !== null) {
+      // Convert to number regardless of input type
       const parsedAmount = Number(request.payment_amount);
       bookingData.payment_amount = isNaN(parsedAmount) ? null : parsedAmount;
     } else {
+      // Explicitly set to null to avoid database errors
       bookingData.payment_amount = null;
     }
     
+    // Print more detailed debugging info
     console.log("Final booking data being sent to supabase:", bookingData);
     
     const { data, error } = await supabase
@@ -29,7 +34,7 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
       .insert([bookingData])
       .select()
       .single();
-      
+
     if (error) {
       console.error("Error creating booking request:", error);
       throw error;
@@ -37,6 +42,7 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
     
     console.log("Created booking request:", data);
     
+    // Handle file upload if provided
     if (file && data?.id) {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${file.name}`;
@@ -48,7 +54,9 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
         
       if (uploadError) {
         console.error("Error uploading booking file:", uploadError);
+        // Continue anyway, booking was created
       } else {
+        // Create file record
         const fileData = {
           booking_id: data.id,
           filename: file.name,
@@ -74,6 +82,7 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
   }
 };
 
+// Task related functions
 export const getTasks = async (): Promise<Task[]> => {
   try {
     const { data: userData } = await supabase.auth.getUser();
@@ -143,6 +152,7 @@ export const deleteTask = async (id: string): Promise<void> => {
   }
 };
 
+// Note related functions
 export const getNotes = async (): Promise<Note[]> => {
   try {
     const { data: userData } = await supabase.auth.getUser();
@@ -212,6 +222,7 @@ export const deleteNote = async (id: string): Promise<void> => {
   }
 };
 
+// Reminder related functions
 export const getReminders = async (): Promise<Reminder[]> => {
   try {
     const { data: userData } = await supabase.auth.getUser();
@@ -281,10 +292,12 @@ export const deleteReminder = async (id: string): Promise<void> => {
   }
 };
 
+// Calendar events for public display
 export const getPublicCalendarEvents = async (businessId: string) => {
   try {
     console.log("[getPublicCalendarEvents] Fetching for business ID:", businessId);
     
+    // First fetch the business user ID
     const { data: business, error: businessError } = await supabase
       .from("business_profiles")
       .select("user_id")
@@ -303,55 +316,20 @@ export const getPublicCalendarEvents = async (businessId: string) => {
     
     console.log("[getPublicCalendarEvents] Using business user ID:", business.user_id);
     
-    let events: any[] = [];
-    let fetchMethod = "";
+    // Use the security definer function to get events bypassing RLS
+    const { data: events, error: eventsError } = await supabase
+      .rpc('get_public_events_by_user_id', {
+        user_id_param: business.user_id
+      });
     
-    try {
-      const { data: rpcEvents, error: rpcError } = await supabase
-        .rpc('get_public_events_by_user_id', {
-          user_id_param: business.user_id
-        });
-      
-      if (rpcError) {
-        console.error("Error using RPC function:", rpcError);
-        throw rpcError;
-      }
-      
-      events = rpcEvents || [];
-      fetchMethod = "rpc";
-      console.log(`[getPublicCalendarEvents] Fetched ${events.length} events using RPC function`);
-    } catch (rpcError) {
-      console.warn("RPC method failed, falling back to direct query:", rpcError);
-      
-      const { data: directEvents, error: directError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('user_id', business.user_id);
-        
-      if (directError) {
-        console.error("Error in fallback query:", directError);
-      } else {
-        events = directEvents || [];
-        fetchMethod = "direct";
-        console.log(`[getPublicCalendarEvents] Fetched ${events.length} events using direct query`);
-      }
+    if (eventsError) {
+      console.error("Error fetching events with RPC:", eventsError);
+      return { events: [], bookings: [] };
     }
     
-    const normalizedEvents: CalendarEventType[] = events.map(event => ({
-      ...event,
-      deleted_at: event.deleted_at || null
-    }));
+    console.log(`[getPublicCalendarEvents] Fetched ${events?.length || 0} events via RPC function`);
     
-    const activeEvents = normalizedEvents.filter(event => {
-      const isDeleted = event.deleted_at !== null;
-      if (isDeleted) {
-        console.log(`Event ${event.id} is deleted, filtering out`);
-      }
-      return !isDeleted;
-    });
-    
-    console.log(`[getPublicCalendarEvents] ${fetchMethod} fetched ${events.length} events, filtered to ${activeEvents.length} active events`);
-    
+    // Fetch approved booking requests
     const { data: bookings, error: bookingsError } = await supabase
       .from('booking_requests')
       .select('*')
@@ -360,28 +338,14 @@ export const getPublicCalendarEvents = async (businessId: string) => {
     
     if (bookingsError) {
       console.error("Error fetching bookings:", bookingsError);
-      return { events: activeEvents, bookings: [] };
+      return { events: events || [], bookings: [] };
     }
     
     console.log(`[getPublicCalendarEvents] Fetched ${bookings?.length || 0} approved bookings`);
     
-    const uniqueBookings = bookings ? bookings.filter(booking => {
-      const hasMatchingEvent = activeEvents.some(
-        event => event.booking_request_id === booking.id
-      );
-      
-      if (hasMatchingEvent) {
-        console.log(`Booking ${booking.id} already has an event, filtering out duplicate`);
-      }
-      
-      return !hasMatchingEvent;
-    }) : [];
-    
-    console.log(`[getPublicCalendarEvents] Filtered to ${uniqueBookings.length} unique bookings (removed duplicates)`);
-    
     return { 
-      events: activeEvents, 
-      bookings: uniqueBookings
+      events: events || [], 
+      bookings: bookings || [] 
     };
   } catch (error) {
     console.error("Exception in getPublicCalendarEvents:", error);

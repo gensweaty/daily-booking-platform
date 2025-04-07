@@ -32,50 +32,52 @@ export const useCalendarEvents = () => {
         throw error;
       }
 
-      // Make sure all events have the required fields
-      return (data || []).map(event => ({
-        ...event,
-        deleted_at: event.deleted_at // Ensure deleted_at is passed through
-      }));
+      return data || [];
     },
     enabled: !!user,
   });
 
-  // IMPROVED: More robust time slot availability checking function
+  // Improved function to check time slot availability with proper conflict detection
   const checkTimeSlotAvailability = async (
     startDateTime: string,
     endDateTime: string,
     eventId?: string
   ): Promise<{ available: boolean; conflictingEvent?: any }> => {
     try {
-      // Make sure we have valid date objects
-      const startDate = new Date(startDateTime);
-      const endDate = new Date(endDateTime);
-      
-      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        console.error("Invalid dates provided:", { startDateTime, endDateTime });
-        return { available: false };
-      }
-      
-      const startISO = startDate.toISOString();
-      const endISO = endDate.toISOString();
+      const startISO = new Date(startDateTime).toISOString();
+      const endISO = new Date(endDateTime).toISOString();
       
       console.log("Checking time slot availability:", { 
         startDateTime, 
         endDateTime, 
         eventId,
-        startISO,
-        endISO
+        start: startISO,
+        end: endISO
       });
       
+      // If we're editing an approved booking event, skip the conflict check
+      if (eventId) {
+        // Check if this is an approved booking event
+        const { data: eventData, error: eventError } = await supabase
+          .from("events")
+          .select("type, status")
+          .eq("id", eventId)
+          .single();
+          
+        if (!eventError && eventData && eventData.type === 'booking_request' && eventData.status === 'approved') {
+          console.log("Skipping conflict check for approved booking event:", eventId);
+          return { available: true };
+        }
+      }
+      
       // Query for events that would overlap with the requested time slot
-      // IMPROVED: More accurate filtering for overlapping events
       let eventQuery = supabase
         .from("events")
         .select("*")
         .is("deleted_at", null)
-        .filter('start_date', 'lt', endISO) // Event starts before new event ends 
-        .filter('end_date', 'gt', startISO); // Event ends after new event starts
+        // Proper overlap check: Event starts before new event ends AND event ends after new event starts
+        .lt("start_date", endISO)
+        .gt("end_date", startISO);
       
       // If we're updating an existing event, exclude it from the conflict check
       if (eventId) {
@@ -95,13 +97,13 @@ export const useCalendarEvents = () => {
       }
       
       // Also check approved booking requests for conflicts
-      // IMPROVED: More accurate filtering for overlapping bookings
+      // We only need to do this if we're not checking an approved booking itself
       let bookingQuery = supabase
         .from("booking_requests")
         .select("*")
         .eq("status", "approved")
-        .filter('start_date', 'lt', endISO) // Booking starts before new event ends
-        .filter('end_date', 'gt', startISO); // Booking ends after new event starts
+        .lt("start_date", endISO)
+        .gt("end_date", startISO);
       
       // Skip checking against the booking request if we're editing an event that was created from it
       if (eventId) {
@@ -159,7 +161,6 @@ export const useCalendarEvents = () => {
         user_id: user.id,
       };
 
-      // Step 1: Create the event
       const { data, error } = await supabase
         .from("events")
         .insert([newEvent])
@@ -167,36 +168,10 @@ export const useCalendarEvents = () => {
         .single();
 
       if (error) throw error;
-      
-      // Step 2: Create a customer record in CRM for this event
-      try {
-        await supabase
-          .from("customers")
-          .insert([{
-            title: eventData.title,
-            user_surname: eventData.user_surname || '',
-            user_number: eventData.user_number || '',
-            social_network_link: eventData.social_network_link || '',
-            event_notes: eventData.event_notes || '',
-            start_date: eventData.start_date,
-            end_date: eventData.end_date,
-            payment_status: eventData.payment_status || 'not_paid',
-            payment_amount: eventData.payment_amount || null,
-            user_id: user.id,
-            type: eventData.type || 'event'
-          }]);
-          
-        console.log("Created customer record for event:", data.id);
-      } catch (crmError) {
-        console.error("Error creating customer record for event:", crmError);
-        // Don't block event creation if customer creation fails
-      }
-      
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
       toast({
         title: "Success",
         description: "Event created successfully",
@@ -229,7 +204,6 @@ export const useCalendarEvents = () => {
         throw new Error(`Time slot conflicts with "${conflictTitle}"`);
       }
 
-      // Step 1: Update the event
       const { data, error } = await supabase
         .from("events")
         .update(eventData)
@@ -238,66 +212,10 @@ export const useCalendarEvents = () => {
         .single();
 
       if (error) throw error;
-      
-      // Step 2: Find and update corresponding customer in CRM
-      try {
-        // Find customers with same title and dates
-        const { data: existingCustomers } = await supabase
-          .from("customers")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("title", data.title)
-          .eq("start_date", data.start_date)
-          .eq("end_date", data.end_date);
-          
-        if (existingCustomers && existingCustomers.length > 0) {
-          // Update the existing customer
-          await supabase
-            .from("customers")
-            .update({
-              title: eventData.title,
-              user_surname: eventData.user_surname || '',
-              user_number: eventData.user_number || '',
-              social_network_link: eventData.social_network_link || '',
-              event_notes: eventData.event_notes || '',
-              start_date: eventData.start_date,
-              end_date: eventData.end_date,
-              payment_status: eventData.payment_status || 'not_paid',
-              payment_amount: eventData.payment_amount || null
-            })
-            .eq("id", existingCustomers[0].id);
-            
-          console.log("Updated customer record for event:", data.id);
-        } else {
-          // Create a new customer if none exists
-          await supabase
-            .from("customers")
-            .insert([{
-              title: eventData.title,
-              user_surname: eventData.user_surname || '',
-              user_number: eventData.user_number || '',
-              social_network_link: eventData.social_network_link || '',
-              event_notes: eventData.event_notes || '',
-              start_date: eventData.start_date,
-              end_date: eventData.end_date,
-              payment_status: eventData.payment_status || 'not_paid',
-              payment_amount: eventData.payment_amount || null,
-              user_id: user.id,
-              type: eventData.type || 'event'
-            }]);
-            
-          console.log("Created customer record for updated event:", data.id);
-        }
-      } catch (crmError) {
-        console.error("Error updating customer record for event:", crmError);
-        // Don't block event update if customer update fails
-      }
-      
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
       toast({
         title: "Success",
         description: "Event updated successfully",

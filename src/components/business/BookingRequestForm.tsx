@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
@@ -10,7 +11,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { createBookingRequest } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 import { EventDialogFields } from "../Calendar/EventDialogFields";
-import { supabase } from "@/lib/supabase";
 
 interface BookingRequestFormProps {
   open: boolean;
@@ -54,8 +54,8 @@ export const BookingRequestForm = ({
   const { t, language } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [title, setTitle] = useState("");
-  const [surname, setSurname] = useState("");
+  // Event dialog fields state
+  const [userSurname, setUserSurname] = useState("");
   const [userNumber, setUserNumber] = useState("");
   const [socialNetworkLink, setSocialNetworkLink] = useState("");
   const [eventNotes, setEventNotes] = useState("");
@@ -118,9 +118,10 @@ export const BookingRequestForm = ({
         paymentAmountValue = isNaN(parsedAmount) ? null : parsedAmount;
       }
       
+      // Print debug information to help diagnose the issue
       console.log("Submitting booking request with data:", {
-        title: surname,
-        requester_name: surname,
+        title: userSurname, // Use customer name as the title
+        requester_name: userSurname,
         requester_email: socialNetworkLink,
         requester_phone: userNumber,
         description: eventNotes,
@@ -131,39 +132,9 @@ export const BookingRequestForm = ({
         business_id: businessId
       });
       
-      let fileData = null;
-      if (selectedFile) {
-        try {
-          const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${crypto.randomUUID()}.${fileExt}`;
-          
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('booking_attachments')
-            .upload(filePath, selectedFile);
-  
-          if (uploadError) {
-            console.error('Error uploading file:', uploadError);
-            toast({
-              title: "File Upload Error",
-              description: uploadError.message,
-              variant: "destructive",
-            });
-          } else {
-            fileData = {
-              filename: selectedFile.name,
-              file_path: filePath,
-              content_type: selectedFile.type,
-              size: selectedFile.size
-            };
-          }
-        } catch (fileError) {
-          console.error("Error handling file upload:", fileError);
-        }
-      }
-      
-      const response = await createBookingRequest({
-        title: surname,
-        requester_name: surname,
+      await createBookingRequest({
+        title: userSurname, // Use customer name as the title
+        requester_name: userSurname,
         requester_email: socialNetworkLink,
         requester_phone: userNumber || "",
         description: eventNotes || "",
@@ -173,28 +144,6 @@ export const BookingRequestForm = ({
         payment_status: paymentStatus,
         business_id: businessId,
       });
-      
-      if (fileData && response?.id) {
-        try {
-          const bookingId = response.id;
-          fileData.booking_id = bookingId;
-          
-          const { error: fileRecordError } = await supabase
-            .from('booking_files')
-            .insert([fileData]);
-  
-          if (fileRecordError) {
-            console.error('Error creating file record:', fileRecordError);
-            toast({
-              title: "File Record Error",
-              description: fileRecordError.message,
-              variant: "destructive",
-            });
-          }
-        } catch (fileError) {
-          console.error("Error saving file record:", fileError);
-        }
-      }
       
       toast({
         title: "Success",
@@ -222,10 +171,8 @@ export const BookingRequestForm = ({
       </DialogHeader>
       <form onSubmit={onSubmit} className="space-y-4 mt-4">
         <EventDialogFields
-          title={title}
-          setTitle={setTitle}
-          surname={surname}
-          setSurname={setSurname}
+          userSurname={userSurname}
+          setUserSurname={setUserSurname}
           userNumber={userNumber}
           setUserNumber={setUserNumber}
           socialNetworkLink={socialNetworkLink}
