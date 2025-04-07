@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { CalendarHeader } from "./CalendarHeader";
 import { CalendarGrid } from "./CalendarGrid";
@@ -203,8 +204,6 @@ export const Calendar = ({
         onOpenChange={closeDialog}
         selectedDate={selectedEvent ? new Date(selectedEvent.start_date) : null}
         event={selectedEvent}
-        businessId={businessId}
-        businessUserId={businessUserId}
         onDelete={() => selectedEvent && handleDeleteEventClick(selectedEvent.id)}
         onSubmit={createEvent}
       />
