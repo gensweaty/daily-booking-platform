@@ -9,18 +9,66 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/lib/supabase";
 
 // Add props interface to ensure correct typing
 interface ExternalCalendarProps {
   businessId: string;
-  loading: boolean;
-  events: CalendarEventType[];
-  bookings: any[];
+  loading?: boolean;
+  events?: CalendarEventType[];
+  bookings?: any[];
 }
 
-export const ExternalCalendar = ({ businessId, loading, events, bookings }: ExternalCalendarProps) => {
+export const ExternalCalendar = ({ businessId, loading: propLoading, events: propEvents, bookings: propBookings }: ExternalCalendarProps) => {
   const [date, setDate] = useState<Date>(new Date());
   const [currentView, setCurrentView] = useState<CalendarViewType>("month");
+  const [isLoading, setIsLoading] = useState(propLoading || true);
+  const [events, setEvents] = useState<CalendarEventType[]>(propEvents || []);
+  const [bookings, setBookings] = useState<any[]>(propBookings || []);
+  
+  // Fetch events and bookings if not provided as props
+  useEffect(() => {
+    if (propEvents && propBookings) {
+      setEvents(propEvents);
+      setBookings(propBookings);
+      setIsLoading(propLoading || false);
+      return;
+    }
+    
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch public events for this business
+        const { data: eventsData, error: eventsError } = await supabase
+          .rpc('get_public_events_for_business', { business_id: businessId });
+          
+        if (eventsError) {
+          console.error("Error fetching events:", eventsError);
+        }
+        
+        // Fetch approved bookings
+        const { data: bookingsData, error: bookingsError } = await supabase
+          .from('booking_requests')
+          .select('*')
+          .eq('business_id', businessId)
+          .eq('status', 'approved');
+          
+        if (bookingsError) {
+          console.error("Error fetching bookings:", bookingsError);
+        }
+        
+        setEvents(eventsData || []);
+        setBookings(bookingsData || []);
+      } catch (error) {
+        console.error("Error in data fetching:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [businessId, propEvents, propBookings, propLoading]);
   
   // Transform bookings to match CalendarEventType format for display
   const transformedBookings = bookings.map((booking) => {
@@ -43,7 +91,7 @@ export const ExternalCalendar = ({ businessId, loading, events, bookings }: Exte
     console.log(`ExternalCalendar: Found ${events.length} events and ${bookings.length} bookings`);
   }, [businessId, events, bookings]);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="w-full max-w-4xl mx-auto p-4 space-y-4">
         <div className="flex items-center justify-between mb-4">
@@ -107,7 +155,7 @@ export const ExternalCalendar = ({ businessId, loading, events, bookings }: Exte
               <ShadcnCalendar
                 mode="single"
                 selected={date}
-                onSelect={setDate}
+                onSelect={(newDate) => newDate && setDate(newDate)}
                 initialFocus
               />
             </PopoverContent>

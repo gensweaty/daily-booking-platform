@@ -87,7 +87,7 @@ export function Calendar() {
               <ShadcnCalendar
                 mode="single"
                 selected={date}
-                onSelect={setDate}
+                onSelect={(newDate) => newDate && setDate(newDate)}
                 initialFocus
               />
             </PopoverContent>
