@@ -69,16 +69,21 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
         
-        // IMPROVED: Ensure proper type safety with deleted_at handling
-        // Ensure we only include events that have not been deleted
+        // Debug the events to check deleted_at field
+        if (apiEvents && apiEvents.length > 0) {
+          console.log("Sample event deleted_at value:", apiEvents[0].deleted_at);
+          console.log("Type of deleted_at:", typeof apiEvents[0].deleted_at);
+        }
+        
+        // Only include events that have not been deleted
         const activeEvents = apiEvents ? apiEvents.filter(event => {
-          // Some events might be missing the deleted_at property, so we need to handle that
+          // Some events might be missing the deleted_at property, so ensure it exists and is null
           return event.deleted_at === null;
         }) : [];
         
         console.log(`[External Calendar] Filtered to ${activeEvents.length} active events (removed deleted events)`);
         
-        // IMPROVED: Proper type safety when combining event sources
+        // Handle type safety when combining events
         const allEvents: CalendarEventType[] = [
           ...activeEvents.map(event => ({
             ...event,
@@ -87,7 +92,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           })),
           ...(approvedBookings || []).map(booking => ({
             id: booking.id,
-            title: booking.requester_name || 'Booking', // Use requester_name as title
+            title: booking.requester_name || 'Booking',
             start_date: booking.start_date,
             end_date: booking.end_date,
             type: 'booking_request',
@@ -110,7 +115,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         
         console.log(`[External Calendar] Combined ${allEvents.length} total events`);
         
-        // IMPROVED: Validate all events have proper dates and required fields
+        // Validate all events have proper dates and required fields
         const validEvents = allEvents.filter(event => {
           try {
             // Check if start_date and end_date are valid and deleted_at is properly handled
@@ -118,25 +123,32 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             const endValid = !!new Date(event.end_date).getTime();
             const notDeleted = event.deleted_at === null;
             
-            const isValid = startValid && endValid && notDeleted;
-            if (!isValid) {
-              console.warn("Invalid event filtered out:", {
+            if (!startValid || !endValid) {
+              console.warn("Event with invalid dates filtered out:", {
                 id: event.id,
                 title: event.title,
-                startValid,
-                endValid,
-                notDeleted
+                start: event.start_date,
+                end: event.end_date
               });
             }
-            return isValid;
+            
+            if (!notDeleted) {
+              console.warn("Deleted event filtered out:", {
+                id: event.id,
+                title: event.title,
+                deleted_at: event.deleted_at
+              });
+            }
+            
+            return startValid && endValid && notDeleted;
           } catch (err) {
-            console.error("Invalid event:", event, err);
+            console.error("Error validating event:", event, err);
             return false;
           }
         });
         
         if (validEvents.length !== allEvents.length) {
-          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates or deleted status`);
+          console.warn(`Filtered out ${allEvents.length - validEvents.length} invalid events`);
         }
         
         // Remove duplicate events (same time slot)

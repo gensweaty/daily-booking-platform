@@ -1,3 +1,4 @@
+
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { CalendarGrid } from "./CalendarGrid";
@@ -25,12 +26,33 @@ export function CalendarView({
 }: CalendarViewProps) {
   const { t } = useLanguage();
   
-  // Add debug log for events in CalendarView
+  // Improved debug logging for events
   useEffect(() => {
-    if (isExternalCalendar) {
-      console.log(`[CalendarView] Rendering external calendar with ${events.length} events`);
+    console.log(`[CalendarView] Rendering calendar with ${events.length} events (external: ${isExternalCalendar})`);
+    
+    // Analyze deleted_at field values
+    if (events.length > 0) {
+      const deletedAtValues = events.map(e => e.deleted_at);
+      const deletedCount = deletedAtValues.filter(val => val !== null).length;
+      const nullCount = deletedAtValues.filter(val => val === null).length;
+      const undefinedCount = deletedAtValues.filter(val => val === undefined).length;
+      
+      console.log("[CalendarView] Events deleted_at analysis:", {
+        total: events.length,
+        deleted: deletedCount,
+        null: nullCount,
+        undefined: undefinedCount
+      });
+      
       if (events.length > 0) {
-        console.log("[CalendarView] First event sample:", events[0]);
+        console.log("[CalendarView] First few events:", events.slice(0, 3).map(e => ({
+          id: e.id,
+          title: e.title,
+          start: e.start_date,
+          end: e.end_date,
+          type: e.type,
+          deleted_at: e.deleted_at
+        })));
       }
     }
   }, [events, isExternalCalendar]);
