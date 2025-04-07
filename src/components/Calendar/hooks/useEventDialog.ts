@@ -213,6 +213,16 @@ export const useEventDialog = ({
     if (!selectedEvent) return;
     
     try {
+      const { data: bookingFiles, error: bookingFilesError } = await supabase
+        .from('booking_requests')
+        .select('*')
+        .eq('id', selectedEvent.id)
+        .maybeSingle();
+
+      if (bookingFilesError && bookingFilesError.code !== 'PGRST116') {
+        console.error('Error checking for booking files:', bookingFilesError);
+      }
+
       const { data: customer, error: customerError } = await supabase
         .from('customers')
         .select('*')
