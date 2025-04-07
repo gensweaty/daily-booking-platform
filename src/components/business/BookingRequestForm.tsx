@@ -1,8 +1,8 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { format, addHours } from "date-fns";
 import { useToast } from "../ui/use-toast";
@@ -13,6 +13,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { createBookingRequest } from "@/lib/api";
 import { Loader2 } from "lucide-react";
+import { FileUploadField } from "../shared/FileUploadField";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { supabase } from "@/lib/supabase";
 
 interface BookingRequestFormProps {
   open: boolean;
@@ -25,13 +28,14 @@ interface BookingRequestFormProps {
 }
 
 const BookingSchema = z.object({
-  title: z.string().min(2, "Title is required"),
-  requester_name: z.string().min(2, "Name is required"),
+  title: z.string().min(2, "Full name is required"),
+  requester_name: z.string().optional(),
   requester_email: z.string().email("Valid email is required"),
   requester_phone: z.string().optional(),
   description: z.string().optional(),
   start_date: z.string(),
   end_date: z.string(),
+  payment_status: z.string().optional(),
   payment_amount: z.union([
     z.string().optional(), 
     z.number().optional(),
@@ -54,6 +58,8 @@ export const BookingRequestForm = ({
   const { toast } = useToast();
   const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
 
   const formattedDate = format(selectedDate, "yyyy-MM-dd");
   
@@ -70,6 +76,7 @@ export const BookingRequestForm = ({
       description: "",
       start_date: `${formattedDate}T${defaultStartTime}:00`,
       end_date: `${formattedDate}T${defaultEndTime}:00`,
+      payment_status: "not_paid",
       payment_amount: "",
       business_id: businessId,
     },
@@ -90,17 +97,58 @@ export const BookingRequestForm = ({
         paymentAmount = isNaN(parsedAmount) ? null : parsedAmount;
       }
       
-      await createBookingRequest({
+      const booking = await createBookingRequest({
         title: values.title,
-        requester_name: values.requester_name,
+        requester_name: values.requester_name || "",
         requester_email: values.requester_email,
         requester_phone: values.requester_phone || "",
         description: values.description || "",
         start_date: start.toISOString(),
         end_date: end.toISOString(),
         payment_amount: paymentAmount,
+        payment_status: values.payment_status || "not_paid",
         business_id: businessId,
       });
+
+      // Handle file upload if a file is selected
+      if (selectedFile && booking?.id) {
+        try {
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `${crypto.randomUUID()}.${fileExt}`;
+          
+          console.log('Uploading file for booking request:', filePath);
+          
+          const { error: uploadError } = await supabase.storage
+            .from('booking_attachments')
+            .upload(filePath, selectedFile);
+
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            throw uploadError;
+          }
+
+          // Create booking_files record
+          const { error: fileRecordError } = await supabase
+            .from('booking_files')
+            .insert({
+              booking_id: booking.id,
+              filename: selectedFile.name,
+              file_path: filePath,
+              content_type: selectedFile.type,
+              size: selectedFile.size,
+            });
+
+          if (fileRecordError) {
+            console.error('Error creating file record:', fileRecordError);
+            throw fileRecordError;
+          }
+
+          console.log('File uploaded successfully for booking request');
+        } catch (fileError: any) {
+          console.error('Error handling file upload:', fileError);
+          // Continue with submission even if file upload fails
+        }
+      }
       
       toast({
         title: t("common.success"),
@@ -124,7 +172,7 @@ export const BookingRequestForm = ({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{t("booking.requestTitle")}</DialogTitle>
+        <DialogTitle>Add New Event</DialogTitle>
       </DialogHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
@@ -133,37 +181,9 @@ export const BookingRequestForm = ({
             name="title"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("booking.bookingTitle")}</FormLabel>
+                <FormLabel>Full Name (required)</FormLabel>
                 <FormControl>
-                  <Input placeholder={t("booking.bookingTitlePlaceholder")} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="requester_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("booking.yourName")}</FormLabel>
-                <FormControl>
-                  <Input placeholder={t("booking.yourNamePlaceholder")} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="requester_email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("booking.yourEmail")}</FormLabel>
-                <FormControl>
-                  <Input type="email" placeholder={t("booking.yourEmailPlaceholder")} {...field} />
+                  <Input placeholder="Full Name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -175,53 +195,100 @@ export const BookingRequestForm = ({
             name="requester_phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("booking.yourPhone")}</FormLabel>
+                <FormLabel>Phone Number</FormLabel>
                 <FormControl>
-                  <Input placeholder={t("booking.yourPhonePlaceholder")} {...field} />
+                  <Input placeholder="Phone Number" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="start_date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("booking.startTime")}</FormLabel>
-                  <FormControl>
-                    <Input type="datetime-local" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <FormField
+            control={form.control}
+            name="requester_email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Social Link or Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="Social Link or Email" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            <FormField
-              control={form.control}
-              name="end_date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("booking.endTime")}</FormLabel>
-                  <FormControl>
-                    <Input type="datetime-local" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <div className="space-y-2">
+            <FormLabel>Date and Time</FormLabel>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <FormLabel className="text-sm text-muted-foreground mb-1">
+                  Start Date & Time
+                </FormLabel>
+                <FormField
+                  control={form.control}
+                  name="start_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Input type="datetime-local" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div>
+                <FormLabel className="text-sm text-muted-foreground mb-1">
+                  End Date & Time
+                </FormLabel>
+                <FormField
+                  control={form.control}
+                  name="end_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Input type="datetime-local" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
           </div>
+
+          <FormField
+            control={form.control}
+            name="payment_status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Payment Status</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select payment status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="not_paid">Not Paid</SelectItem>
+                    <SelectItem value="partly">Partly Paid</SelectItem>
+                    <SelectItem value="fully">Fully Paid</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <FormField
             control={form.control}
             name="payment_amount"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("booking.paymentAmount")}</FormLabel>
+                <FormLabel>Payment Amount</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="0.00" {...field} />
+                  <Input type="number" step="0.01" placeholder="0.00" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -233,14 +300,22 @@ export const BookingRequestForm = ({
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("booking.description")}</FormLabel>
+                <FormLabel>Event Notes</FormLabel>
                 <FormControl>
-                  <Textarea placeholder={t("booking.descriptionPlaceholder")} {...field} />
+                  <Textarea placeholder="Add event notes..." {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          <div className="space-y-2">
+            <FileUploadField
+              onChange={setSelectedFile}
+              fileError={fileError}
+              setFileError={setFileError}
+            />
+          </div>
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button
@@ -249,16 +324,16 @@ export const BookingRequestForm = ({
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
             >
-              {t("common.cancel")}
+              Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" className="bg-purple-500 hover:bg-purple-600" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {t("booking.submitting")}
                 </>
               ) : (
-                t("booking.submit")
+                "Create Event"
               )}
             </Button>
           </div>

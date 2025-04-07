@@ -36,6 +36,20 @@ export function CalendarView({
     }
   }, [events, isExternalCalendar]);
 
+  // Additional debugging for file attachments
+  useEffect(() => {
+    if (events.some(event => event.file_path || event.filename)) {
+      console.log("[CalendarView] Events with file attachments found:", 
+        events.filter(e => e.file_path || e.filename).map(e => ({
+          id: e.id,
+          title: e.title,
+          file_path: e.file_path,
+          filename: e.filename
+        }))
+      );
+    }
+  }, [events]);
+
   const formattedSelectedDate = formatDate(selectedDate, "yyyy-MM-dd");
 
   return (

@@ -63,6 +63,15 @@ export const EventDialog = ({
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
       setIsBookingEvent(event.type === 'booking_request');
+      
+      if (event.file_path || event.filename) {
+        console.log("Event with file attachment:", {
+          id: event.id,
+          title: event.title,
+          file_path: event.file_path,
+          filename: event.filename
+        });
+      }
     } else if (selectedDate) {
       const start = new Date(selectedDate.getTime());
       const end = new Date(selectedDate.getTime());
@@ -79,6 +88,21 @@ export const EventDialog = ({
     const loadFiles = async () => {
       if (event?.id) {
         try {
+          if (event.type === 'booking_request') {
+            const { data: bookingFiles, error: bookingFilesError } = await supabase
+              .from('booking_files')
+              .select('*')
+              .eq('booking_id', event.id);
+              
+            if (bookingFilesError) {
+              console.error("Error loading booking files:", bookingFilesError);
+            } else if (bookingFiles && bookingFiles.length > 0) {
+              console.log("Loaded booking files:", bookingFiles);
+              setDisplayedFiles(bookingFiles);
+              return;
+            }
+          }
+          
           const { data, error } = await supabase
             .from('event_files')
             .select('*')
@@ -124,6 +148,9 @@ export const EventDialog = ({
 
     if (isBookingEvent && event?.id) {
       eventData.id = event.id;
+      
+      if (event.file_path) eventData.file_path = event.file_path;
+      if (event.filename) eventData.filename = event.filename;
     }
 
     try {
