@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { Download, Trash2, FileIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -25,9 +25,20 @@ export const FileDisplay = ({
   parentType
 }: FileDisplayProps) => {
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [loadedFiles, setLoadedFiles] = useState<any[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
+
+  // Load and display files when component mounts or when files prop changes
+  useEffect(() => {
+    if (files && files.length > 0) {
+      console.log("FileDisplay received files:", files);
+      setLoadedFiles(files);
+    } else {
+      setLoadedFiles([]);
+    }
+  }, [files]);
 
   const getFileExtension = (filename: string): string => {
     return filename.split('.').pop()?.toLowerCase() || '';
@@ -115,6 +126,9 @@ export const FileDisplay = ({
         throw dbError;
       }
       
+      // Update local state to remove the deleted file
+      setLoadedFiles(prev => prev.filter(file => file.id !== fileId));
+      
       // Notify parent component
       if (onFileDeleted) {
         onFileDeleted(fileId);
@@ -143,7 +157,7 @@ export const FileDisplay = ({
     }
   };
 
-  if (!files || files.length === 0) {
+  if (!loadedFiles || loadedFiles.length === 0) {
     return null;
   }
 
@@ -151,7 +165,7 @@ export const FileDisplay = ({
     <div className="space-y-2">
       <h3 className="text-sm font-medium">{t("common.attachments")}</h3>
       <div className="space-y-2">
-        {files.map((file) => (
+        {loadedFiles.map((file) => (
           <div key={file.id} className="flex items-center justify-between p-2 bg-background border rounded-md">
             <div className="flex items-center space-x-2 overflow-hidden">
               {isImage(file.filename) ? (
