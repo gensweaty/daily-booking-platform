@@ -16,6 +16,7 @@ import { createBookingRequest } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 import { FileUploadField } from "../shared/FileUploadField";
 import { supabase } from "@/lib/supabase";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 interface BookingRequestFormProps {
   open: boolean;
@@ -41,7 +42,9 @@ const BookingSchema = z.object({
     z.number().optional(),
     z.null()
   ]),
+  payment_status: z.string().optional(),
   business_id: z.string(),
+  event_type: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof BookingSchema>;
@@ -57,7 +60,7 @@ export const BookingRequestForm = ({
   isExternalBooking = false,
 }: BookingRequestFormProps) => {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
@@ -78,6 +81,8 @@ export const BookingRequestForm = ({
       start_date: `${formattedDate}T${defaultStartTime}:00`,
       end_date: `${formattedDate}T${defaultEndTime}:00`,
       payment_amount: "",
+      payment_status: "pending",
+      event_type: "booking_request",
       business_id: businessId,
     },
   });
@@ -106,6 +111,8 @@ export const BookingRequestForm = ({
         start_date: start.toISOString(),
         end_date: end.toISOString(),
         payment_amount: paymentAmount,
+        payment_status: values.payment_status || "pending",
+        type: values.event_type || "booking_request",
         business_id: businessId,
       });
       
@@ -166,7 +173,7 @@ export const BookingRequestForm = ({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{t("booking.requestTitle")}</DialogTitle>
+        <DialogTitle>{t("events.submitBookingRequest")}</DialogTitle>
       </DialogHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
@@ -175,10 +182,10 @@ export const BookingRequestForm = ({
             name="title"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("booking.bookingTitle")}</FormLabel>
+                <FormLabel>{t("calendar.eventTitle")}</FormLabel>
                 <FormControl>
                   <Input 
-                    placeholder={t("booking.bookingTitlePlaceholder")} 
+                    placeholder={t("booking.bookingTitlePlaceholder") || "Enter event title"} 
                     {...field} 
                     className="bg-background border border-input"
                   />
@@ -193,10 +200,10 @@ export const BookingRequestForm = ({
             name="requester_name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("booking.yourName")}</FormLabel>
+                <FormLabel>{t("events.fullName")}</FormLabel>
                 <FormControl>
                   <Input 
-                    placeholder={t("booking.yourNamePlaceholder")} 
+                    placeholder={t("booking.yourNamePlaceholder") || "Enter your full name"} 
                     {...field} 
                     className="bg-background border border-input"
                   />
@@ -211,11 +218,11 @@ export const BookingRequestForm = ({
             name="requester_email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("booking.yourEmail")}</FormLabel>
+                <FormLabel>{t("contact.email")}</FormLabel>
                 <FormControl>
                   <Input 
                     type="email" 
-                    placeholder={t("booking.yourEmailPlaceholder")} 
+                    placeholder={t("booking.yourEmailPlaceholder") || "Enter your email"} 
                     {...field} 
                     className="bg-background border border-input"
                   />
@@ -230,14 +237,40 @@ export const BookingRequestForm = ({
             name="requester_phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("booking.yourPhone")}</FormLabel>
+                <FormLabel>{t("events.phoneNumber")}</FormLabel>
                 <FormControl>
                   <Input 
-                    placeholder={t("booking.yourPhonePlaceholder")} 
+                    placeholder={t("booking.yourPhonePlaceholder") || "Enter your phone number"} 
                     {...field} 
                     className="bg-background border border-input"
                   />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="event_type"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("events.paymentStatus")}</FormLabel>
+                <Select 
+                  onValueChange={field.onChange} 
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger className="bg-background border border-input">
+                      <SelectValue placeholder={t("events.selectPaymentStatus") || "Select event type"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="bg-background">
+                    <SelectItem value="booking_request">{t("events.booked") || "Booking"}</SelectItem>
+                    <SelectItem value="private_party">{t("business.events") || "Event"}</SelectItem>
+                    <SelectItem value="birthday">{t("business.beauty") || "Birthday"}</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -249,7 +282,7 @@ export const BookingRequestForm = ({
               name="start_date"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("booking.startTime")}</FormLabel>
+                  <FormLabel>{t("events.startDateTime")}</FormLabel>
                   <FormControl>
                     <Input 
                       type="datetime-local" 
@@ -267,7 +300,7 @@ export const BookingRequestForm = ({
               name="end_date"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("booking.endTime")}</FormLabel>
+                  <FormLabel>{t("events.endDateTime")}</FormLabel>
                   <FormControl>
                     <Input 
                       type="datetime-local" 
@@ -286,7 +319,7 @@ export const BookingRequestForm = ({
             name="payment_amount"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("booking.paymentAmount")}</FormLabel>
+                <FormLabel>{t("events.paymentAmount")}</FormLabel>
                 <FormControl>
                   <Input 
                     type="number" 
@@ -296,6 +329,7 @@ export const BookingRequestForm = ({
                   />
                 </FormControl>
                 <FormMessage />
+                <p className="text-sm text-muted-foreground">{t("crm.paymentStatusNote")}</p>
               </FormItem>
             )}
           />
@@ -305,10 +339,10 @@ export const BookingRequestForm = ({
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("booking.description")}</FormLabel>
+                <FormLabel>{t("calendar.eventDescription")}</FormLabel>
                 <FormControl>
                   <Textarea 
-                    placeholder={t("booking.descriptionPlaceholder")} 
+                    placeholder={t("booking.descriptionPlaceholder") || "Enter description"} 
                     {...field} 
                     className="bg-background border border-input min-h-[80px]"
                   />
@@ -319,11 +353,18 @@ export const BookingRequestForm = ({
           />
 
           <div className="space-y-2">
+            <Label>{t("calendar.attachment")}</Label>
             <FileUploadField
               onChange={setSelectedFile}
               fileError={fileError}
               setFileError={setFileError}
             />
+            <p className="text-sm text-muted-foreground">
+              {t("calendar.maxSize")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {t("calendar.supportedFormats")}
+            </p>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
@@ -340,10 +381,10 @@ export const BookingRequestForm = ({
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("booking.submitting")}
+                  {t("common.submitting")}
                 </>
               ) : (
-                t("booking.submit")
+                t("events.submitBookingRequest")
               )}
             </Button>
           </div>

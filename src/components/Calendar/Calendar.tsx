@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -319,7 +320,7 @@ export const Calendar = ({
 
       {isExternalCalendar && allowBookingRequests && businessId && (
         <Dialog open={isBookingFormOpen} onOpenChange={setIsBookingFormOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="sm:max-w-md">
             {bookingDate && (
               <BookingRequestForm
                 open={isBookingFormOpen}

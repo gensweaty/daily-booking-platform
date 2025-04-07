@@ -69,7 +69,7 @@ const es = {
   },
   hero: {
     title: "Gestiona Tu Tiempo, Amplifica Tu Éxito",
-    subtitle: "La Herramienta Definitiva para la Gestión del Tiempo y el Logro de Objetivos",
+    subtitle: "La Herramienta Definitiva para la Gesti��n del Tiempo y el Logro de Objetivos",
     description: "Programación inteligente, gestión de tareas y herramientas de negocio, todo en una plataforma.",
   },
   cta: {
@@ -411,7 +411,16 @@ const es = {
     feature1: "Programación y gestión sencilla de citas",
     feature2: "Recordatorios automáticos para reducir inasistencias",
     feature3: "Portal de auto-reserva para clientes disponible 24/7",
-    feature4: "Reglas de reserva y disponibilidad personalizables"
+    feature4: "Reglas de reserva y disponibilidad personalizables",
+    requestTitle: "Reservar una Cita",
+    requestSubmitted: "Tu solicitud de reserva ha sido enviada con éxito",
+    bookingTitlePlaceholder: "Introduce el propósito de tu reserva",
+    yourNamePlaceholder: "Introduce tu nombre completo",
+    yourEmailPlaceholder: "Introduce tu dirección de correo electrónico",
+    yourPhonePlaceholder: "Introduce tu número de teléfono",
+    descriptionPlaceholder: "Introduce cualquier detalle adicional sobre tu reserva",
+    submit: "Enviar Solicitud",
+    submitting: "Enviando..."
   },
   analytics: {
     title: "Análisis de Negocio",

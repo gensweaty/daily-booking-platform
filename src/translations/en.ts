@@ -411,7 +411,16 @@ const en = {
     feature1: "Easy appointment scheduling and management",
     feature2: "Automated reminders to reduce no-shows",
     feature3: "Client self-booking portal for 24/7 availability",
-    feature4: "Customizable booking rules and availability"
+    feature4: "Customizable booking rules and availability",
+    requestTitle: "Book an Appointment",
+    requestSubmitted: "Your booking request has been submitted successfully",
+    bookingTitlePlaceholder: "Enter the purpose of your booking",
+    yourNamePlaceholder: "Enter your full name",
+    yourEmailPlaceholder: "Enter your email address",
+    yourPhonePlaceholder: "Enter your phone number",
+    descriptionPlaceholder: "Enter any additional details about your booking",
+    submit: "Submit Request",
+    submitting: "Submitting..."
   },
   analytics: {
     title: "Business Analytics",
