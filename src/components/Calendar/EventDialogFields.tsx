@@ -38,7 +38,6 @@ interface EventDialogFieldsProps {
   onFileDeleted?: (fileId: string) => void;
   displayedFiles?: any[];
   isBookingRequest?: boolean;
-  dialogOpen?: boolean;
 }
 
 export const EventDialogFields = ({
@@ -68,13 +67,45 @@ export const EventDialogFields = ({
   onFileDeleted,
   displayedFiles = [],
   isBookingRequest = false,
-  dialogOpen = true,
 }: EventDialogFieldsProps) => {
   const { t, language } = useLanguage();
 
   const formattedMinDate = format(new Date(), "yyyy-MM-dd'T'HH:mm");
 
+  // If it's a booking request, we only show date and time fields
+  if (isBookingRequest) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="start-date">Start Date & Time</Label>
+            <Input
+              id="start-date"
+              type="datetime-local"
+              min={formattedMinDate}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="end-date">End Date & Time</Label>
+            <Input
+              id="end-date"
+              type="datetime-local"
+              min={startDate || formattedMinDate}
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              required
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
+    // Set default times if no startDate or endDate is provided
     if (!startDate || !endDate) {
       const now = new Date();
       now.setHours(9, 0, 0, 0);
@@ -185,41 +216,6 @@ export const EventDialogFields = ({
     },
     enabled: !!(eventId || title),
   });
-
-  // Use either the manually passed displayedFiles or the ones from the query
-  const filesToDisplay = displayedFiles?.length > 0 ? displayedFiles : allFiles;
-
-  // For booking requests, only show the date/time fields
-  if (isBookingRequest) {
-    return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="start-date">Start Date & Time</Label>
-            <Input
-              id="start-date"
-              type="datetime-local"
-              min={formattedMinDate}
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="end-date">End Date & Time</Label>
-            <Input
-              id="end-date"
-              type="datetime-local"
-              min={startDate || formattedMinDate}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -337,14 +333,13 @@ export const EventDialogFields = ({
         />
       </div>
 
-      {filesToDisplay && filesToDisplay.length > 0 && (
+      {(eventId || title) && ((allFiles && allFiles.length > 0) || (displayedFiles && displayedFiles.length > 0)) && (
         <div className="space-y-2">
           <FileDisplay 
-            files={filesToDisplay} 
+            files={displayedFiles?.length > 0 ? displayedFiles : allFiles} 
             bucketName="event_attachments"
             allowDelete
             onFileDeleted={onFileDeleted}
-            parentId={eventId}
           />
         </div>
       )}
@@ -354,8 +349,6 @@ export const EventDialogFields = ({
         fileError={fileError}
         setFileError={setFileError}
         hideLabel={true}
-        resetOnDialogClose={true}
-        dialogOpen={dialogOpen}
       />
     </div>
   );

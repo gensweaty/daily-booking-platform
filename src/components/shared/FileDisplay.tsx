@@ -85,30 +85,15 @@ export const FileDisplay = ({
         .from(bucketName)
         .remove([filePath]);
 
-      if (storageError) {
-        console.error('Error deleting file from storage:', storageError);
-        // Continue with deleting the database record even if storage deletion fails
-      }
+      if (storageError) throw storageError;
       
-      // Determine the table to delete from based on file metadata or props
-      let tableName = 'event_files';
-      
-      if (parentType === 'customer') {
-        tableName = 'customer_files_new';
-      } else if (filePath.includes('task')) {
-        tableName = 'files'; // For task files
-      }
-      
-      // Delete from the appropriate database table
+      // Then delete the database record
       const { error: dbError } = await supabase
-        .from(tableName)
+        .from('files')
         .delete()
         .eq('id', fileId);
         
-      if (dbError) {
-        console.error(`Error deleting file record from ${tableName}:`, dbError);
-        throw dbError;
-      }
+      if (dbError) throw dbError;
       
       // Notify parent component
       if (onFileDeleted) {
@@ -118,9 +103,6 @@ export const FileDisplay = ({
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['files'] });
       queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
       
       toast({
         title: t("common.success"),
@@ -155,10 +137,6 @@ export const FileDisplay = ({
                     src={`${supabase.storage.from(bucketName).getPublicUrl(file.file_path).data.publicUrl}`} 
                     alt={file.filename}
                     className="h-full w-full object-cover"
-                    onError={(e) => {
-                      console.error('Image load error', e);
-                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWltYWdlIj48cmVjdCB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHg9IjMiIHk9IjMiIHJ4PSIyIiByeT0iMiIvPjxjaXJjbGUgY3g9IjguNSIgY3k9IjguNSIgcj0iMS41Ii8+PHBvbHlsaW5lIHBvaW50cz0iMjEgMTUgMTYgMTAgNSAyMSIvPjwvc3ZnPg==';
-                    }}
                   />
                 </div>
               ) : (

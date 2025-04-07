@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,10 +75,8 @@ export const BookingRequestForm = ({
     }
   });
 
-  // Reset form when dialog opens
   useEffect(() => {
     if (open) {
-      console.log("Resetting form state for booking request");
       form.reset({
         business_id: businessId,
         requester_name: "",
@@ -100,7 +97,7 @@ export const BookingRequestForm = ({
       setSelectedFile(null);
       setFileError("");
     }
-  }, [open, businessId, startDateTime, endDateTime, form]);
+  }, [open, businessId, startDateTime, endDateTime]);
 
   const paymentStatus = form.watch("payment_status");
 
@@ -108,7 +105,6 @@ export const BookingRequestForm = ({
     setIsLoading(true);
     
     try {
-      console.log("Submitting booking request data:", data);
       let filePath = null;
       let fileName = null;
       
@@ -148,14 +144,12 @@ export const BookingRequestForm = ({
       
       const bookingData = {
         ...data,
-        payment_amount: data.payment_status !== 'not_paid' ? Number(data.payment_amount) || null : null,
+        payment_amount: data.payment_status !== 'not_paid' ? data.payment_amount : null,
         file_path: filePath,
         filename: fileName
       };
       
-      console.log("Sending booking data to API:", bookingData);
       const response = await createBookingRequest(bookingData);
-      console.log("Booking request response:", response);
       
       if (selectedFile && filePath) {
         const { error: updateFileError } = await supabase
@@ -351,13 +345,14 @@ export const BookingRequestForm = ({
                     </FormLabel>
                     <FormControl>
                       <Input
+                        {...field}
                         type="number"
                         step="0.01"
                         placeholder={`${t("events.paymentAmount")} ${language === 'es' ? '(€)' : '($)'}`}
                         className="bg-background border-input"
                         value={field.value || ''}
                         onChange={(e) => {
-                          const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                          const value = e.target.value ? parseFloat(e.target.value) : '';
                           field.onChange(value);
                         }}
                       />
@@ -396,8 +391,6 @@ export const BookingRequestForm = ({
               fileError={fileError}
               setFileError={setFileError}
               hideLabel={true}
-              resetOnDialogClose={true}
-              dialogOpen={open}
             />
             {fileError && (
               <p className="text-sm text-red-500">{fileError}</p>

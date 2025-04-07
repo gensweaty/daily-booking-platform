@@ -303,10 +303,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     }
   };
 
-  const handleFileChange = (file: File | null) => {
-    setSelectedFile(file);
-  };
-
   const handleClose = () => {
     if (!loading) {
       resetForm();
@@ -369,9 +365,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             setCreateEvent={setCreateEvent}
             isEventData={isEventData}
             isOpen={isOpen}
-            onFileChange={handleFileChange}
-            resetOnDialogClose={true}
-            dialogOpen={isOpen}
           />
 
           <div className="flex justify-end gap-2 mt-4">

@@ -325,7 +325,15 @@ export type Database = {
           size?: number | null
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "event_files_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_requests: {
         Row: {
@@ -739,38 +747,6 @@ export type Database = {
       generate_code_number: {
         Args: { n: number }
         Returns: string
-      }
-      get_all_related_files: {
-        Args: {
-          event_id_param?: string
-          customer_id_param?: string
-          entity_name_param?: string
-        }
-        Returns: {
-          id: string
-          filename: string
-          file_path: string
-          content_type: string
-          size: number
-          created_at: string
-          user_id: string
-          event_id: string
-          customer_id: string
-          source: string
-        }[]
-      }
-      get_booking_request_files: {
-        Args: { booking_id_param: string }
-        Returns: {
-          id: string
-          filename: string
-          file_path: string
-          content_type: string
-          size: number
-          created_at: string
-          user_id: string
-          event_id: string
-        }[]
       }
       get_public_events_by_user_id: {
         Args: { user_id_param: string }

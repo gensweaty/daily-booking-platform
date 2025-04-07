@@ -1,7 +1,6 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getNotes, updateNote, deleteNote } from "@/lib/api";
-import { Note as DatabaseNote } from "@/types/database";
 import { Note } from "@/lib/types";
 import { useState } from "react";
 import { useToast } from "./ui/use-toast";
@@ -9,26 +8,11 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { NoteCard } from "./notes/NoteCard";
 import { EditNoteDialog } from "./notes/EditNoteDialog";
 
-// Helper function to convert between note types
-const convertDatabaseToLibNote = (dbNote: DatabaseNote): Note => {
-  return {
-    id: dbNote.id,
-    title: dbNote.title,
-    content: dbNote.content || "",
-    color: dbNote.color,
-    user_id: dbNote.user_id,
-    created_at: dbNote.created_at
-  };
-};
-
 export const NoteList = () => {
-  const { data: notesData = [], isLoading } = useQuery({
+  const { data: notes = [], isLoading } = useQuery({
     queryKey: ['notes'],
     queryFn: getNotes,
   });
-
-  // Convert database notes to lib notes
-  const notes: Note[] = notesData.map(convertDatabaseToLibNote);
 
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -96,7 +80,7 @@ export const NoteList = () => {
               ref={provided.innerRef}
               className="space-y-4"
             >
-              {(notes || []).map((note, index) => (
+              {(notes || []).map((note: Note, index: number) => (
                 <Draggable key={note.id} draggableId={note.id} index={index}>
                   {(provided) => (
                     <div
@@ -105,10 +89,7 @@ export const NoteList = () => {
                       {...provided.dragHandleProps}
                     >
                       <NoteCard
-                        note={{
-                          ...note,
-                          content: note.content || "" // Ensure content is always defined
-                        }}
+                        note={note}
                         onEdit={handleEdit}
                         onDelete={() => deleteNoteMutation.mutate(note.id)}
                       />
@@ -123,10 +104,7 @@ export const NoteList = () => {
       </DragDropContext>
 
       <EditNoteDialog
-        note={editingNote ? {
-          ...editingNote,
-          content: editingNote.content || "" // Ensure content is always defined
-        } : null}
+        note={editingNote}
         isOpen={!!editingNote}
         onClose={() => setEditingNote(null)}
         onSave={handleSaveEdit}

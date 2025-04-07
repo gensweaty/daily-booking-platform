@@ -8,7 +8,7 @@ interface CalendarGridProps {
   events: CalendarEventType[];
   formattedSelectedDate: string;
   view: string;
-  onDayClick?: (date: Date, startTime?: string, endTime?: string) => void;
+  onDayClick?: (date: Date, hour?: number) => void;
   onEventClick?: (event: CalendarEventType) => void;
   isExternalCalendar?: boolean;
 }
@@ -22,11 +22,6 @@ export const CalendarGrid = ({
   onEventClick,
   isExternalCalendar = false,
 }: CalendarGridProps) => {
-  // Handle empty or undefined days array
-  if (!days || days.length === 0) {
-    return <div className="p-4 text-center">No dates available to display</div>;
-  }
-
   // Get the start of the week for proper alignment
   const startDate = startOfWeek(days[0]);
   
@@ -94,14 +89,7 @@ export const CalendarGrid = ({
                   className={`border-r border-gray-200 p-1 relative ${
                     !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
                   }`}
-                  onClick={() => {
-                    if (onDayClick) {
-                      // Create start and end times in 24-hour format as strings
-                      const startTime = `${hourIndex.toString().padStart(2, '0')}:00`;
-                      const endTime = `${(hourIndex + 1).toString().padStart(2, '0')}:00`;
-                      onDayClick(day, startTime, endTime);
-                    }
-                  }}
+                  onClick={() => onDayClick?.(day, hourIndex)}
                 >
                   {/* Render events that start in this hour */}
                   {events
@@ -132,9 +120,7 @@ export const CalendarGrid = ({
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (onEventClick) {
-                              onEventClick(event);
-                            }
+                            onEventClick?.(event);
                           }}
                         >
                           <div className="flex items-center">
@@ -172,7 +158,7 @@ export const CalendarGrid = ({
           className={`bg-white p-4 min-h-[120px] cursor-pointer hover:bg-gray-50 ${
             !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
           }`}
-          onClick={() => onDayClick && onDayClick(day)}
+          onClick={() => onDayClick?.(day)}
         >
           <div className="font-medium">{format(day, "d")}</div>
           <div className="mt-2 space-y-1">
@@ -184,9 +170,7 @@ export const CalendarGrid = ({
                   className={`text-sm p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (onEventClick) {
-                      onEventClick(event);
-                    }
+                    onEventClick?.(event);
                   }}
                 >
                   <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />

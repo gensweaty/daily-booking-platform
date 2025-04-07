@@ -8,7 +8,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 import { getPublicCalendarEvents } from "@/lib/api";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { BookingRequestDialog } from "@/components/business/BookingRequestDialog";
 
 export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [view, setView] = useState<CalendarViewType>("month");
@@ -17,43 +16,10 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const { toast } = useToast();
   const [businessUserId, setBusinessUserId] = useState<string | null>(null);
   const { t } = useLanguage();
-  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedStartTime, setSelectedStartTime] = useState<string | undefined>();
-  const [selectedEndTime, setSelectedEndTime] = useState<string | undefined>();
 
   // Diagnostic logging for businessId
   useEffect(() => {
     console.log("External Calendar mounted with business ID:", businessId);
-    
-    // Create booking_attachments bucket if it doesn't exist
-    const createBucketIfNeeded = async () => {
-      try {
-        const { data: buckets } = await supabase.storage.listBuckets();
-        console.log("Available storage buckets:", buckets);
-        
-        const bookingBucketExists = buckets?.some(b => b.name === 'booking_attachments');
-        
-        if (!bookingBucketExists) {
-          console.log("Creating booking_attachments bucket");
-          try {
-            await supabase.storage.createBucket('booking_attachments', {
-              public: false,
-              allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-              fileSizeLimit: 5000000 // 5MB
-            });
-            
-            console.log('Created booking_attachments storage bucket');
-          } catch (bucketError) {
-            console.error('Error creating booking_attachments bucket:', bucketError);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking/creating storage buckets:', error);
-      }
-    };
-    
-    createBucketIfNeeded();
   }, [businessId]);
 
   // Step 1: Get the business user ID
@@ -186,13 +152,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     }
   }, [businessId, toast, t]);
 
-  const handleTimeSlotClick = (date: Date, startTime?: string, endTime?: string) => {
-    setSelectedDate(date);
-    setSelectedStartTime(startTime);
-    setSelectedEndTime(endTime);
-    setIsBookingDialogOpen(true);
-  };
-
   if (!businessId) {
     return (
       <Card className="min-h-[calc(100vh-12rem)]">
@@ -226,22 +185,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             showAllEvents={true}
             allowBookingRequests={true}
             directEvents={events}
-            onTimeSlotClick={handleTimeSlotClick}
-          />
-          
-          <BookingRequestDialog
-            open={isBookingDialogOpen}
-            onOpenChange={setIsBookingDialogOpen}
-            businessId={businessId}
-            selectedDate={selectedDate}
-            startTime={selectedStartTime}
-            endTime={selectedEndTime}
-            onSuccess={() => {
-              // Refresh events after successful booking
-              setTimeout(() => {
-                window.location.reload();
-              }, 1000);
-            }}
           />
         </div>
       </CardContent>

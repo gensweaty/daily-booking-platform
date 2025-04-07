@@ -6,16 +6,19 @@ import { parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 
 interface UseEventDialogProps {
-  createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  deleteEvent?: (id: string) => Promise<void>;
+  createEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
+  updateEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
+  deleteEvent: (id: string) => Promise<void>;
 }
 
-export const useEventDialog = (props?: UseEventDialogProps) => {
+export const useEventDialog = ({
+  createEvent,
+  updateEvent,
+  deleteEvent,
+}: UseEventDialogProps) => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -32,14 +35,6 @@ export const useEventDialog = (props?: UseEventDialogProps) => {
     console.log('useEventDialog - dialog open state changed:', isNewEventDialogOpen);
     console.log('useEventDialog - current selectedDate:', selectedDate);
   }, [isNewEventDialogOpen]);
-
-  const openDialog = () => {
-    setIsDialogOpen(true);
-  };
-
-  const closeDialog = () => {
-    setIsDialogOpen(false);
-  };
 
   const checkTimeSlotAvailability = async (
     startDate: Date,
@@ -126,16 +121,6 @@ export const useEventDialog = (props?: UseEventDialogProps) => {
   };
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
-    if (!props?.createEvent) {
-      console.error("createEvent function not provided");
-      toast({
-        title: "Error",
-        description: "Cannot create event: createEvent function not provided",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     try {
       console.log('handleCreateEvent - Received data:', data);
       
@@ -161,7 +146,7 @@ export const useEventDialog = (props?: UseEventDialogProps) => {
         throw new Error("Time slot conflict");
       }
 
-      const result = await props.createEvent(data);
+      const result = await createEvent(data);
       setIsNewEventDialogOpen(false);
       toast({
         title: "Success",
@@ -183,15 +168,6 @@ export const useEventDialog = (props?: UseEventDialogProps) => {
 
   const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
     if (!selectedEvent) return;
-    if (!props?.updateEvent) {
-      console.error("updateEvent function not provided");
-      toast({
-        title: "Error",
-        description: "Cannot update event: updateEvent function not provided",
-        variant: "destructive",
-      });
-      return;
-    }
     
     try {
       const startDate = new Date(data.start_date as string);
@@ -213,7 +189,7 @@ export const useEventDialog = (props?: UseEventDialogProps) => {
         throw new Error("Time slot conflict");
       }
 
-      const result = await props.updateEvent(data);
+      const result = await updateEvent(data);
       setSelectedEvent(null);
       toast({
         title: "Success",
@@ -235,29 +211,18 @@ export const useEventDialog = (props?: UseEventDialogProps) => {
 
   const handleDeleteEvent = async () => {
     if (!selectedEvent) return;
-    if (!props?.deleteEvent) {
-      console.error("deleteEvent function not provided");
-      toast({
-        title: "Error",
-        description: "Cannot delete event: deleteEvent function not provided",
-        variant: "destructive",
-      });
-      return;
-    }
     
     try {
-      // Check if this is a booking request
-      const { data: bookingRequest, error: bookingError } = await supabase
+      const { data: bookingFiles, error: bookingFilesError } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('id', selectedEvent.id)
         .maybeSingle();
 
-      if (bookingError && bookingError.code !== 'PGRST116') {
-        console.error('Error checking for booking request:', bookingError);
+      if (bookingFilesError && bookingFilesError.code !== 'PGRST116') {
+        console.error('Error checking for booking files:', bookingFilesError);
       }
 
-      // Find associated customer record
       const { data: customer, error: customerError } = await supabase
         .from('customers')
         .select('*')
@@ -271,7 +236,6 @@ export const useEventDialog = (props?: UseEventDialogProps) => {
         throw customerError;
       }
 
-      // Update customer if found
       if (customer) {
         const { error: updateError } = await supabase
           .from('customers')
@@ -287,20 +251,12 @@ export const useEventDialog = (props?: UseEventDialogProps) => {
         }
       }
 
-      // Delete associated files - first get list of files
-      const { data: files, error: fileQueryError } = await supabase
+      const { data: files } = await supabase
         .from('event_files')
         .select('*')
         .eq('event_id', selectedEvent.id);
-      
-      if (fileQueryError) {
-        console.error('Error querying event files:', fileQueryError);
-      }
 
       if (files && files.length > 0) {
-        console.log(`Found ${files.length} files to delete for event ${selectedEvent.id}`);
-        
-        // Delete files from storage
         for (const file of files) {
           const { error: storageError } = await supabase.storage
             .from('event_attachments')
@@ -308,12 +264,9 @@ export const useEventDialog = (props?: UseEventDialogProps) => {
 
           if (storageError) {
             console.error('Error deleting file from storage:', storageError);
-          } else {
-            console.log(`Deleted file ${file.filename} from storage`);
           }
         }
 
-        // Delete file records from database
         const { error: filesDeleteError } = await supabase
           .from('event_files')
           .delete()
@@ -322,28 +275,10 @@ export const useEventDialog = (props?: UseEventDialogProps) => {
         if (filesDeleteError) {
           console.error('Error deleting file records:', filesDeleteError);
           throw filesDeleteError;
-        } else {
-          console.log(`Deleted ${files.length} file records from database`);
         }
       }
 
-      // Handle deletion of booking request or regular event
-      if (bookingRequest) {
-        const { error: deleteError } = await supabase
-          .from('booking_requests')
-          .delete()
-          .eq('id', selectedEvent.id);
-          
-        if (deleteError) {
-          console.error('Error deleting booking request:', deleteError);
-          throw deleteError;
-        }
-        console.log(`Deleted booking request with ID ${selectedEvent.id}`);
-      } else {
-        await props.deleteEvent(selectedEvent.id);
-        console.log(`Deleted regular event with ID ${selectedEvent.id}`);
-      }
-      
+      await deleteEvent(selectedEvent.id);
       setSelectedEvent(null);
       toast({
         title: "Success",
@@ -367,9 +302,6 @@ export const useEventDialog = (props?: UseEventDialogProps) => {
     setIsNewEventDialogOpen,
     selectedDate,
     setSelectedDate,
-    isDialogOpen,
-    openDialog,
-    closeDialog,
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
