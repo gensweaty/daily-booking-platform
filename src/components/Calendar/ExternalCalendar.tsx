@@ -1,193 +1,160 @@
 
 import { useState, useEffect } from "react";
-import { Calendar } from "./Calendar";
-import { Card, CardContent } from "@/components/ui/card";
 import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
-import { supabase } from "@/lib/supabase";
-import { useToast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
-import { getPublicCalendarEvents } from "@/lib/api";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { CalendarView } from "./CalendarView";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Calendar as ShadcnCalendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { CalendarIcon } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
-  const [view, setView] = useState<CalendarViewType>("month");
-  const [events, setEvents] = useState<CalendarEventType[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
-  const [businessUserId, setBusinessUserId] = useState<string | null>(null);
-  const { t } = useLanguage();
+// Add props interface to ensure correct typing
+interface ExternalCalendarProps {
+  businessId: string;
+  loading: boolean;
+  events: CalendarEventType[];
+  bookings: any[];
+}
 
-  // Diagnostic logging for businessId
+export const ExternalCalendar = ({ businessId, loading, events, bookings }: ExternalCalendarProps) => {
+  const [date, setDate] = useState<Date>(new Date());
+  const [currentView, setCurrentView] = useState<CalendarViewType>("month");
+  
+  // Transform bookings to match CalendarEventType format for display
+  const transformedBookings = bookings.map((booking) => {
+    return {
+      id: booking.id,
+      title: booking.title,
+      start_date: booking.start_date,
+      end_date: booking.end_date,
+      created_at: booking.created_at,
+      user_id: '',
+      type: 'booking_request'
+    } as CalendarEventType;
+  });
+  
+  // Combine events and transformed bookings
+  const allEvents = [...events, ...transformedBookings];
+  
   useEffect(() => {
-    console.log("External Calendar mounted with business ID:", businessId);
-  }, [businessId]);
+    console.log(`ExternalCalendar: Loading calendar for business ID ${businessId}`);
+    console.log(`ExternalCalendar: Found ${events.length} events and ${bookings.length} bookings`);
+  }, [businessId, events, bookings]);
 
-  // Step 1: Get the business user ID
-  useEffect(() => {
-    const getBusinessUserId = async () => {
-      if (!businessId) return;
-      
-      try {
-        console.log("[External Calendar] Fetching business user ID for business:", businessId);
-        const { data, error } = await supabase
-          .from("business_profiles")
-          .select("user_id")
-          .eq("id", businessId)
-          .single();
-        
-        if (error) {
-          console.error("Error fetching business profile:", error);
-          return;
-        }
-        
-        if (data?.user_id) {
-          console.log("[External Calendar] Found business user ID:", data.user_id);
-          setBusinessUserId(data.user_id);
-        } else {
-          console.error("No user ID found for business:", businessId);
-        }
-      } catch (error) {
-        console.error("Exception fetching business user ID:", error);
-      }
-    };
-    
-    getBusinessUserId();
-  }, [businessId]);
-
-  // Step 2: Fetch all events using the getPublicCalendarEvents API which uses our new RPC function
-  useEffect(() => {
-    const fetchAllEvents = async () => {
-      if (!businessId) return;
-      
-      setIsLoading(true);
-      console.log("[External Calendar] Starting to fetch events for business ID:", businessId);
-      
-      try {
-        // Get events from the API function which includes approved bookings and user events
-        // This now uses our security definer function to bypass RLS
-        const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
-        
-        console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
-        console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
-        
-        // Combine all event sources
-        const allEvents: CalendarEventType[] = [
-          ...(apiEvents || []).map(event => ({
-            ...event,
-            type: event.type || 'event'
-          })),
-          ...(approvedBookings || []).map(booking => ({
-            id: booking.id,
-            title: booking.title || 'Booking',
-            start_date: booking.start_date,
-            end_date: booking.end_date,
-            type: 'booking_request',
-            created_at: booking.created_at || new Date().toISOString(),
-            user_id: booking.user_id || '',
-            user_surname: booking.requester_name || '',
-            user_number: booking.requester_phone || '',
-            social_network_link: booking.requester_email || '',
-            event_notes: booking.description || '',
-            requester_name: booking.requester_name || '',
-            requester_email: booking.requester_email || '',
-          }))
-        ];
-        
-        console.log(`[External Calendar] Combined ${allEvents.length} total events`);
-        
-        // Validate all events have proper dates
-        const validEvents = allEvents.filter(event => {
-          try {
-            // Check if start_date and end_date are valid
-            const startValid = !!new Date(event.start_date).getTime();
-            const endValid = !!new Date(event.end_date).getTime();
-            return startValid && endValid;
-          } catch (err) {
-            console.error("Invalid date in event:", event);
-            return false;
-          }
-        });
-        
-        if (validEvents.length !== allEvents.length) {
-          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates`);
-        }
-        
-        // Remove duplicate events (same time slot)
-        const eventMap = new Map();
-        validEvents.forEach(event => {
-          const key = `${event.start_date}-${event.end_date}`;
-          // Prioritize booking_request type events
-          if (!eventMap.has(key) || event.type === 'booking_request') {
-            eventMap.set(key, event);
-          }
-        });
-        
-        const uniqueEvents = Array.from(eventMap.values());
-        console.log(`[External Calendar] Final unique events: ${uniqueEvents.length}`);
-        
-        // Update state with fetched events
-        setEvents(uniqueEvents);
-      } catch (error) {
-        console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
-        toast({
-          title: t("common.error"),
-          description: t("common.error"),
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    // Only fetch if we have the business ID
-    if (businessId) {
-      console.log("[External Calendar] Have business ID, fetching events");
-      fetchAllEvents();
-      
-      // Set up polling to refresh data every 15 seconds
-      const intervalId = setInterval(fetchAllEvents, 15000);
-      return () => {
-        clearInterval(intervalId);
-      };
-    }
-  }, [businessId, toast, t]);
-
-  if (!businessId) {
+  if (loading) {
     return (
-      <Card className="min-h-[calc(100vh-12rem)]">
-        <CardContent className="p-6">
-          <p className="text-center text-muted-foreground">No business selected</p>
-        </CardContent>
-      </Card>
+      <div className="w-full max-w-4xl mx-auto p-4 space-y-4">
+        <div className="flex items-center justify-between mb-4">
+          <Skeleton className="h-8 w-32" />
+          <div className="flex space-x-2">
+            <Skeleton className="h-9 w-20" />
+            <Skeleton className="h-9 w-20" />
+            <Skeleton className="h-9 w-20" />
+          </div>
+        </div>
+        <Skeleton className="h-96 w-full" />
+      </div>
     );
   }
-  
-  console.log("[ExternalCalendar] Rendering with events:", events.length);
-  
+
   return (
-    <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
-      <CardContent className="p-0">
-        <div className="px-6 pt-6 relative">
-          {isLoading && (
-            <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
-              <Loader2 className="h-8 w-8 text-primary animate-spin" />
-              <span className="ml-2 text-primary">{t("common.loading")}</span>
-            </div>
-          )}
-          
-          <Calendar 
-            defaultView={view}
-            currentView={view}
-            onViewChange={setView}
-            isExternalCalendar={true}
-            businessId={businessId}
-            businessUserId={businessUserId}
-            showAllEvents={true}
-            allowBookingRequests={true}
-            directEvents={events}
-          />
+    <div className="w-full max-w-4xl mx-auto p-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
+        <h2 className="text-2xl font-bold">
+          {format(date, "MMMM yyyy")}
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentView("month")}
+            className={currentView === "month" ? "bg-primary text-primary-foreground" : ""}
+          >
+            Month
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentView("week")}
+            className={currentView === "week" ? "bg-primary text-primary-foreground" : ""}
+          >
+            Week
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentView("day")}
+            className={currentView === "day" ? "bg-primary text-primary-foreground" : ""}
+          >
+            Day
+          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={"outline"}
+                className={cn(
+                  "justify-start text-left font-normal",
+                  !date && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {date ? format(date, "PPP") : "Pick a date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="center">
+              <ShadcnCalendar
+                mode="single"
+                selected={date}
+                onSelect={setDate}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      <div className="bg-card rounded-lg border shadow">
+        <CalendarView
+          date={date}
+          selectedView={currentView}
+          events={allEvents}
+          onSelectEvent={(event) => {
+            // Read-only calendar, no action on event click
+            console.log("Event clicked:", event);
+          }}
+          onSelectDate={(date) => {
+            // Read-only calendar, no action on date click
+            console.log("Date clicked:", date);
+          }}
+        />
+      </div>
+
+      <div className="mt-6 flex flex-col gap-4">
+        <h3 className="text-xl font-semibold">Upcoming Availability</h3>
+        {allEvents.length === 0 ? (
+          <p className="text-muted-foreground">No upcoming events found.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {allEvents
+              .filter(event => new Date(event.start_date) >= new Date())
+              .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
+              .slice(0, 6)
+              .map(event => (
+                <div key={event.id} className="bg-background border rounded-lg p-4">
+                  <div className="font-semibold">{event.title}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {format(new Date(event.start_date), "PPP")}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {format(new Date(event.start_date), "h:mm a")} - {format(new Date(event.end_date), "h:mm a")}
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 };

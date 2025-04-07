@@ -95,7 +95,7 @@ export function Calendar() {
         </div>
       </div>
       <CalendarView
-        selectedDate={date}
+        date={date}
         selectedView={selectedView}
         events={events}
         onSelectEvent={(event) => {

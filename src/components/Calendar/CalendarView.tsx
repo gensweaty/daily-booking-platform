@@ -6,7 +6,8 @@ import { TimeIndicator } from "./TimeIndicator";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarViewProps {
-  selectedDate: Date;
+  selectedDate?: Date;
+  date: Date; // Added date prop to fix the error
   selectedView: CalendarViewType;
   events: CalendarEventType[];
   onSelectEvent: (event: CalendarEventType) => void;
@@ -249,12 +250,14 @@ const WeekView = ({
 };
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
-  selectedDate,
+  date, // Use the date prop
   selectedView,
   events,
   onSelectEvent,
   onSelectDate
 }) => {
+  // Use the date prop instead of selectedDate
+  const selectedDate = date;
   const monthStart = startOfMonth(selectedDate);
   const monthEnd = endOfMonth(monthStart);
   const firstWeekStart = startOfWeek(monthStart, { weekStartsOn: 1 });
