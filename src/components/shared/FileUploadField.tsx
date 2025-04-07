@@ -2,7 +2,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
 const MAX_FILE_SIZE_IMAGES = 2048 * 1024; // 2MB
@@ -38,6 +38,7 @@ export const FileUploadField = ({
   dialogOpen = true
 }: FileUploadFieldProps) => {
   const { t } = useLanguage();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset state when dialog closes
   useEffect(() => {
@@ -47,9 +48,8 @@ export const FileUploadField = ({
       if (onFileChange) onFileChange(null);
       
       // Reset the file input element
-      const fileInput = document.getElementById('file') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = '';
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
     }
   }, [dialogOpen, resetOnDialogClose, onChange, onFileChange, setFileError]);
@@ -112,6 +112,7 @@ export const FileUploadField = ({
       )}
       <Input
         id="file"
+        ref={fileInputRef}
         type="file"
         onChange={handleFileChange}
         accept={acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")}

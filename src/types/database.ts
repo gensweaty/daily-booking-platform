@@ -63,7 +63,7 @@ export interface BookingRequest {
   social_network_link?: string;
   event_notes?: string;
   payment_status?: string;
-  payment_amount?: number | null;
+  payment_amount?: number | null | undefined;
   file_path?: string;
   filename?: string;
   has_files?: boolean;

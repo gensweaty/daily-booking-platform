@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -84,7 +85,7 @@ export const PublicBusinessPage = () => {
 
     fetchBusinessProfile();
     fetchProfile();
-  }, [slug]);
+  }, [slug, businessSlug]);
 
   if (isLoading) {
     return (

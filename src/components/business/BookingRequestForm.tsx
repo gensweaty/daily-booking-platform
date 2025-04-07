@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -352,7 +353,7 @@ export const BookingRequestForm = ({
                         className="bg-background border-input"
                         value={field.value || ''}
                         onChange={(e) => {
-                          const value = e.target.value ? parseFloat(e.target.value) : '';
+                          const value = e.target.value ? parseFloat(e.target.value) : undefined;
                           field.onChange(value);
                         }}
                       />
@@ -391,6 +392,8 @@ export const BookingRequestForm = ({
               fileError={fileError}
               setFileError={setFileError}
               hideLabel={true}
+              resetOnDialogClose={true}
+              dialogOpen={open}
             />
             {fileError && (
               <p className="text-sm text-red-500">{fileError}</p>
