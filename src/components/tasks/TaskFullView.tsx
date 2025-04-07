@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Task } from "@/lib/types";
 import { FileDisplay } from "../shared/FileDisplay";
@@ -16,7 +17,7 @@ export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
     console.log("TaskFullView - task received:", task);
   }, [task]);
 
-  const { data: files } = useQuery({
+  const { data: files, refetch } = useQuery({
     queryKey: ['taskFiles', task.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -25,9 +26,15 @@ export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
         .eq('task_id', task.id);
       
       if (error) throw error;
+      console.log("Retrieved task files:", data);
       return data;
     },
+    enabled: isOpen && !!task.id,
   });
+
+  const handleFileDeleted = () => {
+    refetch();
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -51,8 +58,12 @@ export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
           </div>
           {files && files.length > 0 && (
             <div className="p-4 rounded-lg border border-input bg-muted/50">
-              <h3 className="text-sm font-medium mb-4">Attachments</h3>
-              <FileDisplay files={files} bucketName="task_attachments" allowDelete />
+              <FileDisplay 
+                files={files} 
+                bucketName="task_attachments" 
+                allowDelete 
+                onFileDeleted={handleFileDeleted}
+              />
             </div>
           )}
         </div>

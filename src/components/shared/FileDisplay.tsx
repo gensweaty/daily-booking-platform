@@ -46,53 +46,21 @@ export const FileDisplay = ({
     try {
       console.log(`Attempting to download file from ${bucketName}/${filePath}`);
       
-      // First try to get the public URL
-      const { data: publicUrlData } = supabase.storage
+      // Try direct download first
+      const { data, error } = await supabase.storage
         .from(bucketName)
-        .getPublicUrl(filePath);
-
-      if (publicUrlData?.publicUrl) {
-        // Create a temporary link element to trigger download
-        const a = document.createElement('a');
-        a.href = publicUrlData.publicUrl;
-        a.download = fileName;
-        a.target = '_blank';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        .download(filePath);
         
-        toast({
-          title: t("common.success"),
-          description: t("common.downloadStarted"),
-        });
-        return;
-      }
-      
-      // If public URL doesn't work, try creating a signed URL
-      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-        .from(bucketName)
-        .createSignedUrl(filePath, 60); // 60 seconds expiry
-      
-      if (signedUrlError) {
-        console.error('Error creating signed URL:', signedUrlError);
+      if (error) {
+        console.error('Error downloading file:', error);
         
-        // Try direct download as last resort
-        const { data, error } = await supabase.storage
+        // If direct download fails, try to get a signed URL
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
           .from(bucketName)
-          .download(filePath);
-          
-        if (error) {
-          console.error('Error downloading file:', error);
-          toast({
-            title: t("common.error"),
-            description: error.message || t("common.downloadError"),
-            variant: "destructive",
-          });
-          return;
-        }
+          .createSignedUrl(filePath, 60); // 60 seconds expiry
         
-        if (!data) {
-          console.error('No data returned from download');
+        if (signedUrlError) {
+          console.error('Error creating signed URL:', signedUrlError);
           toast({
             title: t("common.error"),
             description: t("common.downloadError"),
@@ -101,27 +69,38 @@ export const FileDisplay = ({
           return;
         }
         
-        // Create a URL for the blob and trigger download
-        const url = URL.createObjectURL(data);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } else {
-        // Use the signed URL to download the file
-        console.log('Using signed URL to download:', signedUrlData.signedUrl);
-        
-        // Create an anchor and trigger the download
-        const a = document.createElement('a');
-        a.href = signedUrlData.signedUrl;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        if (signedUrlData?.signedUrl) {
+          // Use the signed URL to download the file
+          const a = document.createElement('a');
+          a.href = signedUrlData.signedUrl;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          
+          toast({
+            title: t("common.success"),
+            description: t("common.downloadStarted"),
+          });
+        } else {
+          toast({
+            title: t("common.error"),
+            description: t("common.downloadError"),
+            variant: "destructive",
+          });
+        }
+        return;
       }
+      
+      // If direct download succeeds
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
       
       toast({
         title: t("common.success"),
@@ -137,46 +116,56 @@ export const FileDisplay = ({
     }
   };
 
-  const handleOpenFile = (filePath: string) => {
+  const handleOpenFile = async (filePath: string) => {
     try {
-      // First try to get the public URL
-      const { data: publicUrlData } = supabase.storage
+      // Try direct download first to verify the file exists
+      const { data, error } = await supabase.storage
         .from(bucketName)
-        .getPublicUrl(filePath);
-      
-      if (publicUrlData?.publicUrl) {
-        window.open(publicUrlData.publicUrl, '_blank');
+        .download(filePath);
+        
+      if (error) {
+        console.error('Error accessing file:', error);
+        
+        // Try using a signed URL
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+          .from(bucketName)
+          .createSignedUrl(filePath, 3600); // 1 hour expiry for viewing
+        
+        if (signedUrlError) {
+          console.error('Error creating signed URL:', signedUrlError);
+          toast({
+            title: t("common.error"),
+            description: t("common.fileAccessError"),
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        if (signedUrlData?.signedUrl) {
+          window.open(signedUrlData.signedUrl, '_blank');
+        } else {
+          toast({
+            title: t("common.error"),
+            description: t("common.fileAccessError"),
+            variant: "destructive",
+          });
+        }
         return;
       }
       
-      // If public URL doesn't work, try creating a signed URL
-      supabase.storage
-        .from(bucketName)
-        .createSignedUrl(filePath, 60)
-        .then(({ data, error }) => {
-          if (error) {
-            throw error;
-          }
-          
-          if (data?.signedUrl) {
-            window.open(data.signedUrl, '_blank');
-          } else {
-            throw new Error('Could not generate signed URL');
-          }
-        })
-        .catch((error) => {
-          console.error('Error opening file:', error);
-          toast({
-            title: t("common.error"),
-            description: t("common.downloadError"),
-            variant: "destructive",
-          });
-        });
+      // If direct download succeeded, create a blob URL and open it
+      const url = URL.createObjectURL(data);
+      window.open(url, '_blank');
+      
+      // Clean up the URL after a delay
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 100);
     } catch (error) {
       console.error('Error opening file:', error);
       toast({
         title: t("common.error"),
-        description: t("common.downloadError"),
+        description: t("common.fileAccessError"),
         variant: "destructive",
       });
     }
@@ -253,12 +242,6 @@ export const FileDisplay = ({
       <h3 className="text-sm font-medium">{t("common.attachments")}</h3>
       <div className="space-y-2">
         {files.map((file) => {
-          // Create the public URL for display/preview
-          const { data } = supabase.storage
-            .from(bucketName)
-            .getPublicUrl(file.file_path);
-            
-          const publicUrl = data?.publicUrl;
           const fileNameDisplay = file.filename && file.filename.length > 20 
             ? file.filename.substring(0, 20) + '...' 
             : file.filename;
@@ -269,19 +252,15 @@ export const FileDisplay = ({
                 <div className="flex items-center space-x-2 overflow-hidden">
                   {isImage(file.filename) ? (
                     <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
-                      {publicUrl ? (
-                        <img 
-                          src={publicUrl} 
-                          alt={file.filename}
-                          className="h-full w-full object-cover"
-                          onError={(e) => {
-                            console.error('Image failed to load', e);
-                            e.currentTarget.src = '/placeholder.svg';
-                          }}
-                        />
-                      ) : (
-                        <FileIcon className="h-5 w-5" />
-                      )}
+                      <img 
+                        src={`${supabase.storageUrl}/object/public/${bucketName}/${file.file_path}`}
+                        alt={file.filename}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          console.error('Image failed to load', e);
+                          e.currentTarget.src = '/placeholder.svg';
+                        }}
+                      />
                     </div>
                   ) : (
                     <div className="h-8 w-8 bg-gray-100 rounded flex items-center justify-center">

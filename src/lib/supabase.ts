@@ -17,6 +17,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+// Add URL helper for storage
+supabase.storageUrl = `${supabaseUrl}/storage/v1`;
+
 // Enhanced debug listener for auth events with more detailed information
 supabase.auth.onAuthStateChange((event, session) => {
   console.log(`Auth state changed: ${event}`, {
