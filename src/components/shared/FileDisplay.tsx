@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/lib/supabase";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -25,9 +25,23 @@ export const FileDisplay = ({
   parentType
 }: FileDisplayProps) => {
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [fileURLs, setFileURLs] = useState<{[key: string]: string}>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
+
+  // Cache file URLs to prevent repeated calculations
+  useEffect(() => {
+    const newURLs: {[key: string]: string} = {};
+    files.forEach(file => {
+      if (file.file_path) {
+        const normalizedPath = normalizeFilePath(file.file_path);
+        const effectiveBucket = getEffectiveBucket(file.file_path);
+        newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
+      }
+    });
+    setFileURLs(newURLs);
+  }, [files]);
 
   const getFileExtension = (filename: string): string => {
     return filename.split('.').pop()?.toLowerCase() || '';
@@ -45,13 +59,14 @@ export const FileDisplay = ({
   // For files that were uploaded via events and potentially shared with customers,
   // we need to ensure we use the correct bucket based on the file path pattern
   const getEffectiveBucket = (filePath: string): string => {
-    // Files with b22b pattern are always in event_attachments bucket, regardless of context
-    if (filePath.includes("b22b")) {
+    // Special handling for b22b pattern (UUID format from events)
+    // These files are ALWAYS in event_attachments bucket
+    if (filePath && filePath.includes("b22b")) {
       return "event_attachments";
     }
     
     // Customer attachments in the CRM should use the customer_attachments bucket
-    if (parentType === "customer" && !filePath.includes("b22b")) {
+    if (parentType === "customer" && filePath && !filePath.includes("b22b")) {
       return "customer_attachments";
     }
     
@@ -64,22 +79,12 @@ export const FileDisplay = ({
     return bucketName;
   };
 
-  // Get direct URL that works consistently across both views
-  const getDirectFileUrl = (filePath: string): string => {
-    const normalizedPath = normalizeFilePath(filePath);
-    const effectiveBucket = getEffectiveBucket(filePath);
-    
-    // Create a public URL for the file
-    return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
-  };
-
-  const handleDownload = async (filePath: string, fileName: string) => {
+  const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
     try {
-      console.log(`Attempting to download file from ${filePath}`);
-      console.log(`File name: ${fileName}`);
+      console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
       
-      // First try direct URL download which is most reliable
-      const directUrl = getDirectFileUrl(filePath);
+      // Use cached URL if available
+      const directUrl = fileURLs[fileId] || getDirectFileUrl(filePath);
       console.log('Using direct URL for download:', directUrl);
       
       const a = document.createElement('a');
@@ -103,10 +108,25 @@ export const FileDisplay = ({
     }
   };
 
-  const handleOpenFile = async (filePath: string) => {
+  // Get direct URL that works consistently across both views
+  const getDirectFileUrl = (filePath: string): string => {
+    if (!filePath) return '';
+    
+    const normalizedPath = normalizeFilePath(filePath);
+    const effectiveBucket = getEffectiveBucket(filePath);
+    
+    // Create a public URL for the file
+    return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
+  };
+
+  const handleOpenFile = async (filePath: string, fileId: string) => {
     try {
-      // Get the consistent direct URL for this file
-      const directUrl = getDirectFileUrl(filePath);
+      if (!filePath) {
+        throw new Error('File path is missing');
+      }
+      
+      // Use cached URL if available
+      const directUrl = fileURLs[fileId] || getDirectFileUrl(filePath);
       console.log('Opening file with direct URL:', directUrl);
       window.open(directUrl, '_blank');
     } catch (error) {
@@ -168,6 +188,7 @@ export const FileDisplay = ({
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
       
       toast({
         title: t("common.success"),
@@ -194,9 +215,15 @@ export const FileDisplay = ({
       <h3 className="text-sm font-medium">{t("common.attachments")}</h3>
       <div className="space-y-2">
         {files.map((file) => {
+          // Skip files without a path
+          if (!file.file_path) return null;
+          
           const fileNameDisplay = file.filename && file.filename.length > 20 
             ? file.filename.substring(0, 20) + '...' 
             : file.filename;
+          
+          // Use cached URL if available
+          const imageUrl = fileURLs[file.id] || getDirectFileUrl(file.file_path);
             
           return (
             <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">
@@ -205,7 +232,7 @@ export const FileDisplay = ({
                   {isImage(file.filename) ? (
                     <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                       <img 
-                        src={getDirectFileUrl(file.file_path)}
+                        src={imageUrl}
                         alt={file.filename}
                         className="h-full w-full object-cover"
                         onError={(e) => {
@@ -226,7 +253,7 @@ export const FileDisplay = ({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleDownload(file.file_path, file.filename)}
+                    onClick={() => handleDownload(file.file_path, file.filename, file.id)}
                     title={t("common.download")}
                   >
                     <Download className="h-4 w-4" />
@@ -250,7 +277,7 @@ export const FileDisplay = ({
                 type="button"
                 variant="outline"
                 className="w-full rounded-none border-t flex items-center justify-center gap-2 py-1.5"
-                onClick={() => handleOpenFile(file.file_path)}
+                onClick={() => handleOpenFile(file.file_path, file.id)}
               >
                 <ExternalLink className="h-4 w-4" />
                 {t("crm.open")}

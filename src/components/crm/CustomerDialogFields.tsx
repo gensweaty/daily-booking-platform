@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -111,8 +110,6 @@ export const CustomerDialogFields = ({
     }
   }, [isOpen]);
 
-  // This function will fetch files from both customer_files_new and event_files tables
-  // to ensure we get all files related to this customer
   const { data: fetchedFiles = [], isError, refetch } = useQuery({
     queryKey: ['customerFiles', customerId, title, isEventData],
     queryFn: async () => {
@@ -124,7 +121,6 @@ export const CustomerDialogFields = ({
         let files = [];
         const uniqueFilePaths = new Map();
         
-        // First, get customer's direct files
         if (customerId) {
           const { data: customerFiles, error: customerFilesError } = await supabase
             .from('customer_files_new')
@@ -136,16 +132,18 @@ export const CustomerDialogFields = ({
           } else if (customerFiles) {
             console.log('Found customer files:', customerFiles.length);
             customerFiles.forEach(file => {
-              uniqueFilePaths.set(file.file_path, file);
+              uniqueFilePaths.set(file.file_path, {
+                ...file,
+                source: 'customer'
+              });
             });
           }
         }
         
-        // Next, check if there are any associated events with this customer name
         if (title) {
           const { data: events, error: eventsError } = await supabase
             .from('events')
-            .select('id, title')
+            .select('id, title, start_date, end_date')
             .eq('title', title);
             
           if (eventsError) {
@@ -153,7 +151,6 @@ export const CustomerDialogFields = ({
           } else if (events && events.length > 0) {
             console.log('Found related events:', events.length);
             
-            // Get files from all related events
             for (const event of events) {
               const { data: eventFiles, error: eventFilesError } = await supabase
                 .from('event_files')
@@ -165,7 +162,6 @@ export const CustomerDialogFields = ({
               } else if (eventFiles) {
                 console.log(`Found ${eventFiles.length} files for event ${event.id}`);
                 eventFiles.forEach(file => {
-                  // Add source info to distinguish the file source
                   uniqueFilePaths.set(file.file_path, {
                     ...file,
                     source: 'event'
@@ -176,7 +172,6 @@ export const CustomerDialogFields = ({
           }
         }
         
-        // Convert Map to array
         files = Array.from(uniqueFilePaths.values());
         console.log('Total unique files found:', files.length);
         return files;
@@ -365,7 +360,7 @@ export const CustomerDialogFields = ({
           <Label>{t("crm.attachments")}</Label>
           <FileDisplay 
             files={allFiles} 
-            bucketName="event_attachments" // Always default to event_attachments for shared files
+            bucketName="event_attachments"
             allowDelete
             onFileDeleted={handleFileDeleted}
             parentId={customerId}

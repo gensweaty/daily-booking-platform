@@ -11,7 +11,7 @@ export const getFileUrl = (bucketName: string, filePath: string) => {
   // This ensures consistency between different views
   let effectiveBucket = bucketName;
   
-  if (filePath.includes("b22b")) {
+  if (filePath && filePath.includes("b22b")) {
     effectiveBucket = "event_attachments";
   }
   
@@ -337,8 +337,8 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
   try {
     console.log(`Attempting to download file from ${bucketName}/${filePath}`);
     
-    // Determine the effective bucket (prefer event_attachments for shared files)
-    const effectiveBucket = filePath.includes("b22b") ? "event_attachments" : bucketName;
+    // Determine the effective bucket (always prefer event_attachments for b22b pattern files)
+    const effectiveBucket = filePath && filePath.includes("b22b") ? "event_attachments" : bucketName;
     console.log(`Using effective bucket: ${effectiveBucket}`);
     
     // Just use direct URL for download which is most reliable
@@ -362,7 +362,7 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
 export const openFile = async (bucketName: string, filePath: string) => {
   try {
     // Use the effective bucket for consistency
-    const effectiveBucket = filePath.includes("b22b") ? "event_attachments" : bucketName;
+    const effectiveBucket = filePath && filePath.includes("b22b") ? "event_attachments" : bucketName;
     const directUrl = getFileUrl(effectiveBucket, filePath);
     
     console.log('Opening file with direct URL:', directUrl);
