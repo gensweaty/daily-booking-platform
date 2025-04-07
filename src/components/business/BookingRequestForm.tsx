@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,7 +98,7 @@ export const BookingRequestForm = ({
       setSelectedFile(null);
       setFileError("");
     }
-  }, [open, businessId, startDateTime, endDateTime]);
+  }, [open, businessId, startDateTime, endDateTime, form]);
 
   const paymentStatus = form.watch("payment_status");
 
@@ -184,7 +185,7 @@ export const BookingRequestForm = ({
   };
 
   return (
-    <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
+    <div className="space-y-4">
       <h2 className="text-2xl font-bold mb-4">{t("bookings.requestBooking")}</h2>
       
       <Form {...form}>
