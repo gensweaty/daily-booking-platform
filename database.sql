@@ -39,16 +39,11 @@ CREATE POLICY "Enable delete access for users based on user_id" ON events
     TO authenticated
     USING (auth.uid() = user_id);
 
--- Add foreign key reference for event_files table to booking_requests
+-- First drop the existing constraint if it exists
 ALTER TABLE event_files 
-DROP CONSTRAINT IF EXISTS event_files_event_id_fkey,
-ADD CONSTRAINT event_files_event_id_fkey 
-FOREIGN KEY (event_id) 
-REFERENCES events(id) 
-ON DELETE CASCADE;
+DROP CONSTRAINT IF EXISTS event_files_event_id_fkey;
 
--- Add additional constraint to allow booking_requests IDs
--- First create a function to validate event_id exists in either events or booking_requests
+-- Create a new function to validate event IDs in both events and booking_requests tables
 CREATE OR REPLACE FUNCTION validate_event_id()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -63,6 +58,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger to validate event_id before insert or update
+DROP TRIGGER IF EXISTS validate_event_id_trigger ON event_files;
 CREATE TRIGGER validate_event_id_trigger
 BEFORE INSERT OR UPDATE ON event_files
 FOR EACH ROW EXECUTE FUNCTION validate_event_id();

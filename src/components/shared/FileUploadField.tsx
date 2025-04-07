@@ -45,6 +45,12 @@ export const FileUploadField = ({
       setFileError("");
       onChange(null);
       if (onFileChange) onFileChange(null);
+      
+      // Reset the file input element
+      const fileInput = document.getElementById('file') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
     }
   }, [dialogOpen, resetOnDialogClose, onChange, onFileChange, setFileError]);
 
@@ -91,7 +97,12 @@ export const FileUploadField = ({
         return;
       }
       if (onChange) onChange(selectedFile);
+      if (onFileChange) onFileChange(null);
       if (onFileChange) onFileChange(selectedFile);
+    } else {
+      // If no file is selected (user cancelled the file selection)
+      if (onChange) onChange(null);
+      if (onFileChange) onFileChange(null);
     }
   };
 

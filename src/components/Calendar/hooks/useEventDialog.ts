@@ -254,13 +254,20 @@ export const useEventDialog = ({
         }
       }
 
-      // Delete associated files
-      const { data: files } = await supabase
+      // Delete associated files - first get list of files
+      const { data: files, error: fileQueryError } = await supabase
         .from('event_files')
         .select('*')
         .eq('event_id', selectedEvent.id);
+      
+      if (fileQueryError) {
+        console.error('Error querying event files:', fileQueryError);
+      }
 
       if (files && files.length > 0) {
+        console.log(`Found ${files.length} files to delete for event ${selectedEvent.id}`);
+        
+        // Delete files from storage
         for (const file of files) {
           const { error: storageError } = await supabase.storage
             .from('event_attachments')
@@ -268,9 +275,12 @@ export const useEventDialog = ({
 
           if (storageError) {
             console.error('Error deleting file from storage:', storageError);
+          } else {
+            console.log(`Deleted file ${file.filename} from storage`);
           }
         }
 
+        // Delete file records from database
         const { error: filesDeleteError } = await supabase
           .from('event_files')
           .delete()
@@ -279,6 +289,8 @@ export const useEventDialog = ({
         if (filesDeleteError) {
           console.error('Error deleting file records:', filesDeleteError);
           throw filesDeleteError;
+        } else {
+          console.log(`Deleted ${files.length} file records from database`);
         }
       }
 
@@ -293,8 +305,10 @@ export const useEventDialog = ({
           console.error('Error deleting booking request:', deleteError);
           throw deleteError;
         }
+        console.log(`Deleted booking request with ID ${selectedEvent.id}`);
       } else {
         await deleteEvent(selectedEvent.id);
+        console.log(`Deleted regular event with ID ${selectedEvent.id}`);
       }
       
       setSelectedEvent(null);
