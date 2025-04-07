@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -44,46 +44,54 @@ export const CustomerList = () => {
     start: startOfMonth(currentDate),
     end: endOfMonth(currentDate)
   });
-
+  const [isLoading, setIsLoading] = useState(true);
   const [hoveredField, setHoveredField] = useState<{id: string, field: string} | null>(null);
+
+  const fetchCustomers = useCallback(async () => {
+    if (!user) return [];
+    
+    const { data, error } = await supabase
+      .from('customers')
+      .select(`
+        *,
+        customer_files_new(*)
+      `)
+      .eq('user_id', user.id)
+      .or(`start_date.gte.${dateRange.start.toISOString()},created_at.gte.${dateRange.start.toISOString()}`)
+      .or(`start_date.lte.${endOfDay(dateRange.end).toISOString()},created_at.lte.${endOfDay(dateRange.end).toISOString()}`)
+      .is('deleted_at', null);
+
+    if (error) throw error;
+    return data || [];
+  }, [user, dateRange]);
+
+  const fetchEvents = useCallback(async () => {
+    if (!user) return [];
+    
+    const { data, error } = await supabase
+      .from('events')
+      .select(`
+        *,
+        event_files(*)
+      `)
+      .eq('user_id', user.id)
+      .gte('start_date', dateRange.start.toISOString())
+      .lte('start_date', endOfDay(dateRange.end).toISOString())
+      .is('deleted_at', null);
+
+    if (error) throw error;
+    return data || [];
+  }, [user, dateRange]);
 
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
     queryKey: ['customers', dateRange],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('customers')
-        .select(`
-          *,
-          customer_files_new(*)
-        `)
-        .eq('user_id', user?.id)
-        .or(`start_date.gte.${dateRange.start.toISOString()},created_at.gte.${dateRange.start.toISOString()}`)
-        .or(`start_date.lte.${endOfDay(dateRange.end).toISOString()},created_at.lte.${endOfDay(dateRange.end).toISOString()}`)
-        .is('deleted_at', null);
-
-      if (error) throw error;
-      return data || [];
-    },
+    queryFn: fetchCustomers,
     enabled: !!user,
   });
 
   const { data: events = [], isLoading: isLoadingEvents } = useQuery({
     queryKey: ['events', dateRange],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('events')
-        .select(`
-          *,
-          event_files(*)
-        `)
-        .eq('user_id', user?.id)
-        .gte('start_date', dateRange.start.toISOString())
-        .lte('start_date', endOfDay(dateRange.end).toISOString())
-        .is('deleted_at', null);
-
-      if (error) throw error;
-      return data || [];
-    },
+    queryFn: fetchEvents,
     enabled: !!user,
   });
 
@@ -110,104 +118,25 @@ export const CustomerList = () => {
     return combined;
   }, [customers, events, isLoadingCustomers, isLoadingEvents]);
 
+  useEffect(() => {
+    setIsLoading(isLoadingCustomers || isLoadingEvents);
+  }, [isLoadingCustomers, isLoadingEvents]);
+
+  useEffect(() => {
+    setFilteredData(combinedData);
+  }, [combinedData]);
+
   const paginatedData = React.useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     return filteredData.slice(startIndex, endIndex);
   }, [filteredData, currentPage, pageSize]);
 
-  React.useEffect(() => {
-    setFilteredData(combinedData);
-  }, [combinedData]);
-
-  const handleCreateCustomer = async (customerData: any) => {
-    try {
-      const { data, error } = await supabase
-        .from('customers')
-        .insert([{ ...customerData, user_id: user?.id }])
-        .select()
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (!data) {
-        throw new Error("Failed to create customer - no data returned");
-      }
-
-      await queryClient.invalidateQueries({ queryKey: ['customers'] });
-
-      toast({
-        title: "Success",
-        description: "Customer created successfully",
-      });
-
-      return data;
-    } catch (error: any) {
-      console.error('Error creating customer:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create customer",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-  const handleUpdateCustomer = async (customerData: any) => {
-    if (!selectedCustomer?.id || !user?.id) {
-      toast({
-        title: "Error",
-        description: "Missing customer or user information",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      console.log('Attempting to update customer:', selectedCustomer.id);
-      
-      const { data, error } = await supabase
-        .from('customers')
-        .update(customerData)
-        .eq('id', selectedCustomer.id)
-        .eq('user_id', user.id)
-        .select()
-        .maybeSingle();
-
-      if (error) {
-        console.error('Database error:', error);
-        throw error;
-      }
-
-      if (!data) {
-        console.error('No customer found or no permission to update');
-        throw new Error("Customer not found or you do not have permission to update it");
-      }
-
-      await queryClient.invalidateQueries({ queryKey: ['customers'] });
-
-      toast({
-        title: "Success",
-        description: "Customer updated successfully",
-      });
-
-      return data;
-    } catch (error: any) {
-      console.error('Error updating customer:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update customer",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
   const handleDeleteCustomer = async (customer: any) => {
     if (!user?.id) {
       toast({
-        title: "Error",
-        description: "Missing user information",
+        title: t("common.error"),
+        description: t("common.missingUserInfo"),
         variant: "destructive",
       });
       return;
@@ -237,8 +166,8 @@ export const CustomerList = () => {
       await queryClient.invalidateQueries({ queryKey: ['events'] });
       
       toast({
-        title: "Success",
-        description: "Successfully deleted",
+        title: t("common.success"),
+        description: t("common.deleteSuccess"),
       });
       
       setIsDialogOpen(false);
@@ -246,8 +175,8 @@ export const CustomerList = () => {
     } catch (error: any) {
       console.error('Error deleting:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete",
+        title: t("common.error"),
+        description: error.message || t("common.deleteError"),
         variant: "destructive",
       });
     }
@@ -266,13 +195,13 @@ export const CustomerList = () => {
     try {
       await navigator.clipboard.writeText(text);
       toast({
-        title: "Success",
-        description: "Text copied to clipboard",
+        title: t("common.success"),
+        description: t("common.copiedToClipboard"),
       });
     } catch (err) {
       toast({
-        title: "Error",
-        description: "Failed to copy text",
+        title: t("common.error"),
+        description: t("common.copyError"),
         variant: "destructive",
       });
     }
@@ -410,8 +339,15 @@ export const CustomerList = () => {
     });
   };
 
-  if (isLoadingCustomers || isLoadingEvents) {
-    return <div>Loading...</div>;
+  if (isLoading) {
+    return (
+      <div className="h-full w-full flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="text-lg">{t("common.loading")}</div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -458,7 +394,7 @@ export const CustomerList = () => {
                 <TableHead className="w-[120px]">{t("crm.paymentStatus")}</TableHead>
                 <TableHead className="w-[180px]">{t("crm.dates")}</TableHead>
                 <TableHead className="w-[120px]">{t("crm.comment")}</TableHead>
-                <TableHead className="w-[180px]">{t("crm.attachments")}</TableHead>
+                <TableHead className="w-[180px]">{t("common.attachments")}</TableHead>
                 <TableHead className="w-[100px]">{t("crm.actions")}</TableHead>
               </TableRow>
             </TableHeader>
@@ -585,7 +521,7 @@ export const CustomerList = () => {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-4">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground whitespace-nowrap">Customers per page:</span>
+          <span className="text-sm text-muted-foreground whitespace-nowrap">{t("crm.customersPerPage")}:</span>
           <Select
             value={pageSize.toString()}
             onValueChange={handlePageSizeChange}
@@ -603,7 +539,7 @@ export const CustomerList = () => {
           </Select>
         </div>
         <div className="text-sm text-muted-foreground">
-          {Math.min((currentPage - 1) * pageSize + 1, filteredData.length)}-{Math.min(currentPage * pageSize, filteredData.length)} of {filteredData.length}
+          {Math.min((currentPage - 1) * pageSize + 1, filteredData.length)}-{Math.min(currentPage * pageSize, filteredData.length)} {t("common.of")} {filteredData.length}
         </div>
       </div>
 

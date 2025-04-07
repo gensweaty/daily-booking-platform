@@ -5,6 +5,7 @@ import { FileDisplay } from "../shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useEffect } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TaskFullViewProps {
   task: Task;
@@ -13,6 +14,8 @@ interface TaskFullViewProps {
 }
 
 export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
+  const { t } = useLanguage();
+  
   useEffect(() => {
     console.log("TaskFullView - task received:", task);
   }, [task]);
@@ -45,14 +48,14 @@ export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
         <div className="mt-6 space-y-6">
           <div className="prose dark:prose-invert">
             <div className="p-4 rounded-lg border border-input bg-muted/50">
-              <h3 className="text-sm font-medium mb-2">Description</h3>
+              <h3 className="text-sm font-medium mb-2">{t("common.description")}</h3>
               {task.description ? (
                 <div 
                   className="whitespace-pre-wrap text-foreground/80"
                   dangerouslySetInnerHTML={{ __html: task.description }}
                 />
               ) : (
-                <p className="text-muted-foreground">No description provided</p>
+                <p className="text-muted-foreground">{t("common.noDescription")}</p>
               )}
             </div>
           </div>

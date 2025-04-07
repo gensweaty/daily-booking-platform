@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/lib/supabase";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
@@ -59,52 +60,21 @@ export const FileDisplay = ({
       if (error) {
         console.error('Error downloading file:', error);
         
-        // If direct download fails, try to get a signed URL
-        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-          .from(bucketName)
-          .createSignedUrl(normalizedPath, 60); // 60 seconds expiry
+        // Fall back to direct URL
+        const directUrl = getFileUrl(filePath);
+        console.log('Falling back to direct URL:', directUrl);
         
-        if (signedUrlError) {
-          console.error('Error creating signed URL:', signedUrlError);
-          
-          // Fall back to direct URL
-          const directUrl = getFileUrl(filePath);
-          console.log('Falling back to direct URL:', directUrl);
-          
-          const a = document.createElement('a');
-          a.href = directUrl;
-          a.download = fileName;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          
-          toast({
-            title: t("common.success"),
-            description: t("common.downloadStarted"),
-          });
-          return;
-        }
+        const a = document.createElement('a');
+        a.href = directUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
         
-        if (signedUrlData?.signedUrl) {
-          // Use the signed URL to download the file
-          const a = document.createElement('a');
-          a.href = signedUrlData.signedUrl;
-          a.download = fileName;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          
-          toast({
-            title: t("common.success"),
-            description: t("common.downloadStarted"),
-          });
-        } else {
-          toast({
-            title: t("common.error"),
-            description: t("common.downloadError"),
-            variant: "destructive",
-          });
-        }
+        toast({
+          title: t("common.success"),
+          description: t("common.downloadStarted"),
+        });
         return;
       }
       
@@ -137,7 +107,7 @@ export const FileDisplay = ({
       // Normalize the file path first
       const normalizedPath = normalizeFilePath(filePath);
       
-      // Try direct access first
+      // Use direct URL access
       const directUrl = getFileUrl(filePath);
       console.log('Opening file with direct URL:', directUrl);
       window.open(directUrl, '_blank');
@@ -158,7 +128,7 @@ export const FileDisplay = ({
       // First delete the file from storage
       const { error: storageError } = await supabase.storage
         .from(bucketName)
-        .remove([filePath]);
+        .remove([normalizeFilePath(filePath)]);
 
       if (storageError) {
         console.error('Error deleting file from storage:', storageError);
@@ -196,6 +166,7 @@ export const FileDisplay = ({
       queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       
       toast({
         title: t("common.success"),
@@ -281,7 +252,7 @@ export const FileDisplay = ({
                 onClick={() => handleOpenFile(file.file_path)}
               >
                 <ExternalLink className="h-4 w-4" />
-                Open
+                {t("crm.open")}
               </Button>
             </div>
           );
