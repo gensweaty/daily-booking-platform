@@ -46,7 +46,8 @@ export const Calendar = ({
   const {
     createEvent,
     updateEvent,
-    deleteEvent
+    deleteEvent,
+    events: calendarEvents
   } = useCalendarEvents(businessId, businessUserId);
 
   // Initialize the event dialog hook with the event handlers
@@ -109,6 +110,53 @@ export const Calendar = ({
     }
   };
 
+  // Generate days array based on current view
+  const generateDaysArray = (): Date[] => {
+    const days: Date[] = [];
+    if (view === "day") {
+      days.push(new Date(currentDate));
+    } else if (view === "week") {
+      const start = new Date(currentDate);
+      const day = start.getDay();
+      start.setDate(start.getDate() - day);
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        days.push(d);
+      }
+    } else if (view === "month") {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      
+      // Include days from previous month to fill the first week
+      const firstDayWeekday = firstDay.getDay();
+      for (let i = 0; i < firstDayWeekday; i++) {
+        const d = new Date(firstDay);
+        d.setDate(d.getDate() - (firstDayWeekday - i));
+        days.push(d);
+      }
+      
+      // Add all days of current month
+      for (let i = 1; i <= lastDay.getDate(); i++) {
+        days.push(new Date(year, month, i));
+      }
+      
+      // Add days from next month to fill the last week
+      const lastDayWeekday = lastDay.getDay();
+      for (let i = 1; i < 7 - lastDayWeekday; i++) {
+        const d = new Date(lastDay);
+        d.setDate(d.getDate() + i);
+        days.push(d);
+      }
+    }
+    return days;
+  };
+
+  // Get the events to display
+  const eventsToDisplay = directEvents || calendarEvents || [];
+
   return (
     <div className="flex flex-col h-full">
       <CalendarHeader
@@ -144,55 +192,13 @@ export const Calendar = ({
       />
       <div className="relative h-full">
         <CalendarGrid
-          days={(() => {
-            // Generate days based on current view
-            const days = [];
-            if (view === "day") {
-              days.push(new Date(currentDate));
-            } else if (view === "week") {
-              const start = new Date(currentDate);
-              const day = start.getDay();
-              start.setDate(start.getDate() - day);
-              for (let i = 0; i < 7; i++) {
-                const d = new Date(start);
-                d.setDate(d.getDate() + i);
-                days.push(d);
-              }
-            } else if (view === "month") {
-              const year = currentDate.getFullYear();
-              const month = currentDate.getMonth();
-              const firstDay = new Date(year, month, 1);
-              const lastDay = new Date(year, month + 1, 0);
-              
-              // Include days from previous month to fill the first week
-              const firstDayWeekday = firstDay.getDay();
-              for (let i = 0; i < firstDayWeekday; i++) {
-                const d = new Date(firstDay);
-                d.setDate(d.getDate() - (firstDayWeekday - i));
-                days.push(d);
-              }
-              
-              // Add all days of current month
-              for (let i = 1; i <= lastDay.getDate(); i++) {
-                days.push(new Date(year, month, i));
-              }
-              
-              // Add days from next month to fill the last week
-              const lastDayWeekday = lastDay.getDay();
-              for (let i = 1; i < 7 - lastDayWeekday; i++) {
-                const d = new Date(lastDay);
-                d.setDate(d.getDate() + i);
-                days.push(d);
-              }
-            }
-            return days;
-          })()}
-          events={directEvents || []}
+          days={generateDaysArray()}
+          events={eventsToDisplay}
           formattedSelectedDate={currentDate.toISOString()}
           view={view}
+          onDayClick={handleTimeSlotClick}
           onEventClick={handleEventClick}
           isExternalCalendar={isExternalCalendar}
-          onDayClick={handleTimeSlotClick}
         />
         {!isExternalCalendar && <TimeIndicator 
           view={view} 

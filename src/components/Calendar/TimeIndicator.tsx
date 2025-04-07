@@ -28,7 +28,7 @@ export const TimeIndicator = ({ view, selectedDate }: TimeIndicatorProps) => {
   };
 
   // Only show the time indicator in day and week views, and only if the selectedDate is today
-  if (view === "month" || !isToday(selectedDate)) {
+  if (!selectedDate || view === "month" || !isToday(selectedDate)) {
     return null;
   }
 

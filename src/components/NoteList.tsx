@@ -89,7 +89,10 @@ export const NoteList = () => {
                       {...provided.dragHandleProps}
                     >
                       <NoteCard
-                        note={note}
+                        note={{
+                          ...note,
+                          content: note.content || "" // Ensure content is always defined
+                        }}
                         onEdit={handleEdit}
                         onDelete={() => deleteNoteMutation.mutate(note.id)}
                       />
@@ -104,7 +107,10 @@ export const NoteList = () => {
       </DragDropContext>
 
       <EditNoteDialog
-        note={editingNote}
+        note={editingNote ? {
+          ...editingNote,
+          content: editingNote.content || "" // Ensure content is always defined
+        } : null}
         isOpen={!!editingNote}
         onClose={() => setEditingNote(null)}
         onSave={handleSaveEdit}

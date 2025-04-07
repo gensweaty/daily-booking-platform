@@ -8,7 +8,7 @@ interface CalendarGridProps {
   events: CalendarEventType[];
   formattedSelectedDate: string;
   view: string;
-  onDayClick?: (date: Date, hour?: number) => void;
+  onDayClick?: (date: Date, startTime?: string, endTime?: string) => void;
   onEventClick?: (event: CalendarEventType) => void;
   isExternalCalendar?: boolean;
 }
@@ -22,6 +22,11 @@ export const CalendarGrid = ({
   onEventClick,
   isExternalCalendar = false,
 }: CalendarGridProps) => {
+  // Handle empty or undefined days array
+  if (!days || days.length === 0) {
+    return <div className="p-4 text-center">No dates available to display</div>;
+  }
+
   // Get the start of the week for proper alignment
   const startDate = startOfWeek(days[0]);
   
