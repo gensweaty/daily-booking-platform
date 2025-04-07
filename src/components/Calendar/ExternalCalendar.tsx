@@ -22,8 +22,8 @@ interface ExternalCalendarProps {
 export const ExternalCalendar = ({ businessId, loading: propLoading, events: propEvents, bookings: propBookings }: ExternalCalendarProps) => {
   const [date, setDate] = useState<Date>(new Date());
   const [currentView, setCurrentView] = useState<CalendarViewType>("month");
-  // Fix the type definition here - initialize with the correct boolean type
-  const [isLoading, setIsLoading] = useState<boolean>(propLoading || true);
+  // Correctly initialize as boolean with default value
+  const [isLoading, setIsLoading] = useState<boolean>(propLoading !== undefined ? propLoading : true);
   const [events, setEvents] = useState<CalendarEventType[]>(propEvents || []);
   const [bookings, setBookings] = useState<any[]>(propBookings || []);
   
@@ -32,7 +32,7 @@ export const ExternalCalendar = ({ businessId, loading: propLoading, events: pro
     if (propEvents && propBookings) {
       setEvents(propEvents);
       setBookings(propBookings);
-      setIsLoading(false); // This is now correctly typed
+      setIsLoading(false);
       return;
     }
     
@@ -64,7 +64,7 @@ export const ExternalCalendar = ({ businessId, loading: propLoading, events: pro
       } catch (error) {
         console.error("Error in data fetching:", error);
       } finally {
-        setIsLoading(false); // This is now correctly typed
+        setIsLoading(false);
       }
     };
     

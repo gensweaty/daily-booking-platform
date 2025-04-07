@@ -1,3 +1,4 @@
+
 import { Fragment, useState, useEffect } from "react";
 import { formatDate, format, parse, addDays, startOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addHours, addMinutes, differenceInMinutes, setMinutes, setHours, isAfter, isBefore, isWithinInterval } from "date-fns";
 import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
@@ -6,8 +7,7 @@ import { TimeIndicator } from "./TimeIndicator";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarViewProps {
-  selectedDate?: Date;
-  date: Date; // Added date prop to fix the error
+  date: Date;
   selectedView: CalendarViewType;
   events: CalendarEventType[];
   onSelectEvent: (event: CalendarEventType) => void;
@@ -157,7 +157,7 @@ const DayView = ({
 
   return (
     <div className="relative h-[1000px]">
-      {isCurrentTimeVisible && <TimeIndicator selectedDate={selectedDate} />}
+      {isCurrentTimeVisible && <TimeIndicator currentDate={selectedDate} />}
       {slots.map((slot) => (
         <div
           key={slot.toISOString()}
@@ -250,13 +250,13 @@ const WeekView = ({
 };
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
-  date, // Use the date prop
+  date,
   selectedView,
   events,
   onSelectEvent,
   onSelectDate
 }) => {
-  // Use the date prop instead of selectedDate
+  // Use the date prop as the selected date
   const selectedDate = date;
   const monthStart = startOfMonth(selectedDate);
   const monthEnd = endOfMonth(monthStart);

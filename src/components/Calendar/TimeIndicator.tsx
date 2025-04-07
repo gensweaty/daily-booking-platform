@@ -1,39 +1,31 @@
 
-import { differenceInMinutes } from "date-fns";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { differenceInMinutes, setHours, setMinutes } from "date-fns";
 
 interface TimeIndicatorProps {
-  selectedDate: Date;
+  currentDate: Date;
 }
 
-export const TimeIndicator = ({ selectedDate }: TimeIndicatorProps) => {
+export const TimeIndicator: React.FC<TimeIndicatorProps> = ({ currentDate }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const intervalId = setInterval(() => {
       setCurrentTime(new Date());
     }, 60000); // Update every minute
 
-    return () => clearInterval(interval);
+    return () => clearInterval(intervalId);
   }, []);
 
-  const startOfDay = new Date(
-    selectedDate.getFullYear(),
-    selectedDate.getMonth(),
-    selectedDate.getDate(),
-    0,
-    0,
-    0
-  );
-
-  const position = differenceInMinutes(currentTime, startOfDay);
+  const startOfDay = setHours(setMinutes(currentDate, 0), 0);
+  const currentPosition = differenceInMinutes(currentTime, startOfDay);
 
   return (
     <div
-      className="absolute left-0 w-full h-0.5 bg-red-500 z-10"
-      style={{ top: position }}
+      className="absolute left-0 right-0 border-t-2 border-red-500 z-10"
+      style={{ top: currentPosition }}
     >
-      <div className="absolute -left-1 -top-1.5 h-3 w-3 rounded-full bg-red-500" />
+      <div className="absolute -top-2 -left-2 w-4 h-4 rounded-full bg-red-500" />
     </div>
   );
 };

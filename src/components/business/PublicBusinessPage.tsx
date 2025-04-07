@@ -145,9 +145,6 @@ export const PublicBusinessPage = () => {
           {business.id && (
             <ExternalCalendar 
               businessId={business.id} 
-              loading={false} 
-              events={[]} 
-              bookings={[]} 
             />
           )}
         </div>
