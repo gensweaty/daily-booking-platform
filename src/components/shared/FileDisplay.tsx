@@ -42,33 +42,43 @@ export const FileDisplay = ({
     return <FileIcon className="h-5 w-5" />;
   };
 
-  // Function to get proper direct URL for the file - consistent across buckets
-  const getFileUrl = (filePath: string, bucket: string = bucketName) => {
-    const normalizedPath = normalizeFilePath(filePath);
-    return `${getStorageUrl()}/object/public/${bucket}/${normalizedPath}`;
+  // For files that were uploaded via events and potentially shared with customers,
+  // we need to ensure we use event_attachments bucket for consistency
+  const getEffectiveBucket = (filePath: string): string => {
+    // Always prefer event_attachments for shared files
+    // These will be files that might exist in both buckets due to relationships
+    if (filePath.includes("b22b") || parentType === "event") {
+      return "event_attachments";
+    }
+    return bucketName;
   };
 
-  // This function tries to find the correct bucket for the file by checking multiple sources
-  const findProperBucket = (filePath: string): string => {
-    // First, check for presence in specified bucket
-    return bucketName;
+  // Get direct URL that works consistently across both views
+  const getDirectFileUrl = (filePath: string): string => {
+    const normalizedPath = normalizeFilePath(filePath);
+    const effectiveBucket = getEffectiveBucket(filePath);
+    return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
   };
 
   const handleDownload = async (filePath: string, fileName: string) => {
     try {
-      console.log(`Attempting to download file from ${bucketName}/${filePath}`);
+      console.log(`Attempting to download file from ${filePath}`);
+      
+      // Get the effective bucket for this file
+      const effectiveBucket = getEffectiveBucket(filePath);
+      console.log(`Using bucket: ${effectiveBucket} for download`);
       
       // Try direct download with normalized path
       const normalizedPath = normalizeFilePath(filePath);
       const { data, error } = await supabase.storage
-        .from(bucketName)
+        .from(effectiveBucket)
         .download(normalizedPath);
         
       if (error) {
         console.error('Error downloading file:', error);
         
         // Fall back to direct URL
-        const directUrl = getFileUrl(filePath);
+        const directUrl = getDirectFileUrl(filePath);
         console.log('Falling back to direct URL:', directUrl);
         
         const a = document.createElement('a');
@@ -111,12 +121,8 @@ export const FileDisplay = ({
 
   const handleOpenFile = async (filePath: string) => {
     try {
-      // Always use the event_attachments bucket for consistency when files might be duplicated
-      // across buckets with the same path
-      const targetBucket = filePath.includes("event") ? "event_attachments" : bucketName;
-      
-      // Use direct URL with normalized path from the proper bucket
-      const directUrl = getFileUrl(filePath, targetBucket);
+      // Get the consistent direct URL for this file
+      const directUrl = getDirectFileUrl(filePath);
       console.log('Opening file with direct URL:', directUrl);
       window.open(directUrl, '_blank');
     } catch (error) {
@@ -133,9 +139,12 @@ export const FileDisplay = ({
     try {
       setDeletingFileId(fileId);
       
+      // Use the effective bucket for deletion
+      const effectiveBucket = getEffectiveBucket(filePath);
+      
       // First delete the file from storage
       const { error: storageError } = await supabase.storage
-        .from(bucketName)
+        .from(effectiveBucket)
         .remove([normalizeFilePath(filePath)]);
 
       if (storageError) {
@@ -145,11 +154,11 @@ export const FileDisplay = ({
       
       // Then delete the database record
       let tableName = 'files';
-      if (bucketName === 'event_attachments' || bucketName === 'booking_attachments') {
+      if (effectiveBucket === 'event_attachments' || effectiveBucket === 'booking_attachments') {
         tableName = 'event_files';
-      } else if (bucketName === 'customer_attachments') {
+      } else if (effectiveBucket === 'customer_attachments') {
         tableName = 'customer_files_new';
-      } else if (bucketName === 'note_attachments') {
+      } else if (effectiveBucket === 'note_attachments') {
         tableName = 'note_files';
       }
       
@@ -212,20 +221,12 @@ export const FileDisplay = ({
                   {isImage(file.filename) ? (
                     <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                       <img 
-                        src={getFileUrl(file.file_path, "event_attachments")}
+                        src={getDirectFileUrl(file.file_path)}
                         alt={file.filename}
                         className="h-full w-full object-cover"
                         onError={(e) => {
-                          console.log('Image failed to load from event_attachments, trying customer_attachments');
-                          // If event_attachments fails, try customer_attachments
-                          e.currentTarget.src = getFileUrl(file.file_path, "customer_attachments");
-                          
-                          // Add a second error handler for the fallback
-                          e.currentTarget.onerror = () => {
-                            console.error('Image failed to load from both buckets');
-                            e.currentTarget.src = '/placeholder.svg';
-                            e.currentTarget.onerror = null; // Prevent infinite error loop
-                          };
+                          console.error('Image failed to load', e);
+                          e.currentTarget.src = '/placeholder.svg';
                         }}
                       />
                     </div>

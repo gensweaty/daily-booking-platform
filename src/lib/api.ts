@@ -7,14 +7,11 @@ export const getFileUrl = (bucketName: string, filePath: string) => {
   const baseUrl = import.meta.env.VITE_SUPABASE_URL;
   const normalizedPath = normalizeFilePath(filePath);
   
-  // Try to determine the correct bucket - files with the same path might be in both buckets
-  let targetBucket = bucketName;
-  // If we're unsure, prefer event_attachments for consistency
-  if (filePath.includes("event")) {
-    targetBucket = "event_attachments";
-  }
+  // Always prefer event_attachments for files that might be shared
+  // This ensures consistency between the event popup and CRM views
+  const effectiveBucket = filePath.includes("b22b") ? "event_attachments" : bucketName;
   
-  return `${baseUrl}/storage/v1/object/public/${targetBucket}/${normalizedPath}`;
+  return `${baseUrl}/storage/v1/object/public/${effectiveBucket}/${normalizedPath}`;
 };
 
 export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">) => {
@@ -336,17 +333,20 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
   try {
     console.log(`Attempting to download file from ${bucketName}/${filePath}`);
     
+    // Determine the effective bucket (prefer event_attachments for shared files)
+    const effectiveBucket = filePath.includes("b22b") ? "event_attachments" : bucketName;
+    
     // Try direct download with normalized path
     const normalizedPath = normalizeFilePath(filePath);
     const { data, error } = await supabase.storage
-      .from(bucketName)
+      .from(effectiveBucket)
       .download(normalizedPath);
       
     if (error) {
       console.error('Error downloading file:', error);
       
       // Fall back to direct URL
-      const directUrl = getFileUrl(bucketName, filePath);
+      const directUrl = getFileUrl(effectiveBucket, filePath);
       console.log('Falling back to direct URL:', directUrl);
       
       const a = document.createElement('a');
@@ -378,7 +378,10 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
 
 export const openFile = async (bucketName: string, filePath: string) => {
   try {
-    const directUrl = getFileUrl(bucketName, filePath);
+    // Use the effective bucket for consistency
+    const effectiveBucket = filePath.includes("b22b") ? "event_attachments" : bucketName;
+    const directUrl = getFileUrl(effectiveBucket, filePath);
+    
     console.log('Opening file with direct URL:', directUrl);
     window.open(directUrl, '_blank');
     return { success: true };
