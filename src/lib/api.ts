@@ -1,6 +1,13 @@
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
-import { supabase } from "@/lib/supabase";
+import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
+
+// Helper function to get file URL
+export const getFileUrl = (bucketName: string, filePath: string) => {
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const normalizedPath = normalizeFilePath(filePath);
+  return `${baseUrl}/storage/v1/object/public/${bucketName}/${normalizedPath}`;
+};
 
 export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">) => {
   // Get current user if available
@@ -313,5 +320,62 @@ export const getPublicCalendarEvents = async (businessId: string) => {
   } catch (error) {
     console.error("Exception in getPublicCalendarEvents:", error);
     return { events: [], bookings: [] };
+  }
+};
+
+// File handling functions
+export const downloadFile = async (bucketName: string, filePath: string, fileName: string) => {
+  try {
+    console.log(`Attempting to download file from ${bucketName}/${filePath}`);
+    
+    // Try direct download with normalized path
+    const normalizedPath = normalizeFilePath(filePath);
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .download(normalizedPath);
+      
+    if (error) {
+      console.error('Error downloading file:', error);
+      
+      // Fall back to direct URL
+      const directUrl = getFileUrl(bucketName, filePath);
+      console.log('Falling back to direct URL:', directUrl);
+      
+      const a = document.createElement('a');
+      a.href = directUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      return { success: true, message: 'Download started via direct URL' };
+    }
+    
+    // If direct download succeeds
+    const url = URL.createObjectURL(data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    return { success: true, message: 'Download started' };
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    return { success: false, message: 'Failed to download file' };
+  }
+};
+
+export const openFile = async (bucketName: string, filePath: string) => {
+  try {
+    const directUrl = getFileUrl(bucketName, filePath);
+    console.log('Opening file with direct URL:', directUrl);
+    window.open(directUrl, '_blank');
+    return { success: true };
+  } catch (error) {
+    console.error('Error opening file:', error);
+    return { success: false, message: 'Failed to open file' };
   }
 };

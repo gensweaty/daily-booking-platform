@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useMemo, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/components/ui/use-toast";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -70,6 +72,7 @@ export const CustomerDialogFields = ({
   isOpen,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
+  const { toast } = useToast();
 
   useEffect(() => {
     const formData = {
@@ -108,7 +111,7 @@ export const CustomerDialogFields = ({
     }
   }, [isOpen]);
 
-  const { data: fetchedFiles = [], isError } = useQuery({
+  const { data: fetchedFiles = [], isError, refetch } = useQuery({
     queryKey: ['customerFiles', customerId, isEventData],
     queryFn: async () => {
       if (!customerId) return [];
@@ -167,6 +170,14 @@ export const CustomerDialogFields = ({
     refetchOnWindowFocus: true,
     retry: 1
   });
+
+  const handleFileDeleted = () => {
+    refetch();
+    toast({
+      title: t("common.success"),
+      description: t("common.fileDeleted"),
+    });
+  };
 
   useEffect(() => {
     if (customerId && !isEventData) {
@@ -335,6 +346,9 @@ export const CustomerDialogFields = ({
             files={allFiles} 
             bucketName="customer_attachments"
             allowDelete
+            onFileDeleted={handleFileDeleted}
+            parentId={customerId}
+            parentType={isEventData ? "event" : "customer"}
           />
         </div>
       )}

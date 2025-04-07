@@ -6,6 +6,8 @@ import { supabase } from "@/lib/supabase";
 import { Task } from "@/lib/types";
 import { TaskFormTitle } from "./TaskFormTitle";
 import { TaskFormDescription } from "./TaskFormDescription";
+import { useToast } from "@/components/ui/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TaskFormFieldsProps {
   title: string;
@@ -30,7 +32,10 @@ export const TaskFormFields = ({
   setFileError,
   editingTask,
 }: TaskFormFieldsProps) => {
-  const { data: existingFiles = [] } = useQuery({
+  const { toast } = useToast();
+  const { t } = useLanguage();
+  
+  const { data: existingFiles = [], refetch } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
     queryFn: async () => {
       if (!editingTask?.id) return [];
@@ -49,6 +54,14 @@ export const TaskFormFields = ({
   console.log("TaskFormFields - Editing task:", editingTask);
   console.log("TaskFormFields - Existing files:", existingFiles);
 
+  const handleFileDeleted = () => {
+    refetch();
+    toast({
+      title: t("common.success"),
+      description: t("common.fileDeleted"),
+    });
+  };
+
   return (
     <div className="space-y-4">
       <TaskFormTitle title={title} setTitle={setTitle} />
@@ -60,6 +73,9 @@ export const TaskFormFields = ({
             files={existingFiles} 
             bucketName="task_attachments"
             allowDelete
+            onFileDeleted={handleFileDeleted}
+            parentId={editingTask.id}
+            parentType="task"
           />
         </div>
       )}

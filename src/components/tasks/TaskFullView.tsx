@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/components/ui/use-toast";
 
 interface TaskFullViewProps {
   task: Task;
@@ -15,6 +16,7 @@ interface TaskFullViewProps {
 
 export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
   const { t } = useLanguage();
+  const { toast } = useToast();
   
   useEffect(() => {
     console.log("TaskFullView - task received:", task);
@@ -37,6 +39,10 @@ export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
 
   const handleFileDeleted = () => {
     refetch();
+    toast({
+      title: t("common.success"),
+      description: t("common.fileDeleted"),
+    });
   };
 
   return (
@@ -66,6 +72,8 @@ export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
                 bucketName="task_attachments" 
                 allowDelete 
                 onFileDeleted={handleFileDeleted}
+                parentId={task.id}
+                parentType="task"
               />
             </div>
           )}
