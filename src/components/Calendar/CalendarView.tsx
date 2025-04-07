@@ -1,4 +1,3 @@
-
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { CalendarGrid } from "./CalendarGrid";
@@ -26,27 +25,12 @@ export function CalendarView({
 }: CalendarViewProps) {
   const { t } = useLanguage();
   
-  // Enhanced debug logging for events in CalendarView
+  // Add debug log for events in CalendarView
   useEffect(() => {
     if (isExternalCalendar) {
       console.log(`[CalendarView] Rendering external calendar with ${events.length} events`);
       if (events.length > 0) {
         console.log("[CalendarView] First event sample:", events[0]);
-        console.log("[CalendarView] Events with descriptions:", events.filter(e => e.description || e.event_notes).length);
-        console.log("[CalendarView] Events with booking_request_id:", events.filter(e => e.booking_request_id).length);
-        
-        // Log events grouped by day for easier debugging
-        const eventsByDay = events.reduce((acc, event) => {
-          const day = new Date(event.start_date).toDateString();
-          if (!acc[day]) acc[day] = [];
-          acc[day].push(event);
-          return acc;
-        }, {} as Record<string, CalendarEventType[]>);
-        
-        console.log("[CalendarView] Events by day:", Object.keys(eventsByDay).map(day => ({
-          day,
-          count: eventsByDay[day].length
-        })));
       }
     }
   }, [events, isExternalCalendar]);

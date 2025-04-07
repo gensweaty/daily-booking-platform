@@ -32,7 +32,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
   const [createEvent, setCreateEvent] = useState(false);
   const [isEventData, setIsEventData] = useState(false);
   const [associatedEventId, setAssociatedEventId] = useState<string | null>(null);
-  const [customerFiles, setCustomerFiles] = useState<any[]>([]);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -83,29 +82,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         setPaymentAmount(customerData.payment_amount?.toString() || "");
         setCreateEvent(!!customerData.start_date && !!customerData.end_date);
 
-        // Fetch customer files with improved logging
-        console.log('Fetching files for customer ID:', customerId);
-        const { data: filesData, error: filesError } = await supabase
-          .from('customer_files_new')
-          .select('*')
-          .eq('customer_id', customerId);
-          
-        if (filesError) {
-          console.error('Error fetching customer files:', filesError);
-        } else {
-          console.log('Fetched customer files:', filesData);
-          
-          // Transform the data to match the format expected by FileDisplay
-          const transformedFiles = filesData?.map(file => ({
-            id: file.file_path,
-            filename: file.filename,
-            content_type: file.content_type,
-            source: 'customer_attachments'
-          })) || [];
-          
-          setCustomerFiles(transformedFiles);
-        }
-
         // If customer has dates, try to find associated event
         if (customerData.start_date && customerData.end_date) {
           const { data: existingEvent, error: eventError } = await supabase
@@ -142,64 +118,32 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     if (isOpen && customerId) {
       fetchCustomer();
     }
-  }, [customerId, isOpen, user, toast, onClose]);
+  }, [customerId, isOpen, user]); // Removed title from dependencies
 
   const checkTimeSlotAvailability = async (startDate: string, endDate: string, excludeEventId?: string): Promise<boolean> => {
     const start = new Date(startDate);
     const end = new Date(endDate);
     
-    console.log("Checking time slot availability:", { 
-      startDate, 
-      endDate, 
-      excludeEventId,
-      start: start.toISOString(),
-      end: end.toISOString()
-    });
-    
-    // Build the query with explicit exclusion of the current event
-    let query = supabase
+    const { data: existingEvents, error } = await supabase
       .from('events')
       .select('*')
-      .filter('deleted_at', 'is', null)
-      .or(`start_date.lt.${end.toISOString()},end_date.gt.${start.toISOString()}`);
-    
-    // If we're updating an existing event, exclude it from the conflict check
-    if (excludeEventId) {
-      query = query.neq('id', excludeEventId);
-    }
-    
-    // Execute the query
-    const { data: existingEvents, error } = await query;
+      .or(`start_date.lte.${end.toISOString()},end_date.gte.${start.toISOString()}`);
 
     if (error) {
       console.error('Error checking time slot availability:', error);
       return false;
     }
 
-    console.log(`Found ${existingEvents?.length || 0} potential conflicts`);
-    
-    if (!existingEvents || existingEvents.length === 0) return true;
+    if (!existingEvents) return true;
 
-    // Check each event for actual overlap
-    const conflicts = existingEvents.filter(event => {
+    return !existingEvents.some(event => {
+      if (excludeEventId && event.id === excludeEventId) return false;
+      
       const eventStart = parseISO(event.start_date);
       const eventEnd = parseISO(event.end_date);
       
-      const hasOverlap = start < eventEnd && end > eventStart;
-      
-      if (hasOverlap) {
-        console.log("Conflict detected with event:", {
-          id: event.id,
-          title: event.title,
-          start: event.start_date,
-          end: event.end_date
-        });
-      }
-      
-      return hasOverlap;
+      return (start < eventEnd && end > eventStart);
     });
-    
-    return conflicts.length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -251,8 +195,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         end_date: formattedEndDate,
       };
 
-      let customerId_local = customerId;
-
       if (customerId) {
         // Update customer
         const { error: customerError } = await supabase
@@ -290,18 +232,11 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         }
       } else {
         // Create new customer
-        const { data: newCustomer, error: customerError } = await supabase
+        const { error: customerError } = await supabase
           .from('customers')
-          .insert([customerData])
-          .select()
-          .single();
+          .insert([customerData]);
 
         if (customerError) throw customerError;
-
-        // Set customerId for file upload
-        if (newCustomer) {
-          customerId_local = newCustomer.id;
-        }
 
         // Create new event if needed
         if (createEvent) {
@@ -320,28 +255,16 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         }
       }
 
-      // Handle file upload if a file is selected - improved with better error handling
-      if (selectedFile && customerId_local) {
+      // Handle file upload if a file is selected
+      if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
-        console.log('Uploading file to storage:', {
-          bucket: 'customer_attachments',
-          path: filePath,
-          fileName: selectedFile.name,
-          size: selectedFile.size
-        });
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('customer_attachments')
           .upload(filePath, selectedFile);
 
-        if (uploadError) {
-          console.error('Error uploading file to storage:', uploadError);
-          throw uploadError;
-        }
-        
-        console.log('File uploaded successfully:', uploadData);
+        if (uploadError) throw uploadError;
 
         const fileData = {
           filename: selectedFile.name,
@@ -349,21 +272,14 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           content_type: selectedFile.type,
           size: selectedFile.size,
           user_id: user.id,
-          customer_id: customerId_local
+          customer_id: customerId
         };
 
-        console.log('Creating file record in database:', fileData);
-        
         const { error: fileError } = await supabase
           .from('customer_files_new')
           .insert([fileData]);
 
-        if (fileError) {
-          console.error('Error creating file record:', fileError);
-          throw fileError;
-        }
-        
-        console.log('File record created successfully');
+        if (fileError) throw fileError;
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
@@ -384,52 +300,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleFileDeleted = async (fileId: string) => {
-    try {
-      console.log('Deleting file:', fileId);
-      
-      // Delete the file record from the database first
-      const { error: dbError } = await supabase
-        .from('customer_files_new')
-        .delete()
-        .eq('file_path', fileId);
-
-      if (dbError) {
-        console.error('Error deleting file record:', dbError, fileId);
-        throw dbError;
-      }
-      
-      console.log('File record deleted from database');
-      
-      // Delete the file from storage next
-      const { data: deleteData, error: storageError } = await supabase.storage
-        .from('customer_attachments')
-        .remove([fileId]);
-
-      if (storageError) {
-        console.error('Error deleting file from storage:', storageError, fileId);
-        throw storageError;
-      }
-      
-      console.log('File deleted from storage:', deleteData);
-
-      // Update the local state
-      setCustomerFiles(prev => prev.filter(file => file.id !== fileId));
-
-      toast({
-        title: "Success",
-        description: "File deleted successfully",
-      });
-    } catch (error: any) {
-      console.error('Error deleting file:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete file",
-        variant: "destructive",
-      });
     }
   };
 
@@ -455,7 +325,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     setCreateEvent(false);
     setIsEventData(false);
     setAssociatedEventId(null);
-    setCustomerFiles([]);
   };
 
   return (
@@ -496,8 +365,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
             setCreateEvent={setCreateEvent}
             isEventData={isEventData}
             isOpen={isOpen}
-            customerFiles={customerFiles}
-            onFileDeleted={handleFileDeleted}
           />
 
           <div className="flex justify-end gap-2 mt-4">

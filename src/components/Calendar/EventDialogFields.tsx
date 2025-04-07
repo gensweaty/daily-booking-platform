@@ -1,52 +1,48 @@
-import { useEffect } from "react";
+
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileUploadField } from "@/components/shared/FileUploadField";
+import { FileDisplay } from "@/components/shared/FileDisplay";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { FileDisplay } from "../shared/FileDisplay";
-import { FileUploadField } from "../shared/FileUploadField";
+import { useEffect } from "react";
+import { format } from "date-fns";
 
-// Define field props for easier testing and integration
-export interface EventDialogFieldsProps {
+interface EventDialogFieldsProps {
+  title: string;
+  setTitle: (value: string) => void;
   userSurname: string;
-  setUserSurname: (surname: string) => void;
+  setUserSurname: (value: string) => void;
   userNumber: string;
-  setUserNumber: (number: string) => void;
+  setUserNumber: (value: string) => void;
   socialNetworkLink: string;
-  setSocialNetworkLink: (link: string) => void;
+  setSocialNetworkLink: (value: string) => void;
   eventNotes: string;
-  setEventNotes: (notes: string) => void;
+  setEventNotes: (value: string) => void;
   startDate: string;
-  setStartDate: (date: string) => void;
+  setStartDate: (value: string) => void;
   endDate: string;
-  setEndDate: (date: string) => void;
+  setEndDate: (value: string) => void;
   paymentStatus: string;
-  setPaymentStatus: (status: string) => void;
+  setPaymentStatus: (value: string) => void;
   paymentAmount: string;
-  setPaymentAmount: (amount: string) => void;
+  setPaymentAmount: (value: string) => void;
   selectedFile: File | null;
   setSelectedFile: (file: File | null) => void;
   fileError: string;
   setFileError: (error: string) => void;
-  isBookingRequest?: boolean;
   eventId?: string;
   onFileDeleted?: (fileId: string) => void;
-  displayedFiles?: Array<{
-    id: string;
-    filename: string;
-    content_type?: string;
-  }>;
+  displayedFiles?: any[];
+  isBookingRequest?: boolean;
 }
 
 export const EventDialogFields = ({
+  title,
+  setTitle,
   userSurname,
   setUserSurname,
   userNumber,
@@ -70,178 +66,290 @@ export const EventDialogFields = ({
   eventId,
   onFileDeleted,
   displayedFiles = [],
-  isBookingRequest = true,
+  isBookingRequest = false,
 }: EventDialogFieldsProps) => {
   const { t, language } = useLanguage();
 
-  console.log("EventDialogFields - displayedFiles:", displayedFiles);
+  const formattedMinDate = format(new Date(), "yyyy-MM-dd'T'HH:mm");
 
-  // Reset payment amount when payment status changes to "not_paid"
+  // If it's a booking request, we only show date and time fields
+  if (isBookingRequest) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="start-date">Start Date & Time</Label>
+            <Input
+              id="start-date"
+              type="datetime-local"
+              min={formattedMinDate}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="end-date">End Date & Time</Label>
+            <Input
+              id="end-date"
+              type="datetime-local"
+              min={startDate || formattedMinDate}
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              required
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
-    if (paymentStatus === "not_paid") {
-      setPaymentAmount("");
+    // Set default times if no startDate or endDate is provided
+    if (!startDate || !endDate) {
+      const now = new Date();
+      now.setHours(9, 0, 0, 0);
+      const end = new Date(now);
+      end.setHours(10, 0, 0, 0);
+      
+      setStartDate(format(now, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     }
-  }, [paymentStatus, setPaymentAmount]);
+  }, []);
 
-  // Function to handle formatted date inputs
-  const formatDateForInput = (dateString: string): string => {
-    if (!dateString) return "";
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString;
-      return date.toISOString().slice(0, 16);
-    } catch (error) {
-      return dateString;
+  useEffect(() => {
+    const formData = {
+      title,
+      userSurname,
+      userNumber,
+      socialNetworkLink,
+      eventNotes,
+      startDate,
+      endDate,
+      paymentStatus,
+      paymentAmount,
+    };
+    sessionStorage.setItem('eventFormData', JSON.stringify(formData));
+  }, [title, userSurname, userNumber, socialNetworkLink, eventNotes, startDate, endDate, paymentStatus, paymentAmount]);
+
+  useEffect(() => {
+    const savedFormData = sessionStorage.getItem('eventFormData');
+    if (savedFormData && !title) {
+      const parsedData = JSON.parse(savedFormData);
+      setTitle(parsedData.title || '');
+      setUserSurname(parsedData.userSurname || '');
+      setUserNumber(parsedData.userNumber || '');
+      setSocialNetworkLink(parsedData.socialNetworkLink || '');
+      setEventNotes(parsedData.eventNotes || '');
+      if (parsedData.startDate) setStartDate(parsedData.startDate);
+      if (parsedData.endDate) setEndDate(parsedData.endDate);
+      setPaymentStatus(parsedData.paymentStatus || '');
+      setPaymentAmount(parsedData.paymentAmount || '');
     }
-  };
+  }, []);
 
-  // Labels based on whether this is a booking request or internal event
-  const customerLabel = isBookingRequest ? "Your Name" : "Customer Name";
-  const phoneLabel = isBookingRequest ? "Your Phone" : "Customer Phone";
-  const emailLabel = isBookingRequest ? "Your Email" : "Contact Info";
+  useEffect(() => {
+    if (!eventId) {
+      sessionStorage.removeItem('eventFormData');
+    }
+  }, [eventId]);
+
+  const { data: allFiles = [] } = useQuery({
+    queryKey: ['eventFiles', eventId, title],
+    queryFn: async () => {
+      if (!eventId && !title) return [];
+      
+      try {
+        const uniqueFiles = new Map();
+        console.log('Starting file fetch for eventId:', eventId, 'and title:', title);
+
+        if (eventId) {
+          const { data: eventFiles, error: eventFilesError } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', eventId);
+          
+          if (eventFilesError) throw eventFilesError;
+
+          console.log('Found event files:', eventFiles?.length || 0);
+          eventFiles?.forEach(file => {
+            const uniqueKey = `${file.file_path}_event`;
+            uniqueFiles.set(uniqueKey, {
+              ...file,
+              source: 'event'
+            });
+          });
+        }
+
+        if (title) {
+          const { data: customer, error: customerError } = await supabase
+            .from('customers')
+            .select(`
+              id,
+              customer_files_new (*)
+            `)
+            .eq('title', title)
+            .maybeSingle();
+
+          if (!customerError && customer?.customer_files_new) {
+            console.log('Found customer files:', customer.customer_files_new.length);
+            customer.customer_files_new.forEach(file => {
+              const uniqueKey = `${file.file_path}_customer`;
+              const eventFileKey = `${file.file_path}_event`;
+              if (!uniqueFiles.has(eventFileKey)) {
+                uniqueFiles.set(uniqueKey, {
+                  ...file,
+                  source: 'customer'
+                });
+              }
+            });
+          }
+        }
+
+        const files = Array.from(uniqueFiles.values());
+        console.log('Final unique files count:', files.length);
+        return files;
+      } catch (error) {
+        console.error('Error in file fetching:', error);
+        return [];
+      }
+    },
+    enabled: !!(eventId || title),
+  });
 
   return (
     <div className="space-y-4">
-      {/* Customer Name - This is now the primary identifier */}
       <div className="space-y-2">
-        <Label htmlFor="userSurname">{customerLabel}</Label>
+        <Label htmlFor="title">{t("events.fullNameRequired")}</Label>
         <Input
-          id="userSurname"
-          value={userSurname}
-          onChange={(e) => setUserSurname(e.target.value)}
-          placeholder="Enter name"
+          id="title"
+          placeholder={t("events.fullName")}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
           required
         />
       </div>
 
-      {/* Phone Number */}
       <div className="space-y-2">
-        <Label htmlFor="userNumber">{phoneLabel}</Label>
+        <Label htmlFor="number">{t("events.phoneNumber")}</Label>
         <Input
-          id="userNumber"
+          id="number"
+          type="tel"
+          placeholder={t("events.phoneNumber")}
           value={userNumber}
           onChange={(e) => setUserNumber(e.target.value)}
-          placeholder="Enter phone number"
         />
       </div>
 
-      {/* Social Network / Contact Info */}
       <div className="space-y-2">
-        <Label htmlFor="socialNetworkLink">{emailLabel}</Label>
+        <Label htmlFor="socialNetwork">{t("events.socialLinkEmail")}</Label>
         <Input
-          id="socialNetworkLink"
+          id="socialNetwork"
+          type="text"
+          placeholder={t("events.socialLinkEmail")}
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
-          placeholder={isBookingRequest ? "Enter your email" : "Enter contact info"}
-          required={isBookingRequest}
         />
       </div>
 
-      {/* Date and Time */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="startDate">Start Date & Time</Label>
-          <Input
-            id="startDate"
-            type="datetime-local"
-            value={formatDateForInput(startDate)}
-            onChange={(e) => setStartDate(e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="endDate">End Date & Time</Label>
-          <Input
-            id="endDate"
-            type="datetime-local"
-            value={formatDateForInput(endDate)}
-            onChange={(e) => setEndDate(e.target.value)}
-            required
-          />
-        </div>
-      </div>
-
-      {/* Payment Status and Amount */}
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="paymentStatus">Payment Status</Label>
-          <Select
-            value={paymentStatus}
-            onValueChange={setPaymentStatus}
-          >
-            <SelectTrigger id="paymentStatus">
-              <SelectValue placeholder="Select payment status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="not_paid">Not Paid</SelectItem>
-              <SelectItem value="partly">Partly Paid</SelectItem>
-              <SelectItem value="fully">Fully Paid</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {paymentStatus !== "not_paid" && (
-          <div className="space-y-2">
-            <Label htmlFor="paymentAmount">Payment Amount</Label>
+      <div className="space-y-2">
+        <Label>{t("events.dateAndTime")}</Label>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="startDate" className="text-sm text-muted-foreground mb-1">
+              {t("events.startDateTime")}
+            </Label>
             <Input
-              id="paymentAmount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-              placeholder="Enter payment amount"
-              required={paymentStatus !== "not_paid"}
+              id="startDate"
+              type="datetime-local"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+              className="bg-background border-input"
             />
           </div>
-        )}
+          <div>
+            <Label htmlFor="endDate" className="text-sm text-muted-foreground mb-1">
+              {t("events.endDateTime")}
+            </Label>
+            <Input
+              id="endDate"
+              type="datetime-local"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              required
+              className="bg-background border-input"
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Event Notes */}
       <div className="space-y-2">
-        <Label htmlFor="eventNotes">Notes</Label>
-        <Textarea
-          id="eventNotes"
-          value={eventNotes}
-          onChange={(e) => setEventNotes(e.target.value)}
-          placeholder="Additional notes"
-          rows={3}
-        />
+        <Label>{t("events.paymentStatus")}</Label>
+        <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+          <SelectTrigger className="w-full bg-background border-input">
+            <SelectValue placeholder={t("events.selectPaymentStatus")} />
+          </SelectTrigger>
+          <SelectContent className="bg-background border-input shadow-md">
+            <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">
+              {t("crm.notPaid")}
+            </SelectItem>
+            <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">
+              {t("crm.paidPartly")}
+            </SelectItem>
+            <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">
+              {t("crm.paidFully")}
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Existing Files */}
-      {displayedFiles.length > 0 && (
-        <Card className="p-4">
-          <FileDisplay
-            files={displayedFiles}
-            bucketName="event_attachments"
-            allowDelete={!!onFileDeleted}
-            onFileDeleted={onFileDeleted}
+      {paymentStatus && paymentStatus !== 'not_paid' && (
+        <div className="space-y-2">
+          <Label htmlFor="amount">
+            {t("events.paymentAmount")} ({language === 'es' ? '€' : '$'})
+          </Label>
+          <Input
+            id="amount"
+            type="number"
+            step="0.01"
+            placeholder={`${t("events.paymentAmount")} ${language === 'es' ? '(€)' : '($)'}`}
+            value={paymentAmount}
+            onChange={(e) => setPaymentAmount(e.target.value)}
+            required
+            className="bg-background border-input"
           />
-        </Card>
+        </div>
       )}
 
-      {/* File Upload - simplified */}
       <div className="space-y-2">
-        <input
-          type="file"
-          id="file"
-          className="block w-full text-sm text-slate-500
-            file:mr-4 file:py-2 file:px-4
-            file:rounded-md file:border-0
-            file:text-sm file:font-semibold
-            file:bg-primary file:text-primary-foreground
-            hover:file:bg-primary/90
-            cursor-pointer"
-          onChange={(e) => {
-            if (e.target.files && e.target.files[0]) {
-              setSelectedFile(e.target.files[0]);
-              setFileError("");
-            }
-          }}
+        <Label htmlFor="notes">{t("events.eventNotes")}</Label>
+        <Textarea
+          id="notes"
+          placeholder={t("events.addEventNotes")}
+          value={eventNotes}
+          onChange={(e) => setEventNotes(e.target.value)}
+          className="bg-background border-input"
         />
-        {fileError && <p className="text-sm text-destructive">{fileError}</p>}
       </div>
+
+      {(eventId || title) && ((allFiles && allFiles.length > 0) || (displayedFiles && displayedFiles.length > 0)) && (
+        <div className="space-y-2">
+          <FileDisplay 
+            files={displayedFiles?.length > 0 ? displayedFiles : allFiles} 
+            bucketName="event_attachments"
+            allowDelete
+            onFileDeleted={onFileDeleted}
+          />
+        </div>
+      )}
+
+      <FileUploadField 
+        onChange={setSelectedFile}
+        fileError={fileError}
+        setFileError={setFileError}
+        hideLabel={true}
+      />
     </div>
   );
 };

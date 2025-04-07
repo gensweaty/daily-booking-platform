@@ -2,108 +2,260 @@
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
+import { parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
-import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 
-export interface UseEventDialogProps {
-  createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  deleteEvent?: (id: string) => Promise<void>;
+interface UseEventDialogProps {
+  createEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
+  updateEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
+  deleteEvent: (id: string) => Promise<void>;
 }
 
-export interface UseEventDialogReturn {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  selectedDate: Date | undefined;
-  setSelectedDate: React.Dispatch<React.SetStateAction<Date | undefined>>;
-  event: CalendarEventType | undefined;
-  setEvent: React.Dispatch<React.SetStateAction<CalendarEventType | undefined>>;
-  handleCreateEvent: (eventData: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  handleUpdateEvent: (eventData: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  handleDeleteEvent: (eventId: string) => Promise<void>;
-  checkTimeSlotAvailability: (startDateTime: string, endDateTime: string, eventId?: string) => Promise<{ available: boolean; conflictingEvent?: any }>;
-  // Add the missing properties that Calendar.tsx is expecting
-  selectedEvent: CalendarEventType | null;
-  setSelectedEvent: React.Dispatch<React.SetStateAction<CalendarEventType | null>>;
-  isNewEventDialogOpen: boolean;
-  setIsNewEventDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-export const useEventDialog = (props?: UseEventDialogProps): UseEventDialogReturn => {
-  const [open, setOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [event, setEvent] = useState<CalendarEventType | undefined>(undefined);
-  const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
+export const useEventDialog = ({
+  createEvent,
+  updateEvent,
+  deleteEvent,
+}: UseEventDialogProps) => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
-
-  const { handleSubmitEvent, checkTimeSlotAvailability } = useCalendarEvents();
+  const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const { toast } = useToast();
 
-  const onOpenChange = (open: boolean) => {
-    setOpen(open);
+  useEffect(() => {
+    if (selectedEvent) {
+      setSelectedDate(new Date(selectedEvent.start_date));
+    }
+  }, [selectedEvent]);
+
+  useEffect(() => {
+    console.log('useEventDialog - selectedDate changed:', selectedDate);
+  }, [selectedDate]);
+
+  useEffect(() => {
+    console.log('useEventDialog - dialog open state changed:', isNewEventDialogOpen);
+    console.log('useEventDialog - current selectedDate:', selectedDate);
+  }, [isNewEventDialogOpen]);
+
+  const checkTimeSlotAvailability = async (
+    startDate: Date,
+    endDate: Date,
+    existingEventId?: string
+  ): Promise<{ available: boolean; conflictingEvent?: CalendarEventType }> => {
+    try {
+      // First check regular events
+      const { data: conflictingEvents, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .filter('start_date', 'lt', endDate.toISOString())
+        .filter('end_date', 'gt', startDate.toISOString());
+        
+      if (eventsError) throw eventsError;
+      
+      const eventConflict = conflictingEvents?.find(event => 
+        (!existingEventId || event.id !== existingEventId) &&
+        !(startDate.getTime() === new Date(event.end_date).getTime() || 
+          endDate.getTime() === new Date(event.start_date).getTime())
+      );
+      
+      if (eventConflict) {
+        return { available: false, conflictingEvent: eventConflict };
+      }
+      
+      // Then check approved booking requests
+      const { data: conflictingBookings, error: bookingsError } = await supabase
+        .from('booking_requests')
+        .select('*')
+        .eq('status', 'approved')
+        .filter('start_date', 'lt', endDate.toISOString())
+        .filter('end_date', 'gt', startDate.toISOString());
+        
+      if (bookingsError) throw bookingsError;
+      
+      const bookingConflict = conflictingBookings?.find(booking => 
+        !(startDate.getTime() === new Date(booking.end_date).getTime() || 
+          endDate.getTime() === new Date(booking.start_date).getTime())
+      );
+      
+      if (bookingConflict) {
+        // Convert booking to event format for the response
+        const conflictEvent: CalendarEventType = {
+          id: bookingConflict.id,
+          title: bookingConflict.title,
+          start_date: bookingConflict.start_date,
+          end_date: bookingConflict.end_date,
+          created_at: bookingConflict.created_at || new Date().toISOString(),
+          user_id: bookingConflict.user_id || '',
+          type: 'booking_request'
+        };
+        
+        return { available: false, conflictingEvent: conflictEvent };
+      }
+
+      return { available: true };
+    } catch (error) {
+      console.error("Error checking time slot availability:", error);
+      throw error;
+    }
   };
 
-  const handleCreateEvent = async (eventData: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+  const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
-      // Use the provided createEvent function or fall back to handleSubmitEvent
-      const submitFn = props?.createEvent || handleSubmitEvent;
-      const result = await submitFn(eventData);
+      console.log('handleCreateEvent - Received data:', data);
       
+      const startDate = new Date(data.start_date as string);
+      const endDate = new Date(data.end_date as string);
+
+      console.log('handleCreateEvent - Parsed dates:', {
+        start: startDate,
+        end: endDate
+      });
+
+      const { available, conflictingEvent } = await checkTimeSlotAvailability(
+        startDate,
+        endDate
+      );
+
+      if (!available && conflictingEvent) {
+        toast({
+          title: "Time Slot Unavailable",
+          description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
+          variant: "destructive",
+        });
+        throw new Error("Time slot conflict");
+      }
+
+      const result = await createEvent(data);
+      setIsNewEventDialogOpen(false);
       toast({
         title: "Success",
         description: "Event created successfully",
       });
-      setOpen(false);
       return result;
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create event",
-        variant: "destructive",
-      });
+      console.error('handleCreateEvent - Error:', error);
+      if (error.message !== "Time slot conflict") {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
       throw error;
     }
   };
 
-  const handleUpdateEvent = async (eventData: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+  const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
+    if (!selectedEvent) return;
+    
     try {
-      // Use the provided updateEvent function or fall back to handleSubmitEvent
-      const submitFn = props?.updateEvent || handleSubmitEvent;
-      const result = await submitFn(eventData);
-      
+      const startDate = new Date(data.start_date as string);
+      const endDate = new Date(data.end_date as string);
+
+      const { available, conflictingEvent } = await checkTimeSlotAvailability(
+        startDate,
+        endDate,
+        selectedEvent.id
+      );
+
+      if (!available && conflictingEvent) {
+        toast({
+          title: "Time Slot Unavailable",
+          description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
+          variant: "destructive",
+        });
+        throw new Error("Time slot conflict");
+      }
+
+      const result = await updateEvent(data);
+      setSelectedEvent(null);
       toast({
         title: "Success",
         description: "Event updated successfully",
       });
-      setOpen(false);
       return result;
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update event",
-        variant: "destructive",
-      });
+      console.error('handleUpdateEvent - Error:', error);
+      if (error.message !== "Time slot conflict") {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
       throw error;
     }
   };
 
-  const handleDeleteEvent = async (eventId: string): Promise<void> => {
+  const handleDeleteEvent = async () => {
+    if (!selectedEvent) return;
+    
     try {
-      // Use the provided deleteEvent function or a placeholder that throws an error
-      const deleteFn = props?.deleteEvent || ((_id: string) => {
-        throw new Error("Delete function not provided");
-      });
-      
-      await deleteFn(eventId);
+      const { data: customer, error: customerError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('title', selectedEvent.title)
+        .eq('start_date', selectedEvent.start_date)
+        .eq('end_date', selectedEvent.end_date)
+        .maybeSingle();
+
+      if (customerError) {
+        console.error('Error finding associated customer:', customerError);
+        throw customerError;
+      }
+
+      if (customer) {
+        const { error: updateError } = await supabase
+          .from('customers')
+          .update({
+            start_date: null,
+            end_date: null
+          })
+          .eq('id', customer.id);
+
+        if (updateError) {
+          console.error('Error updating customer:', updateError);
+          throw updateError;
+        }
+      }
+
+      const { data: files } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', selectedEvent.id);
+
+      if (files && files.length > 0) {
+        for (const file of files) {
+          const { error: storageError } = await supabase.storage
+            .from('event_attachments')
+            .remove([file.file_path]);
+
+          if (storageError) {
+            console.error('Error deleting file from storage:', storageError);
+          }
+        }
+
+        const { error: filesDeleteError } = await supabase
+          .from('event_files')
+          .delete()
+          .eq('event_id', selectedEvent.id);
+
+        if (filesDeleteError) {
+          console.error('Error deleting file records:', filesDeleteError);
+          throw filesDeleteError;
+        }
+      }
+
+      await deleteEvent(selectedEvent.id);
+      setSelectedEvent(null);
       toast({
         title: "Success",
         description: "Event deleted successfully",
       });
-      setOpen(false);
     } catch (error: any) {
+      console.error('handleDeleteEvent - Error:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete event",
+        description: error.message,
         variant: "destructive",
       });
       throw error;
@@ -111,20 +263,14 @@ export const useEventDialog = (props?: UseEventDialogProps): UseEventDialogRetur
   };
 
   return {
-    open,
-    onOpenChange,
-    selectedDate,
-    setSelectedDate,
-    event,
-    setEvent,
-    handleCreateEvent,
-    handleUpdateEvent,
-    handleDeleteEvent,
-    checkTimeSlotAvailability,
-    // Add the missing properties that Calendar.tsx is expecting
     selectedEvent,
     setSelectedEvent,
     isNewEventDialogOpen,
     setIsNewEventDialogOpen,
+    selectedDate,
+    setSelectedDate,
+    handleCreateEvent,
+    handleUpdateEvent,
+    handleDeleteEvent,
   };
 };

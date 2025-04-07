@@ -55,13 +55,10 @@ export const Calendar = ({
   const [view, setView] = useState<CalendarViewType>(defaultView);
   
   // Only use the hook if we're not getting directEvents
-  const { 
-    events: fetchedEvents, 
-    isLoading: isLoadingFromHook, 
-    handleSubmitEvent,
-    deleteEvent,
-    checkTimeSlotAvailability 
-  } = useCalendarEvents();
+  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
+    !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
+    !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
+  );
   
   // Use directEvents if provided, otherwise use fetchedEvents
   const events = directEvents || fetchedEvents;
@@ -112,9 +109,21 @@ export const Calendar = ({
     handleUpdateEvent,
     handleDeleteEvent,
   } = useEventDialog({
-    createEvent: handleSubmitEvent,
-    updateEvent: handleSubmitEvent,
-    deleteEvent
+    createEvent: async (data) => {
+      const result = await createEvent?.(data);
+      return result;
+    },
+    updateEvent: async (data) => {
+      if (!selectedEvent) throw new Error("No event selected");
+      const result = await updateEvent?.({
+        id: selectedEvent.id,
+        updates: data,
+      });
+      return result;
+    },
+    deleteEvent: async (id) => {
+      await deleteEvent?.(id);
+    }
   });
 
   // Redirect to signin if not authenticated and not on public business page
@@ -246,6 +255,11 @@ export const Calendar = ({
       description: "Your booking request has been submitted and is pending approval."
     });
   };
+
+  if (error && !directEvents) {
+    console.error("Calendar error:", error);
+    return <div className="text-red-500">Error loading calendar: {error.message}</div>;
+  }
 
   if (isLoading && !directEvents) {
     return (

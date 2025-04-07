@@ -1,481 +1,320 @@
-// Import necessary components and functions
-import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Trash2 } from "lucide-react";
-import { CalendarEventType } from "@/lib/types/calendar";
-import { EventDialogFields } from "./EventDialogFields";
-import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { CalendarEventType } from "@/lib/types/calendar";
+import { useState, useEffect } from "react";
+import { Trash2 } from "lucide-react";
+import { EventDialogFields } from "./EventDialogFields";
 import { supabase } from "@/lib/supabase";
-import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedDate?: Date;
-  event?: CalendarEventType;
+  selectedDate: Date | null;
+  defaultEndDate?: Date | null;
   onSubmit: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  onDelete?: (id: string) => Promise<void>;
+  onDelete?: () => void;
+  event?: CalendarEventType;
+  isBookingRequest?: boolean;
 }
 
 export const EventDialog = ({
   open,
   onOpenChange,
   selectedDate,
-  event,
   onSubmit,
   onDelete,
+  event,
+  isBookingRequest = false
 }: EventDialogProps) => {
-  // Set up state for event data
-  const [userSurname, setUserSurname] = useState("");
-  const [userNumber, setUserNumber] = useState("");
-  const [socialNetworkLink, setSocialNetworkLink] = useState("");
-  const [eventNotes, setEventNotes] = useState("");
+  const [title, setTitle] = useState(event?.title || "");
+  const [userSurname, setUserSurname] = useState(event?.user_surname || "");
+  const [userNumber, setUserNumber] = useState(event?.user_number || "");
+  const [socialNetworkLink, setSocialNetworkLink] = useState(event?.social_network_link || "");
+  const [eventNotes, setEventNotes] = useState(event?.event_notes || "");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("not_paid");
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(event?.payment_status || "");
+  const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
+  const { user } = useAuth();
   const { toast } = useToast();
-  const { t, language } = useLanguage();
+  const queryClient = useQueryClient();
+  const { t } = useLanguage();
+  const [isBookingEvent, setIsBookingEvent] = useState(false);
 
-  // Enhanced query for event files to properly handle both booking files and event files
-  const {
-    data: eventFiles = [],
-    isLoading: isLoadingFiles,
-    refetch: refetchFiles,
-  } = useQuery({
-    queryKey: ["event-files", event?.id, event?.booking_request_id],
-    queryFn: async () => {
-      if (!event?.id && !event?.booking_request_id) return [];
-      
-      console.log("EventDialog - Fetching files for event:", { 
-        id: event.id, 
-        type: event.type, 
-        booking_request_id: event.booking_request_id 
-      });
-      
-      let fileList = [];
-      
-      // Improved approach: First check for booking files in all possible locations
-      if (event.booking_request_id) {
-        // Case 1: Event created from a booking request (has booking_request_id)
-        console.log("Case 1: Checking booking files for booking_request_id:", event.booking_request_id);
-        
-        const { data: bookingFiles, error: bookingFilesError } = await supabase
-          .from("booking_files")
-          .select("*")
-          .eq("booking_id", event.booking_request_id);
-          
-        if (bookingFilesError) {
-          console.error("Error fetching booking files:", bookingFilesError);
-        } else if (bookingFiles && bookingFiles.length > 0) {
-          console.log("Found booking files with booking_request_id:", bookingFiles.length);
-          
-          fileList = bookingFiles.map(file => ({
-            id: file.file_path,
-            filename: file.filename,
-            content_type: file.content_type,
-            source: 'booking_attachments'
-          }));
-        }
-      } 
-      else if (event.type === 'booking_request' && event.id) {
-        // Case 2: This is a booking request event (pending, not yet approved)
-        console.log("Case 2: Checking booking files for booking event id:", event.id);
-        
-        const { data: bookingFiles, error: bookingFilesError } = await supabase
-          .from("booking_files")
-          .select("*")
-          .eq("booking_id", event.id);
-          
-        if (bookingFilesError) {
-          console.error("Error fetching booking files (from ID):", bookingFilesError);
-        } else if (bookingFiles && bookingFiles.length > 0) {
-          console.log("Found booking files with event id:", bookingFiles.length);
-          
-          fileList = bookingFiles.map(file => ({
-            id: file.file_path,
-            filename: file.filename,
-            content_type: file.content_type,
-            source: 'booking_attachments'
-          }));
-        }
-      }
-      
-      // Case 3: Always check for event files if we have an event ID
-      if (event.id) {
-        console.log("Case 3: Checking event_files for event ID:", event.id);
-        
-        const { data: eventFilesData, error: eventFilesError } = await supabase
-          .from("event_files")
-          .select("*")
-          .eq("event_id", event.id);
-          
-        if (eventFilesError) {
-          console.error("Error fetching event files:", eventFilesError);
-        } else if (eventFilesData && eventFilesData.length > 0) {
-          console.log("Found event_files:", eventFilesData.length);
-          
-          // Only add files that aren't already in the list
-          const existingPaths = new Set(fileList.map(f => f.id));
-          const newFiles = eventFilesData
-            .filter(file => !existingPaths.has(file.file_path))
-            .map(file => ({
-              id: file.file_path,
-              filename: file.filename,
-              content_type: file.content_type,
-              source: 'event_attachments'
-            }));
-          
-          fileList = [...fileList, ...newFiles];
-        }
-      }
-      
-      console.log("Final file list for event dialog:", fileList);
-      return fileList;
-    },
-    enabled: open && (!!event?.id || !!event?.booking_request_id),
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnWindowFocus: true,
-  });
-
-  // Set initial values when dialog opens or event changes
   useEffect(() => {
-    if (open) {
-      if (event) {
-        setUserSurname(event.user_surname || event.requester_name || "");
-        setUserNumber(event.user_number || event.requester_phone || "");
-        setSocialNetworkLink(event.social_network_link || event.requester_email || "");
-        setEventNotes(event.event_notes || event.description || "");
-        setStartDate(event.start_date || "");
-        setEndDate(event.end_date || "");
-        setPaymentStatus(event.payment_status || "not_paid");
-        setPaymentAmount(event.payment_amount?.toString() || "");
-        
-        // Log event data for debugging
-        console.log("Event data being loaded:", {
-          id: event.id,
-          type: event.type,
-          status: event.status,
-          booking_request_id: event.booking_request_id
-        });
-        
-        // Force refetch of files
-        refetchFiles();
-      } else if (selectedDate) {
-        const formattedDate = format(selectedDate, "yyyy-MM-dd'T'HH:mm");
-        const endDateValue = new Date(selectedDate);
-        endDateValue.setHours(endDateValue.getHours() + 1);
-        
-        setUserSurname("");
-        setUserNumber("");
-        setSocialNetworkLink("");
-        setEventNotes("");
-        setStartDate(formattedDate);
-        setEndDate(format(endDateValue, "yyyy-MM-dd'T'HH:mm"));
-        setPaymentStatus("not_paid");
-        setPaymentAmount("");
-      }
-    } else {
-      setSelectedFile(null);
-      setFileError("");
+    if (event) {
+      const start = new Date(event.start_date);
+      const end = new Date(event.end_date);
+      setTitle(event.title || "");
+      setUserSurname(event.user_surname || event.requester_name || "");
+      setUserNumber(event.user_number || event.requester_phone || "");
+      setSocialNetworkLink(event.social_network_link || event.requester_email || "");
+      setEventNotes(event.event_notes || event.description || "");
+      setPaymentStatus(event.payment_status || "");
+      setPaymentAmount(event.payment_amount?.toString() || "");
+      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
+      setIsBookingEvent(event.type === 'booking_request');
+    } else if (selectedDate) {
+      const start = new Date(selectedDate.getTime());
+      const end = new Date(selectedDate.getTime());
+      
+      start.setHours(9, 0, 0, 0);
+      end.setHours(10, 0, 0, 0);
+      
+      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     }
-  }, [open, event, selectedDate, refetchFiles]);
+  }, [selectedDate, event, open]);
 
-  const handleSubmit = async () => {
-    try {
-      // Validate customer name
-      if (!userSurname) {
-        toast({
-          title: "Error",
-          description: "Please enter a customer name",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!startDate || !endDate) {
-        toast({
-          title: "Error",
-          description: "Please select start and end dates",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Make sure start date is before end date
-      if (new Date(startDate) >= new Date(endDate)) {
-        toast({
-          title: "Error",
-          description: "End date must be after start date",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Validate payment amount if payment status is not "not_paid"
-      if (paymentStatus !== "not_paid" && !paymentAmount) {
-        toast({
-          title: "Error",
-          description: "Please enter payment amount",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setIsSubmitting(true);
-
-      // Use customer name as the title
-      const eventTitle = userSurname;
-
-      // Prepare event data for submission
-      const eventData: Partial<CalendarEventType> = {
-        title: eventTitle,
-        user_surname: userSurname,
-        user_number: userNumber,
-        social_network_link: socialNetworkLink,
-        event_notes: eventNotes,
-        start_date: startDate,
-        end_date: endDate,
-        payment_status: paymentStatus,
-        payment_amount: paymentStatus !== "not_paid" ? parseFloat(paymentAmount) : undefined,
-        type: event?.type || "private_party",
-      };
-
-      // If this is an update and we have an ID, include it
+  useEffect(() => {
+    const loadFiles = async () => {
       if (event?.id) {
-        eventData.id = event.id;
-      }
-      
-      // Preserve booking_request_id and status when updating
-      if (event?.booking_request_id) {
-        eventData.booking_request_id = event.booking_request_id;
-      }
-      
-      // Preserve status when updating
-      if (event?.status) {
-        eventData.status = event.status;
-      }
-
-      console.log("Submitting event data:", eventData);
-
-      // Submit event data
-      const savedEvent = await onSubmit(eventData);
-
-      // Upload file if one is selected
-      if (selectedFile) {
-        // Upload file to Supabase Storage
-        const fileName = `${Date.now()}-${selectedFile.name}`;
-        const filePath = `${savedEvent.id}/${fileName}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from("event_attachments")
-          .upload(filePath, selectedFile);
-          
-        if (uploadError) {
-          console.error("Error uploading file:", uploadError);
-          toast({
-            title: "Error",
-            description: "Failed to upload file. Event was saved.",
-            variant: "destructive",
-          });
-        } else {
-          // Create file record in the database
-          const { error: fileRecordError } = await supabase
-            .from("event_files")
-            .insert({
-              event_id: savedEvent.id,
-              filename: selectedFile.name,
-              file_path: filePath,
-              content_type: selectedFile.type,
-              size: selectedFile.size,
-              user_id: savedEvent.user_id
-            });
+        try {
+          const { data, error } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', event.id);
             
-          if (fileRecordError) {
-            console.error("Error creating file record:", fileRecordError);
+          if (error) {
+            console.error("Error loading event files:", error);
+            return;
+          }
+          
+          if (data && data.length > 0) {
+            console.log("Loaded event files:", data);
+            setDisplayedFiles(data);
+          }
+        } catch (err) {
+          console.error("Exception loading event files:", err);
+        }
+      }
+    };
+    
+    if (open) {
+      loadFiles();
+    }
+  }, [event, open]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const startDateTime = new Date(startDate);
+    const endDateTime = new Date(endDate);
+    
+    const eventData: Partial<CalendarEventType> = {
+      title,
+      user_surname: userSurname,
+      user_number: userNumber,
+      social_network_link: socialNetworkLink,
+      event_notes: eventNotes,
+      start_date: startDateTime.toISOString(),
+      end_date: endDateTime.toISOString(),
+      payment_status: paymentStatus || null,
+      payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+    };
+
+    if (isBookingEvent && event?.id) {
+      eventData.id = event.id;
+    }
+
+    try {
+      const createdEvent = await onSubmit(eventData);
+      console.log('Created/Updated event:', createdEvent);
+
+      if (!isBookingEvent) {
+        const { data: existingCustomer, error: customerQueryError } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('title', title)
+          .maybeSingle();
+
+        if (customerQueryError && customerQueryError.code !== 'PGRST116') {
+          console.error('Error checking for existing customer:', customerQueryError);
+          throw customerQueryError;
+        }
+
+        let customerId;
+        
+        if (!existingCustomer) {
+          const { data: newCustomer, error: customerError } = await supabase
+            .from('customers')
+            .insert({
+              title,
+              user_surname: userSurname,
+              user_number: userNumber,
+              social_network_link: socialNetworkLink,
+              event_notes: eventNotes,
+              payment_status: paymentStatus || null,
+              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+              start_date: startDateTime.toISOString(),
+              end_date: endDateTime.toISOString(),
+              user_id: user?.id,
+              type: 'customer'
+            })
+            .select()
+            .single();
+
+          if (customerError) {
+            console.error('Error creating new customer:', customerError);
+            throw customerError;
+          }
+          customerId = newCustomer.id;
+          console.log('Created new customer:', newCustomer);
+        } else {
+          customerId = existingCustomer.id;
+          
+          const { error: updateError } = await supabase
+            .from('customers')
+            .update({
+              user_surname: userSurname,
+              user_number: userNumber,
+              social_network_link: socialNetworkLink,
+              event_notes: eventNotes,
+              payment_status: paymentStatus || null,
+              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+              start_date: startDateTime.toISOString(),
+              end_date: endDateTime.toISOString(),
+            })
+            .eq('id', customerId);
+
+          if (updateError) {
+            console.error('Error updating customer:', updateError);
+            throw updateError;
+          }
+          console.log('Updated existing customer:', customerId);
+        }
+
+        if (selectedFile && createdEvent?.id && user) {
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `${crypto.randomUUID()}.${fileExt}`;
+          
+          console.log('Uploading file:', filePath);
+          
+          const { error: uploadError } = await supabase.storage
+            .from('event_attachments')
+            .upload(filePath, selectedFile);
+
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            throw uploadError;
+          }
+
+          const fileData = {
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user.id
+          };
+
+          const filePromises = [];
+
+          filePromises.push(
+            supabase
+              .from('event_files')
+              .insert({
+                ...fileData,
+                event_id: createdEvent.id
+              })
+          );
+
+          if (customerId) {
+            filePromises.push(
+              supabase
+                .from('customer_files_new')
+                .insert({
+                  ...fileData,
+                  customer_id: customerId
+                })
+            );
+          }
+
+          const results = await Promise.all(filePromises);
+          const errors = results.filter(r => r.error);
+          
+          if (errors.length > 0) {
+            console.error('Errors creating file records:', errors);
+            throw errors[0].error;
+          }
+
+          console.log('File records created successfully');
+        }
+
+        toast({
+          title: t("common.success"),
+          description: t("common.success"),
+        });
+      } else {
+        if (event?.id) {
+          const { data: bookingRequest, error: findError } = await supabase
+            .from('booking_requests')
+            .select('*')
+            .eq('id', event.id)
+            .maybeSingle();
+            
+          if (!findError && bookingRequest) {
+            const { error: updateError } = await supabase
+              .from('booking_requests')
+              .update({
+                title,
+                requester_name: userSurname,
+                requester_phone: userNumber,
+                requester_email: socialNetworkLink,
+                description: eventNotes,
+                start_date: startDateTime.toISOString(),
+                end_date: endDateTime.toISOString(),
+              })
+              .eq('id', event.id);
+              
+            if (updateError) {
+              console.error('Error updating booking request:', updateError);
+            } else {
+              console.log('Updated booking request successfully');
+            }
           }
         }
       }
 
-      toast({
-        title: event ? "Event updated" : "Event created",
-        description: event
-          ? "Your event has been updated successfully."
-          : "Your event has been added to the calendar.",
-      });
-
       onOpenChange(false);
+      
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      
     } catch (error: any) {
-      console.error("Error saving event:", error);
+      console.error('Error handling event submission:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to save event",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!event || !onDelete) return;
-    
-    try {
-      setIsSubmitting(true);
-      await onDelete(event.id);
-      setIsDeleteDialogOpen(false);
-      onOpenChange(false);
-    } catch (error: any) {
-      console.error("Error deleting event:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete event",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Enhanced file deletion function that handles both booking files and event files
-  const handleFileDeleted = async (fileId: string) => {
-    try {
-      console.log("Handling file deletion for:", fileId);
-      
-      // Get the file metadata first to determine its source
-      const fileMetadata = eventFiles.find(file => file.id === fileId);
-      if (!fileMetadata) {
-        throw new Error("File metadata not found");
-      }
-      
-      const fileSource = fileMetadata.source || 
-        (fileId.includes('booking_attachments') ? 'booking_attachments' : 'event_attachments');
-      
-      console.log("File source determined as:", fileSource);
-      
-      if (fileSource === 'booking_attachments') {
-        // Handle booking file deletion
-        console.log("Handling deletion of booking file:", fileId);
-        
-        // Get the booking ID - either from booking_request_id or from event.id for pending bookings
-        const bookingId = event?.booking_request_id || (event?.type === 'booking_request' ? event.id : null);
-        
-        if (!bookingId) {
-          console.error("Cannot determine booking ID for file deletion");
-          throw new Error("Cannot determine booking ID");
-        }
-        
-        // Delete the record from booking_files
-        const { error: fileRecordError } = await supabase
-          .from("booking_files")
-          .delete()
-          .eq("file_path", fileId);
-          
-        if (fileRecordError) {
-          console.error("Error deleting booking file record:", fileRecordError);
-          throw fileRecordError;
-        }
-        
-        // Delete the file from storage
-        const { error: storageError } = await supabase.storage
-          .from("booking_attachments")
-          .remove([fileId]);
-          
-        if (storageError) {
-          console.error("Error deleting booking file from storage:", storageError);
-          throw storageError;
-        }
-      } else {
-        // Handle event file deletion
-        console.log("Handling deletion of event file:", fileId);
-        
-        // Delete the record from event_files
-        const { error: fileRecordError } = await supabase
-          .from("event_files")
-          .delete()
-          .eq("file_path", fileId);
-          
-        if (fileRecordError) {
-          console.error("Error deleting event file record:", fileRecordError);
-          throw fileRecordError;
-        }
-        
-        // Delete the file from storage
-        const { error: storageError } = await supabase.storage
-          .from("event_attachments")
-          .remove([fileId]);
-          
-        if (storageError) {
-          console.error("Error deleting event file from storage:", storageError);
-          throw storageError;
-        }
-      }
-      
-      // Refresh files list
-      refetchFiles();
-      
-      toast({
-        title: "Success",
-        description: "File deleted successfully"
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete file",
+        title: t("common.error"),
+        description: error.message || t("common.error"),
         variant: "destructive",
       });
     }
   };
 
-  // Get button text based on state
-  const getButtonText = () => {
-    if (isSubmitting) {
-      return 'Saving...';
-    }
-    if (event) {
-      return 'Update';
-    }
-    return 'Create';
+  const handleFileDeleted = (fileId: string) => {
+    setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
   };
-
-  console.log("EventDialog - Files to display:", eventFiles);
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {event ? 'Edit Event' : 'Add Event'}
-            </DialogTitle>
-          </DialogHeader>
-
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogTitle>{event ? t("events.editEvent") : t("events.addNewEvent")}</DialogTitle>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <EventDialogFields
+            title={title}
+            setTitle={setTitle}
             userSurname={userSurname}
             setUserSurname={setUserSurname}
             userNumber={userNumber}
@@ -498,52 +337,27 @@ export const EventDialog = ({
             setFileError={setFileError}
             eventId={event?.id}
             onFileDeleted={handleFileDeleted}
-            displayedFiles={eventFiles}
-            isBookingRequest={event?.type === 'booking_request'}
+            displayedFiles={displayedFiles}
+            isBookingRequest={isBookingRequest}
           />
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            {event && onDelete && (
-              <AlertDialog
-                open={isDeleteDialogOpen}
-                onOpenChange={setIsDeleteDialogOpen}
-              >
-                <AlertDialogTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="gap-1 text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Confirm Deletion
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete this event?
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>
-                      Cancel
-                    </AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete}>
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-            <Button onClick={handleSubmit} disabled={isSubmitting}>
-              {getButtonText()}
+          
+          <div className="flex justify-between gap-4">
+            <Button type="submit" className="flex-1">
+              {event ? t("events.updateEvent") : t("events.createEvent")}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+            {event && onDelete && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                onClick={onDelete}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };

@@ -54,7 +54,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     getBusinessUserId();
   }, [businessId]);
 
-  // Step 2: Fetch all events using the getPublicCalendarEvents API
+  // Step 2: Fetch all events using the getPublicCalendarEvents API which uses our new RPC function
   useEffect(() => {
     const fetchAllEvents = async () => {
       if (!businessId) return;
@@ -64,30 +64,17 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       
       try {
         // Get events from the API function which includes approved bookings and user events
+        // This now uses our security definer function to bypass RLS
         const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
         
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
         
-        // Additional direct query as a fallback for robustness
-        const { data: directEvents, error: directEventsError } = await supabase
-          .from("events")
-          .select("*")
-          .eq("user_id", businessUserId || '')
-          .is("deleted_at", null);
-        
-        if (directEventsError) {
-          console.error("Error fetching direct events:", directEventsError);
-        } else {
-          console.log(`[External Calendar] Fetched ${directEvents?.length || 0} direct events`);
-        }
-        
-        // Combine all event sources - include direct events as a fallback
+        // Combine all event sources
         const allEvents: CalendarEventType[] = [
           ...(apiEvents || []).map(event => ({
             ...event,
-            type: event.type || 'event',
-            deleted_at: event.deleted_at || null
+            type: event.type || 'event'
           })),
           ...(approvedBookings || []).map(booking => ({
             id: booking.id,
@@ -103,40 +90,29 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             event_notes: booking.description || '',
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
-            status: 'approved',
-            deleted_at: null
-          })),
-          // Add direct events as fallback but don't duplicate
-          ...((directEvents || [])
-            .filter(event => !apiEvents?.some(apiEvent => apiEvent.id === event.id))
-            .map(event => ({
-              ...event,
-              deleted_at: event.deleted_at || null
-            }))
-          )
+          }))
         ];
         
         console.log(`[External Calendar] Combined ${allEvents.length} total events`);
         
-        // Validate all events have proper dates and are not deleted
+        // Validate all events have proper dates
         const validEvents = allEvents.filter(event => {
           try {
-            // Check if start_date and end_date are valid and event is not deleted
+            // Check if start_date and end_date are valid
             const startValid = !!new Date(event.start_date).getTime();
             const endValid = !!new Date(event.end_date).getTime();
-            const notDeleted = event.deleted_at === null;
-            return startValid && endValid && notDeleted;
+            return startValid && endValid;
           } catch (err) {
-            console.error("Invalid event data:", event, err);
+            console.error("Invalid date in event:", event);
             return false;
           }
         });
         
         if (validEvents.length !== allEvents.length) {
-          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates or deleted status`);
+          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates`);
         }
         
-        // Remove duplicate events (same time slot) - prioritize booking_request events
+        // Remove duplicate events (same time slot)
         const eventMap = new Map();
         validEvents.forEach(event => {
           const key = `${event.start_date}-${event.end_date}`;
@@ -174,7 +150,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         clearInterval(intervalId);
       };
     }
-  }, [businessId, businessUserId, toast, t]);
+  }, [businessId, toast, t]);
 
   if (!businessId) {
     return (

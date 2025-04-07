@@ -2,12 +2,11 @@ import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
 
-export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">, file?: File) => {
+export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">) => {
   // Get current user if available
   const { data: userData } = await supabase.auth.getUser();
   
   console.log("Creating booking request:", request);
-  console.log("With file:", file ? `${file.name} (${file.size} bytes)` : 'none');
   
   try {
     // Ensure payment_amount is properly handled when saving to the database
@@ -27,9 +26,6 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
       bookingData.payment_amount = null;
     }
     
-    // Print more detailed debugging info
-    console.log("Final booking data being sent to supabase:", bookingData);
-    
     const { data, error } = await supabase
       .from("booking_requests")
       .insert([bookingData])
@@ -42,53 +38,6 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
     }
     
     console.log("Created booking request:", data);
-    
-    // Handle file upload if provided
-    if (file && data?.id) {
-      console.log("Uploading file for booking request:", file.name);
-      
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${file.name}`;
-      const filePath = `${data.id}/${fileName}`;
-      
-      // First, upload the file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("booking_attachments")
-        .upload(filePath, file);
-        
-      if (uploadError) {
-        console.error("Error uploading booking file:", uploadError);
-        console.log("Upload error details:", uploadError);
-        // Continue anyway, booking was created
-      } else {
-        console.log("File uploaded successfully:", uploadData);
-        
-        // Create file record with all necessary information
-        const fileData = {
-          booking_id: data.id,
-          filename: file.name,
-          file_path: filePath,
-          content_type: file.type,
-          size: file.size
-        };
-        
-        console.log("Creating booking file record:", fileData);
-        
-        const { data: fileRecord, error: fileRecordError } = await supabase
-          .from("booking_files")
-          .insert([fileData])
-          .select()
-          .single();
-          
-        if (fileRecordError) {
-          console.error("Error creating booking file record:", fileRecordError);
-          console.log("File record error details:", fileRecordError);
-        } else {
-          console.log("Booking file record created successfully:", fileRecord);
-        }
-      }
-    }
-    
     return data;
   } catch (error: any) {
     console.error("Error in createBookingRequest:", error);
