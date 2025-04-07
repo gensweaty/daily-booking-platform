@@ -1,6 +1,5 @@
-
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase";
+import { supabase, getStorageUrl } from "@/lib/supabase";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
@@ -253,7 +252,7 @@ export const FileDisplay = ({
                   {isImage(file.filename) ? (
                     <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                       <img 
-                        src={`${supabase.storageUrl}/object/public/${bucketName}/${file.file_path}`}
+                        src={`${getStorageUrl()}/object/public/${bucketName}/${file.file_path}`}
                         alt={file.filename}
                         className="h-full w-full object-cover"
                         onError={(e) => {
@@ -294,7 +293,6 @@ export const FileDisplay = ({
                 </div>
               </div>
               
-              {/* Open button that matches the design */}
               <Button
                 type="button"
                 variant="outline"
