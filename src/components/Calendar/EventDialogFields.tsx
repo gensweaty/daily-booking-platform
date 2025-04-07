@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -38,6 +37,7 @@ interface EventDialogFieldsProps {
   onFileDeleted?: (fileId: string) => void;
   displayedFiles?: any[];
   isBookingRequest?: boolean;
+  dialogOpen?: boolean;
 }
 
 export const EventDialogFields = ({
@@ -67,12 +67,12 @@ export const EventDialogFields = ({
   onFileDeleted,
   displayedFiles = [],
   isBookingRequest = false,
+  dialogOpen = true,
 }: EventDialogFieldsProps) => {
   const { t, language } = useLanguage();
 
   const formattedMinDate = format(new Date(), "yyyy-MM-dd'T'HH:mm");
 
-  // If it's a booking request, we only show date and time fields
   if (isBookingRequest) {
     return (
       <div className="space-y-4">
@@ -105,7 +105,6 @@ export const EventDialogFields = ({
   }
 
   useEffect(() => {
-    // Set default times if no startDate or endDate is provided
     if (!startDate || !endDate) {
       const now = new Date();
       now.setHours(9, 0, 0, 0);
@@ -349,6 +348,8 @@ export const EventDialogFields = ({
         fileError={fileError}
         setFileError={setFileError}
         hideLabel={true}
+        resetOnDialogClose={true}
+        dialogOpen={dialogOpen}
       />
     </div>
   );
