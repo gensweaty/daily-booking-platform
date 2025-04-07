@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -13,6 +14,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { createBookingRequest } from "@/lib/api";
 import { Loader2 } from "lucide-react";
+import { FileUploadField } from "../shared/FileUploadField";
+import { supabase } from "@/lib/supabase";
 
 interface BookingRequestFormProps {
   open: boolean;
@@ -22,6 +25,7 @@ interface BookingRequestFormProps {
   selectedDate: Date;
   startTime?: string;
   endTime?: string;
+  isExternalBooking?: boolean;
 }
 
 const BookingSchema = z.object({
@@ -50,10 +54,13 @@ export const BookingRequestForm = ({
   selectedDate,
   startTime,
   endTime,
+  isExternalBooking = false,
 }: BookingRequestFormProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
 
   const formattedDate = format(selectedDate, "yyyy-MM-dd");
   
@@ -90,7 +97,7 @@ export const BookingRequestForm = ({
         paymentAmount = isNaN(parsedAmount) ? null : parsedAmount;
       }
       
-      await createBookingRequest({
+      const result = await createBookingRequest({
         title: values.title,
         requester_name: values.requester_name,
         requester_email: values.requester_email,
@@ -101,6 +108,41 @@ export const BookingRequestForm = ({
         payment_amount: paymentAmount,
         business_id: businessId,
       });
+      
+      // Handle file upload if a file is selected
+      if (selectedFile && result?.id) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        
+        console.log('Uploading file for booking request:', filePath);
+        
+        const { error: uploadError } = await supabase.storage
+          .from('booking_attachments')
+          .upload(filePath, selectedFile);
+          
+        if (uploadError) {
+          console.error('Error uploading file:', uploadError);
+          throw uploadError;
+        }
+        
+        // Associate file with the booking request
+        const { error: fileRecordError } = await supabase
+          .from('event_files')
+          .insert({
+            event_id: result.id,
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size
+          });
+          
+        if (fileRecordError) {
+          console.error('Error creating file record:', fileRecordError);
+          throw fileRecordError;
+        }
+        
+        console.log('File uploaded and associated with booking request');
+      }
       
       toast({
         title: t("common.success"),
@@ -135,7 +177,11 @@ export const BookingRequestForm = ({
               <FormItem>
                 <FormLabel>{t("booking.bookingTitle")}</FormLabel>
                 <FormControl>
-                  <Input placeholder={t("booking.bookingTitlePlaceholder")} {...field} />
+                  <Input 
+                    placeholder={t("booking.bookingTitlePlaceholder")} 
+                    {...field} 
+                    className="bg-background border border-input"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -149,7 +195,11 @@ export const BookingRequestForm = ({
               <FormItem>
                 <FormLabel>{t("booking.yourName")}</FormLabel>
                 <FormControl>
-                  <Input placeholder={t("booking.yourNamePlaceholder")} {...field} />
+                  <Input 
+                    placeholder={t("booking.yourNamePlaceholder")} 
+                    {...field} 
+                    className="bg-background border border-input"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -163,7 +213,12 @@ export const BookingRequestForm = ({
               <FormItem>
                 <FormLabel>{t("booking.yourEmail")}</FormLabel>
                 <FormControl>
-                  <Input type="email" placeholder={t("booking.yourEmailPlaceholder")} {...field} />
+                  <Input 
+                    type="email" 
+                    placeholder={t("booking.yourEmailPlaceholder")} 
+                    {...field} 
+                    className="bg-background border border-input"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -177,7 +232,11 @@ export const BookingRequestForm = ({
               <FormItem>
                 <FormLabel>{t("booking.yourPhone")}</FormLabel>
                 <FormControl>
-                  <Input placeholder={t("booking.yourPhonePlaceholder")} {...field} />
+                  <Input 
+                    placeholder={t("booking.yourPhonePlaceholder")} 
+                    {...field} 
+                    className="bg-background border border-input"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -192,7 +251,11 @@ export const BookingRequestForm = ({
                 <FormItem>
                   <FormLabel>{t("booking.startTime")}</FormLabel>
                   <FormControl>
-                    <Input type="datetime-local" {...field} />
+                    <Input 
+                      type="datetime-local" 
+                      {...field} 
+                      className="bg-background border border-input"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -206,7 +269,11 @@ export const BookingRequestForm = ({
                 <FormItem>
                   <FormLabel>{t("booking.endTime")}</FormLabel>
                   <FormControl>
-                    <Input type="datetime-local" {...field} />
+                    <Input 
+                      type="datetime-local" 
+                      {...field} 
+                      className="bg-background border border-input"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -221,7 +288,12 @@ export const BookingRequestForm = ({
               <FormItem>
                 <FormLabel>{t("booking.paymentAmount")}</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="0.00" {...field} />
+                  <Input 
+                    type="number" 
+                    placeholder="0.00" 
+                    {...field} 
+                    className="bg-background border border-input"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -235,12 +307,24 @@ export const BookingRequestForm = ({
               <FormItem>
                 <FormLabel>{t("booking.description")}</FormLabel>
                 <FormControl>
-                  <Textarea placeholder={t("booking.descriptionPlaceholder")} {...field} />
+                  <Textarea 
+                    placeholder={t("booking.descriptionPlaceholder")} 
+                    {...field} 
+                    className="bg-background border border-input min-h-[80px]"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          <div className="space-y-2">
+            <FileUploadField
+              onChange={setSelectedFile}
+              fileError={fileError}
+              setFileError={setFileError}
+            />
+          </div>
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button
@@ -248,6 +332,7 @@ export const BookingRequestForm = ({
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
+              className="bg-background"
             >
               {t("common.cancel")}
             </Button>
