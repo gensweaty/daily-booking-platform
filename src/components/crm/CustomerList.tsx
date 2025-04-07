@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -487,6 +486,8 @@ export const CustomerList = () => {
                           files={customer.customer_files_new || customer.event_files}
                           bucketName={customer.id.startsWith('event-') ? "event_attachments" : "customer_attachments"}
                           allowDelete={false}
+                          parentId={customer.id.startsWith('event-') ? customer.id.replace('event-', '') : customer.id}
+                          parentType={customer.id.startsWith('event-') ? "event" : "customer"}
                         />
                       </div>
                     ) : '-'}

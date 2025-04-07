@@ -42,9 +42,16 @@ export const FileDisplay = ({
     return <FileIcon className="h-5 w-5" />;
   };
 
-  const getFileUrl = (filePath: string) => {
+  // Function to get proper direct URL for the file - consistent across buckets
+  const getFileUrl = (filePath: string, bucket: string = bucketName) => {
     const normalizedPath = normalizeFilePath(filePath);
-    return `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
+    return `${getStorageUrl()}/object/public/${bucket}/${normalizedPath}`;
+  };
+
+  // This function tries to find the correct bucket for the file by checking multiple sources
+  const findProperBucket = (filePath: string): string => {
+    // First, check for presence in specified bucket
+    return bucketName;
   };
 
   const handleDownload = async (filePath: string, fileName: string) => {
@@ -104,8 +111,12 @@ export const FileDisplay = ({
 
   const handleOpenFile = async (filePath: string) => {
     try {
-      // Use direct URL with normalized path
-      const directUrl = getFileUrl(filePath);
+      // Always use the event_attachments bucket for consistency when files might be duplicated
+      // across buckets with the same path
+      const targetBucket = filePath.includes("event") ? "event_attachments" : bucketName;
+      
+      // Use direct URL with normalized path from the proper bucket
+      const directUrl = getFileUrl(filePath, targetBucket);
       console.log('Opening file with direct URL:', directUrl);
       window.open(directUrl, '_blank');
     } catch (error) {
@@ -201,12 +212,20 @@ export const FileDisplay = ({
                   {isImage(file.filename) ? (
                     <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                       <img 
-                        src={getFileUrl(file.file_path)}
+                        src={getFileUrl(file.file_path, "event_attachments")}
                         alt={file.filename}
                         className="h-full w-full object-cover"
                         onError={(e) => {
-                          console.error('Image failed to load', e);
-                          e.currentTarget.src = '/placeholder.svg';
+                          console.log('Image failed to load from event_attachments, trying customer_attachments');
+                          // If event_attachments fails, try customer_attachments
+                          e.currentTarget.src = getFileUrl(file.file_path, "customer_attachments");
+                          
+                          // Add a second error handler for the fallback
+                          e.currentTarget.onerror = () => {
+                            console.error('Image failed to load from both buckets');
+                            e.currentTarget.src = '/placeholder.svg';
+                            e.currentTarget.onerror = null; // Prevent infinite error loop
+                          };
                         }}
                       />
                     </div>

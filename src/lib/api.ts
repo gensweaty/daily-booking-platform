@@ -6,7 +6,15 @@ import { BookingRequest } from "@/types/database";
 export const getFileUrl = (bucketName: string, filePath: string) => {
   const baseUrl = import.meta.env.VITE_SUPABASE_URL;
   const normalizedPath = normalizeFilePath(filePath);
-  return `${baseUrl}/storage/v1/object/public/${bucketName}/${normalizedPath}`;
+  
+  // Try to determine the correct bucket - files with the same path might be in both buckets
+  let targetBucket = bucketName;
+  // If we're unsure, prefer event_attachments for consistency
+  if (filePath.includes("event")) {
+    targetBucket = "event_attachments";
+  }
+  
+  return `${baseUrl}/storage/v1/object/public/${targetBucket}/${normalizedPath}`;
 };
 
 export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">) => {
