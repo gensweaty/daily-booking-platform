@@ -93,7 +93,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             event_notes: booking.description || '',
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
-            status: booking.status || 'approved'
+            status: booking.status || 'approved',
+            deleted_at: null // Explicitly set deleted_at to null
           }))
         ];
         

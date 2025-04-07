@@ -62,6 +62,10 @@ export const useBookingRequests = () => {
   // Mutation to approve a booking request
   const approveMutation = useMutation({
     mutationFn: async (bookingId: string) => {
+      if (!user?.id) {
+        throw new Error("User not authenticated");
+      }
+      
       console.log(`Starting approval of booking ${bookingId}`);
       
       // Fetch the booking request details first
@@ -154,22 +158,22 @@ export const useBookingRequests = () => {
       if (!existingEvents || existingEvents.length === 0) {
         console.log('Creating event from booking request:', booking);
         
-        // Create an event record from the booking request
-        // Use the requester_name (customer name) as the title
+        // Fix: Ensure all required fields have proper values
         const eventToInsert = {
           title: booking.requester_name || booking.title,
-          user_surname: booking.requester_name,
+          user_surname: booking.requester_name || "",
           user_number: booking.requester_phone || "",
           social_network_link: booking.requester_email || "",
           event_notes: booking.description || "",
           start_date: booking.start_date,
           end_date: booking.end_date,
           type: 'booking_request',
-          payment_status: booking.payment_status,
-          payment_amount: booking.payment_amount,
-          user_id: user?.id,
-          booking_request_id: bookingId, // Critical: Store reference to original booking
-          status: 'approved'
+          payment_status: booking.payment_status || 'not_paid',
+          payment_amount: booking.payment_amount || null,
+          user_id: user.id, // Fix: Ensure user.id is used
+          booking_request_id: bookingId,
+          status: 'approved',
+          created_at: new Date().toISOString() // Fix: Add created_at field
         };
         
         console.log('Event data to insert:', eventToInsert);
@@ -193,17 +197,18 @@ export const useBookingRequests = () => {
             const { data: customerData, error: customerError } = await supabase
               .from('customers')
               .insert({
-                title: booking.requester_name,
-                user_surname: booking.requester_name,
+                title: booking.requester_name || "",
+                user_surname: booking.requester_name || "",
                 user_number: booking.requester_phone || "",
-                social_network_link: booking.requester_email,
-                event_notes: booking.description,
+                social_network_link: booking.requester_email || "",
+                event_notes: booking.description || "",
                 start_date: booking.start_date,
                 end_date: booking.end_date,
-                payment_status: booking.payment_status,
-                payment_amount: booking.payment_amount,
-                user_id: user?.id,
-                type: 'booking_request'
+                payment_status: booking.payment_status || 'not_paid',
+                payment_amount: booking.payment_amount || null,
+                user_id: user.id,
+                type: 'booking_request',
+                created_at: new Date().toISOString() // Fix: Add created_at field
               })
               .select()
               .single();
@@ -234,7 +239,7 @@ export const useBookingRequests = () => {
                         file_path: file.file_path,
                         content_type: file.content_type,
                         size: file.size,
-                        user_id: user?.id,
+                        user_id: user.id,
                         customer_id: customerData.id
                       });
                       
@@ -252,7 +257,7 @@ export const useBookingRequests = () => {
                         file_path: file.file_path,
                         content_type: file.content_type,
                         size: file.size,
-                        user_id: user?.id,
+                        user_id: user.id,
                         event_id: createdEvent.id
                       });
                       
