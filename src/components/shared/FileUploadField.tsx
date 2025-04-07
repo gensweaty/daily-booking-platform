@@ -97,7 +97,6 @@ export const FileUploadField = ({
         return;
       }
       if (onChange) onChange(selectedFile);
-      if (onFileChange) onFileChange(null);
       if (onFileChange) onFileChange(selectedFile);
     } else {
       // If no file is selected (user cancelled the file selection)

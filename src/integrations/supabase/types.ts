@@ -325,15 +325,7 @@ export type Database = {
           size?: number | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "event_files_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       event_requests: {
         Row: {
