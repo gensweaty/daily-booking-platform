@@ -15,7 +15,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       return {
         total: tasks?.length || 0,
         completed: tasks?.filter(t => t.status === 'done').length || 0,
-        inProgress: tasks?.filter(t => t.status === 'in-progress').length || 0,
+        inProgress: tasks?.filter(t => t.status === 'inprogress').length || 0,
         todo: tasks?.filter(t => t.status === 'todo').length || 0,
       };
     },

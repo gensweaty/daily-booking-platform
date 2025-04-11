@@ -40,7 +40,7 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
       <StatCard
         title={t("dashboard.inProgress")}
         value={taskStats.inProgress}
-        description={t("dashboard.todo")}
+        description={`${taskStats.todo} ${t("dashboard.todo")}`}
         icon={Clock}
       />
       <StatCard
