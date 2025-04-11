@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -41,6 +42,7 @@ export const BusinessProfileForm = () => {
   const [fileError, setFileError] = useState("");
   const [coverPhotoFile, setCoverPhotoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [imageKey, setImageKey] = useState(Date.now()); // Used to force image reload
 
   const form = useForm<BusinessProfileFormValues>({
     resolver: zodResolver(businessProfileSchema),
@@ -71,9 +73,17 @@ export const BusinessProfileForm = () => {
         cover_photo_url: businessProfile.cover_photo_url || "",
       });
       
-      // Set the preview URL from the existing profile
+      // Set the preview URL from the existing profile with a cache-busting parameter
       if (businessProfile.cover_photo_url) {
-        setPreviewUrl(businessProfile.cover_photo_url);
+        // Add a timestamp parameter if it doesn't already have one
+        let photoUrl = businessProfile.cover_photo_url;
+        if (!photoUrl.includes('?t=')) {
+          photoUrl = `${photoUrl}?t=${Date.now()}`;
+        }
+        
+        console.log("Setting preview URL with cache busting:", photoUrl);
+        setPreviewUrl(photoUrl);
+        setImageKey(Date.now()); // Force image reload
       }
     }
   }, [businessProfile, form]);
@@ -93,20 +103,24 @@ export const BusinessProfileForm = () => {
         if (uploadResult.url) {
           console.log("Cover photo uploaded successfully:", uploadResult.url);
           coverPhotoUrl = uploadResult.url;
+          
+          // Update preview with cache busting
           setPreviewUrl(uploadResult.url);
+          setImageKey(Date.now()); // Force image reload
         }
       }
       
       if (businessProfile) {
         // Update existing profile
-        console.log("Updating existing business profile");
+        console.log("Updating existing business profile with cover URL:", coverPhotoUrl);
         updateBusinessProfile({
           ...data,
           cover_photo_url: coverPhotoUrl,
+          updated_at: new Date().toISOString(), // Force update to timestamp
         });
       } else {
         // Create new profile
-        console.log("Creating new business profile");
+        console.log("Creating new business profile with cover URL:", coverPhotoUrl);
         createBusinessProfile({
           ...data,
           business_name: data.business_name,
@@ -140,13 +154,29 @@ export const BusinessProfileForm = () => {
       // Show a temp object URL in the form for preview
       const tempUrl = URL.createObjectURL(file);
       setPreviewUrl(tempUrl);
+      setImageKey(Date.now()); // Force image reload
+      
+      // Clean up previous object URL if it exists and is an object URL
+      if (previewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+      }
       
       // We're setting this in the form values but NOT in the state
       // This allows us to have a temporary preview without persisting it
       form.setValue("cover_photo_url", tempUrl);
-      
-      // Clean up the object URL when component unmounts
-      return () => URL.revokeObjectURL(tempUrl);
+    }
+  };
+
+  // Force image reload when preview URL changes
+  const handleImageError = () => {
+    console.error("Error loading preview image:", previewUrl);
+    
+    // Try reloading with a cache-busting parameter
+    if (previewUrl && !previewUrl.startsWith('blob:')) {
+      const refreshedUrl = `${previewUrl.split('?')[0]}?t=${Date.now()}`;
+      console.log("Retrying with refreshed URL:", refreshedUrl);
+      setPreviewUrl(refreshedUrl);
+      setImageKey(Date.now());
     }
   };
 
@@ -230,13 +260,11 @@ export const BusinessProfileForm = () => {
                     {previewUrl && (
                       <div className="relative w-full h-40 rounded-md overflow-hidden border border-gray-200">
                         <img 
+                          key={imageKey} // Force reload when key changes
                           src={previewUrl} 
                           alt="Business Cover" 
                           className="w-full h-full object-cover"
-                          onError={(e) => {
-                            console.error("Error loading image:", previewUrl);
-                            e.currentTarget.src = 'https://placehold.co/600x200/e2e8f0/64748b?text=Business+Cover';
-                          }}
+                          onError={handleImageError}
                         />
                       </div>
                     )}

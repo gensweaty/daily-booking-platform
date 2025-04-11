@@ -18,8 +18,19 @@ export const PublicBusinessPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   console.log("[PublicBusinessPage] Using business slug:", businessSlug);
+
+  // Set up a refresh interval to periodically refetch the business profile
+  useEffect(() => {
+    // Set up an interval to trigger refreshes
+    const intervalId = setInterval(() => {
+      setRefreshTrigger(prev => prev + 1);
+    }, 60000); // Refresh every minute
+    
+    return () => clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     const fetchBusinessProfile = async () => {
@@ -54,10 +65,16 @@ export const PublicBusinessPage = () => {
         console.log("[PublicBusinessPage] Fetched business profile:", data);
         setBusiness(data as BusinessProfile);
         
-        // Set the cover photo URL
+        // Set the cover photo URL with a cache-busting parameter
         if (data.cover_photo_url) {
-          console.log("[PublicBusinessPage] Setting cover photo URL:", data.cover_photo_url);
-          setCoverPhotoUrl(data.cover_photo_url);
+          // Add a timestamp query parameter if it doesn't already have one
+          let photoUrl = data.cover_photo_url;
+          if (!photoUrl.includes('?t=')) {
+            photoUrl = `${photoUrl}?t=${Date.now()}`;
+          }
+          
+          console.log("[PublicBusinessPage] Setting cover photo URL with cache busting:", photoUrl);
+          setCoverPhotoUrl(photoUrl);
         }
         
         if (data?.business_name) {
@@ -92,7 +109,31 @@ export const PublicBusinessPage = () => {
 
     fetchBusinessProfile();
     fetchProfile();
-  }, [slug, businessSlug]);
+  }, [slug, businessSlug, refreshTrigger]); // Also refetch when refreshTrigger changes
+
+  // Force the image to reload if the URL changes
+  useEffect(() => {
+    if (coverPhotoUrl) {
+      // Create an Image object to preload the image
+      const img = new Image();
+      img.src = coverPhotoUrl;
+      
+      // Set up image load event
+      img.onload = () => {
+        console.log("[PublicBusinessPage] Cover photo loaded successfully");
+      };
+      
+      img.onerror = (e) => {
+        console.error("[PublicBusinessPage] Error loading cover photo:", e);
+        // Try to refresh the image URL with a new timestamp
+        if (business?.cover_photo_url) {
+          const refreshedUrl = `${business.cover_photo_url.split('?')[0]}?t=${Date.now()}`;
+          console.log("[PublicBusinessPage] Trying with refreshed URL:", refreshedUrl);
+          setCoverPhotoUrl(refreshedUrl);
+        }
+      };
+    }
+  }, [coverPhotoUrl, business?.cover_photo_url]);
 
   if (isLoading) {
     return (
@@ -122,6 +163,16 @@ export const PublicBusinessPage = () => {
   // Use the stored coverPhotoUrl state instead of relying on businessProfile directly
   const defaultCoverUrl = 'https://placehold.co/1200x400/e2e8f0/64748b?text=Business+Cover';
   const displayCoverUrl = coverPhotoUrl || defaultCoverUrl;
+
+  // Handle refresh of cover photo on error
+  const handleCoverPhotoError = () => {
+    console.error("Error loading cover photo:", displayCoverUrl);
+    if (business?.cover_photo_url) {
+      const refreshedUrl = `${business.cover_photo_url.split('?')[0]}?t=${Date.now()}`;
+      console.log("Refreshing cover photo URL to:", refreshedUrl);
+      setCoverPhotoUrl(refreshedUrl);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -155,6 +206,14 @@ export const PublicBusinessPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Hidden image preloader to ensure the image is properly loaded and cached */}
+      <img 
+        src={displayCoverUrl} 
+        alt=""
+        className="hidden" 
+        onError={handleCoverPhotoError}
+      />
 
       <div className="container mx-auto px-4 py-12">
         <div className="mb-8" id="calendar-section">

@@ -50,14 +50,14 @@ export const useBusinessProfile = () => {
     return data;
   };
 
-  // Modified function to properly upload and store the cover photo
+  // Improved function to properly upload and store the cover photo with better error handling
   const uploadCoverPhoto = async (file: File) => {
     if (!user) throw new Error("User must be authenticated to upload a cover photo");
     
     try {
       console.log("Starting cover photo upload process...");
       
-      // Check if storage bucket exists, if not create it
+      // Ensure the business_covers bucket exists
       const { data: buckets } = await supabase.storage.listBuckets();
       const businessBucketExists = buckets?.some(b => b.name === 'business_covers');
       
@@ -70,10 +70,10 @@ export const useBusinessProfile = () => {
         });
       }
 
-      // Generate a unique file name
+      // Generate a unique file name with user ID and timestamp to prevent collisions
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}_cover_${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+      const filePath = fileName;
 
       console.log(`Uploading file: ${filePath}`);
       
@@ -92,12 +92,15 @@ export const useBusinessProfile = () => {
 
       console.log("File uploaded successfully:", uploadData);
 
-      // Get the public URL - using the CDN URL format for better caching
+      // Get the public URL with a cache-busting parameter
       const { data } = supabase.storage
         .from('business_covers')
         .getPublicUrl(filePath);
 
-      console.log("Generated public URL:", data.publicUrl);
+      // Add a cache-busting parameter to the URL to prevent caching issues
+      const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
+      
+      console.log("Generated public URL with cache-busting:", publicUrl);
 
       // If we have a business profile, immediately update the cover_photo_url
       if (businessProfile) {
@@ -105,7 +108,10 @@ export const useBusinessProfile = () => {
         
         const { error: updateError } = await supabase
           .from("business_profiles")
-          .update({ cover_photo_url: data.publicUrl })
+          .update({ 
+            cover_photo_url: publicUrl,
+            updated_at: new Date().toISOString() // Force an update to the timestamp
+          })
           .eq("id", businessProfile.id);
           
         if (updateError) {
@@ -116,12 +122,17 @@ export const useBusinessProfile = () => {
             variant: "destructive",
           });
         } else {
-          // Refresh the profile data
-          queryClient.invalidateQueries({ queryKey: ["businessProfile", user?.id] });
+          // Refresh the profile data immediately
+          await queryClient.invalidateQueries({ queryKey: ["businessProfile", user?.id] });
+          
+          // Force a second refresh after a short delay to ensure data consistency
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ["businessProfile", user?.id] });
+          }, 500);
         }
       }
 
-      return { url: data.publicUrl };
+      return { url: publicUrl };
     } catch (error: any) {
       console.error("Cover photo upload error:", error);
       toast({
@@ -137,6 +148,8 @@ export const useBusinessProfile = () => {
     queryKey: ["businessProfile", user?.id],
     queryFn: getBusinessProfile,
     enabled: !!user,
+    staleTime: 60000, // Set a reasonable stale time to prevent excessive refetching
+    refetchOnWindowFocus: true, // Ensure it refreshes when window regains focus
   });
 
   const createProfileMutation = useMutation({
