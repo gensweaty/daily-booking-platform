@@ -36,7 +36,9 @@ export const FileDisplay = ({
     files.forEach(file => {
       if (file.file_path) {
         const normalizedPath = normalizeFilePath(file.file_path);
-        const effectiveBucket = determineEffectiveBucket(file.file_path, parentType);
+        // Prioritize event_attachments if the path matches event patterns
+        const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
+        console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path}`);
         newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
       }
     });
@@ -56,16 +58,33 @@ export const FileDisplay = ({
     return <FileIcon className="h-5 w-5" />;
   };
 
-  // Determine the correct bucket based on file path and parent type
-  const determineEffectiveBucket = (filePath: string, parentType?: string): string => {
-    // Special handling for b22b pattern (UUID format from events) or timestamps which indicate
-    // files originating from events/requests
-    if (filePath && (filePath.includes("b22b") || /^\d{13}_/.test(filePath))) {
+  // Determine the correct bucket based on file path, parent type, and source
+  const determineEffectiveBucket = (filePath: string, parentType?: string, source?: string): string => {
+    // If the file has explicit source marker from query, use that
+    if (source === 'event') {
+      return "event_attachments";
+    }
+    
+    if (source === 'customer') {
+      return "customer_attachments";
+    }
+    
+    // File patterns that indicate event attachments
+    if (filePath && (
+      filePath.includes("b22b") || 
+      /^\d{13}_/.test(filePath) || 
+      filePath.includes("event_") ||
+      filePath.startsWith("event/")
+    )) {
       return "event_attachments";
     }
     
     // For customer attachments in the CRM
-    if (parentType === "customer" && filePath && !filePath.includes("b22b") && !/^\d{13}_/.test(filePath)) {
+    if (parentType === "customer" && filePath && 
+      !filePath.includes("b22b") && 
+      !/^\d{13}_/.test(filePath) &&
+      !filePath.includes("event_") &&
+      !filePath.startsWith("event/")) {
       return "customer_attachments";
     }
     
@@ -74,7 +93,7 @@ export const FileDisplay = ({
       return "event_attachments";
     }
     
-    // For all other cases, use the provided bucket name
+    // Default fallback - use the provided bucket name
     return bucketName;
   };
 
@@ -82,8 +101,10 @@ export const FileDisplay = ({
     try {
       console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
       
-      // Use cached URL if available
+      // Build URL using the effective bucket
       const effectiveBucket = determineEffectiveBucket(filePath, parentType);
+      console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath}`);
+      
       const directUrl = fileURLs[fileId] || 
         `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
       
@@ -121,6 +142,7 @@ export const FileDisplay = ({
     
     const normalizedPath = normalizeFilePath(filePath);
     const effectiveBucket = determineEffectiveBucket(filePath, parentType);
+    console.log(`Open: Using bucket ${effectiveBucket} for path ${filePath}`);
     
     // Create a public URL for the file
     return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
@@ -150,8 +172,9 @@ export const FileDisplay = ({
     try {
       setDeletingFileId(fileId);
       
-      // Use the effective bucket for deletion
+      // Determine the correct bucket for deletion
       const effectiveBucket = determineEffectiveBucket(filePath, parentType);
+      console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}`);
       
       // First delete the file from storage
       const { error: storageError } = await supabase.storage
@@ -173,6 +196,7 @@ export const FileDisplay = ({
         tableName = 'note_files';
       }
       
+      console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);
       const { error: dbError } = await supabase
         .from(tableName)
         .delete()
@@ -230,7 +254,7 @@ export const FileDisplay = ({
             : file.filename;
           
           // Determine the correct bucket and build the image URL
-          const effectiveBucket = determineEffectiveBucket(file.file_path, parentType);
+          const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
           const imageUrl = fileURLs[file.id] || 
             `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(file.file_path)}`;
             

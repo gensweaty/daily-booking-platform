@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -48,7 +47,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
       try {
         setLoading(true);
 
-        // Fetch customer data first
         const { data: customerData, error: customerError } = await supabase
           .from('customers')
           .select('*')
@@ -70,7 +68,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           return;
         }
 
-        // Set customer data
         setTitle(customerData.title || "");
         setUserSurname(customerData.user_surname || "");
         setUserNumber(customerData.user_number || "");
@@ -82,7 +79,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         setPaymentAmount(customerData.payment_amount?.toString() || "");
         setCreateEvent(!!customerData.start_date && !!customerData.end_date);
 
-        // If customer has dates, try to find associated event
         if (customerData.start_date && customerData.end_date) {
           const { data: existingEvent, error: eventError } = await supabase
             .from('events')
@@ -118,7 +114,7 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
     if (isOpen && customerId) {
       fetchCustomer();
     }
-  }, [customerId, isOpen, user]); // Removed title from dependencies
+  }, [customerId, isOpen, user]);
 
   const checkTimeSlotAvailability = async (startDate: string, endDate: string, excludeEventId?: string): Promise<boolean> => {
     const start = new Date(startDate);
@@ -178,7 +174,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         }
       }
 
-      // Ensure dates are properly formatted
       const formattedStartDate = createEvent ? new Date(startDate).toISOString() : null;
       const formattedEndDate = createEvent ? new Date(endDate).toISOString() : null;
 
@@ -195,8 +190,9 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         end_date: formattedEndDate,
       };
 
+      let customerId_local = customerId;
+
       if (customerId) {
-        // Update customer
         const { error: customerError } = await supabase
           .from('customers')
           .update(customerData)
@@ -204,7 +200,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
 
         if (customerError) throw customerError;
 
-        // Handle associated event
         if (createEvent) {
           const eventData = {
             ...customerData,
@@ -214,7 +209,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           };
 
           if (associatedEventId) {
-            // Update existing event
             const { error: eventError } = await supabase
               .from('events')
               .update(eventData)
@@ -222,7 +216,6 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
 
             if (eventError) throw eventError;
           } else {
-            // Create new event
             const { error: eventError } = await supabase
               .from('events')
               .insert([eventData]);
@@ -231,14 +224,16 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           }
         }
       } else {
-        // Create new customer
-        const { error: customerError } = await supabase
+        const { data: newCustomer, error: customerError } = await supabase
           .from('customers')
-          .insert([customerData]);
+          .insert([customerData])
+          .select('id')
+          .single();
 
         if (customerError) throw customerError;
+        
+        customerId_local = newCustomer.id;
 
-        // Create new event if needed
         if (createEvent) {
           const eventData = {
             ...customerData,
@@ -255,8 +250,10 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
         }
       }
 
-      // Handle file upload if a file is selected
-      if (selectedFile) {
+      console.log("Customer ID for file upload:", customerId_local);
+
+      if (selectedFile && customerId_local) {
+        console.log("Starting file upload for customer:", customerId_local);
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
@@ -264,7 +261,12 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           .from('customer_attachments')
           .upload(filePath, selectedFile);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error("Error uploading file:", uploadError);
+          throw uploadError;
+        }
+        
+        console.log("File uploaded successfully to path:", filePath);
 
         const fileData = {
           filename: selectedFile.name,
@@ -272,18 +274,24 @@ export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogPr
           content_type: selectedFile.type,
           size: selectedFile.size,
           user_id: user.id,
-          customer_id: customerId
+          customer_id: customerId_local
         };
 
         const { error: fileError } = await supabase
           .from('customer_files_new')
           .insert([fileData]);
 
-        if (fileError) throw fileError;
+        if (fileError) {
+          console.error("Error saving file record:", fileError);
+          throw fileError;
+        }
+        
+        console.log("File record saved successfully");
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
+      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       
       toast({
         title: "Success",

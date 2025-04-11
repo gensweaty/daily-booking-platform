@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -112,7 +111,7 @@ export const CustomerDialogFields = ({
   }, [isOpen]);
 
   const { data: fetchedFiles = [], isError, refetch } = useQuery({
-    queryKey: ['customerFiles', customerId, title, isEventData],
+    queryKey: ['customerFiles', customerId, title, isOpen],
     queryFn: async () => {
       if (!customerId && !title) return [];
       
@@ -131,7 +130,7 @@ export const CustomerDialogFields = ({
             
           if (customerFilesError) {
             console.error('Error fetching customer files:', customerFilesError);
-          } else if (customerFiles) {
+          } else if (customerFiles?.length > 0) {
             console.log('Found customer files:', customerFiles.length);
             customerFiles.forEach(file => {
               uniqueFilePaths.set(file.file_path, {
@@ -139,6 +138,8 @@ export const CustomerDialogFields = ({
                 source: 'customer'
               });
             });
+          } else {
+            console.log('No direct customer files found for ID:', customerId);
           }
         }
         
@@ -162,7 +163,7 @@ export const CustomerDialogFields = ({
                 
               if (eventFilesError) {
                 console.error(`Error fetching files for event ${event.id}:`, eventFilesError);
-              } else if (eventFiles) {
+              } else if (eventFiles?.length > 0) {
                 console.log(`Found ${eventFiles.length} files for event ${event.id}`);
                 eventFiles.forEach(file => {
                   uniqueFilePaths.set(file.file_path, {
@@ -363,11 +364,11 @@ export const CustomerDialogFields = ({
           <Label>{t("crm.attachments")}</Label>
           <FileDisplay 
             files={allFiles} 
-            bucketName="event_attachments" // Default bucket, but the component logic will determine the correct one
+            bucketName="customer_attachments" 
             allowDelete
             onFileDeleted={handleFileDeleted}
             parentId={customerId}
-            parentType={isEventData ? "event" : "customer"}
+            parentType="customer"
           />
         </div>
       )}
