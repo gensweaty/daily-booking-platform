@@ -40,7 +40,7 @@ export const CalendarHeader = ({
   };
 
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
       <div className="flex items-center gap-2">
         <Button variant="outline" size="icon" onClick={onPrevious}>
           <ChevronLeft className="h-4 w-4" />
@@ -51,8 +51,8 @@ export const CalendarHeader = ({
         <h2 className="text-xl font-semibold ml-2">{getFormattedDate()}</h2>
       </div>
 
-      <div className="flex gap-2">
-        <div className="hidden sm:flex gap-1">
+      <div className="flex gap-2 justify-between">
+        <div className="flex gap-1">
           <Button
             variant={view === "day" ? "default" : "outline"}
             size="sm"
