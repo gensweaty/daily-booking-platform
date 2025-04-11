@@ -34,14 +34,14 @@ export const TimeIndicator = () => {
   };
 
   return (
-    <div className="w-10 md:w-16 pr-1 md:pr-2 pt-8 flex-shrink-0">
+    <div className={`${isMobile ? "w-20" : "w-10 md:w-16"} pr-1 md:pr-2 pt-8 flex-shrink-0`}>
       {HOURS.map((hour) => (
         <div
           key={hour}
           className="relative border-t border-transparent"
-          style={{ height: "6rem" }}
+          style={{ height: isMobile ? "5rem" : "6rem" }}
         >
-          <span className={`absolute -top-2.5 right-0 ${isMobile ? "text-sm text-gray-500" : "text-[10px] md:text-xs text-muted-foreground"}`}>
+          <span className={`absolute -top-2.5 ${isMobile ? "text-sm text-gray-500 right-2" : "right-0 text-[10px] md:text-xs text-muted-foreground"}`}>
             {formatHour(hour)}
           </span>
         </div>

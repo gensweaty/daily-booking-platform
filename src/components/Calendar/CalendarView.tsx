@@ -52,7 +52,8 @@ export function CalendarView({
     <div className="h-full overflow-hidden">
       {(view === 'week' || view === 'day') && (
         <div className="flex h-full">
-          <TimeIndicator />
+          {/* TimeIndicator appears outside on desktop but inside the scroll container on mobile */}
+          {!isMobile && <TimeIndicator />}
           <div className="flex-1 overflow-auto">
             {isMobile && (view === 'week') && (
               <div className="sticky top-0 bg-white z-10 border-b border-gray-200">
@@ -74,15 +75,18 @@ export function CalendarView({
                 </div>
               </div>
             )}
-            <CalendarGrid
-              days={days}
-              events={events}
-              formattedSelectedDate={formattedSelectedDate}
-              view={view}
-              onDayClick={onDayClick}
-              onEventClick={onEventClick}
-              isExternalCalendar={isExternalCalendar}
-            />
+            <div className="flex">
+              {isMobile && <TimeIndicator />}
+              <CalendarGrid
+                days={days}
+                events={events}
+                formattedSelectedDate={formattedSelectedDate}
+                view={view}
+                onDayClick={onDayClick}
+                onEventClick={onEventClick}
+                isExternalCalendar={isExternalCalendar}
+              />
+            </div>
           </div>
         </div>
       )}

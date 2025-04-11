@@ -75,26 +75,25 @@ export const CalendarGrid = ({
 
   // For week and day view, we need to render hours
   if (view === 'week' || view === 'day') {
-    // Reorder hours to start from 6 AM to match the TimeIndicator component
+    // Reorder hours to start from 6 AM
     const HOURS = [
       ...Array.from({ length: 18 }, (_, i) => i + 6), // 6 AM to 23 PM
       ...Array.from({ length: 6 }, (_, i) => i) // 0 AM to 5 AM
     ];
     
-    // Different layouts for mobile vs desktop
     return (
-      <div className="grid grid-cols-1 h-full overflow-y-auto">
+      <div className="grid grid-cols-1 flex-1 overflow-y-auto">
         <div className="grid" style={{ 
-          gridTemplateRows: `repeat(${HOURS.length}, 6rem)`,
-          height: `${HOURS.length * 6}rem`
+          gridTemplateRows: `repeat(${HOURS.length}, ${isMobile ? "5rem" : "6rem"})`,
+          height: `${HOURS.length * (isMobile ? 5 : 6)}rem`
         }}>
-          {HOURS.map((hourIndex, rowIndex) => (
+          {HOURS.map((hourIndex) => (
             <div 
               key={hourIndex} 
-              className={`grid border-b border-gray-200 ${isMobile ? "h-24" : ""}`}
+              className={`grid border-b border-gray-200`}
               style={{ 
                 gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(7, 1fr)',
-                height: '6rem'
+                height: isMobile ? '5rem' : '6rem'
               }}
             >
               {days.map((day) => (
@@ -129,7 +128,7 @@ export const CalendarGrid = ({
                           key={event.id}
                           className={`${getEventStyles(event)} p-2 rounded cursor-pointer absolute top-1 left-1 right-1 overflow-hidden`}
                           style={{ 
-                            height: `${Math.min(durationHours * 6 - 0.5, 5.5)}rem`,
+                            height: `${Math.min(durationHours * (isMobile ? 5 : 6) - 0.5, isMobile ? 4.5 : 5.5)}rem`,
                             zIndex: 10
                           }}
                           onClick={(e) => {
@@ -143,9 +142,16 @@ export const CalendarGrid = ({
                               {getEventTitle(event)}
                             </span>
                           </div>
-                          <div className="truncate text-xs">
-                            {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
-                          </div>
+                          {isMobile && (
+                            <div className="truncate text-xs">
+                              {format(startTime, 'h:mm a')} - {format(endTime, 'h:mm a')}
+                            </div>
+                          )}
+                          {!isMobile && (
+                            <div className="truncate text-xs">
+                              {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -158,44 +164,44 @@ export const CalendarGrid = ({
     );
   }
 
-  // Month view (default) - Updated for better mobile experience
+  // Month view (default)
   return (
     <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
       {/* Weekday headers */}
       <div className="col-span-7 grid grid-cols-7 bg-white">
         {weekDays.map((day) => (
-          <div key={day} className="p-1 text-center font-semibold text-xs md:text-sm md:p-4">
+          <div key={day} className="p-1 text-center font-semibold text-sm">
             {day}
           </div>
         ))}
       </div>
       
-      {/* Calendar days grid - Updated for better mobile layout */}
+      {/* Calendar days grid */}
       {days.map((day) => (
         <div
           key={day.toISOString()}
-          className={`bg-white p-0.5 md:p-4 min-h-[90px] md:min-h-[120px] cursor-pointer hover:bg-gray-50 ${
+          className={`bg-white p-2 min-h-[80px] cursor-pointer hover:bg-gray-50 ${
             !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
           } flex flex-col`}
           onClick={() => onDayClick?.(day)}
         >
-          <div className="font-medium text-center md:text-left text-xs md:text-base p-0.5">
+          <div className="font-medium text-center text-base">
             {format(day, "d")}
           </div>
-          <div className="flex-grow space-y-0.5 md:space-y-1 overflow-hidden">
+          <div className="flex-grow space-y-1 overflow-hidden mt-1">
             {events
               .filter((event) => isSameDay(new Date(event.start_date), day))
               .slice(0, 3) // Show max 3 events per day on mobile
               .map((event) => (
                 <div
                   key={event.id}
-                  className={`text-[10px] md:text-sm p-0.5 md:p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm`}
+                  className={`text-[10px] p-1 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onEventClick?.(event);
                   }}
                 >
-                  <CalendarIcon className="h-2 w-2 mr-0.5 shrink-0 hidden sm:inline md:h-3 md:w-3 md:mr-1" />
+                  <CalendarIcon className="h-2 w-2 mr-0.5 shrink-0 hidden sm:inline" />
                   <span className="truncate font-medium">
                     {getEventTitle(event)}
                   </span>
@@ -203,7 +209,7 @@ export const CalendarGrid = ({
               ))}
             {/* Show indicator if there are more events than can be displayed */}
             {events.filter((event) => isSameDay(new Date(event.start_date), day)).length > 3 && (
-              <div className="text-[8px] md:text-xs text-center text-gray-500">
+              <div className="text-[8px] text-center text-gray-500">
                 +{events.filter((event) => isSameDay(new Date(event.start_date), day)).length - 3} more
               </div>
             )}
