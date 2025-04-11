@@ -1,3 +1,4 @@
+
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
@@ -352,8 +353,9 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
     const a = document.createElement('a');
     a.href = directUrl;
     a.download = fileName; // This forces download behavior
-    a.target = "_blank"; // Fallback - open in new tab if download fails
-    a.rel = "noopener noreferrer"; // Security best practice
+    
+    // We are NOT using target="_blank" here as it can interfere with the download behavior
+    // in some browsers by opening a new tab instead of downloading
     
     // Add to DOM, click, and remove
     document.body.appendChild(a);
