@@ -16,7 +16,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     flowType: 'pkce',
   },
   global: {
-    fetch: (...args) => fetch(...args),
+    fetch: (...args: Parameters<typeof fetch>) => fetch(...args),
   },
 });
 
