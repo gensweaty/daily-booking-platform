@@ -72,6 +72,21 @@ export const CalendarGrid = ({
     
     return (
       <div className="grid grid-cols-1 h-full overflow-y-auto">
+        {/* Add day names header for week view */}
+        {view === 'week' && (
+          <div className="grid grid-cols-7 bg-white sticky top-0 z-20 border-b border-gray-200">
+            {days.map((day, index) => (
+              <div key={`header-${day.toISOString()}`} 
+                className="p-2 text-center text-xs sm:text-sm font-semibold border-r border-gray-200 last:border-r-0">
+                <div>{weekDays[index]}</div>
+                <div className={`mt-1 ${isSameDay(day, new Date()) ? 'bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center mx-auto' : ''}`}>
+                  {format(day, 'd')}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        
         <div className="grid" style={{ 
           gridTemplateRows: `repeat(${HOURS.length}, 6rem)`,
           height: `${HOURS.length * 6}rem`
@@ -127,11 +142,12 @@ export const CalendarGrid = ({
                         >
                           <div className="flex items-center">
                             <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
-                            <span className="truncate font-medium text-sm">
+                            {/* Enhanced title display for better mobile visibility */}
+                            <span className={`font-medium ${isMobile ? 'text-xs leading-tight line-clamp-2' : 'text-sm truncate'}`}>
                               {getEventTitle(event)}
                             </span>
                           </div>
-                          <div className="truncate text-xs">
+                          <div className={`${isMobile ? 'text-[0.65rem]' : 'text-xs'} truncate`}>
                             {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
                           </div>
                         </div>
