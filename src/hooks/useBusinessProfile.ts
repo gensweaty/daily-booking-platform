@@ -50,6 +50,56 @@ export const useBusinessProfile = () => {
     return data;
   };
 
+  // New function to upload cover photo
+  const uploadCoverPhoto = async (file: File) => {
+    if (!user) throw new Error("User must be authenticated to upload a cover photo");
+    
+    try {
+      // Check if storage bucket exists, if not create it
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const businessBucketExists = buckets?.some(b => b.name === 'business_covers');
+      
+      if (!businessBucketExists) {
+        await supabase.storage.createBucket('business_covers', {
+          public: true,
+          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
+          fileSizeLimit: 5000000 // 5MB
+        });
+      }
+
+      // Generate a unique file name
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}_cover_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // Upload the file
+      const { error: uploadError } = await supabase.storage
+        .from('business_covers')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get the public URL
+      const { data } = supabase.storage
+        .from('business_covers')
+        .getPublicUrl(filePath);
+
+      return { url: data.publicUrl };
+    } catch (error: any) {
+      toast({
+        title: "Upload Error",
+        description: error.message || "Failed to upload image",
+        variant: "destructive",
+      });
+      return { url: null };
+    }
+  };
+
   const { data: businessProfile, isLoading, error } = useQuery({
     queryKey: ["businessProfile", user?.id],
     queryFn: getBusinessProfile,
@@ -106,5 +156,6 @@ export const useBusinessProfile = () => {
     createBusinessProfile: createProfileMutation.mutate,
     updateBusinessProfile: updateProfileMutation.mutate,
     generateSlug,
+    uploadCoverPhoto,
   };
 };

@@ -17,8 +17,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, Image } from "lucide-react";
 import { BusinessProfile } from "@/types/database";
+import { FileUploadField } from "@/components/shared/FileUploadField";
 
 // Define the schema making slug required
 const businessProfileSchema = z.object({
@@ -36,8 +37,10 @@ const businessProfileSchema = z.object({
 type BusinessProfileFormValues = z.infer<typeof businessProfileSchema>;
 
 export const BusinessProfileForm = () => {
-  const { businessProfile, isLoading, createBusinessProfile, updateBusinessProfile, generateSlug } = useBusinessProfile();
+  const { businessProfile, isLoading, createBusinessProfile, updateBusinessProfile, generateSlug, uploadCoverPhoto } = useBusinessProfile();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fileError, setFileError] = useState("");
+  const [coverPhotoFile, setCoverPhotoFile] = useState<File | null>(null);
 
   const form = useForm<BusinessProfileFormValues>({
     resolver: zodResolver(businessProfileSchema),
@@ -71,15 +74,29 @@ export const BusinessProfileForm = () => {
   const onSubmit = async (data: BusinessProfileFormValues) => {
     setIsSubmitting(true);
     try {
+      // First upload the cover photo if provided
+      let coverPhotoUrl = data.cover_photo_url;
+      
+      if (coverPhotoFile) {
+        const uploadResult = await uploadCoverPhoto(coverPhotoFile);
+        if (uploadResult.url) {
+          coverPhotoUrl = uploadResult.url;
+        }
+      }
+      
       if (businessProfile) {
         // Update existing profile
-        updateBusinessProfile(data);
+        updateBusinessProfile({
+          ...data,
+          cover_photo_url: coverPhotoUrl,
+        });
       } else {
-        // Create new profile - ensure slug and business_name are provided
+        // Create new profile
         createBusinessProfile({
           ...data,
-          business_name: data.business_name, // Explicitly include business_name
-          slug: data.slug, // Explicitly include slug
+          business_name: data.business_name,
+          slug: data.slug,
+          cover_photo_url: coverPhotoUrl,
         });
       }
     } finally {
@@ -95,6 +112,19 @@ export const BusinessProfileForm = () => {
     if (!businessProfile || form.getValues("slug") === businessProfile.slug) {
       const slug = generateSlug(businessName);
       form.setValue("slug", slug);
+    }
+  };
+
+  const handleFileChange = (file: File | null) => {
+    setCoverPhotoFile(file);
+    
+    if (file) {
+      // Show a temp object URL in the form for preview
+      const tempUrl = URL.createObjectURL(file);
+      form.setValue("cover_photo_url", tempUrl);
+      
+      // Clean up the object URL when component unmounts
+      return () => URL.revokeObjectURL(tempUrl);
     }
   };
 
@@ -167,6 +197,45 @@ export const BusinessProfileForm = () => {
               )}
             />
 
+            {/* Cover Photo Upload */}
+            <FormField
+              control={form.control}
+              name="cover_photo_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cover Photo</FormLabel>
+                  <div className="space-y-4">
+                    {field.value && (
+                      <div className="relative w-full h-40 rounded-md overflow-hidden border border-gray-200">
+                        <img 
+                          src={field.value} 
+                          alt="Business Cover" 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Handle image load errors
+                            e.currentTarget.src = 'https://placehold.co/600x200/e2e8f0/64748b?text=Business+Cover';
+                          }}
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <FileUploadField
+                        onChange={handleFileChange}
+                        fileError={fileError}
+                        setFileError={setFileError}
+                        acceptedFileTypes="image/*"
+                        hideLabel={true}
+                      />
+                      <FormDescription>
+                        Upload an image for your business cover (JPEG, PNG, WebP)
+                      </FormDescription>
+                    </div>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -225,24 +294,7 @@ export const BusinessProfileForm = () => {
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="cover_photo_url"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cover Photo URL</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://example.com/your-image.jpg" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Enter a URL for your business cover photo
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || !!fileError}>
               {isSubmitting && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
               {businessProfile ? "Update Profile" : "Create Profile"}
             </Button>

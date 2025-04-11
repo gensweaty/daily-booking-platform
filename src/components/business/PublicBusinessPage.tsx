@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -111,10 +112,24 @@ export const PublicBusinessPage = () => {
 
   console.log("[PublicBusinessPage] Rendering calendar for business ID:", business.id);
 
+  const coverPhotoUrl = business.cover_photo_url || 'https://placehold.co/1200x400/e2e8f0/64748b?text=Business+Cover';
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-16">
-        <div className="container mx-auto px-4">
+      <div 
+        className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-16"
+        style={{
+          backgroundImage: business.cover_photo_url ? `url(${coverPhotoUrl})` : 'none',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        {/* Overlay for text readability when cover photo is present */}
+        {business.cover_photo_url && (
+          <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+        )}
+        
+        <div className="container mx-auto px-4 relative">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">{business.business_name}</h1>
           {business.description && <p className="text-lg opacity-90 max-w-2xl">{business.description}</p>}
           
