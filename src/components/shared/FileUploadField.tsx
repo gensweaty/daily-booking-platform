@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
-const MAX_FILE_SIZE_IMAGES = 50 * 1024 * 1024; // 50MB for images - increased from 2MB
+const MAX_FILE_SIZE_IMAGES = 50 * 1024 * 1024; // 50MB for images
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const ALLOWED_DOC_TYPES = [
   "application/pdf",
