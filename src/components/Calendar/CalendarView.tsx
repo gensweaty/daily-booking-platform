@@ -50,7 +50,7 @@ export function CalendarView({
   const formattedSelectedDate = formatDate(selectedDate, "yyyy-MM-dd");
 
   return (
-    <div className="h-full">
+    <div className="h-full overflow-hidden">
       <CalendarGrid
         days={days}
         events={events}

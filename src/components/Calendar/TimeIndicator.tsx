@@ -20,20 +20,28 @@ export const TimeIndicator = () => {
   }, []);
 
   const formatHour = (hour: number) => {
-    if (hour === 0) return "12am";
-    if (hour === 12) return "12pm";
-    return hour < 12 ? `${hour}am` : `${hour - 12}pm`;
+    if (isMobile) {
+      // Simpler hour format for mobile
+      if (hour === 0) return "12a";
+      if (hour === 12) return "12p";
+      return hour < 12 ? `${hour}a` : `${hour - 12}p`;
+    } else {
+      // Full format for desktop
+      if (hour === 0) return "12am";
+      if (hour === 12) return "12pm";
+      return hour < 12 ? `${hour}am` : `${hour - 12}pm`;
+    }
   };
 
   return (
-    <div className="w-12 md:w-16 pr-2 pt-8 flex-shrink-0">
+    <div className="w-10 md:w-16 pr-1 md:pr-2 pt-8 flex-shrink-0">
       {HOURS.map((hour) => (
         <div
           key={hour}
-          className="h-24 relative border-t border-transparent"
+          className="relative border-t border-transparent"
           style={{ height: "6rem" }}
         >
-          <span className="absolute -top-2.5 right-0 text-xs text-muted-foreground">
+          <span className="absolute -top-2.5 right-0 text-[10px] md:text-xs text-muted-foreground">
             {formatHour(hour)}
           </span>
         </div>
