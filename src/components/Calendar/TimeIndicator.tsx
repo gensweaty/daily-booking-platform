@@ -22,8 +22,8 @@ export const TimeIndicator = () => {
             key={hour}
             className="h-24 border-b border-border text-xs text-muted-foreground flex items-start"
           >
-            {/* Using transform to fine-tune the alignment perfectly */}
-            <div className="pl-2 transform -translate-y-[0.5px]">
+            {/* Precise vertical alignment for mobile and desktop */}
+            <div className="pl-2 transform -translate-y-[1px]">
               {format(date, 'h a')}
             </div>
           </div>

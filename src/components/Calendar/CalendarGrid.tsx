@@ -1,4 +1,3 @@
-
 import { format, isSameDay, isSameMonth, startOfWeek, addDays } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -23,25 +22,19 @@ export const CalendarGrid = ({
   onEventClick,
   isExternalCalendar = false,
 }: CalendarGridProps) => {
-  // Get the start of the week for proper alignment
   const startDate = startOfWeek(days[0]);
   const isMobile = useMediaQuery("(max-width: 640px)");
   
-  // Generate properly aligned weekday headers
   const weekDays = Array.from({ length: 7 }, (_, i) => 
     format(addDays(startDate, i), isMobile ? 'EEEEE' : 'EEE')
   );
 
-  // Convert formattedSelectedDate string back to a Date for comparison
   const selectedDate = new Date(formattedSelectedDate);
 
-  // Get event color based on type and whether it's an external calendar
   const getEventStyles = (event: CalendarEventType) => {
     if (isExternalCalendar) {
-      // In external calendar, all events (including regular events) should have a consistent appearance as "Booked"
       return "bg-green-500 text-white";
     } else {
-      // In internal calendar, use event type to determine appearance
       if (event.type === "booking_request") {
         return "bg-green-500 text-white"; 
       } else if (event.type === "birthday") {
@@ -52,27 +45,21 @@ export const CalendarGrid = ({
     }
   };
 
-  // Get event title based on whether it's an external calendar
   const getEventTitle = (event: CalendarEventType): string => {
-    // For external calendar, always display as "Booked"
     if (isExternalCalendar) {
       return "Booked";
     }
-    // For internal calendar, display the actual title
     return event.title;
   };
 
-  // For week and day view, we need to render hours
   if (view === 'week' || view === 'day') {
-    // Reorder hours to start from 6 AM to match the TimeIndicator component
     const HOURS = [
-      ...Array.from({ length: 18 }, (_, i) => i + 6), // 6 AM to 23 PM
-      ...Array.from({ length: 6 }, (_, i) => i) // 0 AM to 5 AM
+      ...Array.from({ length: 18 }, (_, i) => i + 6),
+      ...Array.from({ length: 6 }, (_, i) => i)
     ];
     
     return (
       <div className="grid grid-cols-1 h-full overflow-y-auto">
-        {/* Add weekday headers for week view */}
         {view === 'week' && (
           <div className="grid grid-cols-7 bg-white sticky top-0 z-20 border-b border-gray-200 h-8">
             {days.map((day, index) => (
@@ -83,7 +70,6 @@ export const CalendarGrid = ({
           </div>
         )}
         
-        {/* Add day header for day view with the same height as week view */}
         {view === 'day' && (
           <div className="bg-white sticky top-0 z-20 border-b border-gray-200 h-8">
             <div className="p-1 text-center font-semibold text-xs sm:text-sm">
@@ -105,14 +91,12 @@ export const CalendarGrid = ({
                 height: '6rem'
               }}
             >
-              {/* For day view, we only render a single column */}
               {view === 'day' ? (
                 <div
                   key={`${days[0].toISOString()}-${hourIndex}`}
                   className={`border-r border-gray-200 p-1 relative`}
                   onClick={() => onDayClick?.(days[0], hourIndex)}
                 >
-                  {/* Render events that start in this hour */}
                   {events
                     .filter((event) => {
                       const eventDate = new Date(event.start_date);
@@ -131,7 +115,6 @@ export const CalendarGrid = ({
                         )
                       );
                       
-                      // On mobile, we'll only show up to 2 events and then indicate how many more
                       if (isMobile && idx > 1) {
                         if (idx === 2) {
                           return (
@@ -162,7 +145,6 @@ export const CalendarGrid = ({
                             onEventClick?.(event);
                           }}
                         >
-                          {/* Improved mobile view with more compact layout and better space usage */}
                           {isMobile ? (
                             <>
                               <div className="flex items-center mb-0.5">
@@ -179,7 +161,6 @@ export const CalendarGrid = ({
                                   {format(endTime, 'HH:mm')}
                                 </span>
                               </div>
-                              {/* Show additional info if available */}
                               {event.requester_name && (
                                 <div className="truncate text-[0.65rem] mt-0.5">
                                   {event.requester_name}
@@ -210,7 +191,6 @@ export const CalendarGrid = ({
                     })}
                 </div>
               ) : (
-                // For week view, render all 7 days
                 days.map((day) => (
                   <div
                     key={`${day.toISOString()}-${hourIndex}`}
@@ -219,7 +199,6 @@ export const CalendarGrid = ({
                     }`}
                     onClick={() => onDayClick?.(day, hourIndex)}
                   >
-                    {/* Render events that start in this hour */}
                     {events
                       .filter((event) => {
                         const eventDate = new Date(event.start_date);
@@ -238,7 +217,6 @@ export const CalendarGrid = ({
                           )
                         );
                         
-                        // On mobile, we'll only show up to 2 events and then indicate how many more
                         if (isMobile && idx > 1) {
                           if (idx === 2) {
                             return (
@@ -269,7 +247,6 @@ export const CalendarGrid = ({
                               onEventClick?.(event);
                             }}
                           >
-                            {/* Improved mobile view with more compact layout and better space usage */}
                             {isMobile ? (
                               <>
                                 <div className="flex items-center mb-0.5">
@@ -286,7 +263,6 @@ export const CalendarGrid = ({
                                     {format(endTime, 'HH:mm')}
                                   </span>
                                 </div>
-                                {/* Show additional info if available */}
                                 {event.requester_name && (
                                   <div className="truncate text-[0.65rem] mt-0.5">
                                     {event.requester_name}
@@ -325,7 +301,6 @@ export const CalendarGrid = ({
     );
   }
 
-  // Month view (default)
   return (
     <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
       {weekDays.map((day) => (
@@ -334,7 +309,6 @@ export const CalendarGrid = ({
         </div>
       ))}
       {days.map((day) => {
-        // Get events for this day
         const dayEvents = events.filter((event) => isSameDay(new Date(event.start_date), day));
         
         return (
@@ -349,7 +323,6 @@ export const CalendarGrid = ({
             <div className="mt-1 sm:mt-2 space-y-0.5 sm:space-y-1">
               {dayEvents.length > 0 ? (
                 isMobile ? (
-                  // Mobile optimized view - more compact, shows more info
                   <>
                     {dayEvents.slice(0, 2).map((event) => (
                       <div
@@ -373,7 +346,6 @@ export const CalendarGrid = ({
                     )}
                   </>
                 ) : (
-                  // Desktop view - standard
                   dayEvents.map((event) => (
                     <div
                       key={event.id}
