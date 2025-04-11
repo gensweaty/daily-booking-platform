@@ -12,9 +12,44 @@ import { ResetPassword } from "@/components/ResetPassword";
 import { PublicBusinessPage } from "@/components/business/PublicBusinessPage";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ForgotPassword } from "@/components/ForgotPassword";
+import { useEffect } from "react";
 
-// Create a client for React Query
-const queryClient = new QueryClient();
+// Create a client for React Query with improved retry logic
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 3,
+      retryDelay: attempt => Math.min(attempt > 1 ? 2000 : 1000, 30000),
+      staleTime: 30000 // Consider data fresh for 30 seconds
+    }
+  }
+});
+
+// Helper for session recovery
+const SessionRecoveryWrapper = ({ children }: { children: React.ReactNode }) => {
+  useEffect(() => {
+    // Add listener for online/offline events
+    const handleOnline = () => {
+      console.log("Network is online - refreshing session");
+      // Force a refresh of all queries when coming back online
+      queryClient.invalidateQueries();
+    };
+    
+    window.addEventListener('online', handleOnline);
+    
+    // Check if this is a page reload
+    if (performance.navigation.type === 1) {
+      console.log("Page was reloaded - refreshing data");
+      queryClient.invalidateQueries();
+    }
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
+  
+  return <>{children}</>;
+};
 
 function App() {
   return (
@@ -23,18 +58,23 @@ function App() {
         <BrowserRouter>
           <AuthProvider>
             <LanguageProvider>
-              <Routes>
-                <Route path="/" element={<Landing />} />
-                <Route path="/dashboard" element={<Index />} />
-                <Route path="/legal" element={<Legal />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/business/:slug" element={<PublicBusinessPage />} />
-                <Route path="/login" element={<Index />} />
-                <Route path="/signup" element={<Index />} />
-              </Routes>
-              <Toaster />
+              <SessionRecoveryWrapper>
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/dashboard" element={<Index />} />
+                  <Route path="/dashboard/*" element={<Index />} />
+                  <Route path="/legal" element={<Legal />} />
+                  <Route path="/contact" element={<Contact />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/business/:slug" element={<PublicBusinessPage />} />
+                  <Route path="/business" element={<PublicBusinessPage />} />
+                  <Route path="/login" element={<Index />} />
+                  <Route path="/signup" element={<Index />} />
+                  <Route path="*" element={<Landing />} />
+                </Routes>
+                <Toaster />
+              </SessionRecoveryWrapper>
             </LanguageProvider>
           </AuthProvider>
         </BrowserRouter>

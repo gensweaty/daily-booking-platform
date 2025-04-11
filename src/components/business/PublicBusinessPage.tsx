@@ -1,5 +1,6 @@
+
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -9,16 +10,34 @@ import { ExternalCalendar } from "../Calendar/ExternalCalendar";
 
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
-  const path = window.location.pathname;
-  const slugFromPath = path.match(/\/business\/([^\/]+)/)?.[1];
-  const businessSlug = slug || slugFromPath;
+  const location = useLocation();
+  
+  // More robust slug extraction that handles multiple URL formats
+  const getBusinessSlug = () => {
+    // First try from URL params
+    if (slug) return slug;
+    
+    // Then try to extract from path
+    const pathMatch = location.pathname.match(/\/business\/([^\/]+)/);
+    if (pathMatch && pathMatch[1]) return pathMatch[1];
+    
+    // Try to extract from URL search params
+    const searchParams = new URLSearchParams(location.search);
+    const slugFromSearch = searchParams.get('slug') || searchParams.get('business');
+    if (slugFromSearch) return slugFromSearch;
+    
+    // Last resort, check local storage
+    return localStorage.getItem('lastVisitedBusinessSlug') || null;
+  };
+
+  const businessSlug = getBusinessSlug();
 
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
   const imageRetryCount = useRef(0);
   const maxRetryCount = 3;
 
@@ -28,11 +47,20 @@ export const PublicBusinessPage = () => {
   useEffect(() => {
     // Set up an interval to trigger refreshes
     const intervalId = setInterval(() => {
-      setRefreshTrigger(prev => prev + 1);
-    }, 60000); // Refresh every minute
+      if (retryCount < 3 && !business) {
+        setRetryCount(prev => prev + 1);
+      }
+    }, 5000); // Retry every 5 seconds for first 15 seconds
     
     return () => clearInterval(intervalId);
-  }, []);
+  }, [business, retryCount]);
+
+  // Save business slug to localStorage when found for recovery
+  useEffect(() => {
+    if (businessSlug) {
+      localStorage.setItem('lastVisitedBusinessSlug', businessSlug);
+    }
+  }, [businessSlug]);
 
   useEffect(() => {
     const fetchBusinessProfile = async () => {
@@ -103,7 +131,7 @@ export const PublicBusinessPage = () => {
     };
 
     fetchBusinessProfile();
-  }, [businessSlug, refreshTrigger]); // Also refetch when refreshTrigger changes
+  }, [businessSlug, retryCount]); // Also refetch when retryCount changes
 
   // Handle image load success
   const handleImageLoad = () => {

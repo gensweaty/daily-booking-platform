@@ -15,12 +15,32 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const [businessUserId, setBusinessUserId] = useState<string | null>(null);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const { t } = useLanguage();
 
   // Diagnostic logging for businessId
   useEffect(() => {
     console.log("External Calendar mounted with business ID:", businessId);
+    
+    // Reset error state when business ID changes
+    setLoadingError(null);
   }, [businessId]);
+
+  // Retry mechanism for failed API calls
+  useEffect(() => {
+    if (loadingError) {
+      const retryTimer = setTimeout(() => {
+        if (retryCount < 3) {
+          console.log(`[External Calendar] Retrying API call, attempt ${retryCount + 1}`);
+          setRetryCount(prev => prev + 1);
+          setLoadingError(null); // Clear error to trigger a new fetch
+        }
+      }, 3000); // Retry after 3 seconds
+      
+      return () => clearTimeout(retryTimer);
+    }
+  }, [loadingError, retryCount]);
 
   // Step 1: Get the business user ID
   useEffect(() => {
@@ -37,22 +57,34 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         
         if (error) {
           console.error("Error fetching business profile:", error);
+          setLoadingError("Failed to fetch business user information");
           return;
         }
         
         if (data?.user_id) {
           console.log("[External Calendar] Found business user ID:", data.user_id);
           setBusinessUserId(data.user_id);
+          // Store business user ID in session storage for recovery
+          sessionStorage.setItem(`business_user_id_${businessId}`, data.user_id);
         } else {
           console.error("No user ID found for business:", businessId);
+          setLoadingError("Invalid business profile");
+          
+          // Try to recover from session storage
+          const cachedUserId = sessionStorage.getItem(`business_user_id_${businessId}`);
+          if (cachedUserId) {
+            console.log("[External Calendar] Recovered business user ID from session storage:", cachedUserId);
+            setBusinessUserId(cachedUserId);
+          }
         }
       } catch (error) {
         console.error("Exception fetching business user ID:", error);
+        setLoadingError("Failed to load business information");
       }
     };
     
     getBusinessUserId();
-  }, [businessId]);
+  }, [businessId, retryCount]);
 
   // Step 2: Fetch all events using the getPublicCalendarEvents API which uses our new RPC function
   useEffect(() => {
@@ -125,10 +157,31 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         const uniqueEvents = Array.from(eventMap.values());
         console.log(`[External Calendar] Final unique events: ${uniqueEvents.length}`);
         
+        // Store events in session storage for recovery
+        try {
+          sessionStorage.setItem(`calendar_events_${businessId}`, JSON.stringify(uniqueEvents));
+        } catch (e) {
+          console.warn("Failed to store events in session storage:", e);
+        }
+        
         // Update state with fetched events
         setEvents(uniqueEvents);
+        setLoadingError(null);
       } catch (error) {
         console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
+        setLoadingError("Failed to load calendar events");
+        
+        // Try to recover events from session storage
+        try {
+          const cachedEvents = sessionStorage.getItem(`calendar_events_${businessId}`);
+          if (cachedEvents) {
+            console.log("[External Calendar] Recovering events from session storage");
+            setEvents(JSON.parse(cachedEvents));
+          }
+        } catch (e) {
+          console.error("Failed to recover events from session storage:", e);
+        }
+        
         toast({
           title: t("common.error"),
           description: t("common.error"),
@@ -144,13 +197,13 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("[External Calendar] Have business ID, fetching events");
       fetchAllEvents();
       
-      // Set up polling to refresh data every 15 seconds
-      const intervalId = setInterval(fetchAllEvents, 15000);
+      // Set up polling to refresh data every 30 seconds
+      const intervalId = setInterval(fetchAllEvents, 30000);
       return () => {
         clearInterval(intervalId);
       };
     }
-  }, [businessId, toast, t]);
+  }, [businessId, toast, t, retryCount]);
 
   if (!businessId) {
     return (
@@ -172,6 +225,15 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
               <Loader2 className="h-8 w-8 text-primary animate-spin" />
               <span className="ml-2 text-primary">{t("common.loading")}</span>
+            </div>
+          )}
+          
+          {loadingError && !events.length && (
+            <div className="bg-background/80 py-8 text-center">
+              <p className="text-red-500 mb-2">{loadingError}</p>
+              <Button onClick={() => setRetryCount(prev => prev + 1)} className="mt-2">
+                Retry Loading
+              </Button>
             </div>
           )}
           
