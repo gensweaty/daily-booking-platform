@@ -72,6 +72,17 @@ export const CalendarGrid = ({
     
     return (
       <div className="grid grid-cols-1 h-full overflow-y-auto">
+        {/* Add weekday headers for week view */}
+        {view === 'week' && (
+          <div className="grid grid-cols-7 bg-white sticky top-0 z-20 border-b border-gray-200">
+            {days.map((day, index) => (
+              <div key={`header-${index}`} className="p-1 text-center font-semibold text-xs sm:text-sm">
+                {format(day, isMobile ? 'E d' : 'EEE d')}
+              </div>
+            ))}
+          </div>
+        )}
+        
         <div className="grid" style={{ 
           gridTemplateRows: `repeat(${HOURS.length}, 6rem)`,
           height: `${HOURS.length * 6}rem`
@@ -102,7 +113,7 @@ export const CalendarGrid = ({
                         eventDate.getHours() === hourIndex
                       );
                     })
-                    .map((event) => {
+                    .map((event, idx) => {
                       const startTime = new Date(event.start_date);
                       const endTime = new Date(event.end_date);
                       const durationHours = Math.max(
@@ -112,10 +123,28 @@ export const CalendarGrid = ({
                         )
                       );
                       
+                      // On mobile, we'll only show up to 2 events and then indicate how many more
+                      if (isMobile && idx > 1) {
+                        if (idx === 2) {
+                          return (
+                            <div 
+                              key={`more-${event.id}`} 
+                              className="text-[0.65rem] text-gray-600 font-medium absolute bottom-0 left-1 right-1"
+                            >
+                              +{events.filter(e => {
+                                const eDate = new Date(e.start_date);
+                                return isSameDay(eDate, day) && eDate.getHours() === hourIndex;
+                              }).length - 2} more
+                            </div>
+                          );
+                        }
+                        return null;
+                      }
+                      
                       return (
                         <div
                           key={event.id}
-                          className={`${getEventStyles(event)} p-2 rounded cursor-pointer absolute top-1 left-1 right-1 overflow-hidden`}
+                          className={`${getEventStyles(event)} p-1 sm:p-2 rounded cursor-pointer absolute top-1 left-1 right-1 overflow-hidden`}
                           style={{ 
                             height: `${Math.min(durationHours * 6 - 0.5, 5.5)}rem`,
                             zIndex: 10
@@ -126,12 +155,12 @@ export const CalendarGrid = ({
                           }}
                         >
                           <div className="flex items-center">
-                            <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
-                            <span className="truncate font-medium text-sm">
+                            <CalendarIcon className={`${isMobile ? 'h-2 w-2 mr-0.5' : 'h-3 w-3 mr-1'} shrink-0`} />
+                            <span className={`truncate font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>
                               {getEventTitle(event)}
                             </span>
                           </div>
-                          <div className="truncate text-xs">
+                          <div className={`truncate ${isMobile ? 'text-[0.65rem]' : 'text-xs'}`}>
                             {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
                           </div>
                         </div>
