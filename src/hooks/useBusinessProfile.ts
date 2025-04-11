@@ -1,6 +1,5 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, forceBucketCreation } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -50,34 +49,20 @@ export const useBusinessProfile = () => {
     return data;
   };
 
-  // Fixed function to properly upload and store the cover photo
   const uploadCoverPhoto = async (file: File) => {
     if (!user) throw new Error("User must be authenticated to upload a cover photo");
     
     try {
       console.log("Starting cover photo upload process...");
       
-      // Ensure the business_covers bucket exists
-      const { data: buckets } = await supabase.storage.listBuckets();
-      const businessBucketExists = buckets?.some(b => b.name === 'business_covers');
+      await forceBucketCreation();
       
-      if (!businessBucketExists) {
-        console.log("Creating business_covers bucket...");
-        await supabase.storage.createBucket('business_covers', {
-          public: true,
-          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
-          fileSizeLimit: 5000000 // 5MB
-        });
-      }
-
-      // Generate a unique file name with user ID and timestamp to prevent collisions
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}_${Date.now()}.${fileExt}`;
       const filePath = fileName;
 
       console.log(`Uploading file: ${filePath}`);
       
-      // Delete old file if it exists (extract file name from URL)
       if (businessProfile?.cover_photo_url) {
         try {
           const oldUrl = new URL(businessProfile.cover_photo_url);
@@ -101,7 +86,6 @@ export const useBusinessProfile = () => {
         }
       }
       
-      // Upload the file with upsert: true
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from('business_covers')
         .upload(filePath, file, {
@@ -116,17 +100,14 @@ export const useBusinessProfile = () => {
 
       console.log("File uploaded successfully:", uploadData);
 
-      // Get the public URL with a cache-busting parameter
       const { data } = supabase.storage
         .from('business_covers')
         .getPublicUrl(filePath);
 
-      // Add a cache-busting parameter to the URL to prevent caching issues
       const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
       
       console.log("Generated public URL with cache-busting:", publicUrl);
 
-      // If we have a business profile, immediately update the cover_photo_url
       if (businessProfile) {
         console.log("Updating business profile with new cover photo URL");
         
@@ -146,10 +127,8 @@ export const useBusinessProfile = () => {
             variant: "destructive",
           });
         } else {
-          // Refresh the profile data immediately
           await queryClient.invalidateQueries({ queryKey: ["businessProfile", user?.id] });
           
-          // Force a second refresh after a short delay to ensure data consistency
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ["businessProfile", user?.id] });
           }, 500);
@@ -172,8 +151,8 @@ export const useBusinessProfile = () => {
     queryKey: ["businessProfile", user?.id],
     queryFn: getBusinessProfile,
     enabled: !!user,
-    staleTime: 30000, // Reduce stale time to 30 seconds for more frequent refreshes
-    refetchInterval: 60000, // Add a refetch interval to ensure profile updates are seen
+    staleTime: 30000,
+    refetchInterval: 60000,
     refetchOnWindowFocus: true,
   });
 

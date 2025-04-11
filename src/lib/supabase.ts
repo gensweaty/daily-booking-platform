@@ -20,28 +20,79 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// Ensure business_covers bucket exists on init
+// Improved bucket creation with better error handling and retry logic
 const ensureStorageBuckets = async () => {
   try {
-    const { data: buckets } = await supabase.storage.listBuckets();
+    console.log("Checking if business_covers bucket exists...");
+    
+    // First check if bucket exists
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    
+    if (bucketsError) {
+      console.error("Error listing storage buckets:", bucketsError);
+      // Don't throw here, we'll try to create the bucket anyway
+    }
+    
     const businessBucketExists = buckets?.some(b => b.name === 'business_covers');
     
     if (!businessBucketExists) {
       console.log("Creating business_covers bucket...");
-      await supabase.storage.createBucket('business_covers', {
+      
+      // Try creating the bucket
+      const { data, error } = await supabase.storage.createBucket('business_covers', {
         public: true,
         allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
         fileSizeLimit: 5000000 // 5MB
       });
-      console.log("business_covers bucket created successfully");
+      
+      if (error) {
+        console.error("Error creating business_covers bucket:", error);
+        
+        // Wait briefly and retry once
+        console.log("Retrying bucket creation after a short delay...");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const { error: retryError } = await supabase.storage.createBucket('business_covers', {
+          public: true,
+          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
+          fileSizeLimit: 5000000 // 5MB
+        });
+        
+        if (retryError) {
+          console.error("Retry also failed:", retryError);
+        } else {
+          console.log("business_covers bucket created successfully on retry");
+        }
+      } else {
+        console.log("business_covers bucket created successfully");
+      }
+      
+      // Set up storage policies to ensure public access
+      try {
+        // We don't have direct access to modify policies through the JS client,
+        // but we can verify bucket is set to public
+        const { data: verifyBuckets } = await supabase.storage.listBuckets();
+        const createdBucket = verifyBuckets?.find(b => b.name === 'business_covers');
+        console.log("Verified bucket status:", createdBucket);
+      } catch (policyError) {
+        console.error("Error verifying bucket policies:", policyError);
+      }
+    } else {
+      console.log("business_covers bucket already exists");
     }
   } catch (error) {
-    console.error("Error ensuring storage buckets exist:", error);
+    console.error("Error in ensureStorageBuckets:", error);
   }
 };
 
-// Call this function when the app initializes
+// Call this function immediately when the app loads
 ensureStorageBuckets();
+
+// Also expose it for explicit calls
+export const forceBucketCreation = async () => {
+  console.log("Force creating storage buckets...");
+  return ensureStorageBuckets();
+};
 
 // Export the storage URL as a standalone function instead of attaching to supabase
 export const getStorageUrl = () => `${supabaseUrl}/storage/v1`;
