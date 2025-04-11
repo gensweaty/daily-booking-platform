@@ -71,19 +71,17 @@ export const Calendar = ({
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Handle window resize for mobile view - fixed to prevent auto-switching to month
+  // Handle window resize for mobile view - don't automatically switch views
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
     
     window.addEventListener('resize', handleResize);
-    handleResize(); // Call initially
-    
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Update view when currentView prop changes
+  // Update view when currentView prop changes, but don't reset it on window resize
   useEffect(() => {
     if (currentView) {
       setView(currentView);

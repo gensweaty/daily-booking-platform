@@ -80,7 +80,7 @@ export function CalendarView({
           )}
           
           <div className="flex flex-1 overflow-hidden">
-            {/* Time indicator with fixed positioning */}
+            {/* Only show one TimeIndicator, not duplicated */}
             <TimeIndicator />
             
             <div className="flex-1 overflow-auto">
@@ -112,3 +112,4 @@ export function CalendarView({
     </div>
   );
 };
+
