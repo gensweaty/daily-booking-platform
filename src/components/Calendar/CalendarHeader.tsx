@@ -4,7 +4,6 @@ import { format } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { CalendarViewType } from "@/lib/types/calendar";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useEffect, useState } from "react";
 
 interface CalendarHeaderProps {
   selectedDate: Date;
@@ -26,96 +25,62 @@ export const CalendarHeader = ({
   isExternalCalendar = false,
 }: CalendarHeaderProps) => {
   const { t } = useLanguage();
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  
-  // Add responsive check for mobile devices
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const getFormattedDate = () => {
-    if (isMobile) {
-      // Simpler format for mobile
-      return format(selectedDate, "MMMM yyyy");
-    } else {
-      // Desktop format
-      switch (view) {
-        case "month":
-          return format(selectedDate, "MMMM yyyy");
-        case "week":
-          return `${t("calendar.weekOf")} ${format(selectedDate, "MMM d, yyyy")}`;
-        case "day":
-          return format(selectedDate, "EEEE, MMMM d, yyyy");
-        default:
-          return "";
-      }
-    }
-  };
-
-  // Fix the handle view change to prevent switching if already on that view
-  const handleViewChange = (newView: CalendarViewType) => {
-    if (view !== newView) {
-      onViewChange(newView);
+    switch (view) {
+      case "month":
+        return format(selectedDate, "MMMM yyyy");
+      case "week":
+        return `${t("calendar.weekOf")} ${format(selectedDate, "MMM d, yyyy")}`;
+      case "day":
+        return format(selectedDate, "EEEE, MMMM d, yyyy");
+      default:
+        return "";
     }
   };
 
   return (
-    <div className="flex flex-col gap-3 mb-1">
-      {/* Month/Year display with navigation arrows */}
-      <div className="flex justify-between items-center">
-        <Button variant="outline" size="icon" onClick={onPrevious} className="h-12 w-12 flex-shrink-0 rounded-lg">
-          <ChevronLeft className="h-6 w-6" />
+    <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="icon" onClick={onPrevious}>
+          <ChevronLeft className="h-4 w-4" />
         </Button>
-        
-        <h2 className="text-xl font-semibold text-center">{getFormattedDate()}</h2>
-        
-        <Button variant="outline" size="icon" onClick={onNext} className="h-12 w-12 flex-shrink-0 rounded-lg">
-          <ChevronRight className="h-6 w-6" />
+        <Button variant="outline" size="icon" onClick={onNext}>
+          <ChevronRight className="h-4 w-4" />
         </Button>
+        <h2 className="text-xl font-semibold ml-2">{getFormattedDate()}</h2>
       </div>
 
-      {/* View switcher and Add Event button */}
-      <div className="flex justify-between items-center gap-4">
-        {/* Fixed view switcher - full width on mobile with exact proportions */}
-        <div className={`flex rounded-full overflow-hidden border border-input bg-white ${isMobile ? 'w-[205px]' : ''}`}>
+      <div className="flex flex-wrap gap-2 justify-between w-full sm:w-auto mt-2 sm:mt-0">
+        <div className="flex gap-1 mr-auto sm:mr-2">
           <Button
-            variant={view === "month" ? "default" : "ghost"}
+            variant={view === "day" ? "default" : "outline"}
             size="sm"
-            onClick={() => handleViewChange("month")}
-            className={`px-3 py-2 rounded-none text-sm ${isMobile ? 'flex-1' : ''} ${view === "month" ? "bg-[#9b87f5] text-white hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
+            onClick={() => onViewChange("day")}
+            className="px-2 sm:px-4"
           >
-            {t("calendar.month")}
+            {t("calendar.day")}
           </Button>
           <Button
-            variant={view === "week" ? "default" : "ghost"}
+            variant={view === "week" ? "default" : "outline"}
             size="sm"
-            onClick={() => handleViewChange("week")}
-            className={`px-3 py-2 rounded-none text-sm ${isMobile ? 'flex-1' : ''} ${view === "week" ? "bg-[#9b87f5] text-white hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
+            onClick={() => onViewChange("week")}
+            className="px-2 sm:px-4"
           >
             {t("calendar.week")}
           </Button>
           <Button
-            variant={view === "day" ? "default" : "ghost"}
+            variant={view === "month" ? "default" : "outline"}
             size="sm"
-            onClick={() => handleViewChange("day")}
-            className={`px-3 py-2 rounded-none text-sm ${isMobile ? 'flex-1' : ''} ${view === "day" ? "bg-[#9b87f5] text-white hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
+            onClick={() => onViewChange("month")}
+            className="px-2 sm:px-4"
           >
-            {t("calendar.day")}
+            {t("calendar.month")}
           </Button>
         </div>
         
-        {/* Add Event button */}
         {onAddEvent && (
-          <Button 
-            onClick={onAddEvent} 
-            size="sm" 
-            className="bg-[#9b87f5] hover:bg-[#8a78de] text-white rounded-full py-2 px-4 text-sm"
-          >
+          <Button onClick={onAddEvent} size="sm" className="ml-auto sm:ml-0">
             <Plus className="h-4 w-4 mr-1" />
             {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
           </Button>

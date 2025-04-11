@@ -52,7 +52,6 @@ export const Calendar = ({
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
   const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
@@ -71,17 +70,6 @@ export const Calendar = ({
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Handle window resize for mobile view - don't automatically switch views
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Update view when currentView prop changes, but don't reset it on window resize
   useEffect(() => {
     if (currentView) {
       setView(currentView);
@@ -97,14 +85,13 @@ export const Calendar = ({
       directEvents: directEvents?.length || 0,
       fetchedEvents: fetchedEvents?.length || 0,
       eventsCount: events?.length || 0,
-      view,
-      isMobile
+      view
     });
     
     if (events?.length > 0) {
       console.log("[Calendar] First event:", events[0]);
     }
-  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents, isMobile]);
+  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
 
   const {
     selectedEvent,
@@ -145,14 +132,10 @@ export const Calendar = ({
         const monthStart = startOfMonth(selectedDate);
         const firstWeekStart = startOfWeek(monthStart);
         const monthEnd = endOfMonth(selectedDate);
-        // For mobile month view, make sure we have exactly 42 days (6 weeks)
-        // This ensures consistent grid sizing
-        const daysArray = eachDayOfInterval({
+        return eachDayOfInterval({
           start: firstWeekStart,
-          end: endOfMonth(addDays(monthEnd, 7)), // Add extra days to ensure we have at least 42 days
+          end: monthEnd,
         });
-        
-        return daysArray.slice(0, 42); // Exactly 6 weeks
       }
       case "week":
         return eachDayOfInterval({
@@ -193,7 +176,6 @@ export const Calendar = ({
   };
 
   const handleViewChange = (newView: CalendarViewType) => {
-    console.log("[Calendar] Changing view from", view, "to", newView);
     setView(newView);
     if (onViewChange) {
       onViewChange(newView);
@@ -297,7 +279,7 @@ export const Calendar = ({
       />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
-        {view !== 'month' && !isMobile && <TimeIndicator />}
+        {view !== 'month' && <TimeIndicator />}
         <div className="flex-1">
           <CalendarView
             days={getDaysForView()}
