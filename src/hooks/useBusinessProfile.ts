@@ -56,14 +56,14 @@ export const useBusinessProfile = () => {
     try {
       console.log("Starting cover photo upload process...");
       
-      // Force bucket creation before upload
+      // Force bucket verification before upload
       await forceBucketCreation();
       
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}_${Date.now()}.${fileExt}`;
       const filePath = fileName;
 
-      console.log(`Uploading file: ${filePath}`);
+      console.log(`Uploading file: ${filePath} (Size: ${(file.size / 1024 / 1024).toFixed(2)}MB)`);
       
       // Remove old cover photo if it exists
       if (businessProfile?.cover_photo_url) {
@@ -103,6 +103,9 @@ export const useBusinessProfile = () => {
           await new Promise(resolve => setTimeout(resolve, 1000));
           console.log(`Retry attempt ${uploadAttempts} for file upload`);
         }
+        
+        // Log the upload attempt details
+        console.log(`Upload attempt ${uploadAttempts} - File size: ${file.size} bytes, File type: ${file.type}`);
         
         const { error, data } = await supabase.storage
           .from('business_covers')
@@ -161,7 +164,7 @@ export const useBusinessProfile = () => {
           // Add a delayed second invalidation to ensure the updated cover photo URL is loaded
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ["businessProfile", user?.id] });
-          }, 500);
+          }, 1000);
         }
       }
 

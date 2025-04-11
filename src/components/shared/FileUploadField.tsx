@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
-const MAX_FILE_SIZE_IMAGES = 2048 * 1024; // 2MB
+const MAX_FILE_SIZE_IMAGES = 50 * 1024 * 1024; // 50MB for images - increased from 2MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const ALLOWED_DOC_TYPES = [
   "application/pdf",
@@ -43,7 +43,8 @@ export const FileUploadField = ({
 
     const maxSize = isImage ? MAX_FILE_SIZE_IMAGES : MAX_FILE_SIZE_DOCS;
     if (file.size > maxSize) {
-      return `File size exceeds ${maxSize / (1024 * 1024)}MB limit`;
+      const sizeMB = maxSize / (1024 * 1024);
+      return `File size exceeds ${sizeMB}MB limit${isImage ? ' for images' : ' for documents'}`;
     }
 
     return null;
@@ -55,6 +56,7 @@ export const FileUploadField = ({
     setFileError("");
 
     if (selectedFile) {
+      console.log(`Selected file: ${selectedFile.name}, Size: ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB, Type: ${selectedFile.type}`);
       const error = validateFile(selectedFile);
       if (error) {
         setFileError(error);
@@ -85,6 +87,11 @@ export const FileUploadField = ({
       />
       {fileError && (
         <p className="text-sm text-red-500 mt-1">{fileError}</p>
+      )}
+      {!hideDescription && !fileError && (
+        <p className="text-xs text-muted-foreground mt-1">
+          Supported formats: images (jpg, png, webp) up to 50MB, documents (pdf, docx, xlsx, pptx) up to 1MB
+        </p>
       )}
     </div>
   );

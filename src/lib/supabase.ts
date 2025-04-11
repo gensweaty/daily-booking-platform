@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -20,7 +19,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// Improved bucket creation with better error handling and retry logic
+// Improved bucket verification - only checks if it exists and logs the settings
 const ensureStorageBuckets = async () => {
   try {
     console.log("Checking if business_covers bucket exists...");
@@ -30,74 +29,16 @@ const ensureStorageBuckets = async () => {
     
     if (bucketsError) {
       console.error("Error listing storage buckets:", bucketsError);
-      // Don't throw here, we'll try to create the bucket anyway
+      return; // Exit early if we can't even list buckets
     }
     
-    const businessBucketExists = buckets?.some(b => b.name === 'business_covers');
+    const businessBucket = buckets?.find(b => b.name === 'business_covers');
     
-    if (!businessBucketExists) {
-      console.log("Creating business_covers bucket...");
-      
-      // Try creating the bucket
-      const { data, error } = await supabase.storage.createBucket('business_covers', {
-        public: true,
-        allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
-        fileSizeLimit: 5000000 // 5MB
-      });
-      
-      if (error) {
-        console.error("Error creating business_covers bucket:", error);
-        
-        // Wait briefly and retry once
-        console.log("Retrying bucket creation after a short delay...");
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const { error: retryError } = await supabase.storage.createBucket('business_covers', {
-          public: true,
-          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
-          fileSizeLimit: 5000000 // 5MB
-        });
-        
-        if (retryError) {
-          console.error("Retry also failed:", retryError);
-        } else {
-          console.log("business_covers bucket created successfully on retry");
-        }
-      } else {
-        console.log("business_covers bucket created successfully");
-      }
-      
-      // Try to update the bucket policy to make it public - fixed method call
-      try {
-        const { error: policyError } = await supabase.storage.updateBucket('business_covers', {
-          public: true,
-          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
-          fileSizeLimit: 5000000 // 5MB
-        });
-        
-        if (policyError) {
-          console.error("Error updating bucket policy:", policyError);
-        }
-      } catch (policyError) {
-        console.error("Error updating bucket policy:", policyError);
-      }
+    if (businessBucket) {
+      console.log("business_covers bucket exists with settings:", businessBucket);
+      console.log(`Current file size limit: ${businessBucket.file_size_limit || 'default'}`);
     } else {
-      console.log("business_covers bucket already exists");
-      
-      // Try to update the bucket policy to ensure it's public - fixed method call
-      try {
-        const { error: policyError } = await supabase.storage.updateBucket('business_covers', {
-          public: true,
-          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
-          fileSizeLimit: 5000000 // 5MB
-        });
-        
-        if (policyError) {
-          console.error("Error updating bucket policy:", policyError);
-        }
-      } catch (policyError) {
-        console.error("Error updating bucket policy:", policyError);
-      }
+      console.log("business_covers bucket not found in the list of buckets");
     }
   } catch (error) {
     console.error("Error in ensureStorageBuckets:", error);
@@ -109,7 +50,7 @@ ensureStorageBuckets();
 
 // Also expose it for explicit calls
 export const forceBucketCreation = async () => {
-  console.log("Force creating storage buckets...");
+  console.log("Verifying storage bucket settings...");
   return ensureStorageBuckets();
 };
 
