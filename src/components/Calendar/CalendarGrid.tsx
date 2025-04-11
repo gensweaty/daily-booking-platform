@@ -94,7 +94,7 @@ export const CalendarGrid = ({
                   onClick={() => onDayClick?.(day, hourIndex)}
                 >
                   {days.indexOf(day) === 0 && (
-                    <div className={`absolute ${isMobile ? '-left-6 top-0' : '-left-12 top-0'} text-xs text-gray-500`}>
+                    <div className={`absolute ${isMobile ? '-left-6 top-[12px]' : '-left-12 top-[12px]'} text-xs text-gray-500`}>
                       {format(new Date().setHours(hourIndex, 0, 0, 0), isMobile ? 'h' : 'h a')}
                     </div>
                   )}
