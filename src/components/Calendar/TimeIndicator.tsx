@@ -10,6 +10,9 @@ const HOURS = [
 export const TimeIndicator = () => {
   return (
     <div className="w-16 flex-shrink-0 border-r border-border bg-background">
+      {/* Adding a spacer for the week/day header that exists in the main grid */}
+      <div className="h-8 border-b border-gray-200"></div>
+      
       {HOURS.map((hour) => {
         const date = new Date();
         date.setHours(hour, 0, 0, 0);
@@ -17,10 +20,10 @@ export const TimeIndicator = () => {
         return (
           <div
             key={hour}
-            className="h-24 border-b border-border text-xs text-muted-foreground"
+            className="h-24 border-b border-border text-xs text-muted-foreground flex items-start"
           >
-            {/* Positioning the hour label at the top with appropriate spacing */}
-            <div className="pt-1 pl-2">
+            {/* Removed pt-1 to align text with the top of the cell */}
+            <div className="pl-2">
               {format(date, 'h a')}
             </div>
           </div>
