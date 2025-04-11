@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -41,6 +40,7 @@ export const BusinessProfileForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileError, setFileError] = useState("");
   const [coverPhotoFile, setCoverPhotoFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const form = useForm<BusinessProfileFormValues>({
     resolver: zodResolver(businessProfileSchema),
@@ -58,6 +58,8 @@ export const BusinessProfileForm = () => {
 
   useEffect(() => {
     if (businessProfile) {
+      console.log("Setting form values from business profile:", businessProfile);
+      
       form.reset({
         business_name: businessProfile.business_name,
         slug: businessProfile.slug,
@@ -68,30 +70,43 @@ export const BusinessProfileForm = () => {
         contact_website: businessProfile.contact_website || "",
         cover_photo_url: businessProfile.cover_photo_url || "",
       });
+      
+      // Set the preview URL from the existing profile
+      if (businessProfile.cover_photo_url) {
+        setPreviewUrl(businessProfile.cover_photo_url);
+      }
     }
   }, [businessProfile, form]);
 
   const onSubmit = async (data: BusinessProfileFormValues) => {
+    console.log("Form submitted with data:", data);
     setIsSubmitting(true);
+    
     try {
       // First upload the cover photo if provided
       let coverPhotoUrl = data.cover_photo_url;
       
       if (coverPhotoFile) {
+        console.log("Uploading cover photo file:", coverPhotoFile.name);
         const uploadResult = await uploadCoverPhoto(coverPhotoFile);
+        
         if (uploadResult.url) {
+          console.log("Cover photo uploaded successfully:", uploadResult.url);
           coverPhotoUrl = uploadResult.url;
+          setPreviewUrl(uploadResult.url);
         }
       }
       
       if (businessProfile) {
         // Update existing profile
+        console.log("Updating existing business profile");
         updateBusinessProfile({
           ...data,
           cover_photo_url: coverPhotoUrl,
         });
       } else {
         // Create new profile
+        console.log("Creating new business profile");
         createBusinessProfile({
           ...data,
           business_name: data.business_name,
@@ -99,6 +114,8 @@ export const BusinessProfileForm = () => {
           cover_photo_url: coverPhotoUrl,
         });
       }
+    } catch (error) {
+      console.error("Error in form submission:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -116,11 +133,16 @@ export const BusinessProfileForm = () => {
   };
 
   const handleFileChange = (file: File | null) => {
+    console.log("File selected:", file);
     setCoverPhotoFile(file);
     
     if (file) {
       // Show a temp object URL in the form for preview
       const tempUrl = URL.createObjectURL(file);
+      setPreviewUrl(tempUrl);
+      
+      // We're setting this in the form values but NOT in the state
+      // This allows us to have a temporary preview without persisting it
       form.setValue("cover_photo_url", tempUrl);
       
       // Clean up the object URL when component unmounts
@@ -197,7 +219,7 @@ export const BusinessProfileForm = () => {
               )}
             />
 
-            {/* Cover Photo Upload */}
+            {/* Cover Photo Upload with improved preview handling */}
             <FormField
               control={form.control}
               name="cover_photo_url"
@@ -205,14 +227,14 @@ export const BusinessProfileForm = () => {
                 <FormItem>
                   <FormLabel>Cover Photo</FormLabel>
                   <div className="space-y-4">
-                    {field.value && (
+                    {previewUrl && (
                       <div className="relative w-full h-40 rounded-md overflow-hidden border border-gray-200">
                         <img 
-                          src={field.value} 
+                          src={previewUrl} 
                           alt="Business Cover" 
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            // Handle image load errors
+                            console.error("Error loading image:", previewUrl);
                             e.currentTarget.src = 'https://placehold.co/600x200/e2e8f0/64748b?text=Business+Cover';
                           }}
                         />

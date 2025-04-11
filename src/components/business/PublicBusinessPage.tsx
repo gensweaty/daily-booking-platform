@@ -17,6 +17,7 @@ export const PublicBusinessPage = () => {
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
 
   console.log("[PublicBusinessPage] Using business slug:", businessSlug);
 
@@ -53,6 +54,12 @@ export const PublicBusinessPage = () => {
         console.log("[PublicBusinessPage] Fetched business profile:", data);
         setBusiness(data as BusinessProfile);
         
+        // Set the cover photo URL
+        if (data.cover_photo_url) {
+          console.log("[PublicBusinessPage] Setting cover photo URL:", data.cover_photo_url);
+          setCoverPhotoUrl(data.cover_photo_url);
+        }
+        
         if (data?.business_name) {
           document.title = `${data.business_name} - Book Now`;
         }
@@ -85,7 +92,7 @@ export const PublicBusinessPage = () => {
 
     fetchBusinessProfile();
     fetchProfile();
-  }, [slug]);
+  }, [slug, businessSlug]);
 
   if (isLoading) {
     return (
@@ -112,20 +119,22 @@ export const PublicBusinessPage = () => {
 
   console.log("[PublicBusinessPage] Rendering calendar for business ID:", business.id);
 
-  const coverPhotoUrl = business.cover_photo_url || 'https://placehold.co/1200x400/e2e8f0/64748b?text=Business+Cover';
+  // Use the stored coverPhotoUrl state instead of relying on businessProfile directly
+  const defaultCoverUrl = 'https://placehold.co/1200x400/e2e8f0/64748b?text=Business+Cover';
+  const displayCoverUrl = coverPhotoUrl || defaultCoverUrl;
 
   return (
     <div className="min-h-screen bg-background">
       <div 
         className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-16"
         style={{
-          backgroundImage: business.cover_photo_url ? `url(${coverPhotoUrl})` : 'none',
+          backgroundImage: `url(${displayCoverUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
       >
         {/* Overlay for text readability when cover photo is present */}
-        {business.cover_photo_url && (
+        {coverPhotoUrl && (
           <div className="absolute inset-0 bg-black bg-opacity-50"></div>
         )}
         

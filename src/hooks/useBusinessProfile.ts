@@ -50,16 +50,19 @@ export const useBusinessProfile = () => {
     return data;
   };
 
-  // New function to upload cover photo
+  // Modified function to properly upload and store the cover photo
   const uploadCoverPhoto = async (file: File) => {
     if (!user) throw new Error("User must be authenticated to upload a cover photo");
     
     try {
+      console.log("Starting cover photo upload process...");
+      
       // Check if storage bucket exists, if not create it
       const { data: buckets } = await supabase.storage.listBuckets();
       const businessBucketExists = buckets?.some(b => b.name === 'business_covers');
       
       if (!businessBucketExists) {
+        console.log("Creating business_covers bucket...");
         await supabase.storage.createBucket('business_covers', {
           public: true,
           allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
@@ -72,8 +75,10 @@ export const useBusinessProfile = () => {
       const fileName = `${user.id}_cover_${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
+      console.log(`Uploading file: ${filePath}`);
+      
       // Upload the file
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError, data: uploadData } = await supabase.storage
         .from('business_covers')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -81,16 +86,44 @@ export const useBusinessProfile = () => {
         });
 
       if (uploadError) {
+        console.error("Upload error:", uploadError);
         throw uploadError;
       }
 
-      // Get the public URL
+      console.log("File uploaded successfully:", uploadData);
+
+      // Get the public URL - using the CDN URL format for better caching
       const { data } = supabase.storage
         .from('business_covers')
         .getPublicUrl(filePath);
 
+      console.log("Generated public URL:", data.publicUrl);
+
+      // If we have a business profile, immediately update the cover_photo_url
+      if (businessProfile) {
+        console.log("Updating business profile with new cover photo URL");
+        
+        const { error: updateError } = await supabase
+          .from("business_profiles")
+          .update({ cover_photo_url: data.publicUrl })
+          .eq("id", businessProfile.id);
+          
+        if (updateError) {
+          console.error("Error updating business profile:", updateError);
+          toast({
+            title: "Update Error",
+            description: "Failed to update profile with new cover photo",
+            variant: "destructive",
+          });
+        } else {
+          // Refresh the profile data
+          queryClient.invalidateQueries({ queryKey: ["businessProfile", user?.id] });
+        }
+      }
+
       return { url: data.publicUrl };
     } catch (error: any) {
+      console.error("Cover photo upload error:", error);
       toast({
         title: "Upload Error",
         description: error.message || "Failed to upload image",
