@@ -17,9 +17,10 @@ export const TimeIndicator = () => {
         return (
           <div
             key={hour}
-            className="h-24 border-b border-border text-xs text-muted-foreground relative"
+            className="h-24 border-b border-border relative"
           >
-            <span className="absolute -top-2.5 left-2">
+            {/* Position the time at the top of the cell to match the grid line */}
+            <span className="absolute -top-3 left-2 text-xs text-muted-foreground">
               {format(date, 'h a')}
             </span>
           </div>
