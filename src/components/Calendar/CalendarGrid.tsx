@@ -2,6 +2,7 @@
 import { format, isSameDay, isSameMonth, startOfWeek, addDays } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface CalendarGridProps {
   days: Date[];
@@ -24,10 +25,11 @@ export const CalendarGrid = ({
 }: CalendarGridProps) => {
   // Get the start of the week for proper alignment
   const startDate = startOfWeek(days[0]);
+  const isMobile = useMediaQuery("(max-width: 640px)");
   
   // Generate properly aligned weekday headers
   const weekDays = Array.from({ length: 7 }, (_, i) => 
-    format(addDays(startDate, i), 'EEE')
+    format(addDays(startDate, i), isMobile ? 'EEEEE' : 'EEE')
   );
 
   // Convert formattedSelectedDate string back to a Date for comparison
@@ -148,40 +150,72 @@ export const CalendarGrid = ({
   return (
     <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
       {weekDays.map((day) => (
-        <div key={day} className="bg-white p-4 text-center font-semibold">
+        <div key={day} className="bg-white p-2 sm:p-4 text-center font-semibold text-xs sm:text-sm">
           {day}
         </div>
       ))}
-      {days.map((day) => (
-        <div
-          key={day.toISOString()}
-          className={`bg-white p-4 min-h-[120px] cursor-pointer hover:bg-gray-50 ${
-            !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
-          }`}
-          onClick={() => onDayClick?.(day)}
-        >
-          <div className="font-medium">{format(day, "d")}</div>
-          <div className="mt-2 space-y-1">
-            {events
-              .filter((event) => isSameDay(new Date(event.start_date), day))
-              .map((event) => (
-                <div
-                  key={event.id}
-                  className={`text-sm p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEventClick?.(event);
-                  }}
-                >
-                  <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
-                  <span className="truncate font-medium">
-                    {getEventTitle(event)}
-                  </span>
-                </div>
-              ))}
+      {days.map((day) => {
+        // Get events for this day
+        const dayEvents = events.filter((event) => isSameDay(new Date(event.start_date), day));
+        
+        return (
+          <div
+            key={day.toISOString()}
+            className={`bg-white p-1 sm:p-4 min-h-[90px] sm:min-h-[120px] cursor-pointer hover:bg-gray-50 ${
+              !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
+            }`}
+            onClick={() => onDayClick?.(day)}
+          >
+            <div className="font-medium text-xs sm:text-sm">{format(day, "d")}</div>
+            <div className="mt-1 sm:mt-2 space-y-0.5 sm:space-y-1">
+              {dayEvents.length > 0 ? (
+                isMobile ? (
+                  // Mobile optimized view - more compact, shows more info
+                  <>
+                    {dayEvents.slice(0, 2).map((event) => (
+                      <div
+                        key={event.id}
+                        className={`text-[0.65rem] sm:text-sm p-0.5 pl-1 sm:p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEventClick?.(event);
+                        }}
+                      >
+                        <CalendarIcon className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5 sm:mr-1.5 shrink-0" />
+                        <span className="truncate font-medium">
+                          {getEventTitle(event)}
+                        </span>
+                      </div>
+                    ))}
+                    {dayEvents.length > 2 && (
+                      <div className="text-[0.65rem] text-gray-600 font-medium pl-1">
+                        +{dayEvents.length - 2} more
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  // Desktop view - standard
+                  dayEvents.map((event) => (
+                    <div
+                      key={event.id}
+                      className={`text-sm p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEventClick?.(event);
+                      }}
+                    >
+                      <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
+                      <span className="truncate font-medium">
+                        {getEventTitle(event)}
+                      </span>
+                    </div>
+                  ))
+                )
+              ) : null}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
