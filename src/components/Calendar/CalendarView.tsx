@@ -1,7 +1,8 @@
+
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { CalendarGrid } from "./CalendarGrid";
-import { formatDate } from "date-fns";
+import { formatDate, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarViewProps {
@@ -25,6 +26,22 @@ export function CalendarView({
 }: CalendarViewProps) {
   const { t } = useLanguage();
   
+  // For month view, ensure we have days from both previous and next months to fill the grid
+  const getDaysWithSurroundingMonths = () => {
+    if (view === 'month') {
+      const monthStart = startOfMonth(selectedDate);
+      const monthEnd = endOfMonth(selectedDate);
+      const calendarStart = startOfWeek(monthStart);
+      const calendarEnd = endOfWeek(monthEnd);
+      
+      return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    }
+    
+    return days;
+  };
+  
+  const daysToRender = view === 'month' ? getDaysWithSurroundingMonths() : days;
+  
   // Add debug log for events in CalendarView
   useEffect(() => {
     if (isExternalCalendar) {
@@ -40,7 +57,7 @@ export function CalendarView({
   return (
     <div className="h-full">
       <CalendarGrid
-        days={days}
+        days={daysToRender}
         events={events}
         formattedSelectedDate={formattedSelectedDate}
         view={view}

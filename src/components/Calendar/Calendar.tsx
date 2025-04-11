@@ -132,11 +132,9 @@ export const Calendar = ({
     switch (view) {
       case "month": {
         const monthStart = startOfMonth(selectedDate);
-        const firstWeekStart = startOfWeek(monthStart);
-        const monthEnd = endOfMonth(selectedDate);
         return eachDayOfInterval({
-          start: firstWeekStart,
-          end: monthEnd,
+          start: monthStart,
+          end: endOfMonth(selectedDate),
         });
       }
       case "week":

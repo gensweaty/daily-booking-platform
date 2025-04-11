@@ -1,5 +1,5 @@
 
-import { format, isSameDay, isSameMonth, startOfWeek, addDays } from "date-fns";
+import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -31,6 +31,10 @@ export const CalendarGrid = ({
   );
 
   const selectedDate = new Date(formattedSelectedDate);
+  
+  // Calculate end of the selected month for filling next month's days
+  const selectedMonthEnd = endOfMonth(selectedDate);
+  const lastDayOfGrid = endOfWeek(selectedMonthEnd);
 
   const getEventStyles = (event: CalendarEventType) => {
     if (isExternalCalendar) {
@@ -311,12 +315,15 @@ export const CalendarGrid = ({
       ))}
       {days.map((day) => {
         const dayEvents = events.filter((event) => isSameDay(new Date(event.start_date), day));
+        const isOtherMonth = !isSameMonth(day, selectedDate);
+        const isPreviousMonth = isOtherMonth && isBefore(day, selectedDate);
+        const isNextMonth = isOtherMonth && isAfter(day, selectedDate);
         
         return (
           <div
             key={day.toISOString()}
             className={`bg-white p-1 sm:p-4 min-h-[90px] sm:min-h-[120px] cursor-pointer hover:bg-gray-50 ${
-              !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
+              isOtherMonth ? "text-gray-400" : ""
             }`}
             onClick={() => onDayClick?.(day)}
           >
