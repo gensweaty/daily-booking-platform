@@ -6,7 +6,7 @@ export interface Task {
   status: 'todo' | 'inprogress' | 'done';
   created_at: string;
   user_id?: string;
-  order: number;
+  position: number;
 }
 
 export interface Note {
