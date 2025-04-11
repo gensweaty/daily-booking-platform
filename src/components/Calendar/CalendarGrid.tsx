@@ -1,3 +1,4 @@
+
 import { format, isSameDay, isSameMonth, startOfWeek, addDays } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -80,9 +81,9 @@ export const CalendarGrid = ({
             {/* Empty cell for the time column */}
             <div className="w-16 sm:w-20"></div>
             
-            {/* Day name headers */}
+            {/* Day name headers - Improved styling based on design */}
             {days.map((day, index) => {
-              const dayName = format(day, isMobile ? 'EEEEE' : 'EEE');
+              const dayName = format(day, isMobile ? 'EEE' : 'EEE'); // Use EEE for short day name
               const dayNumber = format(day, 'd');
               const isToday = isSameDay(day, new Date());
               
@@ -93,9 +94,9 @@ export const CalendarGrid = ({
                     isToday ? 'text-primary' : 'text-foreground'
                   }`}
                 >
-                  <div>{dayName}</div>
-                  <div className={`${isToday ? 'bg-primary/10 rounded-full w-7 h-7 flex items-center justify-center mx-auto' : ''}`}>
-                    {dayNumber}
+                  <div className="text-sm">{dayName}</div>
+                  <div className={`text-sm mt-1 ${isToday ? 'bg-primary/10 rounded-full w-7 h-7 flex items-center justify-center mx-auto' : ''}`}>
+                    {`Apr ${dayNumber}`}
                   </div>
                 </div>
               );
