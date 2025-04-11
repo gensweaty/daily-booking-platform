@@ -26,6 +26,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/components/ui/use-toast";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -52,6 +53,7 @@ export const Calendar = ({
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
+  const isMobile = useMediaQuery("(max-width: 640px)");
   
   const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
@@ -267,7 +269,7 @@ export const Calendar = ({
   }
   
   return (
-    <div className="h-full flex flex-col gap-4">
+    <div className={`h-full flex flex-col ${isMobile ? 'gap-2 -mx-4' : 'gap-4'}`}>
       <CalendarHeader
         selectedDate={selectedDate}
         view={view}

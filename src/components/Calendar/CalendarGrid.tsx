@@ -1,3 +1,4 @@
+
 import { format, isSameDay, isSameMonth, startOfWeek, addDays } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -61,9 +62,9 @@ export const CalendarGrid = ({
     return (
       <div className="grid grid-cols-1 h-full overflow-y-auto">
         {view === 'week' && (
-          <div className="grid grid-cols-7 bg-white sticky top-0 z-20 border-b border-gray-200 h-8">
+          <div className={`grid grid-cols-7 bg-white sticky top-0 z-20 border-b border-gray-200 h-8 ${isMobile ? 'text-[0.7rem]' : ''}`}>
             {days.map((day, index) => (
-              <div key={`header-${index}`} className="p-1 text-center font-semibold text-xs sm:text-sm">
+              <div key={`header-${index}`} className={`p-1 text-center font-semibold ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}>
                 {format(day, isMobile ? 'E d' : 'EEE d')}
               </div>
             ))}
