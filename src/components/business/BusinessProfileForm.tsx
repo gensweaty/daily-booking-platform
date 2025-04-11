@@ -43,6 +43,7 @@ export const BusinessProfileForm = () => {
   const [coverPhotoFile, setCoverPhotoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [imageKey, setImageKey] = useState(Date.now()); // Used to force image reload
+  const [uploadInProgress, setUploadInProgress] = useState(false);
 
   const form = useForm<BusinessProfileFormValues>({
     resolver: zodResolver(businessProfileSchema),
@@ -58,6 +59,7 @@ export const BusinessProfileForm = () => {
     },
   });
 
+  // Apply form values whenever business profile changes
   useEffect(() => {
     if (businessProfile) {
       console.log("Setting form values from business profile:", businessProfile);
@@ -88,6 +90,35 @@ export const BusinessProfileForm = () => {
     }
   }, [businessProfile, form]);
 
+  // This function will handle cover photo upload independently
+  const handleCoverPhotoUpload = async () => {
+    if (!coverPhotoFile) return null;
+    
+    setUploadInProgress(true);
+    try {
+      console.log("Uploading cover photo file:", coverPhotoFile.name);
+      const uploadResult = await uploadCoverPhoto(coverPhotoFile);
+      
+      if (uploadResult.url) {
+        console.log("Cover photo uploaded successfully:", uploadResult.url);
+        
+        // Update preview with cache busting
+        setPreviewUrl(uploadResult.url);
+        setImageKey(Date.now()); // Force image reload
+        form.setValue("cover_photo_url", uploadResult.url);
+        
+        setCoverPhotoFile(null); // Clear the file after successful upload
+        return uploadResult.url;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error uploading cover photo:", error);
+      return null;
+    } finally {
+      setUploadInProgress(false);
+    }
+  };
+
   const onSubmit = async (data: BusinessProfileFormValues) => {
     console.log("Form submitted with data:", data);
     setIsSubmitting(true);
@@ -97,16 +128,9 @@ export const BusinessProfileForm = () => {
       let coverPhotoUrl = data.cover_photo_url;
       
       if (coverPhotoFile) {
-        console.log("Uploading cover photo file:", coverPhotoFile.name);
-        const uploadResult = await uploadCoverPhoto(coverPhotoFile);
-        
-        if (uploadResult.url) {
-          console.log("Cover photo uploaded successfully:", uploadResult.url);
-          coverPhotoUrl = uploadResult.url;
-          
-          // Update preview with cache busting
-          setPreviewUrl(uploadResult.url);
-          setImageKey(Date.now()); // Force image reload
+        const uploadedUrl = await handleCoverPhotoUpload();
+        if (uploadedUrl) {
+          coverPhotoUrl = uploadedUrl;
         }
       }
       
@@ -160,10 +184,6 @@ export const BusinessProfileForm = () => {
       if (previewUrl?.startsWith('blob:')) {
         URL.revokeObjectURL(previewUrl);
       }
-      
-      // We're setting this in the form values but NOT in the state
-      // This allows us to have a temporary preview without persisting it
-      form.setValue("cover_photo_url", tempUrl);
     }
   };
 
@@ -177,6 +197,13 @@ export const BusinessProfileForm = () => {
       console.log("Retrying with refreshed URL:", refreshedUrl);
       setPreviewUrl(refreshedUrl);
       setImageKey(Date.now());
+    }
+  };
+
+  // Function to handle immediate upload without form submission
+  const handleUploadButtonClick = async () => {
+    if (coverPhotoFile) {
+      await handleCoverPhotoUpload();
     }
   };
 
@@ -249,7 +276,7 @@ export const BusinessProfileForm = () => {
               )}
             />
 
-            {/* Cover Photo Upload with improved preview handling */}
+            {/* Cover Photo Upload with improved preview handling and separate upload button */}
             <FormField
               control={form.control}
               name="cover_photo_url"
@@ -268,7 +295,7 @@ export const BusinessProfileForm = () => {
                         />
                       </div>
                     )}
-                    <div>
+                    <div className="space-y-2">
                       <FileUploadField
                         onChange={handleFileChange}
                         fileError={fileError}
@@ -279,6 +306,19 @@ export const BusinessProfileForm = () => {
                       <FormDescription>
                         Upload an image for your business cover (JPEG, PNG, WebP)
                       </FormDescription>
+                      
+                      {coverPhotoFile && (
+                        <Button 
+                          type="button" 
+                          variant="secondary"
+                          onClick={handleUploadButtonClick}
+                          disabled={uploadInProgress}
+                          className="mt-2"
+                        >
+                          {uploadInProgress && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
+                          Upload Cover Photo Now
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <FormMessage />
@@ -344,7 +384,7 @@ export const BusinessProfileForm = () => {
               />
             </div>
 
-            <Button type="submit" disabled={isSubmitting || !!fileError}>
+            <Button type="submit" disabled={isSubmitting || !!fileError || uploadInProgress}>
               {isSubmitting && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
               {businessProfile ? "Update Profile" : "Create Profile"}
             </Button>

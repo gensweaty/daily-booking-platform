@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
@@ -18,7 +18,10 @@ export const PublicBusinessPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const imageRetryCount = useRef(0);
+  const maxRetryCount = 3;
 
   console.log("[PublicBusinessPage] Using business slug:", businessSlug);
 
@@ -67,14 +70,17 @@ export const PublicBusinessPage = () => {
         
         // Set the cover photo URL with a cache-busting parameter
         if (data.cover_photo_url) {
-          // Add a timestamp query parameter if it doesn't already have one
-          let photoUrl = data.cover_photo_url;
-          if (!photoUrl.includes('?t=')) {
-            photoUrl = `${photoUrl}?t=${Date.now()}`;
-          }
+          // Always add a fresh timestamp query parameter
+          const timestamp = Date.now();
+          let photoUrl = data.cover_photo_url.split('?')[0];
+          photoUrl = `${photoUrl}?t=${timestamp}`;
           
           console.log("[PublicBusinessPage] Setting cover photo URL with cache busting:", photoUrl);
           setCoverPhotoUrl(photoUrl);
+          // Reset image loaded state
+          setImageLoaded(false);
+          // Reset retry count
+          imageRetryCount.current = 0;
         }
         
         if (data?.business_name) {
@@ -102,6 +108,19 @@ export const PublicBusinessPage = () => {
           
           console.log('Created booking_attachments storage bucket');
         }
+        
+        // Also check if business_covers bucket exists
+        const businessCoversBucketExists = buckets?.some(b => b.name === 'business_covers');
+        
+        if (!businessCoversBucketExists) {
+          await supabase.storage.createBucket('business_covers', {
+            public: true,
+            allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
+            fileSizeLimit: 5000000 // 5MB
+          });
+          
+          console.log('Created business_covers storage bucket');
+        }
       } catch (error) {
         console.error('Error checking/creating storage buckets:', error);
       }
@@ -111,29 +130,36 @@ export const PublicBusinessPage = () => {
     fetchProfile();
   }, [slug, businessSlug, refreshTrigger]); // Also refetch when refreshTrigger changes
 
-  // Force the image to reload if the URL changes
-  useEffect(() => {
-    if (coverPhotoUrl) {
-      // Create an Image object to preload the image
-      const img = new Image();
-      img.src = coverPhotoUrl;
+  // Handle image load success
+  const handleImageLoad = () => {
+    console.log("[PublicBusinessPage] Cover photo loaded successfully");
+    setImageLoaded(true);
+    // Reset retry count on successful load
+    imageRetryCount.current = 0;
+  };
+
+  // Handle image load error and retry with a new URL if needed
+  const handleImageError = () => {
+    console.error("[PublicBusinessPage] Error loading cover photo:", coverPhotoUrl);
+    
+    // Only retry a limited number of times to prevent infinite loops
+    if (imageRetryCount.current < maxRetryCount && business?.cover_photo_url) {
+      imageRetryCount.current++;
       
-      // Set up image load event
-      img.onload = () => {
-        console.log("[PublicBusinessPage] Cover photo loaded successfully");
-      };
+      // Generate a new URL with a fresh timestamp
+      const refreshedUrl = `${business.cover_photo_url.split('?')[0]}?t=${Date.now()}&retry=${imageRetryCount.current}`;
+      console.log(`[PublicBusinessPage] Retry #${imageRetryCount.current} with refreshed URL:`, refreshedUrl);
       
-      img.onerror = (e) => {
-        console.error("[PublicBusinessPage] Error loading cover photo:", e);
-        // Try to refresh the image URL with a new timestamp
-        if (business?.cover_photo_url) {
-          const refreshedUrl = `${business.cover_photo_url.split('?')[0]}?t=${Date.now()}`;
-          console.log("[PublicBusinessPage] Trying with refreshed URL:", refreshedUrl);
-          setCoverPhotoUrl(refreshedUrl);
-        }
-      };
+      // Set a small delay before retrying to avoid hammering the server
+      setTimeout(() => {
+        setCoverPhotoUrl(refreshedUrl);
+      }, 1000); 
+    } else {
+      // Fall back to the default cover after max retries
+      console.log("[PublicBusinessPage] Max retries reached, using default cover");
+      setImageLoaded(false);
     }
-  }, [coverPhotoUrl, business?.cover_photo_url]);
+  };
 
   if (isLoading) {
     return (
@@ -164,16 +190,6 @@ export const PublicBusinessPage = () => {
   const defaultCoverUrl = 'https://placehold.co/1200x400/e2e8f0/64748b?text=Business+Cover';
   const displayCoverUrl = coverPhotoUrl || defaultCoverUrl;
 
-  // Handle refresh of cover photo on error
-  const handleCoverPhotoError = () => {
-    console.error("Error loading cover photo:", displayCoverUrl);
-    if (business?.cover_photo_url) {
-      const refreshedUrl = `${business.cover_photo_url.split('?')[0]}?t=${Date.now()}`;
-      console.log("Refreshing cover photo URL to:", refreshedUrl);
-      setCoverPhotoUrl(refreshedUrl);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <div 
@@ -185,9 +201,7 @@ export const PublicBusinessPage = () => {
         }}
       >
         {/* Overlay for text readability when cover photo is present */}
-        {coverPhotoUrl && (
-          <div className="absolute inset-0 bg-black bg-opacity-50"></div>
-        )}
+        <div className="absolute inset-0 bg-black bg-opacity-50"></div>
         
         <div className="container mx-auto px-4 relative">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">{business.business_name}</h1>
@@ -208,12 +222,15 @@ export const PublicBusinessPage = () => {
       </div>
 
       {/* Hidden image preloader to ensure the image is properly loaded and cached */}
-      <img 
-        src={displayCoverUrl} 
-        alt=""
-        className="hidden" 
-        onError={handleCoverPhotoError}
-      />
+      {coverPhotoUrl && (
+        <img 
+          src={coverPhotoUrl} 
+          alt=""
+          className="hidden" 
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+        />
+      )}
 
       <div className="container mx-auto px-4 py-12">
         <div className="mb-8" id="calendar-section">

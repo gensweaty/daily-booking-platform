@@ -15,7 +15,33 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
     flowType: 'pkce',
   },
+  global: {
+    fetch: (...args) => fetch(...args),
+  },
 });
+
+// Ensure business_covers bucket exists on init
+const ensureStorageBuckets = async () => {
+  try {
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const businessBucketExists = buckets?.some(b => b.name === 'business_covers');
+    
+    if (!businessBucketExists) {
+      console.log("Creating business_covers bucket...");
+      await supabase.storage.createBucket('business_covers', {
+        public: true,
+        allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
+        fileSizeLimit: 5000000 // 5MB
+      });
+      console.log("business_covers bucket created successfully");
+    }
+  } catch (error) {
+    console.error("Error ensuring storage buckets exist:", error);
+  }
+};
+
+// Call this function when the app initializes
+ensureStorageBuckets();
 
 // Export the storage URL as a standalone function instead of attaching to supabase
 export const getStorageUrl = () => `${supabaseUrl}/storage/v1`;

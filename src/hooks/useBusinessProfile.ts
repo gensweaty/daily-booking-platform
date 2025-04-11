@@ -50,7 +50,7 @@ export const useBusinessProfile = () => {
     return data;
   };
 
-  // Improved function to properly upload and store the cover photo with better error handling
+  // Fixed function to properly upload and store the cover photo
   const uploadCoverPhoto = async (file: File) => {
     if (!user) throw new Error("User must be authenticated to upload a cover photo");
     
@@ -77,11 +77,35 @@ export const useBusinessProfile = () => {
 
       console.log(`Uploading file: ${filePath}`);
       
-      // Upload the file
+      // Delete old file if it exists (extract file name from URL)
+      if (businessProfile?.cover_photo_url) {
+        try {
+          const oldUrl = new URL(businessProfile.cover_photo_url);
+          const pathSegments = oldUrl.pathname.split('/');
+          const oldFileName = pathSegments[pathSegments.length - 1];
+          
+          if (oldFileName) {
+            console.log(`Attempting to remove old file: ${oldFileName}`);
+            const { error: removeError } = await supabase.storage
+              .from('business_covers')
+              .remove([oldFileName]);
+              
+            if (removeError) {
+              console.warn("Could not remove old file, continuing anyway:", removeError);
+            } else {
+              console.log("Old file removed successfully");
+            }
+          }
+        } catch (e) {
+          console.warn("Error parsing old file URL, skipping removal:", e);
+        }
+      }
+      
+      // Upload the file with upsert: true
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from('business_covers')
         .upload(filePath, file, {
-          cacheControl: '3600',
+          cacheControl: 'no-cache', // Prevent caching
           upsert: true
         });
 
@@ -148,8 +172,9 @@ export const useBusinessProfile = () => {
     queryKey: ["businessProfile", user?.id],
     queryFn: getBusinessProfile,
     enabled: !!user,
-    staleTime: 60000, // Set a reasonable stale time to prevent excessive refetching
-    refetchOnWindowFocus: true, // Ensure it refreshes when window regains focus
+    staleTime: 30000, // Reduce stale time to 30 seconds for more frequent refreshes
+    refetchInterval: 60000, // Add a refetch interval to ensure profile updates are seen
+    refetchOnWindowFocus: true,
   });
 
   const createProfileMutation = useMutation({
