@@ -144,7 +144,7 @@ export const CalendarGrid = ({
                       return (
                         <div
                           key={event.id}
-                          className={`${getEventStyles(event)} p-1 sm:p-2 rounded cursor-pointer absolute top-1 left-1 right-1 overflow-hidden`}
+                          className={`${getEventStyles(event)} rounded cursor-pointer absolute top-1 left-1 right-1 overflow-hidden ${isMobile ? 'p-0.5' : 'p-1 sm:p-2'}`}
                           style={{ 
                             height: `${Math.min(durationHours * 6 - 0.5, 5.5)}rem`,
                             zIndex: 10
@@ -154,15 +154,49 @@ export const CalendarGrid = ({
                             onEventClick?.(event);
                           }}
                         >
-                          <div className="flex items-center">
-                            <CalendarIcon className={`${isMobile ? 'h-2 w-2 mr-0.5' : 'h-3 w-3 mr-1'} shrink-0`} />
-                            <span className={`truncate font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                              {getEventTitle(event)}
-                            </span>
-                          </div>
-                          <div className={`truncate ${isMobile ? 'text-[0.65rem]' : 'text-xs'}`}>
-                            {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
-                          </div>
+                          {/* Improved mobile view with more compact layout and better space usage */}
+                          {isMobile ? (
+                            <>
+                              <div className="flex items-center mb-0.5">
+                                <CalendarIcon className="h-2 w-2 mr-0.5 shrink-0" />
+                                <span className="truncate font-medium text-[0.7rem]">
+                                  {getEventTitle(event)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center text-[0.65rem]">
+                                <span className="truncate">
+                                  {format(startTime, 'HH:mm')}
+                                </span>
+                                <span className="truncate">
+                                  {format(endTime, 'HH:mm')}
+                                </span>
+                              </div>
+                              {/* Show additional info if available */}
+                              {event.requester_name && (
+                                <div className="truncate text-[0.65rem] mt-0.5">
+                                  {event.requester_name}
+                                </div>
+                              )}
+                              {!event.requester_name && event.description && (
+                                <div className="truncate text-[0.65rem] mt-0.5">
+                                  {event.description.slice(0, 20)}
+                                  {event.description.length > 20 ? '...' : ''}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center">
+                                <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
+                                <span className="truncate font-medium text-sm">
+                                  {getEventTitle(event)}
+                                </span>
+                              </div>
+                              <div className="truncate text-xs">
+                                {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
+                              </div>
+                            </>
+                          )}
                         </div>
                       );
                     })}
