@@ -40,7 +40,7 @@ export const CalendarHeader = ({
   };
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+    <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
       <div className="flex items-center gap-2">
         <Button variant="outline" size="icon" onClick={onPrevious}>
           <ChevronLeft className="h-4 w-4" />
@@ -51,12 +51,13 @@ export const CalendarHeader = ({
         <h2 className="text-xl font-semibold ml-2">{getFormattedDate()}</h2>
       </div>
 
-      <div className="flex gap-2 justify-between">
-        <div className="flex gap-1">
+      <div className="flex flex-wrap gap-2 justify-between w-full sm:w-auto mt-2 sm:mt-0">
+        <div className="flex gap-1 mr-auto sm:mr-2">
           <Button
             variant={view === "day" ? "default" : "outline"}
             size="sm"
             onClick={() => onViewChange("day")}
+            className="px-2 sm:px-4"
           >
             {t("calendar.day")}
           </Button>
@@ -64,6 +65,7 @@ export const CalendarHeader = ({
             variant={view === "week" ? "default" : "outline"}
             size="sm"
             onClick={() => onViewChange("week")}
+            className="px-2 sm:px-4"
           >
             {t("calendar.week")}
           </Button>
@@ -71,13 +73,14 @@ export const CalendarHeader = ({
             variant={view === "month" ? "default" : "outline"}
             size="sm"
             onClick={() => onViewChange("month")}
+            className="px-2 sm:px-4"
           >
             {t("calendar.month")}
           </Button>
         </div>
         
         {onAddEvent && (
-          <Button onClick={onAddEvent} size="sm">
+          <Button onClick={onAddEvent} size="sm" className="ml-auto sm:ml-0">
             <Plus className="h-4 w-4 mr-1" />
             {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
           </Button>
