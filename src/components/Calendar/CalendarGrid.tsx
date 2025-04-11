@@ -74,7 +74,7 @@ export const CalendarGrid = ({
       <div className="grid grid-cols-1 h-full overflow-y-auto">
         {/* Add weekday headers for week view */}
         {view === 'week' && (
-          <div className="grid grid-cols-7 bg-white sticky top-0 z-20 border-b border-gray-200">
+          <div className="grid grid-cols-7 bg-white sticky top-0 z-20 border-b border-gray-200 h-8">
             {days.map((day, index) => (
               <div key={`header-${index}`} className="p-1 text-center font-semibold text-xs sm:text-sm">
                 {format(day, isMobile ? 'E d' : 'EEE d')}

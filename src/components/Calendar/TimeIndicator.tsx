@@ -20,10 +20,10 @@ export const TimeIndicator = () => {
         return (
           <div
             key={hour}
-            className="h-24 border-b border-border text-xs text-muted-foreground flex"
+            className="h-24 border-b border-border text-xs text-muted-foreground flex items-start"
           >
-            {/* Ensuring perfect alignment with grid lines */}
-            <div className="pl-2 -mt-[1px]">
+            {/* Using transform to fine-tune the alignment perfectly */}
+            <div className="pl-2 transform -translate-y-[0.5px]">
               {format(date, 'h a')}
             </div>
           </div>
