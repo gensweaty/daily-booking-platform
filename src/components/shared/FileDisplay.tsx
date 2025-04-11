@@ -110,12 +110,23 @@ export const FileDisplay = ({
       
       console.log('Using direct URL for download:', directUrl);
       
+      // Create a temporary anchor element to handle the download properly
       const a = document.createElement('a');
       a.href = directUrl;
-      a.download = fileName;
+      a.download = fileName; // This is key - forces download instead of navigation
+      a.target = "_blank"; // Open in new tab as fallback
+      a.rel = "noopener noreferrer"; // Security best practice for target=_blank
+      
+      // Temporarily append to the document
       document.body.appendChild(a);
+      
+      // Programmatically click the link
       a.click();
-      document.body.removeChild(a);
+      
+      // Clean up - remove the element after click
+      setTimeout(() => {
+        document.body.removeChild(a);
+      }, 100);
       
       toast({
         title: t("common.success"),
@@ -157,7 +168,9 @@ export const FileDisplay = ({
       // Use direct URL construction for consistency
       const directUrl = getDirectFileUrl(filePath, fileId);
       console.log('Opening file with direct URL:', directUrl);
-      window.open(directUrl, '_blank');
+      
+      // Open in a new tab to avoid navigating away from the current page
+      window.open(directUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
       console.error('Error opening file:', error);
       toast({

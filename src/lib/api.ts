@@ -344,16 +344,25 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
     }
     console.log(`Using effective bucket: ${effectiveBucket}`);
     
-    // Just use direct URL for download which is most reliable
+    // Direct URL for download which is most reliable
     const directUrl = getFileUrl(effectiveBucket, filePath);
     console.log('Using direct URL for download:', directUrl);
     
+    // Create and setup anchor element with proper download attribute
     const a = document.createElement('a');
     a.href = directUrl;
-    a.download = fileName;
+    a.download = fileName; // This forces download behavior
+    a.target = "_blank"; // Fallback - open in new tab if download fails
+    a.rel = "noopener noreferrer"; // Security best practice
+    
+    // Add to DOM, click, and remove
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    
+    // Cleanup after a short delay to ensure the download starts
+    setTimeout(() => {
+      document.body.removeChild(a);
+    }, 100);
     
     return { success: true, message: 'Download started' };
   } catch (error) {
@@ -373,7 +382,10 @@ export const openFile = async (bucketName: string, filePath: string) => {
     const directUrl = getFileUrl(effectiveBucket, filePath);
     
     console.log('Opening file with direct URL:', directUrl);
-    window.open(directUrl, '_blank');
+    
+    // Open in a new tab to prevent navigation away from the current page
+    window.open(directUrl, '_blank', 'noopener,noreferrer');
+    
     return { success: true };
   } catch (error) {
     console.error('Error opening file:', error);
