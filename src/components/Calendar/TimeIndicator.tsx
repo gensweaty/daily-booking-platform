@@ -10,18 +10,19 @@ const HOURS = [
 export const TimeIndicator = () => {
   return (
     <div className="w-16 flex-shrink-0 border-r border-border bg-background">
-      {HOURS.map((hour, index) => {
+      {HOURS.map((hour) => {
         const date = new Date();
         date.setHours(hour, 0, 0, 0);
         
         return (
           <div
             key={hour}
-            className="h-24 border-b border-border text-xs text-muted-foreground relative"
+            className="h-24 border-b border-border text-xs text-muted-foreground"
           >
-            <span className="absolute -top-2.5 left-2">
+            {/* Positioning the hour label at the top with appropriate spacing */}
+            <div className="pt-1 pl-2">
               {format(date, 'h a')}
-            </span>
+            </div>
           </div>
         );
       })}
