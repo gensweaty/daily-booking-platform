@@ -147,38 +147,50 @@ export const CalendarGrid = ({
   // Month view (default)
   return (
     <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
-      {weekDays.map((day) => (
-        <div key={day} className="bg-white p-4 text-center font-semibold">
-          {day}
-        </div>
-      ))}
+      {/* Weekday headers - shown differently on mobile */}
+      <div className="col-span-7 grid grid-cols-7 bg-white">
+        {weekDays.map((day) => (
+          <div key={day} className="p-2 md:p-4 text-center font-semibold">
+            {day}
+          </div>
+        ))}
+      </div>
+      
+      {/* Calendar days grid */}
       {days.map((day) => (
         <div
           key={day.toISOString()}
-          className={`bg-white p-4 min-h-[120px] cursor-pointer hover:bg-gray-50 ${
+          className={`bg-white p-1 md:p-4 min-h-[60px] md:min-h-[120px] cursor-pointer hover:bg-gray-50 ${
             !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
           }`}
           onClick={() => onDayClick?.(day)}
         >
-          <div className="font-medium">{format(day, "d")}</div>
-          <div className="mt-2 space-y-1">
+          <div className="font-medium text-center md:text-left">{format(day, "d")}</div>
+          <div className="mt-1 md:mt-2 space-y-1">
             {events
               .filter((event) => isSameDay(new Date(event.start_date), day))
+              .slice(0, 2) // Show max 2 events per day on mobile
               .map((event) => (
                 <div
                   key={event.id}
-                  className={`text-sm p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm`}
+                  className={`text-xs md:text-sm p-1 md:p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onEventClick?.(event);
                   }}
                 >
-                  <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
+                  <CalendarIcon className="h-3 w-3 mr-1 shrink-0 hidden md:inline" />
                   <span className="truncate font-medium">
                     {getEventTitle(event)}
                   </span>
                 </div>
               ))}
+            {/* Show indicator if there are more events than can be displayed */}
+            {events.filter((event) => isSameDay(new Date(event.start_date), day)).length > 2 && (
+              <div className="text-xs text-center text-gray-500">
+                +{events.filter((event) => isSameDay(new Date(event.start_date), day)).length - 2} more
+              </div>
+            )}
           </div>
         </div>
       ))}

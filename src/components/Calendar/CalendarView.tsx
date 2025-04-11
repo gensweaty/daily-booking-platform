@@ -1,3 +1,4 @@
+
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { CalendarGrid } from "./CalendarGrid";
@@ -24,6 +25,17 @@ export function CalendarView({
   isExternalCalendar = false,
 }: CalendarViewProps) {
   const { t } = useLanguage();
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // Add responsive check for mobile devices
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // Add debug log for events in CalendarView
   useEffect(() => {

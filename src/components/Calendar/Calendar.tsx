@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -52,6 +53,7 @@ export const Calendar = ({
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
   const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
@@ -70,6 +72,24 @@ export const Calendar = ({
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Handle window resize for mobile view
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      
+      // On mobile, we might want to default to month view
+      if (mobile && !currentView) {
+        setView("month");
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Call initially
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, [currentView]);
+
   useEffect(() => {
     if (currentView) {
       setView(currentView);
@@ -85,13 +105,14 @@ export const Calendar = ({
       directEvents: directEvents?.length || 0,
       fetchedEvents: fetchedEvents?.length || 0,
       eventsCount: events?.length || 0,
-      view
+      view,
+      isMobile
     });
     
     if (events?.length > 0) {
       console.log("[Calendar] First event:", events[0]);
     }
-  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
+  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents, isMobile]);
 
   const {
     selectedEvent,
@@ -132,10 +153,14 @@ export const Calendar = ({
         const monthStart = startOfMonth(selectedDate);
         const firstWeekStart = startOfWeek(monthStart);
         const monthEnd = endOfMonth(selectedDate);
-        return eachDayOfInterval({
+        // For mobile month view, make sure we have exactly 42 days (6 weeks)
+        // This ensures consistent grid sizing
+        const daysArray = eachDayOfInterval({
           start: firstWeekStart,
-          end: monthEnd,
+          end: endOfMonth(addDays(monthEnd, 7)), // Add extra days to ensure we have at least 42 days
         });
+        
+        return daysArray.slice(0, 42); // Exactly 6 weeks
       }
       case "week":
         return eachDayOfInterval({
@@ -279,7 +304,7 @@ export const Calendar = ({
       />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
-        {view !== 'month' && <TimeIndicator />}
+        {view !== 'month' && !isMobile && <TimeIndicator />}
         <div className="flex-1">
           <CalendarView
             days={getDaysForView()}

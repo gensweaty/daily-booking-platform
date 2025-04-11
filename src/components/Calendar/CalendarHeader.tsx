@@ -40,47 +40,51 @@ export const CalendarHeader = ({
   };
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" onClick={onPrevious}>
-          <ChevronLeft className="h-4 w-4" />
+    <div className="flex flex-col gap-4">
+      {/* Month/Year display with navigation arrows */}
+      <div className="flex justify-between items-center">
+        <Button variant="outline" size="icon" onClick={onPrevious} className="h-12 w-12 md:h-10 md:w-10">
+          <ChevronLeft className="h-6 w-6 md:h-4 md:w-4" />
         </Button>
-        <Button variant="outline" size="icon" onClick={onNext}>
-          <ChevronRight className="h-4 w-4" />
+        
+        <h2 className="text-xl font-semibold text-center">{getFormattedDate()}</h2>
+        
+        <Button variant="outline" size="icon" onClick={onNext} className="h-12 w-12 md:h-10 md:w-10">
+          <ChevronRight className="h-6 w-6 md:h-4 md:w-4" />
         </Button>
-        <h2 className="text-xl font-semibold ml-2">{getFormattedDate()}</h2>
       </div>
 
-      <div className="flex flex-wrap gap-2 justify-between w-full sm:w-auto mt-2 sm:mt-0">
-        <div className="flex gap-1 mr-auto sm:mr-2">
+      {/* View switcher and Add Event button */}
+      <div className="flex justify-between items-center gap-2">
+        <div className="flex rounded-md overflow-hidden border border-input">
           <Button
-            variant={view === "day" ? "default" : "outline"}
+            variant={view === "month" ? "default" : "ghost"}
             size="sm"
-            onClick={() => onViewChange("day")}
-            className="px-2 sm:px-4"
+            onClick={() => onViewChange("month")}
+            className={`px-4 py-2 rounded-none ${view === "month" ? "bg-[#9b87f5] hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
           >
-            {t("calendar.day")}
+            {t("calendar.month")}
           </Button>
           <Button
-            variant={view === "week" ? "default" : "outline"}
+            variant={view === "week" ? "default" : "ghost"}
             size="sm"
             onClick={() => onViewChange("week")}
-            className="px-2 sm:px-4"
+            className={`px-4 py-2 rounded-none ${view === "week" ? "bg-[#9b87f5] hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
           >
             {t("calendar.week")}
           </Button>
           <Button
-            variant={view === "month" ? "default" : "outline"}
+            variant={view === "day" ? "default" : "ghost"}
             size="sm"
-            onClick={() => onViewChange("month")}
-            className="px-2 sm:px-4"
+            onClick={() => onViewChange("day")}
+            className={`px-4 py-2 rounded-none ${view === "day" ? "bg-[#9b87f5] hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
           >
-            {t("calendar.month")}
+            {t("calendar.day")}
           </Button>
         </div>
         
         {onAddEvent && (
-          <Button onClick={onAddEvent} size="sm" className="ml-auto sm:ml-0">
+          <Button onClick={onAddEvent} size="sm" className="bg-[#9b87f5] hover:bg-[#8a78de] px-4">
             <Plus className="h-4 w-4 mr-1" />
             {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
           </Button>
