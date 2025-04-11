@@ -1,7 +1,6 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { supabase, forceBucketCreation } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,6 +46,9 @@ export const PublicBusinessPage = () => {
         setIsLoading(true);
         console.log("[PublicBusinessPage] Fetching business profile for slug:", businessSlug);
         
+        // Ensure storage buckets exist
+        await forceBucketCreation();
+        
         const { data, error } = await supabase
           .from("business_profiles")
           .select("*")
@@ -70,17 +72,23 @@ export const PublicBusinessPage = () => {
         
         // Set the cover photo URL with a cache-busting parameter
         if (data.cover_photo_url) {
-          // Always add a fresh timestamp query parameter
-          const timestamp = Date.now();
-          let photoUrl = data.cover_photo_url.split('?')[0];
-          photoUrl = `${photoUrl}?t=${timestamp}`;
-          
-          console.log("[PublicBusinessPage] Setting cover photo URL with cache busting:", photoUrl);
-          setCoverPhotoUrl(photoUrl);
-          // Reset image loaded state
-          setImageLoaded(false);
-          // Reset retry count
-          imageRetryCount.current = 0;
+          // Skip blob URLs which are temporary
+          if (!data.cover_photo_url.startsWith('blob:')) {
+            // Always add a fresh timestamp query parameter
+            const timestamp = Date.now();
+            let photoUrl = data.cover_photo_url.split('?')[0]; // Remove any existing parameters
+            photoUrl = `${photoUrl}?t=${timestamp}`;
+            
+            console.log("[PublicBusinessPage] Setting cover photo URL with cache busting:", photoUrl);
+            setCoverPhotoUrl(photoUrl);
+            // Reset image loaded state
+            setImageLoaded(false);
+            // Reset retry count
+            imageRetryCount.current = 0;
+          } else {
+            console.warn("[PublicBusinessPage] Ignoring blob URL:", data.cover_photo_url);
+            setCoverPhotoUrl(null);
+          }
         }
         
         if (data?.business_name) {
@@ -94,41 +102,8 @@ export const PublicBusinessPage = () => {
       }
     };
 
-    const fetchProfile = async () => {
-      try {
-        const { data: buckets } = await supabase.storage.listBuckets();
-        const bookingBucketExists = buckets?.some(b => b.name === 'booking_attachments');
-        
-        if (!bookingBucketExists) {
-          await supabase.storage.createBucket('booking_attachments', {
-            public: false,
-            allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-            fileSizeLimit: 5000000 // 5MB
-          });
-          
-          console.log('Created booking_attachments storage bucket');
-        }
-        
-        // Also check if business_covers bucket exists
-        const businessCoversBucketExists = buckets?.some(b => b.name === 'business_covers');
-        
-        if (!businessCoversBucketExists) {
-          await supabase.storage.createBucket('business_covers', {
-            public: true,
-            allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
-            fileSizeLimit: 5000000 // 5MB
-          });
-          
-          console.log('Created business_covers storage bucket');
-        }
-      } catch (error) {
-        console.error('Error checking/creating storage buckets:', error);
-      }
-    };
-
     fetchBusinessProfile();
-    fetchProfile();
-  }, [slug, businessSlug, refreshTrigger]); // Also refetch when refreshTrigger changes
+  }, [businessSlug, refreshTrigger]); // Also refetch when refreshTrigger changes
 
   // Handle image load success
   const handleImageLoad = () => {
@@ -143,11 +118,12 @@ export const PublicBusinessPage = () => {
     console.error("[PublicBusinessPage] Error loading cover photo:", coverPhotoUrl);
     
     // Only retry a limited number of times to prevent infinite loops
-    if (imageRetryCount.current < maxRetryCount && business?.cover_photo_url) {
+    if (imageRetryCount.current < maxRetryCount && business?.cover_photo_url && !business.cover_photo_url.startsWith('blob:')) {
       imageRetryCount.current++;
       
       // Generate a new URL with a fresh timestamp
-      const refreshedUrl = `${business.cover_photo_url.split('?')[0]}?t=${Date.now()}&retry=${imageRetryCount.current}`;
+      const baseUrl = business.cover_photo_url.split('?')[0]; // Remove any existing query parameters
+      const refreshedUrl = `${baseUrl}?t=${Date.now()}&retry=${imageRetryCount.current}`;
       console.log(`[PublicBusinessPage] Retry #${imageRetryCount.current} with refreshed URL:`, refreshedUrl);
       
       // Set a small delay before retrying to avoid hammering the server

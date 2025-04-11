@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
@@ -55,6 +56,7 @@ export const useBusinessProfile = () => {
     try {
       console.log("Starting cover photo upload process...");
       
+      // Force bucket creation before upload
       await forceBucketCreation();
       
       const fileExt = file.name.split('.').pop();
@@ -63,6 +65,7 @@ export const useBusinessProfile = () => {
 
       console.log(`Uploading file: ${filePath}`);
       
+      // Remove old cover photo if it exists
       if (businessProfile?.cover_photo_url) {
         try {
           const oldUrl = new URL(businessProfile.cover_photo_url);
@@ -86,20 +89,45 @@ export const useBusinessProfile = () => {
         }
       }
       
-      const { error: uploadError, data: uploadData } = await supabase.storage
-        .from('business_covers')
-        .upload(filePath, file, {
-          cacheControl: 'no-cache', // Prevent caching
-          upsert: true
-        });
-
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
-        throw uploadError;
+      // Upload the new file with retries if needed
+      let uploadAttempts = 0;
+      let uploadSuccess = false;
+      let uploadData;
+      let uploadError;
+      
+      while (uploadAttempts < 3 && !uploadSuccess) {
+        uploadAttempts++;
+        
+        // Wait a bit before retrying
+        if (uploadAttempts > 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          console.log(`Retry attempt ${uploadAttempts} for file upload`);
+        }
+        
+        const { error, data } = await supabase.storage
+          .from('business_covers')
+          .upload(filePath, file, {
+            cacheControl: 'no-cache',
+            upsert: true
+          });
+        
+        if (error) {
+          console.error(`Upload attempt ${uploadAttempts} failed:`, error);
+          uploadError = error;
+        } else {
+          console.log(`Upload successful on attempt ${uploadAttempts}:`, data);
+          uploadSuccess = true;
+          uploadData = data;
+        }
+      }
+      
+      if (!uploadSuccess) {
+        throw uploadError || new Error("Failed to upload file after multiple attempts");
       }
 
       console.log("File uploaded successfully:", uploadData);
 
+      // Get the public URL with a timestamp to prevent caching
       const { data } = supabase.storage
         .from('business_covers')
         .getPublicUrl(filePath);
@@ -127,8 +155,10 @@ export const useBusinessProfile = () => {
             variant: "destructive",
           });
         } else {
+          // Invalidate the query to refresh the data
           await queryClient.invalidateQueries({ queryKey: ["businessProfile", user?.id] });
           
+          // Add a delayed second invalidation to ensure the updated cover photo URL is loaded
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ["businessProfile", user?.id] });
           }, 500);
@@ -151,8 +181,8 @@ export const useBusinessProfile = () => {
     queryKey: ["businessProfile", user?.id],
     queryFn: getBusinessProfile,
     enabled: !!user,
-    staleTime: 30000,
-    refetchInterval: 60000,
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    refetchInterval: 60000, // Refetch every minute
     refetchOnWindowFocus: true,
   });
 

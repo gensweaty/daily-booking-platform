@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -67,18 +66,37 @@ const ensureStorageBuckets = async () => {
         console.log("business_covers bucket created successfully");
       }
       
-      // Set up storage policies to ensure public access
+      // Try to update the bucket policy to make it public
       try {
-        // We don't have direct access to modify policies through the JS client,
-        // but we can verify bucket is set to public
-        const { data: verifyBuckets } = await supabase.storage.listBuckets();
-        const createdBucket = verifyBuckets?.find(b => b.name === 'business_covers');
-        console.log("Verified bucket status:", createdBucket);
+        const { error: policyError } = await supabase.storage.from('business_covers').updateBucket({
+          public: true,
+          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
+          fileSizeLimit: 5000000 // 5MB
+        });
+        
+        if (policyError) {
+          console.error("Error updating bucket policy:", policyError);
+        }
       } catch (policyError) {
-        console.error("Error verifying bucket policies:", policyError);
+        console.error("Error updating bucket policy:", policyError);
       }
     } else {
       console.log("business_covers bucket already exists");
+      
+      // Try to update the bucket policy to ensure it's public
+      try {
+        const { error: policyError } = await supabase.storage.from('business_covers').updateBucket({
+          public: true,
+          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
+          fileSizeLimit: 5000000 // 5MB
+        });
+        
+        if (policyError) {
+          console.error("Error updating bucket policy:", policyError);
+        }
+      } catch (policyError) {
+        console.error("Error updating bucket policy:", policyError);
+      }
     }
   } catch (error) {
     console.error("Error in ensureStorageBuckets:", error);

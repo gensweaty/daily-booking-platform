@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -17,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoaderCircle, Image } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { BusinessProfile } from "@/types/database";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 
@@ -77,15 +76,24 @@ export const BusinessProfileForm = () => {
       
       // Set the preview URL from the existing profile with a cache-busting parameter
       if (businessProfile.cover_photo_url) {
-        // Add a timestamp parameter if it doesn't already have one
-        let photoUrl = businessProfile.cover_photo_url;
-        if (!photoUrl.includes('?t=')) {
-          photoUrl = `${photoUrl}?t=${Date.now()}`;
+        // Check if it's a blob URL (which won't persist) - if so, ignore it
+        if (!businessProfile.cover_photo_url.startsWith('blob:')) {
+          // Add a timestamp parameter if it doesn't already have one
+          let photoUrl = businessProfile.cover_photo_url;
+          const timestamp = Date.now();
+          
+          if (photoUrl.includes('?')) {
+            // If URL already has parameters, add timestamp as another parameter
+            photoUrl = `${photoUrl}&t=${timestamp}`;
+          } else {
+            // If URL has no parameters, add timestamp as the first parameter
+            photoUrl = `${photoUrl}?t=${timestamp}`;
+          }
+          
+          console.log("Setting preview URL with cache busting:", photoUrl);
+          setPreviewUrl(photoUrl);
+          setImageKey(timestamp); // Force image reload
         }
-        
-        console.log("Setting preview URL with cache busting:", photoUrl);
-        setPreviewUrl(photoUrl);
-        setImageKey(Date.now()); // Force image reload
       }
     }
   }, [businessProfile, form]);
@@ -177,6 +185,7 @@ export const BusinessProfileForm = () => {
     if (file) {
       // Show a temp object URL in the form for preview
       const tempUrl = URL.createObjectURL(file);
+      console.log("Created temporary preview URL:", tempUrl);
       setPreviewUrl(tempUrl);
       setImageKey(Date.now()); // Force image reload
       
@@ -187,14 +196,23 @@ export const BusinessProfileForm = () => {
     }
   };
 
-  // Force image reload when preview URL changes
+  // Handle image error by attempting to reload with a fresh cache-busting parameter
   const handleImageError = () => {
     console.error("Error loading preview image:", previewUrl);
     
-    // Try reloading with a cache-busting parameter
+    // If this is a real URL (not a blob URL), try reloading with a cache-busting parameter
     if (previewUrl && !previewUrl.startsWith('blob:')) {
-      const refreshedUrl = `${previewUrl.split('?')[0]}?t=${Date.now()}`;
+      // Ensure we're creating a fresh URL with a new timestamp
+      const baseUrl = previewUrl.split('?')[0]; // Remove existing query parameters
+      const refreshedUrl = `${baseUrl}?t=${Date.now()}`;
+      
       console.log("Retrying with refreshed URL:", refreshedUrl);
+      setPreviewUrl(refreshedUrl);
+      setImageKey(Date.now());
+    } else if (businessProfile?.cover_photo_url && !businessProfile.cover_photo_url.startsWith('blob:')) {
+      // Try using the original URL from the business profile directly
+      const refreshedUrl = `${businessProfile.cover_photo_url.split('?')[0]}?t=${Date.now()}`;
+      console.log("Falling back to original URL from business profile:", refreshedUrl);
       setPreviewUrl(refreshedUrl);
       setImageKey(Date.now());
     }
