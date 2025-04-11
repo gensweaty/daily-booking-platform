@@ -72,6 +72,38 @@ export const CalendarGrid = ({
     
     return (
       <div className="grid grid-cols-1 h-full overflow-y-auto">
+        {/* Add weekday headers for week view */}
+        {view === 'week' && (
+          <div className="grid border-b border-gray-200 sticky top-0 bg-white z-10 shadow-sm" 
+               style={{ 
+                 gridTemplateColumns: 'auto repeat(7, 1fr)',
+               }}>
+            {/* Empty cell for the time column */}
+            <div className="w-16 sm:w-20"></div>
+            
+            {/* Day name headers */}
+            {days.map((day, index) => {
+              const dayName = format(day, isMobile ? 'EEEEE' : 'EEE');
+              const dayNumber = format(day, 'd');
+              const isToday = isSameDay(day, new Date());
+              
+              return (
+                <div 
+                  key={`header-${index}`} 
+                  className={`text-center py-2 font-medium ${
+                    isToday ? 'text-primary' : 'text-foreground'
+                  }`}
+                >
+                  <div>{dayName}</div>
+                  <div className={`${isToday ? 'bg-primary/10 rounded-full w-7 h-7 flex items-center justify-center mx-auto' : ''}`}>
+                    {dayNumber}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        
         <div className="grid" style={{ 
           gridTemplateRows: `repeat(${HOURS.length}, 6rem)`,
           height: `${HOURS.length * 6}rem`
@@ -127,7 +159,7 @@ export const CalendarGrid = ({
                         >
                           <div className="flex items-center">
                             <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
-                            <span className="truncate font-medium text-sm">
+                            <span className={`truncate font-medium text-sm ${isMobile ? 'line-clamp-2 text-xs' : ''}`}>
                               {getEventTitle(event)}
                             </span>
                           </div>
