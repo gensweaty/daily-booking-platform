@@ -41,14 +41,7 @@ export const CalendarHeader = ({
   const getFormattedDate = () => {
     if (isMobile) {
       // Simpler format for mobile
-      switch (view) {
-        case "month":
-        case "week":
-        case "day":
-          return format(selectedDate, "MMMM yyyy");
-        default:
-          return "";
-      }
+      return format(selectedDate, "MMMM yyyy");
     } else {
       // Desktop format
       switch (view) {
@@ -88,13 +81,13 @@ export const CalendarHeader = ({
 
       {/* View switcher and Add Event button */}
       <div className="flex justify-between items-center gap-4">
-        {/* View switcher with rounded corners - ensure full width on mobile */}
-        <div className={`flex rounded-full overflow-hidden border border-input bg-white ${isMobile ? 'w-[150px]' : ''}`}>
+        {/* Fixed view switcher - full width on mobile with exact proportions */}
+        <div className={`flex rounded-full overflow-hidden border border-input bg-white ${isMobile ? 'w-[205px]' : ''}`}>
           <Button
             variant={view === "month" ? "default" : "ghost"}
             size="sm"
             onClick={() => handleViewChange("month")}
-            className={`px-4 py-2 rounded-none text-sm ${isMobile ? 'flex-1' : ''} ${view === "month" ? "bg-[#9b87f5] text-white hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
+            className={`px-3 py-2 rounded-none text-sm ${isMobile ? 'flex-1' : ''} ${view === "month" ? "bg-[#9b87f5] text-white hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
           >
             {t("calendar.month")}
           </Button>
@@ -102,7 +95,7 @@ export const CalendarHeader = ({
             variant={view === "week" ? "default" : "ghost"}
             size="sm"
             onClick={() => handleViewChange("week")}
-            className={`px-4 py-2 rounded-none text-sm ${isMobile ? 'flex-1' : ''} ${view === "week" ? "bg-[#9b87f5] text-white hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
+            className={`px-3 py-2 rounded-none text-sm ${isMobile ? 'flex-1' : ''} ${view === "week" ? "bg-[#9b87f5] text-white hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
           >
             {t("calendar.week")}
           </Button>
@@ -110,7 +103,7 @@ export const CalendarHeader = ({
             variant={view === "day" ? "default" : "ghost"}
             size="sm"
             onClick={() => handleViewChange("day")}
-            className={`px-4 py-2 rounded-none text-sm ${isMobile ? 'flex-1' : ''} ${view === "day" ? "bg-[#9b87f5] text-white hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
+            className={`px-3 py-2 rounded-none text-sm ${isMobile ? 'flex-1' : ''} ${view === "day" ? "bg-[#9b87f5] text-white hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
           >
             {t("calendar.day")}
           </Button>

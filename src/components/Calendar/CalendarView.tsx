@@ -48,7 +48,7 @@ export function CalendarView({
 
   const formattedSelectedDate = formatDate(selectedDate, "yyyy-MM-dd");
 
-  // Add debug logging for view changes
+  // Debug logging for view changes
   useEffect(() => {
     console.log("[CalendarView] Current view:", view);
   }, [view]);
@@ -80,7 +80,7 @@ export function CalendarView({
           )}
           
           <div className="flex flex-1 overflow-hidden">
-            {/* Time indicator should always be positioned on the left */}
+            {/* Time indicator with fixed positioning */}
             <TimeIndicator />
             
             <div className="flex-1 overflow-auto">

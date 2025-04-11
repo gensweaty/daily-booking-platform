@@ -21,7 +21,7 @@ export const TimeIndicator = () => {
 
   const formatHour = (hour: number) => {
     if (isMobile) {
-      // Format for mobile that matches the provided screenshots
+      // Format for mobile to match screenshots exactly
       if (hour === 0) return "12 AM";
       if (hour === 12) return "12 PM";
       return hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
@@ -34,7 +34,7 @@ export const TimeIndicator = () => {
   };
 
   return (
-    <div className={`${isMobile ? "w-20" : "w-10 md:w-16"} pr-1 md:pr-2 pt-8 flex-shrink-0`}>
+    <div className={`${isMobile ? "w-24 border-r border-gray-200" : "w-10 md:w-16"} pr-1 md:pr-2 pt-8 flex-shrink-0`}>
       {HOURS.map((hour) => (
         <div
           key={hour}
