@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -66,9 +67,9 @@ const ensureStorageBuckets = async () => {
         console.log("business_covers bucket created successfully");
       }
       
-      // Try to update the bucket policy to make it public
+      // Try to update the bucket policy to make it public - fixed method call
       try {
-        const { error: policyError } = await supabase.storage.from('business_covers').updateBucket({
+        const { error: policyError } = await supabase.storage.updateBucket('business_covers', {
           public: true,
           allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
           fileSizeLimit: 5000000 // 5MB
@@ -83,9 +84,9 @@ const ensureStorageBuckets = async () => {
     } else {
       console.log("business_covers bucket already exists");
       
-      // Try to update the bucket policy to ensure it's public
+      // Try to update the bucket policy to ensure it's public - fixed method call
       try {
-        const { error: policyError } = await supabase.storage.from('business_covers').updateBucket({
+        const { error: policyError } = await supabase.storage.updateBucket('business_covers', {
           public: true,
           allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
           fileSizeLimit: 5000000 // 5MB
