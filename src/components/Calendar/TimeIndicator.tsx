@@ -21,10 +21,10 @@ export const TimeIndicator = () => {
 
   const formatHour = (hour: number) => {
     if (isMobile) {
-      // Even simpler hour format for mobile
-      if (hour === 0) return "12a";
-      if (hour === 12) return "12p";
-      return hour < 12 ? `${hour}a` : `${hour - 12}p`;
+      // Format for mobile that matches the provided screenshots
+      if (hour === 0) return "12 AM";
+      if (hour === 12) return "12 PM";
+      return hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
     } else {
       // Full format for desktop
       if (hour === 0) return "12am";
@@ -41,7 +41,7 @@ export const TimeIndicator = () => {
           className="relative border-t border-transparent"
           style={{ height: "6rem" }}
         >
-          <span className="absolute -top-2.5 right-0 text-[10px] md:text-xs text-muted-foreground">
+          <span className={`absolute -top-2.5 right-0 ${isMobile ? "text-sm text-gray-500" : "text-[10px] md:text-xs text-muted-foreground"}`}>
             {formatHour(hour)}
           </span>
         </div>

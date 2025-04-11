@@ -79,9 +79,9 @@ export const CalendarHeader = ({
         </Button>
       </div>
 
-      {/* View switcher and Add Event button - Stack for mobile */}
-      <div className={`${isMobile ? 'flex flex-col gap-2' : 'flex justify-between items-center gap-2'}`}>
-        {/* View switcher with more rounded corners on mobile */}
+      {/* View switcher and Add Event button - Side by side for both mobile and desktop */}
+      <div className="flex justify-between items-center gap-2">
+        {/* View switcher with pill-shaped corners */}
         <div className="flex rounded-full overflow-hidden border border-input bg-white">
           <Button
             variant={view === "month" ? "default" : "ghost"}
@@ -109,12 +109,12 @@ export const CalendarHeader = ({
           </Button>
         </div>
         
-        {/* Add Event button, full width on mobile */}
+        {/* Add Event button, maintaining the same style on mobile and desktop */}
         {onAddEvent && (
           <Button 
             onClick={onAddEvent} 
             size="sm" 
-            className={`bg-[#9b87f5] hover:bg-[#8a78de] px-2 sm:px-4 py-1 text-xs sm:text-sm ${isMobile ? 'w-full rounded-full' : ''}`}
+            className="bg-[#9b87f5] hover:bg-[#8a78de] px-2 sm:px-4 py-1 text-xs sm:text-sm rounded-full"
           >
             <Plus className="h-3 w-3 mr-1 sm:h-4 sm:w-4" />
             {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}

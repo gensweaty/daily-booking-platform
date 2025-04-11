@@ -91,27 +91,16 @@ export const CalendarGrid = ({
           {HOURS.map((hourIndex, rowIndex) => (
             <div 
               key={hourIndex} 
-              className="grid border-b border-gray-200"
+              className={`grid border-b border-gray-200 ${isMobile ? "h-24" : ""}`}
               style={{ 
                 gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(7, 1fr)',
                 height: '6rem'
               }}
             >
-              {/* Mobile Time Indicators - Only visible on mobile */}
-              {isMobile && (
-                <div className="absolute left-0 text-[10px] text-gray-500" style={{ top: `${rowIndex * 6}rem` }}>
-                  {hourIndex === 0 ? "12 AM" : 
-                   hourIndex === 12 ? "12 PM" : 
-                   hourIndex < 12 ? `${hourIndex} AM` : `${hourIndex - 12} PM`}
-                </div>
-              )}
-              
               {days.map((day) => (
                 <div
                   key={`${day.toISOString()}-${hourIndex}`}
                   className={`border-r border-gray-200 p-1 relative ${
-                    !isMobile ? "" : "ml-8"
-                  } ${
                     !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
                   }`}
                   onClick={() => onDayClick?.(day, hourIndex)}
@@ -185,7 +174,7 @@ export const CalendarGrid = ({
       {days.map((day) => (
         <div
           key={day.toISOString()}
-          className={`bg-white p-0.5 md:p-4 min-h-[80px] md:min-h-[120px] cursor-pointer hover:bg-gray-50 ${
+          className={`bg-white p-0.5 md:p-4 min-h-[90px] md:min-h-[120px] cursor-pointer hover:bg-gray-50 ${
             !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
           } flex flex-col`}
           onClick={() => onDayClick?.(day)}

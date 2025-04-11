@@ -1,3 +1,4 @@
+
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { CalendarGrid } from "./CalendarGrid";
@@ -51,14 +52,14 @@ export function CalendarView({
     <div className="h-full overflow-hidden">
       {(view === 'week' || view === 'day') && (
         <div className="flex h-full">
-          {!isMobile && <TimeIndicator />}
+          <TimeIndicator />
           <div className="flex-1 overflow-auto">
             {isMobile && (view === 'week') && (
               <div className="sticky top-0 bg-white z-10 border-b border-gray-200">
                 <div className="grid grid-cols-7 text-center py-2">
                   {days.map((day) => (
                     <div key={day.toISOString()} className="flex flex-col items-center">
-                      <div className="text-xs font-medium">{formatDate(day, 'EEE')}</div>
+                      <div className="text-sm font-medium">{formatDate(day, 'EEE')}</div>
                       <div className="text-xs text-gray-500">{formatDate(day, 'MMM d')}</div>
                     </div>
                   ))}
