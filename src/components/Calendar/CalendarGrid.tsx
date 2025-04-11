@@ -83,6 +83,15 @@ export const CalendarGrid = ({
           </div>
         )}
         
+        {/* Add day header for day view with the same height as week view */}
+        {view === 'day' && (
+          <div className="bg-white sticky top-0 z-20 border-b border-gray-200 h-8">
+            <div className="p-1 text-center font-semibold text-xs sm:text-sm">
+              {format(days[0], isMobile ? 'E d' : 'EEEE, MMMM d')}
+            </div>
+          </div>
+        )}
+        
         <div className="grid" style={{ 
           gridTemplateRows: `repeat(${HOURS.length}, 6rem)`,
           height: `${HOURS.length * 6}rem`
@@ -96,20 +105,19 @@ export const CalendarGrid = ({
                 height: '6rem'
               }}
             >
-              {days.map((day) => (
+              {/* For day view, we only render a single column */}
+              {view === 'day' ? (
                 <div
-                  key={`${day.toISOString()}-${hourIndex}`}
-                  className={`border-r border-gray-200 p-1 relative ${
-                    !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
-                  }`}
-                  onClick={() => onDayClick?.(day, hourIndex)}
+                  key={`${days[0].toISOString()}-${hourIndex}`}
+                  className={`border-r border-gray-200 p-1 relative`}
+                  onClick={() => onDayClick?.(days[0], hourIndex)}
                 >
                   {/* Render events that start in this hour */}
                   {events
                     .filter((event) => {
                       const eventDate = new Date(event.start_date);
                       return (
-                        isSameDay(eventDate, day) && 
+                        isSameDay(eventDate, days[0]) && 
                         eventDate.getHours() === hourIndex
                       );
                     })
@@ -133,7 +141,7 @@ export const CalendarGrid = ({
                             >
                               +{events.filter(e => {
                                 const eDate = new Date(e.start_date);
-                                return isSameDay(eDate, day) && eDate.getHours() === hourIndex;
+                                return isSameDay(eDate, days[0]) && eDate.getHours() === hourIndex;
                               }).length - 2} more
                             </div>
                           );
@@ -201,7 +209,115 @@ export const CalendarGrid = ({
                       );
                     })}
                 </div>
-              ))}
+              ) : (
+                // For week view, render all 7 days
+                days.map((day) => (
+                  <div
+                    key={`${day.toISOString()}-${hourIndex}`}
+                    className={`border-r border-gray-200 p-1 relative ${
+                      !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
+                    }`}
+                    onClick={() => onDayClick?.(day, hourIndex)}
+                  >
+                    {/* Render events that start in this hour */}
+                    {events
+                      .filter((event) => {
+                        const eventDate = new Date(event.start_date);
+                        return (
+                          isSameDay(eventDate, day) && 
+                          eventDate.getHours() === hourIndex
+                        );
+                      })
+                      .map((event, idx) => {
+                        const startTime = new Date(event.start_date);
+                        const endTime = new Date(event.end_date);
+                        const durationHours = Math.max(
+                          1, 
+                          Math.ceil(
+                            (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)
+                          )
+                        );
+                        
+                        // On mobile, we'll only show up to 2 events and then indicate how many more
+                        if (isMobile && idx > 1) {
+                          if (idx === 2) {
+                            return (
+                              <div 
+                                key={`more-${event.id}`} 
+                                className="text-[0.65rem] text-gray-600 font-medium absolute bottom-0 left-1 right-1"
+                              >
+                                +{events.filter(e => {
+                                  const eDate = new Date(e.start_date);
+                                  return isSameDay(eDate, day) && eDate.getHours() === hourIndex;
+                                }).length - 2} more
+                              </div>
+                            );
+                          }
+                          return null;
+                        }
+                        
+                        return (
+                          <div
+                            key={event.id}
+                            className={`${getEventStyles(event)} rounded cursor-pointer absolute top-1 left-1 right-1 overflow-hidden ${isMobile ? 'p-0.5' : 'p-1 sm:p-2'}`}
+                            style={{ 
+                              height: `${Math.min(durationHours * 6 - 0.5, 5.5)}rem`,
+                              zIndex: 10
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEventClick?.(event);
+                            }}
+                          >
+                            {/* Improved mobile view with more compact layout and better space usage */}
+                            {isMobile ? (
+                              <>
+                                <div className="flex items-center mb-0.5">
+                                  <CalendarIcon className="h-2 w-2 mr-0.5 shrink-0" />
+                                  <span className="truncate font-medium text-[0.7rem]">
+                                    {getEventTitle(event)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center text-[0.65rem]">
+                                  <span className="truncate">
+                                    {format(startTime, 'HH:mm')}
+                                  </span>
+                                  <span className="truncate">
+                                    {format(endTime, 'HH:mm')}
+                                  </span>
+                                </div>
+                                {/* Show additional info if available */}
+                                {event.requester_name && (
+                                  <div className="truncate text-[0.65rem] mt-0.5">
+                                    {event.requester_name}
+                                  </div>
+                                )}
+                                {!event.requester_name && event.description && (
+                                  <div className="truncate text-[0.65rem] mt-0.5">
+                                    {event.description.slice(0, 20)}
+                                    {event.description.length > 20 ? '...' : ''}
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center">
+                                  <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
+                                  <span className="truncate font-medium text-sm">
+                                    {getEventTitle(event)}
+                                  </span>
+                                </div>
+                                <div className="truncate text-xs">
+                                  {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                ))
+              )}
             </div>
           ))}
         </div>

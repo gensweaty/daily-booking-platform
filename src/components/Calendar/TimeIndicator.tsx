@@ -22,7 +22,7 @@ export const TimeIndicator = () => {
             key={hour}
             className="h-24 border-b border-border text-xs text-muted-foreground flex items-start"
           >
-            {/* Removed pt-1 to align text with the top of the cell */}
+            {/* Ensuring text aligns perfectly with the top edge */}
             <div className="pl-2">
               {format(date, 'h a')}
             </div>
