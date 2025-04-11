@@ -48,6 +48,11 @@ export function CalendarView({
 
   const formattedSelectedDate = formatDate(selectedDate, "yyyy-MM-dd");
 
+  // Add debug logging for view changes
+  useEffect(() => {
+    console.log("[CalendarView] Current view:", view);
+  }, [view]);
+
   return (
     <div className="h-full overflow-hidden">
       {(view === 'week' || view === 'day') && (

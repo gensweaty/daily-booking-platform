@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -72,24 +71,19 @@ export const Calendar = ({
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Handle window resize for mobile view
+  // Handle window resize for mobile view - fixed to prevent auto-switching to month
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      
-      // On mobile, we might want to default to month view
-      if (mobile && !currentView) {
-        setView("month");
-      }
+      setIsMobile(window.innerWidth < 768);
     };
     
     window.addEventListener('resize', handleResize);
     handleResize(); // Call initially
     
     return () => window.removeEventListener('resize', handleResize);
-  }, [currentView]);
+  }, []);
 
+  // Update view when currentView prop changes
   useEffect(() => {
     if (currentView) {
       setView(currentView);
@@ -201,6 +195,7 @@ export const Calendar = ({
   };
 
   const handleViewChange = (newView: CalendarViewType) => {
+    console.log("[Calendar] Changing view from", view, "to", newView);
     setView(newView);
     if (onViewChange) {
       onViewChange(newView);
