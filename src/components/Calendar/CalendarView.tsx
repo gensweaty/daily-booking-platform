@@ -51,12 +51,11 @@ export function CalendarView({
   return (
     <div className="h-full overflow-hidden">
       {(view === 'week' || view === 'day') && (
-        <div className="flex h-full">
-          {/* TimeIndicator appears outside on desktop but inside the scroll container on mobile */}
-          {!isMobile && <TimeIndicator />}
-          <div className="flex-1 overflow-auto">
-            {isMobile && (view === 'week') && (
-              <div className="sticky top-0 bg-white z-10 border-b border-gray-200">
+        <div className="flex h-full flex-col">
+          {/* Mobile header for day/week views */}
+          {isMobile && (
+            <div className="sticky top-0 bg-white z-10 border-b border-gray-200">
+              {view === 'week' && (
                 <div className="grid grid-cols-7 text-center py-2">
                   {days.map((day) => (
                     <div key={day.toISOString()} className="flex flex-col items-center">
@@ -65,18 +64,21 @@ export function CalendarView({
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-            {isMobile && (view === 'day') && (
-              <div className="sticky top-0 bg-white z-10 border-b border-gray-200">
+              )}
+              {view === 'day' && (
                 <div className="text-center py-3">
                   <div className="text-base font-medium">{formatDate(selectedDate, 'EEE')}</div>
                   <div className="text-sm text-gray-500">{formatDate(selectedDate, 'MMM d')}</div>
                 </div>
-              </div>
-            )}
-            <div className="flex">
-              {isMobile && <TimeIndicator />}
+              )}
+            </div>
+          )}
+          
+          <div className="flex flex-1 overflow-hidden">
+            {/* Time indicator should always be positioned on the left */}
+            <TimeIndicator />
+            
+            <div className="flex-1 overflow-auto">
               <CalendarGrid
                 days={days}
                 events={events}

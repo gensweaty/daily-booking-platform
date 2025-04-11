@@ -82,7 +82,7 @@ export const CalendarGrid = ({
     ];
     
     return (
-      <div className="grid grid-cols-1 flex-1 overflow-y-auto">
+      <div className={`grid flex-1 overflow-y-auto ${isMobile ? "w-full" : ""}`}>
         <div className="grid" style={{ 
           gridTemplateRows: `repeat(${HOURS.length}, ${isMobile ? "5rem" : "6rem"})`,
           height: `${HOURS.length * (isMobile ? 5 : 6)}rem`

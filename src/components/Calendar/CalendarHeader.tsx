@@ -64,6 +64,13 @@ export const CalendarHeader = ({
     }
   };
 
+  const handleViewChange = (newView: CalendarViewType) => {
+    // Prevent changing view if already on that view
+    if (view !== newView) {
+      onViewChange(newView);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3 mb-1">
       {/* Month/Year display with navigation arrows */}
@@ -86,7 +93,7 @@ export const CalendarHeader = ({
           <Button
             variant={view === "month" ? "default" : "ghost"}
             size="sm"
-            onClick={() => onViewChange("month")}
+            onClick={() => handleViewChange("month")}
             className={`px-4 py-2 rounded-none text-sm ${view === "month" ? "bg-[#9b87f5] text-white hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
           >
             {t("calendar.month")}
@@ -94,7 +101,7 @@ export const CalendarHeader = ({
           <Button
             variant={view === "week" ? "default" : "ghost"}
             size="sm"
-            onClick={() => onViewChange("week")}
+            onClick={() => handleViewChange("week")}
             className={`px-4 py-2 rounded-none text-sm ${view === "week" ? "bg-[#9b87f5] text-white hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
           >
             {t("calendar.week")}
@@ -102,7 +109,7 @@ export const CalendarHeader = ({
           <Button
             variant={view === "day" ? "default" : "ghost"}
             size="sm"
-            onClick={() => onViewChange("day")}
+            onClick={() => handleViewChange("day")}
             className={`px-4 py-2 rounded-none text-sm ${view === "day" ? "bg-[#9b87f5] text-white hover:bg-[#8a78de]" : "hover:bg-gray-100"}`}
           >
             {t("calendar.day")}
