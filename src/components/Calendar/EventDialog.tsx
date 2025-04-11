@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -68,8 +67,7 @@ export const EventDialog = ({
       const start = new Date(selectedDate.getTime());
       const end = new Date(selectedDate.getTime());
       
-      start.setHours(9, 0, 0, 0);
-      end.setHours(10, 0, 0, 0);
+      end.setHours(end.getHours() + 1);
       
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
@@ -123,7 +121,6 @@ export const EventDialog = ({
       payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
     };
 
-    // For updates, include the event ID
     if (event?.id) {
       eventData.id = event.id;
     }

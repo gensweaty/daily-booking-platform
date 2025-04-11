@@ -99,7 +99,7 @@ export const CalendarGrid = ({
               {view === 'day' ? (
                 <div
                   key={`${days[0].toISOString()}-${hourIndex}`}
-                  className={`border-r border-gray-200 p-1 relative`}
+                  className={`border-r border-gray-200 p-1 relative hover:bg-gray-50 transition-colors cursor-pointer`}
                   onClick={() => onDayClick?.(days[0], hourIndex)}
                 >
                   {events
@@ -199,7 +199,7 @@ export const CalendarGrid = ({
                 days.map((day) => (
                   <div
                     key={`${day.toISOString()}-${hourIndex}`}
-                    className={`border-r border-gray-200 p-1 relative ${
+                    className={`border-r border-gray-200 p-1 relative hover:bg-gray-50 transition-colors cursor-pointer ${
                       !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
                     }`}
                     onClick={() => onDayClick?.(day, hourIndex)}

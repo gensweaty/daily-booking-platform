@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -184,7 +185,9 @@ export const Calendar = ({
 
   const handleCalendarDayClick = (date: Date, hour?: number) => {
     const clickedDate = new Date(date);
-    clickedDate.setHours(hour || 9, 0, 0, 0);
+    
+    // Set the hour or default to 9 AM if not provided (month view)
+    clickedDate.setHours(hour !== undefined ? hour : 9, 0, 0, 0);
     
     if (isExternalCalendar && allowBookingRequests) {
       setBookingDate(clickedDate);
