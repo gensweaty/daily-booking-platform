@@ -194,7 +194,7 @@ export const DashboardContent = ({
                       >
                         <PlusCircle className="w-4 h-4" />
                       </motion.div>
-                      {t("dashboard.addEvent")}
+                      {t("tasks.addTask")}
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px]">
