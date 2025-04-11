@@ -9,9 +9,7 @@ export function useMediaQuery(query: string): boolean {
     if (typeof window !== 'undefined') {
       const media = window.matchMedia(query);
       // Set matches initially
-      if (media.matches !== matches) {
-        setMatches(media.matches);
-      }
+      setMatches(media.matches);
 
       // Define listener function
       const listener = () => {
@@ -27,7 +25,7 @@ export function useMediaQuery(query: string): boolean {
     
     // Default to false in SSR
     return () => {};
-  }, [matches, query]);
+  }, [query]);
 
   return matches;
 }

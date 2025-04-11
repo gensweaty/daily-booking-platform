@@ -1,3 +1,4 @@
+
 import { format, isSameDay, isSameMonth, startOfWeek, addDays } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -93,7 +94,7 @@ export const CalendarGrid = ({
                   onClick={() => onDayClick?.(day, hourIndex)}
                 >
                   {days.indexOf(day) === 0 && (
-                    <div className={`absolute ${isMobile ? '-left-8 -top-3' : '-left-12 -top-3'} text-xs text-gray-500`}>
+                    <div className={`absolute ${isMobile ? '-left-6 top-[-12px]' : '-left-12 -top-3'} text-xs text-gray-500`}>
                       {format(new Date().setHours(hourIndex, 0, 0, 0), isMobile ? 'h' : 'h a')}
                     </div>
                   )}
@@ -186,7 +187,7 @@ export const CalendarGrid = ({
                               )}
                             </div>
                           ) : (
-                            <>
+                            <div className="flex flex-col h-full">
                               <div className="flex items-center">
                                 <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
                                 <span className="truncate font-medium text-sm">
@@ -196,7 +197,18 @@ export const CalendarGrid = ({
                               <div className="truncate text-xs">
                                 {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
                               </div>
-                            </>
+                              {event.requester_name && (
+                                <div className="truncate text-xs mt-1">
+                                  {event.requester_name}
+                                </div>
+                              )}
+                              {event.description && (
+                                <div className="truncate text-xs mt-0.5 italic">
+                                  {event.description.slice(0, 30)}
+                                  {event.description.length > 30 ? '...' : ''}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       );
