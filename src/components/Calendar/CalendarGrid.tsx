@@ -77,7 +77,8 @@ export const CalendarGrid = ({
           <div className="grid grid-cols-7 bg-white sticky top-0 z-20 border-b border-gray-200">
             {days.map((day, index) => (
               <div key={`header-${index}`} className="p-1 text-center font-semibold text-xs sm:text-sm">
-                {format(day, isMobile ? 'E d' : 'EEE d')}
+                <div>{format(day, isMobile ? 'E' : 'EEE')}</div>
+                <div>{format(day, 'd')}</div>
               </div>
             ))}
           </div>
@@ -154,36 +155,52 @@ export const CalendarGrid = ({
                             onEventClick?.(event);
                           }}
                         >
-                          {/* Improved mobile view with more compact layout and better space usage */}
+                          {/* Enhanced mobile view with more content from the event */}
                           {isMobile ? (
-                            <>
+                            <div className="flex flex-col h-full text-[0.65rem]">
+                              {/* Title with icon - smaller to save space */}
                               <div className="flex items-center mb-0.5">
                                 <CalendarIcon className="h-2 w-2 mr-0.5 shrink-0" />
                                 <span className="truncate font-medium text-[0.7rem]">
                                   {getEventTitle(event)}
                                 </span>
                               </div>
-                              <div className="flex justify-between items-center text-[0.65rem]">
-                                <span className="truncate">
-                                  {format(startTime, 'HH:mm')}
-                                </span>
-                                <span className="truncate">
-                                  {format(endTime, 'HH:mm')}
-                                </span>
+                              
+                              {/* Time with compact display */}
+                              <div className="flex justify-between text-[0.6rem]">
+                                <span>{format(startTime, 'HH:mm')}</span>
+                                <span>{format(endTime, 'HH:mm')}</span>
                               </div>
-                              {/* Show additional info if available */}
+                              
+                              {/* Requester name with high priority */}
                               {event.requester_name && (
-                                <div className="truncate text-[0.65rem] mt-0.5">
+                                <div className="truncate mt-0.5 font-medium">
                                   {event.requester_name}
                                 </div>
                               )}
-                              {!event.requester_name && event.description && (
-                                <div className="truncate text-[0.65rem] mt-0.5">
-                                  {event.description.slice(0, 20)}
-                                  {event.description.length > 20 ? '...' : ''}
+                              
+                              {/* Phone number if available */}
+                              {event.requester_phone && (
+                                <div className="truncate text-[0.6rem]">
+                                  📱 {event.requester_phone}
                                 </div>
                               )}
-                            </>
+                              
+                              {/* Description with character limit */}
+                              {event.description && (
+                                <div className="truncate text-[0.6rem] mt-0.5 italic">
+                                  {event.description.slice(0, 25)}
+                                  {event.description.length > 25 ? '...' : ''}
+                                </div>
+                              )}
+                              
+                              {/* Additional info like payment status if room */}
+                              {event.payment_status && (
+                                <div className="truncate text-[0.6rem] mt-auto">
+                                  💰 {event.payment_status}
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <>
                               <div className="flex items-center">
