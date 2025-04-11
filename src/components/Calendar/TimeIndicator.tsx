@@ -19,8 +19,8 @@ export const TimeIndicator = () => {
             key={hour}
             className="h-24 border-b border-border relative"
           >
-            {/* Better vertical centering to align with grid boxes */}
-            <span className="absolute top-[29px] left-2 text-xs text-muted-foreground">
+            {/* Position the time label to align with the grid boxes */}
+            <span className="absolute top-1/2 left-2 text-xs text-muted-foreground -translate-y-1/2">
               {format(date, 'h a')}
             </span>
           </div>
