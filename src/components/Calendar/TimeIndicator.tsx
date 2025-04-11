@@ -22,7 +22,8 @@ export const TimeIndicator = () => {
             key={hour}
             className="h-24 border-b border-border text-xs text-muted-foreground relative"
           >
-            <span className={`absolute ${isMobile ? 'top-[-7px] left-1' : 'top-[-7px] left-2'}`}>
+            {/* Position the hour label at the center-top of the time slot */}
+            <span className={`absolute ${isMobile ? 'top-[-0.6rem] left-1' : 'top-[-0.6rem] left-2'}`}>
               {format(date, isMobile ? 'h' : 'h a')}
             </span>
           </div>
