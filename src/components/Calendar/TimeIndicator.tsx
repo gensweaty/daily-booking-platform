@@ -1,5 +1,6 @@
 
 import { format } from "date-fns";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 // Reorder hours to start from 6 AM
 const HOURS = [
@@ -8,8 +9,10 @@ const HOURS = [
 ];
 
 export const TimeIndicator = () => {
+  const isMobile = useMediaQuery("(max-width: 640px)");
+
   return (
-    <div className="w-16 flex-shrink-0 border-r border-border bg-background">
+    <div className={`${isMobile ? 'w-10' : 'w-16'} flex-shrink-0 border-r border-border bg-background`}>
       {HOURS.map((hour, index) => {
         const date = new Date();
         date.setHours(hour, 0, 0, 0);
@@ -19,8 +22,8 @@ export const TimeIndicator = () => {
             key={hour}
             className="h-24 border-b border-border text-xs text-muted-foreground relative"
           >
-            <span className="absolute -top-2.5 left-2">
-              {format(date, 'h a')}
+            <span className={`absolute ${isMobile ? '-top-2 left-1' : '-top-2.5 left-2'}`}>
+              {format(date, isMobile ? 'h' : 'h a')}
             </span>
           </div>
         );

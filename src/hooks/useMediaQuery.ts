@@ -5,17 +5,28 @@ export function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(false);
 
   useEffect(() => {
-    const media = window.matchMedia(query);
-    if (media.matches !== matches) {
-      setMatches(media.matches);
+    // Check if window is defined (for SSR)
+    if (typeof window !== 'undefined') {
+      const media = window.matchMedia(query);
+      // Set matches initially
+      if (media.matches !== matches) {
+        setMatches(media.matches);
+      }
+
+      // Define listener function
+      const listener = () => {
+        setMatches(media.matches);
+      };
+
+      // Add the listener
+      media.addEventListener('change', listener);
+      
+      // Clean up
+      return () => media.removeEventListener('change', listener);
     }
-
-    const listener = () => {
-      setMatches(media.matches);
-    };
-
-    media.addEventListener('change', listener);
-    return () => media.removeEventListener('change', listener);
+    
+    // Default to false in SSR
+    return () => {};
   }, [matches, query]);
 
   return matches;
