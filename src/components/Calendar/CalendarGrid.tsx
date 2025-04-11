@@ -2,6 +2,7 @@
 import { format, isSameDay, isSameMonth, startOfWeek, addDays } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface CalendarGridProps {
   days: Date[];
@@ -22,6 +23,18 @@ export const CalendarGrid = ({
   onEventClick,
   isExternalCalendar = false,
 }: CalendarGridProps) => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // Add responsive check for mobile devices
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
   // Get the start of the week for proper alignment
   const startDate = startOfWeek(days[0]);
   
@@ -36,7 +49,7 @@ export const CalendarGrid = ({
   // Get event color based on type and whether it's an external calendar
   const getEventStyles = (event: CalendarEventType) => {
     if (isExternalCalendar) {
-      // In external calendar, all events (including regular events) should have a consistent appearance as "Booked"
+      // In external calendar, all events should have a consistent appearance as "Booked"
       return "bg-green-500 text-white";
     } else {
       // In internal calendar, use event type to determine appearance
@@ -68,6 +81,7 @@ export const CalendarGrid = ({
       ...Array.from({ length: 6 }, (_, i) => i) // 0 AM to 5 AM
     ];
     
+    // Different layouts for mobile vs desktop
     return (
       <div className="grid grid-cols-1 h-full overflow-y-auto">
         <div className="grid" style={{ 
@@ -83,10 +97,21 @@ export const CalendarGrid = ({
                 height: '6rem'
               }}
             >
+              {/* Mobile Time Indicators - Only visible on mobile */}
+              {isMobile && (
+                <div className="absolute left-0 text-[10px] text-gray-500" style={{ top: `${rowIndex * 6}rem` }}>
+                  {hourIndex === 0 ? "12 AM" : 
+                   hourIndex === 12 ? "12 PM" : 
+                   hourIndex < 12 ? `${hourIndex} AM` : `${hourIndex - 12} PM`}
+                </div>
+              )}
+              
               {days.map((day) => (
                 <div
                   key={`${day.toISOString()}-${hourIndex}`}
                   className={`border-r border-gray-200 p-1 relative ${
+                    !isMobile ? "" : "ml-8"
+                  } ${
                     !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
                   }`}
                   onClick={() => onDayClick?.(day, hourIndex)}
@@ -147,7 +172,7 @@ export const CalendarGrid = ({
   // Month view (default) - Updated for better mobile experience
   return (
     <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
-      {/* Weekday headers - shown differently on mobile */}
+      {/* Weekday headers */}
       <div className="col-span-7 grid grid-cols-7 bg-white">
         {weekDays.map((day) => (
           <div key={day} className="p-1 text-center font-semibold text-xs md:text-sm md:p-4">
@@ -160,7 +185,7 @@ export const CalendarGrid = ({
       {days.map((day) => (
         <div
           key={day.toISOString()}
-          className={`bg-white p-0.5 md:p-4 min-h-[60px] md:min-h-[120px] cursor-pointer hover:bg-gray-50 ${
+          className={`bg-white p-0.5 md:p-4 min-h-[80px] md:min-h-[120px] cursor-pointer hover:bg-gray-50 ${
             !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
           } flex flex-col`}
           onClick={() => onDayClick?.(day)}

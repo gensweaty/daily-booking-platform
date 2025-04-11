@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { CalendarViewType } from "@/lib/types/calendar";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useEffect, useState } from "react";
 
 interface CalendarHeaderProps {
   selectedDate: Date;
@@ -25,17 +26,41 @@ export const CalendarHeader = ({
   isExternalCalendar = false,
 }: CalendarHeaderProps) => {
   const { t } = useLanguage();
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // Add responsive check for mobile devices
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const getFormattedDate = () => {
-    switch (view) {
-      case "month":
-        return format(selectedDate, "MMMM yyyy");
-      case "week":
-        return `${t("calendar.weekOf")} ${format(selectedDate, "MMM d, yyyy")}`;
-      case "day":
-        return format(selectedDate, "EEEE, MMMM d, yyyy");
-      default:
-        return "";
+    if (isMobile) {
+      // Simpler format for mobile
+      switch (view) {
+        case "month":
+        case "week":
+        case "day":
+          return format(selectedDate, "MMMM yyyy");
+        default:
+          return "";
+      }
+    } else {
+      // Desktop format
+      switch (view) {
+        case "month":
+          return format(selectedDate, "MMMM yyyy");
+        case "week":
+          return `${t("calendar.weekOf")} ${format(selectedDate, "MMM d, yyyy")}`;
+        case "day":
+          return format(selectedDate, "EEEE, MMMM d, yyyy");
+        default:
+          return "";
+      }
     }
   };
 
@@ -43,20 +68,21 @@ export const CalendarHeader = ({
     <div className="flex flex-col gap-3 mb-1">
       {/* Month/Year display with navigation arrows */}
       <div className="flex justify-between items-center">
-        <Button variant="outline" size="icon" onClick={onPrevious} className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+        <Button variant="outline" size="icon" onClick={onPrevious} className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 rounded-lg">
           <ChevronLeft className="h-4 w-4 sm:h-6 sm:w-6" />
         </Button>
         
         <h2 className="text-base sm:text-xl font-semibold text-center">{getFormattedDate()}</h2>
         
-        <Button variant="outline" size="icon" onClick={onNext} className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+        <Button variant="outline" size="icon" onClick={onNext} className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 rounded-lg">
           <ChevronRight className="h-4 w-4 sm:h-6 sm:w-6" />
         </Button>
       </div>
 
-      {/* View switcher and Add Event button */}
-      <div className="flex justify-between items-center gap-2">
-        <div className="flex rounded-md overflow-hidden border border-input">
+      {/* View switcher and Add Event button - Stack for mobile */}
+      <div className={`${isMobile ? 'flex flex-col gap-2' : 'flex justify-between items-center gap-2'}`}>
+        {/* View switcher with more rounded corners on mobile */}
+        <div className="flex rounded-full overflow-hidden border border-input bg-white">
           <Button
             variant={view === "month" ? "default" : "ghost"}
             size="sm"
@@ -83,8 +109,13 @@ export const CalendarHeader = ({
           </Button>
         </div>
         
+        {/* Add Event button, full width on mobile */}
         {onAddEvent && (
-          <Button onClick={onAddEvent} size="sm" className="bg-[#9b87f5] hover:bg-[#8a78de] px-2 sm:px-4 py-1 text-xs sm:text-sm">
+          <Button 
+            onClick={onAddEvent} 
+            size="sm" 
+            className={`bg-[#9b87f5] hover:bg-[#8a78de] px-2 sm:px-4 py-1 text-xs sm:text-sm ${isMobile ? 'w-full rounded-full' : ''}`}
+          >
             <Plus className="h-3 w-3 mr-1 sm:h-4 sm:w-4" />
             {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
           </Button>

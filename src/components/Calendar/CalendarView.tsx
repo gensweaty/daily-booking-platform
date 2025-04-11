@@ -1,9 +1,9 @@
-
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { CalendarGrid } from "./CalendarGrid";
 import { formatDate } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { TimeIndicator } from "./TimeIndicator";
 
 interface CalendarViewProps {
   days: Date[];
@@ -27,7 +27,6 @@ export function CalendarView({
   const { t } = useLanguage();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
-  // Add responsive check for mobile devices
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -37,7 +36,6 @@ export function CalendarView({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Add debug log for events in CalendarView
   useEffect(() => {
     if (isExternalCalendar) {
       console.log(`[CalendarView] Rendering external calendar with ${events.length} events`);
@@ -51,15 +49,54 @@ export function CalendarView({
 
   return (
     <div className="h-full overflow-hidden">
-      <CalendarGrid
-        days={days}
-        events={events}
-        formattedSelectedDate={formattedSelectedDate}
-        view={view}
-        onDayClick={onDayClick}
-        onEventClick={onEventClick}
-        isExternalCalendar={isExternalCalendar}
-      />
+      {(view === 'week' || view === 'day') && (
+        <div className="flex h-full">
+          {!isMobile && <TimeIndicator />}
+          <div className="flex-1 overflow-auto">
+            {isMobile && (view === 'week') && (
+              <div className="sticky top-0 bg-white z-10 border-b border-gray-200">
+                <div className="grid grid-cols-7 text-center py-2">
+                  {days.map((day) => (
+                    <div key={day.toISOString()} className="flex flex-col items-center">
+                      <div className="text-xs font-medium">{formatDate(day, 'EEE')}</div>
+                      <div className="text-xs text-gray-500">{formatDate(day, 'MMM d')}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {isMobile && (view === 'day') && (
+              <div className="sticky top-0 bg-white z-10 border-b border-gray-200">
+                <div className="text-center py-3">
+                  <div className="text-base font-medium">{formatDate(selectedDate, 'EEE')}</div>
+                  <div className="text-sm text-gray-500">{formatDate(selectedDate, 'MMM d')}</div>
+                </div>
+              </div>
+            )}
+            <CalendarGrid
+              days={days}
+              events={events}
+              formattedSelectedDate={formattedSelectedDate}
+              view={view}
+              onDayClick={onDayClick}
+              onEventClick={onEventClick}
+              isExternalCalendar={isExternalCalendar}
+            />
+          </div>
+        </div>
+      )}
+      
+      {view === 'month' && (
+        <CalendarGrid
+          days={days}
+          events={events}
+          formattedSelectedDate={formattedSelectedDate}
+          view={view}
+          onDayClick={onDayClick}
+          onEventClick={onEventClick}
+          isExternalCalendar={isExternalCalendar}
+        />
+      )}
     </div>
   );
 };
