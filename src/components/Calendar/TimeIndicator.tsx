@@ -22,7 +22,7 @@ export const TimeIndicator = () => {
             key={hour}
             className="h-24 border-b border-border text-xs text-muted-foreground relative"
           >
-            <span className={`absolute ${isMobile ? '-top-3 left-0.5' : '-top-2.5 left-2'}`}>
+            <span className={`absolute ${isMobile ? 'top-[9px] left-1' : 'top-[9px] left-2'}`}>
               {format(date, isMobile ? 'h' : 'h a')}
             </span>
           </div>
