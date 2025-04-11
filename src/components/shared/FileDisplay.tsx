@@ -101,19 +101,27 @@ export const FileDisplay = ({
       
       console.log('Using direct URL for download:', directUrl);
       
-      // Create a hidden anchor element to force download
+      // Force download using fetch to get the blob
+      const response = await fetch(directUrl);
+      const blob = await response.blob();
+      
+      // Create blob URL and handle download
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Create a hidden anchor element for download
       const a = document.createElement('a');
-      a.href = directUrl;
-      a.download = fileName; // This forces download behavior
+      a.href = blobUrl;
+      a.download = fileName; // Set download attribute
       a.style.display = 'none'; // Hide the element
       
-      // Add to DOM, click, and remove
+      // Add to DOM, trigger click, and clean up
       document.body.appendChild(a);
       a.click();
       
-      // Cleanup after a short delay to ensure the download starts
+      // Remove element and revoke blob URL after a delay
       setTimeout(() => {
         document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl); // Important: free up memory
       }, 100);
       
       toast({

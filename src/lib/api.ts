@@ -344,26 +344,48 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
     }
     console.log(`Using effective bucket: ${effectiveBucket}`);
     
-    // Direct URL for download which is most reliable
+    // Direct URL for download
     const directUrl = getFileUrl(effectiveBucket, filePath);
     console.log('Using direct URL for download:', directUrl);
     
-    // Create and setup anchor element with proper download attribute
-    const a = document.createElement('a');
-    a.href = directUrl;
-    a.download = fileName; // Forces download behavior
-    a.style.display = 'none'; // Hide the element
-    
-    // Add to DOM, click, and remove
-    document.body.appendChild(a);
-    a.click();
-    
-    // Cleanup after a short delay to ensure the download starts
-    setTimeout(() => {
-      document.body.removeChild(a);
-    }, 100);
-    
-    return { success: true, message: 'Download started' };
+    try {
+      // Fetch the file as a blob
+      const response = await fetch(directUrl);
+      const blob = await response.blob();
+      
+      // Create blob URL
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Create and setup anchor element
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName; // Force download behavior
+      a.style.display = 'none'; // Hide the element
+      
+      // Add to DOM, click, and remove
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup resources
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl); // Free up memory
+      }, 100);
+      
+      return { success: true, message: 'Download started' };
+    } catch (fetchError) {
+      console.error('Fetch error:', fetchError);
+      // Fallback method as last resort
+      const a = document.createElement('a');
+      a.href = directUrl;
+      a.download = fileName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => document.body.removeChild(a), 100);
+      
+      return { success: true, message: 'Download started (fallback method)' };
+    }
   } catch (error) {
     console.error('Error downloading file:', error);
     return { success: false, message: 'Failed to download file' };
