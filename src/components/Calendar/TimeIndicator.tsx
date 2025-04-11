@@ -19,7 +19,7 @@ export const TimeIndicator = () => {
             key={hour}
             className="h-24 border-b border-border text-xs text-muted-foreground relative"
           >
-            <span className="absolute -top-2.5 left-2">
+            <span className="absolute top-1/2 -translate-y-1/2 left-2">
               {format(date, 'h a')}
             </span>
           </div>
