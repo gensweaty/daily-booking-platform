@@ -14,9 +14,10 @@ interface DateRangeSelectProps {
     end: Date;
   };
   onDateChange: (start: Date, end: Date | null) => void;
+  disabled?: boolean;
 }
 
-export const DateRangeSelect = memo(({ selectedDate, onDateChange }: DateRangeSelectProps) => {
+export const DateRangeSelect = memo(({ selectedDate, onDateChange, disabled }: DateRangeSelectProps) => {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<DateRange | undefined>({
     from: selectedDate.start,
@@ -33,6 +34,7 @@ export const DateRangeSelect = memo(({ selectedDate, onDateChange }: DateRangeSe
               "w-full sm:w-[280px] justify-start text-left font-normal",
               !date && "text-muted-foreground"
             )}
+            disabled={disabled}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
             {date?.from ? (
@@ -62,7 +64,7 @@ export const DateRangeSelect = memo(({ selectedDate, onDateChange }: DateRangeSe
               }
             }}
             numberOfMonths={2}
-            className="bg-background border rounded-md shadow-md"
+            className="bg-background border rounded-md shadow-md pointer-events-auto"
           />
         </PopoverContent>
       </Popover>
