@@ -2,6 +2,7 @@
 import { Button } from "../ui/button";
 import { FileSpreadsheet } from "lucide-react";
 import { DateRangeSelect } from "./DateRangeSelect";
+import { memo } from "react";
 
 interface StatsHeaderProps {
   dateRange: { start: Date; end: Date };
@@ -9,7 +10,7 @@ interface StatsHeaderProps {
   onExport: () => void;
 }
 
-export const StatsHeader = ({ dateRange, onDateChange, onExport }: StatsHeaderProps) => {
+export const StatsHeader = memo(({ dateRange, onDateChange, onExport }: StatsHeaderProps) => {
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
       <DateRangeSelect 
@@ -27,5 +28,6 @@ export const StatsHeader = ({ dateRange, onDateChange, onExport }: StatsHeaderPr
       </Button>
     </div>
   );
-};
+});
 
+StatsHeader.displayName = 'StatsHeader';

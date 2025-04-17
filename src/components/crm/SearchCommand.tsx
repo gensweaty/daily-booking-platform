@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import {
   Command,
@@ -9,26 +10,43 @@ interface SearchCommandProps {
   setFilteredData: (data: any[]) => void
 }
 
-export function SearchCommand({ data, setFilteredData }: SearchCommandProps) {
+export const SearchCommand = React.memo(({ data, setFilteredData }: SearchCommandProps) => {
+  // Debounce search to improve performance
+  const debounceTimeout = React.useRef<NodeJS.Timeout | null>(null);
+  
   const handleSearch = React.useCallback((search: string) => {
-    if (!search) {
-      setFilteredData(data);
-      return;
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
     }
-
-    const searchLower = search.toLowerCase();
-    const filtered = data.filter((item) => {
-      return (
-        item.title?.toLowerCase().includes(searchLower) ||
-        item.user_number?.toLowerCase().includes(searchLower) ||
-        item.social_network_link?.toLowerCase().includes(searchLower) ||
-        item.event_notes?.toLowerCase().includes(searchLower) ||
-        item.payment_status?.toLowerCase().includes(searchLower)
-      );
-    });
     
-    setFilteredData(filtered);
+    debounceTimeout.current = setTimeout(() => {
+      if (!search) {
+        setFilteredData(data);
+        return;
+      }
+
+      const searchLower = search.toLowerCase();
+      const filtered = data.filter((item) => {
+        return (
+          (item.title?.toLowerCase().includes(searchLower)) ||
+          (item.user_number?.toLowerCase().includes(searchLower)) ||
+          (item.social_network_link?.toLowerCase().includes(searchLower)) ||
+          (item.event_notes?.toLowerCase().includes(searchLower)) ||
+          (item.payment_status?.toLowerCase().includes(searchLower))
+        );
+      });
+      
+      setFilteredData(filtered);
+    }, 150); // 150ms debounce delay
   }, [data, setFilteredData]);
+  
+  React.useEffect(() => {
+    return () => {
+      if (debounceTimeout.current) {
+        clearTimeout(debounceTimeout.current);
+      }
+    };
+  }, []);
 
   return (
     <Command className="w-full md:w-[200px] rounded-lg border -mt-4">
@@ -41,4 +59,6 @@ export function SearchCommand({ data, setFilteredData }: SearchCommandProps) {
       </div>
     </Command>
   );
-}
+});
+
+SearchCommand.displayName = 'SearchCommand';

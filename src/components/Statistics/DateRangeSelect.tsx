@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, memo } from "react";
 import { DateRange } from "react-day-picker";
 
 interface DateRangeSelectProps {
@@ -16,7 +16,7 @@ interface DateRangeSelectProps {
   onDateChange: (start: Date, end: Date | null) => void;
 }
 
-export const DateRangeSelect = ({ selectedDate, onDateChange }: DateRangeSelectProps) => {
+export const DateRangeSelect = memo(({ selectedDate, onDateChange }: DateRangeSelectProps) => {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<DateRange | undefined>({
     from: selectedDate.start,
@@ -68,4 +68,6 @@ export const DateRangeSelect = ({ selectedDate, onDateChange }: DateRangeSelectP
       </Popover>
     </div>
   );
-};
+});
+
+DateRangeSelect.displayName = 'DateRangeSelect';

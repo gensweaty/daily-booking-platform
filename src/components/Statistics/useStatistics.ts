@@ -4,8 +4,13 @@ import { supabase } from "@/lib/supabase";
 import { format, parseISO, eachDayOfInterval, endOfDay, startOfMonth, endOfMonth, differenceInMonths, addMonths, eachMonthOfInterval } from 'date-fns';
 
 export const useStatistics = (userId: string | undefined, dateRange: { start: Date; end: Date }) => {
+  // Memoize query keys to prevent unnecessary re-renders
+  const taskStatsQueryKey = ['taskStats', userId, dateRange.start.toISOString().split('T')[0], dateRange.end.toISOString().split('T')[0]];
+  const eventStatsQueryKey = ['eventStats', userId, dateRange.start.toISOString().split('T')[0], dateRange.end.toISOString().split('T')[0]];
+
+  // Optimize task stats query
   const { data: taskStats, isLoading: isLoadingTaskStats } = useQuery({
-    queryKey: ['taskStats', userId],
+    queryKey: taskStatsQueryKey,
     queryFn: async () => {
       if (!userId) return {
         total: 0,
@@ -35,8 +40,9 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
+  // Optimize events stats query with more efficient date handling
   const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
-    queryKey: ['eventStats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryKey: eventStatsQueryKey,
     queryFn: async () => {
       if (!userId) return {
         total: 0,
@@ -48,12 +54,16 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         events: [],
       };
       
+      // Format dates for Supabase query
+      const startDateStr = dateRange.start.toISOString();
+      const endDateStr = endOfDay(dateRange.end).toISOString();
+      
       const { data: events, error } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
-        .gte('start_date', dateRange.start.toISOString())
-        .lte('start_date', endOfDay(dateRange.end).toISOString())
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
         .is('deleted_at', null);
 
       if (error) {
@@ -85,7 +95,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         };
       });
 
-      // Get months for income comparison
+      // Optimize monthly income calculations
       let monthsToCompare;
       const currentDate = new Date();
       const isDefaultDateRange = 
@@ -107,13 +117,14 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         });
       }
 
+      // Fetch monthly data in a more efficient way
       const monthlyIncome = await Promise.all(monthsToCompare.map(async (month) => {
         const monthStart = startOfMonth(month);
         const monthEnd = endOfMonth(month);
         
         const { data: monthEvents, error: monthError } = await supabase
           .from('events')
-          .select('*')
+          .select('payment_status,payment_amount')  // Only select needed fields
           .eq('user_id', userId)
           .gte('start_date', monthStart.toISOString())
           .lte('start_date', endOfDay(monthEnd).toISOString())

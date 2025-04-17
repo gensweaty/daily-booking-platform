@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 import { useToast } from "../ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useMemo } from 'react';
 
 interface StatsData {
   taskStats: {
@@ -25,7 +26,7 @@ export const useExcelExport = () => {
   const { t, language } = useLanguage();
   const isSpanish = language === 'es';
 
-  const exportToExcel = (data: StatsData) => {
+  const exportToExcel = useMemo(() => (data: StatsData) => {
     if (!data.eventStats?.events) {
       toast({
         title: t("crm.noDataToExport"),
@@ -110,7 +111,7 @@ export const useExcelExport = () => {
       title: t("dashboard.exportSuccessful"),
       description: t("dashboard.exportSuccessMessage"),
     });
-  };
+  }, [toast, t, language]);
 
   return { exportToExcel };
 };
