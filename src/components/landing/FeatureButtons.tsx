@@ -25,6 +25,14 @@ export const FeatureButtons = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Button 
               variant="outline"
+              onClick={() => scrollToSection('booking-website')}
+              className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
+            >
+              <Globe className="w-5 h-5 text-primary shrink-0" />
+              <span className="text-sm font-medium">{t('features.website')}</span>
+            </Button>
+            <Button 
+              variant="outline"
               onClick={() => scrollToSection('smart-booking')}
               className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
             >
@@ -33,19 +41,11 @@ export const FeatureButtons = () => {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => scrollToSection('booking-website')}
+              onClick={() => scrollToSection('analytics')}
               className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
             >
-              <Globe className="w-5 h-5 text-accent shrink-0" />
-              <span className="text-sm font-medium">{t('features.website')}</span>
-            </Button>
-            <Button 
-              variant="outline"
-              onClick={() => scrollToSection('task-management')}
-              className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
-            >
-              <ListTodo className="w-5 h-5 text-accent shrink-0" />
-              <span className="text-sm font-medium">{t('features.tasks')}</span>
+              <BarChart className="w-5 h-5 text-accent shrink-0" />
+              <span className="text-sm font-medium">{t('features.analytics')}</span>
             </Button>
             <Button 
               variant="outline"
@@ -57,11 +57,11 @@ export const FeatureButtons = () => {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => scrollToSection('analytics')}
+              onClick={() => scrollToSection('task-management')}
               className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
             >
-              <BarChart className="w-5 h-5 text-accent shrink-0" />
-              <span className="text-sm font-medium">{t('features.analytics')}</span>
+              <ListTodo className="w-5 h-5 text-accent shrink-0" />
+              <span className="text-sm font-medium">{t('features.tasks')}</span>
             </Button>
           </div>
         </div>
