@@ -1,6 +1,8 @@
 
 import { Calendar, ChartBar, ListTodo, Users, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { ClientLogos } from "./ClientLogos";
+import { FeatureButtons } from "./FeatureButtons";
 
 const calendarViews = [
   {
@@ -27,7 +29,7 @@ export const FeatureSection = () => {
       icon: Globe,
       title: t('website.title'),
       description: t('website.description'),
-      image: "/lovable-uploads/93988004-733a-4d7a-a860-3b426d0e195c.png",
+      image: "/lovable-uploads/53d70eb5-d4f8-4497-a308-b57fd27e7c77.png",
       benefits: [
         t('website.feature1'),
         t('website.feature2'),
@@ -36,7 +38,8 @@ export const FeatureSection = () => {
         t('website.feature5')
       ],
       translationPrefix: 'website' as const,
-      id: "booking-website"
+      id: "booking-website",
+      reverse: false
     },
     {
       icon: Calendar,
@@ -50,7 +53,8 @@ export const FeatureSection = () => {
         t('booking.feature4')
       ],
       translationPrefix: 'booking' as const,
-      id: "smart-booking"
+      id: "smart-booking",
+      reverse: true
     },
     {
       icon: ChartBar,
@@ -65,8 +69,8 @@ export const FeatureSection = () => {
         t('analytics.feature5')
       ],
       translationPrefix: 'analytics' as const,
-      reverse: true,
-      id: "analytics"
+      id: "analytics",
+      reverse: false
     },
     {
       icon: Users,
@@ -81,8 +85,8 @@ export const FeatureSection = () => {
         t('crm.feature5')
       ],
       translationPrefix: 'crm' as const,
-      reverse: true,
-      id: "crm-solution"
+      id: "crm-solution",
+      reverse: true
     },
     {
       icon: ListTodo,
@@ -97,8 +101,8 @@ export const FeatureSection = () => {
         t('tasks.feature5')
       ],
       translationPrefix: 'tasks' as const,
-      reverse: true,
-      id: "task-management"
+      id: "task-management",
+      reverse: false
     }
   ];
 
@@ -108,6 +112,10 @@ export const FeatureSection = () => {
         <h2 className="text-3xl font-bold text-center mb-16">
           {t('features.mainTitle')}
         </h2>
+        
+        <FeatureButtons />
+        
+        <ClientLogos />
         
         {features.map((feature, index) => (
           <div key={index} id={feature.id}>
