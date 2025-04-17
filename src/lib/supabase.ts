@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -108,10 +107,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     schema: 'public'
   },
   realtime: {
-    // Instead of autoSubscribe, use reconnect options which are valid
-    reconnectMaxRetries: 10,
-    reconnectMinTimeout: 1000,
-    reconnectMaxTimeout: 10000
+    // Use valid realtime options according to the Supabase SDK
+    eventsPerSecond: 10
   }
 });
 
