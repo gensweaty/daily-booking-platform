@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -107,8 +108,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     schema: 'public'
   },
   realtime: {
-    // Disable realtime subscriptions unless explicitly used (saves resources)
-    autoSubscribe: false
+    // Instead of autoSubscribe, use reconnect options which are valid
+    reconnectMaxRetries: 10,
+    reconnectMinTimeout: 1000,
+    reconnectMaxTimeout: 10000
   }
 });
 
@@ -126,8 +129,8 @@ export const fetchWithSelectedColumns = <T>(
   // Apply the custom query filters and conditions
   query = queryBuilder(query);
   
-  // Execute the query
-  return query;
+  // Execute the query and ensure we return a Promise with the expected shape
+  return query as unknown as Promise<{ data: T[] | null, error: any }>;
 };
 
 // Improved bucket verification - only checks if it exists and logs the settings
