@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
@@ -89,7 +88,6 @@ export const BookingRequestForm = ({
 
   const paymentStatus = form.watch("payment_status");
 
-  // Check rate limit status when form opens
   useEffect(() => {
     if (open) {
       const checkRateLimit = async () => {
@@ -98,16 +96,14 @@ export const BookingRequestForm = ({
           setIsRateLimited(isLimited);
           setRateLimitTimeRemaining(remainingTime);
           
-          // If user is rate limited, show toast
           if (isLimited) {
             const minutes = Math.floor(remainingTime / 60);
             const seconds = remainingTime % 60;
             const timeDisplay = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
             
             toast({
-              title: t("common.rateLimitReached") || "Rate limit reached",
-              description: t("common.waitBeforeBooking", { time: timeDisplay }) || 
-                           `Please wait ${timeDisplay} before submitting another booking request.`,
+              title: t("common.rateLimitReached"),
+              description: t("common.waitBeforeBooking", { time: timeDisplay }),
               variant: "destructive",
             });
           }
@@ -120,7 +116,6 @@ export const BookingRequestForm = ({
     }
   }, [open, toast, t]);
 
-  // Update countdown timer
   useEffect(() => {
     if (!isRateLimited || rateLimitTimeRemaining <= 0) return;
     
@@ -140,7 +135,6 @@ export const BookingRequestForm = ({
 
   const onSubmit = async (values: FormValues) => {
     try {
-      // Check rate limit again right before submission
       const { isLimited, remainingTime } = await checkRateLimitStatus();
       
       if (isLimited) {
@@ -152,9 +146,8 @@ export const BookingRequestForm = ({
         const timeDisplay = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
         
         toast({
-          title: t("common.rateLimitReached") || "Rate limit reached",
-          description: t("common.waitBeforeBooking", { time: timeDisplay }) || 
-                       `Please wait ${timeDisplay} before submitting another booking request.`,
+          title: t("common.rateLimitReached"),
+          description: t("common.waitBeforeBooking", { time: timeDisplay }),
           variant: "destructive",
         });
         return;
@@ -174,7 +167,7 @@ export const BookingRequestForm = ({
       }
       
       const result = await createBookingRequest({
-        title: values.requester_name, // Use requester name as the title
+        title: values.requester_name,
         requester_name: values.requester_name,
         requester_email: values.requester_email,
         requester_phone: values.requester_phone || "",
@@ -186,7 +179,6 @@ export const BookingRequestForm = ({
         business_id: businessId,
       });
       
-      // Handle file upload if a file is selected
       if (selectedFile && result?.id) {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -202,7 +194,6 @@ export const BookingRequestForm = ({
           throw uploadError;
         }
         
-        // Associate file with the booking request
         const { error: fileRecordError } = await supabase
           .from('event_files')
           .insert({
@@ -250,10 +241,10 @@ export const BookingRequestForm = ({
           {isRateLimited && (
             <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 p-3 rounded-md mb-4">
               <p className="text-amber-700 dark:text-amber-400 text-sm font-medium">
-                {t("common.rateLimitMessage") || "You can only submit one booking request every 2 minutes."}
+                {t("common.rateLimitMessage")}
               </p>
               <p className="text-amber-600 dark:text-amber-500 text-sm mt-1">
-                {t("common.waitTimeRemaining") || "Please wait"}: {Math.floor(rateLimitTimeRemaining / 60)}:
+                {t("common.waitTimeRemaining")}: {Math.floor(rateLimitTimeRemaining / 60)}:
                 {(rateLimitTimeRemaining % 60).toString().padStart(2, '0')}
               </p>
             </div>

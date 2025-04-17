@@ -4,7 +4,7 @@ export type Language = 'en' | 'es';
 export interface LanguageContextType {
   language: Language;
   setLanguage: (language: Language) => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }
 
 export interface TranslationType {
