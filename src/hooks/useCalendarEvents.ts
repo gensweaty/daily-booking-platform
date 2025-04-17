@@ -186,7 +186,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     );
     
     if (!available) {
-      throw new Error(`Time slot already booked: ${conflictDetails}`);
+      throw new Error(`Time slot is no longer available: ${conflictDetails}`);
     }
     
     const { data, error } = await supabase
@@ -311,15 +311,18 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       // Query for conflicting events
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, start_date, end_date')
+        .select('id, title, start_date, end_date, deleted_at')
         .filter('start_date', 'lt', endDate.toISOString())
-        .filter('end_date', 'gt', startDate.toISOString());
+        .filter('end_date', 'gt', startDate.toISOString())
+        .is('deleted_at', null);
       
       if (eventsError) throw eventsError;
       
       // Filter out the current event being updated
       const eventsConflict = conflictingEvents?.filter(event => 
-        excludeEventId !== event.id
+        excludeEventId !== event.id &&
+        !(startDate.getTime() >= new Date(event.end_date).getTime() || 
+          endDate.getTime() <= new Date(event.start_date).getTime())
       );
       
       console.log("Conflicting events (excluding current):", eventsConflict);
@@ -344,7 +347,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       // Filter out the current booking being updated
       const bookingsConflict = conflictingBookings?.filter(booking => 
-        excludeEventId !== booking.id
+        excludeEventId !== booking.id &&
+        !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
+          endDate.getTime() <= new Date(booking.start_date).getTime())
       );
       
       console.log("Conflicting bookings (excluding current):", bookingsConflict);

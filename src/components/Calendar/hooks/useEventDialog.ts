@@ -57,15 +57,16 @@ export const useEventDialog = ({
         
       if (eventsError) throw eventsError;
       
-      // Filter out the current event being edited
+      // Filter out the current event being edited and deleted events
       const eventConflict = conflictingEvents?.find(event => 
         (!existingEventId || event.id !== existingEventId) &&
-        !(startDate.getTime() === new Date(event.end_date).getTime() || 
-          endDate.getTime() === new Date(event.start_date).getTime())
+        !event.deleted_at &&
+        !(startDate.getTime() >= new Date(event.end_date).getTime() || 
+          endDate.getTime() <= new Date(event.start_date).getTime())
       );
       
       console.log("Conflicting events (excluding current):", 
-        conflictingEvents?.filter(e => e.id !== existingEventId));
+        conflictingEvents?.filter(e => e.id !== existingEventId && !e.deleted_at));
       
       if (eventConflict) {
         return { available: false, conflictingEvent: eventConflict };
@@ -84,8 +85,8 @@ export const useEventDialog = ({
       // Filter out the current booking being edited
       const bookingConflict = conflictingBookings?.find(booking => 
         booking.id !== existingEventId &&
-        !(startDate.getTime() === new Date(booking.end_date).getTime() || 
-          endDate.getTime() === new Date(booking.start_date).getTime())
+        !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
+          endDate.getTime() <= new Date(booking.start_date).getTime())
       );
       
       console.log("Conflicting bookings (excluding current):", 
