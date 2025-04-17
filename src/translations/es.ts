@@ -143,6 +143,7 @@ export const es = {
     feature2: "Recordatorios automáticos",
     feature3: "Sincronización de calendarios",
     feature4: "Portal de auto-reserva para clientes",
+    feature5: "Formularios de reserva personalizables",
     requestSubmitted: "¡Tu solicitud de reserva ha sido enviada!",
     yourEmailPlaceholder: "Ingresa tu dirección de correo electrónico",
     rateLimitExceeded: "Demasiadas solicitudes de reserva. Espera {{minutes}} minutos antes de intentarlo de nuevo.",

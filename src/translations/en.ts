@@ -158,6 +158,7 @@ export const en = {
     feature2: "Automatic reminders",
     feature3: "Calendar synchronization",
     feature4: "Client self-booking portal",
+    feature5: "Customizable booking forms",
     requestSubmitted: "Your booking request has been submitted!",
     yourEmailPlaceholder: "Enter your email address",
     rateLimitExceeded: "Too many booking requests. Please wait {{minutes}} minutes before trying again.",

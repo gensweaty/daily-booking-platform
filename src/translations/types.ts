@@ -1,6 +1,12 @@
 
 export type Language = 'en' | 'es';
 
+export interface LanguageContextType {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: string, params?: Record<string, any>) => string;
+}
+
 export interface TranslationType {
   nav: {
     signin: string;
