@@ -59,7 +59,7 @@ export const useEventDialog = ({
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', user.id) // Only check the current user's events
         .filter('start_date', 'lt', endDate.toISOString())
         .filter('end_date', 'gt', startDate.toISOString())
         .is('deleted_at', null);

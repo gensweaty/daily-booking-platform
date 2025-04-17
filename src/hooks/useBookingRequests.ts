@@ -63,6 +63,10 @@ export const useBookingRequests = () => {
     mutationFn: async (bookingId: string) => {
       console.log('Starting approval process for booking:', bookingId);
       
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+      
       // Fetch the booking request details first
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
@@ -75,20 +79,28 @@ export const useBookingRequests = () => {
       
       console.log('Fetched booking request:', booking);
       
-      // Check for time slot conflicts before approving
+      // Check for time slot conflicts before approving - ONLY for the current user's events
       const { data: conflictingEvents } = await supabase
         .from('events')
         .select('id, title')
+        .eq('user_id', user.id) // Filter by the current user's events only
         .filter('start_date', 'lt', booking.end_date)
-        .filter('end_date', 'gt', booking.start_date);
+        .filter('end_date', 'gt', booking.start_date)
+        .is('deleted_at', null); // Only consider non-deleted events
       
+      // Check for conflicts with other approved booking requests for the current user
       const { data: conflictingBookings } = await supabase
         .from('booking_requests')
         .select('id, title')
+        .eq('business_id', businessId)
         .eq('status', 'approved')
         .not('id', 'eq', bookingId)
         .filter('start_date', 'lt', booking.end_date)
         .filter('end_date', 'gt', booking.start_date);
+      
+      // Log conflicts for debugging
+      console.log('Conflicting events for current user:', conflictingEvents);
+      console.log('Conflicting approved bookings:', conflictingBookings);
       
       if ((conflictingEvents && conflictingEvents.length > 0) || 
           (conflictingBookings && conflictingBookings.length > 0)) {
@@ -112,7 +124,7 @@ export const useBookingRequests = () => {
           title: booking.title,
           start_date: booking.start_date,
           end_date: booking.end_date,
-          user_id: user?.id,
+          user_id: user.id,
           user_surname: booking.requester_name,
           user_number: booking.requester_phone || booking.user_number || null,
           social_network_link: booking.requester_email || booking.social_network_link || null,
@@ -143,7 +155,7 @@ export const useBookingRequests = () => {
           event_notes: booking.description || booking.event_notes || null,
           start_date: booking.start_date,
           end_date: booking.end_date,
-          user_id: user?.id,
+          user_id: user.id,
           type: 'booking_request',
           payment_status: booking.payment_status,
           payment_amount: booking.payment_amount
