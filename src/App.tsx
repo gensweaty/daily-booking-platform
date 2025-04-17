@@ -55,9 +55,9 @@ function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
       <QueryClientProvider client={queryClient}>
-        <LanguageProvider>
-          <BrowserRouter>
-            <AuthProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <LanguageProvider>
               <SessionRecoveryWrapper>
                 <Routes>
                   <Route path="/" element={<Landing />} />
@@ -75,9 +75,9 @@ function App() {
                 </Routes>
                 <Toaster />
               </SessionRecoveryWrapper>
-            </AuthProvider>
-          </BrowserRouter>
-        </LanguageProvider>
+            </LanguageProvider>
+          </AuthProvider>
+        </BrowserRouter>
       </QueryClientProvider>
     </ThemeProvider>
   );
