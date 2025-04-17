@@ -4,9 +4,11 @@ import { supabase } from "@/lib/supabase";
 import { format, parseISO, eachDayOfInterval, endOfDay, startOfMonth, endOfMonth, differenceInMonths, addMonths, eachMonthOfInterval } from 'date-fns';
 
 export const useStatistics = (userId: string | undefined, dateRange: { start: Date; end: Date }) => {
-  const { data: taskStats } = useQuery({
+  const { data: taskStats, isLoading: isTasksLoading } = useQuery({
     queryKey: ['taskStats', userId],
     queryFn: async () => {
+      if (!userId) return { total: 0, completed: 0, inProgress: 0, todo: 0 };
+      
       const { data: tasks } = await supabase
         .from('tasks')
         .select('status')
@@ -20,15 +22,27 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       };
     },
     enabled: !!userId,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
   });
 
-  const { data: eventStats } = useQuery({
-    queryKey: ['eventStats', userId, dateRange.start, dateRange.end],
+  const { data: eventStats, isLoading: isEventsLoading } = useQuery({
+    queryKey: ['eventStats', userId, dateRange.start.toISOString().split('T')[0], dateRange.end.toISOString().split('T')[0]],
     queryFn: async () => {
+      if (!userId) return { 
+        total: 0, 
+        partlyPaid: 0, 
+        fullyPaid: 0, 
+        dailyStats: [], 
+        monthlyIncome: [], 
+        totalIncome: 0, 
+        events: [] 
+      };
+
       const { data: events } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
+        .is('deleted_at', null)
         .gte('start_date', dateRange.start.toISOString())
         .lte('start_date', endOfDay(dateRange.end).toISOString());
 
@@ -86,6 +100,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           .from('events')
           .select('*')
           .eq('user_id', userId)
+          .is('deleted_at', null)
           .gte('start_date', monthStart.toISOString())
           .lte('start_date', endOfDay(monthEnd).toISOString());
 
@@ -118,7 +133,12 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       };
     },
     enabled: !!userId,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
   });
 
-  return { taskStats, eventStats };
+  return { 
+    taskStats, 
+    eventStats, 
+    isLoading: isTasksLoading || isEventsLoading 
+  };
 };

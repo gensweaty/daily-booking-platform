@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect } from "react";
+
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,24 +44,41 @@ export const CustomerList = () => {
     start: startOfMonth(currentDate),
     end: endOfMonth(currentDate)
   });
-  const [isLoading, setIsLoading] = useState(true);
   const [hoveredField, setHoveredField] = useState<{id: string, field: string} | null>(null);
 
+  // Optimize the fetch functions with proper type handling and select clauses
   const fetchCustomers = useCallback(async () => {
     if (!user) return [];
     
     const { data, error } = await supabase
       .from('customers')
       .select(`
-        *,
-        customer_files_new(*)
+        id, 
+        title, 
+        user_number, 
+        social_network_link, 
+        event_notes, 
+        start_date, 
+        end_date, 
+        payment_status, 
+        payment_amount,
+        created_at,
+        customer_files_new (
+          id, 
+          filename, 
+          file_path, 
+          content_type
+        )
       `)
       .eq('user_id', user.id)
       .or(`start_date.gte.${dateRange.start.toISOString()},created_at.gte.${dateRange.start.toISOString()}`)
       .or(`start_date.lte.${endOfDay(dateRange.end).toISOString()},created_at.lte.${endOfDay(dateRange.end).toISOString()}`)
       .is('deleted_at', null);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching customers:', error);
+      return [];
+    }
     return data || [];
   }, [user, dateRange]);
 
@@ -70,31 +88,51 @@ export const CustomerList = () => {
     const { data, error } = await supabase
       .from('events')
       .select(`
-        *,
-        event_files(*)
+        id, 
+        title, 
+        user_number, 
+        social_network_link, 
+        event_notes, 
+        start_date, 
+        end_date, 
+        payment_status, 
+        payment_amount,
+        created_at,
+        event_files (
+          id, 
+          filename, 
+          file_path, 
+          content_type
+        )
       `)
       .eq('user_id', user.id)
       .gte('start_date', dateRange.start.toISOString())
       .lte('start_date', endOfDay(dateRange.end).toISOString())
       .is('deleted_at', null);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching events:', error);
+      return [];
+    }
     return data || [];
   }, [user, dateRange]);
 
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
-    queryKey: ['customers', dateRange],
+    queryKey: ['customers', user?.id, dateRange.start.toISOString().split('T')[0], dateRange.end.toISOString().split('T')[0]],
     queryFn: fetchCustomers,
     enabled: !!user,
+    staleTime: 3 * 60 * 1000, // 3 minutes cache
   });
 
   const { data: events = [], isLoading: isLoadingEvents } = useQuery({
-    queryKey: ['events', dateRange],
+    queryKey: ['events', user?.id, dateRange.start.toISOString().split('T')[0], dateRange.end.toISOString().split('T')[0]],
     queryFn: fetchEvents,
     enabled: !!user,
+    staleTime: 3 * 60 * 1000, // 3 minutes cache
   });
 
-  const combinedData = React.useMemo(() => {
+  // Use useMemo for expensive computations
+  const combinedData = useMemo(() => {
     if (isLoadingCustomers || isLoadingEvents) return [];
     
     const combined = [...customers];
@@ -117,15 +155,13 @@ export const CustomerList = () => {
     return combined;
   }, [customers, events, isLoadingCustomers, isLoadingEvents]);
 
-  useEffect(() => {
-    setIsLoading(isLoadingCustomers || isLoadingEvents);
-  }, [isLoadingCustomers, isLoadingEvents]);
-
+  // Update filteredData when combinedData changes
   useEffect(() => {
     setFilteredData(combinedData);
   }, [combinedData]);
 
-  const paginatedData = React.useMemo(() => {
+  // Use useMemo for pagination to avoid recalculation
+  const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     return filteredData.slice(startIndex, endIndex);
@@ -338,6 +374,8 @@ export const CustomerList = () => {
     });
   };
 
+  const isLoading = isLoadingCustomers || isLoadingEvents;
+
   if (isLoading) {
     return (
       <div className="h-full w-full flex items-center justify-center p-8">
@@ -407,9 +445,9 @@ export const CustomerList = () => {
                       onMouseLeave={() => setHoveredField(null)}
                     >
                       <span className="line-clamp-2 text-left text-sm">
-                        {customer.title}
+                        {customer.title || '-'}
                       </span>
-                      {hoveredField?.id === customer.id && hoveredField?.field === 'title' && (
+                      {hoveredField?.id === customer.id && hoveredField?.field === 'title' && customer.title && (
                         <Copy 
                           className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0 opacity-60 hover:opacity-100 transition-opacity"
                           onClick={() => handleCopyText(customer.title)}
