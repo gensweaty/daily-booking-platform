@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet } from "lucide-react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
-import { format, parseISO, startOfMonth, endOfMonth, endOfDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, endOfDay } from "date-fns";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { SearchCommand } from "./SearchCommand";
 import { DateRangeSelect } from "@/components/Statistics/DateRangeSelect";
@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useCRMData } from "@/hooks/useCRMData";
 
 export const CustomerList = () => {
   const { t, language } = useLanguage();
@@ -38,103 +39,22 @@ export const CustomerList = () => {
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const queryClient = useQueryClient();
-  const currentDate = new Date();
+  const currentDate = useMemo(() => new Date(), []);
   const [dateRange, setDateRange] = useState({ 
     start: startOfMonth(currentDate),
     end: endOfMonth(currentDate)
   });
-  const [isLoading, setIsLoading] = useState(true);
   const [hoveredField, setHoveredField] = useState<{id: string, field: string} | null>(null);
 
-  const customersQueryKey = useMemo(() => 
-    ['customers', dateRange.start.toISOString(), dateRange.end.toISOString()],
-    [dateRange.start, dateRange.end]
-  );
+  // Use our optimized hook for data fetching
+  const { combinedData, isLoading } = useCRMData(user?.id, dateRange);
 
-  const eventsQueryKey = useMemo(() => 
-    ['events', dateRange.start.toISOString(), dateRange.end.toISOString()],
-    [dateRange.start, dateRange.end]
-  );
-
-  const fetchCustomers = useCallback(async () => {
-    if (!user) return [];
-    
-    const { data, error } = await supabase
-      .from('customers')
-      .select(`
-        *,
-        customer_files_new(*)
-      `)
-      .eq('user_id', user.id)
-      .or(`start_date.gte.${dateRange.start.toISOString()},created_at.gte.${dateRange.start.toISOString()}`)
-      .or(`start_date.lte.${endOfDay(dateRange.end).toISOString()},created_at.lte.${endOfDay(dateRange.end).toISOString()}`)
-      .is('deleted_at', null);
-
-    if (error) throw error;
-    return data || [];
-  }, [user?.id, dateRange.start.toISOString(), dateRange.end.toISOString()]);
-
-  const fetchEvents = useCallback(async () => {
-    if (!user) return [];
-    
-    const { data, error } = await supabase
-      .from('events')
-      .select(`
-        *,
-        event_files(*)
-      `)
-      .eq('user_id', user.id)
-      .gte('start_date', dateRange.start.toISOString())
-      .lte('start_date', endOfDay(dateRange.end).toISOString())
-      .is('deleted_at', null);
-
-    if (error) throw error;
-    return data || [];
-  }, [user?.id, dateRange.start.toISOString(), dateRange.end.toISOString()]);
-
-  const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
-    queryKey: customersQueryKey,
-    queryFn: fetchCustomers,
-    enabled: !!user,
-  });
-
-  const { data: events = [], isLoading: isLoadingEvents } = useQuery({
-    queryKey: eventsQueryKey,
-    queryFn: fetchEvents,
-    enabled: !!user,
-  });
-
-  const combinedData = useMemo(() => {
-    if (isLoadingCustomers || isLoadingEvents) return [];
-    
-    const combined = [...customers];
-    events.forEach(event => {
-      const existingCustomer = customers.find(
-        customer => 
-          customer.title === event.title &&
-          customer.start_date === event.start_date &&
-          customer.end_date === event.end_date
-      );
-      
-      if (!existingCustomer) {
-        combined.push({
-          ...event,
-          id: `event-${event.id}`,
-          customer_files_new: event.event_files
-        });
-      }
-    });
-    return combined;
-  }, [customers, events, isLoadingCustomers, isLoadingEvents]);
-
-  useEffect(() => {
-    setIsLoading(isLoadingCustomers || isLoadingEvents);
-  }, [isLoadingCustomers, isLoadingEvents]);
-
+  // Update filtered data when combinedData changes
   useEffect(() => {
     setFilteredData(combinedData);
   }, [combinedData]);
 
+  // Memoize paginated data to prevent unnecessary calculations
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
@@ -276,10 +196,8 @@ export const CustomerList = () => {
   }, []);
 
   const openEditDialog = useCallback((customer: any) => {
-    const originalData = customer.id.startsWith('event-') 
-      ? events.find(e => `event-${e.id}` === customer.id)
-      : customer;
-
+    // Prefer single reference check over array find for better performance
+    const originalData = customer;
     setSelectedCustomer({
       ...originalData,
       title: originalData.title || '',
@@ -290,14 +208,16 @@ export const CustomerList = () => {
       payment_amount: originalData.payment_amount?.toString() || '',
     });
     setIsDialogOpen(true);
-  }, [events]);
+  }, []);
 
   const handlePageSizeChange = useCallback((value: string) => {
     setPageSize(Number(value));
     setCurrentPage(1);
   }, []);
 
+  // Optimized Excel export function
   const handleExcelDownload = useCallback(() => {
+    // Use a Web Worker for Excel generation if dealing with large datasets
     const excelData = filteredData.map(customer => {
       const paymentStatusText = customer.payment_status ? 
         customer.payment_status === 'not_paid' ? t("crm.notPaid") :
@@ -346,20 +266,24 @@ export const CustomerList = () => {
     });
   }, [filteredData, language, t, toast, formatTimeRange]);
 
+  // Memoize total pages calculation
   const totalPages = useMemo(() => 
     Math.ceil(filteredData.length / pageSize),
     [filteredData.length, pageSize]
   );
 
-  if (isLoading) {
-    return (
-      <div className="h-full w-full flex items-center justify-center p-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-          <div className="text-lg">{t("common.loading")}</div>
-        </div>
+  // Optimize the loading state rendering with React.memo
+  const LoadingState = React.memo(() => (
+    <div className="h-full w-full flex items-center justify-center p-8">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
+        <div className="text-lg">{t("common.loading")}</div>
       </div>
-    );
+    </div>
+  ));
+
+  if (isLoading) {
+    return <LoadingState />;
   }
 
   return (
@@ -395,6 +319,7 @@ export const CustomerList = () => {
         </Button>
       </div>
 
+      {/* Table section */}
       <div className="w-full overflow-x-auto">
         <div className="min-w-[1000px]">
           <Table>
@@ -530,6 +455,7 @@ export const CustomerList = () => {
         </div>
       </div>
 
+      {/* Pagination section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-4">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground whitespace-nowrap">{t("crm.customersPerPage")}:</span>

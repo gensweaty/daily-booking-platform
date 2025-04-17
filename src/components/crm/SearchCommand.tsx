@@ -11,11 +11,17 @@ interface SearchCommandProps {
 }
 
 export const SearchCommand = React.memo(({ data, setFilteredData }: SearchCommandProps) => {
-  // Debounce search to improve performance
+  // Use ref for the timeout and the current data to avoid unnecessary re-renders
   const debounceTimeout = React.useRef<NodeJS.Timeout | null>(null);
+  const currentDataRef = React.useRef(data);
   const [searchValue, setSearchValue] = React.useState<string>("");
   
-  // Handle search with local state to prevent re-renders
+  // Update the ref when data changes
+  React.useEffect(() => {
+    currentDataRef.current = data;
+  }, [data]);
+
+  // Search implementation with optimized debouncing  
   const handleSearch = React.useCallback((search: string) => {
     setSearchValue(search);
     
@@ -23,14 +29,15 @@ export const SearchCommand = React.memo(({ data, setFilteredData }: SearchComman
       clearTimeout(debounceTimeout.current);
     }
     
+    // Immediate response for empty search
+    if (!search.trim()) {
+      setFilteredData(currentDataRef.current);
+      return;
+    }
+    
     debounceTimeout.current = setTimeout(() => {
-      if (!search) {
-        setFilteredData(data);
-        return;
-      }
-
       const searchLower = search.toLowerCase();
-      const filtered = data.filter((item) => {
+      const filtered = currentDataRef.current.filter((item) => {
         return (
           (item.title?.toLowerCase().includes(searchLower)) ||
           (item.user_number?.toLowerCase().includes(searchLower)) ||
@@ -41,9 +48,10 @@ export const SearchCommand = React.memo(({ data, setFilteredData }: SearchComman
       });
       
       setFilteredData(filtered);
-    }, 150); // 150ms debounce delay
-  }, [data, setFilteredData]);
+    }, 200); // Slight increase in debounce time to reduce processing frequency
+  }, [setFilteredData]);
   
+  // Clean up timeout on unmount
   React.useEffect(() => {
     return () => {
       if (debounceTimeout.current) {

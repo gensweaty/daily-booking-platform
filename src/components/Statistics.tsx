@@ -17,7 +17,11 @@ export const Statistics = () => {
     end: endOfMonth(currentDate)
   });
 
-  const { taskStats, eventStats, isLoading } = useStatistics(user?.id, dateRange);
+  // Memoize userId for stable reference in dependencies
+  const userId = useMemo(() => user?.id, [user?.id]);
+  
+  // Optimized hook usage with proper dependencies
+  const { taskStats, eventStats, isLoading } = useStatistics(userId, dateRange);
   const { exportToExcel } = useExcelExport();
 
   const handleExport = useCallback(() => {
@@ -44,6 +48,12 @@ export const Statistics = () => {
     totalIncome: 0 
   }), []);
 
+  // Memoize the stats data to avoid unnecessary re-renders
+  const currentTaskStats = useMemo(() => taskStats || defaultTaskStats, [taskStats, defaultTaskStats]);
+  const currentEventStats = useMemo(() => eventStats || defaultEventStats, [eventStats, defaultEventStats]);
+  const chartData = useMemo(() => eventStats?.dailyStats || [], [eventStats?.dailyStats]);
+  const incomeData = useMemo(() => eventStats?.monthlyIncome || [], [eventStats?.monthlyIncome]);
+
   return (
     <div className="space-y-6">
       <StatsHeader 
@@ -53,13 +63,13 @@ export const Statistics = () => {
       />
       
       <StatsCards 
-        taskStats={taskStats || defaultTaskStats} 
-        eventStats={eventStats || defaultEventStats} 
+        taskStats={currentTaskStats} 
+        eventStats={currentEventStats} 
       />
 
       <div className="grid gap-4 md:grid-cols-2">
-        <BookingChart data={eventStats?.dailyStats || []} />
-        <IncomeChart data={eventStats?.monthlyIncome || []} />
+        <BookingChart data={chartData} />
+        <IncomeChart data={incomeData} />
       </div>
     </div>
   );
