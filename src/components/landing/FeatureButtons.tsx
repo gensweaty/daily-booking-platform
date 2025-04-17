@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Calendar, ListTodo, Users, BarChart } from "lucide-react";
+import { Calendar, ListTodo, Users, BarChart, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export const FeatureButtons = () => {
@@ -22,7 +22,7 @@ export const FeatureButtons = () => {
           </h2>
         </div>
         <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Button 
               variant="outline"
               onClick={() => scrollToSection('smart-booking')}
@@ -30,6 +30,14 @@ export const FeatureButtons = () => {
             >
               <Calendar className="w-5 h-5 text-primary shrink-0" />
               <span className="text-sm font-medium">{t('features.booking')}</span>
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => scrollToSection('booking-website')}
+              className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
+            >
+              <Globe className="w-5 h-5 text-accent shrink-0" />
+              <span className="text-sm font-medium">{t('features.website')}</span>
             </Button>
             <Button 
               variant="outline"

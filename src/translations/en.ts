@@ -461,13 +461,14 @@ const en = {
     partiallyPaidBookings: "Partially Paid Bookings",
   },
   features: {
-    title: "Explore Features",
+    title: "Explore Key Features",
     mainTitle: "Powerful Features to Boost Your Business",
     booking: "Smart Booking",
     tasks: "Task Management",
     crm: "CRM Solution",
-    analytics: "Analytics",
-    businessTitle: "Perfect for All Types of Businesses",
+    analytics: "Business Analytics",
+    website: "Booking Website",
+    businessTitle: "Perfect for Any Business Type"
   },
   booking: {
     title: "Smart Booking Calendar",
@@ -494,6 +495,15 @@ const en = {
     feature3: "Analyze booking patterns to optimize your schedule",
     feature4: "Generate professional reports for business decisions",
     feature5: "Custom dashboard with key performance indicators"
+  },
+  website: {
+    title: "Personalized Booking Website",
+    description: "Create a professional booking page for your business that reflects your brand and makes it easy for clients to book appointments online.",
+    feature1: "Customizable business profile with logo and branding",
+    feature2: "Dedicated booking page with your business information",
+    feature3: "Online appointment scheduling for clients 24/7",
+    feature4: "Mobile-friendly design for bookings on any device",
+    feature5: "Integration with your calendar and business hours"
   },
   footer: {
     description: "Your all-in-one solution for business management, scheduling, and client relationships.",

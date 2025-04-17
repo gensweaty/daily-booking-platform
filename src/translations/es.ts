@@ -1,4 +1,3 @@
-
 const es = {
   common: {
     loading: "Cargando...",
@@ -359,13 +358,14 @@ const es = {
     weekOf: "Semana del",
   },
   features: {
-    title: "Explora las características",
-    mainTitle: "Potentes características para impulsar tu negocio",
-    booking: "Reserva inteligente",
-    tasks: "Gestión de tareas",
+    title: "Explorar Funciones Clave",
+    mainTitle: "Potentes Funciones para Impulsar tu Negocio",
+    booking: "Reservas Inteligentes",
+    tasks: "Gestión de Tareas",
     crm: "Solución CRM",
-    analytics: "Análisis",
-    businessTitle: "Perfecto para todo tipo de negocios",
+    analytics: "Análisis de Negocio",
+    website: "Sitio Web de Reservas",
+    businessTitle: "Perfecto para Cualquier Tipo de Negocio"
   },
   booking: {
     title: "Calendario de reservas inteligente",
@@ -523,6 +523,15 @@ const es = {
     paidBookings: "Reservas pagadas",
     unpaidBookings: "Reservas no pagadas",
     partiallyPaidBookings: "Reservas parcialmente pagadas",
+  },
+  website: {
+    title: "Sitio Web de Reservas Personalizado",
+    description: "Crea una página de reservas profesional para tu negocio que refleje tu marca y facilite a los clientes la reserva de citas en línea.",
+    feature1: "Perfil de negocio personalizable con logo y marca",
+    feature2: "Página de reservas dedicada con información de tu negocio",
+    feature3: "Programación de citas en línea para clientes 24/7",
+    feature4: "Diseño adaptado a dispositivos móviles para reservas en cualquier dispositivo",
+    feature5: "Integración con tu calendario y horario comercial"
   }
 };
 

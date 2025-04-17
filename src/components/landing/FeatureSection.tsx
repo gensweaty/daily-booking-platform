@@ -1,5 +1,5 @@
 
-import { Calendar, ChartBar, ListTodo, Users } from "lucide-react";
+import { Calendar, ChartBar, ListTodo, Users, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const calendarViews = [
@@ -54,6 +54,21 @@ export const FeatureSection = () => {
       id: "analytics"
     },
     {
+      icon: Globe,
+      title: t('website.title'),
+      description: t('website.description'),
+      image: "/lovable-uploads/fcbdffef-fba0-4902-a9a8-f9a27e23b2e9.png",
+      benefits: [
+        t('website.feature1'),
+        t('website.feature2'),
+        t('website.feature3'),
+        t('website.feature4'),
+        t('website.feature5')
+      ],
+      translationPrefix: 'website' as const,
+      id: "booking-website"
+    },
+    {
       icon: Users,
       title: t('crm.title'),
       description: t('crm.description'),
@@ -66,6 +81,7 @@ export const FeatureSection = () => {
         t('crm.feature5')
       ],
       translationPrefix: 'crm' as const,
+      reverse: true,
       id: "crm-solution"
     },
     {
