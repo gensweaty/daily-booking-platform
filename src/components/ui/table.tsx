@@ -1,44 +1,6 @@
-
 import * as React from "react"
+
 import { cn } from "@/lib/utils"
-
-// Add a context for table caching
-interface TableCacheContextType {
-  getCachedData: <T>(key: string) => T | null;
-  setCachedData: <T>(key: string, data: T) => void;
-}
-
-const TableCacheContext = React.createContext<TableCacheContextType>({
-  getCachedData: () => null,
-  setCachedData: () => {},
-});
-
-// This provider can be used to wrap tables that need caching
-export const TableCacheProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
-  const cache = React.useRef<Map<string, any>>(new Map());
-  
-  const getCachedData = React.useCallback(<T,>(key: string): T | null => {
-    return cache.current.get(key) || null;
-  }, []);
-  
-  const setCachedData = React.useCallback(<T,>(key: string, data: T) => {
-    cache.current.set(key, data);
-  }, []);
-  
-  const value = React.useMemo(() => ({
-    getCachedData,
-    setCachedData
-  }), [getCachedData, setCachedData]);
-  
-  return (
-    <TableCacheContext.Provider value={value}>
-      {children}
-    </TableCacheContext.Provider>
-  );
-};
-
-// Hook to use the table cache
-export const useTableCache = () => React.useContext(TableCacheContext);
 
 const Table = React.forwardRef<
   HTMLTableElement,
@@ -91,13 +53,12 @@ TableFooter.displayName = "TableFooter"
 
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
-  React.HTMLAttributes<HTMLTableRowElement> & { index?: number }
->(({ className, index, ...props }, ref) => (
+  React.HTMLAttributes<HTMLTableRowElement>
+>(({ className, ...props }, ref) => (
   <tr
     ref={ref}
     className={cn(
       "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
-      index !== undefined && index % 2 === 0 ? "bg-muted/5" : "",
       className
     )}
     {...props}

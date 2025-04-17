@@ -7,7 +7,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-// Enhanced storage with better session handling and performance
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
@@ -62,25 +61,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     fetch: (...args: Parameters<typeof fetch>) => {
       const [url, options] = args;
-      
-      // Add performance improvements for GET requests
-      if (!options?.method || options.method === 'GET') {
-        const enhancedOptions = {
-          ...options,
-          headers: {
-            ...options?.headers,
-            'Cache-Control': 'max-age=300', // 5 minute cache for GET requests
-          },
-          cache: 'default' as RequestCache
-        };
-        
-        return fetch(url, enhancedOptions).catch(async (error) => {
-          console.error(`Fetch error for ${typeof url === 'string' ? url : 'request'}:`, error);
-          throw error;
-        });
-      }
-      
-      // Add retry logic for all other requests
+      // Add retry logic for important endpoints
       return fetch(url, options).catch(async (error) => {
         console.error(`Fetch error for ${typeof url === 'string' ? url : 'request'}:`, error);
         
@@ -88,9 +69,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         const urlString = url.toString();
         if ((options?.method && options.method !== 'GET') || 
             urlString.includes('business_profiles') || 
-            urlString.includes('booking_requests') ||
-            urlString.includes('customers') ||
-            urlString.includes('events')) {
+            urlString.includes('booking_requests')) {
           
           console.log("Retrying important request after error");
           // Wait a moment before retry
@@ -102,31 +81,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       });
     },
   },
-  // Add query performance options for Supabase
-  db: {
-    schema: 'public'
-  },
-  // Use a valid and minimal realtime configuration
-  realtime: {}
 });
-
-// Fix the return type of fetchWithSelectedColumns to match PostgrestFilterBuilder
-export const fetchWithSelectedColumns = <T>(
-  table: string, 
-  columns: string[], 
-  queryBuilder: (query: any) => any
-) => {
-  // Start with the base query and select specific columns
-  let query = supabase
-    .from(table)
-    .select(columns.join(','));
-  
-  // Apply the custom query filters and conditions
-  query = queryBuilder(query);
-  
-  // Return the query as is - it's already thenable and has data/error properties
-  return query;
-};
 
 // Improved bucket verification - only checks if it exists and logs the settings
 const ensureStorageBuckets = async () => {
@@ -166,24 +121,11 @@ export const forceBucketCreation = async () => {
 // Export the storage URL as a standalone function instead of attaching to supabase
 export const getStorageUrl = () => `${supabaseUrl}/storage/v1`;
 
-// Optimized helper to normalize file paths with memoization for repeated calls
-const normalizedPathCache = new Map<string, string>();
-
+// Helper to normalize file paths for storage URLs (handle double slashes)
 export const normalizeFilePath = (filePath: string) => {
   if (!filePath) return "";
-  
-  // Check cache first
-  if (normalizedPathCache.has(filePath)) {
-    return normalizedPathCache.get(filePath)!;
-  }
-  
   // Remove any leading slashes
-  const normalized = filePath.replace(/^\/+/, '');
-  
-  // Save to cache
-  normalizedPathCache.set(filePath, normalized);
-  
-  return normalized;
+  return filePath.replace(/^\/+/, '');
 };
 
 // Enhanced debug listener for auth events with more detailed information

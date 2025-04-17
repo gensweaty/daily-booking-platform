@@ -2,16 +2,8 @@ import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
 
-// Improved file URL with better error handling and caching
+// Helper function to get file URL with consistent bucket handling
 export const getFileUrl = (bucketName: string, filePath: string) => {
-  if (!filePath) return "";
-  if (!bucketName) return "";
-  
-  // Use a cached URL if available
-  const cacheKey = `file_url_${bucketName}_${filePath}`;
-  const cachedUrl = sessionStorage.getItem(cacheKey);
-  if (cachedUrl) return cachedUrl;
-  
   const baseUrl = import.meta.env.VITE_SUPABASE_URL;
   const normalizedPath = normalizeFilePath(filePath);
   
@@ -23,16 +15,7 @@ export const getFileUrl = (bucketName: string, filePath: string) => {
     effectiveBucket = "event_attachments";
   }
   
-  const url = `${baseUrl}/storage/v1/object/public/${effectiveBucket}/${normalizedPath}`;
-  
-  // Cache the URL for future use
-  try {
-    sessionStorage.setItem(cacheKey, url);
-  } catch (e) {
-    console.warn("Failed to cache file URL:", e);
-  }
-  
-  return url;
+  return `${baseUrl}/storage/v1/object/public/${effectiveBucket}/${normalizedPath}`;
 };
 
 export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">) => {
@@ -392,7 +375,7 @@ const fetchEventsWithUserId = async (userId: string, businessId: string) => {
   }
 };
 
-// Enhanced file handling functions with better caching and error handling
+// Enhanced file handling functions with consistent bucket handling
 export const downloadFile = async (bucketName: string, filePath: string, fileName: string) => {
   try {
     console.log(`Attempting to download file from ${bucketName}/${filePath}`);
@@ -402,26 +385,15 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
     if (filePath && (filePath.includes("b22b") || /^\d{13}_/.test(filePath))) {
       effectiveBucket = "event_attachments";
     }
+    console.log(`Using effective bucket: ${effectiveBucket}`);
     
-    // Direct URL with caching
+    // Direct URL for download
     const directUrl = getFileUrl(effectiveBucket, filePath);
+    console.log('Using direct URL for download:', directUrl);
     
     try {
-      // Fetch the file as a blob with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-      
-      const response = await fetch(directUrl, { 
-        signal: controller.signal,
-        cache: 'force-cache' // Use browser cache when possible
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status}`);
-      }
-      
+      // Fetch the file as a blob
+      const response = await fetch(directUrl);
       const blob = await response.blob();
       
       // Create blob URL
@@ -430,8 +402,8 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
       // Create and setup anchor element
       const a = document.createElement('a');
       a.href = blobUrl;
-      a.download = fileName;
-      a.style.display = 'none';
+      a.download = fileName; // Force download behavior
+      a.style.display = 'none'; // Hide the element
       
       // Add to DOM, click, and remove
       document.body.appendChild(a);
@@ -440,19 +412,16 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
       // Cleanup resources
       setTimeout(() => {
         document.body.removeChild(a);
-        window.URL.revokeObjectURL(blobUrl);
+        window.URL.revokeObjectURL(blobUrl); // Free up memory
       }, 100);
       
       return { success: true, message: 'Download started' };
     } catch (fetchError) {
-      console.error('Fetch error during download:', fetchError);
-      
+      console.error('Fetch error:', fetchError);
       // Fallback method as last resort
       const a = document.createElement('a');
       a.href = directUrl;
       a.download = fileName;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
       a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
@@ -468,10 +437,6 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
 
 export const openFile = async (bucketName: string, filePath: string) => {
   try {
-    // Cache control headers for browser
-    const cacheExpiry = new Date();
-    cacheExpiry.setHours(cacheExpiry.getHours() + 12); // Cache for 12 hours
-    
     // Improved bucket determination
     let effectiveBucket = bucketName;
     if (filePath && (filePath.includes("b22b") || /^\d{13}_/.test(filePath))) {
@@ -480,28 +445,9 @@ export const openFile = async (bucketName: string, filePath: string) => {
     
     const directUrl = getFileUrl(effectiveBucket, filePath);
     
-    // Instead of just opening in a new tab, we can preload the file first
-    try {
-      // Attempt a HEAD request to verify file exists and is accessible
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      
-      await fetch(directUrl, { 
-        method: 'HEAD',
-        signal: controller.signal,
-        cache: 'force-cache',
-        headers: {
-          'Cache-Control': `public, max-age=${60*60*12}`, // 12 hours
-          'Expires': cacheExpiry.toUTCString()
-        }
-      });
-      
-      clearTimeout(timeoutId);
-    } catch (e) {
-      console.warn('File preload check failed, opening directly:', e);
-    }
+    console.log('Opening file with direct URL:', directUrl);
     
-    // Open in a new tab with noopener,noreferrer for security
+    // Open in a new tab to prevent navigation away from the current page
     window.open(directUrl, '_blank', 'noopener,noreferrer');
     
     return { success: true };
