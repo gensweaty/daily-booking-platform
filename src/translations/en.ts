@@ -113,6 +113,12 @@ export const en = {
     reminderDescriptionRequired: "Reminder description is required",
     taskCompletedRequired: "Task completed is required",
     reminderRemindAtRequired: "Reminder remind at is required",
+    welcome: "Welcome",
+    greeting: "Hello",
+    goodMorning: "Good morning",
+    goodAfternoon: "Good afternoon",
+    goodEvening: "Good evening",
+    statistics: "Statistics"
   },
   calendar: {
     today: "Today",
@@ -137,7 +143,6 @@ export const en = {
   events: {
     submitBookingRequest: "Submit Booking Request",
     fullNameRequired: "Full Name (required)",
-    fullName: "Full Name",
     phoneNumber: "Phone Number",
     eventNotes: "Event Notes",
     startDateTime: "Start Date/Time",

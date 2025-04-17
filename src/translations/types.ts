@@ -1,12 +1,6 @@
 
 export type Language = 'en' | 'es';
 
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (language: Language) => void;
-  t: (key: string, params?: Record<string, any>) => string;
-}
-
 export interface TranslationType {
   nav: {
     signin: string;
@@ -56,6 +50,7 @@ export interface TranslationType {
     feature2?: string;
     feature3?: string;
     feature4?: string;
+    feature5?: string;
     requestSubmitted?: string;
     yourEmailPlaceholder?: string;
     rateLimitExceeded?: string;
@@ -161,8 +156,6 @@ export interface TranslationType {
     totalEvents?: string;
     partlyPaid?: string;
     fullyPaid?: string;
-    totalIncome?: string;
-    fromAllEvents?: string;
     exportSuccessful?: string;
     exportSuccessMessage?: string;
     changePassword?: string;

@@ -22,8 +22,8 @@ export const es = {
   },
   hero: {
     title: "La herramienta de gestión empresarial todo en uno",
-    subtitle: "Impulsa tu negocio con SmartBookly",
-    description: "SmartBookly es una solución integral diseñada para optimizar tus operaciones, mejorar la participación del cliente y aumentar tus ingresos. ¡Únete a nosotros hoy y lleva tu negocio al siguiente nivel!"
+    subtitle: "Potenciando a las empresas en la era digital",
+    description: "SmartBookly es una solución integral diseñada para optimizar tus operaciones, mejorar la participación del cliente y aumentar tus ingresos."
   },
   features: {
     title: "Características",
@@ -175,6 +175,18 @@ export const es = {
     feature4: "Portal de autoservicio para clientes",
     feature5: "Estructura optimizada para SEO",
   },
+  dashboard: {
+    tasks: "Tareas",
+    notes: "Notas",
+    reminders: "Recordatorios",
+    calendar: "Calendario",
+    welcome: "Bienvenido",
+    greeting: "Hola",
+    goodMorning: "Buenos días",
+    goodAfternoon: "Buenas tardes",
+    goodEvening: "Buenas noches",
+    statistics: "Estadísticas"
+  },
   auth: {
     signupTitle: "Crear una cuenta",
     signinTitle: "Bienvenido de nuevo",
@@ -195,16 +207,5 @@ export const es = {
     nameRequired: "El nombre es obligatorio",
     passwordMismatch: "Las contraseñas no coinciden",
     invalidEmail: "Dirección de correo electrónico inválida",
-  },
-  dashboard: {
-    tasks: "Tareas",
-    notes: "Notas",
-    reminders: "Recordatorios",
-    calendar: "Calendario",
-    welcome: "Bienvenido",
-    greeting: "Hola",
-    goodMorning: "Buenos días",
-    goodAfternoon: "Buenas tardes",
-    goodEvening: "Buenas noches",
   }
 };
