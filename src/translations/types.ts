@@ -27,9 +27,6 @@ export interface TranslationType {
     mainTitle?: string;
     businessTitle?: string;
     booking?: string;
-    tasks?: string;
-    crm?: string;
-    analytics?: string;
     website?: string;
     ownBookingWebsite?: string;
     calendar?: {

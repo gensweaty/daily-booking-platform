@@ -38,8 +38,6 @@ export const en = {
     mainTitle: "All-in-One Business Management Tool",
     booking: "Booking",
     tasks: "Tasks",
-    crm: "CRM",
-    analytics: "Analytics",
     website: "Website",
     ownBookingWebsite: "Own Booking Website",
     businessTitle: "Business for",
