@@ -124,8 +124,10 @@ export const fetchWithSelectedColumns = <T>(
   // Apply the custom query filters and conditions
   query = queryBuilder(query);
   
-  // Return the query result directly, which is already a Promise with the correct shape
-  return query as Promise<{ data: T[] | null, error: any }>;
+  // Execute the query and return the promise
+  // The PostgrestFilterBuilder object already implements the .then() method required by Promise,
+  // so it's "thenable", but we need to properly type it
+  return query;
 };
 
 // Improved bucket verification - only checks if it exists and logs the settings
