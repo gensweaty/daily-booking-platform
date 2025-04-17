@@ -8,9 +8,9 @@ import { Menu, X, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { FeatureButtons } from "./FeatureButtons";
-// Import ClientLogos directly instead of lazy loading
-import { ClientLogos } from "./ClientLogos";
+// Remove the imports for these components since we don't need them here anymore
+// import { FeatureButtons } from "./FeatureButtons";
+// import { ClientLogos } from "./ClientLogos";
 
 const productImages = [{
   src: "/lovable-uploads/a00576d5-fb16-4a4b-a313-0e1cbb61b00c.png",
@@ -128,8 +128,5 @@ export const HeroSection = () => {
           </main>
         </div>
       </header>
-
-      <FeatureButtons />
-      <ClientLogos />
     </>;
 };
