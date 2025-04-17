@@ -78,7 +78,7 @@ export const EventDialogFields = ({
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="start-date">Start Date & Time</Label>
+            <Label htmlFor="start-date">{t("events.startDateTime")}</Label>
             <Input
               id="start-date"
               type="datetime-local"
@@ -89,7 +89,7 @@ export const EventDialogFields = ({
             />
           </div>
           <div>
-            <Label htmlFor="end-date">End Date & Time</Label>
+            <Label htmlFor="end-date">{t("events.endDateTime")}</Label>
             <Input
               id="end-date"
               type="datetime-local"
@@ -335,6 +335,7 @@ export const EventDialogFields = ({
 
       {(eventId || title) && ((allFiles && allFiles.length > 0) || (displayedFiles && displayedFiles.length > 0)) && (
         <div className="space-y-2">
+          <Label>{t("calendar.attachment")}</Label>
           <FileDisplay 
             files={displayedFiles?.length > 0 ? displayedFiles : allFiles} 
             bucketName="event_attachments"

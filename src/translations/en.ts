@@ -57,6 +57,21 @@ const en: TranslationType = {
     notPaid: "Not Paid",
     paidPartly: "Partly Paid",
     paidFully: "Fully Paid",
+    newCustomer: "New Customer",
+    fullNameRequired: "Full Name",
+    fullNamePlaceholder: "Enter customer's full name",
+    phoneNumber: "Phone Number",
+    phoneNumberPlaceholder: "Enter phone number",
+    socialLinkEmail: "Email / Social Link",
+    socialLinkEmailPlaceholder: "Enter email or social media link",
+    createEventForCustomer: "Create event for this customer",
+    paymentStatus: "Payment Status",
+    selectPaymentStatus: "Select payment status",
+    comment: "Comment",
+    commentPlaceholder: "Add a comment about this customer",
+    create: "Create",
+    cancel: "Cancel",
+    addCustomer: "Add Customer"
   },
   tasks: {
     title: "Tasks",
@@ -67,6 +82,7 @@ const en: TranslationType = {
     feature3: "Assignable tasks",
     feature4: "Progress monitoring",
     feature5: "Recurring tasks",
+    addTask: "Add Task"
   },
   website: {
     title: "Website",
@@ -171,12 +187,20 @@ const en: TranslationType = {
     addNewEvent: "Add New Event",
     updateEvent: "Update Event",
     createEvent: "Create Event",
+    socialLinkEmail: "Email / Social Link",
+    dateAndTime: "Date & Time"
   },
   contact: {
     email: "Email",
   },
   calendar: {
     attachment: "Attachment",
+    day: "Day",
+    week: "Week",
+    month: "Month",
+    addEvent: "Add Event",
+    bookNow: "Book Now",
+    weekOf: "Week of"
   },
   common: {
     cancel: "Cancel",

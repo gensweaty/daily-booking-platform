@@ -59,6 +59,21 @@ export interface TranslationType {
     notPaid: string;
     paidPartly: string;
     paidFully: string;
+    newCustomer: string;
+    fullNameRequired: string;
+    fullNamePlaceholder: string;
+    phoneNumber: string;
+    phoneNumberPlaceholder: string;
+    socialLinkEmail: string;
+    socialLinkEmailPlaceholder: string;
+    createEventForCustomer: string;
+    paymentStatus: string;
+    selectPaymentStatus: string;
+    comment: string;
+    commentPlaceholder: string;
+    create: string;
+    cancel: string;
+    addCustomer: string;
   };
   tasks: {
     title: string;
@@ -68,6 +83,7 @@ export interface TranslationType {
     feature3: string;
     feature4: string;
     feature5: string;
+    addTask: string;
   };
   website: {
     title: string;
@@ -171,12 +187,20 @@ export interface TranslationType {
     addNewEvent: string;
     updateEvent: string;
     createEvent: string;
+    socialLinkEmail: string;
+    dateAndTime: string;
   };
   contact: {
     email: string;
   };
   calendar: {
     attachment: string;
+    day: string;
+    week: string;
+    month: string;
+    addEvent: string;
+    bookNow: string;
+    weekOf: string;
   };
   common: {
     cancel: string;

@@ -1,25 +1,22 @@
 
-import { DialogTitle } from "@/components/ui/dialog";
-import { Task } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { PlusCircle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TaskFormHeaderProps {
-  editingTask: Task | null;
+  onAddTask: () => void;
 }
 
-export const TaskFormHeader = ({ editingTask }: TaskFormHeaderProps) => {
-  const { language } = useLanguage();
+export const TaskFormHeader = ({ onAddTask }: TaskFormHeaderProps) => {
+  const { t } = useLanguage();
   
-  const getTitle = () => {
-    if (language === 'es') {
-      return editingTask ? 'Editar Tarea' : 'Agregar Nueva Tarea';
-    }
-    return editingTask ? 'Edit Task' : 'Add New Task';
-  };
-
   return (
-    <DialogTitle className="text-foreground">
-      {getTitle()}
-    </DialogTitle>
+    <div className="flex items-center justify-between mb-6">
+      <h2 className="text-xl font-bold">{t("tasks.title")}</h2>
+      <Button onClick={onAddTask} className="bg-primary hover:bg-primary/90 text-white flex items-center">
+        <PlusCircle className="mr-1 h-4 w-4" />
+        {t("tasks.addTask")}
+      </Button>
+    </div>
   );
 };

@@ -57,6 +57,21 @@ const es: TranslationType = {
     notPaid: "No Pagado",
     paidPartly: "Pagado Parcialmente",
     paidFully: "Pagado Completamente",
+    newCustomer: "Nuevo Cliente",
+    fullNameRequired: "Nombre Completo",
+    fullNamePlaceholder: "Ingrese el nombre completo del cliente",
+    phoneNumber: "Número de Teléfono",
+    phoneNumberPlaceholder: "Ingrese número de teléfono",
+    socialLinkEmail: "Correo / Enlace Social",
+    socialLinkEmailPlaceholder: "Ingrese correo o enlace de redes sociales",
+    createEventForCustomer: "Crear evento para este cliente",
+    paymentStatus: "Estado de Pago",
+    selectPaymentStatus: "Seleccione estado de pago",
+    comment: "Comentario",
+    commentPlaceholder: "Agregue un comentario sobre este cliente",
+    create: "Crear",
+    cancel: "Cancelar",
+    addCustomer: "Agregar Cliente"
   },
   tasks: {
     title: "Tareas",
@@ -67,6 +82,7 @@ const es: TranslationType = {
     feature3: "Tareas asignables",
     feature4: "Monitoreo de progreso",
     feature5: "Tareas recurrentes",
+    addTask: "Agregar Tarea"
   },
   website: {
     title: "Sitio Web",
@@ -171,12 +187,20 @@ const es: TranslationType = {
     addNewEvent: "Añadir Nuevo Evento",
     updateEvent: "Actualizar Evento",
     createEvent: "Crear Evento",
+    socialLinkEmail: "Correo / Enlace Social",
+    dateAndTime: "Fecha y Hora"
   },
   contact: {
     email: "Correo electrónico",
   },
   calendar: {
     attachment: "Archivo adjunto",
+    day: "Día",
+    week: "Semana",
+    month: "Mes",
+    addEvent: "Añadir Evento",
+    bookNow: "Reservar Ahora",
+    weekOf: "Semana del"
   },
   common: {
     cancel: "Cancelar",

@@ -1,15 +1,11 @@
+
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { FileUploadField } from "@/components/shared/FileUploadField";
-import { FileDisplay } from "@/components/shared/FileDisplay";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useMemo, useEffect } from "react";
+import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useToast } from "@/components/ui/use-toast";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -20,25 +16,18 @@ interface CustomerDialogFieldsProps {
   setUserNumber: (value: string) => void;
   socialNetworkLink: string;
   setSocialNetworkLink: (value: string) => void;
-  eventNotes: string;
-  setEventNotes: (value: string) => void;
-  startDate: string;
-  setStartDate: (value: string) => void;
-  endDate: string;
-  setEndDate: (value: string) => void;
+  createEvent: boolean;
+  setCreateEvent: (value: boolean) => void;
   paymentStatus: string;
   setPaymentStatus: (value: string) => void;
   paymentAmount: string;
   setPaymentAmount: (value: string) => void;
+  customerNotes: string;
+  setCustomerNotes: (value: string) => void;
   selectedFile: File | null;
   setSelectedFile: (file: File | null) => void;
   fileError: string;
   setFileError: (error: string) => void;
-  customerId?: string;
-  createEvent: boolean;
-  setCreateEvent: (value: boolean) => void;
-  isEventData: boolean;
-  isOpen: boolean;
 }
 
 export const CustomerDialogFields = ({
@@ -50,227 +39,53 @@ export const CustomerDialogFields = ({
   setUserNumber,
   socialNetworkLink,
   setSocialNetworkLink,
-  eventNotes,
-  setEventNotes,
-  startDate,
-  setStartDate,
-  endDate,
-  setEndDate,
+  createEvent,
+  setCreateEvent,
   paymentStatus,
   setPaymentStatus,
   paymentAmount,
   setPaymentAmount,
+  customerNotes,
+  setCustomerNotes,
   selectedFile,
   setSelectedFile,
   fileError,
   setFileError,
-  customerId,
-  createEvent,
-  setCreateEvent,
-  isEventData,
-  isOpen,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    const formData = {
-      title,
-      userNumber,
-      socialNetworkLink,
-      eventNotes,
-      startDate,
-      endDate,
-      paymentStatus,
-      paymentAmount,
-      createEvent,
-    };
-    sessionStorage.setItem('customerFormData', JSON.stringify(formData));
-  }, [title, userNumber, socialNetworkLink, eventNotes, startDate, endDate, paymentStatus, paymentAmount, createEvent]);
-
-  useEffect(() => {
-    const savedFormData = sessionStorage.getItem('customerFormData');
-    if (savedFormData && !title) {
-      const parsedData = JSON.parse(savedFormData);
-      setTitle(parsedData.title || '');
-      setUserNumber(parsedData.userNumber || '');
-      setSocialNetworkLink(parsedData.socialNetworkLink || '');
-      setEventNotes(parsedData.eventNotes || '');
-      setStartDate(parsedData.startDate || '');
-      setEndDate(parsedData.endDate || '');
-      setPaymentStatus(parsedData.paymentStatus || '');
-      setPaymentAmount(parsedData.paymentAmount || '');
-      setCreateEvent(parsedData.createEvent || false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) {
-      sessionStorage.removeItem('customerFormData');
-    }
-  }, [isOpen]);
-
-  const { data: fetchedFiles = [], isError, refetch } = useQuery({
-    queryKey: ['customerFiles', customerId, title, isOpen],
-    queryFn: async () => {
-      if (!customerId && !title) return [];
-      
-      console.log('Fetching files for customer:', customerId, 'with title:', title, 'isEventData:', isEventData);
-      
-      try {
-        let files = [];
-        const uniqueFilePaths = new Map();
-        
-        // Fetch customer files directly if we have a customer ID
-        if (customerId) {
-          const { data: customerFiles, error: customerFilesError } = await supabase
-            .from('customer_files_new')
-            .select('*')
-            .eq('customer_id', customerId);
-            
-          if (customerFilesError) {
-            console.error('Error fetching customer files:', customerFilesError);
-          } else if (customerFiles?.length > 0) {
-            console.log('Found customer files:', customerFiles.length);
-            customerFiles.forEach(file => {
-              uniqueFilePaths.set(file.file_path, {
-                ...file,
-                source: 'customer'
-              });
-            });
-          } else {
-            console.log('No direct customer files found for ID:', customerId);
-          }
-        }
-        
-        // If we have a title, look for related events and their files
-        if (title) {
-          const { data: events, error: eventsError } = await supabase
-            .from('events')
-            .select('id, title, start_date, end_date')
-            .eq('title', title);
-            
-          if (eventsError) {
-            console.error('Error fetching related events:', eventsError);
-          } else if (events && events.length > 0) {
-            console.log('Found related events:', events.length);
-            
-            for (const event of events) {
-              const { data: eventFiles, error: eventFilesError } = await supabase
-                .from('event_files')
-                .select('*')
-                .eq('event_id', event.id);
-                
-              if (eventFilesError) {
-                console.error(`Error fetching files for event ${event.id}:`, eventFilesError);
-              } else if (eventFiles?.length > 0) {
-                console.log(`Found ${eventFiles.length} files for event ${event.id}`);
-                eventFiles.forEach(file => {
-                  uniqueFilePaths.set(file.file_path, {
-                    ...file,
-                    source: 'event'
-                  });
-                });
-              }
-            }
-          }
-        }
-        
-        files = Array.from(uniqueFilePaths.values());
-        console.log('Total unique files found:', files.length);
-        return files;
-      } catch (error) {
-        console.error('Error in file fetching:', error);
-        return [];
-      }
-    },
-    enabled: !!(customerId || title),
-    staleTime: 0,
-    gcTime: Infinity,
-    refetchOnWindowFocus: true,
-    retry: 1
-  });
-
-  const handleFileDeleted = () => {
-    refetch();
-    toast({
-      title: t("common.success"),
-      description: t("common.fileDeleted"),
-    });
-  };
-
-  useEffect(() => {
-    if (customerId && !isEventData) {
-      const fetchCustomerData = async () => {
-        try {
-          const { data: customer, error } = await supabase
-            .from('customers')
-            .select('*')
-            .eq('id', customerId)
-            .maybeSingle();
-
-          if (error) {
-            console.error('Error fetching customer:', error);
-            return;
-          }
-
-          if (customer) {
-            const hasEvent = customer.start_date !== null && customer.end_date !== null;
-            setCreateEvent(hasEvent);
-            
-            if (!hasEvent) {
-              setStartDate('');
-              setEndDate('');
-            }
-          }
-        } catch (error) {
-          console.error('Error in fetchCustomerData:', error);
-        }
-      };
-
-      fetchCustomerData();
-    }
-  }, [customerId, isEventData, setCreateEvent, setStartDate, setEndDate]);
-
-  const allFiles = useMemo(() => fetchedFiles, [fetchedFiles]);
 
   return (
-    <div className="space-y-2 sm:space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-        <div className="space-y-1">
-          <Label htmlFor="title">{t("crm.fullNameRequired")}</Label>
-          <Input
-            id="title"
-            placeholder={t("crm.fullNamePlaceholder")}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            className="w-full"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <Label htmlFor="number">{t("crm.phoneNumber")}</Label>
-          <Input
-            id="number"
-            type="tel"
-            placeholder={t("crm.phoneNumberPlaceholder")}
-            value={userNumber}
-            onChange={(e) => setUserNumber(e.target.value)}
-            className="w-full"
-          />
-        </div>
+    <div className="space-y-4 mt-4">
+      <div className="space-y-2">
+        <Label htmlFor="title">{t("crm.fullNameRequired")}</Label>
+        <Input
+          id="title"
+          placeholder={t("crm.fullNamePlaceholder")}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+        />
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-2">
+        <Label htmlFor="number">{t("crm.phoneNumber")}</Label>
+        <Input
+          id="number"
+          type="tel"
+          placeholder={t("crm.phoneNumberPlaceholder")}
+          value={userNumber}
+          onChange={(e) => setUserNumber(e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="socialNetwork">{t("crm.socialLinkEmail")}</Label>
         <Input
           id="socialNetwork"
-          type="text"
+          type="email"
           placeholder={t("crm.socialLinkEmailPlaceholder")}
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
-          className="w-full"
         />
       </div>
 
@@ -278,107 +93,69 @@ export const CustomerDialogFields = ({
         <Checkbox
           id="createEvent"
           checked={createEvent}
-          onCheckedChange={(checked) => {
-            setCreateEvent(checked as boolean);
-            if (!checked) {
-              setStartDate('');
-              setEndDate('');
-            }
-          }}
+          onCheckedChange={(checked) => setCreateEvent(checked as boolean)}
         />
-        <Label htmlFor="createEvent">{t("crm.createEventForCustomer")}</Label>
+        <Label
+          htmlFor="createEvent"
+          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          {t("crm.createEventForCustomer")}
+        </Label>
       </div>
 
       {createEvent && (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <Label htmlFor="startDate">{t("events.date")}</Label>
-            <Input
-              id="startDate"
-              type="datetime-local"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required={createEvent}
-              className="w-full"
-            />
+        <>
+          <div className="space-y-2">
+            <Label>{t("crm.paymentStatus")}</Label>
+            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t("crm.selectPaymentStatus")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="not_paid">{t("crm.notPaid")}</SelectItem>
+                <SelectItem value="partly">{t("crm.paidPartly")}</SelectItem>
+                <SelectItem value="fully">{t("crm.paidFully")}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="endDate">{t("events.endDate")}</Label>
-            <Input
-              id="endDate"
-              type="datetime-local"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required={createEvent}
-              className="w-full"
-            />
-          </div>
-        </div>
+
+          {paymentStatus && paymentStatus !== 'not_paid' && (
+            <div className="space-y-2">
+              <Label htmlFor="amount">
+                {t("events.paymentAmount")} ({language === 'es' ? '€' : '$'})
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                placeholder={`${t("events.paymentAmount")} ${language === 'es' ? '(€)' : '($)'}`}
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                required={paymentStatus !== 'not_paid'}
+              />
+            </div>
+          )}
+        </>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-        <div className="space-y-1">
-          <Label>{t("crm.paymentStatus")}</Label>
-          <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-            <SelectTrigger className="w-full bg-background border-input">
-              <SelectValue placeholder={t("crm.selectPaymentStatus")} />
-            </SelectTrigger>
-            <SelectContent className="bg-background border border-input shadow-md">
-              <SelectItem value="not_paid">{t("crm.notPaid")}</SelectItem>
-              <SelectItem value="partly">{t("crm.paidPartly")}</SelectItem>
-              <SelectItem value="fully">{t("crm.paidFully")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {paymentStatus && paymentStatus !== 'not_paid' && (
-          <div className="space-y-1">
-            <Label htmlFor="amount">{t("crm.paymentAmount")}</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              placeholder={t("crm.paymentAmountPlaceholder")}
-              value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-              required
-              className="w-full"
-            />
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-1">
+      <div className="space-y-2">
         <Label htmlFor="notes">{t("crm.comment")}</Label>
         <Textarea
           id="notes"
           placeholder={t("crm.commentPlaceholder")}
-          value={eventNotes}
-          onChange={(e) => setEventNotes(e.target.value)}
-          className="min-h-[80px]"
+          value={customerNotes}
+          onChange={(e) => setCustomerNotes(e.target.value)}
+          className="min-h-[100px]"
         />
       </div>
 
-      {customerId && allFiles && allFiles.length > 0 && (
-        <div className="space-y-1">
-          <Label>{t("crm.attachments")}</Label>
-          <FileDisplay 
-            files={allFiles} 
-            bucketName="customer_attachments" 
-            allowDelete
-            onFileDeleted={handleFileDeleted}
-            parentId={customerId}
-            parentType="customer"
-          />
-        </div>
-      )}
-
-      <FileUploadField 
-        onChange={setSelectedFile}
-        onFileChange={setSelectedFile}
-        fileError={fileError}
-        setFileError={setFileError}
-      />
+      <div className="space-y-2">
+        <FileUploadField 
+          onChange={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+        />
+      </div>
     </div>
   );
 };
