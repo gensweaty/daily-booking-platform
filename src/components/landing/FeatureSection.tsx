@@ -1,6 +1,8 @@
 
 import { Calendar, ChartBar, ListTodo, Users, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { ClientLogos } from "./ClientLogos";
+import { FeatureCard } from "./FeatureCard";
 
 const calendarViews = [
   {
@@ -17,8 +19,6 @@ const calendarViews = [
   },
 ];
 
-import { FeatureCard } from "./FeatureCard";
-
 export const FeatureSection = () => {
   const { t } = useLanguage();
   
@@ -27,7 +27,7 @@ export const FeatureSection = () => {
       icon: Globe,
       title: t('website.title'),
       description: t('website.description'),
-      image: "/lovable-uploads/93988004-733a-4d7a-a860-3b426d0e195c.png",
+      image: "/lovable-uploads/e69762df-1118-4628-9b53-6a14532f0ad9.png",
       benefits: [
         t('website.feature1'),
         t('website.feature2'),
@@ -50,7 +50,8 @@ export const FeatureSection = () => {
         t('booking.feature4')
       ],
       translationPrefix: 'booking' as const,
-      id: "smart-booking"
+      id: "smart-booking",
+      reverse: true
     },
     {
       icon: ChartBar,
@@ -65,7 +66,6 @@ export const FeatureSection = () => {
         t('analytics.feature5')
       ],
       translationPrefix: 'analytics' as const,
-      reverse: true,
       id: "analytics"
     },
     {
@@ -81,8 +81,8 @@ export const FeatureSection = () => {
         t('crm.feature5')
       ],
       translationPrefix: 'crm' as const,
-      reverse: true,
-      id: "crm-solution"
+      id: "crm-solution",
+      reverse: true
     },
     {
       icon: ListTodo,
@@ -97,7 +97,6 @@ export const FeatureSection = () => {
         t('tasks.feature5')
       ],
       translationPrefix: 'tasks' as const,
-      reverse: true,
       id: "task-management"
     }
   ];
@@ -114,6 +113,8 @@ export const FeatureSection = () => {
             <FeatureCard {...feature} />
           </div>
         ))}
+        
+        <ClientLogos />
       </div>
     </section>
   );
