@@ -305,13 +305,27 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.log("Checking availability for:", {
         start: startDate,
         end: endDate,
-        excludeEventId
+        excludeEventId,
+        userId: user?.id,
+        businessId
       });
+      
+      if (!user) {
+        return { available: true, conflictDetails: "" };
+      }
+      
+      // Only check for events belonging to the current user or business being viewed
+      const userId = businessId || businessUserId ? businessUserId : user.id;
+      
+      if (!userId) {
+        return { available: true, conflictDetails: "" };
+      }
       
       // Query for conflicting events
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('id, title, start_date, end_date, deleted_at')
+        .eq('user_id', userId)
         .filter('start_date', 'lt', endDate.toISOString())
         .filter('end_date', 'gt', startDate.toISOString())
         .is('deleted_at', null);
@@ -335,31 +349,73 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         };
       }
       
-      // Also check for booking conflicts
-      const { data: conflictingBookings, error: bookingsError } = await supabase
-        .from('booking_requests')
-        .select('id, title, start_date, end_date')
-        .eq('status', 'approved')
-        .filter('start_date', 'lt', endDate.toISOString())
-        .filter('end_date', 'gt', startDate.toISOString());
-      
-      if (bookingsError) throw bookingsError;
-      
-      // Filter out the current booking being updated
-      const bookingsConflict = conflictingBookings?.filter(booking => 
-        excludeEventId !== booking.id &&
-        !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
-          endDate.getTime() <= new Date(booking.start_date).getTime())
-      );
-      
-      console.log("Conflicting bookings (excluding current):", bookingsConflict);
-      
-      if (bookingsConflict && bookingsConflict.length > 0) {
-        const conflictBooking = bookingsConflict[0];
-        return { 
-          available: false, 
-          conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`
-        };
+      // Only check bookings if we're viewing a business calendar or working with our own business
+      if (businessId || businessUserId) {
+        const targetBusinessId = businessId;
+        
+        if (targetBusinessId) {
+          // Also check for booking conflicts
+          const { data: conflictingBookings, error: bookingsError } = await supabase
+            .from('booking_requests')
+            .select('id, title, start_date, end_date')
+            .eq('business_id', targetBusinessId)
+            .eq('status', 'approved')
+            .filter('start_date', 'lt', endDate.toISOString())
+            .filter('end_date', 'gt', startDate.toISOString());
+          
+          if (bookingsError) throw bookingsError;
+          
+          // Filter out the current booking being updated
+          const bookingsConflict = conflictingBookings?.filter(booking => 
+            excludeEventId !== booking.id &&
+            !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
+              endDate.getTime() <= new Date(booking.start_date).getTime())
+          );
+          
+          console.log("Conflicting bookings (excluding current):", bookingsConflict);
+          
+          if (bookingsConflict && bookingsConflict.length > 0) {
+            const conflictBooking = bookingsConflict[0];
+            return { 
+              available: false, 
+              conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`
+            };
+          }
+        }
+      } else if (!businessId && !businessUserId && user) {
+        // If we're on our own calendar, check our business bookings too
+        const { data: userBusinessProfile } = await supabase
+          .from("business_profiles")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+          
+        if (userBusinessProfile?.id) {
+          const { data: conflictingBookings, error: bookingsError } = await supabase
+            .from('booking_requests')
+            .select('id, title, start_date, end_date')
+            .eq('business_id', userBusinessProfile.id)
+            .eq('status', 'approved')
+            .filter('start_date', 'lt', endDate.toISOString())
+            .filter('end_date', 'gt', startDate.toISOString());
+            
+          if (bookingsError) throw bookingsError;
+          
+          // Filter out the current booking being updated
+          const bookingsConflict = conflictingBookings?.filter(booking => 
+            excludeEventId !== booking.id &&
+            !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
+              endDate.getTime() <= new Date(booking.start_date).getTime())
+          );
+          
+          if (bookingsConflict && bookingsConflict.length > 0) {
+            const conflictBooking = bookingsConflict[0];
+            return { 
+              available: false, 
+              conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`
+            };
+          }
+        }
       }
       
       return { available: true, conflictDetails: "" };

@@ -4,6 +4,7 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface UseEventDialogProps {
   createEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -20,6 +21,7 @@ export const useEventDialog = ({
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (selectedEvent) {
@@ -45,22 +47,28 @@ export const useEventDialog = ({
       console.log("Checking time slot availability:", {
         start: startDate.toISOString(),
         end: endDate.toISOString(),
-        excludeId: existingEventId
+        excludeId: existingEventId,
+        userId: user?.id
       });
       
-      // First check regular events
+      if (!user) {
+        return { available: true };
+      }
+      
+      // First check regular events - make sure to filter by the current user's ID
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('*')
+        .eq('user_id', user.id)
         .filter('start_date', 'lt', endDate.toISOString())
-        .filter('end_date', 'gt', startDate.toISOString());
+        .filter('end_date', 'gt', startDate.toISOString())
+        .is('deleted_at', null);
         
       if (eventsError) throw eventsError;
       
-      // Filter out the current event being edited and deleted events
+      // Filter out the current event being edited
       const eventConflict = conflictingEvents?.find(event => 
         (!existingEventId || event.id !== existingEventId) &&
-        !event.deleted_at &&
         !(startDate.getTime() >= new Date(event.end_date).getTime() || 
           endDate.getTime() <= new Date(event.start_date).getTime())
       );
@@ -72,39 +80,49 @@ export const useEventDialog = ({
         return { available: false, conflictingEvent: eventConflict };
       }
       
-      // Then check approved booking requests
-      const { data: conflictingBookings, error: bookingsError } = await supabase
-        .from('booking_requests')
-        .select('*')
-        .eq('status', 'approved')
-        .filter('start_date', 'lt', endDate.toISOString())
-        .filter('end_date', 'gt', startDate.toISOString());
+      // Get the user's business profile if they have one
+      const { data: businessProfile } = await supabase
+        .from('business_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
         
-      if (bookingsError) throw bookingsError;
-      
-      // Filter out the current booking being edited
-      const bookingConflict = conflictingBookings?.find(booking => 
-        booking.id !== existingEventId &&
-        !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
-          endDate.getTime() <= new Date(booking.start_date).getTime())
-      );
-      
-      console.log("Conflicting bookings (excluding current):", 
-        conflictingBookings?.filter(b => b.id !== existingEventId));
-      
-      if (bookingConflict) {
-        // Convert booking to event format for the response
-        const conflictEvent: CalendarEventType = {
-          id: bookingConflict.id,
-          title: bookingConflict.title,
-          start_date: bookingConflict.start_date,
-          end_date: bookingConflict.end_date,
-          created_at: bookingConflict.created_at || new Date().toISOString(),
-          user_id: bookingConflict.user_id || '',
-          type: 'booking_request'
-        };
+      // If user has a business profile, check approved booking requests for their business
+      if (businessProfile?.id) {
+        const { data: conflictingBookings, error: bookingsError } = await supabase
+          .from('booking_requests')
+          .select('*')
+          .eq('business_id', businessProfile.id)
+          .eq('status', 'approved')
+          .filter('start_date', 'lt', endDate.toISOString())
+          .filter('end_date', 'gt', startDate.toISOString());
+          
+        if (bookingsError) throw bookingsError;
         
-        return { available: false, conflictingEvent: conflictEvent };
+        // Filter out the current booking being edited
+        const bookingConflict = conflictingBookings?.find(booking => 
+          booking.id !== existingEventId &&
+          !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
+            endDate.getTime() <= new Date(booking.start_date).getTime())
+        );
+        
+        console.log("Conflicting bookings (excluding current):", 
+          conflictingBookings?.filter(b => b.id !== existingEventId));
+        
+        if (bookingConflict) {
+          // Convert booking to event format for the response
+          const conflictEvent: CalendarEventType = {
+            id: bookingConflict.id,
+            title: bookingConflict.title,
+            start_date: bookingConflict.start_date,
+            end_date: bookingConflict.end_date,
+            created_at: bookingConflict.created_at || new Date().toISOString(),
+            user_id: bookingConflict.user_id || '',
+            type: 'booking_request'
+          };
+          
+          return { available: false, conflictingEvent: conflictEvent };
+        }
       }
 
       return { available: true };
