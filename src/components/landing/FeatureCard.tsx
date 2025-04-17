@@ -92,7 +92,7 @@ export const FeatureCard = ({
             <img 
               src={image} 
               alt={t(getTranslationKey('title'))} 
-              className="w-full h-[400px] object-contain p-4"
+              className="w-full h-[440px] object-contain p-4"  // Increased height from 400px to 440px
             />
           )}
         </div>

@@ -1,3 +1,4 @@
+
 const en = {
   landing: {
     heroTitle: "Unleash Your Potential with Our Productivity Platform",
@@ -467,7 +468,7 @@ const en = {
     tasks: "Task Management",
     crm: "CRM Solution",
     analytics: "Business Analytics",
-    website: "Booking Website",
+    ownBookingWebsite: "Your Own Booking Website",
     businessTitle: "Perfect for Any Business Type"
   },
   booking: {

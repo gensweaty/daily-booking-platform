@@ -1,3 +1,4 @@
+
 const es = {
   common: {
     loading: "Cargando...",
@@ -364,7 +365,7 @@ const es = {
     tasks: "Gestión de Tareas",
     crm: "Solución CRM",
     analytics: "Análisis de Negocio",
-    website: "Sitio Web de Reservas",
+    ownBookingWebsite: "Tu Propio Sitio Web de Reservas",
     businessTitle: "Perfecto para Cualquier Tipo de Negocio"
   },
   booking: {
