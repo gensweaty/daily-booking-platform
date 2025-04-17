@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
@@ -12,12 +13,10 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { createBookingRequest } from "@/lib/api";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { FileUploadField } from "../shared/FileUploadField";
 import { supabase } from "@/lib/supabase";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { canMakeBookingRequest } from "@/utils/rateLimit";
-import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 
 interface BookingRequestFormProps {
   open: boolean;
@@ -64,43 +63,6 @@ export const BookingRequestForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
-  const [rateLimitError, setRateLimitError] = useState<{ isLimited: boolean; timeRemaining: number }>({
-    isLimited: false,
-    timeRemaining: 0
-  });
-  
-  // Get user's IP address or use a fallback for local testing
-  const [userIP, setUserIP] = useState<string>("unknown");
-  
-  // Fetch user's IP address when component mounts
-  useState(() => {
-    const getUserIP = async () => {
-      try {
-        const response = await fetch('https://api.ipify.org?format=json');
-        const data = await response.json();
-        if (data?.ip) {
-          setUserIP(data.ip);
-          
-          // Check if this IP is rate limited
-          const { isAllowed, timeRemaining } = canMakeBookingRequest(data.ip);
-          if (!isAllowed) {
-            setRateLimitError({
-              isLimited: true,
-              timeRemaining
-            });
-          }
-        }
-      } catch (error) {
-        console.error("Failed to get user IP:", error);
-        // Use a fallback mechanism - browser fingerprint or timestamp
-        setUserIP(`fallback_${Date.now()}`);
-      }
-    };
-    
-    if (isExternalBooking) {
-      getUserIP();
-    }
-  });
 
   const formattedDate = format(selectedDate, "yyyy-MM-dd");
   
@@ -127,26 +89,6 @@ export const BookingRequestForm = ({
 
   const onSubmit = async (values: FormValues) => {
     try {
-      // Check rate limiting for external bookings
-      if (isExternalBooking) {
-        const { isAllowed, timeRemaining } = canMakeBookingRequest(userIP);
-        
-        if (!isAllowed) {
-          setRateLimitError({
-            isLimited: true,
-            timeRemaining
-          });
-          
-          toast({
-            title: t("common.error"),
-            description: t("booking.rateLimitExceeded", { minutes: Math.ceil(timeRemaining / 60) }),
-            variant: "destructive"
-          });
-          
-          return;
-        }
-      }
-      
       setIsSubmitting(true);
       console.log("Submitting booking request:", values);
 
@@ -232,20 +174,6 @@ export const BookingRequestForm = ({
       <DialogHeader>
         <DialogTitle>{t("events.submitBookingRequest")}</DialogTitle>
       </DialogHeader>
-      
-      {rateLimitError.isLimited && (
-        <Alert variant="destructive" className="mt-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t("common.error")}</AlertTitle>
-          <AlertDescription>
-            {t("booking.rateLimitMessage", { 
-              seconds: rateLimitError.timeRemaining,
-              minutes: Math.ceil(rateLimitError.timeRemaining / 60) 
-            })}
-          </AlertDescription>
-        </Alert>
-      )}
-      
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
           <FormField
@@ -421,15 +349,12 @@ export const BookingRequestForm = ({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={isSubmitting || rateLimitError.isLimited}
+              disabled={isSubmitting}
               className="bg-background"
             >
               {t("common.cancel")}
             </Button>
-            <Button 
-              type="submit" 
-              disabled={isSubmitting || rateLimitError.isLimited}
-            >
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

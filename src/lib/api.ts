@@ -1,7 +1,6 @@
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
-import { canMakeBookingRequest } from "@/utils/rateLimit";
 
 // Helper function to get file URL with consistent bucket handling
 export const getFileUrl = (bucketName: string, filePath: string) => {
@@ -26,27 +25,6 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
   console.log("Creating booking request:", request);
   
   try {
-    // Get the client IP to apply rate limiting
-    let clientIP = "unknown";
-    try {
-      const response = await fetch('https://api.ipify.org?format=json');
-      const data = await response.json();
-      if (data?.ip) {
-        clientIP = data.ip;
-      }
-    } catch (error) {
-      console.error("Failed to get client IP for rate limiting:", error);
-      clientIP = `fallback_${Date.now()}`;
-    }
-    
-    // Apply rate limiting if this is an external booking (no authenticated user)
-    if (!userData?.user) {
-      const { isAllowed, timeRemaining } = canMakeBookingRequest(clientIP);
-      if (!isAllowed) {
-        throw new Error(`Rate limit exceeded. Please wait ${Math.ceil(timeRemaining / 60)} minutes before trying again.`);
-      }
-    }
-    
     // Ensure payment_amount is properly handled when saving to the database
     const bookingData = {
       ...request,
