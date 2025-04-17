@@ -11,7 +11,6 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
-import { LanguageProvider } from "@/contexts/LanguageContext"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -130,9 +129,7 @@ const Index = () => {
   }
 
   return (
-    // Wrap everything in the LanguageProvider to ensure it's available for both
-    // logged in and logged out states
-    <LanguageProvider>
+    <>
       {user ? (
         <motion.div 
           className="min-h-screen bg-background p-4"
@@ -165,7 +162,7 @@ const Index = () => {
           <AuthUI />
         </>
       )}
-    </LanguageProvider>
+    </>
   );
 }
 

@@ -150,6 +150,28 @@ export interface TranslationType {
     summaryStatistics: string;
     eventsData: string;
   };
+  auth: {
+    welcome: string;
+    description: string;
+    signInButton: string;
+    signUpButton: string;
+    emailLabel: string;
+    passwordLabel: string;
+    passwordRequirements: string;
+    confirmPasswordLabel: string;
+    usernameLabel: string;
+    passwordsDoNotMatch: string;
+    passwordTooShort: string;
+    signingUp: string;
+    loading: string;
+    forgotPassword: string;
+  };
+  common: {
+    success: string;
+    fileDeleted: string;
+    description: string;
+    noDescription: string;
+  };
 }
 
 export type TranslationKey = keyof TranslationType;
