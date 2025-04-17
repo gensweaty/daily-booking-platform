@@ -25,13 +25,13 @@ export interface TranslationType {
     title: string;
     subtitle?: string;
     mainTitle?: string;
+    businessTitle?: string;
     booking?: string;
+    tasks?: string;
     crm?: string;
     analytics?: string;
-    tasks?: string;
     website?: string;
     ownBookingWebsite?: string;
-    businessTitle?: string;
     calendar?: {
       title?: string;
       description?: string;
@@ -115,6 +115,10 @@ export interface TranslationType {
     legal?: string;
     termsAndPrivacy?: string;
     rights?: string;
+    about?: string;
+    features?: string;
+    pricing?: string;
+    contact?: string;
   };
   business?: {
     events?: string;
@@ -175,6 +179,41 @@ export interface TranslationType {
     financialSummary?: string;
     summaryStatistics?: string;
     eventsData?: string;
+    newTask?: string;
+    newNote?: string;
+    newReminder?: string;
+    taskTitle?: string;
+    noteTitle?: string;
+    reminderTitle?: string;
+    taskDescription?: string;
+    noteDescription?: string;
+    reminderDescription?: string;
+    taskCompleted?: string;
+    taskNotCompleted?: string;
+    reminderDate?: string;
+    reminderTime?: string;
+    taskCreated?: string;
+    noteCreated?: string;
+    reminderCreated?: string;
+    taskUpdated?: string;
+    noteUpdated?: string;
+    reminderUpdated?: string;
+    taskDeleted?: string;
+    noteDeleted?: string;
+    reminderDeleted?: string;
+    taskDeleteConfirmation?: string;
+    noteDeleteConfirmation?: string;
+    reminderDeleteConfirmation?: string;
+    taskTitleRequired?: string;
+    noteTitleRequired?: string;
+    reminderTitleRequired?: string;
+    reminderDateRequired?: string;
+    reminderTimeRequired?: string;
+    taskDescriptionRequired?: string;
+    noteDescriptionRequired?: string;
+    reminderDescriptionRequired?: string;
+    taskCompletedRequired?: string;
+    reminderRemindAtRequired?: string;
   };
   common?: {
     loading?: string;
@@ -187,6 +226,12 @@ export interface TranslationType {
     save?: string;
     fullName?: string;
     fileDeleted?: string;
+    update?: string;
+    confirmDelete?: string;
+    yes?: string;
+    no?: string;
+    search?: string;
+    noData?: string;
   };
   events?: {
     addEvent?: string;
@@ -264,6 +309,8 @@ export interface TranslationType {
     nameRequired?: string;
     passwordMismatch?: string;
     invalidEmail?: string;
+    emailLabel?: string;
+    usernameLabel?: string;
   };
 }
 

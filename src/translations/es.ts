@@ -208,5 +208,7 @@ export const es = {
     nameRequired: "El nombre es obligatorio",
     passwordMismatch: "Las contraseñas no coinciden",
     invalidEmail: "Dirección de correo electrónico inválida",
+    emailLabel: "Correo electrónico",
+    usernameLabel: "Nombre de usuario",
   }
 };

@@ -256,5 +256,7 @@ export const en = {
     nameRequired: "Name is required",
     passwordMismatch: "Passwords do not match",
     invalidEmail: "Invalid email address",
+    emailLabel: "Email",
+    usernameLabel: "Username",
   },
 };
