@@ -1,8 +1,9 @@
 
 import { Calendar, ChartBar, ListTodo, Users, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { ClientLogos } from "./ClientLogos";
 import { FeatureCard } from "./FeatureCard";
+import { FeatureButtons } from "./FeatureButtons";
+import { ClientLogos } from "./ClientLogos";
 
 const calendarViews = [
   {
@@ -107,6 +108,8 @@ export const FeatureSection = () => {
         <h2 className="text-3xl font-bold text-center mb-16">
           {t('features.mainTitle')}
         </h2>
+        
+        <FeatureButtons />
         
         {features.map((feature, index) => (
           <div key={index} id={feature.id}>

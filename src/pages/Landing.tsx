@@ -11,7 +11,6 @@ export const Landing = () => {
     <div className="min-h-screen bg-background font-sans">
       <CursorFollower />
       <HeroSection />
-      <FeatureButtons />
       <FeatureSection />
       <CTASection />
       <FooterSection />
