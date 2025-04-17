@@ -26,6 +26,7 @@ export interface TranslationType {
     crm: string;
     analytics: string;
     website: string;
+    ownBookingWebsite: string;
     businessTitle: string;
   };
   booking: {

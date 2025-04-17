@@ -1,4 +1,3 @@
-
 const en = {
   landing: {
     heroTitle: "Unleash Your Potential with Our Productivity Platform",
@@ -153,8 +152,7 @@ const en = {
     addEvent: "Add Event",
     day: "Day",
     week: "Week",
-    month: "Month",
-    totalTasks: "Total Tasks",
+    month: "Total Tasks",
     completed: "Completed",
     inProgress: "In Progress",
     todo: "To Do",
@@ -468,6 +466,7 @@ const en = {
     tasks: "Task Management",
     crm: "CRM Solution",
     analytics: "Business Analytics",
+    website: "Your Own Booking Website",
     ownBookingWebsite: "Your Own Booking Website",
     businessTitle: "Perfect for Any Business Type"
   },

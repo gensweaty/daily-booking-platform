@@ -1,4 +1,3 @@
-
 const es = {
   common: {
     loading: "Cargando...",
@@ -328,8 +327,6 @@ const es = {
     sending: "Enviando...",
     messageSent: "Mensaje enviado",
     messageSentDesc: "Gracias por contactarnos. Te responderemos pronto.",
-    error: "Error",
-    errorDesc: "Hubo un error al enviar tu mensaje. Por favor, inténtalo de nuevo más tarde.",
   },
   calendar: {
     settings: "Configuración del calendario",
@@ -365,6 +362,7 @@ const es = {
     tasks: "Gestión de Tareas",
     crm: "Solución CRM",
     analytics: "Análisis de Negocio",
+    website: "Tu Propio Sitio Web de Reservas",
     ownBookingWebsite: "Tu Propio Sitio Web de Reservas",
     businessTitle: "Perfecto para Cualquier Tipo de Negocio"
   },
