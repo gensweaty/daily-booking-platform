@@ -106,13 +106,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   db: {
     schema: 'public'
   },
-  // Remove custom realtime options
-  realtime: {
-    // Use default Realtime settings
-  }
+  // Use a valid and minimal realtime configuration
+  realtime: {}
 });
 
-// Improve column fetch performance by being explicit about columns
+// Fix the return type of fetchWithSelectedColumns to match Promise<{data, error}>
 export const fetchWithSelectedColumns = <T>(
   table: string, 
   columns: string[], 
@@ -126,8 +124,8 @@ export const fetchWithSelectedColumns = <T>(
   // Apply the custom query filters and conditions
   query = queryBuilder(query);
   
-  // Execute the query and ensure we return a Promise with the expected shape
-  return query as unknown as Promise<{ data: T[] | null, error: any }>;
+  // Return the query result directly, which is already a Promise with the correct shape
+  return query as Promise<{ data: T[] | null, error: any }>;
 };
 
 // Improved bucket verification - only checks if it exists and logs the settings
