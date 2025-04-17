@@ -1,3 +1,4 @@
+
 export const en = {
   common: {
     loading: "Loading...",
@@ -14,33 +15,16 @@ export const en = {
     no: "No",
     search: "Search",
     noData: "No data available",
+    fullName: "Full Name",
+    fileDeleted: "File deleted successfully",
   },
   nav: {
     signin: "Sign In",
     startJourney: "Start Your Journey",
     contact: "Contact",
-  },
-  auth: {
-    signupTitle: "Create an account",
-    signinTitle: "Welcome back",
-    email: "Email",
-    password: "Password",
-    confirmPassword: "Confirm Password",
-    name: "Name",
-    signUp: "Sign Up",
-    signIn: "Sign In",
-    signOut: "Sign Out",
-    forgotPassword: "Forgot password?",
-    resetPassword: "Reset Password",
-    newPassword: "New password",
-    updatePassword: "Update Password",
-    passwordRequirements:
-      "Use at least 8 characters, including uppercase and lowercase letters, numbers, and symbols.",
-    emailRequired: "Email is required",
-    passwordRequired: "Password is required",
-    nameRequired: "Name is required",
-    passwordMismatch: "Passwords do not match",
-    invalidEmail: "Invalid email address",
+    pricing: "Pricing",
+    features: "Features",
+    home: "Home",
   },
   hero: {
     title: "Your All-in-One Business Management Solution",
@@ -51,58 +35,37 @@ export const en = {
   features: {
     title: "Unlock the Power of SmartBookly",
     subtitle: "Explore our features",
-    crm: "CRM",
-    crmDescription:
-      "Manage customer relationships, track interactions, and automate sales processes.",
-    calendar: "Calendar",
-    calendarDescription:
-      "Schedule appointments, manage events, and stay organized with our integrated calendar.",
+    mainTitle: "All-in-One Business Management Tool",
+    booking: "Booking",
     tasks: "Tasks",
-    tasksDescription:
-      "Create tasks, assign deadlines, and track progress to ensure projects stay on track.",
+    crm: "CRM",
     analytics: "Analytics",
-    analyticsDescription:
-      "Gain insights into your business performance with our advanced analytics and reporting tools.",
-  },
-  pricing: {
-    title: "Simple Pricing Plans",
-    subtitle: "Choose the plan that's right for you",
-    free: "Free",
-    basic: "Basic",
-    premium: "Premium",
-    freeDescription: "For individuals and small teams getting started.",
-    basicDescription: "Essential features for growing businesses.",
-    premiumDescription:
-      "Advanced tools and dedicated support for established enterprises.",
-    users: "users",
-    storage: "Storage",
-    support: "Support",
-    getStarted: "Get Started",
-    choosePlan: "Choose Plan",
-    freePlanDescription:
-      "All the basics to get you started with personal task management",
-    basicPlanDescription:
-      "More powerfull features to boost your productivity",
-    premiumPlanDescription:
-      "Sophisticated tools for companies that need advanced reporting",
-  },
-  contact: {
-    title: "Contact Us",
-    subtitle: "We'd love to hear from you",
-    description:
-      "Whether you have a question, feedback, or just want to say hello, feel free to reach out to us.",
-    name: "Name",
-    email: "Email",
-    message: "Message",
-    send: "Send Message",
-    nameRequired: "Name is required",
-    emailRequired: "Email is required",
-    messageRequired: "Message is required",
-    emailPlaceholder: "Enter your email",
-    namePlaceholder: "Enter your name",
-    messagePlaceholder: "Enter your message",
+    website: "Website",
+    ownBookingWebsite: "Own Booking Website",
+    businessTitle: "Business for",
+    calendar: {
+      title: "Calendar",
+      description:
+        "Schedule appointments, manage events, and stay organized with our integrated calendar.",
+    },
+    crm: {
+      title: "CRM",
+      description:
+        "Manage customer relationships, track interactions, and automate sales processes.",
+    },
+    tasks: {
+      title: "Tasks",
+      description:
+        "Create tasks, assign deadlines, and track progress to ensure projects stay on track.",
+    },
+    analytics: {
+      title: "Analytics",
+      description:
+        "Gain insights into your business performance with our advanced analytics and reporting tools.",
+    },
   },
   footer: {
+    copyright: "Copyright © 2024 SmartBookly. All rights reserved.",
     about: "About",
     features: "Features",
     pricing: "Pricing",
@@ -157,47 +120,16 @@ export const en = {
     week: "Week",
     day: "Day",
     allDay: "All Day",
-    newEvent: "New Event",
-    editEvent: "Edit Event",
-    eventTitle: "Event Title",
-    eventDescription: "Event Description",
-    eventStartDate: "Event Start Date",
-    eventEndDate: "Event End Date",
-    eventStartTime: "Event Start Time",
-    eventEndTime: "Event End Time",
-    eventCreated: "Event Created",
-    eventUpdated: "Event Updated",
-    eventDeleted: "Event Deleted",
-    eventDeleteConfirmation: "Are you sure you want to delete this event?",
-    eventTitleRequired: "Event title is required",
-    eventStartDateRequired: "Event start date is required",
-    eventEndDateRequired: "Event end date is required",
-    eventStartTimeRequired: "Event start time is required",
-    eventEndTimeRequired: "Event end time is required",
-    addEventNotes: "Add event notes",
     attachment: "Attachment",
   },
   crm: {
-    customers: "Customers",
-    newCustomer: "New Customer",
-    editCustomer: "Edit Customer",
-    customerTitle: "Customer Title",
-    customerDescription: "Customer Description",
-    customerCreated: "Customer Created",
-    customerUpdated: "Customer Updated",
-    customerDeleted: "Customer Deleted",
-    customerDeleteConfirmation:
-      "Are you sure you want to delete this customer?",
-    customerTitleRequired: "Customer title is required",
-    customerDescriptionRequired: "Customer description is required",
-    customerStartDate: "Customer Start Date",
-    customerEndDate: "Customer End Date",
-    customerStartDateRequired: "Customer start date is required",
-    customerEndDateRequired: "Customer end date is required",
-    customerStartTime: "Customer Start Time",
-    customerEndTime: "Customer End Time",
-    customerStartTimeRequired: "Customer start time is required",
-    customerEndTimeRequired: "Customer end time is required",
+    title: "Customer Relationship Management",
+    description: "Build lasting customer relationships with our comprehensive CRM system.",
+    feature1: "Client information management",
+    feature2: "Payment tracking",
+    feature3: "Communication history",
+    feature4: "Appointment scheduling",
+    feature5: "Customer insights and analytics",
     notPaid: "Not Paid",
     paidPartly: "Paid Partly",
     paidFully: "Paid Fully",
@@ -215,9 +147,108 @@ export const en = {
     paymentAmount: "Payment Amount",
   },
   booking: {
+    title: "Smart Booking Calendar",
+    description: "Streamline your scheduling with our intelligent booking system.",
+    feature1: "Online appointment scheduling",
+    feature2: "Automatic reminders",
+    feature3: "Calendar synchronization",
+    feature4: "Client self-booking portal",
     requestSubmitted: "Your booking request has been submitted!",
     yourEmailPlaceholder: "Enter your email address",
     rateLimitExceeded: "Too many booking requests. Please wait {{minutes}} minutes before trying again.",
     rateLimitMessage: "You've recently submitted a booking request. Please wait {{seconds}} seconds (about {{minutes}} minutes) before submitting another request."
+  },
+  analytics: {
+    title: "Business Analytics",
+    description: "Gain insights into your business performance with detailed analytics.",
+    feature1: "Revenue tracking",
+    feature2: "Booking statistics",
+    feature3: "Client engagement metrics",
+    feature4: "Performance trends",
+    feature5: "Exportable reports",
+  },
+  tasks: {
+    title: "Task Management",
+    description: "Stay organized and boost productivity with our task management tools.",
+    feature1: "Create and assign tasks",
+    feature2: "Set priorities and deadlines",
+    feature3: "Track progress with status updates",
+    feature4: "Organize tasks by project or category",
+    feature5: "Task reminders and notifications",
+  },
+  website: {
+    title: "Booking Website",
+    description: "Create your own professional booking website in minutes.",
+    feature1: "Customizable booking pages",
+    feature2: "Mobile-responsive design",
+    feature3: "Integrated calendar and payment system",
+    feature4: "Client self-service portal",
+    feature5: "SEO-friendly structure",
+  },
+  contact: {
+    title: "Contact Us",
+    subtitle: "We'd love to hear from you",
+    description:
+      "Whether you have a question, feedback, or just want to say hello, feel free to reach out to us.",
+    name: "Name",
+    email: "Email",
+    message: "Message",
+    send: "Send Message",
+  },
+  pricing: {
+    title: "Simple Pricing Plans",
+    subtitle: "Choose the plan that's right for you",
+    free: {
+      title: "Free",
+      description: "For individuals and small teams getting started.",
+      price: "0",
+      features: [
+        "Basic features",
+        "Up to 10 clients",
+        "Limited support"
+      ]
+    },
+    premium: {
+      title: "Premium",
+      description: "Essential features for growing businesses.",
+      price: "29",
+      features: [
+        "All basic features",
+        "Unlimited clients",
+        "Priority support"
+      ]
+    },
+    enterprise: {
+      title: "Enterprise",
+      description: "Advanced tools for established enterprises.",
+      price: "Custom",
+      features: [
+        "All premium features",
+        "Dedicated support",
+        "Custom integrations"
+      ]
+    }
+  },
+  auth: {
+    signupTitle: "Create an account",
+    signinTitle: "Welcome back",
+    email: "Email",
+    password: "Password",
+    confirmPassword: "Confirm Password",
+    name: "Name",
+    signUp: "Sign Up",
+    signIn: "Sign In",
+    signOut: "Sign Out",
+    forgotPassword: "Forgot password?",
+    resetPassword: "Reset Password",
+    newPassword: "New password",
+    updatePassword: "Update Password",
+    passwordRequirements:
+      "Use at least 8 characters, including uppercase and lowercase letters, numbers, and symbols.",
+    emailRequired: "Email is required",
+    passwordRequired: "Password is required",
+    nameRequired: "Name is required",
+    passwordMismatch: "Passwords do not match",
+    invalidEmail: "Invalid email address",
   },
 };

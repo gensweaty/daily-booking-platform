@@ -26,9 +26,9 @@ export interface TranslationType {
     subtitle?: string;
     mainTitle?: string;
     booking?: string;
-    tasks?: string;
     crm?: string;
     analytics?: string;
+    tasks?: string;
     website?: string;
     ownBookingWebsite?: string;
     businessTitle?: string;
@@ -187,6 +187,7 @@ export interface TranslationType {
     delete?: string;
     save?: string;
     fullName?: string;
+    fileDeleted?: string;
   };
   events?: {
     addEvent?: string;
@@ -243,6 +244,27 @@ export interface TranslationType {
       price?: string;
       features?: string[];
     };
+  };
+  auth?: {
+    signupTitle?: string;
+    signinTitle?: string;
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+    name?: string;
+    signUp?: string;
+    signIn?: string;
+    signOut?: string;
+    forgotPassword?: string;
+    resetPassword?: string;
+    newPassword?: string;
+    updatePassword?: string;
+    passwordRequirements?: string;
+    emailRequired?: string;
+    passwordRequired?: string;
+    nameRequired?: string;
+    passwordMismatch?: string;
+    invalidEmail?: string;
   };
 }
 
