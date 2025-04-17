@@ -1,4 +1,3 @@
-
 export const en = {
   common: {
     loading: "Loading...",
@@ -76,6 +75,12 @@ export const en = {
     notes: "Notes",
     reminders: "Reminders",
     calendar: "Calendar",
+    welcome: "Welcome",
+    greeting: "Hello",
+    goodMorning: "Good morning",
+    goodAfternoon: "Good afternoon",
+    goodEvening: "Good evening",
+    statistics: "Statistics",
     newTask: "New Task",
     newNote: "New Note",
     newReminder: "New Reminder",
@@ -110,13 +115,7 @@ export const en = {
     noteDescriptionRequired: "Note description is required",
     reminderDescriptionRequired: "Reminder description is required",
     taskCompletedRequired: "Task completed is required",
-    reminderRemindAtRequired: "Reminder remind at is required",
-    welcome: "Welcome",
-    greeting: "Hello",
-    goodMorning: "Good morning",
-    goodAfternoon: "Good afternoon",
-    goodEvening: "Good evening",
-    statistics: "Statistics"
+    reminderRemindAtRequired: "Reminder remind at is required"
   },
   calendar: {
     today: "Today",
