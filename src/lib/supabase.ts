@@ -106,9 +106,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   db: {
     schema: 'public'
   },
+  // Remove custom realtime options
   realtime: {
-    // Use valid realtime options according to the Supabase SDK
-    eventsPerSecond: 10
+    // Use default Realtime settings
   }
 });
 
