@@ -109,6 +109,12 @@ export const FeatureSection = () => {
           {t('features.mainTitle')}
         </h2>
         
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            {t('features.title')}
+          </h2>
+        </div>
+        
         <FeatureButtons />
         
         {features.map((feature, index) => (
@@ -116,6 +122,10 @@ export const FeatureSection = () => {
             <FeatureCard {...feature} />
           </div>
         ))}
+        
+        <h3 className="text-center text-2xl font-semibold mb-8 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+          {t('features.businessTitle')}
+        </h3>
         
         <ClientLogos />
       </div>
