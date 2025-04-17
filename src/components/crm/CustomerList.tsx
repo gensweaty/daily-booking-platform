@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -47,6 +46,16 @@ export const CustomerList = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hoveredField, setHoveredField] = useState<{id: string, field: string} | null>(null);
 
+  const customersQueryKey = useMemo(() => 
+    ['customers', dateRange.start.toISOString(), dateRange.end.toISOString()],
+    [dateRange.start, dateRange.end]
+  );
+
+  const eventsQueryKey = useMemo(() => 
+    ['events', dateRange.start.toISOString(), dateRange.end.toISOString()],
+    [dateRange.start, dateRange.end]
+  );
+
   const fetchCustomers = useCallback(async () => {
     if (!user) return [];
     
@@ -63,7 +72,7 @@ export const CustomerList = () => {
 
     if (error) throw error;
     return data || [];
-  }, [user, dateRange]);
+  }, [user, dateRange.start, dateRange.end]);
 
   const fetchEvents = useCallback(async () => {
     if (!user) return [];
@@ -81,21 +90,20 @@ export const CustomerList = () => {
 
     if (error) throw error;
     return data || [];
-  }, [user, dateRange]);
+  }, [user, dateRange.start, dateRange.end]);
 
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
-    queryKey: ['customers', dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryKey: customersQueryKey,
     queryFn: fetchCustomers,
     enabled: !!user,
   });
 
   const { data: events = [], isLoading: isLoadingEvents } = useQuery({
-    queryKey: ['events', dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryKey: eventsQueryKey,
     queryFn: fetchEvents,
     enabled: !!user,
   });
 
-  // Create a memoized version of the combined data
   const combinedData = useMemo(() => {
     if (isLoadingCustomers || isLoadingEvents) return [];
     
@@ -119,17 +127,14 @@ export const CustomerList = () => {
     return combined;
   }, [customers, events, isLoadingCustomers, isLoadingEvents]);
 
-  // Update isLoading state when the queries complete
   useEffect(() => {
     setIsLoading(isLoadingCustomers || isLoadingEvents);
   }, [isLoadingCustomers, isLoadingEvents]);
 
-  // Set filtered data when combined data changes
   useEffect(() => {
     setFilteredData(combinedData);
   }, [combinedData]);
 
-  // Calculate paginated data only when filteredData, currentPage, or pageSize changes
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
@@ -509,10 +514,7 @@ export const CustomerList = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => {
-                          setSelectedCustomer(customer);
-                          handleDeleteCustomer(customer);
-                        }}
+                        onClick={() => handleDeleteCustomer(customer)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
