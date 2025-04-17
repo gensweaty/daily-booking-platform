@@ -4,13 +4,25 @@ import { supabase } from "@/lib/supabase";
 import { format, parseISO, eachDayOfInterval, endOfDay, startOfMonth, endOfMonth, differenceInMonths, addMonths, eachMonthOfInterval } from 'date-fns';
 
 export const useStatistics = (userId: string | undefined, dateRange: { start: Date; end: Date }) => {
-  const { data: taskStats } = useQuery({
+  const { data: taskStats, isLoading: isLoadingTaskStats } = useQuery({
     queryKey: ['taskStats', userId],
     queryFn: async () => {
-      const { data: tasks } = await supabase
+      if (!userId) return {
+        total: 0,
+        completed: 0,
+        inProgress: 0,
+        todo: 0,
+      };
+      
+      const { data: tasks, error } = await supabase
         .from('tasks')
         .select('status')
         .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error fetching task stats:', error);
+        throw error;
+      }
 
       return {
         total: tasks?.length || 0,
@@ -20,17 +32,34 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       };
     },
     enabled: !!userId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const { data: eventStats } = useQuery({
-    queryKey: ['eventStats', userId, dateRange.start, dateRange.end],
+  const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
+    queryKey: ['eventStats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async () => {
-      const { data: events } = await supabase
+      if (!userId) return {
+        total: 0,
+        partlyPaid: 0,
+        fullyPaid: 0,
+        dailyStats: [],
+        monthlyIncome: [],
+        totalIncome: 0,
+        events: [],
+      };
+      
+      const { data: events, error } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
         .gte('start_date', dateRange.start.toISOString())
-        .lte('start_date', endOfDay(dateRange.end).toISOString());
+        .lte('start_date', endOfDay(dateRange.end).toISOString())
+        .is('deleted_at', null);
+
+      if (error) {
+        console.error('Error fetching event stats:', error);
+        throw error;
+      }
 
       // Get payment status counts
       const partlyPaid = events?.filter(e => e.payment_status === 'partly').length || 0;
@@ -82,12 +111,21 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         const monthStart = startOfMonth(month);
         const monthEnd = endOfMonth(month);
         
-        const { data: monthEvents } = await supabase
+        const { data: monthEvents, error: monthError } = await supabase
           .from('events')
           .select('*')
           .eq('user_id', userId)
           .gte('start_date', monthStart.toISOString())
-          .lte('start_date', endOfDay(monthEnd).toISOString());
+          .lte('start_date', endOfDay(monthEnd).toISOString())
+          .is('deleted_at', null);
+
+        if (monthError) {
+          console.error('Error fetching monthly income:', monthError);
+          return {
+            month: format(month, 'MMM yyyy'),
+            income: 0,
+          };
+        }
 
         return {
           month: format(month, 'MMM yyyy'),
@@ -118,7 +156,12 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       };
     },
     enabled: !!userId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  return { taskStats, eventStats };
+  return { 
+    taskStats, 
+    eventStats,
+    isLoading: isLoadingTaskStats || isLoadingEventStats
+  };
 };

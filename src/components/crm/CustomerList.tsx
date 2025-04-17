@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect } from "react";
+
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -83,18 +84,19 @@ export const CustomerList = () => {
   }, [user, dateRange]);
 
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
-    queryKey: ['customers', dateRange],
+    queryKey: ['customers', dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: fetchCustomers,
     enabled: !!user,
   });
 
   const { data: events = [], isLoading: isLoadingEvents } = useQuery({
-    queryKey: ['events', dateRange],
+    queryKey: ['events', dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: fetchEvents,
     enabled: !!user,
   });
 
-  const combinedData = React.useMemo(() => {
+  // Create a memoized version of the combined data
+  const combinedData = useMemo(() => {
     if (isLoadingCustomers || isLoadingEvents) return [];
     
     const combined = [...customers];
@@ -117,15 +119,18 @@ export const CustomerList = () => {
     return combined;
   }, [customers, events, isLoadingCustomers, isLoadingEvents]);
 
+  // Update isLoading state when the queries complete
   useEffect(() => {
     setIsLoading(isLoadingCustomers || isLoadingEvents);
   }, [isLoadingCustomers, isLoadingEvents]);
 
+  // Set filtered data when combined data changes
   useEffect(() => {
     setFilteredData(combinedData);
   }, [combinedData]);
 
-  const paginatedData = React.useMemo(() => {
+  // Calculate paginated data only when filteredData, currentPage, or pageSize changes
+  const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     return filteredData.slice(startIndex, endIndex);
