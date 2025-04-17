@@ -1,3 +1,4 @@
+
 import { motion } from "framer-motion";
 import { 
   PartyPopper, 
@@ -58,7 +59,7 @@ export const ClientLogos = () => {
   ];
 
   return (
-    <div className="container mx-auto px-4">
+    <>
       <h3 className="text-center text-2xl font-semibold mb-8 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
         {t('features.businessTitle')}
       </h3>
@@ -81,6 +82,6 @@ export const ClientLogos = () => {
           </motion.div>
         ))}
       </div>
-    </div>
+    </>
   );
 };
