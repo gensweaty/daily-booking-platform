@@ -13,8 +13,12 @@ interface SearchCommandProps {
 export const SearchCommand = React.memo(({ data, setFilteredData }: SearchCommandProps) => {
   // Debounce search to improve performance
   const debounceTimeout = React.useRef<NodeJS.Timeout | null>(null);
+  const [searchValue, setSearchValue] = React.useState<string>("");
   
+  // Handle search with local state to prevent re-renders
   const handleSearch = React.useCallback((search: string) => {
+    setSearchValue(search);
+    
     if (debounceTimeout.current) {
       clearTimeout(debounceTimeout.current);
     }
@@ -54,6 +58,7 @@ export const SearchCommand = React.memo(({ data, setFilteredData }: SearchComman
         <CommandInput
           placeholder="Search..."
           className="h-9 border-0 focus:ring-0 px-0"
+          value={searchValue}
           onValueChange={handleSearch}
         />
       </div>

@@ -72,7 +72,7 @@ export const CustomerList = () => {
 
     if (error) throw error;
     return data || [];
-  }, [user, dateRange.start, dateRange.end]);
+  }, [user?.id, dateRange.start.toISOString(), dateRange.end.toISOString()]);
 
   const fetchEvents = useCallback(async () => {
     if (!user) return [];
@@ -90,7 +90,7 @@ export const CustomerList = () => {
 
     if (error) throw error;
     return data || [];
-  }, [user, dateRange.start, dateRange.end]);
+  }, [user?.id, dateRange.start.toISOString(), dateRange.end.toISOString()]);
 
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
     queryKey: customersQueryKey,
@@ -141,7 +141,7 @@ export const CustomerList = () => {
     return filteredData.slice(startIndex, endIndex);
   }, [filteredData, currentPage, pageSize]);
 
-  const handleDeleteCustomer = async (customer: any) => {
+  const handleDeleteCustomer = useCallback(async (customer: any) => {
     if (!user?.id) {
       toast({
         title: t("common.error"),
@@ -189,18 +189,18 @@ export const CustomerList = () => {
         variant: "destructive",
       });
     }
-  };
+  }, [user?.id, queryClient, toast, t]);
 
-  const handleSearchSelect = (customer: any) => {
+  const handleSearchSelect = useCallback((customer: any) => {
     openEditDialog(customer);
-  };
+  }, []);
 
-  const truncateText = (text: string, maxLength: number = 30) => {
+  const truncateText = useCallback((text: string, maxLength: number = 30) => {
     if (!text) return '-';
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-  };
+  }, []);
 
-  const handleCopyText = async (text: string) => {
+  const handleCopyText = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
       toast({
@@ -214,22 +214,22 @@ export const CustomerList = () => {
         variant: "destructive",
       });
     }
-  };
+  }, [toast, t]);
 
-  const formatDate = (date: string | null) => {
+  const formatDate = useCallback((date: string | null) => {
     if (!date) return '-';
     const dateObj = new Date(date);
     return format(dateObj, 'dd.MM.yyyy');
-  };
+  }, []);
 
-  const formatTimeRange = (startDate: string | null, endDate: string | null) => {
+  const formatTimeRange = useCallback((startDate: string | null, endDate: string | null) => {
     if (!startDate || !endDate) return '-';
     const start = new Date(startDate);
     const end = new Date(endDate);
     return `${format(start, 'hh:mma')}-${format(end, 'hh:mma')}`.toLowerCase();
-  };
+  }, []);
 
-  const formatPaymentStatus = (status: string, amount: number | null) => {
+  const formatPaymentStatus = useCallback((status: string, amount: number | null) => {
     if (!status) return '-';
     
     let displayStatus = '';
@@ -268,14 +268,14 @@ export const CustomerList = () => {
         {displayStatus}
       </span>
     );
-  };
+  }, [t, language]);
 
-  const openCreateDialog = () => {
+  const openCreateDialog = useCallback(() => {
     setSelectedCustomer(null);
     setIsDialogOpen(true);
-  };
+  }, []);
 
-  const openEditDialog = (customer: any) => {
+  const openEditDialog = useCallback((customer: any) => {
     const originalData = customer.id.startsWith('event-') 
       ? events.find(e => `event-${e.id}` === customer.id)
       : customer;
@@ -290,16 +290,14 @@ export const CustomerList = () => {
       payment_amount: originalData.payment_amount?.toString() || '',
     });
     setIsDialogOpen(true);
-  };
+  }, [events]);
 
-  const totalPages = Math.ceil(filteredData.length / pageSize);
-
-  const handlePageSizeChange = (value: string) => {
+  const handlePageSizeChange = useCallback((value: string) => {
     setPageSize(Number(value));
     setCurrentPage(1);
-  };
+  }, []);
 
-  const handleExcelDownload = () => {
+  const handleExcelDownload = useCallback(() => {
     const excelData = filteredData.map(customer => {
       const paymentStatusText = customer.payment_status ? 
         customer.payment_status === 'not_paid' ? t("crm.notPaid") :
@@ -346,7 +344,12 @@ export const CustomerList = () => {
       title: t("dashboard.exportSuccessful"),
       description: t("dashboard.exportSuccessMessage"),
     });
-  };
+  }, [filteredData, language, t, toast, formatTimeRange]);
+
+  const totalPages = useMemo(() => 
+    Math.ceil(filteredData.length / pageSize),
+    [filteredData.length, pageSize]
+  );
 
   if (isLoading) {
     return (
