@@ -1,3 +1,4 @@
+
 export const es = {
   "nav": {
     "signin": "Iniciar sesión",
@@ -120,9 +121,9 @@ export const es = {
     "paidFully": "Pagado completamente",
   },
   "booking": {
-    requestSubmitted: "¡Tu solicitud de reserva ha sido enviada!",
-    yourEmailPlaceholder: "Ingresa tu dirección de correo electrónico",
-    rateLimitExceeded: "Demasiadas solicitudes de reserva. Espera {{minutes}} minutos antes de intentarlo de nuevo.",
-    rateLimitMessage: "Has enviado recientemente una solicitud de reserva. Espera {{seconds}} segundos (aproximadamente {{minutes}} minutos) antes de enviar otra solicitud."
+    "requestSubmitted": "¡Tu solicitud de reserva ha sido enviada!",
+    "yourEmailPlaceholder": "Ingresa tu dirección de correo electrónico",
+    "rateLimitExceeded": "Demasiadas solicitudes de reserva. Espera {{minutes}} minutos antes de intentarlo de nuevo.",
+    "rateLimitMessage": "Has enviado recientemente una solicitud de reserva. Espera {{seconds}} segundos (aproximadamente {{minutes}} minutos) antes de enviar otra solicitud."
   },
 };
