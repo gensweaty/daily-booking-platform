@@ -27,7 +27,7 @@ export const FeatureSection = () => {
       icon: Globe,
       title: t('website.title'),
       description: t('website.description'),
-      image: "/lovable-uploads/3a2bd8e6-c9a3-4d30-a0cf-70f97d928da2.png",
+      image: "/lovable-uploads/c0e68eb2-162a-4ebc-9b9c-9fe3fd9317c4.png",
       benefits: [
         t('website.feature1'),
         t('website.feature2'),
