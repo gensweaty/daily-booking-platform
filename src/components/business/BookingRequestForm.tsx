@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -12,7 +12,7 @@ import { DialogHeader, DialogTitle } from "../ui/dialog";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
-import { createBookingRequest } from "@/lib/api";
+import { createBookingRequest, checkRateLimitStatus } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 import { FileUploadField } from "../shared/FileUploadField";
 import { supabase } from "@/lib/supabase";
@@ -63,6 +63,8 @@ export const BookingRequestForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  const [isRateLimited, setIsRateLimited] = useState(false);
+  const [rateLimitTimeRemaining, setRateLimitTimeRemaining] = useState(0);
 
   const formattedDate = format(selectedDate, "yyyy-MM-dd");
   
@@ -87,8 +89,77 @@ export const BookingRequestForm = ({
 
   const paymentStatus = form.watch("payment_status");
 
+  // Check rate limit status when form opens
+  useEffect(() => {
+    if (open) {
+      const checkRateLimit = async () => {
+        try {
+          const { isLimited, remainingTime } = await checkRateLimitStatus();
+          setIsRateLimited(isLimited);
+          setRateLimitTimeRemaining(remainingTime);
+          
+          // If user is rate limited, show toast
+          if (isLimited) {
+            const minutes = Math.floor(remainingTime / 60);
+            const seconds = remainingTime % 60;
+            const timeDisplay = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+            
+            toast({
+              title: t("common.rateLimitReached") || "Rate limit reached",
+              description: t("common.waitBeforeBooking", { time: timeDisplay }) || 
+                           `Please wait ${timeDisplay} before submitting another booking request.`,
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error("Error checking rate limit:", error);
+        }
+      };
+      
+      checkRateLimit();
+    }
+  }, [open, toast, t]);
+
+  // Update countdown timer
+  useEffect(() => {
+    if (!isRateLimited || rateLimitTimeRemaining <= 0) return;
+    
+    const timer = setInterval(() => {
+      setRateLimitTimeRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsRateLimited(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [isRateLimited, rateLimitTimeRemaining]);
+
   const onSubmit = async (values: FormValues) => {
     try {
+      // Check rate limit again right before submission
+      const { isLimited, remainingTime } = await checkRateLimitStatus();
+      
+      if (isLimited) {
+        setIsRateLimited(true);
+        setRateLimitTimeRemaining(remainingTime);
+        
+        const minutes = Math.floor(remainingTime / 60);
+        const seconds = remainingTime % 60;
+        const timeDisplay = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+        
+        toast({
+          title: t("common.rateLimitReached") || "Rate limit reached",
+          description: t("common.waitBeforeBooking", { time: timeDisplay }) || 
+                       `Please wait ${timeDisplay} before submitting another booking request.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
       setIsSubmitting(true);
       console.log("Submitting booking request:", values);
 
@@ -176,6 +247,18 @@ export const BookingRequestForm = ({
       </DialogHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
+          {isRateLimited && (
+            <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 p-3 rounded-md mb-4">
+              <p className="text-amber-700 dark:text-amber-400 text-sm font-medium">
+                {t("common.rateLimitMessage") || "You can only submit one booking request every 2 minutes."}
+              </p>
+              <p className="text-amber-600 dark:text-amber-500 text-sm mt-1">
+                {t("common.waitTimeRemaining") || "Please wait"}: {Math.floor(rateLimitTimeRemaining / 60)}:
+                {(rateLimitTimeRemaining % 60).toString().padStart(2, '0')}
+              </p>
+            </div>
+          )}
+          
           <FormField
             control={form.control}
             name="requester_name"
@@ -354,7 +437,7 @@ export const BookingRequestForm = ({
             >
               {t("common.cancel")}
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || isRateLimited}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

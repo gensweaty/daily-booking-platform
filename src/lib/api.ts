@@ -2,6 +2,10 @@ import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
 
+// Rate limiting storage in localStorage
+const RATE_LIMIT_KEY = 'booking_request_last_time';
+const RATE_LIMIT_COOLDOWN = 120; // 2 minutes in seconds
+
 // Helper function to get file URL with consistent bucket handling
 export const getFileUrl = (bucketName: string, filePath: string) => {
   const baseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -18,6 +22,32 @@ export const getFileUrl = (bucketName: string, filePath: string) => {
   return `${baseUrl}/storage/v1/object/public/${effectiveBucket}/${normalizedPath}`;
 };
 
+// Check if user is rate limited for booking requests
+export const checkRateLimitStatus = async (): Promise<{ isLimited: boolean, remainingTime: number }> => {
+  try {
+    // Get last request timestamp from localStorage
+    const lastRequestTime = localStorage.getItem(RATE_LIMIT_KEY);
+    
+    if (!lastRequestTime) {
+      return { isLimited: false, remainingTime: 0 };
+    }
+    
+    const now = Math.floor(Date.now() / 1000); // Current time in seconds
+    const timeSinceLastRequest = now - parseInt(lastRequestTime, 10);
+    
+    if (timeSinceLastRequest < RATE_LIMIT_COOLDOWN) {
+      // User is rate limited
+      const remainingTime = RATE_LIMIT_COOLDOWN - timeSinceLastRequest;
+      return { isLimited: true, remainingTime };
+    }
+    
+    return { isLimited: false, remainingTime: 0 };
+  } catch (error) {
+    console.error("Error checking rate limit:", error);
+    return { isLimited: false, remainingTime: 0 }; // Default to not limited in case of error
+  }
+};
+
 export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">) => {
   // Get current user if available
   const { data: userData } = await supabase.auth.getUser();
@@ -25,6 +55,13 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
   console.log("Creating booking request:", request);
   
   try {
+    // Check rate limit before creating booking
+    const { isLimited } = await checkRateLimitStatus();
+    
+    if (isLimited) {
+      throw new Error("Rate limit reached. Please wait before submitting another booking request.");
+    }
+    
     // Ensure payment_amount is properly handled when saving to the database
     const bookingData = {
       ...request,
@@ -52,6 +89,9 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
       console.error("Error creating booking request:", error);
       throw error;
     }
+    
+    // Store current timestamp in localStorage for rate limiting
+    localStorage.setItem(RATE_LIMIT_KEY, Math.floor(Date.now() / 1000).toString());
     
     console.log("Created booking request:", data);
     return data;

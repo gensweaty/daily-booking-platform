@@ -36,6 +36,8 @@ export interface TranslationType {
     feature2: string;
     feature3: string;
     feature4: string;
+    requestSubmitted: string;
+    yourEmailPlaceholder: string;
   };
   analytics: {
     title: string;
@@ -54,6 +56,9 @@ export interface TranslationType {
     feature3: string;
     feature4: string;
     feature5: string;
+    notPaid: string;
+    paidPartly: string;
+    paidFully: string;
   };
   tasks: {
     title: string;
@@ -149,6 +154,40 @@ export interface TranslationType {
     financialSummary: string;
     summaryStatistics: string;
     eventsData: string;
+  };
+  events: {
+    submitBookingRequest: string;
+    fullNameRequired: string;
+    fullName: string;
+    phoneNumber: string;
+    paymentStatus: string;
+    selectPaymentStatus: string;
+    paymentAmount: string;
+    startDateTime: string;
+    endDateTime: string;
+    eventNotes: string;
+    addEventNotes: string;
+    editEvent: string;
+    addNewEvent: string;
+    updateEvent: string;
+    createEvent: string;
+  };
+  contact: {
+    email: string;
+  };
+  calendar: {
+    attachment: string;
+  };
+  common: {
+    cancel: string;
+    success: string;
+    error: string;
+    submitting: string;
+    loading: string;
+    rateLimitReached: string;
+    waitBeforeBooking: string;
+    rateLimitMessage: string;
+    waitTimeRemaining: string;
   };
 }
 
