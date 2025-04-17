@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet } from "lucide-react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
-import { format, startOfMonth, endOfMonth, endOfDay } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { SearchCommand } from "./SearchCommand";
 import { DateRangeSelect } from "@/components/Statistics/DateRangeSelect";
@@ -28,6 +28,50 @@ import {
 } from "@/components/ui/select";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCRMData } from "@/hooks/useCRMData";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const LoadingCustomerList = React.memo(() => {
+  return (
+    <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
+          <Skeleton className="h-8 w-32 -mt-4" />
+          <Skeleton className="w-full md:w-[200px] h-10" />
+          <Skeleton className="w-full md:w-[200px] h-10" />
+          <Skeleton className="h-9 w-9" />
+        </div>
+        <Skeleton className="h-10 w-36" />
+      </div>
+
+      <div className="w-full overflow-x-auto">
+        <div className="min-w-[1000px]">
+          <div className="space-y-3">
+            <div className="flex gap-4 py-3">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <Skeleton key={i} className="h-8 flex-1" />
+              ))}
+            </div>
+            
+            {Array(5).fill(0).map((_, i) => (
+              <div key={i} className="flex gap-4 py-6">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((j) => (
+                  <Skeleton key={j} className="h-10 flex-1" />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-4">
+        <Skeleton className="h-10 w-32" />
+        <Skeleton className="h-6 w-32" />
+      </div>
+    </div>
+  );
+});
+
+LoadingCustomerList.displayName = 'LoadingCustomerList';
 
 export const CustomerList = () => {
   const { t, language } = useLanguage();
@@ -46,15 +90,14 @@ export const CustomerList = () => {
   });
   const [hoveredField, setHoveredField] = useState<{id: string, field: string} | null>(null);
 
-  // Use our optimized hook for data fetching
-  const { combinedData, isLoading } = useCRMData(user?.id, dateRange);
+  const { combinedData, isLoading, isFetching } = useCRMData(user?.id, dateRange);
 
-  // Update filtered data when combinedData changes
   useEffect(() => {
-    setFilteredData(combinedData);
+    if (combinedData.length > 0) {
+      setFilteredData(combinedData);
+    }
   }, [combinedData]);
 
-  // Memoize paginated data to prevent unnecessary calculations
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
@@ -196,7 +239,6 @@ export const CustomerList = () => {
   }, []);
 
   const openEditDialog = useCallback((customer: any) => {
-    // Prefer single reference check over array find for better performance
     const originalData = customer;
     setSelectedCustomer({
       ...originalData,
@@ -215,9 +257,14 @@ export const CustomerList = () => {
     setCurrentPage(1);
   }, []);
 
-  // Optimized Excel export function
+  const handleDateRangeChange = useCallback((start: Date, end: Date | null) => {
+    setDateRange({ 
+      start, 
+      end: end || start 
+    });
+  }, []);
+
   const handleExcelDownload = useCallback(() => {
-    // Use a Web Worker for Excel generation if dealing with large datasets
     const excelData = filteredData.map(customer => {
       const paymentStatusText = customer.payment_status ? 
         customer.payment_status === 'not_paid' ? t("crm.notPaid") :
@@ -266,24 +313,13 @@ export const CustomerList = () => {
     });
   }, [filteredData, language, t, toast, formatTimeRange]);
 
-  // Memoize total pages calculation
   const totalPages = useMemo(() => 
     Math.ceil(filteredData.length / pageSize),
     [filteredData.length, pageSize]
   );
 
-  // Optimize the loading state rendering with React.memo
-  const LoadingState = React.memo(() => (
-    <div className="h-full w-full flex items-center justify-center p-8">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-        <div className="text-lg">{t("common.loading")}</div>
-      </div>
-    </div>
-  ));
-
-  if (isLoading) {
-    return <LoadingState />;
+  if (isLoading && combinedData.length === 0) {
+    return <LoadingCustomerList />;
   }
 
   return (
@@ -294,13 +330,15 @@ export const CustomerList = () => {
           <div className="w-full md:w-auto md:min-w-[200px]">
             <DateRangeSelect 
               selectedDate={dateRange}
-              onDateChange={(start, end) => setDateRange({ start, end: end || start })}
+              onDateChange={handleDateRangeChange}
+              disabled={isFetching}
             />
           </div>
           <div className="w-full md:w-auto">
             <SearchCommand
               data={combinedData}
               setFilteredData={setFilteredData}
+              isLoading={isFetching}
             />
           </div>
           <Button
@@ -309,176 +347,200 @@ export const CustomerList = () => {
             onClick={handleExcelDownload}
             className="h-9 w-9 sm:-mt-4"
             title={language === 'es' ? "Descargar como Excel" : "Download as Excel"}
+            disabled={isFetching || filteredData.length === 0}
           >
             <FileSpreadsheet className="h-5 w-5" />
           </Button>
         </div>
-        <Button onClick={openCreateDialog} className="flex items-center gap-2 whitespace-nowrap">
+        <Button 
+          onClick={openCreateDialog} 
+          className="flex items-center gap-2 whitespace-nowrap"
+          disabled={isFetching}
+        >
           <PlusCircle className="w-4 h-4" />
           {t("crm.addCustomer")}
         </Button>
       </div>
 
-      {/* Table section */}
-      <div className="w-full overflow-x-auto">
-        <div className="min-w-[1000px]">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[180px]">{t("crm.fullName")}</TableHead>
-                <TableHead className="w-[130px]">{t("crm.phoneNumber")}</TableHead>
-                <TableHead className="w-[250px]">{t("crm.socialLinkEmail")}</TableHead>
-                <TableHead className="w-[120px]">{t("crm.paymentStatus")}</TableHead>
-                <TableHead className="w-[180px]">{t("crm.dates")}</TableHead>
-                <TableHead className="w-[120px]">{t("crm.comment")}</TableHead>
-                <TableHead className="w-[180px]">{t("common.attachments")}</TableHead>
-                <TableHead className="w-[100px]">{t("crm.actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedData.map((customer: any) => (
-                <TableRow key={customer.id} className="h-auto min-h-[4rem]">
-                  <TableCell className="py-2">
-                    <div 
-                      className="flex items-start gap-2 group relative pr-6"
-                      onMouseEnter={() => setHoveredField({ id: customer.id, field: 'title' })}
-                      onMouseLeave={() => setHoveredField(null)}
-                    >
-                      <span className="line-clamp-2 text-left text-sm">
-                        {customer.title}
-                      </span>
-                      {hoveredField?.id === customer.id && hoveredField?.field === 'title' && (
-                        <Copy 
-                          className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0 opacity-60 hover:opacity-100 transition-opacity"
-                          onClick={() => handleCopyText(customer.title)}
-                        />
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    {customer.user_number ? (
-                      <div 
-                        className="flex items-start gap-2 group relative pr-6"
-                        onMouseEnter={() => setHoveredField({ id: customer.id, field: 'phone' })}
-                        onMouseLeave={() => setHoveredField(null)}
-                      >
-                        <span className="line-clamp-2 text-left text-sm">
-                          {customer.user_number}
-                        </span>
-                        {hoveredField?.id === customer.id && hoveredField?.field === 'phone' && (
-                          <Copy 
-                            className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0 opacity-60 hover:opacity-100 transition-opacity"
-                            onClick={() => handleCopyText(customer.user_number)}
-                          />
-                        )}
-                      </div>
-                    ) : '-'}
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <div 
-                      className="flex items-start gap-2 group relative pr-6"
-                      onMouseEnter={() => setHoveredField({ id: customer.id, field: 'link' })}
-                      onMouseLeave={() => setHoveredField(null)}
-                    >
-                      <span className="line-clamp-2 text-left text-sm">
-                        {customer.social_network_link || '-'}
-                      </span>
-                      {customer.social_network_link && hoveredField?.id === customer.id && hoveredField?.field === 'link' && (
-                        <Copy 
-                          className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0 opacity-60 hover:opacity-100 transition-opacity"
-                          onClick={() => handleCopyText(customer.social_network_link)}
-                        />
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    {formatPaymentStatus(customer.payment_status, customer.payment_amount)}
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <div className="space-y-1 text-sm">
-                      <div>{formatDate(customer.start_date)}</div>
-                      <div className="text-gray-500">{formatTimeRange(customer.start_date, customer.end_date)}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <div 
-                      className="flex items-start gap-2 group relative pr-6"
-                      onMouseEnter={() => setHoveredField({ id: customer.id, field: 'notes' })}
-                      onMouseLeave={() => setHoveredField(null)}
-                    >
-                      <span className="line-clamp-3 text-left text-sm min-h-[1.5rem]">
-                        {customer.event_notes || '-'}
-                      </span>
-                      {customer.event_notes && hoveredField?.id === customer.id && hoveredField?.field === 'notes' && (
-                        <Copy 
-                          className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0 opacity-60 hover:opacity-100 transition-opacity"
-                          onClick={() => handleCopyText(customer.event_notes)}
-                        />
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    {(customer.customer_files_new?.length > 0 || customer.event_files?.length > 0) ? (
-                      <div className="max-w-[180px]">
-                        <FileDisplay 
-                          files={customer.customer_files_new || customer.event_files}
-                          bucketName={customer.id.startsWith('event-') ? "event_attachments" : "customer_attachments"}
-                          allowDelete={false}
-                          parentId={customer.id.startsWith('event-') ? customer.id.replace('event-', '') : customer.id}
-                          parentType={customer.id.startsWith('event-') ? "event" : "customer"}
-                        />
-                      </div>
-                    ) : '-'}
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(customer)}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteCustomer(customer)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+      {isFetching && !isLoading ? (
+        <div className="flex items-center justify-center py-6">
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-3"></div>
+            <p>{t("common.refreshing")}</p>
+          </div>
         </div>
-      </div>
+      ) : filteredData.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="text-4xl mb-4">📋</div>
+          <h3 className="text-xl font-medium mb-2">{t("crm.noCustomers")}</h3>
+          <p className="text-muted-foreground mb-6">{t("crm.noCustomersDescription")}</p>
+          <Button onClick={openCreateDialog}>
+            <PlusCircle className="w-4 h-4 mr-2" />
+            {t("crm.addCustomer")}
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="w-full overflow-x-auto">
+            <div className="min-w-[1000px]">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[180px]">{t("crm.fullName")}</TableHead>
+                    <TableHead className="w-[130px]">{t("crm.phoneNumber")}</TableHead>
+                    <TableHead className="w-[250px]">{t("crm.socialLinkEmail")}</TableHead>
+                    <TableHead className="w-[120px]">{t("crm.paymentStatus")}</TableHead>
+                    <TableHead className="w-[180px]">{t("crm.dates")}</TableHead>
+                    <TableHead className="w-[120px]">{t("crm.comment")}</TableHead>
+                    <TableHead className="w-[180px]">{t("common.attachments")}</TableHead>
+                    <TableHead className="w-[100px]">{t("crm.actions")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedData.map((customer: any) => (
+                    <TableRow key={customer.id} className="h-auto min-h-[4rem]">
+                      <TableCell className="py-2">
+                        <div 
+                          className="flex items-start gap-2 group relative pr-6"
+                          onMouseEnter={() => setHoveredField({ id: customer.id, field: 'title' })}
+                          onMouseLeave={() => setHoveredField(null)}
+                        >
+                          <span className="line-clamp-2 text-left text-sm">
+                            {customer.title}
+                          </span>
+                          {hoveredField?.id === customer.id && hoveredField?.field === 'title' && (
+                            <Copy 
+                              className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0 opacity-60 hover:opacity-100 transition-opacity"
+                              onClick={() => handleCopyText(customer.title)}
+                            />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        {customer.user_number ? (
+                          <div 
+                            className="flex items-start gap-2 group relative pr-6"
+                            onMouseEnter={() => setHoveredField({ id: customer.id, field: 'phone' })}
+                            onMouseLeave={() => setHoveredField(null)}
+                          >
+                            <span className="line-clamp-2 text-left text-sm">
+                              {customer.user_number}
+                            </span>
+                            {hoveredField?.id === customer.id && hoveredField?.field === 'phone' && (
+                              <Copy 
+                                className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0 opacity-60 hover:opacity-100 transition-opacity"
+                                onClick={() => handleCopyText(customer.user_number)}
+                              />
+                            )}
+                          </div>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <div 
+                          className="flex items-start gap-2 group relative pr-6"
+                          onMouseEnter={() => setHoveredField({ id: customer.id, field: 'link' })}
+                          onMouseLeave={() => setHoveredField(null)}
+                        >
+                          <span className="line-clamp-2 text-left text-sm">
+                            {customer.social_network_link || '-'}
+                          </span>
+                          {customer.social_network_link && hoveredField?.id === customer.id && hoveredField?.field === 'link' && (
+                            <Copy 
+                              className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0 opacity-60 hover:opacity-100 transition-opacity"
+                              onClick={() => handleCopyText(customer.social_network_link)}
+                            />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        {formatPaymentStatus(customer.payment_status, customer.payment_amount)}
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <div className="space-y-1 text-sm">
+                          <div>{formatDate(customer.start_date)}</div>
+                          <div className="text-gray-500">{formatTimeRange(customer.start_date, customer.end_date)}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <div 
+                          className="flex items-start gap-2 group relative pr-6"
+                          onMouseEnter={() => setHoveredField({ id: customer.id, field: 'notes' })}
+                          onMouseLeave={() => setHoveredField(null)}
+                        >
+                          <span className="line-clamp-3 text-left text-sm min-h-[1.5rem]">
+                            {customer.event_notes || '-'}
+                          </span>
+                          {customer.event_notes && hoveredField?.id === customer.id && hoveredField?.field === 'notes' && (
+                            <Copy 
+                              className="h-4 w-4 cursor-pointer hover:text-primary absolute right-0 top-0 opacity-60 hover:opacity-100 transition-opacity"
+                              onClick={() => handleCopyText(customer.event_notes)}
+                            />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        {(customer.customer_files_new?.length > 0 || customer.event_files?.length > 0) ? (
+                          <div className="max-w-[180px]">
+                            <FileDisplay 
+                              files={customer.customer_files_new || customer.event_files}
+                              bucketName={customer.id.startsWith('event-') ? "event_attachments" : "customer_attachments"}
+                              allowDelete={false}
+                              parentId={customer.id.startsWith('event-') ? customer.id.replace('event-', '') : customer.id}
+                              parentType={customer.id.startsWith('event-') ? "event" : "customer"}
+                            />
+                          </div>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(customer)}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteCustomer(customer)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
 
-      {/* Pagination section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground whitespace-nowrap">{t("crm.customersPerPage")}:</span>
-          <Select
-            value={pageSize.toString()}
-            onValueChange={handlePageSizeChange}
-          >
-            <SelectTrigger className="w-[100px] bg-background">
-              <SelectValue placeholder="10" />
-            </SelectTrigger>
-            <SelectContent className="bg-background">
-              {[10, 20, 50, 100, 500, 1000].map((size) => (
-                <SelectItem key={size} value={size.toString()}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {Math.min((currentPage - 1) * pageSize + 1, filteredData.length)}-{Math.min(currentPage * pageSize, filteredData.length)} {t("common.of")} {filteredData.length}
-        </div>
-      </div>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">{t("crm.customersPerPage")}:</span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={handlePageSizeChange}
+              >
+                <SelectTrigger className="w-[100px] bg-background">
+                  <SelectValue placeholder="10" />
+                </SelectTrigger>
+                <SelectContent className="bg-background">
+                  {[10, 20, 50, 100, 500, 1000].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {Math.min((currentPage - 1) * pageSize + 1, filteredData.length)}-{Math.min(currentPage * pageSize, filteredData.length)} {t("common.of")} {filteredData.length}
+            </div>
+          </div>
+        </>
+      )}
 
       <CustomerDialog
         isOpen={isDialogOpen}

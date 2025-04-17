@@ -4,21 +4,24 @@ import {
   Command,
   CommandInput,
 } from "@/components/ui/command"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Progress } from "@/components/ui/progress"
 
 interface SearchCommandProps {
   data: any[]
   setFilteredData: (data: any[]) => void
+  isLoading?: boolean
 }
 
-export const SearchCommand = React.memo(({ data, setFilteredData }: SearchCommandProps) => {
+export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: SearchCommandProps) => {
   // Use ref for the timeout and the current data to avoid unnecessary re-renders
   const debounceTimeout = React.useRef<NodeJS.Timeout | null>(null);
-  const currentDataRef = React.useRef(data);
+  const dataRef = React.useRef(data);
   const [searchValue, setSearchValue] = React.useState<string>("");
   
   // Update the ref when data changes
   React.useEffect(() => {
-    currentDataRef.current = data;
+    dataRef.current = data;
   }, [data]);
 
   // Search implementation with optimized debouncing  
@@ -31,13 +34,13 @@ export const SearchCommand = React.memo(({ data, setFilteredData }: SearchComman
     
     // Immediate response for empty search
     if (!search.trim()) {
-      setFilteredData(currentDataRef.current);
+      setFilteredData(dataRef.current);
       return;
     }
     
     debounceTimeout.current = setTimeout(() => {
       const searchLower = search.toLowerCase();
-      const filtered = currentDataRef.current.filter((item) => {
+      const filtered = dataRef.current.filter((item) => {
         return (
           (item.title?.toLowerCase().includes(searchLower)) ||
           (item.user_number?.toLowerCase().includes(searchLower)) ||
@@ -48,7 +51,7 @@ export const SearchCommand = React.memo(({ data, setFilteredData }: SearchComman
       });
       
       setFilteredData(filtered);
-    }, 200); // Slight increase in debounce time to reduce processing frequency
+    }, 200);
   }, [setFilteredData]);
   
   // Clean up timeout on unmount
@@ -59,6 +62,15 @@ export const SearchCommand = React.memo(({ data, setFilteredData }: SearchComman
       }
     };
   }, []);
+
+  if (isLoading) {
+    return (
+      <div className="w-full md:w-[200px] rounded-lg border -mt-4 p-2 space-y-2">
+        <Skeleton className="h-9 w-full" />
+        <Progress value={75} className="h-1" />
+      </div>
+    );
+  }
 
   return (
     <Command className="w-full md:w-[200px] rounded-lg border -mt-4">

@@ -8,6 +8,7 @@ import { StatsHeader } from "./Statistics/StatsHeader";
 import { StatsCards } from "./Statistics/StatsCards";
 import { useStatistics } from "./Statistics/useStatistics";
 import { useExcelExport } from "./Statistics/ExcelExport";
+import { Skeleton } from "./ui/skeleton";
 
 export const Statistics = () => {
   const { user } = useAuth();
@@ -60,17 +61,35 @@ export const Statistics = () => {
         dateRange={dateRange}
         onDateChange={handleDateChange}
         onExport={handleExport}
+        isLoading={isLoading}
       />
       
-      <StatsCards 
-        taskStats={currentTaskStats} 
-        eventStats={currentEventStats} 
-      />
+      {isLoading ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-32 w-full" />
+            ))}
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-2">
+            <Skeleton className="h-[300px] w-full" />
+            <Skeleton className="h-[300px] w-full" />
+          </div>
+        </div>
+      ) : (
+        <>
+          <StatsCards 
+            taskStats={currentTaskStats} 
+            eventStats={currentEventStats} 
+          />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <BookingChart data={chartData} />
-        <IncomeChart data={incomeData} />
-      </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <BookingChart data={chartData} />
+            <IncomeChart data={incomeData} />
+          </div>
+        </>
+      )}
     </div>
   );
 };

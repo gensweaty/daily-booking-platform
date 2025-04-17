@@ -56,26 +56,33 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
 
   const { 
     data: customers = [], 
-    isLoading: isLoadingCustomers 
+    isLoading: isLoadingCustomers,
+    isFetching: isFetchingCustomers
   } = useQuery({
     queryKey: customersQueryKey,
     queryFn: fetchCustomers,
     enabled: !!userId,
-    staleTime: 30000, // Cache results for 30 seconds
+    staleTime: 60000, // Cache results for 1 minute
+    gcTime: 300000, // Keep in cache for 5 minutes
+    refetchOnWindowFocus: false,
   });
 
   const { 
     data: events = [], 
-    isLoading: isLoadingEvents 
+    isLoading: isLoadingEvents,
+    isFetching: isFetchingEvents
   } = useQuery({
     queryKey: eventsQueryKey,
     queryFn: fetchEvents,
     enabled: !!userId,
-    staleTime: 30000, // Cache results for 30 seconds
+    staleTime: 60000, // Cache results for 1 minute
+    gcTime: 300000, // Keep in cache for 5 minutes
+    refetchOnWindowFocus: false,
   });
 
   // Pre-process combined data to avoid doing it on every render
   const combinedData = useMemo(() => {
+    // Return empty array quickly if still loading initial data
     if (isLoadingCustomers || isLoadingEvents) return [];
     
     const combined = [...customers];
@@ -101,6 +108,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
   return {
     combinedData,
     isLoading: isLoadingCustomers || isLoadingEvents,
+    isFetching: isFetchingCustomers || isFetchingEvents,
     customers,
     events
   };
