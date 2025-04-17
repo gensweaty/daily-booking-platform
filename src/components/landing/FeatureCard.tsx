@@ -18,7 +18,7 @@ interface FeatureCardProps {
     title?: string;
   }[];
   reverse?: boolean;
-  translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks';
+  translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks' | 'website';
 }
 
 export const FeatureCard = ({

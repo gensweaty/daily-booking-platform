@@ -1,4 +1,11 @@
+
 export type Language = 'en' | 'es';
+
+export interface LanguageContextType {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: string) => string;
+}
 
 export interface TranslationType {
   nav: {
@@ -74,6 +81,11 @@ export interface TranslationType {
     copyright: string;
     terms: string;
     privacy: string;
+    description?: string;
+    navigation?: string;
+    legal?: string;
+    termsAndPrivacy?: string;
+    rights?: string;
   };
   business: {
     events: string;

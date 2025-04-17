@@ -506,6 +506,9 @@ const en = {
     feature5: "Integration with your calendar and business hours"
   },
   footer: {
+    copyright: "© 2024 SmartBookly. All rights reserved.",
+    terms: "Terms of Service",
+    privacy: "Privacy Policy",
     description: "Your all-in-one solution for business management, scheduling, and client relationships.",
     navigation: "Navigation",
     legal: "Legal",

@@ -394,6 +394,9 @@ const es = {
     feature5: "Tablero personalizado con indicadores clave de rendimiento"
   },
   footer: {
+    copyright: "© 2024 SmartBookly. Todos los derechos reservados.",
+    terms: "Términos de Servicio",
+    privacy: "Política de Privacidad",
     description: "Tu solución todo en uno para gestión de negocios, programación y relaciones con clientes.",
     navigation: "Navegación",
     legal: "Legal",
