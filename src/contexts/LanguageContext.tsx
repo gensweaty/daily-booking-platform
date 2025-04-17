@@ -15,7 +15,7 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     localStorage.setItem('language', language);
   }, [language]);
 
-  const t = (key: string): string => {
+  const t = (key: string, params?: Record<string, any>): string => {
     if (!key) return '';
     
     try {
@@ -33,6 +33,12 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
       
       // Return the translated string or fallback to the key
       if (typeof result === 'string') {
+        // If params are provided, replace placeholders
+        if (params) {
+          return Object.entries(params).reduce((str, [paramKey, paramValue]) => {
+            return str.replace(new RegExp(`{{${paramKey}}}`, 'g'), String(paramValue));
+          }, result);
+        }
         return result;
       } else {
         console.warn(`Translation missing for key: ${key}`);
