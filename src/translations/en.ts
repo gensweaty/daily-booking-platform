@@ -63,7 +63,6 @@ const en = {
   },
   nav: {
     signin: "Sign In",
-    signup: "Sign Up",
     startJourney: "Get Started",
     contact: "Contact",
   },
@@ -152,7 +151,8 @@ const en = {
     addEvent: "Add Event",
     day: "Day",
     week: "Week",
-    month: "Total Tasks",
+    month: "Month",
+    totalTasks: "Total Tasks",
     completed: "Completed",
     inProgress: "In Progress",
     todo: "To Do",

@@ -103,6 +103,30 @@ export interface TranslationType {
     educationDesc: string;
   };
   dashboard: {
+    welcome: string;
+    greeting: string;
+    goodMorning: string;
+    goodAfternoon: string;
+    goodEvening: string;
+    overview: string;
+    calendar: string;
+    bookingCalendar: string;
+    tasks: string;
+    reminders: string;
+    notes: string;
+    business: string;
+    stats: string;
+    statistics: string;
+    crm: string;
+    signOut: string;
+    darkMode: string;
+    lightMode: string;
+    systemMode: string;
+    more: string;
+    addEvent: string;
+    day: string;
+    week: string;
+    month: string;
     totalTasks: string;
     completed: string;
     inProgress: string;
@@ -112,6 +136,19 @@ export interface TranslationType {
     fullyPaid: string;
     totalIncome: string;
     fromAllEvents: string;
+    exportSuccessful: string;
+    exportSuccessMessage: string;
+    changePassword: string;
+    subtitle: string;
+    profile: string;
+    category: string;
+    details: string;
+    additionalInfo: string;
+    taskStatistics: string;
+    eventStatistics: string;
+    financialSummary: string;
+    summaryStatistics: string;
+    eventsData: string;
   };
 }
 
