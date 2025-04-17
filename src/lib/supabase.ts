@@ -110,12 +110,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   realtime: {}
 });
 
-// Fix the return type of fetchWithSelectedColumns to match Promise<{data, error}>
+// Fix the return type of fetchWithSelectedColumns to match PostgrestFilterBuilder
 export const fetchWithSelectedColumns = <T>(
   table: string, 
   columns: string[], 
   queryBuilder: (query: any) => any
-): Promise<{ data: T[] | null, error: any }> => {
+) => {
   // Start with the base query and select specific columns
   let query = supabase
     .from(table)
@@ -124,9 +124,7 @@ export const fetchWithSelectedColumns = <T>(
   // Apply the custom query filters and conditions
   query = queryBuilder(query);
   
-  // Execute the query and return the promise
-  // The PostgrestFilterBuilder object already implements the .then() method required by Promise,
-  // so it's "thenable", but we need to properly type it
+  // Return the query as is - it's already thenable and has data/error properties
   return query;
 };
 
