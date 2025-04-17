@@ -1,9 +1,6 @@
 
 import { Calendar, ChartBar, ListTodo, Users, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { FeatureCard } from "./FeatureCard";
-import { FeatureButtons } from "./FeatureButtons";
-import { ClientLogos } from "./ClientLogos";
 
 const calendarViews = [
   {
@@ -20,6 +17,8 @@ const calendarViews = [
   },
 ];
 
+import { FeatureCard } from "./FeatureCard";
+
 export const FeatureSection = () => {
   const { t } = useLanguage();
   
@@ -28,7 +27,7 @@ export const FeatureSection = () => {
       icon: Globe,
       title: t('website.title'),
       description: t('website.description'),
-      image: "/lovable-uploads/c0e68eb2-162a-4ebc-9b9c-9fe3fd9317c4.png",
+      image: "/lovable-uploads/93988004-733a-4d7a-a860-3b426d0e195c.png",
       benefits: [
         t('website.feature1'),
         t('website.feature2'),
@@ -51,8 +50,7 @@ export const FeatureSection = () => {
         t('booking.feature4')
       ],
       translationPrefix: 'booking' as const,
-      id: "smart-booking",
-      reverse: true
+      id: "smart-booking"
     },
     {
       icon: ChartBar,
@@ -67,6 +65,7 @@ export const FeatureSection = () => {
         t('analytics.feature5')
       ],
       translationPrefix: 'analytics' as const,
+      reverse: true,
       id: "analytics"
     },
     {
@@ -82,8 +81,8 @@ export const FeatureSection = () => {
         t('crm.feature5')
       ],
       translationPrefix: 'crm' as const,
-      id: "crm-solution",
-      reverse: true
+      reverse: true,
+      id: "crm-solution"
     },
     {
       icon: ListTodo,
@@ -98,6 +97,7 @@ export const FeatureSection = () => {
         t('tasks.feature5')
       ],
       translationPrefix: 'tasks' as const,
+      reverse: true,
       id: "task-management"
     }
   ];
@@ -109,25 +109,11 @@ export const FeatureSection = () => {
           {t('features.mainTitle')}
         </h2>
         
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            {t('features.title')}
-          </h2>
-        </div>
-        
-        <FeatureButtons />
-        
         {features.map((feature, index) => (
           <div key={index} id={feature.id}>
             <FeatureCard {...feature} />
           </div>
         ))}
-        
-        <h3 className="text-center text-2xl font-semibold mb-8 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-          {t('features.businessTitle')}
-        </h3>
-        
-        <ClientLogos />
       </div>
     </section>
   );
