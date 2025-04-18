@@ -1,4 +1,3 @@
-
 import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -12,6 +11,7 @@ interface CalendarGridProps {
   onDayClick?: (date: Date, hour?: number) => void;
   onEventClick?: (event: CalendarEventType) => void;
   isExternalCalendar?: boolean;
+  theme?: string;
 }
 
 export const CalendarGrid = ({
@@ -22,9 +22,11 @@ export const CalendarGrid = ({
   onDayClick,
   onEventClick,
   isExternalCalendar = false,
+  theme,
 }: CalendarGridProps) => {
   const startDate = startOfWeek(days[0]);
   const isMobile = useMediaQuery("(max-width: 640px)");
+  const isDarkTheme = theme === "dark";
   
   const weekDays = Array.from({ length: 7 }, (_, i) => 
     format(addDays(startDate, i), isMobile ? 'EEEEE' : 'EEE')
@@ -38,14 +40,14 @@ export const CalendarGrid = ({
 
   const getEventStyles = (event: CalendarEventType) => {
     if (isExternalCalendar) {
-      return "bg-green-500 text-white";
+      return isDarkTheme ? "bg-green-600 text-white" : "bg-green-500 text-white";
     } else {
       if (event.type === "booking_request") {
-        return "bg-green-500 text-white"; 
+        return isDarkTheme ? "bg-green-600 text-white" : "bg-green-500 text-white"; 
       } else if (event.type === "birthday") {
-        return "bg-blue-100 text-blue-700";
+        return isDarkTheme ? "bg-blue-700 text-white" : "bg-blue-100 text-blue-700";
       } else {
-        return "bg-purple-100 text-purple-700";
+        return isDarkTheme ? "bg-purple-700 text-white" : "bg-purple-100 text-purple-700";
       }
     }
   };
@@ -66,7 +68,7 @@ export const CalendarGrid = ({
     return (
       <div className="grid grid-cols-1 h-full overflow-y-auto">
         {view === 'week' && (
-          <div className={`grid grid-cols-7 bg-white sticky top-0 z-20 border-b border-gray-200 h-8 ${isMobile ? 'text-[0.7rem]' : ''}`}>
+          <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-gray-800 text-gray-200' : 'bg-white'} sticky top-0 z-20 border-b ${isDarkTheme ? 'border-gray-700' : 'border-gray-200'} h-8 ${isMobile ? 'text-[0.7rem]' : ''}`}>
             {days.map((day, index) => (
               <div key={`header-${index}`} className={`p-1 text-center font-semibold ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}>
                 {format(day, isMobile ? 'E d' : 'EEE d')}
@@ -76,7 +78,7 @@ export const CalendarGrid = ({
         )}
         
         {view === 'day' && (
-          <div className="bg-white sticky top-0 z-20 border-b border-gray-200 h-8">
+          <div className={`${isDarkTheme ? 'bg-gray-800 text-gray-200' : 'bg-white'} sticky top-0 z-20 border-b ${isDarkTheme ? 'border-gray-700' : 'border-gray-200'} h-8`}>
             <div className="p-1 text-center font-semibold text-xs sm:text-sm">
               {format(days[0], isMobile ? 'E d' : 'EEEE, MMMM d')}
             </div>
@@ -90,7 +92,7 @@ export const CalendarGrid = ({
           {HOURS.map((hourIndex, rowIndex) => (
             <div 
               key={hourIndex} 
-              className="grid border-b border-gray-200"
+              className={`grid ${isDarkTheme ? 'border-gray-700' : 'border-gray-200'} border-b`}
               style={{ 
                 gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(7, 1fr)',
                 height: '6rem'
@@ -99,7 +101,7 @@ export const CalendarGrid = ({
               {view === 'day' ? (
                 <div
                   key={`${days[0].toISOString()}-${hourIndex}`}
-                  className={`border-r border-gray-200 p-1 relative hover:bg-gray-50 transition-colors cursor-pointer`}
+                  className={`${isDarkTheme ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'} border-r p-1 relative transition-colors cursor-pointer`}
                   onClick={() => onDayClick?.(days[0], hourIndex)}
                 >
                   {events
@@ -125,7 +127,7 @@ export const CalendarGrid = ({
                           return (
                             <div 
                               key={`more-${event.id}`} 
-                              className="text-[0.65rem] text-gray-600 font-medium absolute bottom-0 left-1 right-1"
+                              className={`text-[0.65rem] ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium absolute bottom-0 left-1 right-1`}
                             >
                               +{events.filter(e => {
                                 const eDate = new Date(e.start_date);
@@ -199,8 +201,8 @@ export const CalendarGrid = ({
                 days.map((day) => (
                   <div
                     key={`${day.toISOString()}-${hourIndex}`}
-                    className={`border-r border-gray-200 p-1 relative hover:bg-gray-50 transition-colors cursor-pointer ${
-                      !isSameMonth(day, selectedDate) ? "text-gray-400" : ""
+                    className={`${isDarkTheme ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'} border-r p-1 relative transition-colors cursor-pointer ${
+                      !isSameMonth(day, selectedDate) ? isDarkTheme ? "text-gray-500" : "text-gray-400" : ""
                     }`}
                     onClick={() => onDayClick?.(day, hourIndex)}
                   >
@@ -227,7 +229,7 @@ export const CalendarGrid = ({
                             return (
                               <div 
                                 key={`more-${event.id}`} 
-                                className="text-[0.65rem] text-gray-600 font-medium absolute bottom-0 left-1 right-1"
+                                className={`text-[0.65rem] ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium absolute bottom-0 left-1 right-1`}
                               >
                                 +{events.filter(e => {
                                   const eDate = new Date(e.start_date);
@@ -307,9 +309,9 @@ export const CalendarGrid = ({
   }
 
   return (
-    <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
+    <div className={`grid grid-cols-7 gap-px ${isDarkTheme ? 'bg-gray-700' : 'bg-gray-200'} rounded-lg overflow-hidden`}>
       {weekDays.map((day) => (
-        <div key={day} className="bg-white p-2 sm:p-4 text-center font-semibold text-xs sm:text-sm">
+        <div key={day} className={`${isDarkTheme ? 'bg-gray-800 text-gray-200' : 'bg-white'} p-2 sm:p-4 text-center font-semibold text-xs sm:text-sm`}>
           {day}
         </div>
       ))}
@@ -322,8 +324,8 @@ export const CalendarGrid = ({
         return (
           <div
             key={day.toISOString()}
-            className={`bg-white p-1 sm:p-4 min-h-[90px] sm:min-h-[120px] cursor-pointer hover:bg-gray-50 ${
-              isOtherMonth ? "text-gray-400" : ""
+            className={`${isDarkTheme ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} p-1 sm:p-4 min-h-[90px] sm:min-h-[120px] cursor-pointer ${
+              isOtherMonth ? isDarkTheme ? "text-gray-500" : "text-gray-400" : ""
             }`}
             onClick={() => onDayClick?.(day)}
           >
@@ -348,7 +350,7 @@ export const CalendarGrid = ({
                       </div>
                     ))}
                     {dayEvents.length > 2 && (
-                      <div className="text-[0.65rem] text-gray-600 font-medium pl-1">
+                      <div className={`text-[0.65rem] ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium pl-1`}>
                         +{dayEvents.length - 2} more
                       </div>
                     )}
