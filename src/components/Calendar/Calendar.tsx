@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -28,6 +27,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/components/ui/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useTheme } from "next-themes";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -55,6 +55,7 @@ export const Calendar = ({
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const isMobile = useMediaQuery("(max-width: 640px)");
+  const { theme } = useTheme();
   
   const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
@@ -186,7 +187,6 @@ export const Calendar = ({
   const handleCalendarDayClick = (date: Date, hour?: number) => {
     const clickedDate = new Date(date);
     
-    // Set the hour or default to 9 AM if not provided (month view)
     clickedDate.setHours(hour !== undefined ? hour : 9, 0, 0, 0);
     
     if (isExternalCalendar && allowBookingRequests) {
@@ -269,6 +269,10 @@ export const Calendar = ({
     );
   }
   
+  const isDarkTheme = theme === "dark";
+  const gridBgClass = isDarkTheme ? "bg-gray-900" : "bg-white";
+  const textClass = isDarkTheme ? "text-white" : "text-foreground";
+
   return (
     <div className={`h-full flex flex-col ${isMobile ? 'gap-2 -mx-4' : 'gap-4'}`}>
       <CalendarHeader
@@ -283,7 +287,7 @@ export const Calendar = ({
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
         {view !== 'month' && <TimeIndicator />}
-        <div className="flex-1">
+        <div className={`flex-1 ${gridBgClass} ${textClass}`}>
           <CalendarView
             days={getDaysForView()}
             events={events || []}

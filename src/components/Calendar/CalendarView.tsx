@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { CalendarGrid } from "./CalendarGrid";
 import { formatDate, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "next-themes";
 
 interface CalendarViewProps {
   days: Date[];
@@ -25,6 +26,7 @@ export function CalendarView({
   isExternalCalendar = false,
 }: CalendarViewProps) {
   const { t } = useLanguage();
+  const { theme } = useTheme();
   
   // For month view, ensure we have days from both previous and next months to fill the grid
   const getDaysWithSurroundingMonths = () => {
@@ -64,6 +66,7 @@ export function CalendarView({
         onDayClick={onDayClick}
         onEventClick={onEventClick}
         isExternalCalendar={isExternalCalendar}
+        theme={theme}
       />
     </div>
   );

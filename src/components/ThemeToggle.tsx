@@ -3,14 +3,26 @@ import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useEffect } from "react";
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const { t } = useLanguage();
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
+    const newTheme = theme === "dark" ? "light" : "dark";
+    setTheme(newTheme);
+    
+    // Immediately apply the theme class to prevent delay in visual feedback
+    document.documentElement.classList.toggle('dark', newTheme === 'dark');
   };
+
+  // Force calendar to update when theme changes
+  useEffect(() => {
+    // Dispatch a custom event that components can listen for to force rerender
+    const event = new CustomEvent('themeChanged', { detail: { theme } });
+    document.dispatchEvent(event);
+  }, [theme]);
 
   return (
     <Button

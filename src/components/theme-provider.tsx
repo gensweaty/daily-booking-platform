@@ -22,6 +22,19 @@ export function ThemeProvider({
   storageKey = "vite-ui-theme", 
   ...props 
 }: ThemeProviderProps) {
+  // Force immediate theme application to prevent flicker
+  React.useEffect(() => {
+    const savedTheme = localStorage.getItem(storageKey);
+    if (savedTheme) {
+      document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+    } else if (defaultTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else if (defaultTheme === 'system') {
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.classList.toggle('dark', systemPrefersDark);
+    }
+  }, [storageKey, defaultTheme]);
+
   return (
     <NextThemesProvider 
       attribute="class" 
