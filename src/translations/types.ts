@@ -73,6 +73,8 @@ export interface TranslationType {
     create: string;
     cancel: string;
     addCustomer: string;
+    editCustomer: string;
+    update: string;
   };
   tasks: {
     title: string;
