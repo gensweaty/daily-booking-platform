@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -29,6 +28,8 @@ interface CustomerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit?: (data: CustomerType) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export const CustomerDialog = ({
@@ -37,7 +38,15 @@ export const CustomerDialog = ({
   open,
   onOpenChange,
   onSubmit,
+  isOpen,
+  onClose,
 }: CustomerDialogProps) => {
+  const isDialogOpen = open || isOpen || false;
+  const handleOpenChange = (value: boolean) => {
+    if (onOpenChange) onOpenChange(value);
+    if (!value && onClose) onClose();
+  };
+
   const [title, setTitle] = useState(initialData?.title || "");
   const [userSurname, setUserSurname] = useState(initialData?.user_surname || "");
   const [userNumber, setUserNumber] = useState(initialData?.user_number || "");
@@ -96,7 +105,6 @@ export const CustomerDialog = ({
       let customerId: string | undefined;
 
       if (initialData?.id) {
-        // Update existing customer
         const { data, error } = await supabase
           .from('customers')
           .update(customerData)
@@ -111,7 +119,6 @@ export const CustomerDialog = ({
         customerId = data.id;
         console.log("Updated customer:", data);
       } else {
-        // Create new customer
         const { data, error } = await supabase
           .from('customers')
           .insert({
@@ -132,7 +139,6 @@ export const CustomerDialog = ({
       }
 
       if (createEvent) {
-        // Create an event for this customer
         const eventData = {
           title,
           user_surname: userSurname,
@@ -166,7 +172,6 @@ export const CustomerDialog = ({
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${customerId}_${Date.now()}.${fileExt}`;
         
-        // Upload file to storage
         const { error: uploadError } = await supabase.storage
           .from('event_attachments')
           .upload(filePath, selectedFile);
@@ -207,7 +212,6 @@ export const CustomerDialog = ({
         });
       }
 
-      // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
@@ -224,7 +228,7 @@ export const CustomerDialog = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{customerId ? t("crm.editCustomer") : t("crm.newCustomer")}</DialogTitle>

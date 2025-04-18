@@ -20,6 +20,7 @@ interface FileUploadFieldProps {
   acceptedFileTypes?: string;
   hideLabel?: boolean;
   hideDescription?: boolean; // Added to hide the description text
+  disabled?: boolean; // Add disabled prop
 }
 
 export const FileUploadField = ({ 
@@ -29,7 +30,8 @@ export const FileUploadField = ({
   setFileError, 
   acceptedFileTypes, 
   hideLabel = false,
-  hideDescription = false
+  hideDescription = false,
+  disabled = false // Default to false
 }: FileUploadFieldProps) => {
   const { t } = useLanguage();
 
@@ -84,6 +86,7 @@ export const FileUploadField = ({
           // Reset value before opening to ensure onChange triggers even if same file is selected
           (e.target as HTMLInputElement).value = '';
         }}
+        disabled={disabled}
       />
       {fileError && (
         <p className="text-sm text-red-500 mt-1">{fileError}</p>

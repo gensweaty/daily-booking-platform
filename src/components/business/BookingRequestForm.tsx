@@ -1,4 +1,3 @@
-
 // Make sure translation keys are properly used in the BookingRequestForm component
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -17,13 +16,23 @@ interface BookingRequestFormProps {
   selectedDate?: Date;
   onSuccess?: () => void;
   onCancel?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  startTime?: string;
+  endTime?: string;
+  isExternalBooking?: boolean;
 }
 
 export const BookingRequestForm = ({
   businessId,
   selectedDate,
   onSuccess,
-  onCancel
+  onCancel,
+  open,
+  onOpenChange,
+  startTime,
+  endTime,
+  isExternalBooking
 }: BookingRequestFormProps) => {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -40,7 +49,6 @@ export const BookingRequestForm = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  // Check if the user is rate limited
   useEffect(() => {
     const checkRateLimit = async () => {
       if (!businessId) return;
@@ -82,7 +90,6 @@ export const BookingRequestForm = ({
     checkRateLimit();
   }, [businessId]);
 
-  // Countdown timer for rate limit
   useEffect(() => {
     if (!rateLimitExceeded || timeRemaining <= 0) return;
     
@@ -163,7 +170,6 @@ export const BookingRequestForm = ({
     try {
       const clientIp = await getClientIp();
       
-      // Check rate limit again just before submission
       const { data: recentRequests, error: rateCheckError } = await supabase
         .from('booking_requests')
         .select('created_at')
@@ -264,10 +270,8 @@ export const BookingRequestForm = ({
         onSuccess();
       }
       
-      // Set rate limit after successful submission
       setRateLimitExceeded(true);
-      setTimeRemaining(120); // 2 minutes
-      
+      setTimeRemaining(120);
     } catch (error: any) {
       console.error('Error submitting booking request:', error);
       toast({

@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es';
 
 export interface LanguageContextType {
@@ -84,6 +83,7 @@ export interface TranslationType {
     feature4: string;
     feature5: string;
     addTask: string;
+    editTask: string;
   };
   website: {
     title: string;
