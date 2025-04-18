@@ -251,6 +251,7 @@ export type Database = {
       }
       customers: {
         Row: {
+          create_event: boolean | null
           created_at: string | null
           deleted_at: string | null
           end_date: string | null
@@ -267,6 +268,7 @@ export type Database = {
           user_surname: string | null
         }
         Insert: {
+          create_event?: boolean | null
           created_at?: string | null
           deleted_at?: string | null
           end_date?: string | null
@@ -283,6 +285,7 @@ export type Database = {
           user_surname?: string | null
         }
         Update: {
+          create_event?: boolean | null
           created_at?: string | null
           deleted_at?: string | null
           end_date?: string | null

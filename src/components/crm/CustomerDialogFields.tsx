@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { format } from "date-fns";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -28,6 +29,9 @@ interface CustomerDialogFieldsProps {
   setSelectedFile: (file: File | null) => void;
   fileError: string;
   setFileError: (error: string) => void;
+  isEventBased?: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
 export const CustomerDialogFields = ({
@@ -51,8 +55,22 @@ export const CustomerDialogFields = ({
   setSelectedFile,
   fileError,
   setFileError,
+  isEventBased = false,
+  startDate,
+  endDate,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
+
+  const formatDateTime = (dateStr: string | null | undefined) => {
+    if (!dateStr) return "-";
+    try {
+      const date = new Date(dateStr);
+      return format(date, "PPp"); // Format using date-fns for localized date and time
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return dateStr;
+    }
+  };
 
   return (
     <div className="space-y-4 mt-4">
@@ -89,17 +107,36 @@ export const CustomerDialogFields = ({
         />
       </div>
 
+      {isEventBased && startDate && endDate && (
+        <div className="rounded-md bg-muted p-3 space-y-2">
+          <Label className="font-medium">{t("events.eventDetails")}</Label>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <span className="text-muted-foreground">{t("events.start")}:</span>
+              <div>{formatDateTime(startDate)}</div>
+            </div>
+            <div>
+              <span className="text-muted-foreground">{t("events.end")}:</span>
+              <div>{formatDateTime(endDate)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center space-x-2">
         <Checkbox
           id="createEvent"
           checked={createEvent}
           onCheckedChange={(checked) => setCreateEvent(checked as boolean)}
+          disabled={isEventBased} // Disable if the customer was created from an event
         />
         <Label
           htmlFor="createEvent"
-          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed ${isEventBased ? "text-muted-foreground" : ""}`}
         >
-          {t("crm.createEventForCustomer")}
+          {isEventBased 
+            ? t("crm.customerFromEvent") 
+            : t("crm.createEventForCustomer")}
         </Label>
       </div>
 

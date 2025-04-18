@@ -20,6 +20,8 @@ export interface CustomerType {
   payment_status?: string;
   payment_amount?: number;
   user_id?: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 interface CustomerDialogProps {
@@ -58,6 +60,7 @@ export const CustomerDialog = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  const [isEventBased, setIsEventBased] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -73,6 +76,18 @@ export const CustomerDialog = ({
       setPaymentStatus(initialData.payment_status || "");
       setPaymentAmount(initialData.payment_amount?.toString() || "");
       setCustomerNotes(initialData.event_notes || "");
+      
+      setIsEventBased(!!initialData.start_date && !!initialData.end_date);
+    } else {
+      setTitle("");
+      setUserSurname("");
+      setUserNumber("");
+      setSocialNetworkLink("");
+      setCreateEvent(false);
+      setPaymentStatus("");
+      setPaymentAmount("");
+      setCustomerNotes("");
+      setIsEventBased(false);
     }
   }, [initialData, open]);
 
@@ -100,6 +115,8 @@ export const CustomerDialog = ({
         payment_status: createEvent ? paymentStatus : null,
         payment_amount: createEvent && paymentStatus && paymentStatus !== 'not_paid' ? parseFloat(paymentAmount) : null,
         user_id: user?.id,
+        start_date: initialData?.start_date,
+        end_date: initialData?.end_date
       };
 
       let customerId: string | undefined;
@@ -124,8 +141,8 @@ export const CustomerDialog = ({
           .insert({
             ...customerData,
             type: 'customer',
-            start_date: start.toISOString(),
-            end_date: end.toISOString(),
+            start_date: createEvent ? start.toISOString() : null,
+            end_date: createEvent ? end.toISOString() : null,
           })
           .select()
           .single();
@@ -202,7 +219,7 @@ export const CustomerDialog = ({
       
       toast({
         title: t("common.success"),
-        description: initialData?.id ? "Customer updated successfully" : "Customer created successfully",
+        description: initialData?.id ? t("crm.customerUpdated") : t("crm.customerCreated"),
       });
 
       if (onSubmit && customerId) {
@@ -219,7 +236,7 @@ export const CustomerDialog = ({
       console.error('Error submitting customer:', error);
       toast({
         title: t("common.error"),
-        description: error.message || "An error occurred",
+        description: error.message || t("common.errorOccurred"),
         variant: "destructive",
       });
     } finally {
@@ -255,6 +272,9 @@ export const CustomerDialog = ({
             setSelectedFile={setSelectedFile}
             fileError={fileError}
             setFileError={setFileError}
+            isEventBased={isEventBased}
+            startDate={initialData?.start_date}
+            endDate={initialData?.end_date}
           />
           <DialogFooter className="mt-6">
             <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
