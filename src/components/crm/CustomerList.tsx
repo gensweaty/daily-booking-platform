@@ -543,9 +543,10 @@ export const CustomerList = () => {
       )}
 
       <CustomerDialog
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
         customerId={selectedCustomer?.id}
+        initialData={selectedCustomer}
       />
     </div>
   );

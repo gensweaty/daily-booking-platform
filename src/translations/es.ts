@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 const es: TranslationType = {
@@ -71,7 +70,9 @@ const es: TranslationType = {
     commentPlaceholder: "Agregue un comentario sobre este cliente",
     create: "Crear",
     cancel: "Cancelar",
-    addCustomer: "Agregar Cliente"
+    addCustomer: "Agregar Cliente",
+    editCustomer: "Editar Cliente",
+    update: "Actualizar"
   },
   tasks: {
     title: "Tareas",
@@ -82,7 +83,8 @@ const es: TranslationType = {
     feature3: "Tareas asignables",
     feature4: "Monitoreo de progreso",
     feature5: "Tareas recurrentes",
-    addTask: "Agregar Tarea"
+    addTask: "Agregar Tarea",
+    editTask: "Editar Tarea"
   },
   website: {
     title: "Sitio Web",
