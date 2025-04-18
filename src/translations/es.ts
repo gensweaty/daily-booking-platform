@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 const es: TranslationType = {
@@ -72,7 +73,20 @@ const es: TranslationType = {
     cancel: "Cancelar",
     addCustomer: "Agregar Cliente",
     editCustomer: "Editar Cliente",
-    update: "Actualizar"
+    update: "Actualizar",
+    dates: "Fechas",
+    actions: "Acciones",
+    customersPerPage: "Clientes por página",
+    noCustomers: "No se encontraron clientes",
+    noCustomersDescription: "Agrega tu primer cliente para comenzar",
+    refreshing: "Actualizando datos...",
+    yes: "Sí",
+    no: "No",
+    copiedToClipboard: "Copiado al portapapeles",
+    copyError: "Error al copiar texto",
+    deleteSuccess: "Eliminado con éxito",
+    deleteError: "Error al eliminar",
+    missingUserInfo: "Falta información del usuario"
   },
   tasks: {
     title: "Tareas",
@@ -190,7 +204,9 @@ const es: TranslationType = {
     updateEvent: "Actualizar Evento",
     createEvent: "Crear Evento",
     socialLinkEmail: "Correo / Enlace Social",
-    dateAndTime: "Fecha y Hora"
+    dateAndTime: "Fecha y Hora",
+    date: "Fecha",
+    time: "Hora"
   },
   contact: {
     email: "Correo electrónico",
@@ -214,6 +230,14 @@ const es: TranslationType = {
     waitBeforeBooking: "Por favor espere {{time}} antes de enviar otra solicitud de reserva",
     rateLimitMessage: "Solo puedes enviar una solicitud de reserva cada 2 minutos",
     waitTimeRemaining: "Por favor espere",
+    of: "de",
+    attachments: "Archivos adjuntos",
+    refreshing: "Actualizando datos...",
+    copiedToClipboard: "Copiado al portapapeles",
+    copyError: "Error al copiar texto",
+    deleteSuccess: "Eliminado con éxito",
+    deleteError: "Error al eliminar",
+    missingUserInfo: "Falta información del usuario"
   },
 };
 

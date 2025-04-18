@@ -16,6 +16,21 @@ type ThemeProviderProps = {
   attribute?: NextThemeProviderProps['attribute'];
 }
 
-export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  return <NextThemesProvider {...props}>{children}</NextThemesProvider>
+export function ThemeProvider({ 
+  children, 
+  defaultTheme = "system", 
+  storageKey = "vite-ui-theme", 
+  ...props 
+}: ThemeProviderProps) {
+  return (
+    <NextThemesProvider 
+      attribute="class" 
+      defaultTheme={defaultTheme} 
+      storageKey={storageKey} 
+      enableSystem 
+      {...props}
+    >
+      {children}
+    </NextThemesProvider>
+  );
 }

@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 const en: TranslationType = {
@@ -72,7 +73,20 @@ const en: TranslationType = {
     cancel: "Cancel",
     addCustomer: "Add Customer",
     editCustomer: "Edit Customer",
-    update: "Update"
+    update: "Update",
+    dates: "Dates",
+    actions: "Actions",
+    customersPerPage: "Customers per page",
+    noCustomers: "No customers found",
+    noCustomersDescription: "Add your first customer to get started",
+    refreshing: "Refreshing data...",
+    yes: "Yes",
+    no: "No",
+    copiedToClipboard: "Copied to clipboard",
+    copyError: "Failed to copy text",
+    deleteSuccess: "Successfully deleted",
+    deleteError: "Error deleting",
+    missingUserInfo: "Missing user information"
   },
   tasks: {
     title: "Tasks",
@@ -190,7 +204,9 @@ const en: TranslationType = {
     updateEvent: "Update Event",
     createEvent: "Create Event",
     socialLinkEmail: "Email / Social Link",
-    dateAndTime: "Date & Time"
+    dateAndTime: "Date & Time",
+    date: "Date",
+    time: "Time"
   },
   contact: {
     email: "Email",
@@ -214,6 +230,14 @@ const en: TranslationType = {
     waitBeforeBooking: "Please wait {{time}} before submitting another booking request",
     rateLimitMessage: "You can only submit one booking request every 2 minutes",
     waitTimeRemaining: "Please wait",
+    of: "of",
+    attachments: "Attachments",
+    refreshing: "Refreshing data...",
+    copiedToClipboard: "Copied to clipboard",
+    copyError: "Failed to copy text",
+    deleteSuccess: "Successfully deleted",
+    deleteError: "Error deleting",
+    missingUserInfo: "Missing user information"
   },
 };
 

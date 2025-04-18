@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es';
 
 export interface LanguageContextType {
@@ -75,6 +76,19 @@ export interface TranslationType {
     addCustomer: string;
     editCustomer: string;
     update: string;
+    dates: string;
+    actions: string;
+    customersPerPage: string;
+    noCustomers: string;
+    noCustomersDescription: string;
+    refreshing: string;
+    yes: string;
+    no: string;
+    copiedToClipboard: string;
+    copyError: string;
+    deleteSuccess: string;
+    deleteError: string;
+    missingUserInfo: string;
   };
   tasks: {
     title: string;
@@ -191,6 +205,8 @@ export interface TranslationType {
     createEvent: string;
     socialLinkEmail: string;
     dateAndTime: string;
+    date: string;
+    time: string;
   };
   contact: {
     email: string;
@@ -214,6 +230,14 @@ export interface TranslationType {
     waitBeforeBooking: string;
     rateLimitMessage: string;
     waitTimeRemaining: string;
+    of: string;
+    attachments: string;
+    refreshing: string;
+    copiedToClipboard: string;
+    copyError: string;
+    deleteSuccess: string;
+    deleteError: string;
+    missingUserInfo: string;
   };
 }
 
