@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -5,7 +6,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 
@@ -220,6 +221,7 @@ export const CustomerDialog = ({
       toast({
         title: t("common.success"),
         description: initialData?.id ? t("crm.customerUpdated") : t("crm.customerCreated"),
+        duration: 3000, // Auto-dismiss after 3 seconds
       });
 
       if (onSubmit && customerId) {
@@ -238,6 +240,7 @@ export const CustomerDialog = ({
         title: t("common.error"),
         description: error.message || t("common.errorOccurred"),
         variant: "destructive",
+        duration: 5000, // Auto-dismiss error after 5 seconds
       });
     } finally {
       setIsSubmitting(false);

@@ -64,6 +64,7 @@ const en: TranslationType = {
     socialLinkEmail: "Email / Social Link",
     socialLinkEmailPlaceholder: "Enter email or social media link",
     createEventForCustomer: "Create event for this customer",
+    customerFromEvent: "This customer was created from an event",
     paymentStatus: "Payment Status",
     selectPaymentStatus: "Select payment status",
     comment: "Comment",
@@ -85,7 +86,9 @@ const en: TranslationType = {
     copyError: "Failed to copy text",
     deleteSuccess: "Successfully deleted",
     deleteError: "Error deleting",
-    missingUserInfo: "Missing user information"
+    missingUserInfo: "Missing user information",
+    customerCreated: "Customer created successfully",
+    customerUpdated: "Customer updated successfully"
   },
   tasks: {
     title: "Tasks",
@@ -205,7 +208,10 @@ const en: TranslationType = {
     socialLinkEmail: "Email / Social Link",
     dateAndTime: "Date & Time",
     date: "Date",
-    time: "Time"
+    time: "Time",
+    start: "Start",
+    end: "End",
+    eventDetails: "Event Details"
   },
   contact: {
     email: "Email",
@@ -236,7 +242,8 @@ const en: TranslationType = {
     copyError: "Failed to copy text",
     deleteSuccess: "Successfully deleted",
     deleteError: "Error deleting",
-    missingUserInfo: "Missing user information"
+    missingUserInfo: "Missing user information",
+    errorOccurred: "An error occurred. Please try again."
   },
   auth: {
     welcome: "Welcome to SmartBookly",
