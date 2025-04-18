@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 const es: TranslationType = {
@@ -239,6 +238,42 @@ const es: TranslationType = {
     deleteError: "Error al eliminar",
     missingUserInfo: "Falta información del usuario"
   },
+  auth: {
+    welcome: "Bienvenido a SmartBookly",
+    description: "Gestiona tu negocio con nuestra solución todo en uno",
+    signInButton: "Iniciar Sesión",
+    signUpButton: "Registrarse",
+    emailLabel: "Correo electrónico",
+    passwordLabel: "Contraseña",
+    usernameLabel: "Nombre de usuario",
+    forgotPassword: "¿Olvidaste tu contraseña?",
+    noAccount: "¿No tienes una cuenta?",
+    haveAccount: "¿Ya tienes una cuenta?",
+    signInCta: "Iniciar sesión",
+    signUpCta: "Registrarse",
+    agreeToTerms: "Estoy de acuerdo con los términos y condiciones",
+    requiredField: "Este campo es obligatorio",
+    invalidEmail: "Por favor ingresa un correo electrónico válido",
+    passwordMinLength: "La contraseña debe tener al menos 6 caracteres",
+    passwordMatch: "Las contraseñas no coinciden",
+    confirmPassword: "Confirmar Contraseña",
+    resetPassword: "Restablecer Contraseña",
+    resetPasswordCta: "Enviar Enlace de Restablecimiento",
+    resetPasswordSuccess: "Correo de restablecimiento de contraseña enviado",
+    resetPasswordError: "Error al enviar correo de restablecimiento",
+    signInError: "Correo electrónico o contraseña inválidos",
+    signUpError: "Error al crear la cuenta",
+    businessNameLabel: "Nombre del Negocio",
+    businessTypeLabel: "Tipo de Negocio",
+    selectBusinessType: "Selecciona el tipo de negocio",
+    fullNameLabel: "Nombre Completo",
+    fullName: "Nombre Completo",
+    phoneLabel: "Teléfono",
+    terms: "Términos",
+    privacy: "Privacidad",
+    and: "y",
+    resetInstructions: "Ingresa tu correo electrónico y te enviaremos instrucciones sobre cómo restablecer tu contraseña."
+  }
 };
 
 export default es;

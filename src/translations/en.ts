@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 const en: TranslationType = {
@@ -239,6 +238,42 @@ const en: TranslationType = {
     deleteError: "Error deleting",
     missingUserInfo: "Missing user information"
   },
+  auth: {
+    welcome: "Welcome to SmartBookly",
+    description: "Manage your business with our all-in-one solution",
+    signInButton: "Sign In",
+    signUpButton: "Sign Up",
+    emailLabel: "Email",
+    passwordLabel: "Password",
+    usernameLabel: "Username",
+    forgotPassword: "Forgot Password?",
+    noAccount: "Don't have an account?",
+    haveAccount: "Already have an account?",
+    signInCta: "Sign in",
+    signUpCta: "Sign up",
+    agreeToTerms: "I agree to the terms and conditions",
+    requiredField: "This field is required",
+    invalidEmail: "Please enter a valid email",
+    passwordMinLength: "Password must be at least 6 characters",
+    passwordMatch: "Passwords do not match",
+    confirmPassword: "Confirm Password",
+    resetPassword: "Reset Password",
+    resetPasswordCta: "Send Reset Link",
+    resetPasswordSuccess: "Password reset email sent",
+    resetPasswordError: "Error sending reset email",
+    signInError: "Invalid email or password",
+    signUpError: "Error creating account",
+    businessNameLabel: "Business Name",
+    businessTypeLabel: "Business Type",
+    selectBusinessType: "Select business type",
+    fullNameLabel: "Full Name",
+    fullName: "Full Name",
+    phoneLabel: "Phone",
+    terms: "Terms",
+    privacy: "Privacy",
+    and: "and",
+    resetInstructions: "Enter your email and we'll send you instructions on how to reset your password."
+  }
 };
 
 export default en;

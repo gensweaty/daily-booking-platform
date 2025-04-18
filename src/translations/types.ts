@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es';
 
 export interface LanguageContextType {
@@ -238,6 +237,42 @@ export interface TranslationType {
     deleteSuccess: string;
     deleteError: string;
     missingUserInfo: string;
+  };
+  auth: {
+    welcome: string;
+    description: string;
+    signInButton: string;
+    signUpButton: string;
+    emailLabel: string;
+    passwordLabel: string;
+    usernameLabel: string;
+    forgotPassword: string;
+    noAccount: string;
+    haveAccount: string;
+    signInCta: string;
+    signUpCta: string;
+    agreeToTerms: string;
+    requiredField: string;
+    invalidEmail: string;
+    passwordMinLength: string;
+    passwordMatch: string;
+    confirmPassword: string;
+    resetPassword: string;
+    resetPasswordCta: string;
+    resetPasswordSuccess: string;
+    resetPasswordError: string;
+    signInError: string;
+    signUpError: string;
+    businessNameLabel: string;
+    businessTypeLabel: string;
+    selectBusinessType: string;
+    fullNameLabel: string;
+    fullName: string;
+    phoneLabel: string;
+    terms: string;
+    privacy: string;
+    and: string;
+    resetInstructions: string;
   };
 }
 
