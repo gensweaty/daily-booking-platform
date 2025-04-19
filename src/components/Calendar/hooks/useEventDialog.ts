@@ -213,10 +213,12 @@ export const useEventDialog = ({
         console.log('Dates unchanged, skipping conflict check');
       }
 
-      // Fix: Pass the event ID directly in the data object instead of using a nested 'updates' property
+      // Pass the complete data object with the ID to the updateEvent function
+      // This is important because we need to know the event type for booking requests
       const result = await updateEvent({
         ...data,
-        id: selectedEvent.id
+        id: selectedEvent.id,
+        type: selectedEvent.type  // Ensure we pass the event type
       });
       
       setSelectedEvent(null);

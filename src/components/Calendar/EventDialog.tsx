@@ -124,6 +124,11 @@ export const EventDialog = ({
 
     if (event?.id) {
       eventData.id = event.id;
+      
+      // Ensure we pass the event type when updating
+      if (event.type) {
+        eventData.type = event.type;
+      }
     }
 
     try {

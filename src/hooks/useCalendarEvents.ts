@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -205,12 +204,19 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     return data;
   };
 
-  const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
+  const updateEvent = async (data: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
     
-    if (updates.start_date && updates.end_date) {
-      const startDateTime = new Date(updates.start_date);
-      const endDateTime = new Date(updates.end_date);
+    // Extract id from the data object
+    const id = data.id;
+    if (!id) throw new Error("Event ID is required for updates");
+    
+    console.log("Updating event with ID:", id, "Data:", data);
+    console.log("Event type:", data.type);
+    
+    if (data.start_date && data.end_date) {
+      const startDateTime = new Date(data.start_date);
+      const endDateTime = new Date(data.end_date);
       
       // When updating an event, pass the current event id to exclude it from conflict checking
       const { available, conflictDetails } = await checkTimeSlotAvailability(
@@ -224,7 +230,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
-    if (updates.type === 'booking_request' || (updates.id && id.includes('-'))) {
+    // Handle booking request events
+    if (data.type === 'booking_request' || (id && typeof id === 'string' && id.includes('-'))) {
       try {
         const { data: bookingData, error: bookingError } = await supabase
           .from('booking_requests')
@@ -237,13 +244,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           const { data: updatedBooking, error: updateError } = await supabase
             .from('booking_requests')
             .update({
-              title: updates.title,
-              requester_name: updates.user_surname,
-              requester_phone: updates.user_number,
-              requester_email: updates.social_network_link,
-              description: updates.event_notes,
-              start_date: updates.start_date,
-              end_date: updates.end_date,
+              title: data.title,
+              requester_name: data.user_surname,
+              requester_phone: data.user_number,
+              requester_email: data.social_network_link,
+              description: data.event_notes,
+              start_date: data.start_date,
+              end_date: data.end_date,
               updated_at: new Date().toISOString()
             })
             .eq('id', id)
@@ -264,7 +271,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             end_date: updatedBooking.end_date,
             user_id: updatedBooking.user_id || '',
             user_surname: updatedBooking.requester_name,
-            user_number: updatedBooking.requester_phone || '',
+            user_number: updatedBooking.user_number || '',
             social_network_link: updatedBooking.requester_email,
             event_notes: updatedBooking.description || '',
             type: 'booking_request',
@@ -279,9 +286,20 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
-    const { data, error } = await supabase
+    // Standard event update
+    const { data: updatedEvent, error } = await supabase
       .from('events')
-      .update(updates)
+      .update({
+        title: data.title,
+        user_surname: data.user_surname,
+        user_number: data.user_number,
+        social_network_link: data.social_network_link,
+        event_notes: data.event_notes,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        payment_status: data.payment_status,
+        payment_amount: data.payment_amount
+      })
       .eq('id', id)
       .select()
       .single();
@@ -293,7 +311,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       description: "Your event has been updated successfully."
     });
     
-    return data;
+    return updatedEvent;
   };
 
   const checkTimeSlotAvailability = async (
@@ -354,7 +372,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         const targetBusinessId = businessId;
         
         if (targetBusinessId) {
-          // Also check for booking conflicts
+          // Also check for booking conflicts, BUT EXCLUDE THE CURRENT BOOKING BEING EDITED
           const { data: conflictingBookings, error: bookingsError } = await supabase
             .from('booking_requests')
             .select('id, title, start_date, end_date')
@@ -367,12 +385,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           // Filter out the current booking being updated
           const bookingsConflict = conflictingBookings?.filter(booking => 
-            excludeEventId !== booking.id &&
+            excludeEventId !== booking.id && // This is the key fix - exclude the current booking ID
             !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
               endDate.getTime() <= new Date(booking.start_date).getTime())
           );
           
-          console.log("Conflicting bookings (excluding current):", bookingsConflict);
+          console.log("Conflicting bookings (excluding current ID):", excludeEventId);
+          console.log("Filtered conflicting bookings:", bookingsConflict);
           
           if (bookingsConflict && bookingsConflict.length > 0) {
             const conflictBooking = bookingsConflict[0];
