@@ -346,7 +346,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, start_date, end_date, deleted_at')
+        .select('id, title, start_date, end_date, deleted_at, type')
         .eq('user_id', userId)
         .filter('start_date', 'lt', endDate.toISOString())
         .filter('end_date', 'gt', startDate.toISOString())
@@ -355,7 +355,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       if (eventsError) throw eventsError;
       
       console.log("[checkTimeSlotAvailability] All potential conflicting events:", 
-        conflictingEvents?.map(e => ({id: e.id, title: e.title})) || []);
+        conflictingEvents?.map(e => ({id: e.id, title: e.title, type: e.type})) || []);
       
       const eventsConflict = conflictingEvents?.filter(event => {
         const isExcludedEvent = event.id === excludeEventId;
@@ -411,8 +411,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               startDate.getTime() >= new Date(booking.end_date).getTime() || 
               endDate.getTime() <= new Date(booking.start_date).getTime()
             );
-            
-            console.log(`[checkTimeSlotAvailability] Booking ${booking.id} has time conflict? ${hasTimeConflict}`);
             
             return !isExcludedBooking && hasTimeConflict;
           });
