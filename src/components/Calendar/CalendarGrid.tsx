@@ -2,6 +2,7 @@ import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfM
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useTheme } from "next-themes";
 
 interface CalendarGridProps {
   days: Date[];
@@ -22,10 +23,10 @@ export const CalendarGrid = ({
   onDayClick,
   onEventClick,
   isExternalCalendar = false,
-  theme,
 }: CalendarGridProps) => {
   const startDate = startOfWeek(days[0]);
   const isMobile = useMediaQuery("(max-width: 640px)");
+  const { theme } = useTheme();
   const isDarkTheme = theme === "dark";
   
   const weekDays = Array.from({ length: 7 }, (_, i) => 
@@ -34,20 +35,19 @@ export const CalendarGrid = ({
 
   const selectedDate = new Date(formattedSelectedDate);
   
-  // Calculate end of the selected month for filling next month's days
   const selectedMonthEnd = endOfMonth(selectedDate);
   const lastDayOfGrid = endOfWeek(selectedMonthEnd);
 
   const getEventStyles = (event: CalendarEventType) => {
     if (isExternalCalendar) {
-      return isDarkTheme ? "bg-green-600 text-white" : "bg-green-500 text-white";
+      return isDarkTheme ? "bg-gray-800 text-gray-200" : "bg-green-500 text-white";
     } else {
       if (event.type === "booking_request") {
-        return isDarkTheme ? "bg-green-600 text-white" : "bg-green-500 text-white"; 
+        return isDarkTheme ? "bg-gray-800 text-green-400" : "bg-green-500 text-white"; 
       } else if (event.type === "birthday") {
-        return isDarkTheme ? "bg-blue-700 text-white" : "bg-blue-100 text-blue-700";
+        return isDarkTheme ? "bg-gray-800 text-blue-400" : "bg-blue-100 text-blue-700";
       } else {
-        return isDarkTheme ? "bg-purple-700 text-white" : "bg-purple-100 text-purple-700";
+        return isDarkTheme ? "bg-gray-800 text-purple-400" : "bg-purple-100 text-purple-700";
       }
     }
   };
