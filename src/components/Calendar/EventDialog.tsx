@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -66,7 +65,7 @@ export const EventDialog = ({
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
       setIsBookingEvent(event.type === 'booking_request');
       
-      console.log("Set up event form with data:", {
+      console.log("[EventDialog] Set up event form with data:", {
         id: event.id,
         title: event.title,
         start: format(start, "yyyy-MM-dd'T'HH:mm"),
@@ -84,7 +83,7 @@ export const EventDialog = ({
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
       setIsBookingEvent(false);
       
-      console.log("Set up new event form with date:", {
+      console.log("[EventDialog] Set up new event form with date:", {
         selectedDate: selectedDate,
         formattedStart: format(start, "yyyy-MM-dd'T'HH:mm"),
         formattedEnd: format(end, "yyyy-MM-dd'T'HH:mm")
@@ -125,7 +124,7 @@ export const EventDialog = ({
     e.preventDefault();
     
     if (isSubmitting) {
-      console.log("Submit already in progress, skipping");
+      console.log("[EventDialog] Submit already in progress, skipping");
       return;
     }
     
@@ -135,11 +134,11 @@ export const EventDialog = ({
       const startDateTime = new Date(startDate);
       const endDateTime = new Date(endDate);
       
-      console.log("Submitting event with data:", {
-        id: event?.id,
+      console.log("[EventDialog] Submitting event with data:", {
+        id: event?.id || "new event",
         title,
-        startDate: startDateTime,
-        endDate: endDateTime,
+        startDate: startDateTime.toISOString(),
+        endDate: endDateTime.toISOString(),
         isEdit: !!event
       });
       
@@ -160,17 +159,21 @@ export const EventDialog = ({
       if (event?.id) {
         eventData.id = event.id;
         
-        // If it's an edit of an existing event, preserve the type
+        // For event updates, always ensure we pass the ID and type
         if (event.type) {
           eventData.type = event.type;
         }
         
-        console.log("Editing existing event. Full data being submitted:", eventData);
+        console.log("[EventDialog] Editing existing event:", {
+          id: event.id,
+          type: event.type || "regular",
+          fullData: eventData
+        });
       }
 
       try {
         const createdEvent = await onSubmit(eventData);
-        console.log('Created/Updated event:', createdEvent);
+        console.log('[EventDialog] Created/Updated event:', createdEvent);
 
         if (!isBookingEvent) {
           const { data: existingCustomer, error: customerQueryError } = await supabase
@@ -337,12 +340,11 @@ export const EventDialog = ({
         queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
         
       } catch (error: any) {
-        console.error('Error handling event submission:', error);
+        console.error('[EventDialog] Error handling event submission:', error);
         toast({
           title: t("common.error"),
           description: error.message || t("common.error"),
           variant: "destructive",
-          duration: 5000, // Auto-dismiss after 5 seconds
         });
         throw error; // Rethrow to prevent closing dialog
       }

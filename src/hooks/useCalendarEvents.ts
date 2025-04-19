@@ -176,6 +176,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to create events");
     
+    console.log("[createEvent] Creating new event:", event);
+    
     const startDateTime = new Date(event.start_date as string);
     const endDateTime = new Date(event.end_date as string);
     
@@ -199,7 +201,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     toast({
       title: "Event created",
       description: "Your event has been added to the calendar.",
-      duration: 5000, // Auto-dismiss after 5 seconds
     });
     
     return data;
@@ -208,22 +209,20 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const updateEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
     
-    console.log("updateEvent received data:", event);
-    
     const id = event.id;
     if (!id) throw new Error("Event ID is required for updates");
     
-    // Log received data for debugging
-    console.log("updateEvent processing:", {
+    console.log("[updateEvent] Updating event:", {
       id: id,
-      type: event.type || 'unknown'
+      type: event.type || 'unknown',
+      data: event
     });
     
     if (event.start_date && event.end_date) {
       const startDateTime = new Date(event.start_date);
       const endDateTime = new Date(event.end_date);
       
-      console.log("Checking availability for event update, EXPLICITLY excluding ID:", id);
+      console.log("[updateEvent] Checking availability for event update, excluding ID:", id);
       
       const { available, conflictDetails } = await checkTimeSlotAvailability(
         startDateTime,
@@ -232,11 +231,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       );
       
       if (!available) {
+        console.log("[updateEvent] Conflict found:", conflictDetails);
         throw new Error(`Time slot already booked: ${conflictDetails}`);
       }
     }
     
-    // Handle booking request type events
     if (event.type === 'booking_request' || (id && id.includes('-'))) {
       try {
         const { data: bookingData, error: bookingError } = await supabase
@@ -246,7 +245,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           .maybeSingle();
           
         if (!bookingError && bookingData) {
-          console.log("Updating booking request:", id);
+          console.log("[updateEvent] Updating booking request:", id);
           const { data: updatedBooking, error: updateError } = await supabase
             .from('booking_requests')
             .update({
@@ -268,7 +267,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           toast({
             title: "Booking updated",
             description: "The booking request has been updated successfully.",
-            duration: 5000, // Auto-dismiss after 5 seconds
           });
           
           return {
@@ -289,13 +287,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           } as CalendarEventType;
         }
       } catch (error) {
-        console.error("Error checking for booking request:", error);
+        console.error("[updateEvent] Error checking for booking request:", error);
       }
     }
     
-    console.log("Updating regular event with ID:", id);
+    console.log("[updateEvent] Updating regular event with ID:", id);
     
-    // Remove id from the update object since we'll use it in the eq() clause
     const { id: eventId, ...updates } = event;
     
     const { data, error } = await supabase
@@ -306,14 +303,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       .single();
 
     if (error) {
-      console.error("Error updating event:", error);
+      console.error("[updateEvent] Error updating event:", error);
       throw error;
     }
     
     toast({
       title: "Event updated",
       description: "Your event has been updated successfully.",
-      duration: 5000, // Auto-dismiss after 5 seconds
     });
     
     return data;
@@ -325,12 +321,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     excludeEventId?: string
   ): Promise<{ available: boolean; conflictDetails: string }> => {
     try {
-      console.log("CHECK AVAILABILITY - Params:", {
+      console.log("[checkTimeSlotAvailability] Checking with params:", {
         start: startDate.toISOString(),
         end: endDate.toISOString(),
-        excludeEventId: excludeEventId,
-        userId: user?.id,
-        businessId
+        excludeEventId: excludeEventId || "none",
+        userId: user?.id || "no user",
+        businessId: businessId || "none"
       });
       
       if (!user) {
@@ -343,10 +339,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         return { available: true, conflictDetails: "" };
       }
       
-      // Explicitly log the excluded event ID for debugging
-      console.log("EXPLICITLY excluding event with ID:", excludeEventId);
+      console.log("[checkTimeSlotAvailability] Excluding event with ID:", excludeEventId);
       
-      // First check regular events
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('id, title, start_date, end_date, deleted_at')
@@ -357,37 +351,35 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventsError) throw eventsError;
       
-      console.log("CHECKING - All potential conflicting events:", conflictingEvents);
+      console.log("[checkTimeSlotAvailability] All potential conflicting events:", 
+        conflictingEvents?.length || 0);
       
       const eventsConflict = conflictingEvents?.filter(event => {
-        // Check if this is the event being edited (to exclude it)
         const isExcludedEvent = event.id === excludeEventId;
-        console.log(`Event ${event.id} === excludeEventId ${excludeEventId}? ${isExcludedEvent}`);
+        console.log(`[checkTimeSlotAvailability] Event ${event.id} === excludeEventId ${excludeEventId}? ${isExcludedEvent}`);
         
-        // Check for time overlap
         const hasTimeConflict = !(
           startDate.getTime() >= new Date(event.end_date).getTime() || 
           endDate.getTime() <= new Date(event.start_date).getTime()
         );
         
-        console.log(`Event ${event.id} has time conflict? ${hasTimeConflict}`);
+        console.log(`[checkTimeSlotAvailability] Event ${event.id} has time conflict? ${hasTimeConflict}`);
         
-        // Only return events that are not the excluded event AND have a time conflict
         return !isExcludedEvent && hasTimeConflict;
       });
       
-      console.log("CHECKING - Filtered conflicting events:", eventsConflict);
+      console.log("[checkTimeSlotAvailability] Filtered conflicting events:", 
+        eventsConflict?.length || 0);
       
       if (eventsConflict && eventsConflict.length > 0) {
         const conflictEvent = eventsConflict[0];
-        console.log("CONFLICT - Found conflicting event:", conflictEvent);
+        console.log("[checkTimeSlotAvailability] Found conflicting event:", conflictEvent);
         return { 
           available: false, 
           conflictDetails: `Conflicts with "${conflictEvent.title}" at ${new Date(conflictEvent.start_date).toLocaleTimeString()}`
         };
       }
       
-      // Check for business booking conflicts
       if (businessId || businessUserId) {
         const targetBusinessId = businessId;
         
@@ -402,28 +394,27 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           if (bookingsError) throw bookingsError;
           
-          console.log("CHECKING - All potential conflicting bookings:", conflictingBookings);
+          console.log("[checkTimeSlotAvailability] All potential conflicting bookings:", conflictingBookings);
           
           const bookingsConflict = conflictingBookings?.filter(booking => {
             const isExcludedBooking = booking.id === excludeEventId;
-            console.log(`Booking ${booking.id} === excludeEventId ${excludeEventId}? ${isExcludedBooking}`);
+            console.log(`[checkTimeSlotAvailability] Booking ${booking.id} === excludeEventId ${excludeEventId}? ${isExcludedBooking}`);
             
             const hasTimeConflict = !(
               startDate.getTime() >= new Date(booking.end_date).getTime() || 
               endDate.getTime() <= new Date(booking.start_date).getTime()
             );
             
-            console.log(`Booking ${booking.id} has time conflict? ${hasTimeConflict}`);
+            console.log(`[checkTimeSlotAvailability] Booking ${booking.id} has time conflict? ${hasTimeConflict}`);
             
-            // Only return bookings that are not the excluded booking AND have a time conflict
             return !isExcludedBooking && hasTimeConflict;
           });
           
-          console.log("CHECKING - Filtered conflicting bookings:", bookingsConflict);
+          console.log("[checkTimeSlotAvailability] Filtered conflicting bookings:", bookingsConflict);
           
           if (bookingsConflict && bookingsConflict.length > 0) {
             const conflictBooking = bookingsConflict[0];
-            console.log("CONFLICT - Found conflicting booking:", conflictBooking);
+            console.log("[checkTimeSlotAvailability] Found conflicting booking:", conflictBooking);
             return { 
               available: false, 
               conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`
@@ -448,26 +439,25 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             
           if (bookingsError) throw bookingsError;
           
-          console.log("All potential conflicting user bookings:", conflictingBookings);
+          console.log("[checkTimeSlotAvailability] All potential conflicting user bookings:", conflictingBookings);
           
           const bookingsConflict = conflictingBookings?.filter(booking => {
             const isExcludedBooking = booking.id === excludeEventId;
-            console.log(`Booking ${booking.id} is excluded booking? ${isExcludedBooking}`);
+            console.log(`[checkTimeSlotAvailability] Booking ${booking.id} is excluded booking? ${isExcludedBooking}`);
             
             const hasTimeConflict = !(
               startDate.getTime() >= new Date(booking.end_date).getTime() || 
               endDate.getTime() <= new Date(booking.start_date).getTime()
             );
             
-            // Only return true if it's not the excluded booking AND there's a time conflict
             return !isExcludedBooking && hasTimeConflict;
           });
           
-          console.log("Conflicting user bookings (excluding current):", bookingsConflict);
+          console.log("[checkTimeSlotAvailability] Conflicting user bookings (excluding current):", bookingsConflict);
           
           if (bookingsConflict && bookingsConflict.length > 0) {
             const conflictBooking = bookingsConflict[0];
-            console.log("Found conflicting user booking:", conflictBooking);
+            console.log("[checkTimeSlotAvailability] Found conflicting user booking:", conflictBooking);
             return { 
               available: false, 
               conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`
@@ -478,7 +468,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       return { available: true, conflictDetails: "" };
     } catch (error) {
-      console.error("Error checking time slot availability:", error);
+      console.error("[checkTimeSlotAvailability] Error checking availability:", error);
       return { available: false, conflictDetails: "Error checking availability" };
     }
   };
