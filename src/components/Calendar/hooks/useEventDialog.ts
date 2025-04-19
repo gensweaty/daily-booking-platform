@@ -184,6 +184,7 @@ export const useEventDialog = ({
     try {
       console.log('handleUpdateEvent - Updating event:', selectedEvent.id);
       console.log('handleUpdateEvent - With data:', data);
+      console.log('handleUpdateEvent - Event type:', selectedEvent.type);
       
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
@@ -213,13 +214,16 @@ export const useEventDialog = ({
         console.log('Dates unchanged, skipping conflict check');
       }
 
-      // Pass the complete data object with the ID to the updateEvent function
-      // This is important because we need to know the event type for booking requests
-      const result = await updateEvent({
+      // Create a complete event data object to pass to updateEvent
+      const updateData: Partial<CalendarEventType> = {
         ...data,
         id: selectedEvent.id,
         type: selectedEvent.type  // Ensure we pass the event type
-      });
+      };
+      
+      console.log('Sending update with complete data:', updateData);
+      
+      const result = await updateEvent(updateData);
       
       setSelectedEvent(null);
       toast({

@@ -64,6 +64,8 @@ export const EventDialog = ({
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
       setIsBookingEvent(event.type === 'booking_request');
+      
+      console.log("EventDialog - Loaded event with type:", event.type);
     } else if (selectedDate) {
       const start = new Date(selectedDate.getTime());
       const end = new Date(selectedDate.getTime());
@@ -125,13 +127,15 @@ export const EventDialog = ({
     if (event?.id) {
       eventData.id = event.id;
       
-      // Ensure we pass the event type when updating
+      // Always preserve the event type when updating
       if (event.type) {
         eventData.type = event.type;
+        console.log("EventDialog - Preserving event type for update:", event.type);
       }
     }
 
     try {
+      console.log("EventDialog - Submitting event data:", eventData);
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
 

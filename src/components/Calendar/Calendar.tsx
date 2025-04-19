@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -116,7 +117,8 @@ export const Calendar = ({
       if (!selectedEvent) throw new Error("No event selected");
       const result = await updateEvent?.({
         ...data,
-        id: selectedEvent.id
+        id: selectedEvent.id,
+        type: selectedEvent.type  // Make sure to pass the type from the selected event
       });
       return result;
     },

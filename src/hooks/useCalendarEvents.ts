@@ -211,7 +211,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     const id = data.id;
     if (!id) throw new Error("Event ID is required for updates");
     
-    console.log("Updating event with ID:", id, "Data:", data);
+    console.log("Updating event with ID:", id);
+    console.log("Update data:", data);
     console.log("Event type:", data.type);
     
     if (data.start_date && data.end_date) {
@@ -233,6 +234,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     // Handle booking request events
     if (data.type === 'booking_request' || (id && typeof id === 'string' && id.includes('-'))) {
       try {
+        console.log("Checking for booking request with ID:", id);
         const { data: bookingData, error: bookingError } = await supabase
           .from('booking_requests')
           .select('*')
@@ -240,7 +242,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           .maybeSingle();
           
         if (!bookingError && bookingData) {
-          console.log("Updating booking request:", id);
+          console.log("Found booking request, updating:", id);
           const { data: updatedBooking, error: updateError } = await supabase
             .from('booking_requests')
             .update({
@@ -271,7 +273,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             end_date: updatedBooking.end_date,
             user_id: updatedBooking.user_id || '',
             user_surname: updatedBooking.requester_name,
-            user_number: updatedBooking.user_number || '',
+            user_number: updatedBooking.requester_phone || '',
             social_network_link: updatedBooking.requester_email,
             event_notes: updatedBooking.description || '',
             type: 'booking_request',
@@ -280,6 +282,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             requester_email: updatedBooking.requester_email,
             requester_phone: updatedBooking.requester_phone || '',
           } as CalendarEventType;
+        } else {
+          console.log("No booking request found with ID:", id);
         }
       } catch (error) {
         console.error("Error checking for booking request:", error);
@@ -287,6 +291,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
     
     // Standard event update
+    console.log("Updating standard event:", id);
     const { data: updatedEvent, error } = await supabase
       .from('events')
       .update({
