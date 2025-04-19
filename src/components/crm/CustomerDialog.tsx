@@ -221,7 +221,7 @@ export const CustomerDialog = ({
       toast({
         title: t("common.success"),
         description: initialData?.id ? t("crm.customerUpdated") : t("crm.customerCreated"),
-        duration: 3000, // Auto-dismiss after 3 seconds
+        duration: 5000, // Auto-dismiss after 5 seconds
       });
 
       if (onSubmit && customerId) {

@@ -154,6 +154,7 @@ export const useEventDialog = ({
           title: "Time Slot Unavailable",
           description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
           variant: "destructive",
+          duration: 5000, // Auto-dismiss after 5 seconds
         });
         throw new Error("Time slot conflict");
       }
@@ -163,6 +164,7 @@ export const useEventDialog = ({
       toast({
         title: "Success",
         description: "Event created successfully",
+        duration: 5000, // Auto-dismiss after 5 seconds
       });
       return result;
     } catch (error: any) {
@@ -172,6 +174,7 @@ export const useEventDialog = ({
           title: "Error",
           description: error.message,
           variant: "destructive",
+          duration: 5000, // Auto-dismiss after 5 seconds
         });
       }
       throw error;
@@ -206,6 +209,7 @@ export const useEventDialog = ({
             title: "Time Slot Unavailable",
             description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
             variant: "destructive",
+            duration: 5000, // Auto-dismiss after 5 seconds
           });
           throw new Error("Time slot conflict");
         }
@@ -213,7 +217,7 @@ export const useEventDialog = ({
         console.log('Dates unchanged, skipping conflict check');
       }
 
-      // Fix: Pass the event ID directly in the data object instead of using a nested 'updates' property
+      // Make sure to include the ID in the data object for the update
       const result = await updateEvent({
         ...data,
         id: selectedEvent.id
@@ -223,6 +227,7 @@ export const useEventDialog = ({
       toast({
         title: "Success",
         description: "Event updated successfully",
+        duration: 5000, // Auto-dismiss after 5 seconds
       });
       return result;
     } catch (error: any) {
@@ -232,6 +237,7 @@ export const useEventDialog = ({
           title: "Error",
           description: error.message,
           variant: "destructive",
+          duration: 5000, // Auto-dismiss after 5 seconds
         });
       }
       throw error;
@@ -302,6 +308,7 @@ export const useEventDialog = ({
       toast({
         title: "Success",
         description: "Event deleted successfully",
+        duration: 5000, // Auto-dismiss after 5 seconds
       });
     } catch (error: any) {
       console.error('handleDeleteEvent - Error:', error);
@@ -309,6 +316,7 @@ export const useEventDialog = ({
         title: "Error",
         description: error.message,
         variant: "destructive",
+        duration: 5000, // Auto-dismiss after 5 seconds
       });
       throw error;
     }

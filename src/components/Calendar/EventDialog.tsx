@@ -252,6 +252,7 @@ export const EventDialog = ({
         toast({
           title: t("common.success"),
           description: t("common.success"),
+          duration: 5000, // Auto-dismiss after 5 seconds
         });
       } else {
         if (event?.id) {
@@ -299,6 +300,7 @@ export const EventDialog = ({
         title: t("common.error"),
         description: error.message || t("common.error"),
         variant: "destructive",
+        duration: 5000, // Auto-dismiss after 5 seconds
       });
     }
   };

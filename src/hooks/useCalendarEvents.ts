@@ -1,9 +1,8 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string | null) => {
@@ -199,20 +198,25 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     
     toast({
       title: "Event created",
-      description: "Your event has been added to the calendar."
+      description: "Your event has been added to the calendar.",
+      duration: 5000, // Auto-dismiss after 5 seconds
     });
     
     return data;
   };
 
-  const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
+  const updateEvent = async (updateData: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
+    
+    const id = updateData.id;
+    if (!id) throw new Error("Event ID is required for updates");
+    
+    const { id: _, ...updates } = updateData;
     
     if (updates.start_date && updates.end_date) {
       const startDateTime = new Date(updates.start_date);
       const endDateTime = new Date(updates.end_date);
       
-      // When updating an event, pass the current event id to exclude it from conflict checking
       const { available, conflictDetails } = await checkTimeSlotAvailability(
         startDateTime,
         endDateTime,
@@ -224,7 +228,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
-    if (updates.type === 'booking_request' || (updates.id && id.includes('-'))) {
+    if (updates.type === 'booking_request' || (id && id.includes('-'))) {
       try {
         const { data: bookingData, error: bookingError } = await supabase
           .from('booking_requests')
@@ -254,7 +258,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           toast({
             title: "Booking updated",
-            description: "The booking request has been updated successfully."
+            description: "The booking request has been updated successfully.",
+            duration: 5000, // Auto-dismiss after 5 seconds
           });
           
           return {
@@ -290,7 +295,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     
     toast({
       title: "Event updated",
-      description: "Your event has been updated successfully."
+      description: "Your event has been updated successfully.",
+      duration: 5000, // Auto-dismiss after 5 seconds
     });
     
     return data;
@@ -314,14 +320,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         return { available: true, conflictDetails: "" };
       }
       
-      // Only check for events belonging to the current user or business being viewed
       const userId = businessId || businessUserId ? businessUserId : user.id;
       
       if (!userId) {
         return { available: true, conflictDetails: "" };
       }
       
-      // Query for conflicting events
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('id, title, start_date, end_date, deleted_at')
@@ -332,7 +336,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventsError) throw eventsError;
       
-      // Filter out the current event being updated
       const eventsConflict = conflictingEvents?.filter(event => 
         excludeEventId !== event.id &&
         !(startDate.getTime() >= new Date(event.end_date).getTime() || 
@@ -349,12 +352,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         };
       }
       
-      // Only check bookings if we're viewing a business calendar or working with our own business
       if (businessId || businessUserId) {
         const targetBusinessId = businessId;
         
         if (targetBusinessId) {
-          // Also check for booking conflicts
           const { data: conflictingBookings, error: bookingsError } = await supabase
             .from('booking_requests')
             .select('id, title, start_date, end_date')
@@ -365,7 +366,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           if (bookingsError) throw bookingsError;
           
-          // Filter out the current booking being updated
           const bookingsConflict = conflictingBookings?.filter(booking => 
             excludeEventId !== booking.id &&
             !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
@@ -383,7 +383,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           }
         }
       } else if (!businessId && !businessUserId && user) {
-        // If we're on our own calendar, check our business bookings too
         const { data: userBusinessProfile } = await supabase
           .from("business_profiles")
           .select("id")
@@ -401,7 +400,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             
           if (bookingsError) throw bookingsError;
           
-          // Filter out the current booking being updated
           const bookingsConflict = conflictingBookings?.filter(booking => 
             excludeEventId !== booking.id &&
             !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
@@ -429,7 +427,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     if (!user) throw new Error("User must be authenticated to delete events");
     
     try {
-      // Check if this is a booking event
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('booking_request_id')
@@ -440,7 +437,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.error("Error checking for booking association:", eventError);
       } else if (eventData?.booking_request_id) {
         console.log("This is a booking event. Will also update booking request status.");
-        // Update the booking request status to rejected/deleted
         const { error: bookingError } = await supabase
           .from('booking_requests')
           .update({ status: 'rejected' })
@@ -451,7 +447,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
-      // Also check if this is a direct booking request ID
       const { data: bookingData, error: bookingError } = await supabase
         .from('booking_requests')
         .select('*')
@@ -477,9 +472,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.error("Error checking for booking request:", error);
     }
     
-    // Find potentially related customer
     try {
-      // Get the event first to use its data
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('title, start_date, end_date')
@@ -488,9 +481,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventError) {
         console.error('Error finding event:', eventError);
-        // Continue with deletion even if we can't find the event data
       } else if (eventData) {
-        // Check for associated customer using event data
         const { data: customer, error: customerError } = await supabase
           .from('customers')
           .select('*')
@@ -501,7 +492,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
         if (customerError && customerError.code !== 'PGRST116') {
           console.error('Error finding associated customer:', customerError);
-          // Don't throw, continue with deletion
         }
 
         if (customer) {
@@ -515,16 +505,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
           if (updateError) {
             console.error('Error updating customer:', updateError);
-            // Don't throw, continue with deletion
           }
         }
       }
     } catch (error) {
       console.error('Error handling customer association:', error);
-      // Continue with deletion even if customer handling fails
     }
 
-    // Check for and delete associated files
     try {
       const { data: files } = await supabase
         .from('event_files')
@@ -549,15 +536,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
         if (filesDeleteError) {
           console.error('Error deleting file records:', filesDeleteError);
-          // Don't throw, continue with deletion
         }
       }
     } catch (error) {
       console.error('Error handling file deletion:', error);
-      // Continue with deletion even if file handling fails
     }
 
-    // Finally delete the event
     const { error } = await supabase
       .from('events')
       .delete()
