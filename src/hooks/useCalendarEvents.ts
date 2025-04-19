@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -228,7 +229,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       const { available, conflictDetails } = await checkTimeSlotAvailability(
         startDateTime,
         endDateTime,
-        id
+        id,
+        event.type // Pass the event type to help with proper exclusion
       );
       
       if (!available) {
@@ -321,13 +323,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const checkTimeSlotAvailability = async (
     startDate: Date,
     endDate: Date,
-    excludeEventId?: string
+    excludeEventId?: string,
+    excludeEventType?: string // Added parameter for the event type
   ): Promise<{ available: boolean; conflictDetails: string }> => {
     try {
       console.log("[checkTimeSlotAvailability] Checking with params:", {
         start: startDate.toISOString(),
         end: endDate.toISOString(),
         excludeEventId: excludeEventId || "none",
+        excludeEventType: excludeEventType || "none",
         userId: user?.id || "no user",
         businessId: businessId || "none"
       });
@@ -344,9 +348,30 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       console.log("[checkTimeSlotAvailability] Excluding event with ID:", excludeEventId);
       
+      // First, check if the excluded event is a booking request
+      const isBookingRequest = excludeEventType === 'booking_request' || (excludeEventId && excludeEventId.includes('-'));
+      console.log("[checkTimeSlotAvailability] Is excluded event a booking request?", isBookingRequest);
+      
+      // If it's a booking request, we need to find any corresponding events
+      let relatedEventIds = [excludeEventId];
+      
+      if (isBookingRequest && excludeEventId) {
+        // Try to find events associated with this booking request
+        const { data: relatedEvents } = await supabase
+          .from('events')
+          .select('id')
+          .eq('booking_request_id', excludeEventId);
+          
+        if (relatedEvents && relatedEvents.length > 0) {
+          const eventIds = relatedEvents.map(e => e.id);
+          relatedEventIds = [...relatedEventIds, ...eventIds];
+          console.log("[checkTimeSlotAvailability] Found related events for booking:", eventIds);
+        }
+      }
+      
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, start_date, end_date, deleted_at, type')
+        .select('id, title, start_date, end_date, deleted_at, type, booking_request_id')
         .eq('user_id', userId)
         .filter('start_date', 'lt', endDate.toISOString())
         .filter('end_date', 'gt', startDate.toISOString())
@@ -358,10 +383,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         conflictingEvents?.map(e => ({id: e.id, title: e.title, type: e.type})) || []);
       
       const eventsConflict = conflictingEvents?.filter(event => {
-        const isExcludedEvent = event.id === excludeEventId;
+        // Check if this event is the one we're updating or related to it
+        const isExcludedEvent = relatedEventIds.includes(event.id);
         
-        console.log(`[checkTimeSlotAvailability] Event ${event.id} === excludeEventId ${excludeEventId}? ${isExcludedEvent}`, 
-          {eventId: event.id, excludeEventId, isMatch: isExcludedEvent});
+        // If the excluded event is a booking request, also exclude any event that references it
+        const isRelatedToExcludedBooking = isBookingRequest && 
+                                         event.booking_request_id === excludeEventId;
+        
+        const shouldExclude = isExcludedEvent || isRelatedToExcludedBooking;
+        
+        console.log(`[checkTimeSlotAvailability] Event ${event.id} should be excluded? ${shouldExclude}`, 
+          {eventId: event.id, excludeEventId, isExcludedEvent, isRelatedToExcludedBooking});
         
         const hasTimeConflict = !(
           startDate.getTime() >= new Date(event.end_date).getTime() || 
@@ -370,7 +402,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         
         console.log(`[checkTimeSlotAvailability] Event ${event.id} has time conflict? ${hasTimeConflict}`);
         
-        return !isExcludedEvent && hasTimeConflict;
+        return !shouldExclude && hasTimeConflict;
       });
       
       console.log("[checkTimeSlotAvailability] Filtered conflicting events:", 
@@ -385,6 +417,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         };
       }
       
+      // Handle business bookings check
       if (businessId || businessUserId) {
         const targetBusinessId = businessId;
         
@@ -403,8 +436,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             conflictingBookings?.map(b => ({id: b.id, title: b.title})) || []);
           
           const bookingsConflict = conflictingBookings?.filter(booking => {
-            const isExcludedBooking = booking.id === excludeEventId;
-            console.log(`[checkTimeSlotAvailability] Booking ${booking.id} === excludeEventId ${excludeEventId}? ${isExcludedBooking}`, 
+            // Check if this booking is the one we're updating
+            const isExcludedBooking = relatedEventIds.includes(booking.id);
+            
+            console.log(`[checkTimeSlotAvailability] Booking ${booking.id} is excluded? ${isExcludedBooking}`, 
               {bookingId: booking.id, excludeEventId, isMatch: isExcludedBooking});
             
             const hasTimeConflict = !(
