@@ -207,7 +207,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const updateEvent = async (data: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
     
-    // Extract id from the data object
     const id = data.id;
     if (!id) throw new Error("Event ID is required for updates");
     
@@ -219,7 +218,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       const startDateTime = new Date(data.start_date);
       const endDateTime = new Date(data.end_date);
       
-      // When updating an event, pass the current event id to exclude it from conflict checking
       const { available, conflictDetails } = await checkTimeSlotAvailability(
         startDateTime,
         endDateTime,
@@ -231,7 +229,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
-    // Handle booking request events
     if (data.type === 'booking_request' || (id && typeof id === 'string' && id.includes('-'))) {
       try {
         console.log("Checking for booking request with ID:", id);
@@ -290,7 +287,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
-    // Standard event update
     console.log("Updating standard event:", id);
     const { data: updatedEvent, error } = await supabase
       .from('events')
@@ -337,14 +333,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         return { available: true, conflictDetails: "" };
       }
       
-      // Only check for events belonging to the current user or business being viewed
       const userId = businessId || businessUserId ? businessUserId : user.id;
       
       if (!userId) {
         return { available: true, conflictDetails: "" };
       }
       
-      // Query for conflicting events
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('id, title, start_date, end_date, deleted_at')
@@ -355,7 +349,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventsError) throw eventsError;
       
-      // Filter out the current event being updated
       const eventsConflict = conflictingEvents?.filter(event => 
         excludeEventId !== event.id &&
         !(startDate.getTime() >= new Date(event.end_date).getTime() || 
@@ -372,12 +365,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         };
       }
       
-      // Only check bookings if we're viewing a business calendar or working with our own business
       if (businessId || businessUserId) {
         const targetBusinessId = businessId;
         
         if (targetBusinessId) {
-          // Also check for booking conflicts, BUT EXCLUDE THE CURRENT BOOKING BEING EDITED
           const { data: conflictingBookings, error: bookingsError } = await supabase
             .from('booking_requests')
             .select('id, title, start_date, end_date')
@@ -388,9 +379,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           if (bookingsError) throw bookingsError;
           
-          // Filter out the current booking being updated
           const bookingsConflict = conflictingBookings?.filter(booking => 
-            excludeEventId !== booking.id && // This is the key fix - exclude the current booking ID
+            excludeEventId !== booking.id &&
             !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
               endDate.getTime() <= new Date(booking.start_date).getTime())
           );
@@ -407,7 +397,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           }
         }
       } else if (!businessId && !businessUserId && user) {
-        // If we're on our own calendar, check our business bookings too
         const { data: userBusinessProfile } = await supabase
           .from("business_profiles")
           .select("id")
@@ -425,7 +414,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             
           if (bookingsError) throw bookingsError;
           
-          // Filter out the current booking being updated
           const bookingsConflict = conflictingBookings?.filter(booking => 
             excludeEventId !== booking.id &&
             !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
@@ -453,7 +441,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     if (!user) throw new Error("User must be authenticated to delete events");
     
     try {
-      // Check if this is a booking event
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('booking_request_id')
@@ -464,7 +451,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.error("Error checking for booking association:", eventError);
       } else if (eventData?.booking_request_id) {
         console.log("This is a booking event. Will also update booking request status.");
-        // Update the booking request status to rejected/deleted
         const { error: bookingError } = await supabase
           .from('booking_requests')
           .update({ status: 'rejected' })
@@ -475,7 +461,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
-      // Also check if this is a direct booking request ID
       const { data: bookingData, error: bookingError } = await supabase
         .from('booking_requests')
         .select('*')
@@ -501,9 +486,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.error("Error checking for booking request:", error);
     }
     
-    // Find potentially related customer
     try {
-      // Get the event first to use its data
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('title, start_date, end_date')
@@ -512,9 +495,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventError) {
         console.error('Error finding event:', eventError);
-        // Continue with deletion even if we can't find the event data
       } else if (eventData) {
-        // Check for associated customer using event data
         const { data: customer, error: customerError } = await supabase
           .from('customers')
           .select('*')
@@ -525,7 +506,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
         if (customerError && customerError.code !== 'PGRST116') {
           console.error('Error finding associated customer:', customerError);
-          // Don't throw, continue with deletion
         }
 
         if (customer) {
@@ -539,16 +519,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
           if (updateError) {
             console.error('Error updating customer:', updateError);
-            // Don't throw, continue with deletion
           }
         }
       }
     } catch (error) {
       console.error('Error handling customer association:', error);
-      // Continue with deletion even if customer handling fails
     }
 
-    // Check for and delete associated files
     try {
       const { data: files } = await supabase
         .from('event_files')
@@ -573,15 +550,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
         if (filesDeleteError) {
           console.error('Error deleting file records:', filesDeleteError);
-          // Don't throw, continue with deletion
         }
       }
     } catch (error) {
       console.error('Error handling file deletion:', error);
-      // Continue with deletion even if file handling fails
     }
 
-    // Finally delete the event
     const { error } = await supabase
       .from('events')
       .delete()

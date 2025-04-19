@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -55,18 +54,16 @@ export const useEventDialog = ({
         return { available: true };
       }
       
-      // First check regular events - make sure to filter by the current user's ID
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('*')
-        .eq('user_id', user.id) // Only check the current user's events
+        .eq('user_id', user.id)
         .filter('start_date', 'lt', endDate.toISOString())
         .filter('end_date', 'gt', startDate.toISOString())
         .is('deleted_at', null);
         
       if (eventsError) throw eventsError;
       
-      // Filter out the current event being edited
       const eventConflict = conflictingEvents?.find(event => 
         (!existingEventId || event.id !== existingEventId) &&
         !(startDate.getTime() >= new Date(event.end_date).getTime() || 
@@ -80,14 +77,12 @@ export const useEventDialog = ({
         return { available: false, conflictingEvent: eventConflict };
       }
       
-      // Get the user's business profile if they have one
       const { data: businessProfile } = await supabase
         .from('business_profiles')
         .select('id')
         .eq('user_id', user.id)
         .maybeSingle();
         
-      // If user has a business profile, check approved booking requests for their business
       if (businessProfile?.id) {
         const { data: conflictingBookings, error: bookingsError } = await supabase
           .from('booking_requests')
@@ -99,7 +94,6 @@ export const useEventDialog = ({
           
         if (bookingsError) throw bookingsError;
         
-        // Filter out the current booking being edited
         const bookingConflict = conflictingBookings?.find(booking => 
           booking.id !== existingEventId &&
           !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
@@ -110,7 +104,6 @@ export const useEventDialog = ({
           conflictingBookings?.filter(b => b.id !== existingEventId));
         
         if (bookingConflict) {
-          // Convert booking to event format for the response
           const conflictEvent: CalendarEventType = {
             id: bookingConflict.id,
             title: bookingConflict.title,
@@ -189,7 +182,6 @@ export const useEventDialog = ({
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
 
-      // Only check for conflicts if the dates have changed
       if (
         startDate.toISOString() !== new Date(selectedEvent.start_date).toISOString() || 
         endDate.toISOString() !== new Date(selectedEvent.end_date).toISOString()
@@ -203,22 +195,23 @@ export const useEventDialog = ({
         );
 
         if (!available && conflictingEvent) {
-          toast({
-            title: "Time Slot Unavailable",
-            description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
-            variant: "destructive",
-          });
-          throw new Error("Time slot conflict");
+          if (conflictingEvent.id !== selectedEvent.id) {
+            toast({
+              title: "Time Slot Unavailable",
+              description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
+              variant: "destructive",
+            });
+            throw new Error("Time slot conflict");
+          }
         }
       } else {
         console.log('Dates unchanged, skipping conflict check');
       }
 
-      // Create a complete event data object to pass to updateEvent
       const updateData: Partial<CalendarEventType> = {
         ...data,
         id: selectedEvent.id,
-        type: selectedEvent.type  // Ensure we pass the event type
+        type: data.type || selectedEvent.type
       };
       
       console.log('Sending update with complete data:', updateData);
