@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es';
 
 export interface LanguageContextType {
@@ -66,6 +67,7 @@ export interface TranslationType {
     socialLinkEmail: string;
     socialLinkEmailPlaceholder: string;
     createEventForCustomer: string;
+    customerFromEvent: string; // Added
     paymentStatus: string;
     selectPaymentStatus: string;
     comment: string;
@@ -88,6 +90,8 @@ export interface TranslationType {
     deleteSuccess: string;
     deleteError: string;
     missingUserInfo: string;
+    customerCreated: string; // Added
+    customerUpdated: string; // Added
   };
   tasks: {
     title: string;
@@ -206,6 +210,9 @@ export interface TranslationType {
     dateAndTime: string;
     date: string;
     time: string;
+    start: string; // Added
+    end: string; // Added
+    eventDetails: string; // Added
   };
   contact: {
     email: string;
@@ -237,6 +244,7 @@ export interface TranslationType {
     deleteSuccess: string;
     deleteError: string;
     missingUserInfo: string;
+    errorOccurred: string; // Added
   };
   auth: {
     welcome: string;
