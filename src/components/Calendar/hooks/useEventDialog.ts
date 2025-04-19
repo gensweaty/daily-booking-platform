@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,7 +36,8 @@ export const useEventDialog = ({
   useEffect(() => {
     console.log('useEventDialog - dialog open state changed:', isNewEventDialogOpen);
     console.log('useEventDialog - current selectedDate:', selectedDate);
-  }, [isNewEventDialogOpen]);
+    console.log('useEventDialog - current selectedEvent:', selectedEvent ? selectedEvent.id : null);
+  }, [isNewEventDialogOpen, selectedEvent]);
 
   const checkTimeSlotAvailability = async (
     startDate: Date,
@@ -197,14 +198,20 @@ export const useEventDialog = ({
       
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
+      
+      console.log('handleUpdateEvent - Original event dates:', {
+        start: new Date(selectedEvent.start_date),
+        end: new Date(selectedEvent.end_date),
+        id: selectedEvent.id
+      });
 
       // Only check for conflicts if the dates have changed
-      if (
+      const datesChanged = 
         startDate.toISOString() !== new Date(selectedEvent.start_date).toISOString() || 
-        endDate.toISOString() !== new Date(selectedEvent.end_date).toISOString()
-      ) {
-        console.log('Dates changed, checking for conflicts');
-        console.log('Current event ID for exclusion:', selectedEvent.id);
+        endDate.toISOString() !== new Date(selectedEvent.end_date).toISOString();
+      
+      if (datesChanged) {
+        console.log('Dates changed, checking for conflicts with explicit event ID:', selectedEvent.id);
         
         const { available, conflictingEvent } = await checkTimeSlotAvailability(
           startDate,
@@ -226,10 +233,14 @@ export const useEventDialog = ({
       }
 
       // Make sure to include the ID in the data object for the update
-      const result = await updateEvent({
+      const eventToUpdate = {
         ...data,
         id: selectedEvent.id
-      });
+      };
+      
+      console.log('Final event data being passed to updateEvent:', eventToUpdate);
+      
+      const result = await updateEvent(eventToUpdate);
       
       setSelectedEvent(null);
       toast({

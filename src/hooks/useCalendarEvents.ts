@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -209,19 +208,26 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const updateEvent = async (updateData: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
     
+    console.log("updateEvent received data:", updateData);
+    
     const id = updateData.id;
     if (!id) throw new Error("Event ID is required for updates");
     
-    console.log("updateEvent received:", updateData);
-    
     // Extract the id from updateData to avoid duplication in the database update
     const { id: eventId, ...updates } = updateData;
+    
+    // Log received data for debugging
+    console.log("updateEvent processing:", {
+      id: eventId,
+      updates,
+      originalType: 'type' in updateData ? updateData.type : 'unknown'
+    });
     
     if (updates.start_date && updates.end_date) {
       const startDateTime = new Date(updates.start_date);
       const endDateTime = new Date(updates.end_date);
       
-      console.log("Checking availability for event update, excluding ID:", eventId);
+      console.log("Checking availability for event update, EXPLICITLY excluding ID:", eventId);
       
       const { available, conflictDetails } = await checkTimeSlotAvailability(
         startDateTime,
@@ -291,7 +297,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
-    console.log("Updating regular event with data:", updates);
+    console.log("Updating regular event with ID:", eventId, "and data:", updates);
     
     const { data, error } = await supabase
       .from('events')
@@ -320,10 +326,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     excludeEventId?: string
   ): Promise<{ available: boolean; conflictDetails: string }> => {
     try {
-      console.log("Checking availability for:", {
-        start: startDate,
-        end: endDate,
-        excludeEventId,
+      console.log("CHECK AVAILABILITY - Params:", {
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+        excludeEventId: excludeEventId,
         userId: user?.id,
         businessId
       });
@@ -338,9 +344,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         return { available: true, conflictDetails: "" };
       }
       
-      // Debug log to track excluded event ID
-      console.log("Explicitly excluding event with ID:", excludeEventId);
+      // Explicitly log the excluded event ID for debugging
+      console.log("EXPLICITLY excluding event with ID:", excludeEventId);
       
+      // First check regular events
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('id, title, start_date, end_date, deleted_at')
@@ -351,32 +358,37 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventsError) throw eventsError;
       
-      console.log("All potential conflicting events:", conflictingEvents);
+      console.log("CHECKING - All potential conflicting events:", conflictingEvents);
       
       const eventsConflict = conflictingEvents?.filter(event => {
+        // Check if this is the event being edited (to exclude it)
         const isExcludedEvent = event.id === excludeEventId;
-        console.log(`Event ${event.id} is excluded event? ${isExcludedEvent}`);
+        console.log(`Event ${event.id} === excludeEventId ${excludeEventId}? ${isExcludedEvent}`);
         
+        // Check for time overlap
         const hasTimeConflict = !(
           startDate.getTime() >= new Date(event.end_date).getTime() || 
           endDate.getTime() <= new Date(event.start_date).getTime()
         );
         
-        // Only return true if it's not the excluded event AND there's a time conflict
+        console.log(`Event ${event.id} has time conflict? ${hasTimeConflict}`);
+        
+        // Only return events that are not the excluded event AND have a time conflict
         return !isExcludedEvent && hasTimeConflict;
       });
       
-      console.log("Conflicting events (excluding current):", eventsConflict);
+      console.log("CHECKING - Filtered conflicting events:", eventsConflict);
       
       if (eventsConflict && eventsConflict.length > 0) {
         const conflictEvent = eventsConflict[0];
-        console.log("Found conflicting event:", conflictEvent);
+        console.log("CONFLICT - Found conflicting event:", conflictEvent);
         return { 
           available: false, 
           conflictDetails: `Conflicts with "${conflictEvent.title}" at ${new Date(conflictEvent.start_date).toLocaleTimeString()}`
         };
       }
       
+      // Check for business booking conflicts
       if (businessId || businessUserId) {
         const targetBusinessId = businessId;
         
@@ -391,26 +403,28 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           if (bookingsError) throw bookingsError;
           
-          console.log("All potential conflicting bookings:", conflictingBookings);
+          console.log("CHECKING - All potential conflicting bookings:", conflictingBookings);
           
           const bookingsConflict = conflictingBookings?.filter(booking => {
             const isExcludedBooking = booking.id === excludeEventId;
-            console.log(`Booking ${booking.id} is excluded booking? ${isExcludedBooking}`);
+            console.log(`Booking ${booking.id} === excludeEventId ${excludeEventId}? ${isExcludedBooking}`);
             
             const hasTimeConflict = !(
               startDate.getTime() >= new Date(booking.end_date).getTime() || 
               endDate.getTime() <= new Date(booking.start_date).getTime()
             );
             
-            // Only return true if it's not the excluded booking AND there's a time conflict
+            console.log(`Booking ${booking.id} has time conflict? ${hasTimeConflict}`);
+            
+            // Only return bookings that are not the excluded booking AND have a time conflict
             return !isExcludedBooking && hasTimeConflict;
           });
           
-          console.log("Conflicting bookings (excluding current):", bookingsConflict);
+          console.log("CHECKING - Filtered conflicting bookings:", bookingsConflict);
           
           if (bookingsConflict && bookingsConflict.length > 0) {
             const conflictBooking = bookingsConflict[0];
-            console.log("Found conflicting booking:", conflictBooking);
+            console.log("CONFLICT - Found conflicting booking:", conflictBooking);
             return { 
               available: false, 
               conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`

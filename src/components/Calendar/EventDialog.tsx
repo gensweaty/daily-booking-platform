@@ -161,6 +161,8 @@ export const EventDialog = ({
         if (event.type) {
           eventData.type = event.type;
         }
+        
+        console.log("Editing existing event. Full data being submitted:", eventData);
       }
 
       try {
