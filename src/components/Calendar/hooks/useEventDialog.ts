@@ -100,6 +100,8 @@ export const useEventDialog = ({
         .maybeSingle();
         
       if (businessProfile?.id) {
+        console.log("Checking booking conflicts for business profile:", businessProfile.id);
+        
         const { data: conflictingBookings, error: bookingsError } = await supabase
           .from('booking_requests')
           .select('*')
@@ -110,28 +112,16 @@ export const useEventDialog = ({
           
         if (bookingsError) throw bookingsError;
         
-        // Improved conflict check for bookings
-        // First check if this event is actually this booking (using exact time match)
-        const bookingConflict = conflictingBookings?.find(booking => {
-          // For existing events being edited, check if this booking represents the same event
-          // by comparing start/end times to the original event times if event type is booking_request
-          const isEditingThisBooking = existingEventId && selectedEvent && 
-            selectedEvent.type === 'booking_request' && 
-            (booking.id === existingEventId ||
-             (new Date(booking.start_date).getTime() === new Date(selectedEvent.start_date).getTime() && 
-              new Date(booking.end_date).getTime() === new Date(selectedEvent.end_date).getTime()));
-          
-          console.log(`Comparing booking ${booking.id} - isEditingThisBooking: ${isEditingThisBooking}`);
-          
-          // Skip conflict check for the booking we're currently editing
-          if (isEditingThisBooking) {
-            return false;
-          }
-          
-          // Otherwise check for time overlap
-          return !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
-                   endDate.getTime() <= new Date(booking.start_date).getTime());
-        });
+        // Log all booking IDs for debugging
+        console.log("existingEventId:", existingEventId);
+        console.log("Conflicting booking IDs:", conflictingBookings?.map(b => b.id));
+        
+        // Simplified booking conflict logic - only exclude by ID
+        const bookingConflict = conflictingBookings?.find(booking => 
+          booking.id !== existingEventId &&
+          !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
+            endDate.getTime() <= new Date(booking.start_date).getTime())
+        );
         
         console.log("Conflicting bookings (excluding current):", 
           conflictingBookings?.filter(b => b.id !== existingEventId));
