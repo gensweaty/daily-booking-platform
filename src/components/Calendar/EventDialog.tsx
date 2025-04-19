@@ -39,6 +39,8 @@ export const EventDialog = ({
   const [eventNotes, setEventNotes] = useState(event?.event_notes || "");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [originalStartDate, setOriginalStartDate] = useState(""); // Track original dates
+  const [originalEndDate, setOriginalEndDate] = useState(""); // Track original dates
   const [paymentStatus, setPaymentStatus] = useState(event?.payment_status || "");
   const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -61,8 +63,15 @@ export const EventDialog = ({
       setEventNotes(event.event_notes || event.description || "");
       setPaymentStatus(event.payment_status || "");
       setPaymentAmount(event.payment_amount?.toString() || "");
-      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
+      
+      const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
+      const formattedEnd = format(end, "yyyy-MM-dd'T'HH:mm");
+      
+      setStartDate(formattedStart);
+      setEndDate(formattedEnd);
+      setOriginalStartDate(formattedStart); // Save original for comparison
+      setOriginalEndDate(formattedEnd); // Save original for comparison
+      
       setIsBookingEvent(event.type === 'booking_request');
       
       console.log("EventDialog - Loaded event with type:", event.type);
@@ -72,8 +81,13 @@ export const EventDialog = ({
       
       end.setHours(end.getHours() + 1);
       
-      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
+      const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
+      const formattedEnd = format(end, "yyyy-MM-dd'T'HH:mm");
+      
+      setStartDate(formattedStart);
+      setEndDate(formattedEnd);
+      setOriginalStartDate(formattedStart);
+      setOriginalEndDate(formattedEnd);
     }
   }, [selectedDate, event, open]);
 
@@ -111,6 +125,15 @@ export const EventDialog = ({
     
     const startDateTime = new Date(startDate);
     const endDateTime = new Date(endDate);
+    
+    // Check if the dates have changed during editing
+    const timesChanged = startDate !== originalStartDate || endDate !== originalEndDate;
+    console.log("Time changed during edit?", timesChanged, {
+      originalStart: originalStartDate,
+      currentStart: startDate,
+      originalEnd: originalEndDate,
+      currentEnd: endDate
+    });
     
     // Prepare event data with proper type preservation
     const eventData: Partial<CalendarEventType> = {

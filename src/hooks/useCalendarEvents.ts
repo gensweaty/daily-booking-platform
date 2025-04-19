@@ -11,6 +11,31 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const { toast } = useToast();
   const { t } = useLanguage();
 
+  // Helper to determine if times have changed between original and new dates
+  const haveTimesChanged = (
+    originalStartDate: string,
+    originalEndDate: string,
+    newStartDate: string,
+    newEndDate: string
+  ): boolean => {
+    const originalStart = new Date(originalStartDate).getTime();
+    const originalEnd = new Date(originalEndDate).getTime();
+    const newStart = new Date(newStartDate).getTime();
+    const newEnd = new Date(newEndDate).getTime();
+    
+    const timesChanged = originalStart !== newStart || originalEnd !== newEnd;
+    
+    console.log("Time change check in useCalendarEvents:", {
+      originalStart,
+      originalEnd,
+      newStart,
+      newEnd,
+      changed: timesChanged
+    });
+    
+    return timesChanged;
+  };
+
   const getEvents = async () => {
     if (!user) return [];
     
@@ -214,18 +239,64 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     console.log("Update data:", data);
     console.log("Event type:", data.type);
     
+    // For existing events, first check if we need to validate time conflicts
     if (data.start_date && data.end_date) {
-      const startDateTime = new Date(data.start_date);
-      const endDateTime = new Date(data.end_date);
+      // First get the original event to check if times changed
+      let skipTimeCheck = false;
+      let originalEvent: any = null;
       
-      const { available, conflictDetails } = await checkTimeSlotAvailability(
-        startDateTime,
-        endDateTime,
-        id
-      );
+      if (data.type === 'booking_request' || (id && typeof id === 'string' && id.includes('-'))) {
+        // Check for booking request with this ID
+        const { data: bookingData } = await supabase
+          .from('booking_requests')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+          
+        if (bookingData) {
+          originalEvent = bookingData;
+        }
+      }
       
-      if (!available) {
-        throw new Error(`Time slot already booked: ${conflictDetails}`);
+      if (!originalEvent) {
+        // Check for regular event
+        const { data: eventData } = await supabase
+          .from('events')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+          
+        if (eventData) {
+          originalEvent = eventData;
+        }
+      }
+      
+      // If we found the original event, check if times changed
+      if (originalEvent) {
+        skipTimeCheck = !haveTimesChanged(
+          originalEvent.start_date,
+          originalEvent.end_date,
+          data.start_date,
+          data.end_date
+        );
+        
+        console.log("Should skip time conflict check?", skipTimeCheck);
+      }
+      
+      // Only perform conflict check if times have changed
+      if (!skipTimeCheck) {
+        const startDateTime = new Date(data.start_date);
+        const endDateTime = new Date(data.end_date);
+        
+        const { available, conflictDetails } = await checkTimeSlotAvailability(
+          startDateTime,
+          endDateTime,
+          id
+        );
+        
+        if (!available) {
+          throw new Error(`Time slot already booked: ${conflictDetails}`);
+        }
       }
     }
     
@@ -341,7 +412,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, start_date, end_date, deleted_at')
+        .select('id, title, start_date, end_date, deleted_at, type')
         .eq('user_id', userId)
         .filter('start_date', 'lt', endDate.toISOString())
         .filter('end_date', 'gt', startDate.toISOString())
@@ -349,6 +420,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventsError) throw eventsError;
       
+      // Helper function to identify if this is the event being edited
       const isSameEvent = (item: any) => {
         return item.id === excludeEventId;
       };
@@ -369,15 +441,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         };
       }
       
+      // Check for booking conflicts
       if (businessId || businessUserId) {
         const targetBusinessId = businessId;
         
         if (targetBusinessId) {
-          console.log("excludeEventId:", excludeEventId);
+          console.log("Booking conflict check for excludeEventId:", excludeEventId);
           
           const { data: conflictingBookings, error: bookingsError } = await supabase
             .from('booking_requests')
-            .select('id, title, start_date, end_date')
+            .select('id, title, start_date, end_date, type')
             .eq('business_id', targetBusinessId)
             .eq('status', 'approved')
             .filter('start_date', 'lt', endDate.toISOString())
@@ -390,6 +463,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             conflictingBookings: conflictingBookings?.map(b => b.id)
           });
           
+          // Helper function to identify if this is the booking being edited
           const isSameBooking = (booking: any) => {
             return booking.id === excludeEventId;
           };
@@ -411,6 +485,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           }
         }
       } else if (!businessId && !businessUserId && user) {
+        // Check for user's own business bookings
         const { data: userBusinessProfile } = await supabase
           .from("business_profiles")
           .select("id")
@@ -433,6 +508,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             conflictingBookings: conflictingBookings?.map(b => b.id)
           });
           
+          // Helper function to identify if this is the booking being edited
           const isSameBooking = (booking: any) => {
             return booking.id === excludeEventId;
           };

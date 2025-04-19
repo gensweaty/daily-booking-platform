@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -37,6 +38,30 @@ export const useEventDialog = ({
     console.log('useEventDialog - current selectedDate:', selectedDate);
   }, [isNewEventDialogOpen]);
 
+  // Helper to determine if times have changed between original and new event
+  const haveTimesChanged = (
+    originalEvent: CalendarEventType,
+    startDate: Date,
+    endDate: Date
+  ): boolean => {
+    const originalStart = new Date(originalEvent.start_date).getTime();
+    const originalEnd = new Date(originalEvent.end_date).getTime();
+    const newStart = startDate.getTime();
+    const newEnd = endDate.getTime();
+    
+    const timesChanged = originalStart !== newStart || originalEnd !== newEnd;
+    
+    console.log("Time change check:", {
+      originalStart,
+      originalEnd,
+      newStart,
+      newEnd,
+      changed: timesChanged
+    });
+    
+    return timesChanged;
+  };
+
   const checkTimeSlotAvailability = async (
     startDate: Date,
     endDate: Date,
@@ -56,14 +81,9 @@ export const useEventDialog = ({
         return { available: true };
       }
       
-      // Always skip conflict checking if we're not changing the event times
+      // Skip conflict checking if we're editing an existing event and not changing times
       if (existingEventId && selectedEvent) {
-        const originalStart = new Date(selectedEvent.start_date).getTime();
-        const originalEnd = new Date(selectedEvent.end_date).getTime();
-        const newStart = startDate.getTime();
-        const newEnd = endDate.getTime();
-        
-        if (originalStart === newStart && originalEnd === newEnd) {
+        if (!haveTimesChanged(selectedEvent, startDate, endDate)) {
           console.log("Skipping time slot check for unchanged event times");
           return { available: true };
         }
@@ -127,7 +147,9 @@ export const useEventDialog = ({
         
         // Helper function to identify if a booking is the one being edited
         const isSameBooking = (booking: any) => {
-          return booking.id === existingEventId;
+          // Compare both direct ID match and the case where a booking-originated event is being edited
+          return booking.id === existingEventId || 
+                 (selectedEvent?.type === 'booking_request' && booking.id === selectedEvent?.id);
         };
         
         const bookingConflict = conflictingBookings?.find(booking => 
@@ -220,18 +242,10 @@ export const useEventDialog = ({
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
       
-      const originalStart = new Date(selectedEvent.start_date).getTime();
-      const originalEnd = new Date(selectedEvent.end_date).getTime();
-      const newStart = startDate.getTime();
-      const newEnd = endDate.getTime();
-      const timesChanged = originalStart !== newStart || originalEnd !== newEnd;
+      // Skip conflict checking if the times haven't changed
+      const timesChanged = haveTimesChanged(selectedEvent, startDate, endDate);
       
-      console.log('Times changed?', timesChanged, {
-        originalStart,
-        originalEnd,
-        newStart,
-        newEnd
-      });
+      console.log('Times changed?', timesChanged);
 
       // Only check for conflicts if the times have changed
       if (timesChanged) {
