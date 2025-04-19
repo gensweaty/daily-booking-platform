@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -36,7 +37,8 @@
 
     --dark-background: 240 10% 3.9%;
     --dark-foreground: 0 0% 98%;
-    --dark-calendar-background: 240 10% 10%; // Slightly lighter than background for contrast
+    /* Slightly lighter than background for contrast */
+    --dark-calendar-background: 240 10% 10%;
   }
 
   .dark {
