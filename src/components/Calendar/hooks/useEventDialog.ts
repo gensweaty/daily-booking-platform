@@ -232,15 +232,17 @@ export const useEventDialog = ({
         console.log('Dates unchanged, skipping conflict check');
       }
 
-      // Make sure to include the ID in the data object for the update
-      const eventToUpdate = {
+      // Create a new object that includes the id property from selectedEvent
+      const eventData: Partial<CalendarEventType> = {
         ...data,
-        id: selectedEvent.id
+        id: selectedEvent.id,
+        // If the event has a type, preserve it
+        type: selectedEvent.type
       };
       
-      console.log('Final event data being passed to updateEvent:', eventToUpdate);
+      console.log('Final event data being passed to updateEvent:', eventData);
       
-      const result = await updateEvent(eventToUpdate);
+      const result = await updateEvent(eventData);
       
       setSelectedEvent(null);
       toast({

@@ -205,34 +205,30 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     return data;
   };
 
-  const updateEvent = async (updateData: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+  const updateEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
     
-    console.log("updateEvent received data:", updateData);
+    console.log("updateEvent received data:", event);
     
-    const id = updateData.id;
+    const id = event.id;
     if (!id) throw new Error("Event ID is required for updates");
-    
-    // Extract the id from updateData to avoid duplication in the database update
-    const { id: eventId, ...updates } = updateData;
     
     // Log received data for debugging
     console.log("updateEvent processing:", {
-      id: eventId,
-      updates,
-      originalType: 'type' in updateData ? updateData.type : 'unknown'
+      id: id,
+      type: event.type || 'unknown'
     });
     
-    if (updates.start_date && updates.end_date) {
-      const startDateTime = new Date(updates.start_date);
-      const endDateTime = new Date(updates.end_date);
+    if (event.start_date && event.end_date) {
+      const startDateTime = new Date(event.start_date);
+      const endDateTime = new Date(event.end_date);
       
-      console.log("Checking availability for event update, EXPLICITLY excluding ID:", eventId);
+      console.log("Checking availability for event update, EXPLICITLY excluding ID:", id);
       
       const { available, conflictDetails } = await checkTimeSlotAvailability(
         startDateTime,
         endDateTime,
-        eventId
+        id
       );
       
       if (!available) {
@@ -241,7 +237,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
     
     // Handle booking request type events
-    if (updates.type === 'booking_request' || (id && id.includes('-'))) {
+    if (event.type === 'booking_request' || (id && id.includes('-'))) {
       try {
         const { data: bookingData, error: bookingError } = await supabase
           .from('booking_requests')
@@ -254,13 +250,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           const { data: updatedBooking, error: updateError } = await supabase
             .from('booking_requests')
             .update({
-              title: updates.title,
-              requester_name: updates.user_surname,
-              requester_phone: updates.user_number,
-              requester_email: updates.social_network_link,
-              description: updates.event_notes,
-              start_date: updates.start_date,
-              end_date: updates.end_date,
+              title: event.title,
+              requester_name: event.user_surname,
+              requester_phone: event.user_number,
+              requester_email: event.social_network_link,
+              description: event.event_notes,
+              start_date: event.start_date,
+              end_date: event.end_date,
               updated_at: new Date().toISOString()
             })
             .eq('id', id)
@@ -297,7 +293,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
-    console.log("Updating regular event with ID:", eventId, "and data:", updates);
+    console.log("Updating regular event with ID:", id);
+    
+    // Remove id from the update object since we'll use it in the eq() clause
+    const { id: eventId, ...updates } = event;
     
     const { data, error } = await supabase
       .from('events')

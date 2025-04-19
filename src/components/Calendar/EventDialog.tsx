@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -142,6 +143,7 @@ export const EventDialog = ({
         isEdit: !!event
       });
       
+      // Create base eventData
       const eventData: Partial<CalendarEventType> = {
         title,
         user_surname: userSurname,
@@ -154,6 +156,7 @@ export const EventDialog = ({
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
       };
 
+      // If editing, add id and preserve type
       if (event?.id) {
         eventData.id = event.id;
         
@@ -341,6 +344,7 @@ export const EventDialog = ({
           variant: "destructive",
           duration: 5000, // Auto-dismiss after 5 seconds
         });
+        throw error; // Rethrow to prevent closing dialog
       }
     } finally {
       setIsSubmitting(false);
