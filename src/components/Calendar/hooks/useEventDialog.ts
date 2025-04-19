@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -47,7 +48,9 @@ export const useEventDialog = ({
         start: startDate.toISOString(),
         end: endDate.toISOString(),
         excludeId: existingEventId,
-        userId: user?.id
+        userId: user?.id,
+        selectedEventId: selectedEvent?.id,
+        selectedEventType: selectedEvent?.type
       });
       
       if (!user) {
@@ -114,17 +117,27 @@ export const useEventDialog = ({
         
         // Log all booking IDs for debugging
         console.log("existingEventId:", existingEventId);
+        console.log("selectedEvent ID:", selectedEvent?.id);
+        console.log("selectedEvent type:", selectedEvent?.type);
         console.log("Conflicting booking IDs:", conflictingBookings?.map(b => b.id));
         
-        // Simplified booking conflict logic - only exclude by ID
+        // Enhanced booking conflict logic - check if the booking is the one being edited
+        const isSameBooking = (booking: any) => {
+          return (
+            booking.id === existingEventId || // direct ID match
+            selectedEvent?.id === booking.id || // selected event ID matches booking ID
+            (selectedEvent?.type === 'booking_request' && selectedEvent?.id === booking.id) // booking-originated event
+          );
+        };
+        
         const bookingConflict = conflictingBookings?.find(booking => 
-          booking.id !== existingEventId &&
+          !isSameBooking(booking) &&
           !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
             endDate.getTime() <= new Date(booking.start_date).getTime())
         );
         
         console.log("Conflicting bookings (excluding current):", 
-          conflictingBookings?.filter(b => b.id !== existingEventId));
+          conflictingBookings?.filter(b => !isSameBooking(b)));
         
         if (bookingConflict) {
           const conflictEvent: CalendarEventType = {

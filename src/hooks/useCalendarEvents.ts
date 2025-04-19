@@ -417,6 +417,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             
           if (bookingsError) throw bookingsError;
           
+          console.log("Booking conflict check against:", {
+            excludeId: excludeEventId,
+            conflictingBookings: conflictingBookings?.map(b => b.id)
+          });
+          
           const bookingsConflict = conflictingBookings?.filter(booking => 
             booking.id !== excludeEventId &&
             !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
