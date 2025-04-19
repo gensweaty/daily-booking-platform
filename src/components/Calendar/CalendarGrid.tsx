@@ -308,6 +308,96 @@ export const CalendarGrid = ({
     );
   }
 
+  if (view === 'month') {
+    return (
+      <div className={`grid grid-cols-7 gap-px ${isDarkTheme ? 'bg-gray-700' : 'bg-gray-200'} rounded-lg overflow-hidden`}>
+        {weekDays.map((day) => (
+          <div key={day} className={`${isDarkTheme ? 'bg-gray-800 text-gray-100 border-gray-600' : 'bg-white'} p-2 sm:p-4 text-center font-semibold text-xs sm:text-sm border-b`}>
+            {day}
+          </div>
+        ))}
+        {days.map((day) => {
+          const dayEvents = events.filter((event) => isSameDay(new Date(event.start_date), day));
+          const isOtherMonth = !isSameMonth(day, selectedDate);
+          
+          return (
+            <div
+              key={day.toISOString()}
+              className={`${
+                isDarkTheme 
+                  ? (isOtherMonth 
+                      ? 'bg-gray-900 hover:bg-gray-800 border-gray-800 text-gray-600' 
+                      : 'bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-100') 
+                  : (isOtherMonth 
+                      ? 'bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-400' 
+                      : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-900')
+              } p-1 sm:p-4 min-h-[90px] sm:min-h-[120px] cursor-pointer border-r border-b`}
+              onClick={() => onDayClick?.(day)}
+            >
+              <div className={`font-medium text-xs sm:text-sm ${
+                isDarkTheme 
+                  ? (isOtherMonth ? 'text-gray-600' : 'text-gray-100')
+                  : (isOtherMonth ? 'text-gray-400' : 'text-gray-900')
+              }`}>
+                {format(day, "d")}
+              </div>
+              <div className="mt-1 sm:mt-2 space-y-0.5 sm:space-y-1">
+                {dayEvents.length > 0 ? (
+                  isMobile ? (
+                    <>
+                      {dayEvents.slice(0, 2).map((event) => (
+                        <div
+                          key={event.id}
+                          className={`text-[0.65rem] sm:text-sm p-0.5 pl-1 sm:p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
+                            isOtherMonth ? 'opacity-60' : ''
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEventClick?.(event);
+                          }}
+                        >
+                          <CalendarIcon className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5 sm:mr-1.5 shrink-0" />
+                          <span className="truncate font-medium">
+                            {getEventTitle(event)}
+                          </span>
+                        </div>
+                      ))}
+                      {dayEvents.length > 2 && (
+                        <div className={`text-[0.65rem] ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium pl-1 ${
+                          isOtherMonth ? 'opacity-60' : ''
+                        }`}>
+                          +{dayEvents.length - 2} more
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    dayEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className={`text-sm p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
+                          isOtherMonth ? 'opacity-60' : ''
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEventClick?.(event);
+                        }}
+                      >
+                        <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
+                        <span className="truncate font-medium">
+                          {getEventTitle(event)}
+                        </span>
+                      </div>
+                    ))
+                  )
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className={`grid grid-cols-7 gap-px ${isDarkTheme ? 'bg-gray-700' : 'bg-gray-200'} rounded-lg overflow-hidden`}>
       {weekDays.map((day) => (
@@ -341,7 +431,9 @@ export const CalendarGrid = ({
                     {dayEvents.slice(0, 2).map((event) => (
                       <div
                         key={event.id}
-                        className={`text-[0.65rem] sm:text-sm p-0.5 pl-1 sm:p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm`}
+                        className={`text-[0.65rem] sm:text-sm p-0.5 pl-1 sm:p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
+                          isOtherMonth ? 'opacity-60' : ''
+                        }`}
                         onClick={(e) => {
                           e.stopPropagation();
                           onEventClick?.(event);
@@ -354,7 +446,9 @@ export const CalendarGrid = ({
                       </div>
                     ))}
                     {dayEvents.length > 2 && (
-                      <div className={`text-[0.65rem] ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium pl-1`}>
+                      <div className={`text-[0.65rem] ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium pl-1 ${
+                        isOtherMonth ? 'opacity-60' : ''
+                      }`}>
                         +{dayEvents.length - 2} more
                       </div>
                     )}
@@ -363,7 +457,9 @@ export const CalendarGrid = ({
                   dayEvents.map((event) => (
                     <div
                       key={event.id}
-                      className={`text-sm p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm`}
+                      className={`text-sm p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
+                        isOtherMonth ? 'opacity-60' : ''
+                      }`}
                       onClick={(e) => {
                         e.stopPropagation();
                         onEventClick?.(event);
