@@ -349,8 +349,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventsError) throw eventsError;
       
+      const isSameEvent = (item: any) => {
+        return item.id === excludeEventId;
+      };
+      
       const eventsConflict = conflictingEvents?.filter(event => 
-        excludeEventId !== event.id &&
+        !isSameEvent(event) &&
         !(startDate.getTime() >= new Date(event.end_date).getTime() || 
           endDate.getTime() <= new Date(event.start_date).getTime())
       );
@@ -381,10 +385,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           if (bookingsError) throw bookingsError;
           
-          console.log("Conflicting booking IDs:", conflictingBookings?.map(b => b.id));
+          console.log("Booking conflict check against:", {
+            excludeId: excludeEventId,
+            conflictingBookings: conflictingBookings?.map(b => b.id)
+          });
+          
+          const isSameBooking = (booking: any) => {
+            return booking.id === excludeEventId;
+          };
           
           const bookingsConflict = conflictingBookings?.filter(booking => 
-            booking.id !== excludeEventId &&
+            !isSameBooking(booking) &&
             !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
               endDate.getTime() <= new Date(booking.start_date).getTime())
           );
@@ -422,8 +433,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             conflictingBookings: conflictingBookings?.map(b => b.id)
           });
           
+          const isSameBooking = (booking: any) => {
+            return booking.id === excludeEventId;
+          };
+          
           const bookingsConflict = conflictingBookings?.filter(booking => 
-            booking.id !== excludeEventId &&
+            !isSameBooking(booking) &&
             !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
               endDate.getTime() <= new Date(booking.start_date).getTime())
           );

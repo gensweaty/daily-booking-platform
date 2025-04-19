@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -81,15 +80,20 @@ export const useEventDialog = ({
         
       if (eventsError) throw eventsError;
       
+      // Helper function to identify if an event is the one being edited
+      const isSameEvent = (event: any) => {
+        return event.id === existingEventId;
+      };
+      
       // Check for conflicts, strictly excluding the current event
       const eventConflict = conflictingEvents?.find(event => 
-        event.id !== existingEventId &&
+        !isSameEvent(event) &&
         !(startDate.getTime() >= new Date(event.end_date).getTime() || 
           endDate.getTime() <= new Date(event.start_date).getTime())
       );
       
       console.log("Conflicting events (excluding current):", 
-        conflictingEvents?.filter(e => e.id !== existingEventId && !e.deleted_at));
+        conflictingEvents?.filter(e => !isSameEvent(e) && !e.deleted_at));
       
       if (eventConflict) {
         return { available: false, conflictingEvent: eventConflict };
@@ -121,13 +125,9 @@ export const useEventDialog = ({
         console.log("selectedEvent type:", selectedEvent?.type);
         console.log("Conflicting booking IDs:", conflictingBookings?.map(b => b.id));
         
-        // Enhanced booking conflict logic - check if the booking is the one being edited
+        // Helper function to identify if a booking is the one being edited
         const isSameBooking = (booking: any) => {
-          return (
-            booking.id === existingEventId || // direct ID match
-            selectedEvent?.id === booking.id || // selected event ID matches booking ID
-            (selectedEvent?.type === 'booking_request' && selectedEvent?.id === booking.id) // booking-originated event
-          );
+          return booking.id === existingEventId;
         };
         
         const bookingConflict = conflictingBookings?.find(booking => 
