@@ -54,6 +54,18 @@ export const useEventDialog = ({
         return { available: true };
       }
       
+      if (existingEventId && selectedEvent) {
+        const originalStart = new Date(selectedEvent.start_date).getTime();
+        const originalEnd = new Date(selectedEvent.end_date).getTime();
+        const newStart = startDate.getTime();
+        const newEnd = endDate.getTime();
+        
+        if (originalStart === newStart && originalEnd === newEnd) {
+          console.log("Skipping time slot check for unchanged event times");
+          return { available: true };
+        }
+      }
+      
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('*')
@@ -65,7 +77,7 @@ export const useEventDialog = ({
       if (eventsError) throw eventsError;
       
       const eventConflict = conflictingEvents?.find(event => 
-        (!existingEventId || event.id !== existingEventId) &&
+        event.id !== existingEventId &&
         !(startDate.getTime() >= new Date(event.end_date).getTime() || 
           endDate.getTime() <= new Date(event.start_date).getTime())
       );
@@ -181,11 +193,21 @@ export const useEventDialog = ({
       
       const startDate = new Date(data.start_date as string);
       const endDate = new Date(data.end_date as string);
+      
+      const originalStart = new Date(selectedEvent.start_date).getTime();
+      const originalEnd = new Date(selectedEvent.end_date).getTime();
+      const newStart = startDate.getTime();
+      const newEnd = endDate.getTime();
+      const timesChanged = originalStart !== newStart || originalEnd !== newEnd;
+      
+      console.log('Times changed?', timesChanged, {
+        originalStart,
+        originalEnd,
+        newStart,
+        newEnd
+      });
 
-      if (
-        startDate.toISOString() !== new Date(selectedEvent.start_date).toISOString() || 
-        endDate.toISOString() !== new Date(selectedEvent.end_date).toISOString()
-      ) {
+      if (timesChanged) {
         console.log('Dates changed, checking for conflicts');
         
         const { available, conflictingEvent } = await checkTimeSlotAvailability(

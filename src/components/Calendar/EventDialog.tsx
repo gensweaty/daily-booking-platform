@@ -112,6 +112,7 @@ export const EventDialog = ({
     const startDateTime = new Date(startDate);
     const endDateTime = new Date(endDate);
     
+    // Prepare event data with proper type preservation
     const eventData: Partial<CalendarEventType> = {
       title,
       user_surname: userSurname,
