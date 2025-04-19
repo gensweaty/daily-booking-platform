@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -34,41 +33,36 @@
     --ring: 222.2 84% 4.9%;
 
     --radius: 0.5rem;
-
-    --dark-background: 240 10% 3.9%;
-    --dark-foreground: 0 0% 98%;
-    /* Slightly lighter than background for contrast */
-    --dark-calendar-background: 240 10% 10%;
   }
 
   .dark {
-    --background: var(--dark-background);
-    --foreground: var(--dark-foreground);
-    
-    --card: var(--dark-background);
-    --card-foreground: var(--dark-foreground);
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
 
-    --popover: var(--dark-background);
-    --popover-foreground: var(--dark-foreground);
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
 
-    --primary: var(--dark-foreground);
-    --primary-foreground: var(--dark-background);
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
 
-    --secondary: var(--dark-foreground);
-    --secondary-foreground: var(--dark-background);
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: var(--dark-foreground);
-    --muted-foreground: var(--dark-background);
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
 
-    --accent: var(--dark-foreground);
-    --accent-foreground: var(--dark-background);
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
 
-    --destructive: var(--dark-foreground);
-    --destructive-foreground: var(--dark-background);
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
 
-    --border: var(--dark-foreground);
-    --input: var(--dark-foreground);
-    --ring: var(--dark-foreground);
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
   }
 }
 
