@@ -40,14 +40,14 @@ export const CalendarGrid = ({
 
   const getEventStyles = (event: CalendarEventType) => {
     if (isExternalCalendar) {
-      return isDarkTheme ? "bg-[#1A1F2C] text-white" : "bg-green-500 text-white";
+      return isDarkTheme ? "bg-gray-800 text-gray-200" : "bg-green-500 text-white";
     } else {
       if (event.type === "booking_request") {
-        return isDarkTheme ? "bg-[#1A1F2C] text-green-400" : "bg-green-500 text-white"; 
+        return isDarkTheme ? "bg-gray-800 text-green-400" : "bg-green-500 text-white"; 
       } else if (event.type === "birthday") {
-        return isDarkTheme ? "bg-[#1A1F2C] text-blue-400" : "bg-blue-100 text-blue-700";
+        return isDarkTheme ? "bg-gray-800 text-blue-400" : "bg-blue-100 text-blue-700";
       } else {
-        return isDarkTheme ? "bg-[#1A1F2C] text-purple-400" : "bg-purple-100 text-purple-700";
+        return isDarkTheme ? "bg-gray-800 text-purple-400" : "bg-purple-100 text-purple-700";
       }
     }
   };
