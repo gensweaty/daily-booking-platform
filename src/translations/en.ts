@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 const en: TranslationType = {
@@ -58,7 +59,6 @@ const en: TranslationType = {
     paidFully: "Fully Paid",
     newCustomer: "New Customer",
     fullNameRequired: "Full Name",
-    fullName: "Full Name",
     fullNamePlaceholder: "Enter customer's full name",
     phoneNumber: "Phone Number",
     phoneNumberPlaceholder: "Enter phone number",

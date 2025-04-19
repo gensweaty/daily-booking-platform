@@ -58,7 +58,6 @@ const es: TranslationType = {
     paidFully: "Pagado Completamente",
     newCustomer: "Nuevo Cliente",
     fullNameRequired: "Nombre Completo",
-    fullName: "Nombre Completo",
     fullNamePlaceholder: "Ingrese el nombre completo del cliente",
     phoneNumber: "Número de Teléfono",
     phoneNumberPlaceholder: "Ingrese número de teléfono",
