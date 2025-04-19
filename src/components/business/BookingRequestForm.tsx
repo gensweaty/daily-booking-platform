@@ -1,3 +1,4 @@
+
 // Make sure translation keys are properly used in the BookingRequestForm component
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -54,25 +55,11 @@ export const BookingRequestForm = ({
       if (!businessId) return;
       
       try {
-        const clientIp = await getClientIp();
-        if (!clientIp) return;
-        
-        const { data, error } = await supabase
-          .from('booking_requests')
-          .select('created_at')
-          .eq('client_ip', clientIp)
-          .eq('business_id', businessId)
-          .order('created_at', { ascending: false })
-          .limit(1);
-          
-        if (error) {
-          console.error('Error checking rate limit:', error);
-          return;
-        }
-        
-        if (data && data.length > 0) {
-          const lastRequest = new Date(data[0].created_at);
+        // Check if there's a recent request from this session
+        const lastRequestTime = localStorage.getItem(`booking_last_request_${businessId}`);
+        if (lastRequestTime) {
           const now = new Date();
+          const lastRequest = new Date(parseInt(lastRequestTime));
           const timeSinceLastRequest = now.getTime() - lastRequest.getTime();
           const twoMinutesInMs = 2 * 60 * 1000;
           
@@ -131,17 +118,6 @@ export const BookingRequestForm = ({
     }
   }, [selectedDate]);
 
-  const getClientIp = async () => {
-    try {
-      const response = await fetch('https://api.ipify.org?format=json');
-      const data = await response.json();
-      return data.ip;
-    } catch (error) {
-      console.error('Error getting IP:', error);
-      return null;
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -168,19 +144,11 @@ export const BookingRequestForm = ({
     setIsSubmitting(true);
     
     try {
-      const clientIp = await getClientIp();
-      
-      const { data: recentRequests, error: rateCheckError } = await supabase
-        .from('booking_requests')
-        .select('created_at')
-        .eq('client_ip', clientIp || '')
-        .eq('business_id', businessId)
-        .order('created_at', { ascending: false })
-        .limit(1);
-        
-      if (!rateCheckError && recentRequests && recentRequests.length > 0) {
-        const lastRequest = new Date(recentRequests[0].created_at);
+      // Check local rate limit
+      const lastRequestTime = localStorage.getItem(`booking_last_request_${businessId}`);
+      if (lastRequestTime) {
         const now = new Date();
+        const lastRequest = new Date(parseInt(lastRequestTime));
         const timeSinceLastRequest = now.getTime() - lastRequest.getTime();
         const twoMinutesInMs = 2 * 60 * 1000;
         
@@ -216,8 +184,7 @@ export const BookingRequestForm = ({
           description: notes,
           start_date: startDateTime.toISOString(),
           end_date: endDateTime.toISOString(),
-          status: 'pending',
-          client_ip: clientIp || null
+          status: 'pending'
         })
         .select()
         .single();
@@ -225,6 +192,9 @@ export const BookingRequestForm = ({
       if (error) {
         throw error;
       }
+      
+      // Store timestamp of current request for rate limiting
+      localStorage.setItem(`booking_last_request_${businessId}`, Date.now().toString());
       
       if (selectedFile && data) {
         const fileExt = selectedFile.name.split('.').pop();
