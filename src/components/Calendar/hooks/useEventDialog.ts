@@ -66,9 +66,12 @@ export const useEventDialog = ({
         
       if (eventsError) throw eventsError;
       
+      console.log("All potential conflicting events:", conflictingEvents);
+      console.log("Filtering with existingEventId:", existingEventId);
+      
       // Filter out the current event being edited
       const eventConflict = conflictingEvents?.find(event => 
-        (!existingEventId || event.id !== existingEventId) &&
+        event.id !== existingEventId &&
         !(startDate.getTime() >= new Date(event.end_date).getTime() || 
           endDate.getTime() <= new Date(event.start_date).getTime())
       );
@@ -77,6 +80,7 @@ export const useEventDialog = ({
         conflictingEvents?.filter(e => e.id !== existingEventId && !e.deleted_at));
       
       if (eventConflict) {
+        console.log("Found conflicting event:", eventConflict);
         return { available: false, conflictingEvent: eventConflict };
       }
       
@@ -99,6 +103,8 @@ export const useEventDialog = ({
           
         if (bookingsError) throw bookingsError;
         
+        console.log("All potential conflicting bookings:", conflictingBookings);
+        
         // Filter out the current booking being edited
         const bookingConflict = conflictingBookings?.find(booking => 
           booking.id !== existingEventId &&
@@ -110,6 +116,7 @@ export const useEventDialog = ({
           conflictingBookings?.filter(b => b.id !== existingEventId));
         
         if (bookingConflict) {
+          console.log("Found conflicting booking:", bookingConflict);
           // Convert booking to event format for the response
           const conflictEvent: CalendarEventType = {
             id: bookingConflict.id,
@@ -197,6 +204,7 @@ export const useEventDialog = ({
         endDate.toISOString() !== new Date(selectedEvent.end_date).toISOString()
       ) {
         console.log('Dates changed, checking for conflicts');
+        console.log('Current event ID for exclusion:', selectedEvent.id);
         
         const { available, conflictingEvent } = await checkTimeSlotAvailability(
           startDate,

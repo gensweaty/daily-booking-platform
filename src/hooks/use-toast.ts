@@ -1,4 +1,3 @@
-
 import * as React from "react"
 
 import type {
@@ -166,12 +165,10 @@ function toast({ ...props }: Toast) {
     },
   })
 
-  // Auto-dismiss after the specified duration
-  if (duration !== Infinity) {
-    setTimeout(() => {
-      dismiss()
-    }, duration)
-  }
+  // Always auto-dismiss after the specified duration
+  setTimeout(() => {
+    dismiss()
+  }, duration)
 
   return {
     id: id,
