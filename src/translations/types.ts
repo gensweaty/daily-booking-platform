@@ -67,8 +67,9 @@ export interface TranslationType {
     socialLinkEmail: string;
     socialLinkEmailPlaceholder: string;
     createEventForCustomer: string;
-    customerFromEvent: string; // Added
+    customerFromEvent: string;
     paymentStatus: string;
+    paymentAmount: string; // Added this missing property
     selectPaymentStatus: string;
     comment: string;
     commentPlaceholder: string;
@@ -90,8 +91,10 @@ export interface TranslationType {
     deleteSuccess: string;
     deleteError: string;
     missingUserInfo: string;
-    customerCreated: string; // Added
-    customerUpdated: string; // Added
+    customerCreated: string;
+    customerUpdated: string;
+    noDataToExport: string;
+    error: string;
   };
   tasks: {
     title: string;
