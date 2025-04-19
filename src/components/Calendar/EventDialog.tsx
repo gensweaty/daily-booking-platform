@@ -8,7 +8,7 @@ import { Trash2 } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -49,7 +49,6 @@ export const EventDialog = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
   const [isBookingEvent, setIsBookingEvent] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (event) {
@@ -65,15 +64,6 @@ export const EventDialog = ({
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
       setIsBookingEvent(event.type === 'booking_request');
-      
-      console.log("[EventDialog] Set up event form with data:", {
-        id: event.id,
-        title: event.title,
-        start: format(start, "yyyy-MM-dd'T'HH:mm"),
-        end: format(end, "yyyy-MM-dd'T'HH:mm"),
-        type: event.type,
-        isBookingEvent: event.type === 'booking_request'
-      });
     } else if (selectedDate) {
       const start = new Date(selectedDate.getTime());
       const end = new Date(selectedDate.getTime());
@@ -82,13 +72,6 @@ export const EventDialog = ({
       
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-      setIsBookingEvent(false);
-      
-      console.log("[EventDialog] Set up new event form with date:", {
-        selectedDate: selectedDate,
-        formattedStart: format(start, "yyyy-MM-dd'T'HH:mm"),
-        formattedEnd: format(end, "yyyy-MM-dd'T'HH:mm")
-      });
     }
   }, [selectedDate, event, open]);
 
@@ -124,234 +107,199 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isSubmitting) {
-      console.log("[EventDialog] Submit already in progress, skipping");
-      return;
+    const startDateTime = new Date(startDate);
+    const endDateTime = new Date(endDate);
+    
+    const eventData: Partial<CalendarEventType> = {
+      title,
+      user_surname: userSurname,
+      user_number: userNumber,
+      social_network_link: socialNetworkLink,
+      event_notes: eventNotes,
+      start_date: startDateTime.toISOString(),
+      end_date: endDateTime.toISOString(),
+      payment_status: paymentStatus || null,
+      payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+    };
+
+    if (event?.id) {
+      eventData.id = event.id;
     }
-    
-    setIsSubmitting(true);
-    
+
     try {
-      const startDateTime = new Date(startDate);
-      const endDateTime = new Date(endDate);
-      
-      console.log("[EventDialog] Submitting event with data:", {
-        id: event?.id || "new event",
-        title,
-        startDate: startDateTime.toISOString(),
-        endDate: endDateTime.toISOString(),
-        isEdit: !!event
-      });
-      
-      // Create base eventData
-      const eventData: Partial<CalendarEventType> = {
-        title,
-        user_surname: userSurname,
-        user_number: userNumber,
-        social_network_link: socialNetworkLink,
-        event_notes: eventNotes,
-        start_date: startDateTime.toISOString(),
-        end_date: endDateTime.toISOString(),
-        payment_status: paymentStatus || null,
-        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-      };
+      const createdEvent = await onSubmit(eventData);
+      console.log('Created/Updated event:', createdEvent);
 
-      // If editing, add id and preserve type
-      if (event?.id) {
-        eventData.id = event.id;
-        
-        // For event updates, always ensure we pass the ID and type
-        if (event.type) {
-          eventData.type = event.type;
+      if (!isBookingEvent) {
+        const { data: existingCustomer, error: customerQueryError } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('title', title)
+          .maybeSingle();
+
+        if (customerQueryError && customerQueryError.code !== 'PGRST116') {
+          console.error('Error checking for existing customer:', customerQueryError);
+          throw customerQueryError;
         }
+
+        let customerId;
         
-        console.log("[EventDialog] Editing existing event:", {
-          id: event.id,
-          type: event.type || "regular",
-          fullData: eventData
-        });
-      }
-
-      try {
-        const createdEvent = await onSubmit(eventData);
-        console.log('[EventDialog] Created/Updated event:', createdEvent);
-
-        if (!isBookingEvent) {
-          const { data: existingCustomer, error: customerQueryError } = await supabase
+        if (!existingCustomer) {
+          const { data: newCustomer, error: customerError } = await supabase
             .from('customers')
-            .select('id')
-            .eq('title', title)
-            .maybeSingle();
+            .insert({
+              title,
+              user_surname: userSurname,
+              user_number: userNumber,
+              social_network_link: socialNetworkLink,
+              event_notes: eventNotes,
+              payment_status: paymentStatus || null,
+              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+              start_date: startDateTime.toISOString(),
+              end_date: endDateTime.toISOString(),
+              user_id: user?.id,
+              type: 'customer'
+            })
+            .select()
+            .single();
 
-          if (customerQueryError && customerQueryError.code !== 'PGRST116') {
-            console.error('Error checking for existing customer:', customerQueryError);
-            throw customerQueryError;
+          if (customerError) {
+            console.error('Error creating new customer:', customerError);
+            throw customerError;
           }
-
-          let customerId;
+          customerId = newCustomer.id;
+          console.log('Created new customer:', newCustomer);
+        } else {
+          customerId = existingCustomer.id;
           
-          if (!existingCustomer) {
-            const { data: newCustomer, error: customerError } = await supabase
-              .from('customers')
-              .insert({
-                title,
-                user_surname: userSurname,
-                user_number: userNumber,
-                social_network_link: socialNetworkLink,
-                event_notes: eventNotes,
-                payment_status: paymentStatus || null,
-                payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-                start_date: startDateTime.toISOString(),
-                end_date: endDateTime.toISOString(),
-                user_id: user?.id,
-                type: 'customer'
-              })
-              .select()
-              .single();
+          const { error: updateError } = await supabase
+            .from('customers')
+            .update({
+              user_surname: userSurname,
+              user_number: userNumber,
+              social_network_link: socialNetworkLink,
+              event_notes: eventNotes,
+              payment_status: paymentStatus || null,
+              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+              start_date: startDateTime.toISOString(),
+              end_date: endDateTime.toISOString(),
+            })
+            .eq('id', customerId);
 
-            if (customerError) {
-              console.error('Error creating new customer:', customerError);
-              throw customerError;
-            }
-            customerId = newCustomer.id;
-            console.log('Created new customer:', newCustomer);
-          } else {
-            customerId = existingCustomer.id;
-            
-            const { error: updateError } = await supabase
-              .from('customers')
-              .update({
-                user_surname: userSurname,
-                user_number: userNumber,
-                social_network_link: socialNetworkLink,
-                event_notes: eventNotes,
-                payment_status: paymentStatus || null,
-                payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-                start_date: startDateTime.toISOString(),
-                end_date: endDateTime.toISOString(),
-              })
-              .eq('id', customerId);
+          if (updateError) {
+            console.error('Error updating customer:', updateError);
+            throw updateError;
+          }
+          console.log('Updated existing customer:', customerId);
+        }
 
-            if (updateError) {
-              console.error('Error updating customer:', updateError);
-              throw updateError;
-            }
-            console.log('Updated existing customer:', customerId);
+        if (selectedFile && createdEvent?.id && user) {
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `${crypto.randomUUID()}.${fileExt}`;
+          
+          console.log('Uploading file:', filePath);
+          
+          const { error: uploadError } = await supabase.storage
+            .from('event_attachments')
+            .upload(filePath, selectedFile);
+
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            throw uploadError;
           }
 
-          if (selectedFile && createdEvent?.id && user) {
-            const fileExt = selectedFile.name.split('.').pop();
-            const filePath = `${crypto.randomUUID()}.${fileExt}`;
-            
-            console.log('Uploading file:', filePath);
-            
-            const { error: uploadError } = await supabase.storage
-              .from('event_attachments')
-              .upload(filePath, selectedFile);
+          const fileData = {
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user.id
+          };
 
-            if (uploadError) {
-              console.error('Error uploading file:', uploadError);
-              throw uploadError;
-            }
+          const filePromises = [];
 
-            const fileData = {
-              filename: selectedFile.name,
-              file_path: filePath,
-              content_type: selectedFile.type,
-              size: selectedFile.size,
-              user_id: user.id
-            };
+          filePromises.push(
+            supabase
+              .from('event_files')
+              .insert({
+                ...fileData,
+                event_id: createdEvent.id
+              })
+          );
 
-            const filePromises = [];
-
+          if (customerId) {
             filePromises.push(
               supabase
-                .from('event_files')
+                .from('customer_files_new')
                 .insert({
                   ...fileData,
-                  event_id: createdEvent.id
+                  customer_id: customerId
                 })
             );
-
-            if (customerId) {
-              filePromises.push(
-                supabase
-                  .from('customer_files_new')
-                  .insert({
-                    ...fileData,
-                    customer_id: customerId
-                  })
-              );
-            }
-
-            const results = await Promise.all(filePromises);
-            const errors = results.filter(r => r.error);
-            
-            if (errors.length > 0) {
-              console.error('Errors creating file records:', errors);
-              throw errors[0].error;
-            }
-
-            console.log('File records created successfully');
           }
 
-          toast({
-            title: t("common.success"),
-            description: t("common.success"),
-            duration: 5000, // Auto-dismiss after 5 seconds
-          });
-        } else {
-          if (event?.id) {
-            const { data: bookingRequest, error: findError } = await supabase
+          const results = await Promise.all(filePromises);
+          const errors = results.filter(r => r.error);
+          
+          if (errors.length > 0) {
+            console.error('Errors creating file records:', errors);
+            throw errors[0].error;
+          }
+
+          console.log('File records created successfully');
+        }
+
+        toast({
+          title: t("common.success"),
+          description: t("common.success"),
+        });
+      } else {
+        if (event?.id) {
+          const { data: bookingRequest, error: findError } = await supabase
+            .from('booking_requests')
+            .select('*')
+            .eq('id', event.id)
+            .maybeSingle();
+            
+          if (!findError && bookingRequest) {
+            const { error: updateError } = await supabase
               .from('booking_requests')
-              .select('*')
-              .eq('id', event.id)
-              .maybeSingle();
+              .update({
+                title,
+                requester_name: userSurname,
+                requester_phone: userNumber,
+                requester_email: socialNetworkLink,
+                description: eventNotes,
+                start_date: startDateTime.toISOString(),
+                end_date: endDateTime.toISOString(),
+              })
+              .eq('id', event.id);
               
-            if (!findError && bookingRequest) {
-              const { error: updateError } = await supabase
-                .from('booking_requests')
-                .update({
-                  title,
-                  requester_name: userSurname,
-                  requester_phone: userNumber,
-                  requester_email: socialNetworkLink,
-                  description: eventNotes,
-                  start_date: startDateTime.toISOString(),
-                  end_date: endDateTime.toISOString(),
-                })
-                .eq('id', event.id);
-                
-              if (updateError) {
-                console.error('Error updating booking request:', updateError);
-              } else {
-                console.log('Updated booking request successfully');
-              }
+            if (updateError) {
+              console.error('Error updating booking request:', updateError);
+            } else {
+              console.log('Updated booking request successfully');
             }
           }
         }
-
-        onOpenChange(false);
-        
-        queryClient.invalidateQueries({ queryKey: ['events'] });
-        queryClient.invalidateQueries({ queryKey: ['business-events'] });
-        queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-        queryClient.invalidateQueries({ queryKey: ['customers'] });
-        queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-        queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-        
-      } catch (error: any) {
-        console.error('[EventDialog] Error handling event submission:', error);
-        toast({
-          title: t("common.error"),
-          description: error.message || t("common.error"),
-          variant: "destructive",
-          duration: 5000, // 5 second toast duration
-        });
-        throw error; // Rethrow to prevent closing dialog
       }
-    } finally {
-      setIsSubmitting(false);
+
+      onOpenChange(false);
+      
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      
+    } catch (error: any) {
+      console.error('Error handling event submission:', error);
+      toast({
+        title: t("common.error"),
+        description: error.message || t("common.error"),
+        variant: "destructive",
+      });
     }
   };
 
@@ -394,7 +342,7 @@ export const EventDialog = ({
           />
           
           <div className="flex justify-between gap-4">
-            <Button type="submit" className="flex-1" disabled={isSubmitting}>
+            <Button type="submit" className="flex-1">
               {event ? t("events.updateEvent") : t("events.createEvent")}
             </Button>
             {event && onDelete && (
@@ -403,7 +351,6 @@ export const EventDialog = ({
                 variant="destructive"
                 size="icon"
                 onClick={onDelete}
-                disabled={isSubmitting}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

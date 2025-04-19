@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string | null) => {
@@ -177,8 +177,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to create events");
     
-    console.log("[createEvent] Creating new event:", event);
-    
     const startDateTime = new Date(event.start_date as string);
     const endDateTime = new Date(event.end_date as string);
     
@@ -201,45 +199,32 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     
     toast({
       title: "Event created",
-      description: "Your event has been added to the calendar.",
-      duration: 5000,
+      description: "Your event has been added to the calendar."
     });
     
     return data;
   };
 
-  const updateEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+  const updateEvent = async ({ id, updates }: { id: string; updates: Partial<CalendarEventType> }): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
     
-    const id = event.id;
-    if (!id) throw new Error("Event ID is required for updates");
-    
-    console.log("[updateEvent] Updating event:", {
-      id: id,
-      type: event.type || 'unknown',
-      data: event
-    });
-    
-    if (event.start_date && event.end_date) {
-      const startDateTime = new Date(event.start_date);
-      const endDateTime = new Date(event.end_date);
+    if (updates.start_date && updates.end_date) {
+      const startDateTime = new Date(updates.start_date);
+      const endDateTime = new Date(updates.end_date);
       
-      console.log("[updateEvent] Checking availability for event update, excluding ID:", id);
-      
+      // When updating an event, pass the current event id to exclude it from conflict checking
       const { available, conflictDetails } = await checkTimeSlotAvailability(
         startDateTime,
         endDateTime,
-        id,
-        event.type // Pass the event type to help with proper exclusion
+        id
       );
       
       if (!available) {
-        console.log("[updateEvent] Conflict found:", conflictDetails);
         throw new Error(`Time slot already booked: ${conflictDetails}`);
       }
     }
     
-    if (event.type === 'booking_request' || (id && id.includes('-'))) {
+    if (updates.type === 'booking_request' || (updates.id && id.includes('-'))) {
       try {
         const { data: bookingData, error: bookingError } = await supabase
           .from('booking_requests')
@@ -248,17 +233,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           .maybeSingle();
           
         if (!bookingError && bookingData) {
-          console.log("[updateEvent] Updating booking request:", id);
+          console.log("Updating booking request:", id);
           const { data: updatedBooking, error: updateError } = await supabase
             .from('booking_requests')
             .update({
-              title: event.title,
-              requester_name: event.user_surname,
-              requester_phone: event.user_number,
-              requester_email: event.social_network_link,
-              description: event.event_notes,
-              start_date: event.start_date,
-              end_date: event.end_date,
+              title: updates.title,
+              requester_name: updates.user_surname,
+              requester_phone: updates.user_number,
+              requester_email: updates.social_network_link,
+              description: updates.event_notes,
+              start_date: updates.start_date,
+              end_date: updates.end_date,
               updated_at: new Date().toISOString()
             })
             .eq('id', id)
@@ -269,8 +254,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           toast({
             title: "Booking updated",
-            description: "The booking request has been updated successfully.",
-            duration: 5000,
+            description: "The booking request has been updated successfully."
           });
           
           return {
@@ -291,13 +275,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           } as CalendarEventType;
         }
       } catch (error) {
-        console.error("[updateEvent] Error checking for booking request:", error);
+        console.error("Error checking for booking request:", error);
       }
     }
-    
-    console.log("[updateEvent] Updating regular event with ID:", id);
-    
-    const { id: eventId, ...updates } = event;
     
     const { data, error } = await supabase
       .from('events')
@@ -306,15 +286,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       .select()
       .single();
 
-    if (error) {
-      console.error("[updateEvent] Error updating event:", error);
-      throw error;
-    }
+    if (error) throw error;
     
     toast({
       title: "Event updated",
-      description: "Your event has been updated successfully.",
-      duration: 5000,
+      description: "Your event has been updated successfully."
     });
     
     return data;
@@ -323,55 +299,32 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const checkTimeSlotAvailability = async (
     startDate: Date,
     endDate: Date,
-    excludeEventId?: string,
-    excludeEventType?: string // Added parameter for the event type
+    excludeEventId?: string
   ): Promise<{ available: boolean; conflictDetails: string }> => {
     try {
-      console.log("[checkTimeSlotAvailability] Checking with params:", {
-        start: startDate.toISOString(),
-        end: endDate.toISOString(),
-        excludeEventId: excludeEventId || "none",
-        excludeEventType: excludeEventType || "none",
-        userId: user?.id || "no user",
-        businessId: businessId || "none"
+      console.log("Checking availability for:", {
+        start: startDate,
+        end: endDate,
+        excludeEventId,
+        userId: user?.id,
+        businessId
       });
       
       if (!user) {
         return { available: true, conflictDetails: "" };
       }
       
+      // Only check for events belonging to the current user or business being viewed
       const userId = businessId || businessUserId ? businessUserId : user.id;
       
       if (!userId) {
         return { available: true, conflictDetails: "" };
       }
       
-      console.log("[checkTimeSlotAvailability] Excluding event with ID:", excludeEventId);
-      
-      // First, check if the excluded event is a booking request
-      const isBookingRequest = excludeEventType === 'booking_request' || (excludeEventId && excludeEventId.includes('-'));
-      console.log("[checkTimeSlotAvailability] Is excluded event a booking request?", isBookingRequest);
-      
-      // If it's a booking request, we need to find any corresponding events
-      let relatedEventIds = [excludeEventId];
-      
-      if (isBookingRequest && excludeEventId) {
-        // Try to find events associated with this booking request
-        const { data: relatedEvents } = await supabase
-          .from('events')
-          .select('id')
-          .eq('booking_request_id', excludeEventId);
-          
-        if (relatedEvents && relatedEvents.length > 0) {
-          const eventIds = relatedEvents.map(e => e.id);
-          relatedEventIds = [...relatedEventIds, ...eventIds];
-          console.log("[checkTimeSlotAvailability] Found related events for booking:", eventIds);
-        }
-      }
-      
+      // Query for conflicting events
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, start_date, end_date, deleted_at, type, booking_request_id')
+        .select('id, title, start_date, end_date, deleted_at')
         .eq('user_id', userId)
         .filter('start_date', 'lt', endDate.toISOString())
         .filter('end_date', 'gt', startDate.toISOString())
@@ -379,49 +332,29 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventsError) throw eventsError;
       
-      console.log("[checkTimeSlotAvailability] All potential conflicting events:", 
-        conflictingEvents?.map(e => ({id: e.id, title: e.title, type: e.type})) || []);
+      // Filter out the current event being updated
+      const eventsConflict = conflictingEvents?.filter(event => 
+        excludeEventId !== event.id &&
+        !(startDate.getTime() >= new Date(event.end_date).getTime() || 
+          endDate.getTime() <= new Date(event.start_date).getTime())
+      );
       
-      const eventsConflict = conflictingEvents?.filter(event => {
-        // Check if this event is the one we're updating or related to it
-        const isExcludedEvent = relatedEventIds.includes(event.id);
-        
-        // If the excluded event is a booking request, also exclude any event that references it
-        const isRelatedToExcludedBooking = isBookingRequest && 
-                                         event.booking_request_id === excludeEventId;
-        
-        const shouldExclude = isExcludedEvent || isRelatedToExcludedBooking;
-        
-        console.log(`[checkTimeSlotAvailability] Event ${event.id} should be excluded? ${shouldExclude}`, 
-          {eventId: event.id, excludeEventId, isExcludedEvent, isRelatedToExcludedBooking});
-        
-        const hasTimeConflict = !(
-          startDate.getTime() >= new Date(event.end_date).getTime() || 
-          endDate.getTime() <= new Date(event.start_date).getTime()
-        );
-        
-        console.log(`[checkTimeSlotAvailability] Event ${event.id} has time conflict? ${hasTimeConflict}`);
-        
-        return !shouldExclude && hasTimeConflict;
-      });
-      
-      console.log("[checkTimeSlotAvailability] Filtered conflicting events:", 
-        eventsConflict?.map(e => ({id: e.id, title: e.title})) || []);
+      console.log("Conflicting events (excluding current):", eventsConflict);
       
       if (eventsConflict && eventsConflict.length > 0) {
         const conflictEvent = eventsConflict[0];
-        console.log("[checkTimeSlotAvailability] Found conflicting event:", conflictEvent);
         return { 
           available: false, 
           conflictDetails: `Conflicts with "${conflictEvent.title}" at ${new Date(conflictEvent.start_date).toLocaleTimeString()}`
         };
       }
       
-      // Handle business bookings check
+      // Only check bookings if we're viewing a business calendar or working with our own business
       if (businessId || businessUserId) {
         const targetBusinessId = businessId;
         
         if (targetBusinessId) {
+          // Also check for booking conflicts
           const { data: conflictingBookings, error: bookingsError } = await supabase
             .from('booking_requests')
             .select('id, title, start_date, end_date')
@@ -432,30 +365,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           if (bookingsError) throw bookingsError;
           
-          console.log("[checkTimeSlotAvailability] All potential conflicting bookings:", 
-            conflictingBookings?.map(b => ({id: b.id, title: b.title})) || []);
+          // Filter out the current booking being updated
+          const bookingsConflict = conflictingBookings?.filter(booking => 
+            excludeEventId !== booking.id &&
+            !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
+              endDate.getTime() <= new Date(booking.start_date).getTime())
+          );
           
-          const bookingsConflict = conflictingBookings?.filter(booking => {
-            // Check if this booking is the one we're updating
-            const isExcludedBooking = relatedEventIds.includes(booking.id);
-            
-            console.log(`[checkTimeSlotAvailability] Booking ${booking.id} is excluded? ${isExcludedBooking}`, 
-              {bookingId: booking.id, excludeEventId, isMatch: isExcludedBooking});
-            
-            const hasTimeConflict = !(
-              startDate.getTime() >= new Date(booking.end_date).getTime() || 
-              endDate.getTime() <= new Date(booking.start_date).getTime()
-            );
-            
-            return !isExcludedBooking && hasTimeConflict;
-          });
-          
-          console.log("[checkTimeSlotAvailability] Filtered conflicting bookings:", 
-            bookingsConflict?.map(b => ({id: b.id, title: b.title})) || []);
+          console.log("Conflicting bookings (excluding current):", bookingsConflict);
           
           if (bookingsConflict && bookingsConflict.length > 0) {
             const conflictBooking = bookingsConflict[0];
-            console.log("[checkTimeSlotAvailability] Found conflicting booking:", conflictBooking);
             return { 
               available: false, 
               conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`
@@ -463,6 +383,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           }
         }
       } else if (!businessId && !businessUserId && user) {
+        // If we're on our own calendar, check our business bookings too
         const { data: userBusinessProfile } = await supabase
           .from("business_profiles")
           .select("id")
@@ -480,28 +401,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             
           if (bookingsError) throw bookingsError;
           
-          console.log("[checkTimeSlotAvailability] All potential conflicting user bookings:", 
-            conflictingBookings?.map(b => ({id: b.id, title: b.title})) || []);
-          
-          const bookingsConflict = conflictingBookings?.filter(booking => {
-            const isExcludedBooking = booking.id === excludeEventId;
-            console.log(`[checkTimeSlotAvailability] Booking ${booking.id} is excluded booking? ${isExcludedBooking}`, 
-              {bookingId: booking.id, excludeEventId, isMatch: isExcludedBooking});
-            
-            const hasTimeConflict = !(
-              startDate.getTime() >= new Date(booking.end_date).getTime() || 
-              endDate.getTime() <= new Date(booking.start_date).getTime()
-            );
-            
-            return !isExcludedBooking && hasTimeConflict;
-          });
-          
-          console.log("[checkTimeSlotAvailability] Conflicting user bookings (excluding current):", 
-            bookingsConflict?.map(b => ({id: b.id, title: b.title})) || []);
+          // Filter out the current booking being updated
+          const bookingsConflict = conflictingBookings?.filter(booking => 
+            excludeEventId !== booking.id &&
+            !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
+              endDate.getTime() <= new Date(booking.start_date).getTime())
+          );
           
           if (bookingsConflict && bookingsConflict.length > 0) {
             const conflictBooking = bookingsConflict[0];
-            console.log("[checkTimeSlotAvailability] Found conflicting user booking:", conflictBooking);
             return { 
               available: false, 
               conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`
@@ -512,7 +420,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       return { available: true, conflictDetails: "" };
     } catch (error) {
-      console.error("[checkTimeSlotAvailability] Error checking availability:", error);
+      console.error("Error checking time slot availability:", error);
       return { available: false, conflictDetails: "Error checking availability" };
     }
   };
@@ -521,6 +429,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     if (!user) throw new Error("User must be authenticated to delete events");
     
     try {
+      // Check if this is a booking event
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('booking_request_id')
@@ -531,6 +440,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.error("Error checking for booking association:", eventError);
       } else if (eventData?.booking_request_id) {
         console.log("This is a booking event. Will also update booking request status.");
+        // Update the booking request status to rejected/deleted
         const { error: bookingError } = await supabase
           .from('booking_requests')
           .update({ status: 'rejected' })
@@ -541,6 +451,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
+      // Also check if this is a direct booking request ID
       const { data: bookingData, error: bookingError } = await supabase
         .from('booking_requests')
         .select('*')
@@ -566,7 +477,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.error("Error checking for booking request:", error);
     }
     
+    // Find potentially related customer
     try {
+      // Get the event first to use its data
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('title, start_date, end_date')
@@ -575,7 +488,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventError) {
         console.error('Error finding event:', eventError);
+        // Continue with deletion even if we can't find the event data
       } else if (eventData) {
+        // Check for associated customer using event data
         const { data: customer, error: customerError } = await supabase
           .from('customers')
           .select('*')
@@ -586,6 +501,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
         if (customerError && customerError.code !== 'PGRST116') {
           console.error('Error finding associated customer:', customerError);
+          // Don't throw, continue with deletion
         }
 
         if (customer) {
@@ -599,13 +515,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
           if (updateError) {
             console.error('Error updating customer:', updateError);
+            // Don't throw, continue with deletion
           }
         }
       }
     } catch (error) {
       console.error('Error handling customer association:', error);
+      // Continue with deletion even if customer handling fails
     }
 
+    // Check for and delete associated files
     try {
       const { data: files } = await supabase
         .from('event_files')
@@ -630,12 +549,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
         if (filesDeleteError) {
           console.error('Error deleting file records:', filesDeleteError);
+          // Don't throw, continue with deletion
         }
       }
     } catch (error) {
       console.error('Error handling file deletion:', error);
+      // Continue with deletion even if file handling fails
     }
 
+    // Finally delete the event
     const { error } = await supabase
       .from('events')
       .delete()
