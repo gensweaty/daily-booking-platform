@@ -265,6 +265,8 @@ export const CustomerList = () => {
   }, []);
 
   const handleExcelDownload = useCallback(() => {
+    if (!filteredData.length) return;
+
     const excelData = filteredData.map(customer => {
       const paymentStatusText = customer.payment_status ? 
         customer.payment_status === 'not_paid' ? t("crm.notPaid") :
@@ -273,7 +275,7 @@ export const CustomerList = () => {
         customer.payment_status : '';
 
       return {
-        [t("crm.fullName")]: customer.title || '',
+        [t("crm.fullNameRequired")]: customer.title || '',
         [t("crm.phoneNumber")]: customer.user_number || '',
         [t("crm.socialLinkEmail")]: customer.social_network_link || '',
         [t("crm.paymentStatus")]: paymentStatusText,
@@ -362,31 +364,14 @@ export const CustomerList = () => {
         </Button>
       </div>
 
-      {isFetching && !isLoading ? (
-        <div className="flex items-center justify-center py-6">
-          <div className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-3"></div>
-            <p>{t("common.refreshing")}</p>
-          </div>
-        </div>
-      ) : filteredData.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="text-4xl mb-4">📋</div>
-          <h3 className="text-xl font-medium mb-2">{t("crm.noCustomers")}</h3>
-          <p className="text-muted-foreground mb-6">{t("crm.noCustomersDescription")}</p>
-          <Button onClick={openCreateDialog}>
-            <PlusCircle className="w-4 h-4 mr-2" />
-            {t("crm.addCustomer")}
-          </Button>
-        </div>
-      ) : (
+      {!(isFetching && !isLoading) && filteredData.length > 0 && (
         <>
           <div className="w-full overflow-x-auto">
             <div className="min-w-[1000px]">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-[180px]">{t("crm.fullName")}</TableHead>
+                    <TableHead className="w-[180px]">{t("crm.fullNameRequired")}</TableHead>
                     <TableHead className="w-[130px]">{t("crm.phoneNumber")}</TableHead>
                     <TableHead className="w-[250px]">{t("crm.socialLinkEmail")}</TableHead>
                     <TableHead className="w-[120px]">{t("crm.paymentStatus")}</TableHead>
@@ -396,6 +381,7 @@ export const CustomerList = () => {
                     <TableHead className="w-[100px]">{t("crm.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
+                
                 <TableBody>
                   {paginatedData.map((customer: any) => (
                     <TableRow key={customer.id} className="h-auto min-h-[4rem]">

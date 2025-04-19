@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 const en: TranslationType = {
@@ -59,6 +58,7 @@ const en: TranslationType = {
     paidFully: "Fully Paid",
     newCustomer: "New Customer",
     fullNameRequired: "Full Name",
+    fullName: "Full Name",
     fullNamePlaceholder: "Enter customer's full name",
     phoneNumber: "Phone Number",
     phoneNumberPlaceholder: "Enter phone number",
@@ -67,6 +67,7 @@ const en: TranslationType = {
     createEventForCustomer: "Create event for this customer",
     customerFromEvent: "This customer was created from an event",
     paymentStatus: "Payment Status",
+    paymentAmount: "Payment Amount",
     selectPaymentStatus: "Select payment status",
     comment: "Comment",
     commentPlaceholder: "Add a comment about this customer",
@@ -89,7 +90,9 @@ const en: TranslationType = {
     deleteError: "Error deleting",
     missingUserInfo: "Missing user information",
     customerCreated: "Customer created successfully",
-    customerUpdated: "Customer updated successfully"
+    customerUpdated: "Customer updated successfully",
+    noDataToExport: "No data to export",
+    error: "Error"
   },
   tasks: {
     title: "Tasks",
@@ -193,7 +196,7 @@ const en: TranslationType = {
   events: {
     submitBookingRequest: "Submit Booking Request",
     fullNameRequired: "Full Name",
-    fullName: "Enter your full name",
+    fullName: "Full Name",
     phoneNumber: "Phone Number",
     paymentStatus: "Payment Status",
     selectPaymentStatus: "Select payment status",

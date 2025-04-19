@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 const es: TranslationType = {
@@ -59,6 +58,7 @@ const es: TranslationType = {
     paidFully: "Pagado Completamente",
     newCustomer: "Nuevo Cliente",
     fullNameRequired: "Nombre Completo",
+    fullName: "Nombre Completo",
     fullNamePlaceholder: "Ingrese el nombre completo del cliente",
     phoneNumber: "Número de Teléfono",
     phoneNumberPlaceholder: "Ingrese número de teléfono",
@@ -67,6 +67,7 @@ const es: TranslationType = {
     createEventForCustomer: "Crear evento para este cliente",
     customerFromEvent: "Este cliente fue creado desde un evento",
     paymentStatus: "Estado de Pago",
+    paymentAmount: "Monto de Pago",
     selectPaymentStatus: "Seleccione estado de pago",
     comment: "Comentario",
     commentPlaceholder: "Agregue un comentario sobre este cliente",
@@ -89,7 +90,9 @@ const es: TranslationType = {
     deleteError: "Error al eliminar",
     missingUserInfo: "Falta información del usuario",
     customerCreated: "Cliente creado con éxito",
-    customerUpdated: "Cliente actualizado con éxito"
+    customerUpdated: "Cliente actualizado con éxito",
+    noDataToExport: "No hay datos para exportar",
+    error: "Error"
   },
   tasks: {
     title: "Tareas",
@@ -193,7 +196,7 @@ const es: TranslationType = {
   events: {
     submitBookingRequest: "Enviar Solicitud de Reserva",
     fullNameRequired: "Nombre Completo",
-    fullName: "Ingresa tu nombre completo",
+    fullName: "Nombre Completo",
     phoneNumber: "Número de Teléfono",
     paymentStatus: "Estado de Pago",
     selectPaymentStatus: "Selecciona estado de pago",

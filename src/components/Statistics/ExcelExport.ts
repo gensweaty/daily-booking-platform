@@ -36,7 +36,7 @@ export const useExcelExport = () => {
       return;
     }
 
-    // Create statistics summary data
+    // Create statistics summary data - using properly translated values
     const statsData = [{
       [t('dashboard.category')]: t('dashboard.taskStatistics'),
       [t('dashboard.total')]: data.taskStats?.total || 0,
@@ -61,10 +61,15 @@ export const useExcelExport = () => {
 
     // Transform events data for Excel with translated headers
     const eventsData = data.eventStats.events.map(event => ({
-      [t('events.fullName')]: `${event.title || ''} ${event.user_surname || ''}`.trim(),
+      [t('events.fullNameRequired')]: `${event.title || ''} ${event.user_surname || ''}`.trim(),
       [t('events.phoneNumber')]: event.user_number || '',
       [t('events.socialLinkEmail')]: event.social_network_link || '',
-      [t('events.paymentStatus')]: event.payment_status || '',
+      [t('events.paymentStatus')]: event.payment_status ? (
+        event.payment_status === 'not_paid' ? t("crm.notPaid") : 
+        event.payment_status === 'partly' ? t("crm.paidPartly") :
+        event.payment_status === 'fully' ? t("crm.paidFully") :
+        event.payment_status
+      ) : '',
       [t('events.paymentAmount')]: event.payment_amount ? `${isSpanish ? '€' : '$'}${event.payment_amount}` : '',
       [t('events.date')]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
       [t('events.time')]: event.start_date && event.end_date ? 

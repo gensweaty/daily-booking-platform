@@ -26,7 +26,7 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
       for (const k of keys) {
         if (!result || typeof result !== 'object') {
           console.warn(`Translation key not found: ${key} (at ${k})`);
-          return key; // Return the key if we can't navigate further
+          return key.split('.').pop() || key; // Return last part of key as fallback
         }
         result = result[k];
       }
@@ -42,11 +42,11 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
         return result;
       } else {
         console.warn(`Translation missing for key: ${key}`);
-        return key;
+        return key.split('.').pop() || key; // Return last part of key as fallback
       }
     } catch (error) {
       console.error(`Error getting translation for key: ${key}`, error);
-      return key;
+      return key.split('.').pop() || key; // Return last part of key as fallback
     }
   };
 
