@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -54,6 +55,7 @@ export const useEventDialog = ({
         return { available: true };
       }
       
+      // Always skip conflict checking if we're not changing the event times
       if (existingEventId && selectedEvent) {
         const originalStart = new Date(selectedEvent.start_date).getTime();
         const originalEnd = new Date(selectedEvent.end_date).getTime();
@@ -66,6 +68,7 @@ export const useEventDialog = ({
         }
       }
       
+      // Get all events for this user
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('*')
@@ -76,6 +79,7 @@ export const useEventDialog = ({
         
       if (eventsError) throw eventsError;
       
+      // Check for conflicts, strictly excluding the current event
       const eventConflict = conflictingEvents?.find(event => 
         event.id !== existingEventId &&
         !(startDate.getTime() >= new Date(event.end_date).getTime() || 
@@ -89,6 +93,7 @@ export const useEventDialog = ({
         return { available: false, conflictingEvent: eventConflict };
       }
       
+      // Check for conflicts with bookings if user has a business profile
       const { data: businessProfile } = await supabase
         .from('business_profiles')
         .select('id')
@@ -106,6 +111,7 @@ export const useEventDialog = ({
           
         if (bookingsError) throw bookingsError;
         
+        // Check for conflicts, strictly excluding the current booking
         const bookingConflict = conflictingBookings?.find(booking => 
           booking.id !== existingEventId &&
           !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
@@ -149,6 +155,7 @@ export const useEventDialog = ({
         end: endDate
       });
 
+      // For new events, do check for conflicts
       const { available, conflictingEvent } = await checkTimeSlotAvailability(
         startDate,
         endDate
@@ -207,6 +214,7 @@ export const useEventDialog = ({
         newEnd
       });
 
+      // Only check for conflicts if the times have changed
       if (timesChanged) {
         console.log('Dates changed, checking for conflicts');
         
@@ -230,6 +238,7 @@ export const useEventDialog = ({
         console.log('Dates unchanged, skipping conflict check');
       }
 
+      // Preserve event type and ID for updates
       const updateData: Partial<CalendarEventType> = {
         ...data,
         id: selectedEvent.id,
