@@ -326,19 +326,15 @@ export const CalendarGrid = ({
               className={`${
                 isDarkTheme 
                   ? (isOtherMonth 
-                      ? 'bg-gray-900 hover:bg-gray-800 border-gray-800 text-gray-600' 
-                      : 'bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-100') 
+                      ? 'bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-100' 
+                      : 'bg-gray-900 hover:bg-gray-800 border-gray-800 text-gray-400')
                   : (isOtherMonth 
                       ? 'bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-400' 
-                      : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-900')
+                      : 'bg-white hover:bg-gray-50 text-gray-900')
               } p-1 sm:p-4 min-h-[90px] sm:min-h-[120px] cursor-pointer border-r border-b`}
               onClick={() => onDayClick?.(day)}
             >
-              <div className={`font-medium text-xs sm:text-sm ${
-                isDarkTheme 
-                  ? (isOtherMonth ? 'text-gray-600' : 'text-gray-100')
-                  : (isOtherMonth ? 'text-gray-400' : 'text-gray-900')
-              }`}>
+              <div className={`font-medium text-xs sm:text-sm ${isDarkTheme ? 'text-gray-100' : ''}`}>
                 {format(day, "d")}
               </div>
               <div className="mt-1 sm:mt-2 space-y-0.5 sm:space-y-1">
