@@ -115,8 +115,8 @@ export const Calendar = ({
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
       const result = await updateEvent?.({
-        id: selectedEvent.id,
-        updates: data,
+        ...data,
+        id: selectedEvent.id
       });
       return result;
     },
