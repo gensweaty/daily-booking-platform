@@ -4,7 +4,6 @@
 import * as React from "react"
 import { ThemeProvider as NextThemesProvider } from "next-themes"
 import type { ThemeProviderProps as NextThemeProviderProps } from "next-themes"
-import { useLocation } from "react-router-dom"
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -21,19 +20,15 @@ export function ThemeProvider({
   children, 
   defaultTheme = "system", 
   storageKey = "vite-ui-theme", 
+  forcedTheme,
+  enableSystem = true,
+  enableColorScheme = true,
   ...props 
 }: ThemeProviderProps) {
-  const location = useLocation();
-  const isExternalPage = location.pathname.startsWith('/business/');
-  
-  // Force light theme for external business pages
-  const effectiveDefaultTheme = isExternalPage ? "light" : defaultTheme;
-  const effectiveStorageKey = isExternalPage ? "external-theme" : storageKey;
-
   // Force immediate theme application to prevent flicker
   React.useEffect(() => {
-    if (isExternalPage) {
-      // Force light mode for external pages
+    if (forcedTheme === "light") {
+      // Force light mode
       document.documentElement.classList.remove('dark');
     } else {
       const savedTheme = localStorage.getItem(storageKey);
@@ -41,21 +36,21 @@ export function ThemeProvider({
         document.documentElement.classList.toggle('dark', savedTheme === 'dark');
       } else if (defaultTheme === 'dark') {
         document.documentElement.classList.add('dark');
-      } else if (defaultTheme === 'system') {
+      } else if (defaultTheme === 'system' && enableSystem) {
         const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         document.documentElement.classList.toggle('dark', systemPrefersDark);
       }
     }
-  }, [storageKey, defaultTheme, isExternalPage]);
+  }, [storageKey, defaultTheme, forcedTheme, enableSystem]);
 
   return (
     <NextThemesProvider 
       attribute="class" 
-      defaultTheme={effectiveDefaultTheme}
-      storageKey={effectiveStorageKey}
-      forcedTheme={isExternalPage ? "light" : undefined}
-      enableSystem={!isExternalPage}
-      enableColorScheme={!isExternalPage}
+      defaultTheme={defaultTheme}
+      storageKey={storageKey}
+      forcedTheme={forcedTheme}
+      enableSystem={enableSystem}
+      enableColorScheme={enableColorScheme}
       {...props}
     >
       {children}

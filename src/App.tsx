@@ -1,5 +1,5 @@
 
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -51,11 +51,29 @@ const SessionRecoveryWrapper = ({ children }: { children: React.ReactNode }) => 
   return <>{children}</>;
 };
 
+// Route-aware theme wrapper component
+const RouteAwareThemeProvider = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
+  const isExternalPage = location.pathname.startsWith('/business/');
+  
+  return (
+    <ThemeProvider 
+      defaultTheme="system" 
+      storageKey="vite-ui-theme"
+      forcedTheme={isExternalPage ? "light" : undefined}
+      enableSystem={!isExternalPage}
+      enableColorScheme={!isExternalPage}
+    >
+      {children}
+    </ThemeProvider>
+  );
+};
+
 function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <RouteAwareThemeProvider>
           <AuthProvider>
             <LanguageProvider>
               <SessionRecoveryWrapper>
@@ -77,9 +95,9 @@ function App() {
               </SessionRecoveryWrapper>
             </LanguageProvider>
           </AuthProvider>
-        </BrowserRouter>
-      </QueryClientProvider>
-    </ThemeProvider>
+        </RouteAwareThemeProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 
