@@ -40,14 +40,14 @@ export const CalendarGrid = ({
 
   const getEventStyles = (event: CalendarEventType) => {
     if (isExternalCalendar) {
-      return isDarkTheme ? "bg-gray-800 text-gray-200" : "bg-green-500 text-white";
+      return isDarkTheme ? "bg-emerald-500 text-white" : "bg-green-500 text-white";
     } else {
       if (event.type === "booking_request") {
-        return isDarkTheme ? "bg-gray-800 text-green-400" : "bg-green-500 text-white"; 
+        return isDarkTheme ? "bg-emerald-500 text-white" : "bg-green-500 text-white"; 
       } else if (event.type === "birthday") {
-        return isDarkTheme ? "bg-gray-800 text-blue-400" : "bg-blue-100 text-blue-700";
+        return isDarkTheme ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-700";
       } else {
-        return isDarkTheme ? "bg-gray-800 text-purple-400" : "bg-purple-100 text-purple-700";
+        return isDarkTheme ? "bg-purple-500 text-white" : "bg-purple-100 text-purple-700";
       }
     }
   };
@@ -309,27 +309,31 @@ export const CalendarGrid = ({
   }
 
   return (
-    <div className={`grid grid-cols-7 gap-px ${isDarkTheme ? 'bg-gray-700' : 'bg-gray-200'} rounded-lg overflow-hidden`}>
+    <div className={`grid grid-cols-7 gap-px ${isDarkTheme ? 'bg-gray-900' : 'bg-gray-200'} rounded-lg overflow-hidden`}>
       {weekDays.map((day) => (
-        <div key={day} className={`${isDarkTheme ? 'bg-gray-800 text-gray-200' : 'bg-white'} p-2 sm:p-4 text-center font-semibold text-xs sm:text-sm`}>
+        <div key={day} className={`${isDarkTheme ? 'bg-gray-900 text-gray-100' : 'bg-white'} p-2 sm:p-4 text-center font-semibold text-xs sm:text-sm`}>
           {day}
         </div>
       ))}
       {days.map((day) => {
         const dayEvents = events.filter((event) => isSameDay(new Date(event.start_date), day));
         const isOtherMonth = !isSameMonth(day, selectedDate);
-        const isPreviousMonth = isOtherMonth && isBefore(day, selectedDate);
-        const isNextMonth = isOtherMonth && isAfter(day, selectedDate);
         
         return (
           <div
             key={day.toISOString()}
-            className={`${isDarkTheme ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} p-1 sm:p-4 min-h-[90px] sm:min-h-[120px] cursor-pointer ${
-              isOtherMonth ? isDarkTheme ? "text-gray-500" : "text-gray-400" : ""
+            className={`${
+              isDarkTheme 
+                ? 'bg-gray-900 hover:bg-gray-800' 
+                : 'bg-white hover:bg-gray-50'
+            } p-1 sm:p-4 min-h-[90px] sm:min-h-[120px] cursor-pointer ${
+              isOtherMonth ? isDarkTheme ? "text-gray-600" : "text-gray-400" : ""
             }`}
             onClick={() => onDayClick?.(day)}
           >
-            <div className="font-medium text-xs sm:text-sm">{format(day, "d")}</div>
+            <div className={`font-medium text-xs sm:text-sm ${isDarkTheme ? 'text-gray-100' : ''}`}>
+              {format(day, "d")}
+            </div>
             <div className="mt-1 sm:mt-2 space-y-0.5 sm:space-y-1">
               {dayEvents.length > 0 ? (
                 isMobile ? (
