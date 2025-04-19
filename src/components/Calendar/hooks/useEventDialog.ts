@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/hooks/use-toast";
@@ -203,6 +204,9 @@ export const useEventDialog = ({
       };
       
       console.log('[handleUpdateEvent] Final event data being sent to updateEvent:', eventData);
+      
+      // IMPORTANT: We've removed the redundant conflict check here
+      // The conflict check now only happens in updateEvent in useCalendarEvents.ts
       
       const result = await updateEvent(eventData);
       
