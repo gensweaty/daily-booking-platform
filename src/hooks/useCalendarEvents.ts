@@ -201,6 +201,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     toast({
       title: "Event created",
       description: "Your event has been added to the calendar.",
+      duration: 5000,
     });
     
     return data;
@@ -267,6 +268,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           toast({
             title: "Booking updated",
             description: "The booking request has been updated successfully.",
+            duration: 5000,
           });
           
           return {
@@ -310,6 +312,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     toast({
       title: "Event updated",
       description: "Your event has been updated successfully.",
+      duration: 5000,
     });
     
     return data;
@@ -352,11 +355,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       if (eventsError) throw eventsError;
       
       console.log("[checkTimeSlotAvailability] All potential conflicting events:", 
-        conflictingEvents?.length || 0);
+        conflictingEvents?.map(e => ({id: e.id, title: e.title})) || []);
       
       const eventsConflict = conflictingEvents?.filter(event => {
         const isExcludedEvent = event.id === excludeEventId;
-        console.log(`[checkTimeSlotAvailability] Event ${event.id} === excludeEventId ${excludeEventId}? ${isExcludedEvent}`);
+        
+        console.log(`[checkTimeSlotAvailability] Event ${event.id} === excludeEventId ${excludeEventId}? ${isExcludedEvent}`, 
+          {eventId: event.id, excludeEventId, isMatch: isExcludedEvent});
         
         const hasTimeConflict = !(
           startDate.getTime() >= new Date(event.end_date).getTime() || 
@@ -369,7 +374,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       });
       
       console.log("[checkTimeSlotAvailability] Filtered conflicting events:", 
-        eventsConflict?.length || 0);
+        eventsConflict?.map(e => ({id: e.id, title: e.title})) || []);
       
       if (eventsConflict && eventsConflict.length > 0) {
         const conflictEvent = eventsConflict[0];
@@ -394,11 +399,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           if (bookingsError) throw bookingsError;
           
-          console.log("[checkTimeSlotAvailability] All potential conflicting bookings:", conflictingBookings);
+          console.log("[checkTimeSlotAvailability] All potential conflicting bookings:", 
+            conflictingBookings?.map(b => ({id: b.id, title: b.title})) || []);
           
           const bookingsConflict = conflictingBookings?.filter(booking => {
             const isExcludedBooking = booking.id === excludeEventId;
-            console.log(`[checkTimeSlotAvailability] Booking ${booking.id} === excludeEventId ${excludeEventId}? ${isExcludedBooking}`);
+            console.log(`[checkTimeSlotAvailability] Booking ${booking.id} === excludeEventId ${excludeEventId}? ${isExcludedBooking}`, 
+              {bookingId: booking.id, excludeEventId, isMatch: isExcludedBooking});
             
             const hasTimeConflict = !(
               startDate.getTime() >= new Date(booking.end_date).getTime() || 
@@ -410,7 +417,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             return !isExcludedBooking && hasTimeConflict;
           });
           
-          console.log("[checkTimeSlotAvailability] Filtered conflicting bookings:", bookingsConflict);
+          console.log("[checkTimeSlotAvailability] Filtered conflicting bookings:", 
+            bookingsConflict?.map(b => ({id: b.id, title: b.title})) || []);
           
           if (bookingsConflict && bookingsConflict.length > 0) {
             const conflictBooking = bookingsConflict[0];
@@ -439,11 +447,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             
           if (bookingsError) throw bookingsError;
           
-          console.log("[checkTimeSlotAvailability] All potential conflicting user bookings:", conflictingBookings);
+          console.log("[checkTimeSlotAvailability] All potential conflicting user bookings:", 
+            conflictingBookings?.map(b => ({id: b.id, title: b.title})) || []);
           
           const bookingsConflict = conflictingBookings?.filter(booking => {
             const isExcludedBooking = booking.id === excludeEventId;
-            console.log(`[checkTimeSlotAvailability] Booking ${booking.id} is excluded booking? ${isExcludedBooking}`);
+            console.log(`[checkTimeSlotAvailability] Booking ${booking.id} is excluded booking? ${isExcludedBooking}`, 
+              {bookingId: booking.id, excludeEventId, isMatch: isExcludedBooking});
             
             const hasTimeConflict = !(
               startDate.getTime() >= new Date(booking.end_date).getTime() || 
@@ -453,7 +463,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             return !isExcludedBooking && hasTimeConflict;
           });
           
-          console.log("[checkTimeSlotAvailability] Conflicting user bookings (excluding current):", bookingsConflict);
+          console.log("[checkTimeSlotAvailability] Conflicting user bookings (excluding current):", 
+            bookingsConflict?.map(b => ({id: b.id, title: b.title})) || []);
           
           if (bookingsConflict && bookingsConflict.length > 0) {
             const conflictBooking = bookingsConflict[0];

@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -345,6 +346,7 @@ export const EventDialog = ({
           title: t("common.error"),
           description: error.message || t("common.error"),
           variant: "destructive",
+          duration: 5000, // 5 second toast duration
         });
         throw error; // Rethrow to prevent closing dialog
       }
