@@ -24,10 +24,6 @@ export function toast({
   });
 }
 
-type UseToastReturnType = {
-  toast: (props: ToastProps) => void;
-};
-
-export const useToast = (): UseToastReturnType => {
+export const useToast = () => {
   return { toast };
 };
