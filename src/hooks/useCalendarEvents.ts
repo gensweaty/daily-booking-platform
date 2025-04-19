@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -369,6 +370,31 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         const targetBusinessId = businessId;
         
         if (targetBusinessId) {
+          // Fetch the original event if we're checking for a booking
+          let originalEvent = null;
+          
+          if (excludeEventId) {
+            const { data: eventData } = await supabase
+              .from('events')
+              .select('start_date, end_date, type')
+              .eq('id', excludeEventId)
+              .maybeSingle();
+              
+            if (eventData && eventData.type === 'booking_request') {
+              originalEvent = eventData;
+            } else {
+              const { data: bookingData } = await supabase
+                .from('booking_requests')
+                .select('start_date, end_date')
+                .eq('id', excludeEventId)
+                .maybeSingle();
+                
+              if (bookingData) {
+                originalEvent = bookingData;
+              }
+            }
+          }
+          
           const { data: conflictingBookings, error: bookingsError } = await supabase
             .from('booking_requests')
             .select('id, title, start_date, end_date')
@@ -379,13 +405,26 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           if (bookingsError) throw bookingsError;
           
-          const bookingsConflict = conflictingBookings?.filter(booking => 
-            excludeEventId !== booking.id &&
-            !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
-              endDate.getTime() <= new Date(booking.start_date).getTime())
-          );
+          const bookingsConflict = conflictingBookings?.filter(booking => {
+            // If we have the original event details and excludeEventId is set (we're editing)
+            if (excludeEventId && originalEvent) {
+              // Check if this booking has the exact same start/end as the original event
+              const isSameBooking = 
+                new Date(booking.start_date).getTime() === new Date(originalEvent.start_date).getTime() && 
+                new Date(booking.end_date).getTime() === new Date(originalEvent.end_date).getTime();
+                
+              // Skip this booking if it's the one we're editing
+              if (booking.id === excludeEventId || isSameBooking) {
+                console.log(`Skipping booking conflict check for ID ${booking.id} - recognized as current event`);
+                return false;
+              }
+            }
+            
+            // Check for time overlap
+            return !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
+                     endDate.getTime() <= new Date(booking.start_date).getTime());
+          });
           
-          console.log("Conflicting bookings (excluding current ID):", excludeEventId);
           console.log("Filtered conflicting bookings:", bookingsConflict);
           
           if (bookingsConflict && bookingsConflict.length > 0) {

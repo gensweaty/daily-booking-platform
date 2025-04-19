@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -111,12 +110,28 @@ export const useEventDialog = ({
           
         if (bookingsError) throw bookingsError;
         
-        // Check for conflicts, strictly excluding the current booking
-        const bookingConflict = conflictingBookings?.find(booking => 
-          booking.id !== existingEventId &&
-          !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
-            endDate.getTime() <= new Date(booking.start_date).getTime())
-        );
+        // Improved conflict check for bookings
+        // First check if this event is actually this booking (using exact time match)
+        const bookingConflict = conflictingBookings?.find(booking => {
+          // For existing events being edited, check if this booking represents the same event
+          // by comparing start/end times to the original event times if event type is booking_request
+          const isEditingThisBooking = existingEventId && selectedEvent && 
+            selectedEvent.type === 'booking_request' && 
+            (booking.id === existingEventId ||
+             (new Date(booking.start_date).getTime() === new Date(selectedEvent.start_date).getTime() && 
+              new Date(booking.end_date).getTime() === new Date(selectedEvent.end_date).getTime()));
+          
+          console.log(`Comparing booking ${booking.id} - isEditingThisBooking: ${isEditingThisBooking}`);
+          
+          // Skip conflict check for the booking we're currently editing
+          if (isEditingThisBooking) {
+            return false;
+          }
+          
+          // Otherwise check for time overlap
+          return !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
+                   endDate.getTime() <= new Date(booking.start_date).getTime());
+        });
         
         console.log("Conflicting bookings (excluding current):", 
           conflictingBookings?.filter(b => b.id !== existingEventId));
@@ -132,6 +147,7 @@ export const useEventDialog = ({
             type: 'booking_request'
           };
           
+          console.warn("Detected conflict with booking:", bookingConflict);
           return { available: false, conflictingEvent: conflictEvent };
         }
       }
