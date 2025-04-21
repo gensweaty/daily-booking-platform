@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -203,6 +202,14 @@ export const CustomerDialog = ({
                 throw new Error("Authentication error");
               }
               
+              console.log("Making API call to edge function with data:", {
+                recipientEmail: socialNetworkLink.trim(),
+                fullName: userSurname || title || "Customer",
+                businessName,
+                startDate: start.toISOString(),
+                endDate: end.toISOString(),
+              });
+              
               const response = await fetch(
                 "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
                 {
@@ -235,19 +242,28 @@ export const CustomerDialog = ({
               
               if (!response.ok) {
                 console.error("Failed to send email notification:", data);
-                throw new Error("Failed to send email notification");
+                throw new Error(data.error?.message || "Failed to send email notification");
               } else {
                 console.log("Email notification sent successfully:", data);
-                toast({
-                  title: t("common.success"),
-                  description: t("Email notification sent successfully"),
-                });
+                
+                if (data.testMode) {
+                  toast({
+                    title: t("common.success"),
+                    description: t("Test email sent to developer account. In production, this would go to the customer."),
+                  });
+                } else {
+                  toast({
+                    title: t("common.success"),
+                    description: t("Email notification sent successfully"),
+                  });
+                }
               }
             } catch (emailError) {
               console.error("Error sending email notification:", emailError);
               toast({
                 title: t("common.warning"),
-                description: t("Event created but email notification could not be sent"),
+                description: t("Event created but email notification could not be sent: ") + 
+                  (emailError instanceof Error ? emailError.message : "Unknown error"),
                 variant: "destructive",
               });
             }

@@ -101,6 +101,64 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
   }
 };
 
+// Test function to verify email sending functionality
+export const testEmailSending = async (recipientEmail: string): Promise<any> => {
+  try {
+    console.log("Testing email sending to:", recipientEmail);
+    
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    
+    if (!accessToken) {
+      console.error("No access token available for authenticated request");
+      throw new Error("Authentication error");
+    }
+    
+    const testData = {
+      recipientEmail: recipientEmail.trim(),
+      fullName: "Test User",
+      businessName: "Test Business",
+      startDate: new Date().toISOString(),
+      endDate: new Date(Date.now() + 3600000).toISOString(), // 1 hour later
+    };
+    
+    console.log("Sending test email with data:", testData);
+    
+    const response = await fetch(
+      "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+      {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(testData),
+      }
+    );
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Error sending test email:", errorText);
+      try {
+        return JSON.parse(errorText);
+      } catch (e) {
+        return { error: errorText };
+      }
+    }
+    
+    const result = await response.json();
+    console.log("Test email result:", result);
+    return result;
+  } catch (error: any) {
+    console.error("Exception in testEmailSending:", error);
+    return { 
+      error: true, 
+      message: error.message || "Unknown error",
+      stack: error.stack
+    };
+  }
+};
+
 // Task related functions
 export const getTasks = async (): Promise<Task[]> => {
   try {

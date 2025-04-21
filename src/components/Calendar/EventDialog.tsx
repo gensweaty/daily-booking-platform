@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -186,23 +185,28 @@ export const EventDialog = ({
       
       if (!response.ok) {
         console.error("Failed to process email notification:", data);
-        toast({
-          title: t("common.warning"),
-          description: t("Event created but email notification could not be processed"),
-          variant: "destructive",
-        });
+        throw new Error(data.error?.message || "Failed to process email notification");
       } else {
         console.log("Email notification processed successfully:", data);
-        toast({
-          title: t("common.success"),
-          description: t("Email notification processed successfully"),
-        });
+        
+        if (data.testMode) {
+          toast({
+            title: t("common.success"),
+            description: t("Test email sent to developer account. In production, this would go to the customer."),
+          });
+        } else {
+          toast({
+            title: t("common.success"),
+            description: t("Email notification processed successfully"),
+          });
+        }
       }
     } catch (emailError) {
       console.error("Error processing email notification:", emailError);
       toast({
         title: t("common.warning"),
-        description: t("Event created but email notification could not be processed"),
+        description: t("Event created but email notification could not be processed: ") + 
+          (emailError instanceof Error ? emailError.message : "Unknown error"),
         variant: "destructive",
       });
     }
@@ -222,7 +226,6 @@ export const EventDialog = ({
       currentEnd: endDate
     });
 
-    // Track previous type for approval logic
     const wasBookingRequest = event?.type === 'booking_request';
     const isApprovingBookingRequest = wasBookingRequest && !isBookingEvent;
     
@@ -242,7 +245,6 @@ export const EventDialog = ({
       eventData.id = event.id;
     }
 
-    // If this is booking request approval, force type to 'event'
     if (wasBookingRequest) {
       eventData.type = 'event';
       console.log("Converting booking request to event:", { wasBookingRequest, isApprovingBookingRequest });
@@ -255,7 +257,6 @@ export const EventDialog = ({
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
 
-      // Only send approval email when approving a booking request
       if (
         isApprovingBookingRequest &&
         socialNetworkLink &&
