@@ -242,13 +242,16 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="socialNetwork">{t("events.socialLinkEmail")}</Label>
+        <Label htmlFor="email">{t("auth.emailLabel")}</Label>
         <Input
-          id="socialNetwork"
-          type="text"
-          placeholder={t("events.socialLinkEmail")}
+          id="email"
+          type="email"
+          placeholder={t("auth.emailLabel")}
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
+          required
+          pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+          title="Please enter a valid email address"
         />
       </div>
 
@@ -354,3 +357,4 @@ export const EventDialogFields = ({
     </div>
   );
 };
+
