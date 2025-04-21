@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { SMTPClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -50,16 +50,13 @@ async function sendEmailViaSMTP(to: string, subject: string, htmlContent: string
   console.log(`Attempting to send email to ${to} via SMTP`);
   
   try {
-    const client = new SMTPClient({
-      connection: {
-        hostname: "mx1.privateemail.com",
-        port: 465,
-        tls: true,
-        auth: {
-          username: "info@smartbookly.com",
-          password: "Devsura1995@",
-        },
-      },
+    const client = new SmtpClient();
+
+    await client.connectTLS({
+      hostname: "mx1.privateemail.com",
+      port: 465,
+      username: "info@smartbookly.com",
+      password: "Devsura1995@",
     });
 
     await client.send({
