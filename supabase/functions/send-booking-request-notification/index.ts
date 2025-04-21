@@ -30,17 +30,21 @@ const handler = async (req: Request): Promise<Response> => {
   console.log("🚀 Received actual POST request to send email");
 
   try {
-    // Log API key presence - IMPORTANT: don't log the actual key
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    // Hardcode the API key as a fallback if environment variable isn't set
+    const resendApiKey = Deno.env.get("RESEND_API_KEY") || "re_123456789"; // Using a placeholder
+    
     console.log("🔑 API Key available:", !!resendApiKey);
     console.log("🔑 API Key length:", resendApiKey ? resendApiKey.length : 0);
+    console.log("🔑 API Key first 4 chars:", resendApiKey ? resendApiKey.substring(0, 4) : "none");
     
-    if (!resendApiKey) {
-      console.error("❌ RESEND_API_KEY is not configured in environment variables");
+    if (!resendApiKey || resendApiKey === "re_123456789") {
+      console.error("❌ RESEND_API_KEY is not configured properly in environment variables");
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Email service configuration is missing" 
+          error: "Email service configuration is missing or invalid",
+          apiKeyPresent: !!resendApiKey,
+          apiKeyLength: resendApiKey ? resendApiKey.length : 0 
         }),
         { 
           status: 500, 
@@ -52,6 +56,8 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
+    // Initialize Resend with the API key
+    console.log("🔄 Initializing Resend client");
     const resend = new Resend(resendApiKey);
     
     // Parse request body
@@ -178,7 +184,7 @@ const handler = async (req: Request): Promise<Response> => {
       
     console.log("📧 Sending from:", fromEmail);
     
-    console.log("🔄 Initializing Resend with API key");
+    console.log("🔄 Making Resend API call with API key starting with:", resendApiKey.substring(0, 4));
     
     // Create plain text version for better deliverability
     const plainText = `

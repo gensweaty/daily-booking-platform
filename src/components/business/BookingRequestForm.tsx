@@ -220,7 +220,12 @@ export const BookingRequestForm = ({
       console.log("🔍 Sending notification with data:", JSON.stringify(notificationData));
       console.log("📤 About to send booking notification POST request");
       
-      const response = await fetch(
+      // Add a timeout promise to ensure the fetch doesn't hang indefinitely
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 15000)
+      );
+      
+      const fetchPromise = fetch(
         "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
         {
           method: "POST",
@@ -230,6 +235,9 @@ export const BookingRequestForm = ({
           body: JSON.stringify(notificationData)
         }
       );
+      
+      // Use Promise.race to implement the timeout
+      const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
       
       console.log(`🔍 Notification response status: ${response.status}`);
       
@@ -384,7 +392,38 @@ export const BookingRequestForm = ({
           throw new Error("Invalid business email format");
         }
         
-        // Send the email notification
+        // Test email directly to ensure it works
+        console.log("🔍 Testing email sending with hardcoded values");
+        
+        const testNotificationData = {
+          businessEmail: businessEmail.trim(),
+          requesterName: "Test Notification",
+          requestDate: "April 21, 2025 at 11:30 pm",
+          phoneNumber: "123-456-7890",
+          notes: "This is a test notification"
+        };
+        
+        console.log("🔍 Sending test notification with data:", JSON.stringify(testNotificationData));
+        
+        try {
+          const testResponse = await fetch(
+            "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(testNotificationData)
+            }
+          );
+          
+          const testResponseText = await testResponse.text();
+          console.log(`🔍 Test notification response: ${testResponse.status}, body: ${testResponseText}`);
+        } catch (testError) {
+          console.error("❌ Test notification failed:", testError);
+        }
+        
+        // Send the actual email notification
         const notificationResult = await sendBookingNotification(
           businessEmail,
           fullName,
@@ -492,6 +531,70 @@ export const BookingRequestForm = ({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  // Add a function to test email sending
+  const testEmailSending = async () => {
+    try {
+      setIsSubmitting(true);
+      toast({
+        title: "Testing Email",
+        description: "Attempting to send a test email...",
+      });
+      
+      const testData = {
+        businessEmail: "ananiadevsurashvili@hotmail.com",
+        requesterName: "Test User",
+        requestDate: "April 21, 2025 at 10:00 am",
+        phoneNumber: "123-456-7890",
+        notes: "This is a test email"
+      };
+      
+      console.log("Sending test email with data:", JSON.stringify(testData));
+      
+      const response = await fetch(
+        "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(testData)
+        }
+      );
+      
+      const responseText = await response.text();
+      console.log(`Test email response: ${response.status}, body: ${responseText}`);
+      
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (e) {
+        responseData = { success: false, error: "Invalid response format" };
+      }
+      
+      if (response.ok && responseData.success) {
+        toast({
+          title: "Test Email Sent",
+          description: `Email was sent successfully to ${testData.businessEmail}`,
+        });
+      } else {
+        toast({
+          title: "Test Email Failed",
+          description: responseData.error || `HTTP error ${response.status}`,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error sending test email:", error);
+      toast({
+        title: "Test Email Failed",
+        description: error.message || "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {rateLimitExceeded && (
@@ -593,24 +696,35 @@ export const BookingRequestForm = ({
         disabled={isSubmitting || rateLimitExceeded}
       />
       
-      <div className="flex justify-end space-x-2 pt-4">
-        {onCancel && (
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            {t("common.cancel")}
-          </Button>
-        )}
+      <div className="flex justify-between space-x-2 pt-4">
         <Button 
-          type="submit" 
-          disabled={isSubmitting || rateLimitExceeded}
-          className="bg-primary text-white"
+          type="button" 
+          variant="outline" 
+          onClick={testEmailSending}
+          disabled={isSubmitting}
         >
-          {isSubmitting ? t("common.submitting") : t("events.submitBookingRequest")}
+          Test Email
         </Button>
+        
+        <div className="flex justify-end space-x-2">
+          {onCancel && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onCancel}
+              disabled={isSubmitting}
+            >
+              {t("common.cancel")}
+            </Button>
+          )}
+          <Button 
+            type="submit" 
+            disabled={isSubmitting || rateLimitExceeded}
+            className="bg-primary text-white"
+          >
+            {isSubmitting ? t("common.submitting") : t("events.submitBookingRequest")}
+          </Button>
+        </div>
       </div>
     </form>
   );
