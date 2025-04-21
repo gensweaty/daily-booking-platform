@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -203,14 +202,6 @@ export const CustomerDialog = ({
                 throw new Error("Authentication error");
               }
               
-              console.log("Making API call to edge function with data:", {
-                recipientEmail: socialNetworkLink.trim(),
-                fullName: userSurname || title || "Customer",
-                businessName,
-                startDate: start.toISOString(),
-                endDate: end.toISOString(),
-              });
-              
               const response = await fetch(
                 "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
                 {
@@ -229,36 +220,16 @@ export const CustomerDialog = ({
                 }
               );
               
-              console.log("Email API response status:", response.status);
-              const responseText = await response.text();
-              console.log("Email API response body:", responseText);
-              
-              let data;
-              try {
-                data = JSON.parse(responseText);
-              } catch (e) {
-                console.error("Failed to parse response as JSON:", e);
-                data = { error: "Invalid response format" };
-              }
-              
               if (!response.ok) {
-                console.error("Failed to send email notification:", data);
-                throw new Error(data.error?.message || "Failed to send email notification");
-              } else {
-                console.log("Email notification sent successfully:", data);
-                
-                if (data.testMode) {
-                  toast({
-                    title: t("common.success"),
-                    description: t("Test email sent to developer account (gensweaty@gmail.com). In production, this would go to the customer."),
-                  });
-                } else {
-                  toast({
-                    title: t("common.success"),
-                    description: t("Email notification sent successfully"),
-                  });
-                }
+                const errorText = await response.text();
+                console.error("Failed to send email notification:", errorText);
+                throw new Error("Failed to send email notification");
               }
+              
+              toast({
+                title: t("common.success"),
+                description: t("Email notification sent successfully"),
+              });
             } catch (emailError) {
               console.error("Error sending email notification:", emailError);
               toast({

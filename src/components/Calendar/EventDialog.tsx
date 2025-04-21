@@ -171,41 +171,22 @@ export const EventDialog = ({
         }
       );
       
-      console.log("Email API response status:", response.status);
-      const responseText = await response.text();
-      console.log("Email API response body:", responseText);
-      
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        console.error("Failed to parse response as JSON:", e);
-        data = { error: "Invalid response format" };
-      }
-      
       if (!response.ok) {
-        console.error("Failed to process email notification:", data);
-        throw new Error(data.error?.message || "Failed to process email notification");
-      } else {
-        console.log("Email notification processed successfully:", data);
-        
-        if (data.testMode) {
-          toast({
-            title: t("common.success"),
-            description: t("Test email sent to developer account (gensweaty@gmail.com). To send to customer emails directly, verify your domain at resend.com/domains."),
-          });
-        } else {
-          toast({
-            title: t("common.success"),
-            description: t("Email notification processed successfully"),
-          });
-        }
+        const errorText = await response.text();
+        console.error("Failed to send email notification:", errorText);
+        throw new Error("Failed to send email notification");
       }
+      
+      toast({
+        title: t("common.success"),
+        description: t("Email notification sent successfully"),
+      });
+      
     } catch (emailError) {
-      console.error("Error processing email notification:", emailError);
+      console.error("Error sending email notification:", emailError);
       toast({
         title: t("common.warning"),
-        description: t("Event created but email notification could not be processed: ") + 
+        description: t("Event created but email notification could not be sent: ") + 
           (emailError instanceof Error ? emailError.message : "Unknown error"),
         variant: "destructive",
       });
@@ -433,3 +414,5 @@ export const EventDialog = ({
     </Dialog>
   );
 };
+
+export default EventDialog;
