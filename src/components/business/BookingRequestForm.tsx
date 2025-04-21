@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,119 +115,113 @@ export const BookingRequestForm = ({
     }
   }, [selectedDate]);
 
-  // Function to send the email notification
-  const sendBookingNotification = async (
-    businessEmail: string, 
-    requesterName: string, 
-    startDateTime: Date,
-    notes: string,
-    phone: string
-  ) => {
+  const sendBookingNotification = async (businessEmail: string, name: string, bookingDate: Date) => {
     try {
-      console.log(`Attempting to send notification email to ${businessEmail}`);
+      console.log("Preparing to send notification email to:", businessEmail);
       
-      const formattedDate = format(startDateTime, "MMMM dd, yyyy 'at' h:mm a");
-      console.log('Formatted date for email:', formattedDate);
+      const formattedDate = format(bookingDate, "MMMM dd, yyyy 'at' h:mm a");
+      console.log("Formatted date for notification:", formattedDate);
       
-      const notificationBody = {
-        businessEmail,
-        requesterName,
+      const notificationData = {
+        businessEmail: businessEmail.trim(),
+        requesterName: name,
         requestDate: formattedDate,
-        phoneNumber: phone || '',
-        notes: notes || ''
+        phoneNumber: phone || undefined,
+        notes: notes || undefined
       };
       
-      console.log('Notification request payload:', JSON.stringify(notificationBody));
+      console.log("Sending notification with data:", JSON.stringify(notificationData));
       
-      // Directly fetch the edge function
-      const functionUrl = "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification";
-      console.log("Sending notification to:", functionUrl);
+      const response = await fetch(
+        "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(notificationData)
+        }
+      );
       
-      const functionResponse = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(notificationBody)
-      });
-      
-      console.log('Function response status:', functionResponse.status);
-      
-      const responseText = await functionResponse.text();
-      console.log('Raw response from function:', responseText);
+      const responseText = await response.text();
+      console.log(`Notification response (${response.status}):`, responseText);
       
       let responseData;
       try {
         responseData = JSON.parse(responseText);
-        console.log('Parsed response:', responseData);
-      } catch (error) {
-        console.error('Failed to parse response:', error);
-        throw new Error('Invalid response from notification service');
+      } catch (e) {
+        console.error("Error parsing response:", e);
+        responseData = { success: false, error: "Invalid response format" };
       }
       
-      if (!functionResponse.ok) {
-        throw new Error(responseData?.error || `Notification failed with status ${functionResponse.status}`);
+      if (!response.ok || !responseData.success) {
+        throw new Error(responseData.error || `Failed to send notification (${response.status})`);
       }
       
-      return responseData;
+      return { success: true, data: responseData };
     } catch (error) {
-      console.error('Error in sendBookingNotification:', error);
-      throw error;
+      console.error("Error sending booking notification:", error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "Unknown error sending notification" 
+      };
     }
   };
-  
-  // Get the business email for notifications
-  const getBusinessEmail = async (businessId: string): Promise<{user_email: string, business_name: string}> => {
+
+  const getBusinessEmail = async (businessId: string): Promise<string> => {
+    console.log("Getting business email for ID:", businessId);
+    
+    const { data: businessData, error: businessError } = await supabase
+      .from('business_profiles')
+      .select('user_email')
+      .eq('id', businessId)
+      .maybeSingle();
+    
+    if (!businessError && businessData?.user_email) {
+      console.log("Found business email in business_profiles:", businessData.user_email);
+      return businessData.user_email;
+    }
+    
+    console.log("No email found in business_profiles, checking user account...");
+    
     try {
-      console.log("Fetching business email for ID:", businessId);
-      
-      // Try from business_profiles first
-      const { data: businessData, error: businessError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('business_profiles')
-        .select('user_email, business_name')
+        .select('user_id')
         .eq('id', businessId)
         .single();
       
-      if (!businessError && businessData?.user_email) {
-        console.log('Found business email:', businessData.user_email);
-        return {
-          user_email: businessData.user_email,
-          business_name: businessData.business_name || 'Business'
-        };
+      if (profileError) {
+        console.error("Error getting business owner's user ID:", profileError);
+        throw new Error("Could not find business information");
       }
       
-      console.log('No business email found in business_profiles, trying user profile...');
-      
-      // Try from user profile as fallback
-      const { data: userProfileData, error: userProfileError } = await supabase
-        .from('profiles')
-        .select('id, username')
-        .eq('id', businessId)
-        .single();
-        
-      if (userProfileError) {
-        console.error('Error fetching user profile:', userProfileError);
-        throw new Error('Could not retrieve business contact information');
+      if (!profileData.user_id) {
+        console.error("Business has no associated user ID");
+        throw new Error("Invalid business configuration");
       }
       
-      // Get email from auth session
-      const { data: sessionData } = await supabase.auth.getSession();
+      console.log("Found business owner user ID:", profileData.user_id);
+      
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error("Error getting auth session:", sessionError);
+        throw new Error("Authentication error");
+      }
+      
       const userEmail = sessionData.session?.user?.email;
       
       if (!userEmail) {
-        console.error('No user email found in session');
-        throw new Error('Could not retrieve contact email');
+        console.error("No email found in user session");
+        throw new Error("User email not available");
       }
       
-      console.log('Using email from user session:', userEmail);
-      
-      return {
-        user_email: userEmail,
-        business_name: userProfileData?.username || 'Business'
-      };
+      console.log("Using email from auth session:", userEmail);
+      return userEmail;
     } catch (error) {
-      console.error('Error in getBusinessEmail:', error);
-      throw error;
+      console.error("Error retrieving business email:", error);
+      throw new Error("Could not determine business contact email");
     }
   };
 
@@ -258,7 +251,6 @@ export const BookingRequestForm = ({
     setIsSubmitting(true);
     
     try {
-      // Check rate limit
       const lastRequestTime = localStorage.getItem(`booking_last_request_${businessId}`);
       if (lastRequestTime) {
         const now = new Date();
@@ -311,33 +303,33 @@ export const BookingRequestForm = ({
       
       console.log("Successfully created booking request:", data);
 
-      // Save timestamp for rate limiting
       localStorage.setItem(`booking_last_request_${businessId}`, Date.now().toString());
-
-      // Get business email and send notification
+      
       try {
-        const businessEmailInfo = await getBusinessEmail(businessId);
-        console.log("Retrieved business contact info:", businessEmailInfo);
+        const businessEmail = await getBusinessEmail(businessId);
+        console.log("Retrieved business email for notification:", businessEmail);
         
-        if (!businessEmailInfo.user_email) {
-          throw new Error("No valid email found for notification");
-        }
-        
-        // Send notification
         const notificationResult = await sendBookingNotification(
-          businessEmailInfo.user_email,
+          businessEmail,
           fullName,
-          startDateTime,
-          notes,
-          phone
+          startDateTime
         );
         
-        console.log("Notification sent successfully:", notificationResult);
+        if (notificationResult.success) {
+          console.log("Email notification sent successfully");
+        } else {
+          console.error("Failed to send email notification:", notificationResult.error);
+          toast({
+            title: "Warning",
+            description: "Booking request created, but we couldn't send the notification email.",
+            variant: "destructive",
+          });
+        }
       } catch (emailError: any) {
-        console.error('Error in email notification process:', emailError);
+        console.error("Error handling notification:", emailError);
         toast({
           title: "Warning",
-          description: "Booking created but we couldn't send the notification email to the business.",
+          description: "Booking created but notification to business owner failed.",
           variant: "destructive",
         });
       }
