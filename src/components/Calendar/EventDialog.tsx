@@ -223,7 +223,7 @@ export const EventDialog = ({
 
     // Track previous type for approval logic
     const wasBookingRequest = event?.type === 'booking_request';
-    const isApprovingBookingRequest = wasBookingRequest && isBookingEvent;
+    const isApprovingBookingRequest = wasBookingRequest && !isBookingEvent;
     
     const eventData: Partial<CalendarEventType> = {
       title,

@@ -51,6 +51,8 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    console.log("Attempting to send email to:", recipientEmail, "from:", `${businessName} <onboarding@resend.dev>`);
+    
     const emailResponse = await resend.emails.send({
       from: `${businessName} <onboarding@resend.dev>`,
       to: [recipientEmail],
@@ -66,6 +68,8 @@ const handler = async (req: Request): Promise<Response> => {
         </div>
       `,
     });
+
+    console.log("Email response from Resend:", emailResponse);
 
     if (emailResponse.error) {
       console.error("Resend email error:", emailResponse.error);

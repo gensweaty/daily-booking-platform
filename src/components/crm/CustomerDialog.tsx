@@ -220,15 +220,35 @@ export const CustomerDialog = ({
                 }
               );
               
+              console.log("Email API response status:", response.status);
+              const responseText = await response.text();
+              console.log("Email API response body:", responseText);
+              
+              let data;
+              try {
+                data = JSON.parse(responseText);
+              } catch (e) {
+                console.error("Failed to parse response as JSON:", e);
+                data = { error: "Invalid response format" };
+              }
+              
               if (!response.ok) {
-                const errorText = await response.text();
-                console.error("Failed to send email notification:", errorText);
+                console.error("Failed to send email notification:", data);
                 throw new Error("Failed to send email notification");
               } else {
-                console.log("Email notification sent successfully");
+                console.log("Email notification sent successfully:", data);
+                toast({
+                  title: t("common.success"),
+                  description: t("Email notification sent successfully"),
+                });
               }
             } catch (emailError) {
               console.error("Error sending email notification:", emailError);
+              toast({
+                title: t("common.warning"),
+                description: t("Event created but email notification could not be sent"),
+                variant: "destructive",
+              });
             }
           }
         }
