@@ -226,6 +226,45 @@ export const EventDialog = ({
           console.log('Updated existing customer:', customerId);
         }
 
+        // Send notification email if it's a new event (not an update) and we have an email address
+        if (!event?.id && socialNetworkLink && socialNetworkLink.includes('@')) {
+          try {
+            const { data: businessProfile } = await supabase
+              .from('business_profiles')
+              .select('business_name')
+              .eq('user_id', user?.id)
+              .maybeSingle();
+              
+            const businessName = businessProfile?.business_name || "Our Business";
+              
+            console.log("Sending booking approval email to", socialNetworkLink);
+            const response = await fetch(
+              "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  recipientEmail: socialNetworkLink,
+                  fullName: userSurname || title,
+                  businessName,
+                  startDate: startDateTime.toISOString(),
+                  endDate: endDateTime.toISOString(),
+                }),
+              }
+            );
+            
+            const data = await response.json();
+            if (!response.ok) {
+              console.error("Failed to send approval email:", data);
+            } else {
+              console.log("Approval email sent successfully:", data);
+            }
+          } catch (emailError) {
+            console.error("Error sending approval email:", emailError);
+            // Don't throw error, just log it to not interrupt the event creation
+          }
+        }
+
         if (selectedFile && createdEvent?.id && user) {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${crypto.randomUUID()}.${fileExt}`;

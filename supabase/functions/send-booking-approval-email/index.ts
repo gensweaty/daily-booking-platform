@@ -28,11 +28,13 @@ function formatBookingDate(startDate: string, endDate: string): string {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   if (!RESEND_API_KEY) {
+    console.error("Missing RESEND_API_KEY environment variable");
     return new Response(
       JSON.stringify({ error: "Missing RESEND_API_KEY" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
@@ -41,6 +43,16 @@ const handler = async (req: Request): Promise<Response> => {
   
   try {
     const { recipientEmail, fullName, businessName, startDate, endDate }: BookingApprovalEmailRequest = await req.json();
+
+    console.log("Sending email to:", recipientEmail);
+    console.log("Data:", { fullName, businessName, startDate, endDate });
+
+    if (!recipientEmail) {
+      return new Response(
+        JSON.stringify({ error: "Recipient email is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+      );
+    }
 
     const formattedDate = formatBookingDate(startDate, endDate);
 
@@ -53,6 +65,7 @@ const handler = async (req: Request): Promise<Response> => {
       <p><i>This is an automated message from SmartBookly</i></p>
     `;
 
+    console.log("Sending email with Resend API");
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -68,8 +81,10 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const data = await res.json();
+    console.log("Resend API response:", data);
 
     if (!res.ok) {
+      console.error("Failed to send email:", data);
       return new Response(
         JSON.stringify({ error: "Failed to send email", details: data }),
         { status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" }}
@@ -81,6 +96,7 @@ const handler = async (req: Request): Promise<Response> => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
     );
   } catch (error: any) {
+    console.error("Error in send-booking-approval-email:", error);
     return new Response(
       JSON.stringify({ error: error?.message || "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
