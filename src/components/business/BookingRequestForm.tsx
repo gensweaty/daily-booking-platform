@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -224,49 +223,32 @@ export const BookingRequestForm = ({
           notes: notes || ''
         };
         
-        console.log('Invoking send-booking-request-notification function with params:', notificationBody);
+        console.log('Preparing notification request with params:', notificationBody);
         
-        const SUPABASE_URL = 'https://mrueqpffzauvdxmuwhfa.supabase.co';
-
-        console.log("Preparing to make direct fetch call to notification endpoint");
-        console.log("URL:", `${SUPABASE_URL}/functions/v1/send-booking-request-notification`);
+        console.log("Sending notification to:", "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification");
         
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData.session?.access_token;
-        console.log("Access token available:", !!accessToken);
-
         const functionResponse = await fetch(
-          `${SUPABASE_URL}/functions/v1/send-booking-request-notification`,
+          "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification", 
           {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${accessToken || ''}`
             },
             body: JSON.stringify(notificationBody)
           }
         );
-
+        
         console.log('Function response status:', functionResponse.status);
         
         const responseText = await functionResponse.text();
         console.log('Raw function response:', responseText);
         
-        let response;
-        try {
-          response = JSON.parse(responseText);
-          console.log("Parsed email notification response:", response);
-        } catch (e) {
-          console.error("Error parsing function response:", e);
-          throw new Error(`Invalid response format: ${responseText}`);
-        }
-
         if (!functionResponse.ok) {
-          console.error('Error sending notification email:', response);
-          throw new Error(response.error || 'Unknown error from notification service');
-        } else {
-          console.log('Notification email sent successfully:', response);
+          console.error('Error sending notification:', responseText);
+          throw new Error(`Notification failed with status ${functionResponse.status}: ${responseText}`);
         }
+        
+        console.log('Email notification sent successfully');
       } catch (emailError) {
         console.error('Error in email notification process:', emailError);
         toast({
