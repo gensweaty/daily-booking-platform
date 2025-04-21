@@ -30,6 +30,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     // Get the API key from environment variables
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    console.log("🔑 API Key exists:", !!resendApiKey);
     
     if (!resendApiKey) {
       console.error("❌ RESEND_API_KEY is not configured in environment variables");
@@ -136,9 +137,14 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("📧 Sending email to:", businessEmail);
     
+    // For testing purposes - temporarily use the onboarding email
+    // const fromEmail = "onboarding@resend.dev";
+    const fromEmail = "SmartBookly <info@smartbookly.com>";
+    console.log("📧 Sending from:", fromEmail);
+    
     // Send email using Resend API with correct from address
     const emailResponse = await resend.emails.send({
-      from: "SmartBookly <info@smartbookly.com>",
+      from: fromEmail,
       to: [businessEmail],
       subject: "New Booking Request - Action Required",
       html: emailHtml,

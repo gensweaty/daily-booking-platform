@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -158,7 +159,7 @@ export const BookingRequestForm = ({
       
       console.log("Found business owner user ID:", profileData.user_id);
       
-      // Get the user's email from auth.users using the admin functions
+      // Get the user's email from auth
       const { data: userData, error: userError } = await supabase.auth.admin.getUserById(
         profileData.user_id
       );
@@ -244,6 +245,7 @@ export const BookingRequestForm = ({
       }
       
       if (!response.ok || !responseData.success) {
+        console.error("Email notification failed:", responseData);
         throw new Error(responseData.error || `Failed to send notification (${response.status})`);
       }
       
@@ -351,18 +353,21 @@ export const BookingRequestForm = ({
           console.log("Email notification sent successfully");
         } else {
           console.error("Failed to send email notification:", notificationResult.error);
+          // We still show success for the booking, but log the email failure
+          console.warn("Booking request created, but email notification failed");
           toast({
-            title: "Warning",
-            description: "Booking request created, but we couldn't send the notification email.",
-            variant: "destructive",
+            title: "Booking Request Created",
+            description: "Your booking request has been submitted, but there was an issue sending the notification email to the business owner.",
+            variant: "default",
           });
         }
       } catch (emailError: any) {
         console.error("Error handling notification:", emailError);
+        // Don't throw the error here, just log it and continue
         toast({
-          title: "Warning",
-          description: "Booking created but notification to business owner failed.",
-          variant: "destructive",
+          title: "Booking Created",
+          description: "Your booking request was submitted but there was an issue notifying the business owner.",
+          variant: "default",
         });
       }
       
