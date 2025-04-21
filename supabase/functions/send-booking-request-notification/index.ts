@@ -176,12 +176,14 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    if (!emailResponse || !emailResponse.id) {
-      console.error("❌ Failed to send email - no ID returned:", emailResponse);
+    // FIX: We now check for both emailResponse existing and response.error to determine success,
+    // instead of just checking for the ID
+    if (!emailResponse || emailResponse.error) {
+      console.error("❌ Failed to send email - error in response:", emailResponse);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Failed to send email notification - no confirmation ID",
+          error: "Failed to send email notification - error in response",
           details: emailResponse 
         }),
         { 
