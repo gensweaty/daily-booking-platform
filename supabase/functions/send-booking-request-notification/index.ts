@@ -136,9 +136,9 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("📧 Sending email to:", businessEmail);
     
-    // Send email using Resend API
+    // Send email using Resend API with correct from address
     const emailResponse = await resend.emails.send({
-      from: "SmartBookly <notifications@smartbookly.com>",
+      from: "SmartBookly <info@smartbookly.com>",
       to: [businessEmail],
       subject: "New Booking Request - Action Required",
       html: emailHtml,

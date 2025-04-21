@@ -1,24 +1,5 @@
 
-# A string used as the project reference
 project_id = "mrueqpffzauvdxmuwhfa"
-
-[api]
-# Port to use for the API URL.
-port = 54321
-# Enable/Disable JWT verification for API requests.
-enabled = true
-
-[db]
-# Port to use for the local database URL.
-port = 54322
-# The database password to use when connecting.
-shadow_port = 54320
-
-[studio]
-# Port to use for Supabase Studio.
-port = 54323
-# API URL used by Supabase Studio.
-api_url = "http://localhost:54321"
 
 [functions.send-booking-request-notification]
 verify_jwt = false
