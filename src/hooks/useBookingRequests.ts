@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -58,6 +57,41 @@ export const useBookingRequests = () => {
   const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
   const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
   
+  // Utility to call Edge Function
+  async function sendApprovalEmail({ email, fullName, businessName, startDate, endDate }: {
+    email: string;
+    fullName: string;
+    businessName: string;
+    startDate: string;
+    endDate: string;
+  }) {
+    try {
+      const response = await fetch(
+        "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recipientEmail: email,
+            fullName,
+            businessName,
+            startDate,
+            endDate,
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        console.error("Failed to send approval email:", data);
+      } else {
+        console.log("Approval email sent:", data);
+      }
+    } catch (err) {
+      console.error("Error calling Edge Function:", err);
+    }
+  }
+
   // Mutation to approve a booking request
   const approveMutation = useMutation({
     mutationFn: async (bookingId: string) => {
@@ -250,6 +284,33 @@ export const useBookingRequests = () => {
         }
       }
       
+      // At this point, we've found the booking, the businessId, and have created eventData
+      // Now, fetch the business and send approval email if possible
+      if (booking && booking.requester_email) {
+        // fetch business profile to get business_name
+        let businessName = "Our Business";
+        try {
+          const { data: businessProfile } = await supabase
+            .from('business_profiles')
+            .select('business_name')
+            .eq('id', booking.business_id)
+            .maybeSingle();
+          if (businessProfile && businessProfile.business_name) {
+            businessName = businessProfile.business_name;
+          }
+        } catch (err) {
+          console.warn("Could not load business profile for email");
+        }
+        // Call edge function to send email
+        await sendApprovalEmail({
+          email: booking.requester_email,
+          fullName: booking.requester_name || booking.user_surname || "",
+          businessName,
+          startDate: booking.start_date,
+          endDate: booking.end_date,
+        });
+      }
+
       console.log('Booking approval process completed successfully');
       return booking;
     },
