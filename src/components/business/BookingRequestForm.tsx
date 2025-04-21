@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -204,9 +205,44 @@ export const BookingRequestForm = ({
           .eq('id', businessId)
           .single();
 
-        if (businessError || !businessData?.user_email) {
-          console.error('Error fetching business email:', businessError);
-          console.log('Business data:', businessData);
+        if (businessError) {
+          console.error('Error fetching business email from business_profiles:', businessError);
+          
+          // Try to fetch from user profile if business email not found
+          const { data: userProfileData, error: userProfileError } = await supabase
+            .from('profiles')
+            .select('id, username')
+            .eq('id', businessId)
+            .single();
+            
+          if (userProfileError) {
+            console.error('Error fetching user profile:', userProfileError);
+            throw new Error('Could not retrieve business or user email');
+          }
+          
+          // If we got here, we have the user profile
+          // Now get the user email from auth.users (which we can't query directly)
+          // So we'll get it from the auth session
+          const { data: sessionData } = await supabase.auth.getSession();
+          const userEmail = sessionData.session?.user?.email;
+          
+          if (!userEmail) {
+            console.error('No user email found in session');
+            throw new Error('Could not retrieve user email');
+          }
+          
+          businessData = {
+            user_email: userEmail,
+            business_name: userProfileData?.username || 'Business'
+          };
+          
+          console.log('Using user email from session:', userEmail);
+        } else {
+          console.log('Business data found:', businessData);
+        }
+        
+        if (!businessData?.user_email) {
+          console.error('No business email found in business data');
           throw new Error('Could not retrieve business email');
         }
         
@@ -225,27 +261,36 @@ export const BookingRequestForm = ({
         
         console.log('Preparing notification request with params:', notificationBody);
         
-        console.log("Sending notification to:", "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification");
+        // Direct fetch call to our edge function
+        const functionUrl = "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification";
+        console.log("Sending notification to:", functionUrl);
         
-        const functionResponse = await fetch(
-          "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification", 
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(notificationBody)
-          }
-        );
+        const functionResponse = await fetch(functionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // We don't need Authorization header for this public function
+          },
+          body: JSON.stringify(notificationBody)
+        });
         
         console.log('Function response status:', functionResponse.status);
         
         const responseText = await functionResponse.text();
         console.log('Raw function response:', responseText);
         
+        let responseData;
+        try {
+          responseData = JSON.parse(responseText);
+          console.log('Parsed response data:', responseData);
+        } catch (parseError) {
+          console.error('Failed to parse response:', parseError);
+        }
+        
         if (!functionResponse.ok) {
-          console.error('Error sending notification:', responseText);
-          throw new Error(`Notification failed with status ${functionResponse.status}: ${responseText}`);
+          const errorMessage = responseData?.error || `Notification failed with status ${functionResponse.status}`;
+          console.error('Error sending notification:', errorMessage);
+          throw new Error(errorMessage);
         }
         
         console.log('Email notification sent successfully');

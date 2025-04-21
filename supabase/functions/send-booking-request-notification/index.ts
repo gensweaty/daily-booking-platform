@@ -22,6 +22,8 @@ interface BookingNotificationRequest {
 
 const handler = async (req: Request): Promise<Response> => {
   console.log("Function invoked with method:", req.method);
+  console.log("Request URL:", req.url);
+  console.log("Request headers:", JSON.stringify(Object.fromEntries(req.headers.entries())));
   
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -126,7 +128,7 @@ const handler = async (req: Request): Promise<Response> => {
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error sending booking notification:", error);
     return new Response(
       JSON.stringify({ 
