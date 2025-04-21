@@ -135,24 +135,35 @@ const handler = async (req: Request): Promise<Response> => {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>New Booking Request</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+          .container { border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; }
+          .header { color: #0070f3; margin-top: 0; }
+          .details { margin: 20px 0; background-color: #f9f9f9; padding: 15px; border-radius: 4px; }
+          .detail { margin: 8px 0; }
+          .button { text-align: center; margin: 25px 0; }
+          .button a { background-color: #0070f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; }
+          .footer { color: #666; font-size: 14px; text-align: center; margin-top: 20px; }
+          .small { font-size: 12px; color: #666; }
+        </style>
       </head>
-      <body style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333;">
-        <div style="border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; background-color: #ffffff;">
-          <h2 style="color: #0070f3; margin-top: 0;">New Booking Request</h2>
+      <body>
+        <div class="container">
+          <h2 class="header">New Booking Request</h2>
           <p>Hello,</p>
           <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
-          <div style="margin: 20px 0; background-color: #f9f9f9; padding: 15px; border-radius: 4px;">
-            <p style="margin: 8px 0;"><strong>Date:</strong> ${requestDate}</p>
-            ${phoneNumber ? `<p style="margin: 8px 0;"><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
-            ${notes ? `<p style="margin: 8px 0;"><strong>Notes:</strong> ${notes}</p>` : ''}
+          <div class="details">
+            <p class="detail"><strong>Date:</strong> ${requestDate}</p>
+            ${phoneNumber ? `<p class="detail"><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
+            ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
           </div>
           <p>Please log in to your dashboard to view and respond to this request:</p>
-          <div style="text-align: center; margin: 25px 0;">
-            <a href="https://smartbookly.com/dashboard" style="background-color: #0070f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">Go to Dashboard</a>
+          <div class="button">
+            <a href="https://smartbookly.com/dashboard">Go to Dashboard</a>
           </div>
           <hr style="border: none; border-top: 1px solid #e1e1e1; margin: 20px 0;">
-          <p style="color: #666666; font-size: 14px; text-align: center;">This is an automated message from SmartBookly</p>
-          <p style="color: #666666; font-size: 12px; text-align: center;">If you did not sign up for SmartBookly, please disregard this email.</p>
+          <p class="footer">This is an automated message from SmartBookly</p>
+          <p class="small">If you did not sign up for SmartBookly, please disregard this email.</p>
         </div>
       </body>
       </html>
@@ -161,30 +172,20 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("📧 Sending email to:", businessEmail);
     
     // Choose a sender that works well with Hotmail/Outlook
-    // For Hotmail, we'll use onboarding@resend.dev if it's a Hotmail address
+    // For Hotmail, we'll use onboarding@resend.dev which is verified by Resend
     const fromEmail = isHotmailOrOutlook 
-      ? "SmartBookly via Resend <onboarding@resend.dev>" 
+      ? "SmartBookly <onboarding@resend.dev>" 
       : "SmartBookly <info@smartbookly.com>";
       
     console.log("📧 Sending from:", fromEmail);
     
-    // Try a different approach - first check if Resend is initialized
     console.log("🔄 Initializing Resend with API key");
     
-    // Send email using Resend API
+    // Send email using Resend API with all required fields completely filled out
     console.log("📤 Attempting to send email through Resend API");
     
-    let emailResponse;
-    try {
-      emailResponse = await resend.emails.send({
-        from: fromEmail,
-        to: [businessEmail],
-        subject: "New Booking Request - Action Required",
-        html: emailHtml,
-        // Add reply-to for better deliverability
-        reply_to: "no-reply@smartbookly.com",
-        // Add text version for better deliverability
-        text: `
+    // Create plain text version for better deliverability
+    const plainText = `
 New Booking Request
 
 Hello,
@@ -199,10 +200,35 @@ Please log in to your dashboard to view and respond to this request:
 https://smartbookly.com/dashboard
 
 This is an automated message from SmartBookly
-        `,
+
+If you did not sign up for SmartBookly, please disregard this email.
+    `;
+    
+    let emailResponse;
+    try {
+      // Make sure we fully await the email sending before returning
+      emailResponse = await resend.emails.send({
+        from: fromEmail,
+        to: [businessEmail],
+        subject: "New Booking Request - Action Required",
+        html: emailHtml,
+        text: plainText,
+        reply_to: "no-reply@smartbookly.com",
       });
       
       console.log("📬 Raw Resend API response:", JSON.stringify(emailResponse));
+      
+      // Check for both cases: either explicit error or missing id
+      if (emailResponse.error) {
+        throw new Error(emailResponse.error.message || "Unknown error from Resend API");
+      }
+      
+      if (!emailResponse.data?.id) {
+        console.error("❌ Failed to send email - no ID returned:", JSON.stringify(emailResponse));
+        throw new Error("No email ID returned from Resend API");
+      }
+      
+      console.log("✅ Email sent successfully with ID:", emailResponse.data.id);
     } catch (resendError) {
       console.error("❌ Resend API error:", resendError);
       return new Response(
@@ -221,32 +247,13 @@ This is an automated message from SmartBookly
       );
     }
 
-    // Check for errors in the response
-    if (!emailResponse || emailResponse.error) {
-      console.error("❌ Failed to send email - error in response:", emailResponse);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Failed to send email notification - error in response",
-          details: emailResponse 
-        }),
-        { 
-          status: 500, 
-          headers: { 
-            "Content-Type": "application/json",
-            ...corsHeaders 
-          } 
-        }
-      );
-    }
-
     // Success response
-    console.log("✅ Email sent successfully with ID:", emailResponse.id);
+    console.log("✅ Request processed successfully, returning response");
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: "Email notification sent successfully",
-        id: emailResponse.id,
+        id: emailResponse.data.id,
         email: businessEmail
       }),
       { 
@@ -277,5 +284,5 @@ This is an automated message from SmartBookly
   }
 };
 
-// Start server
+// Start server and make sure all promises resolve before shutdown
 serve(handler);
