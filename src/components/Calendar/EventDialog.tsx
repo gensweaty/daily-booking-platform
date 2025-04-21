@@ -306,37 +306,19 @@ export const EventDialog = ({
             user_id: user.id
           };
 
-          const filePromises = [];
-
-          filePromises.push(
-            supabase
-              .from('event_files')
-              .insert({
-                ...fileData,
-                event_id: createdEvent.id
-              })
-          );
-
-          if (customerId) {
-            filePromises.push(
-              supabase
-                .from('customer_files_new')
-                .insert({
-                  ...fileData,
-                  customer_id: customerId
-                })
-            );
+          const { error: fileRecordError } = await supabase
+            .from('event_files')
+            .insert({
+              ...fileData,
+              event_id: createdEvent.id
+            });
+            
+          if (fileRecordError) {
+            console.error('Error creating file record:', fileRecordError);
+            throw fileRecordError;
           }
 
-          const results = await Promise.all(filePromises);
-          const errors = results.filter(r => r.error);
-          
-          if (errors.length > 0) {
-            console.error('Errors creating file records:', errors);
-            throw errors[0].error;
-          }
-
-          console.log('File records created successfully');
+          console.log('File record created successfully');
         }
 
         toast({
