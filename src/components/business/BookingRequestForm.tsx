@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -203,10 +204,10 @@ export const BookingRequestForm = ({
 
   const sendBookingNotification = async (businessEmail: string, name: string, bookingDate: Date) => {
     try {
-      console.log("Preparing to send notification email to:", businessEmail);
+      console.log("🔍 Preparing to send notification email to:", businessEmail);
       
       const formattedDate = format(bookingDate, "MMMM dd, yyyy 'at' h:mm a");
-      console.log("Formatted date for notification:", formattedDate);
+      console.log("🔍 Formatted date for notification:", formattedDate);
       
       const notificationData = {
         businessEmail: businessEmail.trim(),
@@ -216,7 +217,8 @@ export const BookingRequestForm = ({
         notes: notes || undefined
       };
       
-      console.log("Sending notification with data:", JSON.stringify(notificationData));
+      console.log("🔍 Sending notification with data:", JSON.stringify(notificationData));
+      console.log("📤 About to send booking notification POST request");
       
       const response = await fetch(
         "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
@@ -229,16 +231,18 @@ export const BookingRequestForm = ({
         }
       );
       
+      console.log(`🔍 Notification response status: ${response.status}`);
+      
+      // Wait for full text response before continuing
       const responseText = await response.text();
-      console.log(`Notification response status: ${response.status}`);
-      console.log(`Notification response body: ${responseText}`);
+      console.log(`🔍 Notification response body: ${responseText}`);
       
       let responseData;
       try {
         responseData = JSON.parse(responseText);
-        console.log("Parsed notification response:", responseData);
+        console.log("🔍 Parsed notification response:", responseData);
       } catch (parseError) {
-        console.error("Failed to parse notification response:", parseError);
+        console.error("⚠️ Failed to parse notification response:", parseError);
         responseData = { 
           success: false, 
           error: "Invalid response format",
@@ -246,14 +250,20 @@ export const BookingRequestForm = ({
         };
       }
       
-      if (!response.ok || !responseData.success) {
-        console.error("Email notification failed:", responseData);
-        throw new Error(responseData.error || `Failed to send notification (${response.status})`);
+      if (!response.ok) {
+        console.error("❌ HTTP error sending notification:", response.status, responseText);
+        throw new Error(`HTTP error ${response.status}: ${responseText || 'No response body'}`);
       }
       
+      if (!responseData.success) {
+        console.error("❌ Email notification failed:", responseData);
+        throw new Error(responseData.error || `Failed to send notification`);
+      }
+      
+      console.log("✅ Email notification sent successfully:", responseData);
       return { success: true, data: responseData };
     } catch (error) {
-      console.error("Error sending booking notification:", error);
+      console.error("❌ Error sending booking notification:", error);
       return { 
         success: false, 
         error: error instanceof Error ? error.message : "Unknown error sending notification" 
@@ -264,7 +274,13 @@ export const BookingRequestForm = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isSubmitting || rateLimitExceeded) return;
+    if (isSubmitting || rateLimitExceeded) {
+      console.log("⚠️ Submission blocked - already submitting or rate limited");
+      return;
+    }
+    
+    // Validate required fields and show toast errors
+    let hasErrors = false;
     
     if (!fullName) {
       toast({
@@ -272,7 +288,8 @@ export const BookingRequestForm = ({
         description: "Please enter your full name",
         variant: "destructive",
       });
-      return;
+      console.log("⚠️ Validation error - missing full name");
+      hasErrors = true;
     }
     
     if (!startDate || !endDate) {
@@ -281,12 +298,20 @@ export const BookingRequestForm = ({
         description: "Please select start and end times",
         variant: "destructive",
       });
+      console.log("⚠️ Validation error - missing start/end times");
+      hasErrors = true;
+    }
+    
+    if (hasErrors) {
+      console.log("⚠️ Form has validation errors - stopping submission");
       return;
     }
     
     setIsSubmitting(true);
+    console.log("🔍 Starting booking submission process");
     
     try {
+      // Check rate limiting 
       const lastRequestTime = localStorage.getItem(`booking_last_request_${businessId}`);
       if (lastRequestTime) {
         const now = new Date();
@@ -307,6 +332,7 @@ export const BookingRequestForm = ({
             variant: "destructive",
           });
           
+          console.log(`⚠️ Rate limit reached, must wait ${remainingTime}`);
           setIsSubmitting(false);
           return;
         }
@@ -315,7 +341,9 @@ export const BookingRequestForm = ({
       const startDateTime = new Date(startDate);
       const endDateTime = new Date(endDate);
       
-      console.log(`Creating booking request for business: ${businessId}`);
+      console.log(`🔍 Creating booking request for business: ${businessId}`);
+      console.log(`🔍 Start date: ${startDateTime.toISOString()}, End date: ${endDateTime.toISOString()}`);
+      
       const { data, error } = await supabase
         .from('booking_requests')
         .insert({
@@ -333,26 +361,30 @@ export const BookingRequestForm = ({
         .single();
         
       if (error) {
-        console.error("Error creating booking request:", error);
+        console.error("❌ Error creating booking request:", error);
         throw error;
       }
       
-      console.log("Successfully created booking request:", data);
+      console.log("✅ Successfully created booking request:", data);
 
+      // Set rate limit immediately to prevent duplicate submissions
       localStorage.setItem(`booking_last_request_${businessId}`, Date.now().toString());
       
       let emailSent = false;
       let emailError = null;
       
+      // Attempt to send email notification
       try {
+        console.log("🔍 Getting business email for notification");
         const businessEmail = await getBusinessEmail(businessId);
-        console.log("Retrieved business email for notification:", businessEmail);
+        console.log("🔍 Retrieved business email for notification:", businessEmail);
         
         if (!businessEmail || !businessEmail.includes('@')) {
-          console.error("Invalid business email format:", businessEmail);
+          console.error("❌ Invalid business email format:", businessEmail);
           throw new Error("Invalid business email format");
         }
         
+        // Send the email notification
         const notificationResult = await sendBookingNotification(
           businessEmail,
           fullName,
@@ -360,19 +392,21 @@ export const BookingRequestForm = ({
         );
         
         if (notificationResult.success) {
-          console.log("Email notification sent successfully");
+          console.log("✅ Email notification sent successfully");
           emailSent = true;
         } else {
-          console.error("Failed to send email notification:", notificationResult.error);
+          console.error("❌ Failed to send email notification:", notificationResult.error);
           emailError = notificationResult.error;
         }
       } catch (emailErr: any) {
-        console.error("Error handling notification:", emailErr);
+        console.error("❌ Error handling notification:", emailErr);
         emailError = emailErr.message || "Unknown email error";
       }
       
+      // Handle file uploads if present
       if (selectedFile && data) {
         try {
+          console.log("🔍 Processing file upload:", selectedFile.name);
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `booking_${data.id}_${Date.now()}.${fileExt}`;
           
@@ -381,8 +415,9 @@ export const BookingRequestForm = ({
             .upload(filePath, selectedFile);
             
           if (uploadError) {
-            console.error('Error uploading file:', uploadError);
+            console.error('❌ Error uploading file:', uploadError);
           } else {
+            console.log("✅ File uploaded successfully:", filePath);
             const { error: fileError } = await supabase
               .from('booking_files')
               .insert({
@@ -394,16 +429,20 @@ export const BookingRequestForm = ({
               });
               
             if (fileError) {
-              console.error('Error saving file metadata:', fileError);
+              console.error('❌ Error saving file metadata:', fileError);
+            } else {
+              console.log("✅ File metadata saved successfully");
             }
           }
         } catch (fileError) {
-          console.error("Error processing file upload:", fileError);
+          console.error("❌ Error processing file upload:", fileError);
         }
       }
       
+      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['business-bookings'] });
       
+      // Show success toast
       if (emailSent) {
         toast({
           title: t("common.success"),
@@ -416,9 +455,10 @@ export const BookingRequestForm = ({
           variant: "default",
         });
         
-        console.warn(`Booking created but email failed: ${emailError}`);
+        console.warn(`⚠️ Booking created but email failed: ${emailError}`);
       }
       
+      // Reset form
       setFullName("");
       setEmail("");
       setPhone("");
@@ -429,10 +469,13 @@ export const BookingRequestForm = ({
         onSuccess();
       }
       
+      // Set rate limit UI state
       setRateLimitExceeded(true);
       setTimeRemaining(120);
+      
+      console.log("✅ Booking submission process completed successfully");
     } catch (error: any) {
-      console.error('Error submitting booking request:', error);
+      console.error('❌ Error submitting booking request:', error);
       toast({
         title: t("common.error"),
         description: error.message || t("common.error"),

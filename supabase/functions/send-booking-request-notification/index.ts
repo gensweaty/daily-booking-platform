@@ -27,6 +27,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  console.log("🚀 Received actual POST request to send email");
+
   try {
     // Log API key presence - IMPORTANT: don't log the actual key
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -171,18 +173,12 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("📧 Sending email to:", businessEmail);
     
-    // Choose a sender that works well with Hotmail/Outlook
-    // For Hotmail, we'll use onboarding@resend.dev which is verified by Resend
-    const fromEmail = isHotmailOrOutlook 
-      ? "SmartBookly <onboarding@resend.dev>" 
-      : "SmartBookly <info@smartbookly.com>";
+    // Always use onboarding@resend.dev for Hotmail/Outlook for better deliverability
+    const fromEmail = "SmartBookly <onboarding@resend.dev>";
       
     console.log("📧 Sending from:", fromEmail);
     
     console.log("🔄 Initializing Resend with API key");
-    
-    // Send email using Resend API with all required fields completely filled out
-    console.log("📤 Attempting to send email through Resend API");
     
     // Create plain text version for better deliverability
     const plainText = `
@@ -204,10 +200,12 @@ This is an automated message from SmartBookly
 If you did not sign up for SmartBookly, please disregard this email.
     `;
     
-    let emailResponse;
+    let emailResult;
     try {
+      console.log("📤 About to execute Resend API call");
+      
       // Make sure we fully await the email sending before returning
-      emailResponse = await resend.emails.send({
+      emailResult = await resend.emails.send({
         from: fromEmail,
         to: [businessEmail],
         subject: "New Booking Request - Action Required",
@@ -216,19 +214,17 @@ If you did not sign up for SmartBookly, please disregard this email.
         reply_to: "no-reply@smartbookly.com",
       });
       
-      console.log("📬 Raw Resend API response:", JSON.stringify(emailResponse));
+      console.log("📬 Raw Resend API response:", JSON.stringify(emailResult));
       
-      // Check for both cases: either explicit error or missing id
-      if (emailResponse.error) {
-        throw new Error(emailResponse.error.message || "Unknown error from Resend API");
+      if (emailResult.error) {
+        throw new Error(emailResult.error.message || "Unknown error from Resend API");
       }
       
-      if (!emailResponse.data?.id) {
-        console.error("❌ Failed to send email - no ID returned:", JSON.stringify(emailResponse));
-        throw new Error("No email ID returned from Resend API");
-      }
+      console.log("✅ Email sent successfully with ID:", emailResult.data?.id);
       
-      console.log("✅ Email sent successfully with ID:", emailResponse.data.id);
+      // Wait a moment to ensure the email is processed
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
     } catch (resendError) {
       console.error("❌ Resend API error:", resendError);
       return new Response(
@@ -249,11 +245,15 @@ If you did not sign up for SmartBookly, please disregard this email.
 
     // Success response
     console.log("✅ Request processed successfully, returning response");
+    
+    // Wait to ensure all logs are flushed before returning
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: "Email notification sent successfully",
-        id: emailResponse.data.id,
+        id: emailResult.data?.id,
         email: businessEmail
       }),
       { 
@@ -267,6 +267,10 @@ If you did not sign up for SmartBookly, please disregard this email.
     
   } catch (error) {
     console.error("❌ Unhandled error in send-booking-request-notification:", error);
+    
+    // Wait to ensure all logs are flushed before returning
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
