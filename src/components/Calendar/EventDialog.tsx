@@ -38,8 +38,8 @@ export const EventDialog = ({
   const [eventNotes, setEventNotes] = useState(event?.event_notes || "");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [originalStartDate, setOriginalStartDate] = useState(""); // Track original dates
-  const [originalEndDate, setOriginalEndDate] = useState(""); // Track original dates
+  const [originalStartDate, setOriginalStartDate] = useState("");
+  const [originalEndDate, setOriginalEndDate] = useState("");
   const [paymentStatus, setPaymentStatus] = useState(event?.payment_status || "");
   const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -68,8 +68,8 @@ export const EventDialog = ({
       
       setStartDate(formattedStart);
       setEndDate(formattedEnd);
-      setOriginalStartDate(formattedStart); // Save original for comparison
-      setOriginalEndDate(formattedEnd); // Save original for comparison
+      setOriginalStartDate(formattedStart);
+      setOriginalEndDate(formattedEnd);
       
       setIsBookingEvent(event.type === 'booking_request');
       

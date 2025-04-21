@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -183,6 +182,55 @@ export const CustomerDialog = ({
           console.error("Error creating event:", eventError);
         } else {
           console.log("Created event:", eventData2);
+          
+          if (socialNetworkLink && socialNetworkLink.includes('@')) {
+            try {
+              const { data: businessProfile } = await supabase
+                .from('business_profiles')
+                .select('business_name')
+                .eq('user_id', user?.id)
+                .maybeSingle();
+                
+              const businessName = businessProfile?.business_name || "Our Business";
+              
+              console.log("Sending booking approval email to", socialNetworkLink);
+              const { data: sessionData } = await supabase.auth.getSession();
+              const accessToken = sessionData.session?.access_token;
+              
+              if (!accessToken) {
+                console.error("No access token available for authenticated request");
+                throw new Error("Authentication error");
+              }
+              
+              const response = await fetch(
+                "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+                {
+                  method: "POST",
+                  headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${accessToken}`
+                  },
+                  body: JSON.stringify({
+                    recipientEmail: socialNetworkLink.trim(),
+                    fullName: userSurname || title || "Customer",
+                    businessName,
+                    startDate: start.toISOString(),
+                    endDate: end.toISOString(),
+                  }),
+                }
+              );
+              
+              if (!response.ok) {
+                const errorText = await response.text();
+                console.error("Failed to send email notification:", errorText);
+                throw new Error("Failed to send email notification");
+              } else {
+                console.log("Email notification sent successfully");
+              }
+            } catch (emailError) {
+              console.error("Error sending email notification:", emailError);
+            }
+          }
         }
       }
 

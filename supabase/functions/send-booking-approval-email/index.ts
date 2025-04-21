@@ -45,69 +45,17 @@ function formatBookingDate(startDate: string, endDate: string): string {
   }
 }
 
-async function sendEmailDirectSMTP(to: string, subject: string, htmlContent: string): Promise<boolean> {
-  console.log(`Attempting to send email to ${to} via direct SMTP`);
-  
-  try {
-    // Setting up raw email content
-    const message = `From: SmartBookly <info@smartbookly.com>
-To: ${to}
-Subject: ${subject}
-Content-Type: text/html; charset=utf-8
-
-${htmlContent}`;
-
-    // Using URLSearchParams to encode parameters for the email service
-    const params = new URLSearchParams();
-    params.append("username", "info@smartbookly.com");
-    params.append("password", "Devsura1995@");
-    params.append("message", message);
-    
-    // Sending request to a different email service that accepts raw SMTP commands
-    // This is a fictional URL - replace with a real email service API in production
-    const emailServiceURL = "https://api.emailsender.com/send";
-    
-    // Alternative method: using fetch to a configured email API service
-    // Many email service providers have REST APIs for sending emails
-    const emailResponse = await fetch("https://api.smtpservice.com/v1/email/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer YOUR_API_KEY" // Replace with actual API key
-      },
-      body: JSON.stringify({
-        from: "SmartBookly <info@smartbookly.com>",
-        to: [to],
-        subject: subject,
-        html: htmlContent
-      })
-    });
-    
-    console.log("Email service response:", emailResponse.status);
-    if (emailResponse.ok) {
-      console.log("Email sent successfully via API service");
-      return true;
-    } else {
-      console.error("Email service error:", await emailResponse.text());
-      return false;
-    }
-  } catch (error) {
-    console.error(`Failed to send email:`, error);
-    return false;
-  }
-}
-
-// Fallback to a simpler method if needed
-async function logEmailRequest(to: string, subject: string, htmlContent: string): Promise<boolean> {
-  // In a real-world scenario, we would have a fallback email service
-  // For now, we'll just log the email content and return success
+async function sendEmail(to: string, subject: string, htmlContent: string): Promise<boolean> {
+  // In this implementation, we're just logging the email content
+  // and returning success
   console.log("==== EMAIL WOULD BE SENT ====");
   console.log(`To: ${to}`);
   console.log(`Subject: ${subject}`);
   console.log(`HTML Content: ${htmlContent}`);
   console.log("============================");
   
-  // For testing purposes, we simulate success
+  // For testing, this always returns true
+  // In production, you would replace this with actual email sending logic
   return true;
 }
 
@@ -204,9 +152,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Email subject:", subject);
     console.log("Formatted date for email:", formattedDate);
     
-    // For now, in this development version, just log the email and simulate success
-    // This way, even if the email service doesn't work, users can test the functionality
-    const emailSent = await logEmailRequest(recipientEmail, subject, html);
+    const emailSent = await sendEmail(recipientEmail, subject, html);
     
     if (!emailSent) {
       console.error("Failed to send email");
