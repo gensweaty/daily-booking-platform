@@ -223,84 +223,7 @@ export const EventDialog = ({
         }
 
         if (!event?.id && socialNetworkLink && socialNetworkLink.includes("@")) {
-          try {
-            const { data: businessProfile } = await supabase
-              .from('business_profiles')
-              .select('business_name')
-              .eq('user_id', user?.id)
-              .maybeSingle();
-              
-            const businessName = businessProfile?.business_name || "Our Business";
-            
-            console.log("Sending booking approval email to", socialNetworkLink);
-            console.log("Email data:", {
-              recipientEmail: socialNetworkLink,
-              fullName: userSurname || title,
-              businessName,
-              startDate: startDateTime.toISOString(),
-              endDate: endDateTime.toISOString(),
-            });
-            
-            const { data: sessionData } = await supabase.auth.getSession();
-            const accessToken = sessionData.session?.access_token;
-            
-            if (!accessToken) {
-              console.error("No access token available for authenticated request");
-              throw new Error("Authentication error");
-            }
-            
-            const response = await fetch(
-              "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
-              {
-                method: "POST",
-                headers: { 
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${accessToken}`
-                },
-                body: JSON.stringify({
-                  recipientEmail: socialNetworkLink.trim(),
-                  fullName: userSurname || title || "Customer",
-                  businessName,
-                  startDate: startDateTime.toISOString(),
-                  endDate: endDateTime.toISOString(),
-                }),
-              }
-            );
-            
-            console.log("Email API response status:", response.status);
-            const responseText = await response.text();
-            console.log("Email API response body:", responseText);
-            
-            let data;
-            try {
-              data = JSON.parse(responseText);
-            } catch (e) {
-              console.error("Failed to parse response as JSON:", e);
-              data = { error: "Invalid response format" };
-            }
-            
-            if (!response.ok) {
-              console.error("Failed to process email notification:", data);
-              toast({
-                title: t("common.warning"),
-                description: t("Event created but email notification could not be processed"),
-                variant: "destructive",
-              });
-            } else {
-              console.log("Email notification processed successfully:", data);
-              toast({
-                title: t("common.success"),
-                description: t("Email notification processed successfully"),
-              });
-            }
-          } catch (emailError) {
-            console.error("Error processing email notification:", emailError);
-            toast({
-              title: t("common.warning"),
-              description: t("Event created but email notification could not be processed"),
-              variant: "destructive",
-            });
-          }
+          await sendApprovalEmail(startDateTime, endDateTime, title, userSurname, socialNetworkLink);
         }
 
         if (selectedFile && createdEvent?.id && user) {
@@ -408,6 +331,94 @@ export const EventDialog = ({
       toast({
         title: t("common.error"),
         description: error.message || t("common.error"),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const sendApprovalEmail = async (
+    startDateTime: Date,
+    endDateTime: Date,
+    title: string,
+    userSurname: string,
+    socialNetworkLink: string
+  ) => {
+    try {
+      console.log("Sending booking approval email to", socialNetworkLink);
+      
+      const { data: businessProfile } = await supabase
+        .from('business_profiles')
+        .select('business_name')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+        
+      const businessName = businessProfile?.business_name || "Our Business";
+      
+      console.log("Email data:", {
+        recipientEmail: socialNetworkLink,
+        fullName: userSurname || title,
+        businessName,
+        startDate: startDateTime.toISOString(),
+        endDate: endDateTime.toISOString(),
+      });
+      
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (!accessToken) {
+        console.error("No access token available for authenticated request");
+        throw new Error("Authentication error");
+      }
+      
+      const response = await fetch(
+        "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+        {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            recipientEmail: socialNetworkLink.trim(),
+            fullName: userSurname || title || "Customer",
+            businessName,
+            startDate: startDateTime.toISOString(),
+            endDate: endDateTime.toISOString(),
+          }),
+        }
+      );
+      
+      console.log("Email API response status:", response.status);
+      const responseText = await response.text();
+      console.log("Email API response body:", responseText);
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Failed to parse response as JSON:", e);
+        data = { error: "Invalid response format" };
+      }
+      
+      if (!response.ok) {
+        console.error("Failed to process email notification:", data);
+        toast({
+          title: t("common.warning"),
+          description: t("Event created but email notification could not be processed"),
+          variant: "destructive",
+        });
+      } else {
+        console.log("Email notification processed successfully:", data);
+        toast({
+          title: t("common.success"),
+          description: t("Email notification processed successfully"),
+        });
+      }
+    } catch (emailError) {
+      console.error("Error processing email notification:", emailError);
+      toast({
+        title: t("common.warning"),
+        description: t("Event created but email notification could not be processed"),
         variant: "destructive",
       });
     }
