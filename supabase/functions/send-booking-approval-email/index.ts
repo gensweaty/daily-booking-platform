@@ -40,6 +40,10 @@ const handler = async (req: Request): Promise<Response> => {
     
     const { recipientEmail, fullName, businessName, startDate, endDate } = parsedBody;
 
+    console.log("Processing email to:", recipientEmail);
+    console.log("Email data:", { fullName, businessName, startDate, endDate });
+
+    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(recipientEmail)) {
       console.error("Invalid email format:", recipientEmail);
@@ -54,8 +58,12 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("Sending email to:", recipientEmail);
     
+    // Use a verified domain email as the sender (from your Resend dashboard)
+    const fromEmail = `${businessName} <onboarding@resend.dev>`;
+    console.log("Using from email:", fromEmail);
+    
     const emailResponse = await resend.emails.send({
-      from: `${businessName} <onboarding@resend.dev>`,
+      from: fromEmail,
       to: [recipientEmail],
       subject: `Booking Approved at ${businessName}`,
       html: `
@@ -75,19 +83,30 @@ const handler = async (req: Request): Promise<Response> => {
     if (emailResponse.error) {
       console.error("Resend email error:", emailResponse.error);
       return new Response(
-        JSON.stringify({ error: emailResponse.error }),
+        JSON.stringify({ 
+          error: emailResponse.error,
+          details: "Email sending failed. Check if the recipient email is valid and try again."
+        }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
     }
 
     return new Response(
-      JSON.stringify({ message: "Email sent successfully" }),
+      JSON.stringify({ 
+        message: "Email sent successfully",
+        id: emailResponse.data?.id || null,
+        to: recipientEmail
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
     );
   } catch (error: any) {
     console.error("Unhandled error in send-booking-approval-email:", error);
     return new Response(
-      JSON.stringify({ error: error?.message || "Unknown error", stack: error?.stack }),
+      JSON.stringify({ 
+        error: error?.message || "Unknown error", 
+        stack: error?.stack,
+        message: "Failed to send email. Please try again later."
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
     );
   }

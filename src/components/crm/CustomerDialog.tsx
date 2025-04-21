@@ -220,15 +220,18 @@ export const CustomerDialog = ({
                 }
               );
               
+              const responseData = await response.json();
+              console.log("Email function response:", responseData);
+              
               if (!response.ok) {
-                const errorText = await response.text();
-                console.error("Failed to send email notification:", errorText);
-                throw new Error("Failed to send email notification");
+                const errorDetails = await response.text();
+                console.error("Failed to send email notification:", errorDetails);
+                throw new Error("Failed to send email notification: " + responseData.error);
               }
               
               toast({
                 title: t("common.success"),
-                description: t("Email notification sent successfully"),
+                description: t("Email notification sent successfully to ") + socialNetworkLink,
               });
             } catch (emailError) {
               console.error("Error sending email notification:", emailError);

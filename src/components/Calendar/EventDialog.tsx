@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -171,15 +172,17 @@ export const EventDialog = ({
         }
       );
       
+      const responseData = await response.json();
+      console.log("Email function response:", responseData);
+      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Failed to send email notification:", errorText);
-        throw new Error("Failed to send email notification");
+        console.error("Failed to send email notification:", responseData);
+        throw new Error(responseData.error || "Failed to send email notification");
       }
       
       toast({
         title: t("common.success"),
-        description: t("Email notification sent successfully"),
+        description: t("Email notification sent successfully to ") + socialNetworkLink,
       });
       
     } catch (emailError) {
