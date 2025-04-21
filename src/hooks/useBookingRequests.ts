@@ -104,22 +104,14 @@ export const useBookingRequests = () => {
       );
 
       console.log("Email function response status:", response.status);
-      let responseText;
       
-      try {
-        responseText = await response.text();
-        console.log("Email function response body:", responseText);
-      } catch (textError) {
-        console.error("Error reading response text:", textError);
-        if (!response.ok) {
-          return { success: false, error: `Email sending failed (status ${response.status})` };
-        }
-        return { success: true, message: "Email notification processed" };
-      }
+      // Read the response as text first
+      const responseText = await response.text();
+      console.log("Email function response body:", responseText);
       
       let data;
       try {
-        data = JSON.parse(responseText);
+        data = responseText ? JSON.parse(responseText) : {};
         console.log("Parsed response data:", data);
       } catch (e) {
         console.error("Failed to parse response JSON:", e);
@@ -131,14 +123,13 @@ export const useBookingRequests = () => {
       
       if (!response.ok) {
         console.error("Failed to send approval email:", data);
-        return { success: false, error: data.error || "Failed to send email" };
+        return { success: false, error: data.error || data.details || "Failed to send email" };
       } else {
         console.log("Approval email sent successfully:", data);
         return { success: true, data };
       }
     } catch (err) {
       console.error("Error calling Edge Function:", err);
-      // We'll assume the email was processed anyway - just log the error
       return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
     }
   }
@@ -162,6 +153,7 @@ export const useBookingRequests = () => {
       
       console.log('Fetched booking request:', booking);
       
+      // Check for conflicts
       const { data: conflictingEvents } = await supabase
         .from('events')
         .select('id, title')

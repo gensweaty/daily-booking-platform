@@ -1,8 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,6 +21,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  console.log("Received request to send booking approval email");
+
   try {
     const requestBody = await req.text();
     console.log("Request body:", requestBody);
@@ -40,8 +40,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     const { recipientEmail, fullName, businessName, startDate, endDate } = parsedBody;
 
-    console.log("Processing email to:", recipientEmail);
-    console.log("Email data:", { fullName, businessName, startDate, endDate });
+    console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName}`);
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,60 +55,71 @@ const handler = async (req: Request): Promise<Response> => {
     const startFormatted = new Date(startDate).toLocaleString();
     const endFormatted = new Date(endDate).toLocaleString();
     
-    console.log("Sending email to:", recipientEmail);
-    
-    // Use a verified domain email as the sender (from your Resend dashboard)
-    // Using onboarding@resend.dev which is pre-verified in Resend for all users
-    const fromEmail = `${businessName} <onboarding@resend.dev>`;
-    console.log("Using from email:", fromEmail);
+    // Setup SMTP client with Resend SMTP configuration
+    const client = new SMTPClient({
+      connection: {
+        hostname: "smtp.resend.com",
+        port: 465,
+        tls: true,
+        auth: {
+          username: "resend",
+          password: Deno.env.get("RESEND_API_KEY") || "",
+        },
+      },
+    });
+
+    console.log(`Attempting to send email via SMTP to ${recipientEmail}`);
     
     try {
-      console.log("Attempting to send email with Resend API...");
-      const emailResponse = await resend.emails.send({
-        from: fromEmail,
-        to: [recipientEmail],
+      // Create HTML email content
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+          <h2 style="color: #333;">Hello ${fullName},</h2>
+          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
+          <p><strong>Booking date and time:</strong> ${startFormatted} - ${endFormatted}</p>
+          <p>We look forward to seeing you!</p>
+          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+          <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
+        </div>
+      `;
+      
+      // Send email using SMTP
+      await client.send({
+        from: `${businessName} <info@smartbookly.com>`,
+        to: recipientEmail,
         subject: `Booking Approved at ${businessName}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-            <h2 style="color: #333;">Hello ${fullName},</h2>
-            <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
-            <p><strong>Booking date and time:</strong> ${startFormatted} - ${endFormatted}</p>
-            <p>We look forward to seeing you!</p>
-            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-            <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
-          </div>
-        `,
+        content: "Your booking has been approved",
+        html: htmlContent,
       });
-
-      console.log("Email response from Resend:", JSON.stringify(emailResponse));
-
-      if (emailResponse.error) {
-        console.error("Resend email error:", emailResponse.error);
-        return new Response(
-          JSON.stringify({ 
-            error: emailResponse.error,
-            details: "Email sending failed. Check if the recipient email is valid and try again."
-          }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-        );
-      }
-
+      
+      console.log(`Email successfully sent to ${recipientEmail}`);
+      
+      await client.close();
+      
       return new Response(
         JSON.stringify({ 
           message: "Email sent successfully",
-          id: emailResponse.data?.id || null,
           to: recipientEmail
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
-    } catch (sendError: any) {
-      console.error("Exception during email sending:", sendError);
-      console.error("Error details:", sendError.message);
+    } catch (emailError: any) {
+      console.error("Error sending email:", emailError);
+      console.error("Error details:", emailError.message);
+      
+      if (client) {
+        try {
+          await client.close();
+        } catch (closeError) {
+          console.error("Error closing SMTP connection:", closeError);
+        }
+      }
+      
       return new Response(
         JSON.stringify({ 
-          error: "Email sending failed",
-          details: sendError.message,
-          trace: sendError.stack || "No stack trace available"
+          error: "Failed to send email",
+          details: emailError.message || "Unknown error",
+          trace: typeof emailError.stack === 'string' ? emailError.stack : "No stack trace available"
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );

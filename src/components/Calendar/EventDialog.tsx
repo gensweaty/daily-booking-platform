@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -172,21 +173,25 @@ export const EventDialog = ({
       );
       
       console.log("Email API response status:", response.status);
-      let responseData;
       
+      // Read the response as text first
+      const responseText = await response.text();
+      console.log("Email API response text:", responseText);
+      
+      // Try to parse the JSON
+      let responseData;
       try {
-        responseData = await response.json();
-        console.log("Email function response:", responseData);
+        responseData = responseText ? JSON.parse(responseText) : {};
+        console.log("Email API parsed response:", responseData);
       } catch (jsonError) {
-        console.error("Failed to parse email API response:", jsonError);
-        if (!response.ok) {
-          throw new Error(`Email sending failed (status ${response.status})`);
-        }
+        console.error("Failed to parse email API response as JSON:", jsonError);
+        // Continue with the text response
+        responseData = { textResponse: responseText };
       }
       
       if (!response.ok) {
         console.error("Failed to send email notification:", responseData?.error || response.statusText);
-        throw new Error(responseData?.error || `Failed to send email notification (status ${response.status})`);
+        throw new Error(responseData?.error || responseData?.details || `Failed to send email notification (status ${response.status})`);
       }
       
       toast({
@@ -202,6 +207,7 @@ export const EventDialog = ({
           (emailError instanceof Error ? emailError.message : "Unknown error"),
         variant: "destructive",
       });
+      throw emailError; // Re-throw to handle it in the calling function
     }
   };
 
@@ -250,101 +256,118 @@ export const EventDialog = ({
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
 
-      if (
-        isApprovingBookingRequest &&
-        socialNetworkLink &&
-        socialNetworkLink.includes("@")
-      ) {
+      let emailSent = false;
+
+      // Handle sending approval email based on conditions
+      if ((isApprovingBookingRequest || !event?.id || event.type === 'booking_request') && 
+          socialNetworkLink && 
+          socialNetworkLink.includes("@")) {
+            
         console.log(">>> APPROVAL EMAIL CONDITION MET", {
           wasBookingRequest,
           isApprovingBookingRequest,
           eventId: event?.id,
-          newType: eventData.type
+          newType: eventData.type,
+          email: socialNetworkLink
         });
         
-        await sendApprovalEmail(
-          startDateTime,
-          endDateTime,
-          title,
-          userSurname,
-          socialNetworkLink
-        );
+        try {
+          await sendApprovalEmail(
+            startDateTime,
+            endDateTime,
+            title,
+            userSurname,
+            socialNetworkLink
+          );
+          emailSent = true;
+        } catch (emailError) {
+          console.error("Failed to send approval email:", emailError);
+          // We continue with event creation even if email fails
+        }
       }
 
+      // Handle file upload if there's a selected file
       if (!isBookingEvent) {
-        if ((!event?.id || event.type === 'booking_request') && socialNetworkLink && socialNetworkLink.includes("@")) {
-          await sendApprovalEmail(startDateTime, endDateTime, title, userSurname, socialNetworkLink);
-        }
-
         if (selectedFile && createdEvent?.id && user) {
-          const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${crypto.randomUUID()}.${fileExt}`;
-          
-          console.log('Uploading file:', filePath);
-          
-          const { error: uploadError } = await supabase.storage
-            .from('event_attachments')
-            .upload(filePath, selectedFile);
-
-          if (uploadError) {
-            console.error('Error uploading file:', uploadError);
-            throw uploadError;
-          }
-
-          const fileData = {
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            user_id: user.id
-          };
-
-          const { error: fileRecordError } = await supabase
-            .from('event_files')
-            .insert({
-              ...fileData,
-              event_id: createdEvent.id
-            });
+          try {
+            const fileExt = selectedFile.name.split('.').pop();
+            const filePath = `${crypto.randomUUID()}.${fileExt}`;
             
-          if (fileRecordError) {
-            console.error('Error creating file record:', fileRecordError);
-            throw fileRecordError;
-          }
+            console.log('Uploading file:', filePath);
+            
+            const { error: uploadError } = await supabase.storage
+              .from('event_attachments')
+              .upload(filePath, selectedFile);
 
-          console.log('File record created successfully');
+            if (uploadError) {
+              console.error('Error uploading file:', uploadError);
+              throw uploadError;
+            }
+
+            const fileData = {
+              filename: selectedFile.name,
+              file_path: filePath,
+              content_type: selectedFile.type,
+              size: selectedFile.size,
+              user_id: user.id
+            };
+
+            const { error: fileRecordError } = await supabase
+              .from('event_files')
+              .insert({
+                ...fileData,
+                event_id: createdEvent.id
+              });
+              
+            if (fileRecordError) {
+              console.error('Error creating file record:', fileRecordError);
+              throw fileRecordError;
+            }
+
+            console.log('File record created successfully');
+          } catch (fileError) {
+            console.error("Error handling file upload:", fileError);
+            // Continue even if file upload fails
+          }
         }
 
         toast({
           title: t("common.success"),
-          description: event?.id ? t("Event updated successfully") : t("Event created successfully"),
+          description: `${event?.id ? t("Event updated successfully") : t("Event created successfully")}${
+            emailSent ? " " + t("and notification email sent") : ""
+          }`,
         });
       } else {
         if (event?.id) {
-          const { data: bookingRequest, error: findError } = await supabase
-            .from('booking_requests')
-            .select('*')
-            .eq('id', event.id)
-            .maybeSingle();
-            
-          if (!findError && bookingRequest) {
-            const { error: updateError } = await supabase
+          try {
+            const { data: bookingRequest, error: findError } = await supabase
               .from('booking_requests')
-              .update({
-                title,
-                requester_name: userSurname,
-                requester_phone: userNumber,
-                requester_email: socialNetworkLink,
-                description: eventNotes,
-                start_date: startDateTime.toISOString(),
-                end_date: endDateTime.toISOString(),
-              })
-              .eq('id', event.id);
+              .select('*')
+              .eq('id', event.id)
+              .maybeSingle();
               
-            if (updateError) {
-              console.error('Error updating booking request:', updateError);
-            } else {
-              console.log('Updated booking request successfully');
+            if (!findError && bookingRequest) {
+              const { error: updateError } = await supabase
+                .from('booking_requests')
+                .update({
+                  title,
+                  requester_name: userSurname,
+                  requester_phone: userNumber,
+                  requester_email: socialNetworkLink,
+                  description: eventNotes,
+                  start_date: startDateTime.toISOString(),
+                  end_date: endDateTime.toISOString(),
+                })
+                .eq('id', event.id);
+                
+              if (updateError) {
+                console.error('Error updating booking request:', updateError);
+              } else {
+                console.log('Updated booking request successfully');
+              }
             }
+          } catch (bookingError) {
+            console.error("Error updating booking request:", bookingError);
           }
         }
       }

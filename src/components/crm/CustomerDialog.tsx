@@ -91,6 +91,71 @@ export const CustomerDialog = ({
     }
   }, [initialData, open]);
 
+  const sendApprovalEmail = async (recipient: string, fullName: string, businessName: string, startDate: Date, endDate: Date) => {
+    try {
+      console.log("Sending booking approval email to:", recipient);
+      
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (!accessToken) {
+        console.error("No access token available for authenticated request");
+        throw new Error("Authentication error");
+      }
+      
+      const requestBody = JSON.stringify({
+        recipientEmail: recipient.trim(),
+        fullName: fullName || "Customer",
+        businessName,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      });
+      
+      console.log("Email request body:", requestBody);
+      
+      const response = await fetch(
+        "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+        {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${accessToken}`
+          },
+          body: requestBody,
+        }
+      );
+      
+      console.log("Email API response status:", response.status);
+      
+      // Read the response as text first
+      const responseText = await response.text();
+      console.log("Email API response text:", responseText);
+      
+      // Try to parse the JSON
+      let responseData;
+      try {
+        responseData = responseText ? JSON.parse(responseText) : {};
+        console.log("Email API parsed response:", responseData);
+      } catch (jsonError) {
+        console.error("Failed to parse email API response as JSON:", jsonError);
+        responseData = { textResponse: responseText };
+      }
+      
+      if (!response.ok) {
+        console.error("Failed to send email notification:", responseData?.error || response.statusText);
+        throw new Error(responseData?.error || responseData?.details || `Failed to send email notification (status ${response.status})`);
+      }
+      
+      return { success: true, message: "Email sent successfully" };
+    } catch (error) {
+      console.error("Error sending email:", error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "Unknown error" 
+      };
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title) return;
@@ -155,6 +220,8 @@ export const CustomerDialog = ({
         console.log("Created customer:", data);
       }
 
+      let emailResult = { success: false, message: "" };
+
       if (createEvent) {
         const eventData = {
           title,
@@ -194,55 +261,23 @@ export const CustomerDialog = ({
               const businessName = businessProfile?.business_name || "Our Business";
               
               console.log("Sending booking approval email to", socialNetworkLink);
-              const { data: sessionData } = await supabase.auth.getSession();
-              const accessToken = sessionData.session?.access_token;
               
-              if (!accessToken) {
-                console.error("No access token available for authenticated request");
-                throw new Error("Authentication error");
-              }
-              
-              console.log("Making request to send-booking-approval-email function");
-              const response = await fetch(
-                "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
-                {
-                  method: "POST",
-                  headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${accessToken}`
-                  },
-                  body: JSON.stringify({
-                    recipientEmail: socialNetworkLink.trim(),
-                    fullName: userSurname || title || "Customer",
-                    businessName,
-                    startDate: start.toISOString(),
-                    endDate: end.toISOString(),
-                  }),
-                }
+              emailResult = await sendApprovalEmail(
+                socialNetworkLink,
+                userSurname || title,
+                businessName,
+                start,
+                end
               );
               
-              console.log("Email API response status:", response.status);
-              let responseData;
-              
-              try {
-                responseData = await response.json();
-                console.log("Email function response:", responseData);
-              } catch (jsonError) {
-                console.error("Failed to parse email API response:", jsonError);
-                if (!response.ok) {
-                  throw new Error(`Email sending failed (status ${response.status})`);
-                }
+              if (emailResult.success) {
+                toast({
+                  title: t("common.success"),
+                  description: t("Email notification sent successfully to ") + socialNetworkLink,
+                });
+              } else {
+                throw new Error(emailResult.error || "Failed to send email notification");
               }
-              
-              if (!response.ok) {
-                console.error("Failed to send email notification:", responseData?.error || response.statusText);
-                throw new Error(responseData?.error || `Failed to send email notification (status ${response.status})`);
-              }
-              
-              toast({
-                title: t("common.success"),
-                description: t("Email notification sent successfully to ") + socialNetworkLink,
-              });
             } catch (emailError) {
               console.error("Error sending email notification:", emailError);
               toast({
@@ -290,8 +325,10 @@ export const CustomerDialog = ({
       
       toast({
         title: t("common.success"),
-        description: initialData?.id ? t("crm.customerUpdated") : t("crm.customerCreated"),
-        duration: 3000, // Auto-dismiss after 3 seconds
+        description: `${initialData?.id ? t("crm.customerUpdated") : t("crm.customerCreated")}${
+          emailResult.success ? " " + t("and notification email sent") : ""
+        }`,
+        duration: 3000,
       });
 
       if (onSubmit && customerId) {
@@ -310,7 +347,7 @@ export const CustomerDialog = ({
         title: t("common.error"),
         description: error.message || t("common.errorOccurred"),
         variant: "destructive",
-        duration: 5000, // Auto-dismiss error after 5 seconds
+        duration: 5000,
       });
     } finally {
       setIsSubmitting(false);
