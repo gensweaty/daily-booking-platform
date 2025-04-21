@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,6 +142,32 @@ export const BookingRequestForm = ({
     setIsSubmitting(true);
     
     try {
+      // Check rate limit
+      const lastRequestTime = localStorage.getItem(`booking_last_request_${businessId}`);
+      if (lastRequestTime) {
+        const now = new Date();
+        const lastRequest = new Date(parseInt(lastRequestTime));
+        const timeSinceLastRequest = now.getTime() - lastRequest.getTime();
+        const twoMinutesInMs = 2 * 60 * 1000;
+        
+        if (timeSinceLastRequest < twoMinutesInMs) {
+          const remainingSecs = Math.ceil((twoMinutesInMs - timeSinceLastRequest) / 1000);
+          const remainingTime = `${Math.floor(remainingSecs / 60)}:${(remainingSecs % 60).toString().padStart(2, '0')}`;
+          
+          setRateLimitExceeded(true);
+          setTimeRemaining(remainingSecs);
+          
+          toast({
+            title: t("common.rateLimitReached"),
+            description: t("common.waitBeforeBooking", { time: remainingTime }),
+            variant: "destructive",
+          });
+          
+          setIsSubmitting(false);
+          return;
+        }
+      }
+      
       const startDateTime = new Date(startDate);
       const endDateTime = new Date(endDate);
       
