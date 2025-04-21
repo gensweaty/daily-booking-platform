@@ -222,7 +222,7 @@ export const EventDialog = ({
           console.log('Updated existing customer:', customerId);
         }
 
-        if (!event?.id && socialNetworkLink && socialNetworkLink.includes('@')) {
+        if (!event?.id && socialNetworkLink && socialNetworkLink.includes("@")) {
           try {
             const { data: businessProfile } = await supabase
               .from('business_profiles')
