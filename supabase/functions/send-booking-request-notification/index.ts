@@ -2,11 +2,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
-// Initialize Resend with API key
-const resendApiKey = Deno.env.get("RESEND_API_KEY") || "re_YXpwJEX5_KURHRRSBCMg5Dgczo4H7ioLZ";
-console.log("Resend API key available:", !!resendApiKey);
+// Initialize Resend with API key from environment variables
+const resendApiKey = Deno.env.get("RESEND_API_KEY");
 const resend = new Resend(resendApiKey);
 
+// CORS headers to allow cross-origin requests
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -16,14 +16,12 @@ interface BookingNotificationRequest {
   businessEmail: string;
   requesterName: string;
   requestDate: string;
-  phoneNumber: string;
-  notes: string;
+  phoneNumber?: string;
+  notes?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("Function invoked with method:", req.method);
-  console.log("Request URL:", req.url);
-  console.log("Request headers:", JSON.stringify(Object.fromEntries(req.headers.entries())));
+  console.log("Booking notification function invoked with method:", req.method);
   
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -32,115 +30,119 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    console.log("Received booking notification request");
+    console.log("Starting to process booking notification request");
     
-    // Parse the request body
-    const requestBody = await req.text();
-    console.log("Raw request body:", requestBody);
-    
-    let requestData;
-    try {
-      requestData = JSON.parse(requestBody);
-      console.log("Parsed request data:", JSON.stringify(requestData));
-    } catch (parseError) {
-      console.error("Failed to parse request body:", parseError);
+    // Validate API key
+    if (!resendApiKey) {
+      console.error("RESEND_API_KEY is not set in environment variables");
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Invalid JSON in request body" 
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
+        JSON.stringify({ success: false, error: "Missing RESEND_API_KEY configuration" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const { businessEmail, requesterName, requestDate, phoneNumber, notes }: BookingNotificationRequest = requestData;
+    // Parse request body
+    let requestData: BookingNotificationRequest;
+    try {
+      requestData = await req.json();
+      console.log("Parsed request data:", JSON.stringify(requestData));
+    } catch (error) {
+      console.error("Failed to parse request body:", error);
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid JSON in request body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { businessEmail, requesterName, requestDate, phoneNumber = '', notes = '' } = requestData;
 
     // Validate required fields
     if (!businessEmail || !requesterName || !requestDate) {
-      console.error("Missing required fields:", { 
-        emailProvided: !!businessEmail, 
-        nameProvided: !!requesterName,
-        dateProvided: !!requestDate
-      });
+      const missingFields = [];
+      if (!businessEmail) missingFields.push('businessEmail');
+      if (!requesterName) missingFields.push('requesterName');
+      if (!requestDate) missingFields.push('requestDate');
       
+      console.error("Missing required fields:", missingFields.join(', '));
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Missing required fields: businessEmail, requesterName, or requestDate" 
+          error: `Missing required fields: ${missingFields.join(', ')}` 
         }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Email validation
     if (!businessEmail.includes('@')) {
-      console.error("Invalid business email format:", businessEmail);
+      console.error("Invalid email format:", businessEmail);
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Invalid email format for business email" 
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
+        JSON.stringify({ success: false, error: "Invalid email format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Sending booking notification email to:", businessEmail);
-    
     // Prepare email HTML with conditional rendering for optional fields
     const emailHtml = `
-      <h1>Hello,</h1>
-      <p>You have a new booking request from <strong>${requesterName}</strong></p>
-      <p><strong>Date:</strong> ${requestDate}</p>
-      ${phoneNumber ? `<p><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
-      ${notes ? `<p><strong>Notes:</strong> ${notes}</p>` : ''}
-      <p>Go to dashboard to approve: <a href="https://smartbookly.com/dashboard">https://smartbookly.com/dashboard</a></p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+        <h2 style="color: #333;">New Booking Request</h2>
+        <p>Hello,</p>
+        <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
+        <p><strong>Date:</strong> ${requestDate}</p>
+        ${phoneNumber ? `<p><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
+        ${notes ? `<p><strong>Notes:</strong> ${notes}</p>` : ''}
+        <p>Please log in to your dashboard to approve or reject this request:</p>
+        <p><a href="https://smartbookly.com/dashboard" style="color: #0070f3; text-decoration: none;">https://smartbookly.com/dashboard</a></p>
+        <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+        <p style="color: #777; font-size: 14px;"><i>This is an automated message from SmartBookly.</i></p>
+      </div>
     `;
     
-    console.log("Prepared email HTML:", emailHtml);
+    console.log("Prepared email with HTML body");
 
-    // Send email using Resend
-    console.log("About to send email with from:", "Smartbookly <info@smartbookly.com>");
+    // Send email using Resend API
+    console.log("Sending email to:", businessEmail);
     const emailResponse = await resend.emails.send({
       from: "Smartbookly <info@smartbookly.com>",
       to: [businessEmail],
-      subject: "New Booking Request Received",
+      subject: "New Booking Request - Action Required",
       html: emailHtml,
     });
 
     console.log("Email sending response:", JSON.stringify(emailResponse));
 
+    if (!emailResponse.id) {
+      console.error("Failed to send email:", emailResponse);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Failed to send email",
+          details: emailResponse
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
-        data: emailResponse,
+        data: { id: emailResponse.id },
         message: "Email notification sent successfully" 
       }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
-    console.error("Error sending booking notification:", error);
+    console.error("Unhandled error in booking notification:", error);
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || "Unknown error occurred" 
+        error: error.message || "Unknown error occurred",
+        stack: error.stack
       }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 };
 
+// Start the server
 serve(handler);
