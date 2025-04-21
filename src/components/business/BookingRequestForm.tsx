@@ -141,31 +141,6 @@ export const BookingRequestForm = ({
     setIsSubmitting(true);
     
     try {
-      const lastRequestTime = localStorage.getItem(`booking_last_request_${businessId}`);
-      if (lastRequestTime) {
-        const now = new Date();
-        const lastRequest = new Date(parseInt(lastRequestTime));
-        const timeSinceLastRequest = now.getTime() - lastRequest.getTime();
-        const twoMinutesInMs = 2 * 60 * 1000;
-        
-        if (timeSinceLastRequest < twoMinutesInMs) {
-          const remainingSecs = Math.ceil((twoMinutesInMs - timeSinceLastRequest) / 1000);
-          const remainingTime = `${Math.floor(remainingSecs / 60)}:${(remainingSecs % 60).toString().padStart(2, '0')}`;
-          
-          setRateLimitExceeded(true);
-          setTimeRemaining(remainingSecs);
-          
-          toast({
-            title: t("common.rateLimitReached"),
-            description: t("common.waitBeforeBooking", { time: remainingTime }),
-            variant: "destructive",
-          });
-          
-          setIsSubmitting(false);
-          return;
-        }
-      }
-      
       const startDateTime = new Date(startDate);
       const endDateTime = new Date(endDate);
       
@@ -224,23 +199,29 @@ export const BookingRequestForm = ({
         
         console.log('Invoking send-booking-request-notification function with params:', notificationBody);
         
-        // Use Supabase URL and Anon Key from .env to construct the function URL
         const SUPABASE_URL = 'https://mrueqpffzauvdxmuwhfa.supabase.co';
 
-        // Call the Edge Function directly with fetch for more detailed error information
+        console.log("Preparing to make direct fetch call to notification endpoint");
+        console.log("URL:", `${SUPABASE_URL}/functions/v1/send-booking-request-notification`);
+        
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        console.log("Access token available:", !!accessToken);
+
         const functionResponse = await fetch(
           `${SUPABASE_URL}/functions/v1/send-booking-request-notification`,
           {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+              'Authorization': `Bearer ${accessToken || ''}`
             },
             body: JSON.stringify(notificationBody)
           }
         );
 
-        // Log the raw response for debugging
+        console.log('Function response status:', functionResponse.status);
+        
         const responseText = await functionResponse.text();
         console.log('Raw function response:', responseText);
         

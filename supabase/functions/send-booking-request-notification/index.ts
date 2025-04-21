@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
 // Initialize Resend with API key
-const resendApiKey = Deno.env.get("RESEND_API_KEY");
+const resendApiKey = Deno.env.get("RESEND_API_KEY") || "re_YXpwJEX5_KURHRRSBCMg5Dgczo4H7ioLZ";
 console.log("Resend API key available:", !!resendApiKey);
 const resend = new Resend(resendApiKey);
 
@@ -105,6 +105,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Prepared email HTML:", emailHtml);
 
     // Send email using Resend
+    console.log("About to send email with from:", "Smartbookly <info@smartbookly.com>");
     const emailResponse = await resend.emails.send({
       from: "Smartbookly <info@smartbookly.com>",
       to: [businessEmail],
