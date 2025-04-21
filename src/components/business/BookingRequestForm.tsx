@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -171,6 +172,7 @@ export const BookingRequestForm = ({
   const getBusinessEmail = async (businessId: string): Promise<string> => {
     console.log("Getting business email for ID:", businessId);
     
+    // Try to get email from business_profiles table
     const { data: businessData, error: businessError } = await supabase
       .from('business_profiles')
       .select('user_email')

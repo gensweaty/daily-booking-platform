@@ -17,6 +17,7 @@ interface BookingNotificationRequest {
   requestDate: string;
   phoneNumber?: string;
   notes?: string;
+  businessName?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -77,7 +78,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Validate required fields
-    const { businessEmail, requesterName, requestDate, phoneNumber = "", notes = "" } = requestData;
+    const { businessEmail, requesterName, requestDate, phoneNumber = "", notes = "", businessName = "Your Business" } = requestData;
     
     if (!businessEmail || !requesterName || !requestDate) {
       const missingFields = [];
@@ -129,7 +130,7 @@ const handler = async (req: Request): Promise<Response> => {
         ${phoneNumber ? `<p><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
         ${notes ? `<p><strong>Notes:</strong> ${notes}</p>` : ''}
         <p>Please log in to your dashboard to view and respond to this request:</p>
-        <p><a href="https://smartbookly.com/dashboard" style="color: #0070f3; text-decoration: none;">Go to Dashboard</a></p>
+        <p><a href="https://smartbookly.com/dashboard" style="background-color: #0070f3; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 10px;">Go to Dashboard</a></p>
         <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
         <p style="color: #777; font-size: 14px;"><i>This is an automated message from SmartBookly</i></p>
       </div>
