@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+import { SMTPClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,6 +46,39 @@ function formatBookingDate(startDate: string, endDate: string): string {
   }
 }
 
+async function sendEmailViaSMTP(to: string, subject: string, htmlContent: string): Promise<boolean> {
+  console.log(`Attempting to send email to ${to} via SMTP`);
+  
+  try {
+    const client = new SMTPClient({
+      connection: {
+        hostname: "mx1.privateemail.com",
+        port: 465,
+        tls: true,
+        auth: {
+          username: "gensweaty's Project",
+          password: "Devsura1995@",
+        },
+      },
+    });
+
+    await client.send({
+      from: "SmartBookly <info@smartbookly.com>",
+      to: to,
+      subject: subject,
+      content: "text/html",
+      html: htmlContent,
+    });
+
+    await client.close();
+    console.log(`Email sent successfully to ${to} via SMTP`);
+    return true;
+  } catch (error) {
+    console.error(`Failed to send email via SMTP: ${error}`);
+    return false;
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("Edge function called with method:", req.method);
   
@@ -54,14 +86,6 @@ const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     console.log("Handling CORS preflight request");
     return new Response(null, { headers: corsHeaders });
-  }
-
-  if (!RESEND_API_KEY) {
-    console.error("Missing RESEND_API_KEY environment variable");
-    return new Response(
-      JSON.stringify({ error: "Missing RESEND_API_KEY" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-    );
   }
   
   try {
@@ -148,36 +172,19 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Email subject:", subject);
     console.log("Formatted date for email:", formattedDate);
     
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: "SmartBookly <onboarding@resend.dev>",
-        to: [recipientEmail],
-        subject,
-        html,
-      }),
-    });
-
-    console.log("Resend API response status:", res.status);
+    const emailSent = await sendEmailViaSMTP(recipientEmail, subject, html);
     
-    const data = await res.json();
-    console.log("Resend API response body:", data);
-
-    if (!res.ok) {
-      console.error("Failed to send email. Status:", res.status, "Response:", data);
+    if (!emailSent) {
+      console.error("Failed to send email via SMTP");
       return new Response(
-        JSON.stringify({ error: "Failed to send email", details: data }),
-        { status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+        JSON.stringify({ error: "Failed to send email via SMTP" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
     }
 
     console.log("Email sent successfully to:", recipientEmail);
     return new Response(
-      JSON.stringify({ message: "Booking approval email sent", data }),
+      JSON.stringify({ message: "Booking approval email sent successfully" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
     );
   } catch (error: any) {
