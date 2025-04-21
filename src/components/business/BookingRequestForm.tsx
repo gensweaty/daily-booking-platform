@@ -1,4 +1,3 @@
-// Make sure translation keys are properly used in the BookingRequestForm component
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -225,24 +224,40 @@ export const BookingRequestForm = ({
         
         console.log('Invoking send-booking-request-notification function with params:', notificationBody);
         
-        const response = await supabase.functions.invoke(
-          'send-booking-request-notification',
+        // Use Supabase URL and Anon Key from .env to construct the function URL
+        const SUPABASE_URL = 'https://mrueqpffzauvdxmuwhfa.supabase.co';
+
+        // Call the Edge Function directly with fetch for more detailed error information
+        const functionResponse = await fetch(
+          `${SUPABASE_URL}/functions/v1/send-booking-request-notification`,
           {
-            body: notificationBody,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            },
+            body: JSON.stringify(notificationBody)
           }
         );
 
-        console.log("Email notification function response:", response);
+        // Log the raw response for debugging
+        const responseText = await functionResponse.text();
+        console.log('Raw function response:', responseText);
         
-        if (response.error) {
-          console.error('Error sending notification email:', response.error);
-          toast({
-            title: "Warning",
-            description: "Booking created but email notification failed to send.",
-            variant: "destructive",
-          });
+        let response;
+        try {
+          response = JSON.parse(responseText);
+          console.log("Parsed email notification response:", response);
+        } catch (e) {
+          console.error("Error parsing function response:", e);
+          throw new Error(`Invalid response format: ${responseText}`);
+        }
+
+        if (!functionResponse.ok) {
+          console.error('Error sending notification email:', response);
+          throw new Error(response.error || 'Unknown error from notification service');
         } else {
-          console.log('Notification email sent successfully:', response.data);
+          console.log('Notification email sent successfully:', response);
         }
       } catch (emailError) {
         console.error('Error in email notification process:', emailError);
