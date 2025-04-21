@@ -1,5 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Resend } from "npm:resend@2.0.0";
+
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,61 +18,13 @@ interface BookingApprovalEmailRequest {
   endDate: string;
 }
 
-function formatBookingDate(startDate: string, endDate: string): string {
-  try {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    const dateStr = start.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-    const startTime = start.toLocaleTimeString('en-US', { 
-      hour: "2-digit", 
-      minute: "2-digit",
-      hour12: true 
-    });
-    const endTime = end.toLocaleTimeString('en-US', { 
-      hour: "2-digit", 
-      minute: "2-digit",
-      hour12: true 
-    });
-    
-    console.log(`Formatted date from ${startDate} and ${endDate} to: ${dateStr} (${startTime} - ${endTime})`);
-    return `${dateStr} (${startTime} - ${endTime})`;
-  } catch (error) {
-    console.error("Error formatting date:", error);
-    // Return a fallback format if parsing fails
-    return `${startDate} - ${endDate}`;
-  }
-}
-
-async function sendEmail(to: string, subject: string, htmlContent: string): Promise<boolean> {
-  // In this implementation, we're just logging the email content
-  // and returning success
-  console.log("==== EMAIL WOULD BE SENT ====");
-  console.log(`To: ${to}`);
-  console.log(`Subject: ${subject}`);
-  console.log(`HTML Content: ${htmlContent}`);
-  console.log("============================");
-  
-  // For testing, this always returns true
-  // In production, you would replace this with actual email sending logic
-  return true;
-}
-
 const handler = async (req: Request): Promise<Response> => {
-  console.log("Edge function called with method:", req.method);
-  
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    console.log("Handling CORS preflight request");
     return new Response(null, { headers: corsHeaders });
   }
-  
+
   try {
-    console.log("Parsing request body");
     const requestBody = await req.text();
     console.log("Request body:", requestBody);
     
@@ -86,22 +41,6 @@ const handler = async (req: Request): Promise<Response> => {
     
     const { recipientEmail, fullName, businessName, startDate, endDate } = parsedBody;
 
-    console.log("Request parsed successfully with data:", { 
-      recipientEmail, 
-      fullName, 
-      businessName, 
-      startDate, 
-      endDate 
-    });
-
-    if (!recipientEmail) {
-      console.error("Missing recipient email in request");
-      return new Response(
-        JSON.stringify({ error: "Recipient email is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-      );
-    }
-
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(recipientEmail)) {
@@ -112,59 +51,33 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Validate dates
-    if (!startDate || !endDate) {
-      console.error("Missing date values:", { startDate, endDate });
+    const emailResponse = await resend.emails.send({
+      from: `${businessName} <onboarding@resend.dev>`,
+      to: [recipientEmail],
+      subject: `Booking Approved at ${businessName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+          <h2 style="color: #333;">Hello ${fullName},</h2>
+          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
+          <p><strong>Booking date and time:</strong> ${new Date(startDate).toLocaleString()} - ${new Date(endDate).toLocaleString()}</p>
+          <p>We look forward to seeing you!</p>
+          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+          <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
+        </div>
+      `,
+    });
+
+    if (emailResponse.error) {
+      console.error("Resend email error:", emailResponse.error);
       return new Response(
-        JSON.stringify({ error: "Start date and end date are required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-      );
-    }
-
-    try {
-      new Date(startDate);
-      new Date(endDate);
-    } catch (dateError) {
-      console.error("Invalid date format:", { startDate, endDate, error: dateError });
-      return new Response(
-        JSON.stringify({ error: "Invalid date format" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-      );
-    }
-
-    const formattedDate = formatBookingDate(startDate, endDate);
-    const name = fullName || "Customer";
-    const business = businessName || "Our Business";
-
-    const subject = `Booking Approved at ${business}`;
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-        <h2 style="color: #333;">Hello ${name},</h2>
-        <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${business}</b>.</p>
-        <p><strong>Booking date and time:</strong> ${formattedDate}</p>
-        <p>We look forward to seeing you!</p>
-        <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-        <p style="color: #777; font-size: 14px;"><i>This is an automated message from SmartBookly</i></p>
-      </div>
-    `;
-
-    console.log("Preparing to send email to:", recipientEmail);
-    console.log("Email subject:", subject);
-    console.log("Formatted date for email:", formattedDate);
-    
-    const emailSent = await sendEmail(recipientEmail, subject, html);
-    
-    if (!emailSent) {
-      console.error("Failed to send email");
-      return new Response(
-        JSON.stringify({ error: "Failed to send email" }),
+        JSON.stringify({ error: emailResponse.error }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
     }
 
     console.log("Email processed successfully to:", recipientEmail);
     return new Response(
-      JSON.stringify({ message: "Booking approval email processed successfully" }),
+      JSON.stringify({ message: "Booking approval email processed successfully", emailResponse }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
     );
   } catch (error: any) {
