@@ -56,7 +56,7 @@ async function sendEmailViaSMTP(to: string, subject: string, htmlContent: string
         port: 465,
         tls: true,
         auth: {
-          username: "gensweaty's Project",
+          username: "info@smartbookly.com",
           password: "Devsura1995@",
         },
       },
