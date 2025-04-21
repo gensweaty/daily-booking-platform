@@ -10,7 +10,6 @@ export const useBookingRequests = () => {
   const queryClient = useQueryClient();
   const [businessId, setBusinessId] = useState<string | null>(null);
   
-  // Fetch the business profile for the current user
   useEffect(() => {
     const fetchBusinessProfile = async () => {
       if (!user?.id) return;
@@ -34,7 +33,6 @@ export const useBookingRequests = () => {
     fetchBusinessProfile();
   }, [user]);
   
-  // Query to fetch booking requests
   const { data: bookingRequests = [], isLoading, error } = useQuery({
     queryKey: ['booking_requests', businessId],
     queryFn: async () => {
@@ -52,12 +50,10 @@ export const useBookingRequests = () => {
     enabled: !!businessId,
   });
   
-  // Filtered booking requests
   const pendingRequests = bookingRequests.filter(req => req.status === 'pending');
   const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
   const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
   
-  // Utility to call Edge Function
   async function sendApprovalEmail({ email, fullName, businessName, startDate, endDate }: {
     email: string;
     fullName: string;
@@ -65,7 +61,14 @@ export const useBookingRequests = () => {
     startDate: string;
     endDate: string;
   }) {
+    if (!email || !email.includes('@')) {
+      console.error("Invalid email format or missing email:", email);
+      return { success: false, error: "Invalid email format" };
+    }
+
     try {
+      console.log(`Sending approval email to ${email} for booking at ${businessName}`);
+      
       const response = await fetch(
         "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
         {
@@ -82,17 +85,20 @@ export const useBookingRequests = () => {
       );
 
       const data = await response.json();
+      
       if (!response.ok) {
         console.error("Failed to send approval email:", data);
+        return { success: false, error: data.error || "Failed to send email" };
       } else {
-        console.log("Approval email sent:", data);
+        console.log("Approval email sent successfully:", data);
+        return { success: true, data };
       }
     } catch (err) {
       console.error("Error calling Edge Function:", err);
+      return { success: false, error: err };
     }
   }
 
-  // Mutation to approve a booking request
   const approveMutation = useMutation({
     mutationFn: async (bookingId: string) => {
       console.log('Starting approval process for booking:', bookingId);
@@ -101,7 +107,6 @@ export const useBookingRequests = () => {
         throw new Error('User not authenticated');
       }
       
-      // Fetch the booking request details first
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
         .select('*')
@@ -113,16 +118,14 @@ export const useBookingRequests = () => {
       
       console.log('Fetched booking request:', booking);
       
-      // Check for time slot conflicts before approving - ONLY for the current user's events
       const { data: conflictingEvents } = await supabase
         .from('events')
         .select('id, title')
-        .eq('user_id', user.id) // Filter by the current user's events only
+        .eq('user_id', user.id)
         .filter('start_date', 'lt', booking.end_date)
         .filter('end_date', 'gt', booking.start_date)
-        .is('deleted_at', null); // Only consider non-deleted events
+        .is('deleted_at', null);
       
-      // Check for conflicts with other approved booking requests for the current user
       const { data: conflictingBookings } = await supabase
         .from('booking_requests')
         .select('id, title')
@@ -132,7 +135,6 @@ export const useBookingRequests = () => {
         .filter('start_date', 'lt', booking.end_date)
         .filter('end_date', 'gt', booking.start_date);
       
-      // Log conflicts for debugging
       console.log('Conflicting events for current user:', conflictingEvents);
       console.log('Conflicting approved bookings:', conflictingBookings);
       
@@ -141,7 +143,6 @@ export const useBookingRequests = () => {
         throw new Error('Time slot is no longer available');
       }
       
-      // Update the booking request status to approved
       const { error: updateError } = await supabase
         .from('booking_requests')
         .update({ status: 'approved' })
@@ -151,7 +152,6 @@ export const useBookingRequests = () => {
       
       console.log('Booking request approved, creating event entry');
       
-      // Create an event entry for the booking
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .insert({
@@ -178,7 +178,6 @@ export const useBookingRequests = () => {
       
       console.log('Created event:', eventData);
       
-      // Create a customer record from the booking request
       const { data: customerData, error: customerError } = await supabase
         .from('customers')
         .insert({
@@ -204,7 +203,6 @@ export const useBookingRequests = () => {
         console.log('Created customer:', customerData);
       }
       
-      // Check if there are any files attached to the booking
       const { data: bookingFiles, error: filesError } = await supabase
         .from('event_files')
         .select('*')
@@ -223,7 +221,6 @@ export const useBookingRequests = () => {
           try {
             console.log(`Processing file: ${file.filename}, path: ${file.file_path}`);
             
-            // Copy the file in storage from booking_attachments to event_attachments
             const { data: fileData, error: fileError } = await supabase.storage
               .from('booking_attachments')
               .download(file.file_path);
@@ -245,7 +242,6 @@ export const useBookingRequests = () => {
             
             console.log(`Successfully copied file to event_attachments/${newFilePath}`);
             
-            // First, create a file record for the event
             const { error: eventFileError } = await supabase
               .from('event_files')
               .insert({
@@ -261,7 +257,6 @@ export const useBookingRequests = () => {
               console.error('Error creating event file record:', eventFileError);
             }
             
-            // Then create customer file record if customer was created
             if (customerData) {
               const { error: customerFileError } = await supabase
                 .from('customer_files_new')
@@ -284,10 +279,7 @@ export const useBookingRequests = () => {
         }
       }
       
-      // At this point, we've found the booking, the businessId, and have created eventData
-      // Now, fetch the business and send approval email if possible
       if (booking && booking.requester_email) {
-        // fetch business profile to get business_name
         let businessName = "Our Business";
         try {
           const { data: businessProfile } = await supabase
@@ -299,16 +291,26 @@ export const useBookingRequests = () => {
             businessName = businessProfile.business_name;
           }
         } catch (err) {
-          console.warn("Could not load business profile for email");
+          console.warn("Could not load business profile for email:", err);
         }
-        // Call edge function to send email
-        await sendApprovalEmail({
+        
+        console.log(`Preparing to send email to ${booking.requester_email} for business ${businessName}`);
+        
+        const emailResult = await sendApprovalEmail({
           email: booking.requester_email,
           fullName: booking.requester_name || booking.user_surname || "",
           businessName,
           startDate: booking.start_date,
           endDate: booking.end_date,
         });
+        
+        if (emailResult.success) {
+          console.log("Email sent successfully during booking approval");
+        } else {
+          console.error("Failed to send email during booking approval:", emailResult.error);
+        }
+      } else {
+        console.warn("No email address found for booking request, can't send notification");
       }
 
       console.log('Booking approval process completed successfully');
@@ -324,7 +326,7 @@ export const useBookingRequests = () => {
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       toast({
         title: "Success",
-        description: "Booking request approved successfully"
+        description: "Booking request approved and notification email sent"
       });
     },
     onError: (error: Error) => {
@@ -337,7 +339,6 @@ export const useBookingRequests = () => {
     }
   });
   
-  // Mutation to reject a booking request
   const rejectMutation = useMutation({
     mutationFn: async (bookingId: string) => {
       const { error } = await supabase
@@ -363,7 +364,6 @@ export const useBookingRequests = () => {
     }
   });
   
-  // Mutation to delete a booking request
   const deleteMutation = useMutation({
     mutationFn: async (bookingId: string) => {
       const { error } = await supabase

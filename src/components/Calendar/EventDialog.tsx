@@ -258,6 +258,10 @@ export const EventDialog = ({
               console.error("Failed to send approval email:", data);
             } else {
               console.log("Approval email sent successfully:", data);
+              toast({
+                title: t("common.success"),
+                description: t("Email notification sent successfully"),
+              });
             }
           } catch (emailError) {
             console.error("Error sending approval email:", emailError);

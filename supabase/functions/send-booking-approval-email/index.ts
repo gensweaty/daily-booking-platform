@@ -54,6 +54,16 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(recipientEmail)) {
+      console.error("Invalid email format:", recipientEmail);
+      return new Response(
+        JSON.stringify({ error: "Invalid email format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+      );
+    }
+
     const formattedDate = formatBookingDate(startDate, endDate);
 
     const subject = `Booking Approved at ${businessName}`;
@@ -65,7 +75,7 @@ const handler = async (req: Request): Promise<Response> => {
       <p><i>This is an automated message from SmartBookly</i></p>
     `;
 
-    console.log("Sending email with Resend API");
+    console.log("Sending email with Resend API to:", recipientEmail);
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
