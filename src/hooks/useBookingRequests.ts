@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -67,24 +68,38 @@ export const useBookingRequests = () => {
     }
 
     try {
-      console.log(`Sending approval email to ${email} for booking at ${businessName}`);
+      console.log(`Sending approval email to ${email} for booking at ${businessName} from ${startDate} to ${endDate}`);
+      
+      const requestBody = JSON.stringify({
+        recipientEmail: email,
+        fullName,
+        businessName,
+        startDate,
+        endDate,
+      });
+      
+      console.log("Request body for email function:", requestBody);
       
       const response = await fetch(
         "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            recipientEmail: email,
-            fullName,
-            businessName,
-            startDate,
-            endDate,
-          }),
+          body: requestBody,
         }
       );
 
-      const data = await response.json();
+      console.log("Email function response status:", response.status);
+      const responseText = await response.text();
+      console.log("Email function response body:", responseText);
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Failed to parse response JSON:", e);
+        return { success: false, error: "Invalid response format" };
+      }
       
       if (!response.ok) {
         console.error("Failed to send approval email:", data);
@@ -295,6 +310,13 @@ export const useBookingRequests = () => {
         }
         
         console.log(`Preparing to send email to ${booking.requester_email} for business ${businessName}`);
+        console.log("Email data:", {
+          email: booking.requester_email,
+          fullName: booking.requester_name || booking.user_surname || "",
+          businessName,
+          startDate: booking.start_date,
+          endDate: booking.end_date,
+        });
         
         const emailResult = await sendApprovalEmail({
           email: booking.requester_email,
@@ -308,6 +330,7 @@ export const useBookingRequests = () => {
           console.log("Email sent successfully during booking approval");
         } else {
           console.error("Failed to send email during booking approval:", emailResult.error);
+          // We continue even if email fails to ensure the booking is still approved
         }
       } else {
         console.warn("No email address found for booking request, can't send notification");

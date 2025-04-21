@@ -236,8 +236,16 @@ export const EventDialog = ({
               .maybeSingle();
               
             const businessName = businessProfile?.business_name || "Our Business";
-              
+            
             console.log("Sending booking approval email to", socialNetworkLink);
+            console.log("Email data:", {
+              recipientEmail: socialNetworkLink,
+              fullName: userSurname || title,
+              businessName,
+              startDate: startDateTime.toISOString(),
+              endDate: endDateTime.toISOString(),
+            });
+            
             const response = await fetch(
               "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
               {
@@ -253,9 +261,25 @@ export const EventDialog = ({
               }
             );
             
-            const data = await response.json();
+            console.log("Email API response status:", response.status);
+            const responseText = await response.text();
+            console.log("Email API response body:", responseText);
+            
+            let data;
+            try {
+              data = JSON.parse(responseText);
+            } catch (e) {
+              console.error("Failed to parse response as JSON:", e);
+              data = { error: "Invalid response format" };
+            }
+            
             if (!response.ok) {
               console.error("Failed to send approval email:", data);
+              toast({
+                title: t("common.warning"),
+                description: t("Event created but email notification failed to send"),
+                variant: "destructive",
+              });
             } else {
               console.log("Approval email sent successfully:", data);
               toast({
@@ -265,7 +289,11 @@ export const EventDialog = ({
             }
           } catch (emailError) {
             console.error("Error sending approval email:", emailError);
-            // Don't throw error, just log it to not interrupt the event creation
+            toast({
+              title: t("common.warning"),
+              description: t("Event created but email notification failed to send"),
+              variant: "destructive",
+            });
           }
         }
 
@@ -327,7 +355,7 @@ export const EventDialog = ({
 
         toast({
           title: t("common.success"),
-          description: t("common.success"),
+          description: event?.id ? t("Event updated successfully") : t("Event created successfully"),
         });
       } else {
         if (event?.id) {
