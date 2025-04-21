@@ -133,6 +133,7 @@ export const BookingRequestForm = ({
       
       console.log("Sending notification with data:", JSON.stringify(notificationData));
       
+      // Direct call to the edge function with full URL
       const response = await fetch(
         "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
         {
@@ -175,13 +176,20 @@ export const BookingRequestForm = ({
     // Try to get email from business_profiles table
     const { data: businessData, error: businessError } = await supabase
       .from('business_profiles')
-      .select('user_email')
+      .select('user_email, contact_email')
       .eq('id', businessId)
       .maybeSingle();
     
-    if (!businessError && businessData?.user_email) {
-      console.log("Found business email in business_profiles:", businessData.user_email);
-      return businessData.user_email;
+    if (!businessError && businessData) {
+      if (businessData.user_email) {
+        console.log("Found user_email in business_profiles:", businessData.user_email);
+        return businessData.user_email;
+      }
+      
+      if (businessData.contact_email) {
+        console.log("Found contact_email in business_profiles:", businessData.contact_email);
+        return businessData.contact_email;
+      }
     }
     
     console.log("No email found in business_profiles, checking user account...");
@@ -205,25 +213,48 @@ export const BookingRequestForm = ({
       
       console.log("Found business owner user ID:", profileData.user_id);
       
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      // Get the user's email from auth.users using the admin functions
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(
+        profileData.user_id
+      );
       
-      if (sessionError) {
-        console.error("Error getting auth session:", sessionError);
-        throw new Error("Authentication error");
+      if (userError) {
+        console.error("Error getting user data:", userError);
+        throw new Error("Could not retrieve user information");
       }
       
-      const userEmail = sessionData.session?.user?.email;
-      
-      if (!userEmail) {
-        console.error("No email found in user session");
+      if (!userData?.user?.email) {
+        console.error("No email found for user");
         throw new Error("User email not available");
       }
       
-      console.log("Using email from auth session:", userEmail);
-      return userEmail;
+      console.log("Found email from auth.users:", userData.user.email);
+      return userData.user.email;
     } catch (error) {
       console.error("Error retrieving business email:", error);
-      throw new Error("Could not determine business contact email");
+      
+      // Fallback: try to get email from the current session
+      try {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error("Error getting auth session:", sessionError);
+          throw new Error("Authentication error");
+        }
+        
+        const userEmail = sessionData.session?.user?.email;
+        
+        if (!userEmail) {
+          console.error("No email found in user session");
+          throw new Error("User email not available");
+        }
+        
+        console.log("Using email from auth session:", userEmail);
+        return userEmail;
+      } catch (sessionError) {
+        console.error("Error with session fallback:", sessionError);
+        throw new Error("Could not determine business contact email");
+      }
     }
   };
 
