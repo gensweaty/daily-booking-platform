@@ -120,26 +120,52 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Create email content
+    // Check if the recipient is using Hotmail/Outlook
+    const isHotmailOrOutlook = businessEmail.toLowerCase().includes('hotmail.com') || 
+                               businessEmail.toLowerCase().includes('outlook.com') ||
+                               businessEmail.toLowerCase().includes('live.com');
+    
+    console.log(`📧 Recipient email is using Hotmail/Outlook: ${isHotmailOrOutlook}`);
+
+    // Create email content - improve formatting for better deliverability
     const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-        <h2 style="color: #333;">New Booking Request</h2>
-        <p>Hello,</p>
-        <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
-        <p><strong>Date:</strong> ${requestDate}</p>
-        ${phoneNumber ? `<p><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
-        ${notes ? `<p><strong>Notes:</strong> ${notes}</p>` : ''}
-        <p>Please log in to your dashboard to view and respond to this request:</p>
-        <p><a href="https://smartbookly.com/dashboard" style="background-color: #0070f3; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 10px;">Go to Dashboard</a></p>
-        <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-        <p style="color: #777; font-size: 14px;"><i>This is an automated message from SmartBookly</i></p>
-      </div>
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>New Booking Request</title>
+      </head>
+      <body style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333;">
+        <div style="border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; background-color: #ffffff;">
+          <h2 style="color: #0070f3; margin-top: 0;">New Booking Request</h2>
+          <p>Hello,</p>
+          <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
+          <div style="margin: 20px 0; background-color: #f9f9f9; padding: 15px; border-radius: 4px;">
+            <p style="margin: 8px 0;"><strong>Date:</strong> ${requestDate}</p>
+            ${phoneNumber ? `<p style="margin: 8px 0;"><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
+            ${notes ? `<p style="margin: 8px 0;"><strong>Notes:</strong> ${notes}</p>` : ''}
+          </div>
+          <p>Please log in to your dashboard to view and respond to this request:</p>
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="https://smartbookly.com/dashboard" style="background-color: #0070f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">Go to Dashboard</a>
+          </div>
+          <hr style="border: none; border-top: 1px solid #e1e1e1; margin: 20px 0;">
+          <p style="color: #666666; font-size: 14px; text-align: center;">This is an automated message from SmartBookly</p>
+          <p style="color: #666666; font-size: 12px; text-align: center;">If you did not sign up for SmartBookly, please disregard this email.</p>
+        </div>
+      </body>
+      </html>
     `;
     
     console.log("📧 Sending email to:", businessEmail);
     
-    // Format the sender address
-    const fromEmail = "SmartBookly <info@smartbookly.com>";
+    // Choose a sender that works well with Hotmail/Outlook
+    // For Hotmail, we'll use onboarding@resend.dev if it's a Hotmail address
+    const fromEmail = isHotmailOrOutlook 
+      ? "SmartBookly via Resend <onboarding@resend.dev>" 
+      : "SmartBookly <info@smartbookly.com>";
+      
     console.log("📧 Sending from:", fromEmail);
     
     // Try a different approach - first check if Resend is initialized
@@ -155,6 +181,25 @@ const handler = async (req: Request): Promise<Response> => {
         to: [businessEmail],
         subject: "New Booking Request - Action Required",
         html: emailHtml,
+        // Add reply-to for better deliverability
+        reply_to: "no-reply@smartbookly.com",
+        // Add text version for better deliverability
+        text: `
+New Booking Request
+
+Hello,
+
+You have received a new booking request from ${requesterName}.
+
+Date: ${requestDate}
+${phoneNumber ? `Phone: ${phoneNumber}` : ''}
+${notes ? `Notes: ${notes}` : ''}
+
+Please log in to your dashboard to view and respond to this request:
+https://smartbookly.com/dashboard
+
+This is an automated message from SmartBookly
+        `,
       });
       
       console.log("📬 Raw Resend API response:", JSON.stringify(emailResponse));
@@ -176,8 +221,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // FIX: We now check for both emailResponse existing and response.error to determine success,
-    // instead of just checking for the ID
+    // Check for errors in the response
     if (!emailResponse || emailResponse.error) {
       console.error("❌ Failed to send email - error in response:", emailResponse);
       return new Response(
@@ -202,7 +246,8 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ 
         success: true, 
         message: "Email notification sent successfully",
-        id: emailResponse.id
+        id: emailResponse.id,
+        email: businessEmail
       }),
       { 
         status: 200, 
