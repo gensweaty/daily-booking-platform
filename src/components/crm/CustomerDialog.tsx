@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -32,6 +33,13 @@ interface CustomerDialogProps {
   onSubmit?: (data: CustomerType) => void;
   isOpen?: boolean;
   onClose?: () => void;
+}
+
+// Define a consistent return type interface for the sendApprovalEmail function
+interface EmailResult {
+  success: boolean;
+  message?: string;
+  error?: string;
 }
 
 export const CustomerDialog = ({
@@ -91,7 +99,7 @@ export const CustomerDialog = ({
     }
   }, [initialData, open]);
 
-  const sendApprovalEmail = async (recipient: string, fullName: string, businessName: string, startDate: Date, endDate: Date) => {
+  const sendApprovalEmail = async (recipient: string, fullName: string, businessName: string, startDate: Date, endDate: Date): Promise<EmailResult> => {
     try {
       console.log("Sending booking approval email to:", recipient);
       
@@ -100,7 +108,7 @@ export const CustomerDialog = ({
       
       if (!accessToken) {
         console.error("No access token available for authenticated request");
-        throw new Error("Authentication error");
+        return { success: false, error: "Authentication error" };
       }
       
       const requestBody = JSON.stringify({
@@ -143,7 +151,10 @@ export const CustomerDialog = ({
       
       if (!response.ok) {
         console.error("Failed to send email notification:", responseData?.error || response.statusText);
-        throw new Error(responseData?.error || responseData?.details || `Failed to send email notification (status ${response.status})`);
+        return { 
+          success: false, 
+          error: responseData?.error || responseData?.details || `Failed to send email notification (status ${response.status})` 
+        };
       }
       
       return { success: true, message: "Email sent successfully" };
@@ -220,7 +231,7 @@ export const CustomerDialog = ({
         console.log("Created customer:", data);
       }
 
-      let emailResult = { success: false, message: "" };
+      let emailResult: EmailResult = { success: false };
 
       if (createEvent) {
         const eventData = {
