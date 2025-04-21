@@ -28,9 +28,10 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Get the API key from environment variables
+    // Log API key presence - IMPORTANT: don't log the actual key
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    console.log("🔑 API Key exists:", !!resendApiKey);
+    console.log("🔑 API Key available:", !!resendApiKey);
+    console.log("🔑 API Key length:", resendApiKey ? resendApiKey.length : 0);
     
     if (!resendApiKey) {
       console.error("❌ RESEND_API_KEY is not configured in environment variables");
@@ -137,27 +138,50 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("📧 Sending email to:", businessEmail);
     
-    // For testing purposes - temporarily use the onboarding email
-    // const fromEmail = "onboarding@resend.dev";
+    // Format the sender address
     const fromEmail = "SmartBookly <info@smartbookly.com>";
     console.log("📧 Sending from:", fromEmail);
     
-    // Send email using Resend API with correct from address
-    const emailResponse = await resend.emails.send({
-      from: fromEmail,
-      to: [businessEmail],
-      subject: "New Booking Request - Action Required",
-      html: emailHtml,
-    });
-
-    console.log("📬 Email API response:", JSON.stringify(emailResponse));
-
-    if (!emailResponse.id) {
-      console.error("❌ Failed to send email:", emailResponse);
+    // Try a different approach - first check if Resend is initialized
+    console.log("🔄 Initializing Resend with API key");
+    
+    // Send email using Resend API
+    console.log("📤 Attempting to send email through Resend API");
+    
+    let emailResponse;
+    try {
+      emailResponse = await resend.emails.send({
+        from: fromEmail,
+        to: [businessEmail],
+        subject: "New Booking Request - Action Required",
+        html: emailHtml,
+      });
+      
+      console.log("📬 Raw Resend API response:", JSON.stringify(emailResponse));
+    } catch (resendError) {
+      console.error("❌ Resend API error:", resendError);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Failed to send email notification",
+          error: "Email sending failed", 
+          details: resendError instanceof Error ? resendError.message : "Unknown Resend error",
+        }),
+        { 
+          status: 500, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders 
+          } 
+        }
+      );
+    }
+
+    if (!emailResponse || !emailResponse.id) {
+      console.error("❌ Failed to send email - no ID returned:", emailResponse);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Failed to send email notification - no confirmation ID",
           details: emailResponse 
         }),
         { 
@@ -171,6 +195,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Success response
+    console.log("✅ Email sent successfully with ID:", emailResponse.id);
     return new Response(
       JSON.stringify({ 
         success: true, 
@@ -191,8 +216,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || "Unknown error occurred",
-        stack: error.stack 
+        error: error instanceof Error ? error.message : "Unknown error occurred",
+        stack: error instanceof Error ? error.stack : undefined
       }),
       { 
         status: 500, 

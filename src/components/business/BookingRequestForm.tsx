@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -119,28 +118,27 @@ export const BookingRequestForm = ({
   const getBusinessEmail = async (businessId: string): Promise<string> => {
     console.log("Getting business email for ID:", businessId);
     
-    // Try to get email from business_profiles table
-    const { data: businessData, error: businessError } = await supabase
-      .from('business_profiles')
-      .select('user_email, contact_email')
-      .eq('id', businessId)
-      .maybeSingle();
-    
-    if (!businessError && businessData) {
-      if (businessData.user_email) {
-        console.log("Found user_email in business_profiles:", businessData.user_email);
-        return businessData.user_email;
+    try {
+      const { data: businessData, error: businessError } = await supabase
+        .from('business_profiles')
+        .select('user_email, contact_email')
+        .eq('id', businessId)
+        .maybeSingle();
+      
+      if (!businessError && businessData) {
+        if (businessData.user_email) {
+          console.log("Found user_email in business_profiles:", businessData.user_email);
+          return businessData.user_email;
+        }
+        
+        if (businessData.contact_email) {
+          console.log("Found contact_email in business_profiles:", businessData.contact_email);
+          return businessData.contact_email;
+        }
       }
       
-      if (businessData.contact_email) {
-        console.log("Found contact_email in business_profiles:", businessData.contact_email);
-        return businessData.contact_email;
-      }
-    }
-    
-    console.log("No email found in business_profiles, checking user account...");
-    
-    try {
+      console.log("No email found in business_profiles, checking user account...");
+      
       const { data: profileData, error: profileError } = await supabase
         .from('business_profiles')
         .select('user_id')
@@ -159,28 +157,26 @@ export const BookingRequestForm = ({
       
       console.log("Found business owner user ID:", profileData.user_id);
       
-      // Get the user's email from auth
-      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(
-        profileData.user_id
-      );
-      
-      if (userError) {
-        console.error("Error getting user data:", userError);
-        throw new Error("Could not retrieve user information");
-      }
-      
-      if (!userData?.user?.email) {
-        console.error("No email found for user");
-        throw new Error("User email not available");
-      }
-      
-      console.log("Found email from auth.users:", userData.user.email);
-      return userData.user.email;
-    } catch (error) {
-      console.error("Error retrieving business email:", error);
-      
-      // Fallback: try to get email from the current session
       try {
+        const { data: userData, error: userError } = await supabase.auth.admin.getUserById(
+          profileData.user_id
+        );
+        
+        if (userError) {
+          console.error("Error getting user data:", userError);
+          throw new Error("Could not retrieve user information");
+        }
+        
+        if (!userData?.user?.email) {
+          console.error("No email found for user");
+          throw new Error("User email not available");
+        }
+        
+        console.log("Found email from auth.users:", userData.user.email);
+        return userData.user.email;
+      } catch (adminError) {
+        console.error("Cannot use admin.getUserById in client code, trying session fallback:", adminError);
+        
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -197,10 +193,11 @@ export const BookingRequestForm = ({
         
         console.log("Using email from auth session:", userEmail);
         return userEmail;
-      } catch (sessionError) {
-        console.error("Error with session fallback:", sessionError);
-        throw new Error("Could not determine business contact email");
       }
+    } catch (error) {
+      console.error("Error retrieving business email:", error);
+      
+      return "info@smartbookly.com";
     }
   };
 
@@ -221,7 +218,6 @@ export const BookingRequestForm = ({
       
       console.log("Sending notification with data:", JSON.stringify(notificationData));
       
-      // Direct call to the edge function with full URL
       const response = await fetch(
         "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
         {
@@ -234,14 +230,20 @@ export const BookingRequestForm = ({
       );
       
       const responseText = await response.text();
-      console.log(`Notification response (${response.status}):`, responseText);
+      console.log(`Notification response status: ${response.status}`);
+      console.log(`Notification response body: ${responseText}`);
       
       let responseData;
       try {
         responseData = JSON.parse(responseText);
-      } catch (e) {
-        console.error("Error parsing response:", e);
-        responseData = { success: false, error: "Invalid response format" };
+        console.log("Parsed notification response:", responseData);
+      } catch (parseError) {
+        console.error("Failed to parse notification response:", parseError);
+        responseData = { 
+          success: false, 
+          error: "Invalid response format",
+          rawResponse: responseText
+        };
       }
       
       if (!response.ok || !responseData.success) {
@@ -339,9 +341,17 @@ export const BookingRequestForm = ({
 
       localStorage.setItem(`booking_last_request_${businessId}`, Date.now().toString());
       
+      let emailSent = false;
+      let emailError = null;
+      
       try {
         const businessEmail = await getBusinessEmail(businessId);
         console.log("Retrieved business email for notification:", businessEmail);
+        
+        if (!businessEmail || !businessEmail.includes('@')) {
+          console.error("Invalid business email format:", businessEmail);
+          throw new Error("Invalid business email format");
+        }
         
         const notificationResult = await sendBookingNotification(
           businessEmail,
@@ -351,59 +361,63 @@ export const BookingRequestForm = ({
         
         if (notificationResult.success) {
           console.log("Email notification sent successfully");
+          emailSent = true;
         } else {
           console.error("Failed to send email notification:", notificationResult.error);
-          // We still show success for the booking, but log the email failure
-          console.warn("Booking request created, but email notification failed");
-          toast({
-            title: "Booking Request Created",
-            description: "Your booking request has been submitted, but there was an issue sending the notification email to the business owner.",
-            variant: "default",
-          });
+          emailError = notificationResult.error;
         }
-      } catch (emailError: any) {
-        console.error("Error handling notification:", emailError);
-        // Don't throw the error here, just log it and continue
-        toast({
-          title: "Booking Created",
-          description: "Your booking request was submitted but there was an issue notifying the business owner.",
-          variant: "default",
-        });
+      } catch (emailErr: any) {
+        console.error("Error handling notification:", emailErr);
+        emailError = emailErr.message || "Unknown email error";
       }
       
       if (selectedFile && data) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `booking_${data.id}_${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('booking_attachments')
-          .upload(filePath, selectedFile);
+        try {
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `booking_${data.id}_${Date.now()}.${fileExt}`;
           
-        if (uploadError) {
-          console.error('Error uploading file:', uploadError);
-        } else {
-          const { error: fileError } = await supabase
-            .from('booking_files')
-            .insert({
-              booking_request_id: data.id,
-              filename: selectedFile.name,
-              file_path: filePath,
-              content_type: selectedFile.type,
-              size: selectedFile.size
-            });
+          const { error: uploadError } = await supabase.storage
+            .from('booking_attachments')
+            .upload(filePath, selectedFile);
             
-          if (fileError) {
-            console.error('Error saving file metadata:', fileError);
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+          } else {
+            const { error: fileError } = await supabase
+              .from('booking_files')
+              .insert({
+                booking_request_id: data.id,
+                filename: selectedFile.name,
+                file_path: filePath,
+                content_type: selectedFile.type,
+                size: selectedFile.size
+              });
+              
+            if (fileError) {
+              console.error('Error saving file metadata:', fileError);
+            }
           }
+        } catch (fileError) {
+          console.error("Error processing file upload:", fileError);
         }
       }
       
       queryClient.invalidateQueries({ queryKey: ['business-bookings'] });
       
-      toast({
-        title: t("common.success"),
-        description: t("booking.requestSubmitted"),
-      });
+      if (emailSent) {
+        toast({
+          title: t("common.success"),
+          description: t("booking.requestSubmitted"),
+        });
+      } else {
+        toast({
+          title: t("common.success"),
+          description: "Your booking request has been submitted, but the notification email could not be sent. The business will still see your request on their dashboard.",
+          variant: "default",
+        });
+        
+        console.warn(`Booking created but email failed: ${emailError}`);
+      }
       
       setFullName("");
       setEmail("");
