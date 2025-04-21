@@ -132,6 +132,9 @@ export const EventDialog = ({
       originalEnd: originalEndDate,
       currentEnd: endDate
     });
+
+    // Track previous type for approval logic
+    const wasBookingRequest = event?.type === 'booking_request';
     
     const eventData: Partial<CalendarEventType> = {
       title,
@@ -147,17 +150,40 @@ export const EventDialog = ({
 
     if (event?.id) {
       eventData.id = event.id;
-      
-      if (event.type) {
-        eventData.type = event.type;
-        console.log("EventDialog - Preserving event type for update:", event.type);
-      }
     }
+
+    // ------ KEY CHANGE: If this is booking request approval, force type to 'event' ------
+    if (isBookingEvent) {
+      eventData.type = 'event';
+    } else if (event?.type) {
+      eventData.type = event.type;
+    }
+    // -----------------------------------------------------------------------------------
 
     try {
       console.log("EventDialog - Submitting event data:", eventData);
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
+
+      // Determine if approval (from booking_request to event)
+      const isNowApprovedEvent = createdEvent?.type === 'event';
+      const wasJustApproved = wasBookingRequest && isNowApprovedEvent;
+
+      // ------ KEY CHANGE: Only send approval email on transition ------
+      if (
+        wasJustApproved &&
+        socialNetworkLink &&
+        socialNetworkLink.includes("@")
+      ) {
+        await sendApprovalEmail(
+          startDateTime,
+          endDateTime,
+          title,
+          userSurname,
+          socialNetworkLink
+        );
+      }
+      // -------------------------------------------------------------------------
 
       if (!isBookingEvent) {
         const { data: existingCustomer, error: customerQueryError } = await supabase
