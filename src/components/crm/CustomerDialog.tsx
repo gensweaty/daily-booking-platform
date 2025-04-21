@@ -202,6 +202,7 @@ export const CustomerDialog = ({
                 throw new Error("Authentication error");
               }
               
+              console.log("Making request to send-booking-approval-email function");
               const response = await fetch(
                 "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
                 {
@@ -220,13 +221,22 @@ export const CustomerDialog = ({
                 }
               );
               
-              const responseData = await response.json();
-              console.log("Email function response:", responseData);
+              console.log("Email API response status:", response.status);
+              let responseData;
+              
+              try {
+                responseData = await response.json();
+                console.log("Email function response:", responseData);
+              } catch (jsonError) {
+                console.error("Failed to parse email API response:", jsonError);
+                if (!response.ok) {
+                  throw new Error(`Email sending failed (status ${response.status})`);
+                }
+              }
               
               if (!response.ok) {
-                const errorDetails = await response.text();
-                console.error("Failed to send email notification:", errorDetails);
-                throw new Error("Failed to send email notification: " + responseData.error);
+                console.error("Failed to send email notification:", responseData?.error || response.statusText);
+                throw new Error(responseData?.error || `Failed to send email notification (status ${response.status})`);
               }
               
               toast({

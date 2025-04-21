@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -172,12 +171,22 @@ export const EventDialog = ({
         }
       );
       
-      const responseData = await response.json();
-      console.log("Email function response:", responseData);
+      console.log("Email API response status:", response.status);
+      let responseData;
+      
+      try {
+        responseData = await response.json();
+        console.log("Email function response:", responseData);
+      } catch (jsonError) {
+        console.error("Failed to parse email API response:", jsonError);
+        if (!response.ok) {
+          throw new Error(`Email sending failed (status ${response.status})`);
+        }
+      }
       
       if (!response.ok) {
-        console.error("Failed to send email notification:", responseData);
-        throw new Error(responseData.error || "Failed to send email notification");
+        console.error("Failed to send email notification:", responseData?.error || response.statusText);
+        throw new Error(responseData?.error || `Failed to send email notification (status ${response.status})`);
       }
       
       toast({

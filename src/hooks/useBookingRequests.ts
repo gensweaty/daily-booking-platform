@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -91,6 +90,7 @@ export const useBookingRequests = () => {
       }
       
       // Call the Edge Function with full URL
+      console.log("Making request to send-booking-approval-email function");
       const response = await fetch(
         "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
         {
@@ -104,14 +104,28 @@ export const useBookingRequests = () => {
       );
 
       console.log("Email function response status:", response.status);
-      const responseText = await response.text();
-      console.log("Email function response body:", responseText);
+      let responseText;
+      
+      try {
+        responseText = await response.text();
+        console.log("Email function response body:", responseText);
+      } catch (textError) {
+        console.error("Error reading response text:", textError);
+        if (!response.ok) {
+          return { success: false, error: `Email sending failed (status ${response.status})` };
+        }
+        return { success: true, message: "Email notification processed" };
+      }
       
       let data;
       try {
         data = JSON.parse(responseText);
+        console.log("Parsed response data:", data);
       } catch (e) {
         console.error("Failed to parse response JSON:", e);
+        if (!response.ok) {
+          return { success: false, error: `Invalid response (status ${response.status})` };
+        }
         return { success: true, message: "Email notification processed (response parsing error)" };
       }
       
@@ -125,7 +139,7 @@ export const useBookingRequests = () => {
     } catch (err) {
       console.error("Error calling Edge Function:", err);
       // We'll assume the email was processed anyway - just log the error
-      return { success: true, message: "Email notification processed (with errors)" };
+      return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
     }
   }
 

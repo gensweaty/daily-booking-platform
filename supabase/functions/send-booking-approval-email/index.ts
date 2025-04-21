@@ -59,46 +59,61 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending email to:", recipientEmail);
     
     // Use a verified domain email as the sender (from your Resend dashboard)
+    // Using onboarding@resend.dev which is pre-verified in Resend for all users
     const fromEmail = `${businessName} <onboarding@resend.dev>`;
     console.log("Using from email:", fromEmail);
     
-    const emailResponse = await resend.emails.send({
-      from: fromEmail,
-      to: [recipientEmail],
-      subject: `Booking Approved at ${businessName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-          <h2 style="color: #333;">Hello ${fullName},</h2>
-          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
-          <p><strong>Booking date and time:</strong> ${startFormatted} - ${endFormatted}</p>
-          <p>We look forward to seeing you!</p>
-          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-          <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
-        </div>
-      `,
-    });
+    try {
+      console.log("Attempting to send email with Resend API...");
+      const emailResponse = await resend.emails.send({
+        from: fromEmail,
+        to: [recipientEmail],
+        subject: `Booking Approved at ${businessName}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+            <h2 style="color: #333;">Hello ${fullName},</h2>
+            <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
+            <p><strong>Booking date and time:</strong> ${startFormatted} - ${endFormatted}</p>
+            <p>We look forward to seeing you!</p>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+            <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
+          </div>
+        `,
+      });
 
-    console.log("Email response from Resend:", emailResponse);
+      console.log("Email response from Resend:", JSON.stringify(emailResponse));
 
-    if (emailResponse.error) {
-      console.error("Resend email error:", emailResponse.error);
+      if (emailResponse.error) {
+        console.error("Resend email error:", emailResponse.error);
+        return new Response(
+          JSON.stringify({ 
+            error: emailResponse.error,
+            details: "Email sending failed. Check if the recipient email is valid and try again."
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+        );
+      }
+
       return new Response(
         JSON.stringify({ 
-          error: emailResponse.error,
-          details: "Email sending failed. Check if the recipient email is valid and try again."
+          message: "Email sent successfully",
+          id: emailResponse.data?.id || null,
+          to: recipientEmail
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+      );
+    } catch (sendError: any) {
+      console.error("Exception during email sending:", sendError);
+      console.error("Error details:", sendError.message);
+      return new Response(
+        JSON.stringify({ 
+          error: "Email sending failed",
+          details: sendError.message,
+          trace: sendError.stack || "No stack trace available"
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
     }
-
-    return new Response(
-      JSON.stringify({ 
-        message: "Email sent successfully",
-        id: emailResponse.data?.id || null,
-        to: recipientEmail
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-    );
   } catch (error: any) {
     console.error("Unhandled error in send-booking-approval-email:", error);
     return new Response(
