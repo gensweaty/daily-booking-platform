@@ -125,13 +125,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check if the recipient is using Hotmail/Outlook
-    const isHotmailOrOutlook = businessEmail.toLowerCase().includes('hotmail.com') || 
-                               businessEmail.toLowerCase().includes('outlook.com') ||
-                               businessEmail.toLowerCase().includes('live.com');
-    
-    console.log(`📧 Recipient email is using Hotmail/Outlook: ${isHotmailOrOutlook}`);
-
     // Create email content - improve formatting for better deliverability
     const emailHtml = `
       <!DOCTYPE html>
@@ -174,13 +167,6 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
     
-    console.log("📧 Sending email to:", businessEmail);
-    
-    // Always use onboarding@resend.dev for better deliverability
-    const fromEmail = "SmartBookly <onboarding@resend.dev>";
-      
-    console.log("📧 Sending from:", fromEmail);
-    
     // Create plain text version for better deliverability
     const plainText = `
 New Booking Request
@@ -201,6 +187,27 @@ This is an automated message from SmartBookly
 If you did not sign up for SmartBookly, please disregard this email.
     `;
     
+    console.log("📧 Sending email to:", businessEmail);
+    
+    // IMPORTANT: For testing phase, only send emails to verified email addresses
+    // Until domain verification is complete
+    const testMode = true; // Set to false in production
+    
+    let recipientEmail = businessEmail;
+    const verifiedEmail = "gensweaty@gmail.com"; // Your verified email from the error message
+    
+    if (testMode && businessEmail !== verifiedEmail) {
+      console.log(`⚠️ Test mode active - redirecting email from ${businessEmail} to ${verifiedEmail}`);
+      recipientEmail = verifiedEmail;
+    }
+    
+    // Always use onboarding@resend.dev for better deliverability during testing
+    const fromEmail = "SmartBookly <onboarding@resend.dev>";
+    
+    console.log("📧 Final recipient:", recipientEmail);
+    console.log("📧 Sending from:", fromEmail);
+    console.log("📧 Subject: New Booking Request - Action Required");
+    
     let emailResult;
     try {
       console.log("📤 About to execute Resend API call");
@@ -208,7 +215,7 @@ If you did not sign up for SmartBookly, please disregard this email.
       // Make sure we fully await the email sending before returning
       emailResult = await resend.emails.send({
         from: fromEmail,
-        to: [businessEmail],
+        to: [recipientEmail],
         subject: "New Booking Request - Action Required",
         html: emailHtml,
         text: plainText,
@@ -222,17 +229,35 @@ If you did not sign up for SmartBookly, please disregard this email.
       }
       
       console.log("✅ Email sent successfully with ID:", emailResult.data?.id);
+      console.log("✅ Recipient:", recipientEmail);
+      
+      if (testMode && businessEmail !== recipientEmail) {
+        console.log("⚠️ NOTE: Email redirected in test mode.");
+        console.log(`⚠️ Original recipient was: ${businessEmail}`);
+        console.log(`⚠️ Redirected to: ${recipientEmail}`);
+      }
       
       // Wait a moment to ensure the email is processed
       await new Promise(resolve => setTimeout(resolve, 500));
       
     } catch (resendError) {
       console.error("❌ Resend API error:", resendError);
+      
+      // Provide helpful guidance about domain verification
+      let errorMessage = resendError instanceof Error ? resendError.message : "Unknown Resend error";
+      let helpfulError = errorMessage;
+      
+      if (errorMessage.includes("verify a domain")) {
+        helpfulError = "Domain verification required: " + errorMessage + 
+                      " Please visit https://resend.com/domains to verify your domain.";
+      }
+      
       return new Response(
         JSON.stringify({ 
           success: false, 
           error: "Email sending failed", 
-          details: resendError instanceof Error ? resendError.message : "Unknown Resend error",
+          details: helpfulError,
+          originalError: errorMessage,
         }),
         { 
           status: 500, 
@@ -253,9 +278,13 @@ If you did not sign up for SmartBookly, please disregard this email.
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Email notification sent successfully",
+        message: testMode && businessEmail !== recipientEmail ? 
+          "Test email sent to your verified email address" : 
+          "Email notification sent successfully",
         id: emailResult.data?.id,
-        email: businessEmail
+        email: recipientEmail,
+        testMode: testMode,
+        originalRecipient: businessEmail
       }),
       { 
         status: 200, 

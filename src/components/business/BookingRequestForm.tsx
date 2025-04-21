@@ -219,7 +219,6 @@ export const BookingRequestForm = ({
       console.log("🔍 Sending notification with data:", JSON.stringify(notificationData));
       console.log("📤 About to send booking notification POST request");
       
-      // Add a timeout promise to ensure the fetch doesn't hang indefinitely
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Request timeout')), 15000)
       );
@@ -235,12 +234,10 @@ export const BookingRequestForm = ({
         }
       );
       
-      // Use Promise.race to implement the timeout
       const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
       
       console.log(`🔍 Notification response status: ${response.status}`);
       
-      // Wait for full text response before continuing
       const responseText = await response.text();
       console.log(`🔍 Notification response body: ${responseText}`);
       
@@ -286,7 +283,6 @@ export const BookingRequestForm = ({
       return;
     }
     
-    // Validate required fields and show toast errors
     let hasErrors = false;
     
     if (!fullName) {
@@ -318,7 +314,6 @@ export const BookingRequestForm = ({
     console.log("🔍 Starting booking submission process");
     
     try {
-      // Check rate limiting 
       const lastRequestTime = localStorage.getItem(`booking_last_request_${businessId}`);
       if (lastRequestTime) {
         const now = new Date();
@@ -374,13 +369,11 @@ export const BookingRequestForm = ({
       
       console.log("✅ Successfully created booking request:", data);
 
-      // Set rate limit immediately to prevent duplicate submissions
       localStorage.setItem(`booking_last_request_${businessId}`, Date.now().toString());
       
       let emailSent = false;
       let emailError = null;
       
-      // Attempt to send email notification
       try {
         console.log("🔍 Getting business email for notification");
         const businessEmail = await getBusinessEmail(businessId);
@@ -391,7 +384,6 @@ export const BookingRequestForm = ({
           throw new Error("Invalid business email format");
         }
         
-        // Test email directly to ensure it works
         console.log("🔍 Testing email sending with hardcoded values");
         
         const testNotificationData = {
@@ -422,7 +414,6 @@ export const BookingRequestForm = ({
           console.error("❌ Test notification failed:", testError);
         }
         
-        // Send the actual email notification
         const notificationResult = await sendBookingNotification(
           businessEmail,
           fullName,
@@ -441,7 +432,6 @@ export const BookingRequestForm = ({
         emailError = emailErr.message || "Unknown email error";
       }
       
-      // Handle file uploads if present
       if (selectedFile && data) {
         try {
           console.log("🔍 Processing file upload:", selectedFile.name);
@@ -477,10 +467,8 @@ export const BookingRequestForm = ({
         }
       }
       
-      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['business-bookings'] });
       
-      // Show success toast
       if (emailSent) {
         toast({
           title: t("common.success"),
@@ -496,7 +484,6 @@ export const BookingRequestForm = ({
         console.warn(`⚠️ Booking created but email failed: ${emailError}`);
       }
       
-      // Reset form
       setFullName("");
       setEmail("");
       setPhone("");
@@ -507,7 +494,6 @@ export const BookingRequestForm = ({
         onSuccess();
       }
       
-      // Set rate limit UI state
       setRateLimitExceeded(true);
       setTimeRemaining(120);
       
@@ -530,7 +516,6 @@ export const BookingRequestForm = ({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // Add a function to test email sending
   const testEmailSending = async () => {
     try {
       setIsSubmitting(true);
@@ -539,8 +524,10 @@ export const BookingRequestForm = ({
         description: "Attempting to send a test email...",
       });
       
+      const yourEmail = "gensweaty@gmail.com";
+      
       const testData = {
-        businessEmail: "ananiadevsurashvili@hotmail.com",
+        businessEmail: yourEmail,
         requesterName: "Test User",
         requestDate: "April 21, 2025 at 10:00 am",
         phoneNumber: "123-456-7890",
@@ -573,14 +560,27 @@ export const BookingRequestForm = ({
       if (response.ok && responseData.success) {
         toast({
           title: "Test Email Sent",
-          description: `Email was sent successfully to ${testData.businessEmail}`,
+          description: `Email was sent successfully to ${yourEmail}. Check your inbox.`,
         });
       } else {
-        toast({
-          title: "Test Email Failed",
-          description: responseData.error || `HTTP error ${response.status}`,
-          variant: "destructive",
-        });
+        let errorMessage = responseData.details || responseData.error || `HTTP error ${response.status}`;
+        
+        if (errorMessage.includes("verify a domain")) {
+          toast({
+            title: "Domain Verification Required",
+            description: "You need to verify your domain in Resend before sending to other emails. Check the console for details.",
+            variant: "destructive",
+          });
+          
+          console.error("Domain verification error:", errorMessage);
+          console.log("To verify your domain, go to https://resend.com/domains");
+        } else {
+          toast({
+            title: "Test Email Failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+        }
       }
     } catch (error: any) {
       console.error("Error sending test email:", error);
@@ -702,7 +702,7 @@ export const BookingRequestForm = ({
           onClick={testEmailSending}
           disabled={isSubmitting}
         >
-          Test Email
+          Test Email (Your Email Only)
         </Button>
         
         <div className="flex justify-end space-x-2">
