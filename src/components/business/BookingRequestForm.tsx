@@ -212,30 +212,45 @@ export const BookingRequestForm = ({
         
         console.log('Business email found:', businessData.user_email);
         
+        const formattedDate = format(startDateTime, "MMMM dd, yyyy 'at' h:mm a");
+        console.log('Formatted date for email:', formattedDate);
+        
         const notificationBody = {
           businessEmail: businessData.user_email,
           requesterName: fullName,
-          requestDate: format(startDateTime, "MMMM dd, yyyy 'at' h:mm a"),
+          requestDate: formattedDate,
           phoneNumber: phone || '',
           notes: notes || ''
         };
         
         console.log('Invoking send-booking-request-notification function with params:', notificationBody);
         
-        const { data: emailResponse, error: emailError } = await supabase.functions.invoke(
+        const response = await supabase.functions.invoke(
           'send-booking-request-notification',
           {
             body: notificationBody,
           }
         );
 
-        if (emailError) {
-          console.error('Error sending notification email:', emailError);
+        console.log("Email notification function response:", response);
+        
+        if (response.error) {
+          console.error('Error sending notification email:', response.error);
+          toast({
+            title: "Warning",
+            description: "Booking created but email notification failed to send.",
+            variant: "destructive",
+          });
         } else {
-          console.log('Notification email sent successfully:', emailResponse);
+          console.log('Notification email sent successfully:', response.data);
         }
       } catch (emailError) {
         console.error('Error in email notification process:', emailError);
+        toast({
+          title: "Warning",
+          description: "Booking created but email notification failed to send.",
+          variant: "destructive",
+        });
       }
       
       if (selectedFile && data) {
