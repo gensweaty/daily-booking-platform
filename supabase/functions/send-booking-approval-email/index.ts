@@ -52,26 +52,31 @@ async function sendEmailViaSMTP(to: string, subject: string, htmlContent: string
   try {
     const client = new SmtpClient();
 
+    console.log("Connecting to SMTP server...");
     await client.connectTLS({
       hostname: "mx1.privateemail.com",
       port: 465,
       username: "info@smartbookly.com",
       password: "Devsura1995@",
     });
+    console.log("Successfully connected to SMTP server");
 
-    await client.send({
+    console.log("Sending email...");
+    const sendResult = await client.send({
       from: "SmartBookly <info@smartbookly.com>",
       to: to,
       subject: subject,
       content: "text/html",
       html: htmlContent,
     });
+    console.log("Send command result:", sendResult);
 
+    console.log("Closing SMTP connection...");
     await client.close();
     console.log(`Email sent successfully to ${to} via SMTP`);
     return true;
   } catch (error) {
-    console.error(`Failed to send email via SMTP: ${error}`);
+    console.error(`Failed to send email via SMTP:`, error);
     return false;
   }
 }

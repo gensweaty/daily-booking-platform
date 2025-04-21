@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -69,21 +70,26 @@ export const useBookingRequests = () => {
     try {
       console.log(`Sending approval email to ${email} for booking at ${businessName} from ${startDate} to ${endDate}`);
       
+      // Ensure all required fields are included and properly formatted
       const requestBody = JSON.stringify({
-        recipientEmail: email,
-        fullName,
-        businessName,
-        startDate,
-        endDate,
+        recipientEmail: email.trim(),
+        fullName: fullName || "",
+        businessName: businessName || "Our Business",
+        startDate: startDate,
+        endDate: endDate,
       });
       
       console.log("Request body for email function:", requestBody);
       
+      // Use the full URL with the project reference
       const response = await fetch(
         "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabase.auth.getSession().then(res => res.data.session?.access_token)}`
+          },
           body: requestBody,
         }
       );

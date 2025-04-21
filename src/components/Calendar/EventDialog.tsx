@@ -249,10 +249,13 @@ export const EventDialog = ({
               "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
               {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+                },
                 body: JSON.stringify({
-                  recipientEmail: socialNetworkLink,
-                  fullName: userSurname || title,
+                  recipientEmail: socialNetworkLink.trim(),
+                  fullName: userSurname || title || "Customer",
                   businessName,
                   startDate: startDateTime.toISOString(),
                   endDate: endDateTime.toISOString(),
