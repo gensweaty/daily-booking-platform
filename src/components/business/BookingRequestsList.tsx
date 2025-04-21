@@ -28,6 +28,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { useState } from "react";
+import { useToast } from "@/components/ui/use-toast";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
@@ -45,11 +46,55 @@ export const BookingRequestsList = ({
   onDelete,
 }: BookingRequestsListProps) => {
   const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const handleDeleteConfirm = () => {
     if (requestToDelete) {
       onDelete(requestToDelete);
       setRequestToDelete(null);
+    }
+  };
+
+  const handleApprove = async (id: string) => {
+    if (!onApprove) return;
+    
+    try {
+      setProcessingId(id);
+      await onApprove(id);
+      toast({
+        title: "Success",
+        description: "Booking approved. Email notification has been processed.",
+        duration: 5000,
+      });
+    } catch (error) {
+      console.error("Error approving booking:", error);
+      toast({
+        title: "Error",
+        description: "There was a problem approving the booking. Please try again.",
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    if (!onReject) return;
+    
+    try {
+      setProcessingId(id);
+      await onReject(id);
+    } catch (error) {
+      console.error("Error rejecting booking:", error);
+      toast({
+        title: "Error",
+        description: "There was a problem rejecting the booking. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -138,16 +183,22 @@ export const BookingRequestsList = ({
                         size="sm"
                         variant="outline"
                         className="flex gap-1 text-green-600 hover:text-green-700"
-                        onClick={() => onApprove && onApprove(request.id)}
+                        onClick={() => handleApprove(request.id)}
+                        disabled={processingId === request.id}
                       >
-                        <CheckCircle className="h-4 w-4" />
+                        {processingId === request.id ? (
+                          <span className="animate-spin h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4" />
+                        )}
                         <span className="sr-only sm:not-sr-only sm:inline">Approve</span>
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         className="flex gap-1 text-red-600 hover:text-red-700"
-                        onClick={() => onReject && onReject(request.id)}
+                        onClick={() => handleReject(request.id)}
+                        disabled={processingId === request.id}
                       >
                         <XCircle className="h-4 w-4" />
                         <span className="sr-only sm:not-sr-only sm:inline">Reject</span>
@@ -161,6 +212,7 @@ export const BookingRequestsList = ({
                         variant="outline"
                         className="flex gap-1 hover:text-red-600"
                         onClick={() => setRequestToDelete(request.id)}
+                        disabled={processingId === request.id}
                       >
                         <Trash2 className="h-4 w-4" />
                         <span className="sr-only sm:not-sr-only sm:inline">Delete</span>

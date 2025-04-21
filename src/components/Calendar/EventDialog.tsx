@@ -125,7 +125,6 @@ export const EventDialog = ({
     const startDateTime = new Date(startDate);
     const endDateTime = new Date(endDate);
     
-    // Check if the dates have changed during editing
     const timesChanged = startDate !== originalStartDate || endDate !== originalEndDate;
     console.log("Time changed during edit?", timesChanged, {
       originalStart: originalStartDate,
@@ -134,7 +133,6 @@ export const EventDialog = ({
       currentEnd: endDate
     });
     
-    // Prepare event data with proper type preservation
     const eventData: Partial<CalendarEventType> = {
       title,
       user_surname: userSurname,
@@ -150,7 +148,6 @@ export const EventDialog = ({
     if (event?.id) {
       eventData.id = event.id;
       
-      // Always preserve the event type when updating
       if (event.type) {
         eventData.type = event.type;
         console.log("EventDialog - Preserving event type for update:", event.type);
@@ -225,7 +222,6 @@ export const EventDialog = ({
           console.log('Updated existing customer:', customerId);
         }
 
-        // Send notification email if it's a new event (not an update) and we have an email address
         if (!event?.id && socialNetworkLink && socialNetworkLink.includes('@')) {
           try {
             const { data: businessProfile } = await supabase
@@ -245,13 +241,21 @@ export const EventDialog = ({
               endDate: endDateTime.toISOString(),
             });
             
+            const { data: sessionData } = await supabase.auth.getSession();
+            const accessToken = sessionData.session?.access_token;
+            
+            if (!accessToken) {
+              console.error("No access token available for authenticated request");
+              throw new Error("Authentication error");
+            }
+            
             const response = await fetch(
               "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
               {
                 method: "POST",
                 headers: { 
                   "Content-Type": "application/json",
-                  "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+                  "Authorization": `Bearer ${accessToken}`
                 },
                 body: JSON.stringify({
                   recipientEmail: socialNetworkLink.trim(),
@@ -276,24 +280,24 @@ export const EventDialog = ({
             }
             
             if (!response.ok) {
-              console.error("Failed to send approval email:", data);
+              console.error("Failed to process email notification:", data);
               toast({
                 title: t("common.warning"),
-                description: t("Event created but email notification failed to send"),
+                description: t("Event created but email notification could not be processed"),
                 variant: "destructive",
               });
             } else {
-              console.log("Approval email sent successfully:", data);
+              console.log("Email notification processed successfully:", data);
               toast({
                 title: t("common.success"),
-                description: t("Email notification sent successfully"),
+                description: t("Email notification processed successfully"),
               });
             }
           } catch (emailError) {
-            console.error("Error sending approval email:", emailError);
+            console.error("Error processing email notification:", emailError);
             toast({
               title: t("common.warning"),
-              description: t("Event created but email notification failed to send"),
+              description: t("Event created but email notification could not be processed"),
               variant: "destructive",
             });
           }
