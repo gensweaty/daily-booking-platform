@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -199,6 +198,12 @@ export const BookingRequestForm = ({
 
       try {
         console.log("Fetching business email for business ID:", businessId);
+        
+        let businessEmailInfo = {
+          user_email: '',
+          business_name: 'Business'
+        };
+        
         const { data: businessData, error: businessError } = await supabase
           .from('business_profiles')
           .select('user_email, business_name')
@@ -208,7 +213,6 @@ export const BookingRequestForm = ({
         if (businessError) {
           console.error('Error fetching business email from business_profiles:', businessError);
           
-          // Try to fetch from user profile if business email not found
           const { data: userProfileData, error: userProfileError } = await supabase
             .from('profiles')
             .select('id, username')
@@ -220,9 +224,6 @@ export const BookingRequestForm = ({
             throw new Error('Could not retrieve business or user email');
           }
           
-          // If we got here, we have the user profile
-          // Now get the user email from auth.users (which we can't query directly)
-          // So we'll get it from the auth session
           const { data: sessionData } = await supabase.auth.getSession();
           const userEmail = sessionData.session?.user?.email;
           
@@ -231,7 +232,7 @@ export const BookingRequestForm = ({
             throw new Error('Could not retrieve user email');
           }
           
-          businessData = {
+          businessEmailInfo = {
             user_email: userEmail,
             business_name: userProfileData?.username || 'Business'
           };
@@ -239,20 +240,27 @@ export const BookingRequestForm = ({
           console.log('Using user email from session:', userEmail);
         } else {
           console.log('Business data found:', businessData);
+          
+          if (businessData) {
+            businessEmailInfo = {
+              user_email: businessData.user_email || '',
+              business_name: businessData.business_name || 'Business'
+            };
+          }
         }
         
-        if (!businessData?.user_email) {
+        if (!businessEmailInfo.user_email) {
           console.error('No business email found in business data');
           throw new Error('Could not retrieve business email');
         }
         
-        console.log('Business email found:', businessData.user_email);
+        console.log('Business email found:', businessEmailInfo.user_email);
         
         const formattedDate = format(startDateTime, "MMMM dd, yyyy 'at' h:mm a");
         console.log('Formatted date for email:', formattedDate);
         
         const notificationBody = {
-          businessEmail: businessData.user_email,
+          businessEmail: businessEmailInfo.user_email,
           requesterName: fullName,
           requestDate: formattedDate,
           phoneNumber: phone || '',
@@ -261,7 +269,6 @@ export const BookingRequestForm = ({
         
         console.log('Preparing notification request with params:', notificationBody);
         
-        // Direct fetch call to our edge function
         const functionUrl = "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification";
         console.log("Sending notification to:", functionUrl);
         
