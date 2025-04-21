@@ -1,4 +1,3 @@
-
 // Make sure translation keys are properly used in the BookingRequestForm component
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -55,7 +54,6 @@ export const BookingRequestForm = ({
       if (!businessId) return;
       
       try {
-        // Check if there's a recent request from this session
         const lastRequestTime = localStorage.getItem(`booking_last_request_${businessId}`);
         if (lastRequestTime) {
           const now = new Date();
@@ -144,7 +142,6 @@ export const BookingRequestForm = ({
     setIsSubmitting(true);
     
     try {
-      // Check local rate limit
       const lastRequestTime = localStorage.getItem(`booking_last_request_${businessId}`);
       if (lastRequestTime) {
         const now = new Date();
@@ -173,6 +170,7 @@ export const BookingRequestForm = ({
       const startDateTime = new Date(startDate);
       const endDateTime = new Date(endDate);
       
+      console.log(`Creating booking request for business: ${businessId}`);
       const { data, error } = await supabase
         .from('booking_requests')
         .insert({
@@ -190,57 +188,51 @@ export const BookingRequestForm = ({
         .single();
         
       if (error) {
+        console.error("Error creating booking request:", error);
         throw error;
       }
+      
+      console.log("Successfully created booking request:", data);
 
-      // Store timestamp of current request for rate limiting
       localStorage.setItem(`booking_last_request_${businessId}`, Date.now().toString());
 
-      // Send email notification to business owner
       try {
         console.log("Fetching business email for business ID:", businessId);
         const { data: businessData, error: businessError } = await supabase
           .from('business_profiles')
-          .select('user_email')
+          .select('user_email, business_name')
           .eq('id', businessId)
           .single();
 
         if (businessError || !businessData?.user_email) {
           console.error('Error fetching business email:', businessError);
           console.log('Business data:', businessData);
-        } else {
-          console.log('Business email found:', businessData.user_email);
-          
-          try {
-            console.log('Invoking send-booking-request-notification function with params:', {
-              businessEmail: businessData.user_email,
-              requesterName: fullName,
-              requestDate: format(startDateTime, "MMMM dd, yyyy 'at' h:mm a"),
-              phoneNumber: phone,
-              notes: notes
-            });
-            
-            const { data: emailResponse, error: emailError } = await supabase.functions.invoke(
-              'send-booking-request-notification',
-              {
-                body: {
-                  businessEmail: businessData.user_email,
-                  requesterName: fullName,
-                  requestDate: format(startDateTime, "MMMM dd, yyyy 'at' h:mm a"),
-                  phoneNumber: phone,
-                  notes: notes
-                },
-              }
-            );
-
-            if (emailError) {
-              console.error('Error sending notification email:', emailError);
-            } else {
-              console.log('Notification email sent successfully:', emailResponse);
-            }
-          } catch (emailError) {
-            console.error('Error invoking email function:', emailError);
+          throw new Error('Could not retrieve business email');
+        }
+        
+        console.log('Business email found:', businessData.user_email);
+        
+        const notificationBody = {
+          businessEmail: businessData.user_email,
+          requesterName: fullName,
+          requestDate: format(startDateTime, "MMMM dd, yyyy 'at' h:mm a"),
+          phoneNumber: phone || '',
+          notes: notes || ''
+        };
+        
+        console.log('Invoking send-booking-request-notification function with params:', notificationBody);
+        
+        const { data: emailResponse, error: emailError } = await supabase.functions.invoke(
+          'send-booking-request-notification',
+          {
+            body: notificationBody,
           }
+        );
+
+        if (emailError) {
+          console.error('Error sending notification email:', emailError);
+        } else {
+          console.log('Notification email sent successfully:', emailResponse);
         }
       } catch (emailError) {
         console.error('Error in email notification process:', emailError);
