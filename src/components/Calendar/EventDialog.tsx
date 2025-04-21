@@ -135,6 +135,7 @@ export const EventDialog = ({
 
     // Track previous type for approval logic
     const wasBookingRequest = event?.type === 'booking_request';
+    const isApprovingBookingRequest = wasBookingRequest && isBookingEvent;
     
     const eventData: Partial<CalendarEventType> = {
       title,
@@ -152,29 +153,32 @@ export const EventDialog = ({
       eventData.id = event.id;
     }
 
-    // ------ KEY CHANGE: If this is booking request approval, force type to 'event' ------
-    if (isBookingEvent) {
+    // If this is booking request approval, force type to 'event'
+    if (wasBookingRequest) {
       eventData.type = 'event';
+      console.log("Converting booking request to event:", { wasBookingRequest, isApprovingBookingRequest });
     } else if (event?.type) {
       eventData.type = event.type;
     }
-    // -----------------------------------------------------------------------------------
 
     try {
       console.log("EventDialog - Submitting event data:", eventData);
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
 
-      // Determine if approval (from booking_request to event)
-      const isNowApprovedEvent = createdEvent?.type === 'event';
-      const wasJustApproved = wasBookingRequest && isNowApprovedEvent;
-
-      // ------ KEY CHANGE: Only send approval email on transition ------
+      // Only send approval email when approving a booking request
       if (
-        wasJustApproved &&
+        isApprovingBookingRequest &&
         socialNetworkLink &&
         socialNetworkLink.includes("@")
       ) {
+        console.log(">>> APPROVAL EMAIL CONDITION MET", {
+          wasBookingRequest,
+          isApprovingBookingRequest,
+          eventId: event?.id,
+          newType: eventData.type
+        });
+        
         await sendApprovalEmail(
           startDateTime,
           endDateTime,
@@ -183,7 +187,6 @@ export const EventDialog = ({
           socialNetworkLink
         );
       }
-      // -------------------------------------------------------------------------
 
       if (!isBookingEvent) {
         const { data: existingCustomer, error: customerQueryError } = await supabase
