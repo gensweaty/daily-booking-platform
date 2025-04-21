@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -249,7 +250,7 @@ export const CustomerDialog = ({
                 if (data.testMode) {
                   toast({
                     title: t("common.success"),
-                    description: t("Test email sent to developer account. In production, this would go to the customer."),
+                    description: t("Test email sent to developer account (gensweaty@gmail.com). In production, this would go to the customer."),
                   });
                 } else {
                   toast({

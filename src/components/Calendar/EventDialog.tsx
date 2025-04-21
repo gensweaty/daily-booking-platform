@@ -192,7 +192,7 @@ export const EventDialog = ({
         if (data.testMode) {
           toast({
             title: t("common.success"),
-            description: t("Test email sent to developer account. In production, this would go to the customer."),
+            description: t("Test email sent to developer account (gensweaty@gmail.com). To send to customer emails directly, verify your domain at resend.com/domains."),
           });
         } else {
           toast({
@@ -279,69 +279,7 @@ export const EventDialog = ({
       }
 
       if (!isBookingEvent) {
-        const { data: existingCustomer, error: customerQueryError } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('title', title)
-          .maybeSingle();
-
-        if (customerQueryError && customerQueryError.code !== 'PGRST116') {
-          console.error('Error checking for existing customer:', customerQueryError);
-          throw customerQueryError;
-        }
-
-        let customerId;
-        
-        if (!existingCustomer) {
-          const { data: newCustomer, error: customerError } = await supabase
-            .from('customers')
-            .insert({
-              title,
-              user_surname: userSurname,
-              user_number: userNumber,
-              social_network_link: socialNetworkLink,
-              event_notes: eventNotes,
-              payment_status: paymentStatus || null,
-              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-              start_date: startDateTime.toISOString(),
-              end_date: endDateTime.toISOString(),
-              user_id: user?.id,
-              type: 'customer'
-            })
-            .select()
-            .single();
-
-          if (customerError) {
-            console.error('Error creating new customer:', customerError);
-            throw customerError;
-          }
-          customerId = newCustomer.id;
-          console.log('Created new customer:', newCustomer);
-        } else {
-          customerId = existingCustomer.id;
-          
-          const { error: updateError } = await supabase
-            .from('customers')
-            .update({
-              user_surname: userSurname,
-              user_number: userNumber,
-              social_network_link: socialNetworkLink,
-              event_notes: eventNotes,
-              payment_status: paymentStatus || null,
-              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-              start_date: startDateTime.toISOString(),
-              end_date: endDateTime.toISOString(),
-            })
-            .eq('id', customerId);
-
-          if (updateError) {
-            console.error('Error updating customer:', updateError);
-            throw updateError;
-          }
-          console.log('Updated existing customer:', customerId);
-        }
-
-        if (!event?.id && socialNetworkLink && socialNetworkLink.includes("@")) {
+        if ((!event?.id || event.type === 'booking_request') && socialNetworkLink && socialNetworkLink.includes("@")) {
           await sendApprovalEmail(startDateTime, endDateTime, title, userSurname, socialNetworkLink);
         }
 
