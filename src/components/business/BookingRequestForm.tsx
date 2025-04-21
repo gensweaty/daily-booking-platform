@@ -375,43 +375,12 @@ export const BookingRequestForm = ({
       let emailError = null;
       
       try {
-        console.log("🔍 Getting business email for notification");
         const businessEmail = await getBusinessEmail(businessId);
         console.log("🔍 Retrieved business email for notification:", businessEmail);
         
         if (!businessEmail || !businessEmail.includes('@')) {
           console.error("❌ Invalid business email format:", businessEmail);
           throw new Error("Invalid business email format");
-        }
-        
-        console.log("🔍 Testing email sending with hardcoded values");
-        
-        const testNotificationData = {
-          businessEmail: businessEmail.trim(),
-          requesterName: "Test Notification",
-          requestDate: "April 21, 2025 at 11:30 pm",
-          phoneNumber: "123-456-7890",
-          notes: "This is a test notification"
-        };
-        
-        console.log("🔍 Sending test notification with data:", JSON.stringify(testNotificationData));
-        
-        try {
-          const testResponse = await fetch(
-            "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify(testNotificationData)
-            }
-          );
-          
-          const testResponseText = await testResponse.text();
-          console.log(`🔍 Test notification response: ${testResponse.status}, body: ${testResponseText}`);
-        } catch (testError) {
-          console.error("❌ Test notification failed:", testError);
         }
         
         const notificationResult = await sendBookingNotification(
@@ -516,84 +485,6 @@ export const BookingRequestForm = ({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const testEmailSending = async () => {
-    try {
-      setIsSubmitting(true);
-      toast({
-        title: "Testing Email",
-        description: "Attempting to send a test email...",
-      });
-      
-      const yourEmail = "gensweaty@gmail.com";
-      
-      const testData = {
-        businessEmail: yourEmail,
-        requesterName: "Test User",
-        requestDate: "April 21, 2025 at 10:00 am",
-        phoneNumber: "123-456-7890",
-        notes: "This is a test email"
-      };
-      
-      console.log("Sending test email with data:", JSON.stringify(testData));
-      
-      const response = await fetch(
-        "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(testData)
-        }
-      );
-      
-      const responseText = await response.text();
-      console.log(`Test email response: ${response.status}, body: ${responseText}`);
-      
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (e) {
-        responseData = { success: false, error: "Invalid response format" };
-      }
-      
-      if (response.ok && responseData.success) {
-        toast({
-          title: "Test Email Sent",
-          description: `Email was sent successfully to ${yourEmail}. Check your inbox.`,
-        });
-      } else {
-        let errorMessage = responseData.details || responseData.error || `HTTP error ${response.status}`;
-        
-        if (errorMessage.includes("verify a domain")) {
-          toast({
-            title: "Domain Verification Required",
-            description: "You need to verify your domain in Resend before sending to other emails. Check the console for details.",
-            variant: "destructive",
-          });
-          
-          console.error("Domain verification error:", errorMessage);
-          console.log("To verify your domain, go to https://resend.com/domains");
-        } else {
-          toast({
-            title: "Test Email Failed",
-            description: errorMessage,
-            variant: "destructive",
-          });
-        }
-      }
-    } catch (error: any) {
-      console.error("Error sending test email:", error);
-      toast({
-        title: "Test Email Failed",
-        description: error.message || "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {rateLimitExceeded && (
@@ -696,14 +587,7 @@ export const BookingRequestForm = ({
       />
       
       <div className="flex justify-between space-x-2 pt-4">
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={testEmailSending}
-          disabled={isSubmitting}
-        >
-          Test Email (Your Email Only)
-        </Button>
+        
         
         <div className="flex justify-end space-x-2">
           {onCancel && (
