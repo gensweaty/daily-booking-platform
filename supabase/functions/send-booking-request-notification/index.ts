@@ -30,21 +30,18 @@ const handler = async (req: Request): Promise<Response> => {
   console.log("🚀 Received actual POST request to send email");
 
   try {
-    // Hardcode the API key as a fallback if environment variable isn't set
-    const resendApiKey = Deno.env.get("RESEND_API_KEY") || "re_123456789"; // Using a placeholder
+    // Get the API key from environment variables
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
     
     console.log("🔑 API Key available:", !!resendApiKey);
-    console.log("🔑 API Key length:", resendApiKey ? resendApiKey.length : 0);
-    console.log("🔑 API Key first 4 chars:", resendApiKey ? resendApiKey.substring(0, 4) : "none");
     
-    if (!resendApiKey || resendApiKey === "re_123456789") {
-      console.error("❌ RESEND_API_KEY is not configured properly in environment variables");
+    if (!resendApiKey) {
+      console.error("❌ RESEND_API_KEY is not configured in environment variables");
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Email service configuration is missing or invalid",
-          apiKeyPresent: !!resendApiKey,
-          apiKeyLength: resendApiKey ? resendApiKey.length : 0 
+          error: "Email service configuration is missing",
+          apiKeyPresent: false
         }),
         { 
           status: 500, 
@@ -179,12 +176,10 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("📧 Sending email to:", businessEmail);
     
-    // Always use onboarding@resend.dev for Hotmail/Outlook for better deliverability
+    // Always use onboarding@resend.dev for better deliverability
     const fromEmail = "SmartBookly <onboarding@resend.dev>";
       
     console.log("📧 Sending from:", fromEmail);
-    
-    console.log("🔄 Making Resend API call with API key starting with:", resendApiKey.substring(0, 4));
     
     // Create plain text version for better deliverability
     const plainText = `
