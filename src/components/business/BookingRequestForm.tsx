@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,60 +115,6 @@ export const BookingRequestForm = ({
     }
   }, [selectedDate]);
 
-  const sendBookingNotification = async (businessEmail: string, name: string, bookingDate: Date) => {
-    try {
-      console.log("Preparing to send notification email to:", businessEmail);
-      
-      const formattedDate = format(bookingDate, "MMMM dd, yyyy 'at' h:mm a");
-      console.log("Formatted date for notification:", formattedDate);
-      
-      const notificationData = {
-        businessEmail: businessEmail.trim(),
-        requesterName: name,
-        requestDate: formattedDate,
-        phoneNumber: phone || undefined,
-        notes: notes || undefined
-      };
-      
-      console.log("Sending notification with data:", JSON.stringify(notificationData));
-      
-      // Direct call to the edge function with full URL
-      const response = await fetch(
-        "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(notificationData)
-        }
-      );
-      
-      const responseText = await response.text();
-      console.log(`Notification response (${response.status}):`, responseText);
-      
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (e) {
-        console.error("Error parsing response:", e);
-        responseData = { success: false, error: "Invalid response format" };
-      }
-      
-      if (!response.ok || !responseData.success) {
-        throw new Error(responseData.error || `Failed to send notification (${response.status})`);
-      }
-      
-      return { success: true, data: responseData };
-    } catch (error) {
-      console.error("Error sending booking notification:", error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : "Unknown error sending notification" 
-      };
-    }
-  };
-
   const getBusinessEmail = async (businessId: string): Promise<string> => {
     console.log("Getting business email for ID:", businessId);
     
@@ -255,6 +200,60 @@ export const BookingRequestForm = ({
         console.error("Error with session fallback:", sessionError);
         throw new Error("Could not determine business contact email");
       }
+    }
+  };
+
+  const sendBookingNotification = async (businessEmail: string, name: string, bookingDate: Date) => {
+    try {
+      console.log("Preparing to send notification email to:", businessEmail);
+      
+      const formattedDate = format(bookingDate, "MMMM dd, yyyy 'at' h:mm a");
+      console.log("Formatted date for notification:", formattedDate);
+      
+      const notificationData = {
+        businessEmail: businessEmail.trim(),
+        requesterName: name,
+        requestDate: formattedDate,
+        phoneNumber: phone || undefined,
+        notes: notes || undefined
+      };
+      
+      console.log("Sending notification with data:", JSON.stringify(notificationData));
+      
+      // Direct call to the edge function with full URL
+      const response = await fetch(
+        "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(notificationData)
+        }
+      );
+      
+      const responseText = await response.text();
+      console.log(`Notification response (${response.status}):`, responseText);
+      
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Error parsing response:", e);
+        responseData = { success: false, error: "Invalid response format" };
+      }
+      
+      if (!response.ok || !responseData.success) {
+        throw new Error(responseData.error || `Failed to send notification (${response.status})`);
+      }
+      
+      return { success: true, data: responseData };
+    } catch (error) {
+      console.error("Error sending booking notification:", error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "Unknown error sending notification" 
+      };
     }
   };
 

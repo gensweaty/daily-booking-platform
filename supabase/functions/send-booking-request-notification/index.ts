@@ -2,9 +2,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
-// Get the API key from environment variables
-const resendApiKey = Deno.env.get("RESEND_API_KEY");
-
 // CORS headers to allow cross-origin requests
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,20 +18,21 @@ interface BookingNotificationRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Log every request for debugging
-  console.log(`Edge function invoked with method: ${req.method}`);
-  console.log(`Request URL: ${req.url}`);
+  console.log(`🔔 Booking notification function invoked with method: ${req.method}`);
+  console.log(`🌐 Request URL: ${req.url}`);
   
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    console.log("Handling OPTIONS request");
+    console.log("✅ Handling OPTIONS request");
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Initialize Resend with API key
+    // Get the API key from environment variables
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    
     if (!resendApiKey) {
-      console.error("RESEND_API_KEY is not configured in environment variables");
+      console.error("❌ RESEND_API_KEY is not configured in environment variables");
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -56,11 +54,11 @@ const handler = async (req: Request): Promise<Response> => {
     let requestData: BookingNotificationRequest;
     try {
       const body = await req.text();
-      console.log("Raw request body:", body);
+      console.log("📝 Raw request body:", body);
       requestData = JSON.parse(body);
-      console.log("Parsed request data:", JSON.stringify(requestData));
+      console.log("📋 Parsed request data:", JSON.stringify(requestData));
     } catch (error) {
-      console.error("Failed to parse request body:", error);
+      console.error("❌ Failed to parse request body:", error);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -86,7 +84,7 @@ const handler = async (req: Request): Promise<Response> => {
       if (!requesterName) missingFields.push("requesterName");
       if (!requestDate) missingFields.push("requestDate");
       
-      console.error("Missing required fields:", missingFields.join(", "));
+      console.error("❌ Missing required fields:", missingFields.join(", "));
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -104,7 +102,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Validate email format
     if (!businessEmail.includes('@')) {
-      console.error("Invalid email format:", businessEmail);
+      console.error("❌ Invalid email format:", businessEmail);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -136,7 +134,7 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
     
-    console.log("Sending email to:", businessEmail);
+    console.log("📧 Sending email to:", businessEmail);
     
     // Send email using Resend API
     const emailResponse = await resend.emails.send({
@@ -146,10 +144,10 @@ const handler = async (req: Request): Promise<Response> => {
       html: emailHtml,
     });
 
-    console.log("Email response:", JSON.stringify(emailResponse));
+    console.log("📬 Email API response:", JSON.stringify(emailResponse));
 
     if (!emailResponse.id) {
-      console.error("Failed to send email:", emailResponse);
+      console.error("❌ Failed to send email:", emailResponse);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -183,7 +181,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
     
   } catch (error) {
-    console.error("Unhandled error in send-booking-request-notification:", error);
+    console.error("❌ Unhandled error in send-booking-request-notification:", error);
     return new Response(
       JSON.stringify({ 
         success: false, 
