@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -67,15 +68,17 @@ export const useBookingRequests = () => {
     }
 
     try {
-      console.log(`Sending approval email to ${email} for booking at ${businessName} from ${startDate} to ${endDate}`);
+      console.log(`Sending approval email to ${email} for booking at ${businessName}`);
+      console.log(`Raw start date: ${startDate}`);
+      console.log(`Raw end date: ${endDate}`);
       
-      // Prepare the request with all required data
+      // Prepare the request with all required data - passing the original ISO strings directly
       const requestBody = JSON.stringify({
         recipientEmail: email.trim(),
         fullName: fullName || "",
         businessName: businessName || "Our Business",
-        startDate: startDate,
-        endDate: endDate,
+        startDate: startDate, // Pass the ISO string directly
+        endDate: endDate,     // Pass the ISO string directly
       });
       
       console.log("Request body for email function:", requestBody);

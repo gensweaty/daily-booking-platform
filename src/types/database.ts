@@ -52,8 +52,8 @@ export interface BookingRequest {
   requester_phone?: string;
   title: string;
   description?: string;
-  start_date: string;
-  end_date: string;
+  start_date: string; // ISO format date string
+  end_date: string;   // ISO format date string
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
