@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -177,19 +176,22 @@ export const BookingRequestForm = ({
     }
   };
 
-  const sendBookingNotification = async (businessEmail: string, name: string, bookingDate: Date) => {
+  const sendBookingNotification = async (businessEmail: string, name: string, bookingDate: Date, endDateTime: Date) => {
     try {
       console.log("🔍 Preparing to send notification email to:", businessEmail);
       
-      const formattedDate = format(bookingDate, "MMMM dd, yyyy 'at' h:mm a");
-      console.log("🔍 Formatted date for notification:", formattedDate);
+      const formattedStartDate = format(bookingDate, "MMMM dd, yyyy 'at' h:mm a");
+      const formattedEndDate = format(endDateTime, "MMMM dd, yyyy 'at' h:mm a");
+      console.log("🔍 Formatted dates for notification:", formattedStartDate, formattedEndDate);
       
       const notificationData = {
         businessEmail: businessEmail.trim(),
         requesterName: name,
-        requestDate: formattedDate,
+        requestDate: formattedStartDate,
+        endDate: formattedEndDate,
         phoneNumber: phone || undefined,
-        notes: notes || undefined
+        notes: notes || undefined,
+        requesterEmail: email || undefined
       };
       
       console.log("🔍 Sending notification with data:", JSON.stringify(notificationData));
@@ -220,7 +222,7 @@ export const BookingRequestForm = ({
       let responseData;
       try {
         responseData = JSON.parse(responseText);
-        console.log("🔍 Parsed notification response:", responseData);
+        console.log("��� Parsed notification response:", responseData);
       } catch (parseError) {
         console.error("⚠️ Failed to parse notification response:", parseError);
         responseData = { 
@@ -362,7 +364,8 @@ export const BookingRequestForm = ({
         const notificationResult = await sendBookingNotification(
           businessEmail,
           fullName,
-          startDateTime
+          startDateTime,
+          endDateTime
         );
         
         if (notificationResult.success) {

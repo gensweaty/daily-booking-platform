@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -12,9 +11,11 @@ interface BookingNotificationRequest {
   businessEmail: string;
   requesterName: string;
   requestDate: string;
+  endDate: string;
   phoneNumber?: string;
   notes?: string;
   businessName?: string;
+  requesterEmail?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -83,13 +84,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Validate required fields
-    const { businessEmail, requesterName, requestDate, phoneNumber = "", notes = "", businessName = "Your Business" } = requestData;
+    const { businessEmail, requesterName, requestDate, endDate, phoneNumber = "", notes = "", businessName = "Your Business", requesterEmail = "" } = requestData;
     
-    if (!businessEmail || !requesterName || !requestDate) {
+    if (!businessEmail || !requesterName || !requestDate || !endDate) {
       const missingFields = [];
       if (!businessEmail) missingFields.push("businessEmail");
       if (!requesterName) missingFields.push("requesterName");
       if (!requestDate) missingFields.push("requestDate");
+      if (!endDate) missingFields.push("endDate");
       
       console.error("❌ Missing required fields:", missingFields.join(", "));
       return new Response(
@@ -151,9 +153,11 @@ const handler = async (req: Request): Promise<Response> => {
           <p>Hello,</p>
           <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
           <div class="details">
-            <p class="detail"><strong>Date:</strong> ${requestDate}</p>
+            <p class="detail"><strong>Start Date:</strong> ${requestDate}</p>
+            <p class="detail"><strong>End Date:</strong> ${endDate}</p>
             ${phoneNumber ? `<p class="detail"><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
             ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
+            ${requesterEmail ? `<p class="detail"><strong>Email:</strong> ${requesterEmail}</p>` : ''}
           </div>
           <p>Please log in to your dashboard to view and respond to this request:</p>
           <div class="button">
@@ -175,9 +179,11 @@ Hello,
 
 You have received a new booking request from ${requesterName}.
 
-Date: ${requestDate}
+Start Date: ${requestDate}
+End Date: ${endDate}
 ${phoneNumber ? `Phone: ${phoneNumber}` : ''}
 ${notes ? `Notes: ${notes}` : ''}
+${requesterEmail ? `Email: ${requesterEmail}` : ''}
 
 Please log in to your dashboard to view and respond to this request:
 https://smartbookly.com/dashboard
