@@ -143,40 +143,31 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-// Format dates in a way that preserves the original time
+// Format dates with timezone awareness using Intl.DateTimeFormat
 function formatDateTime(isoString: string): string {
-  console.log(`Formatting date: ${isoString}`);
+  console.log(`Formatting date with timezone: ${isoString}`);
   
   try {
-    // Create a Date object preserving the original time
+    // Use Intl.DateTimeFormat with explicit timezone to ensure correct time display
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Tbilisi', // Set this to your local business timezone
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    
     const date = new Date(isoString);
+    const formatted = formatter.format(date);
     
-    // Extract date components
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1; // getMonth() returns 0-11
-    const day = date.getDate();
+    console.log(`Original ISO: ${isoString}`);
+    console.log(`Formatted with timezone: ${formatted}`);
     
-    // Extract time components
-    let hours = date.getHours();
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    
-    // Convert to 12-hour format
-    hours = hours % 12;
-    hours = hours ? hours : 12; // Convert 0 to 12
-    
-    // Format as "April 20, 2025 at 10:00 AM"
-    const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    
-    const formattedDate = `${monthNames[month-1]} ${day}, ${year} at ${hours}:${minutes} ${ampm}`;
-    
-    console.log(`Formatted result: ${formattedDate}`);
-    return formattedDate;
+    return formatted;
   } catch (error) {
-    console.error(`Error formatting date: ${error}`);
+    console.error(`Error formatting date with timezone: ${error}`);
     return isoString; // Return original string if any error occurs
   }
 }
