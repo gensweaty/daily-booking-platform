@@ -41,6 +41,8 @@ const handler = async (req: Request): Promise<Response> => {
     const { recipientEmail, fullName, businessName, startDate, endDate } = parsedBody;
 
     console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName}`);
+    console.log(`Start date (raw): ${startDate}`);
+    console.log(`End date (raw): ${endDate}`);
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -52,8 +54,20 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const startFormatted = new Date(startDate).toLocaleString();
-    const endFormatted = new Date(endDate).toLocaleString();
+    // Parse dates without changing timezone
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    
+    // Log the parsed dates to verify
+    console.log(`Start date (parsed): ${startDateObj.toString()}`);
+    console.log(`End date (parsed): ${endDateObj.toString()}`);
+    
+    // Format dates manually to avoid timezone issues
+    const formattedStartDate = formatDateTimeLocally(startDateObj);
+    const formattedEndDate = formatDateTimeLocally(endDateObj);
+    
+    console.log(`Formatted start date: ${formattedStartDate}`);
+    console.log(`Formatted end date: ${formattedEndDate}`);
     
     // Setup SMTP client with Resend SMTP configuration
     const client = new SMTPClient({
@@ -76,7 +90,7 @@ const handler = async (req: Request): Promise<Response> => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
           <h2 style="color: #333;">Hello ${fullName},</h2>
           <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
-          <p><strong>Booking date and time:</strong> ${startFormatted} - ${endFormatted}</p>
+          <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
           <p>We look forward to seeing you!</p>
           <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
           <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
@@ -136,5 +150,24 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 };
+
+// Helper function to format date/time in a consistent way without timezone issues
+function formatDateTimeLocally(date: Date): string {
+  // Extract all date/time components
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const year = date.getFullYear();
+  
+  let hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  
+  // Convert to 12-hour format
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+  
+  // Format as MM/DD/YYYY h:MM AM/PM
+  return `${month}/${day}/${year} ${hours}:${minutes < 10 ? '0' + minutes : minutes} ${ampm}`;
+}
 
 serve(handler);
