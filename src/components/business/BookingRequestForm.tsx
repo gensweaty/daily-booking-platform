@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,82 +122,57 @@ export const BookingRequestForm = ({
     try {
       const { data: businessData, error: businessError } = await supabase
         .from('business_profiles')
-        .select('user_email, contact_email')
+        .select('user_id, contact_email')
         .eq('id', businessId)
         .maybeSingle();
       
-      if (!businessError && businessData) {
-        if (businessData.user_email) {
-          console.log("Found user_email in business_profiles:", businessData.user_email);
-          return businessData.user_email;
-        }
-        
-        if (businessData.contact_email) {
-          console.log("Found contact_email in business_profiles:", businessData.contact_email);
-          return businessData.contact_email;
-        }
-      }
-      
-      console.log("No email found in business_profiles, checking user account...");
-      
-      const { data: profileData, error: profileError } = await supabase
-        .from('business_profiles')
-        .select('user_id')
-        .eq('id', businessId)
-        .single();
-      
-      if (profileError) {
-        console.error("Error getting business owner's user ID:", profileError);
+      if (businessError) {
+        console.error("Error getting business data:", businessError);
         throw new Error("Could not find business information");
       }
       
-      if (!profileData.user_id) {
+      console.log("Business data retrieved:", businessData);
+      
+      // If contact_email exists and is valid, use it
+      if (businessData?.contact_email && businessData.contact_email.includes('@')) {
+        console.log("Using contact_email from business profile:", businessData.contact_email);
+        return businessData.contact_email;
+      }
+      
+      if (!businessData?.user_id) {
         console.error("Business has no associated user ID");
         throw new Error("Invalid business configuration");
       }
       
-      console.log("Found business owner user ID:", profileData.user_id);
-      
+      // Try to get user email directly from auth
       try {
-        const { data: userData, error: userError } = await supabase.auth.admin.getUserById(
-          profileData.user_id
-        );
+        const { data: userData } = await supabase.auth.getUser();
         
-        if (userError) {
-          console.error("Error getting user data:", userError);
-          throw new Error("Could not retrieve user information");
+        if (userData?.user?.email) {
+          console.log("Found user email from current session:", userData.user.email);
+          return userData.user.email;
         }
-        
-        if (!userData?.user?.email) {
-          console.error("No email found for user");
-          throw new Error("User email not available");
-        }
-        
-        console.log("Found email from auth.users:", userData.user.email);
-        return userData.user.email;
-      } catch (adminError) {
-        console.error("Cannot use admin.getUserById in client code, trying session fallback:", adminError);
-        
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error("Error getting auth session:", sessionError);
-          throw new Error("Authentication error");
-        }
-        
-        const userEmail = sessionData.session?.user?.email;
-        
-        if (!userEmail) {
-          console.error("No email found in user session");
-          throw new Error("User email not available");
-        }
-        
-        console.log("Using email from auth session:", userEmail);
-        return userEmail;
+      } catch (userError) {
+        console.error("Error getting user data:", userError);
       }
+      
+      // Fallback to user_email field in business_profiles
+      const { data: profileData } = await supabase
+        .from('business_profiles')
+        .select('user_email')
+        .eq('id', businessId)
+        .single();
+      
+      if (profileData?.user_email && profileData.user_email.includes('@')) {
+        console.log("Using user_email from business profile:", profileData.user_email);
+        return profileData.user_email;
+      }
+      
+      // Last resort fallback
+      console.warn("No valid email found for business, using fallback");
+      return "info@smartbookly.com";
     } catch (error) {
       console.error("Error retrieving business email:", error);
-      
       return "info@smartbookly.com";
     }
   };
