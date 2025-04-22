@@ -63,8 +63,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`End date (parsed): ${endDateObj.toString()}`);
     
     // Format dates manually to avoid timezone issues
-    const formattedStartDate = formatDateTimeLocally(startDateObj);
-    const formattedEndDate = formatDateTimeLocally(endDateObj);
+    const formattedStartDate = formatDateTimeWithLocalTime(startDate);
+    const formattedEndDate = formatDateTimeWithLocalTime(endDate);
     
     console.log(`Formatted start date: ${formattedStartDate}`);
     console.log(`Formatted end date: ${formattedEndDate}`);
@@ -151,7 +151,52 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-// Helper function to format date/time in a consistent way without timezone issues
+// Improved helper function to correctly format date/time from the ISO string directly
+function formatDateTimeWithLocalTime(isoDateString: string): string {
+  console.log(`Formatting ISO date string: ${isoDateString}`);
+  
+  try {
+    // Parse the ISO date string directly
+    const date = new Date(isoDateString);
+    console.log(`Parsed date object: ${date.toString()}`);
+    
+    // Extract date parts directly from the ISO string to avoid timezone conversion
+    const isoDate = new Date(isoDateString);
+    
+    // Get the correct year, month, day from the ISO date 
+    const year = isoDate.getFullYear();
+    const month = isoDate.getMonth() + 1; // Month is 0-indexed
+    const day = isoDate.getDate();
+    
+    // Get hours and minutes from the ISO string directly
+    // We need to extract these from the string to preserve original values
+    const timeMatch = isoDateString.match(/T(\d{2}):(\d{2})/);
+    
+    if (!timeMatch) {
+      console.error("Could not extract time from ISO string");
+      // Fallback to using the date object directly
+      return formatDateTimeLocally(date);
+    }
+    
+    const hours24 = parseInt(timeMatch[1], 10);
+    const minutes = parseInt(timeMatch[2], 10);
+    
+    // Convert to 12-hour format with AM/PM
+    const period = hours24 >= 12 ? 'PM' : 'AM';
+    const hours12 = hours24 % 12 || 12; // Convert 0 to 12
+    
+    console.log(`Extracted data - Year: ${year}, Month: ${month}, Day: ${day}, Hours: ${hours24}, Minutes: ${minutes}, Period: ${period}`);
+    
+    // Format as MM/DD/YYYY h:MM AM/PM
+    return `${month}/${day}/${year} ${hours12}:${minutes < 10 ? '0' + minutes : minutes} ${period}`;
+  } catch (error) {
+    console.error(`Error formatting date string "${isoDateString}":`, error);
+    // If there's an error, fall back to the more basic formatter
+    return formatDateTimeLocally(new Date(isoDateString));
+  }
+}
+
+// Original helper function as fallback
 function formatDateTimeLocally(date: Date): string {
   // Extract all date/time components
   const month = date.getMonth() + 1;
