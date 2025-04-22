@@ -54,10 +54,9 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    // Parse start and end dates directly from the provided ISO strings
-    // Use a completely different approach to explicitly extract the date and time components
-    const formattedStartDate = parseAndFormatDateTime(startDate);
-    const formattedEndDate = parseAndFormatDateTime(endDate);
+    // New date formatting that respects the original time
+    const formattedStartDate = formatDateTime(startDate);
+    const formattedEndDate = formatDateTime(endDate);
     
     console.log(`Formatted start date: ${formattedStartDate}`);
     console.log(`Formatted end date: ${formattedEndDate}`);
@@ -144,40 +143,40 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-// New date parsing and formatting function
-function parseAndFormatDateTime(isoString: string): string {
-  console.log(`[parseAndFormatDateTime] Processing ISO string: ${isoString}`);
+// Format dates in a way that preserves the original time
+function formatDateTime(isoString: string): string {
+  console.log(`Formatting date: ${isoString}`);
   
   try {
-    // Parse the date parts directly from the ISO string
-    // ISO format: YYYY-MM-DDTHH:mm:ss.sssZ
-    // Example: 2025-04-20T09:00:00.000Z
+    // Create a Date object preserving the original time
+    const date = new Date(isoString);
     
-    // Extract date parts using regex pattern matching
-    const dateTimePattern = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/;
-    const match = isoString.match(dateTimePattern);
+    // Extract date components
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1; // getMonth() returns 0-11
+    const day = date.getDate();
     
-    if (!match) {
-      console.error(`[parseAndFormatDateTime] Failed to parse ISO string: ${isoString}`);
-      return isoString; // Return original string if parsing fails
-    }
+    // Extract time components
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
     
-    const [_, year, month, day, hours, minutes] = match;
+    // Convert to 12-hour format
+    hours = hours % 12;
+    hours = hours ? hours : 12; // Convert 0 to 12
     
-    console.log(`[parseAndFormatDateTime] Extracted parts: year=${year}, month=${month}, day=${day}, hours=${hours}, minutes=${minutes}`);
+    // Format as "April 20, 2025 at 10:00 AM"
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
     
-    // Convert from 24-hour to 12-hour format with AM/PM
-    const hour = parseInt(hours, 10);
-    const hourIn12Format = hour % 12 || 12; // Convert 0 to 12
-    const amOrPm = hour >= 12 ? 'PM' : 'AM';
+    const formattedDate = `${monthNames[month-1]} ${day}, ${year} at ${hours}:${minutes} ${ampm}`;
     
-    // Format the date as MM/DD/YYYY h:MM AM/PM
-    const formattedDate = `${parseInt(month, 10)}/${parseInt(day, 10)}/${year} ${hourIn12Format}:${minutes} ${amOrPm}`;
-    
-    console.log(`[parseAndFormatDateTime] Formatted result: ${formattedDate}`);
+    console.log(`Formatted result: ${formattedDate}`);
     return formattedDate;
   } catch (error) {
-    console.error(`[parseAndFormatDateTime] Error formatting date: ${error}`);
+    console.error(`Error formatting date: ${error}`);
     return isoString; // Return original string if any error occurs
   }
 }
