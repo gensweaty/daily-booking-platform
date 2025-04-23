@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import {
   Command,
@@ -19,7 +18,7 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
   const debounceTimeout = React.useRef<NodeJS.Timeout | null>(null);
   const dataRef = React.useRef(data);
   const [searchValue, setSearchValue] = React.useState<string>("");
-  
+
   // Update the ref when data changes
   React.useEffect(() => {
     dataRef.current = data;
@@ -33,7 +32,6 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
   }, [data, searchValue, setFilteredData]);
 
   // Real-time elastic-like search implementation
-  // Removed useCallback to ensure it always has access to latest dataRef.current
   const handleSearch = (search: string) => {
     setSearchValue(search);
     
@@ -58,7 +56,6 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
         item.social_network_link,
         item.event_notes,
         item.payment_status,
-        // Add any other fields that might contain relevant search data
       ]
         .filter(Boolean)
         .join(' ')
@@ -73,7 +70,7 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
     // Update the filtered data to show in the main table
     setFilteredData(filtered);
   };
-  
+
   // Clean up timeout on unmount
   React.useEffect(() => {
     return () => {
@@ -99,7 +96,7 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
           placeholder="Search..."
           className="h-9"
           value={searchValue}
-          onValueChange={handleSearch}
+          onChange={(e) => handleSearch(e.target.value)}
         />
       </Command>
     </div>
