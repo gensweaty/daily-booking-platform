@@ -2,13 +2,14 @@
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
+import type { FileRecord } from "@/types/files";
 
 interface FileDisplayProps {
-  files: any[];
+  files: FileRecord[];
   bucketName: string;
   allowDelete?: boolean;
   onFileDeleted?: (fileId: string) => void;

@@ -95,19 +95,21 @@ export const EventDialog = ({
       if (event?.id) {
         try {
           console.log("Loading files for event:", event.id);
-          const { data, error } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', event.id);
+          const { data: files, error } = await supabase
+            .rpc('get_all_related_files', {
+              event_id_param: event.id,
+              customer_id_param: null,
+              entity_name_param: event.title
+            });
             
           if (error) {
             console.error("Error loading event files:", error);
             return;
           }
           
-          if (data && data.length > 0) {
-            console.log("Loaded event files:", data);
-            setDisplayedFiles(data);
+          if (files && files.length > 0) {
+            console.log("Loaded event files:", files);
+            setDisplayedFiles(files);
           } else {
             console.log("No files found for event:", event.id);
             setDisplayedFiles([]);
@@ -177,18 +179,15 @@ export const EventDialog = ({
       
       console.log("Email API response status:", response.status);
       
-      // Read the response as text first
       const responseText = await response.text();
       console.log("Email API response text:", responseText);
       
-      // Try to parse the JSON
       let responseData;
       try {
         responseData = responseText ? JSON.parse(responseText) : {};
         console.log("Email API parsed response:", responseData);
       } catch (jsonError) {
         console.error("Failed to parse email API response as JSON:", jsonError);
-        // Continue with the text response
         responseData = { textResponse: responseText };
       }
       
@@ -210,7 +209,7 @@ export const EventDialog = ({
           (emailError instanceof Error ? emailError.message : "Unknown error"),
         variant: "destructive",
       });
-      throw emailError; // Re-throw to handle it in the calling function
+      throw emailError;
     }
   };
 
@@ -261,7 +260,6 @@ export const EventDialog = ({
 
       let emailSent = false;
 
-      // Handle sending approval email based on conditions
       if ((isApprovingBookingRequest || !event?.id || event.type === 'booking_request') && 
           socialNetworkLink && 
           socialNetworkLink.includes("@")) {
@@ -285,11 +283,9 @@ export const EventDialog = ({
           emailSent = true;
         } catch (emailError) {
           console.error("Failed to send approval email:", emailError);
-          // We continue with event creation even if email fails
         }
       }
 
-      // Handle file upload if there's a selected file
       if (selectedFile && createdEvent?.id && user) {
         try {
           const fileExt = selectedFile.name.split('.').pop();
@@ -311,20 +307,12 @@ export const EventDialog = ({
             file_path: filePath,
             content_type: selectedFile.type,
             size: selectedFile.size,
-            user_id: user.id
+            user_id: user.id,
+            event_id: createdEvent.id
           };
 
-          console.log('Creating file record with data:', {
-            ...fileData,
-            event_id: createdEvent.id
-          });
-
           const { error: fileRecordError } = await supabase
-            .from('event_files')
-            .insert({
-              ...fileData,
-              event_id: createdEvent.id
-            });
+            .rpc('insert_event_file', fileData);
             
           if (fileRecordError) {
             console.error('Error creating file record:', fileRecordError);
@@ -332,37 +320,8 @@ export const EventDialog = ({
           }
 
           console.log('File record created successfully');
-          
-          // Also create a customer_files_new record if this is tied to a customer
-          try {
-            const { data: customer, error: customerError } = await supabase
-              .from('customers')
-              .select('id')
-              .eq('title', title)
-              .maybeSingle();
-              
-            if (!customerError && customer?.id) {
-              console.log('Found associated customer:', customer.id);
-              
-              const { error: customerFileError } = await supabase
-                .from('customer_files_new')
-                .insert({
-                  ...fileData,
-                  customer_id: customer.id
-                });
-                
-              if (customerFileError) {
-                console.error('Error creating customer file record:', customerFileError);
-              } else {
-                console.log('Customer file record created successfully');
-              }
-            }
-          } catch (customerError) {
-            console.error("Error handling customer file:", customerError);
-          }
         } catch (fileError) {
           console.error("Error handling file upload:", fileError);
-          // Continue even if file upload fails
         }
       }
 

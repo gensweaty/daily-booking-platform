@@ -1,8 +1,8 @@
-
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { endOfDay } from 'date-fns';
+import type { FileRecord } from '@/types/files';
 
 export function useCRMData(userId: string | undefined, dateRange: { start: Date, end: Date }) {
   // Memoize query keys to prevent unnecessary re-renders
@@ -45,23 +45,36 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     if (!userId) return [];
     
     console.log("Fetching events for user:", userId);
-    const { data, error } = await supabase
+    const { data: events, error: eventsError } = await supabase
       .from('events')
-      .select(`
-        *,
-        event_files(*)
-      `)
+      .select('*')
       .eq('user_id', userId)
       .gte('start_date', dateRange.start.toISOString())
       .lte('start_date', endOfDay(dateRange.end).toISOString())
       .is('deleted_at', null);
 
-    if (error) {
-      console.error("Error fetching events:", error);
-      throw error;
+    if (eventsError) {
+      console.error("Error fetching events:", eventsError);
+      throw eventsError;
     }
-    console.log("Retrieved events:", data?.length || 0);
-    return data || [];
+
+    // Fetch files for each event
+    const eventsWithFiles = await Promise.all(events.map(async (event) => {
+      const { data: files } = await supabase
+        .rpc('get_all_related_files', {
+          event_id_param: event.id,
+          customer_id_param: null,
+          entity_name_param: event.title
+        });
+      
+      return {
+        ...event,
+        event_files: files || []
+      };
+    }));
+
+    console.log("Retrieved events:", eventsWithFiles.length);
+    return eventsWithFiles;
   }, [userId, dateRange.start, dateRange.end]);
 
   const { 
