@@ -155,14 +155,38 @@ export const FileDisplay = ({
                           parentType === 'customer' ? 'customer_files_new' : 'files';
         
         console.log(`Deleting file reference from table ${tableName}, id: ${fileId}`);
-        const { error: dbError } = await supabase
-          .from(tableName)
-          .delete()
-          .eq('id', fileId);
+        
+        // Use the correct table name with type assertion to fix the TypeScript error
+        if (tableName === 'event_files') {
+          const { error: dbError } = await supabase
+            .from('event_files')
+            .delete()
+            .eq('id', fileId);
           
-        if (dbError) {
-          console.error(`Error deleting file from ${tableName}:`, dbError);
-          throw dbError;
+          if (dbError) {
+            console.error(`Error deleting file from ${tableName}:`, dbError);
+            throw dbError;
+          }
+        } else if (tableName === 'customer_files_new') {
+          const { error: dbError } = await supabase
+            .from('customer_files_new')
+            .delete()
+            .eq('id', fileId);
+          
+          if (dbError) {
+            console.error(`Error deleting file from ${tableName}:`, dbError);
+            throw dbError;
+          }
+        } else {
+          const { error: dbError } = await supabase
+            .from('files')
+            .delete()
+            .eq('id', fileId);
+          
+          if (dbError) {
+            console.error(`Error deleting file from ${tableName}:`, dbError);
+            throw dbError;
+          }
         }
         
         if (onFileDeleted) {
@@ -195,7 +219,8 @@ export const FileDisplay = ({
       
       // Skip database delete for virtual booking files
       if (!fileId.startsWith('booking-')) {
-        let tableName = 'files';
+        let tableName: 'files' | 'event_files' | 'customer_files_new' | 'note_files' = 'files';
+        
         if (effectiveBucket === 'event_attachments' || parentType === 'event') {
           tableName = 'event_files';
         } else if (effectiveBucket === 'customer_attachments' || parentType === 'customer') {
@@ -205,6 +230,7 @@ export const FileDisplay = ({
         }
         
         console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);
+        
         const { error: dbError } = await supabase
           .from(tableName)
           .delete()
