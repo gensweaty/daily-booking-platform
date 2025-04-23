@@ -278,6 +278,8 @@ export const CalendarGrid = ({
         {days.map((day) => {
           const dayEvents = events.filter((event) => isSameDay(new Date(event.start_date), day));
           const isOtherMonth = !isSameMonth(day, selectedDate);
+          const eventsToShow = dayEvents.slice(0, 2);
+          const hiddenEventsCount = Math.max(0, dayEvents.length - 2);
           
           return (
             <div
@@ -298,36 +300,11 @@ export const CalendarGrid = ({
               </div>
               <div className="mt-1 sm:mt-2 space-y-0.5 sm:space-y-1">
                 {dayEvents.length > 0 ? (
-                  isMobile ? (
-                    <>
-                      {dayEvents.slice(0, 2).map((event) => (
-                        <div
-                          key={event.id}
-                          className={`text-[0.65rem] sm:text-sm p-1 sm:p-2 rounded flex items-center gap-1 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
-                            isOtherMonth ? 'opacity-60' : ''
-                          }`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEventClick?.(event);
-                          }}
-                        >
-                          <CalendarIcon className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5 sm:mr-1.5 shrink-0" />
-                          {renderEventContent(event)}
-                        </div>
-                      ))}
-                      {dayEvents.length > 2 && (
-                        <div className={`text-[0.65rem] ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium pl-1 ${
-                          isOtherMonth ? 'opacity-60' : ''
-                        }`}>
-                          +{dayEvents.length - 2} more
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    dayEvents.map((event) => (
+                  <>
+                    {eventsToShow.map((event) => (
                       <div
                         key={event.id}
-                        className={`text-sm p-2 rounded flex items-center gap-2 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
+                        className={`text-[0.65rem] sm:text-sm p-1 sm:p-2 rounded flex items-center gap-1 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
                           isOtherMonth ? 'opacity-60' : ''
                         }`}
                         onClick={(e) => {
@@ -335,11 +312,18 @@ export const CalendarGrid = ({
                           onEventClick?.(event);
                         }}
                       >
-                        <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
+                        <CalendarIcon className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5 sm:mr-1.5 shrink-0" />
                         {renderEventContent(event)}
                       </div>
-                    ))
-                  )
+                    ))}
+                    {hiddenEventsCount > 0 && (
+                      <div className={`text-[0.65rem] sm:text-xs ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium pl-1 ${
+                        isOtherMonth ? 'opacity-60' : ''
+                      }`}>
+                        {`+${hiddenEventsCount} more`}
+                      </div>
+                    )}
+                  </>
                 ) : null}
               </div>
             </div>
