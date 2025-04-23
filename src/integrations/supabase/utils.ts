@@ -10,7 +10,8 @@ export const determineEffectiveBucket = (filePath: string, parentType?: string, 
     return ''; 
   }
   
-  if (source === 'event' || source === 'booking_request') {
+  // First, prioritize source parameter if provided
+  if (source === 'event' || source === 'booking_request' || source === 'booking_files') {
     return "event_attachments";
   }
   
@@ -18,6 +19,7 @@ export const determineEffectiveBucket = (filePath: string, parentType?: string, 
     return "customer_attachments";
   }
   
+  // Then check file path patterns
   if (filePath && (
     filePath.includes("b22b") || 
     /^\d{13}_/.test(filePath) || 
@@ -34,6 +36,7 @@ export const determineEffectiveBucket = (filePath: string, parentType?: string, 
     return "event_attachments";
   }
   
+  // Then check parent type
   if (parentType === "customer" && filePath && 
     !filePath.includes("b22b") && 
     !/^\d{13}_/.test(filePath) &&
@@ -47,7 +50,8 @@ export const determineEffectiveBucket = (filePath: string, parentType?: string, 
     return "event_attachments";
   }
   
-  return "event_attachments"; // Default to event_attachments
+  // Default fallback
+  return "event_attachments";
 };
 
 // Helper function to get the direct file URL

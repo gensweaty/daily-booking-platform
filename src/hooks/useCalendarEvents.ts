@@ -315,6 +315,25 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               filename: bookingData.filename || 'attachment'
             };
             console.log("Booking has associated file:", bookingFile);
+          } else {
+            console.log("No file found in booking_requests, checking booking_files table");
+            const { data: bookingFilesData, error: bookingFilesError } = await supabase
+              .from("booking_files")
+              .select("*")
+              .eq("booking_id", id)
+              .maybeSingle();
+              
+            if (!bookingFilesError && bookingFilesData) {
+              bookingFile = {
+                file_path: bookingFilesData.file_path,
+                filename: bookingFilesData.filename || 'attachment'
+              };
+              console.log("Found file in booking_files table:", bookingFile);
+            } else if (bookingFilesError) {
+              console.error("Error checking booking_files table:", bookingFilesError);
+            } else {
+              console.log("No files found in booking_files table");
+            }
           }
           
           const { data: updatedBooking, error: updateError } = await supabase

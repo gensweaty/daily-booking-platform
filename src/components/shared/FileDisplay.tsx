@@ -53,8 +53,9 @@ export const FileDisplay = ({
         }
         
         const normalizedPath = normalizeFilePath(file.file_path);
+        // Use source if provided in the file object
         const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
-        console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path}`);
+        console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path} (source: ${file.source || 'unknown'})`);
         newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
       }
     });
@@ -85,8 +86,12 @@ export const FileDisplay = ({
         return;
       }
       
-      const effectiveBucket = determineEffectiveBucket(filePath, parentType);
-      console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath}`);
+      // Get the source from the file object if available
+      const fileObject = files.find(f => f.id === fileId);
+      const source = fileObject?.source;
+      
+      const effectiveBucket = determineEffectiveBucket(filePath, parentType, source);
+      console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath} (source: ${source || 'unknown'})`);
       
       const directUrl = fileURLs[fileId] || 
         `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
@@ -136,7 +141,11 @@ export const FileDisplay = ({
         throw new Error('File path is missing');
       }
       
-      const directUrl = getDirectFileUrl(filePath, fileId, parentType);
+      // Get the source from the file object if available
+      const fileObject = files.find(f => f.id === fileId);
+      const source = fileObject?.source;
+      
+      const directUrl = getDirectFileUrl(filePath, fileId, source || parentType);
       console.log('Opening file with direct URL:', directUrl);
       
       // Open in a new tab to prevent navigating away
@@ -160,8 +169,15 @@ export const FileDisplay = ({
         console.log("Cannot delete external file from storage:", filePath);
         
         // But we can delete the reference from our database
-        const tableName = parentType === 'event' ? 'event_files' : 
-                          parentType === 'customer' ? 'customer_files_new' : 'files';
+        const fileObj = files.find(f => f.id === fileId);
+        const source = fileObj?.source;
+        let tableName = parentType === 'event' ? 'event_files' : 
+                       parentType === 'customer' ? 'customer_files_new' : 'files';
+        
+        // Override tableName based on source if available
+        if (source === 'booking_files') {
+          tableName = 'booking_files';
+        }
         
         console.log(`Deleting file reference from table ${tableName}, id: ${fileId}`);
         
@@ -179,6 +195,16 @@ export const FileDisplay = ({
         } else if (tableName === 'customer_files_new') {
           const { error: dbError } = await supabase
             .from('customer_files_new')
+            .delete()
+            .eq('id', fileId);
+          
+          if (dbError) {
+            console.error(`Error deleting file from ${tableName}:`, dbError);
+            throw dbError;
+          }
+        } else if (tableName === 'booking_files') {
+          const { error: dbError } = await supabase
+            .from('booking_files')
             .delete()
             .eq('id', fileId);
           
@@ -210,11 +236,20 @@ export const FileDisplay = ({
         return;
       }
       
-      const effectiveBucket = determineEffectiveBucket(filePath, parentType);
-      console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}`);
+      // Get the source from the file object if available
+      const fileObj = files.find(f => f.id === fileId);
+      const source = fileObj?.source;
       
-      // Skip storage delete if it's a booking file (just a reference)
-      if (!fileId.startsWith('booking-')) {
+      const effectiveBucket = determineEffectiveBucket(filePath, parentType, source);
+      console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}, source: ${source || 'unknown'}`);
+      
+      // Skip storage delete for virtual files
+      const isVirtualFile = fileId.startsWith('booking-') || 
+                          fileId.startsWith('event-file-') || 
+                          source === 'booking_request' ||
+                          source === 'booking_files';
+                          
+      if (!isVirtualFile) {
         const { error: storageError } = await supabase.storage
           .from(effectiveBucket)
           .remove([normalizeFilePath(filePath)]);
@@ -227,12 +262,15 @@ export const FileDisplay = ({
       }
       
       // Skip database delete for virtual booking files
-      if (!fileId.startsWith('booking-')) {
-        let tableName: 'files' | 'event_files' | 'customer_files_new' | 'note_files' = 'files';
+      if (!isVirtualFile) {
+        let tableName: 'files' | 'event_files' | 'customer_files_new' | 'note_files' | 'booking_files' = 'files';
         
-        if (effectiveBucket === 'event_attachments' || parentType === 'event') {
+        // Determine table based on source if available
+        if (source === 'booking_files') {
+          tableName = 'booking_files';
+        } else if (effectiveBucket === 'event_attachments' || parentType === 'event' || source === 'event') {
           tableName = 'event_files';
-        } else if (effectiveBucket === 'customer_attachments' || parentType === 'customer') {
+        } else if (effectiveBucket === 'customer_attachments' || parentType === 'customer' || source === 'customer') {
           tableName = 'customer_files_new';
         } else if (effectiveBucket === 'note_attachments' || parentType === 'note') {
           tableName = 'note_files';
