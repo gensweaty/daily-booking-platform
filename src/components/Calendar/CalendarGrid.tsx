@@ -17,10 +17,11 @@ interface CalendarGridProps {
 const getBookingHours = (event: CalendarEventType) => {
   const start = new Date(event.start_date);
   const end = new Date(event.end_date);
-  const startHour = Math.max(0, Math.min(23, start.getHours()));
-  let endHour = Math.max(0, Math.min(23, end.getHours()));
-  if (endHour <= startHour) endHour = startHour + 1 > 23 ? 23 : startHour + 1;
-  return `${startHour}–${endHour}`;
+  const startHour = start.getHours();
+  const startMinute = start.getMinutes();
+  const endHour = end.getHours();
+  const endMinute = end.getMinutes();
+  return `${startHour}:${startMinute.toString().padStart(2, "0")}\u2013${endHour}:${endMinute.toString().padStart(2, "0")}`;
 };
 
 export const CalendarGrid = ({
@@ -67,10 +68,10 @@ export const CalendarGrid = ({
     if (isExternalCalendar) {
       return (
         <div className="w-full">
-          <span className="block text-[0.7rem] font-medium truncate">
+          <span className="block font-medium text-xs sm:text-sm truncate">
             Booked
           </span>
-          <span className="block text-[0.6rem] opacity-80 truncate">
+          <span className="block text-xs sm:text-sm opacity-80 truncate">
             {bookingHours}
           </span>
         </div>
@@ -81,10 +82,10 @@ export const CalendarGrid = ({
     const name = event.requester_name || event.title || "";
     return (
       <div className="w-full">
-        <span className="block text-[0.7rem] font-medium truncate">
+        <span className="block font-medium text-xs sm:text-sm truncate">
           {name}
         </span>
-        <span className="block text-[0.6rem] opacity-80 truncate">
+        <span className="block text-xs sm:text-sm opacity-80 truncate">
           {bookingHours}
         </span>
       </div>
@@ -174,7 +175,7 @@ export const CalendarGrid = ({
                       return (
                         <div
                           key={event.id}
-                          className={`${getEventStyles(event)} rounded cursor-pointer absolute top-1 left-1 right-1 overflow-hidden ${isMobile ? 'p-0.5' : 'p-1 sm:p-2'}`}
+                          className={`${getEventStyles(event)} rounded cursor-pointer absolute top-1 left-1 right-1 overflow-hidden p-1 sm:p-2`}
                           style={{ 
                             height: `${Math.min(durationHours * 6 - 0.5, 5.5)}rem`,
                             zIndex: 10
@@ -239,7 +240,7 @@ export const CalendarGrid = ({
                         return (
                           <div
                             key={event.id}
-                            className={`${getEventStyles(event)} rounded cursor-pointer absolute top-1 left-1 right-1 overflow-hidden ${isMobile ? 'p-0.5' : 'p-1 sm:p-2'}`}
+                            className={`${getEventStyles(event)} rounded cursor-pointer absolute top-1 left-1 right-1 overflow-hidden p-1 sm:p-2`}
                             style={{ 
                               height: `${Math.min(durationHours * 6 - 0.5, 5.5)}rem`,
                               zIndex: 10
@@ -302,7 +303,7 @@ export const CalendarGrid = ({
                       {dayEvents.slice(0, 2).map((event) => (
                         <div
                           key={event.id}
-                          className={`text-[0.65rem] sm:text-sm p-0.5 pl-1 sm:p-1.5 rounded flex items-center gap-1 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
+                          className={`text-[0.65rem] sm:text-sm p-1 sm:p-2 rounded flex items-center gap-1 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
                             isOtherMonth ? 'opacity-60' : ''
                           }`}
                           onClick={(e) => {
@@ -326,7 +327,7 @@ export const CalendarGrid = ({
                     dayEvents.map((event) => (
                       <div
                         key={event.id}
-                        className={`text-sm p-1.5 rounded flex items-center gap-2 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
+                        className={`text-sm p-2 rounded flex items-center gap-2 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
                           isOtherMonth ? 'opacity-60' : ''
                         }`}
                         onClick={(e) => {
@@ -381,7 +382,7 @@ export const CalendarGrid = ({
                     {dayEvents.slice(0, 2).map((event) => (
                       <div
                         key={event.id}
-                        className={`text-[0.65rem] sm:text-sm p-0.5 pl-1 sm:p-1.5 rounded flex items-center gap-1 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
+                        className={`text-[0.65rem] sm:text-sm p-1 sm:p-2 rounded flex items-center gap-1 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
                           isOtherMonth ? 'opacity-60' : ''
                         }`}
                         onClick={(e) => {
@@ -405,7 +406,7 @@ export const CalendarGrid = ({
                   dayEvents.map((event) => (
                     <div
                       key={event.id}
-                      className={`text-sm p-1.5 rounded flex items-center gap-2 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
+                      className={`text-sm p-2 rounded flex items-center gap-2 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
                         isOtherMonth ? 'opacity-60' : ''
                       }`}
                       onClick={(e) => {
