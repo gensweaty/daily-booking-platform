@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { format } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Trash2 } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -95,6 +94,7 @@ export const EventDialog = ({
     const loadFiles = async () => {
       if (event?.id) {
         try {
+          console.log("Loading files for event:", event.id);
           const { data, error } = await supabase
             .from('event_files')
             .select('*')
@@ -108,6 +108,9 @@ export const EventDialog = ({
           if (data && data.length > 0) {
             console.log("Loaded event files:", data);
             setDisplayedFiles(data);
+          } else {
+            console.log("No files found for event:", event.id);
+            setDisplayedFiles([]);
           }
         } catch (err) {
           console.error("Exception loading event files:", err);
@@ -287,50 +290,83 @@ export const EventDialog = ({
       }
 
       // Handle file upload if there's a selected file
-      if (!isBookingEvent) {
-        if (selectedFile && createdEvent?.id && user) {
-          try {
-            const fileExt = selectedFile.name.split('.').pop();
-            const filePath = `${crypto.randomUUID()}.${fileExt}`;
-            
-            console.log('Uploading file:', filePath);
-            
-            const { error: uploadError } = await supabase.storage
-              .from('event_attachments')
-              .upload(filePath, selectedFile);
+      if (selectedFile && createdEvent?.id && user) {
+        try {
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `${crypto.randomUUID()}.${fileExt}`;
+          
+          console.log('Uploading file:', filePath);
+          
+          const { error: uploadError } = await supabase.storage
+            .from('event_attachments')
+            .upload(filePath, selectedFile);
 
-            if (uploadError) {
-              console.error('Error uploading file:', uploadError);
-              throw uploadError;
-            }
-
-            const fileData = {
-              filename: selectedFile.name,
-              file_path: filePath,
-              content_type: selectedFile.type,
-              size: selectedFile.size,
-              user_id: user.id
-            };
-
-            const { error: fileRecordError } = await supabase
-              .from('event_files')
-              .insert({
-                ...fileData,
-                event_id: createdEvent.id
-              });
-              
-            if (fileRecordError) {
-              console.error('Error creating file record:', fileRecordError);
-              throw fileRecordError;
-            }
-
-            console.log('File record created successfully');
-          } catch (fileError) {
-            console.error("Error handling file upload:", fileError);
-            // Continue even if file upload fails
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            throw uploadError;
           }
-        }
 
+          const fileData = {
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user.id
+          };
+
+          console.log('Creating file record with data:', {
+            ...fileData,
+            event_id: createdEvent.id
+          });
+
+          const { error: fileRecordError } = await supabase
+            .from('event_files')
+            .insert({
+              ...fileData,
+              event_id: createdEvent.id
+            });
+            
+          if (fileRecordError) {
+            console.error('Error creating file record:', fileRecordError);
+            throw fileRecordError;
+          }
+
+          console.log('File record created successfully');
+          
+          // Also create a customer_files_new record if this is tied to a customer
+          try {
+            const { data: customer, error: customerError } = await supabase
+              .from('customers')
+              .select('id')
+              .eq('title', title)
+              .maybeSingle();
+              
+            if (!customerError && customer?.id) {
+              console.log('Found associated customer:', customer.id);
+              
+              const { error: customerFileError } = await supabase
+                .from('customer_files_new')
+                .insert({
+                  ...fileData,
+                  customer_id: customer.id
+                });
+                
+              if (customerFileError) {
+                console.error('Error creating customer file record:', customerFileError);
+              } else {
+                console.log('Customer file record created successfully');
+              }
+            }
+          } catch (customerError) {
+            console.error("Error handling customer file:", customerError);
+          }
+        } catch (fileError) {
+          console.error("Error handling file upload:", fileError);
+          // Continue even if file upload fails
+        }
+      }
+
+      if (!isBookingEvent) {
         toast({
           title: t("common.success"),
           description: `${event?.id ? t("Event updated successfully") : t("Event created successfully")}${

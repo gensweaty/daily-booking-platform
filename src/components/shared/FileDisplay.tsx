@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { supabase, getStorageUrl, normalizeFilePath } from "@/lib/supabase";
+import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";

@@ -1,7 +1,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { endOfDay } from 'date-fns';
 
 export function useCRMData(userId: string | undefined, dateRange: { start: Date, end: Date }) {
@@ -20,6 +20,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
   const fetchCustomers = useCallback(async () => {
     if (!userId) return [];
     
+    console.log("Fetching customers for user:", userId);
     const { data, error } = await supabase
       .from('customers')
       .select(`
@@ -31,7 +32,11 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       .or(`start_date.lte.${endOfDay(dateRange.end).toISOString()},created_at.lte.${endOfDay(dateRange.end).toISOString()}`)
       .is('deleted_at', null);
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error fetching customers:", error);
+      throw error;
+    }
+    console.log("Retrieved customers:", data?.length || 0);
     return data || [];
   }, [userId, dateRange.start, dateRange.end]);
 
@@ -39,6 +44,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
   const fetchEvents = useCallback(async () => {
     if (!userId) return [];
     
+    console.log("Fetching events for user:", userId);
     const { data, error } = await supabase
       .from('events')
       .select(`
@@ -50,7 +56,11 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       .lte('start_date', endOfDay(dateRange.end).toISOString())
       .is('deleted_at', null);
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error fetching events:", error);
+      throw error;
+    }
+    console.log("Retrieved events:", data?.length || 0);
     return data || [];
   }, [userId, dateRange.start, dateRange.end]);
 
@@ -84,6 +94,8 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
   const combinedData = useMemo(() => {
     // Return empty array quickly if still loading initial data
     if (isLoadingCustomers || isLoadingEvents) return [];
+    
+    console.log("Processing combined data from", customers.length, "customers and", events.length, "events");
     
     const combined = [...customers];
     const existingIds = new Set(customers.map(c => 

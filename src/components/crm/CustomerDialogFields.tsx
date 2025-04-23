@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format } from "date-fns";
+import { FileDisplay } from "@/components/shared/FileDisplay";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -32,6 +33,9 @@ interface CustomerDialogFieldsProps {
   isEventBased?: boolean;
   startDate?: string | null;
   endDate?: string | null;
+  customerId?: string;
+  displayedFiles?: any[];
+  onFileDeleted?: (fileId: string) => void;
 }
 
 export const CustomerDialogFields = ({
@@ -58,6 +62,9 @@ export const CustomerDialogFields = ({
   isEventBased = false,
   startDate,
   endDate,
+  customerId,
+  displayedFiles = [],
+  onFileDeleted,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
 
@@ -185,6 +192,18 @@ export const CustomerDialogFields = ({
           className="min-h-[100px]"
         />
       </div>
+
+      {customerId && displayedFiles && displayedFiles.length > 0 && (
+        <div className="space-y-2">
+          <FileDisplay 
+            files={displayedFiles} 
+            bucketName="customer_attachments"
+            allowDelete
+            onFileDeleted={onFileDeleted}
+            parentType="customer"
+          />
+        </div>
+      )}
 
       <div className="space-y-2">
         <FileUploadField 

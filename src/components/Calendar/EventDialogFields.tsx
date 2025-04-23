@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useEffect } from "react";
 import { format } from "date-fns";
@@ -344,6 +344,7 @@ export const EventDialogFields = ({
             bucketName="event_attachments"
             allowDelete
             onFileDeleted={onFileDeleted}
+            parentType="event"
           />
         </div>
       )}
@@ -357,4 +358,3 @@ export const EventDialogFields = ({
     </div>
   );
 };
-
