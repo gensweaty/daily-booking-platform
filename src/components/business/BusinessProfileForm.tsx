@@ -20,6 +20,7 @@ import { LoaderCircle } from "lucide-react";
 import { BusinessProfile } from "@/types/database";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 
+// Define the schema making slug required
 const businessProfileSchema = z.object({
   business_name: z.string().min(2, { message: "Business name must be at least 2 characters" }),
   slug: z.string().min(2, { message: "Slug must be at least 2 characters" })
@@ -57,6 +58,7 @@ export const BusinessProfileForm = () => {
     },
   });
 
+  // Apply form values whenever business profile changes
   useEffect(() => {
     if (businessProfile) {
       console.log("Setting form values from business profile:", businessProfile);
@@ -72,25 +74,31 @@ export const BusinessProfileForm = () => {
         cover_photo_url: businessProfile.cover_photo_url || "",
       });
       
+      // Set the preview URL from the existing profile with a cache-busting parameter
       if (businessProfile.cover_photo_url) {
+        // Check if it's a blob URL (which won't persist) - if so, ignore it
         if (!businessProfile.cover_photo_url.startsWith('blob:')) {
+          // Add a timestamp parameter if it doesn't already have one
           let photoUrl = businessProfile.cover_photo_url;
           const timestamp = Date.now();
           
           if (photoUrl.includes('?')) {
+            // If URL already has parameters, add timestamp as another parameter
             photoUrl = `${photoUrl}&t=${timestamp}`;
           } else {
+            // If URL has no parameters, add timestamp as the first parameter
             photoUrl = `${photoUrl}?t=${timestamp}`;
           }
           
           console.log("Setting preview URL with cache busting:", photoUrl);
           setPreviewUrl(photoUrl);
-          setImageKey(timestamp);
+          setImageKey(timestamp); // Force image reload
         }
       }
     }
   }, [businessProfile, form]);
 
+  // This function will handle cover photo upload independently
   const handleCoverPhotoUpload = async () => {
     if (!coverPhotoFile) return null;
     
@@ -102,11 +110,12 @@ export const BusinessProfileForm = () => {
       if (uploadResult.url) {
         console.log("Cover photo uploaded successfully:", uploadResult.url);
         
+        // Update preview with cache busting
         setPreviewUrl(uploadResult.url);
-        setImageKey(Date.now());
+        setImageKey(Date.now()); // Force image reload
         form.setValue("cover_photo_url", uploadResult.url);
         
-        setCoverPhotoFile(null);
+        setCoverPhotoFile(null); // Clear the file after successful upload
         return uploadResult.url;
       }
       return null;
@@ -123,6 +132,7 @@ export const BusinessProfileForm = () => {
     setIsSubmitting(true);
     
     try {
+      // First upload the cover photo if provided
       let coverPhotoUrl = data.cover_photo_url;
       
       if (coverPhotoFile) {
@@ -133,13 +143,15 @@ export const BusinessProfileForm = () => {
       }
       
       if (businessProfile) {
+        // Update existing profile
         console.log("Updating existing business profile with cover URL:", coverPhotoUrl);
         updateBusinessProfile({
           ...data,
           cover_photo_url: coverPhotoUrl,
-          updated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(), // Force update to timestamp
         });
       } else {
+        // Create new profile
         console.log("Creating new business profile with cover URL:", coverPhotoUrl);
         createBusinessProfile({
           ...data,
@@ -159,6 +171,7 @@ export const BusinessProfileForm = () => {
     const businessName = e.target.value;
     form.setValue("business_name", businessName);
     
+    // Only auto-generate slug if it's a new profile or if the slug field hasn't been manually edited
     if (!businessProfile || form.getValues("slug") === businessProfile.slug) {
       const slug = generateSlug(businessName);
       form.setValue("slug", slug);
@@ -170,28 +183,34 @@ export const BusinessProfileForm = () => {
     setCoverPhotoFile(file);
     
     if (file) {
+      // Show a temp object URL in the form for preview
       const tempUrl = URL.createObjectURL(file);
       console.log("Created temporary preview URL:", tempUrl);
       setPreviewUrl(tempUrl);
-      setImageKey(Date.now());
+      setImageKey(Date.now()); // Force image reload
       
+      // Clean up previous object URL if it exists and is an object URL
       if (previewUrl?.startsWith('blob:')) {
         URL.revokeObjectURL(previewUrl);
       }
     }
   };
 
+  // Handle image error by attempting to reload with a fresh cache-busting parameter
   const handleImageError = () => {
     console.error("Error loading preview image:", previewUrl);
     
+    // If this is a real URL (not a blob URL), try reloading with a cache-busting parameter
     if (previewUrl && !previewUrl.startsWith('blob:')) {
-      const baseUrl = previewUrl.split('?')[0];
+      // Ensure we're creating a fresh URL with a new timestamp
+      const baseUrl = previewUrl.split('?')[0]; // Remove existing query parameters
       const refreshedUrl = `${baseUrl}?t=${Date.now()}`;
       
       console.log("Retrying with refreshed URL:", refreshedUrl);
       setPreviewUrl(refreshedUrl);
       setImageKey(Date.now());
     } else if (businessProfile?.cover_photo_url && !businessProfile.cover_photo_url.startsWith('blob:')) {
+      // Try using the original URL from the business profile directly
       const refreshedUrl = `${businessProfile.cover_photo_url.split('?')[0]}?t=${Date.now()}`;
       console.log("Falling back to original URL from business profile:", refreshedUrl);
       setPreviewUrl(refreshedUrl);
@@ -199,6 +218,7 @@ export const BusinessProfileForm = () => {
     }
   };
 
+  // Function to handle immediate upload without form submission
   const handleUploadButtonClick = async () => {
     if (coverPhotoFile) {
       await handleCoverPhotoUpload();
@@ -274,6 +294,7 @@ export const BusinessProfileForm = () => {
               )}
             />
 
+            {/* Cover Photo Upload with improved preview handling and separate upload button */}
             <FormField
               control={form.control}
               name="cover_photo_url"
@@ -284,7 +305,7 @@ export const BusinessProfileForm = () => {
                     {previewUrl && (
                       <div className="relative w-full h-40 rounded-md overflow-hidden border border-gray-200">
                         <img 
-                          key={imageKey}
+                          key={imageKey} // Force reload when key changes
                           src={previewUrl} 
                           alt="Business Cover" 
                           className="w-full h-full object-cover"
@@ -297,8 +318,8 @@ export const BusinessProfileForm = () => {
                         onChange={handleFileChange}
                         fileError={fileError}
                         setFileError={setFileError}
+                        acceptedFileTypes="image/*"
                         hideLabel={true}
-                        allowedTypes={['image/jpeg', 'image/png', 'image/webp']}
                       />
                       <FormDescription>
                         Upload an image for your business cover (JPEG, PNG, WebP)

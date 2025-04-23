@@ -1,103 +1,101 @@
 
-import { useState, ChangeEvent } from "react";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
+
+const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
+const MAX_FILE_SIZE_IMAGES = 50 * 1024 * 1024; // 50MB for images
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const ALLOWED_DOC_TYPES = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
+];
 
 interface FileUploadFieldProps {
   onChange: (file: File | null) => void;
+  onFileChange?: (file: File | null) => void; // For backward compatibility
   fileError: string;
   setFileError: (error: string) => void;
+  acceptedFileTypes?: string;
   hideLabel?: boolean;
-  maxSizeMB?: number; // Max file size in MB
-  allowedTypes?: string[]; // Array of allowed MIME types
-  acceptedFileTypes?: string; // String of accepted file types for input element
-  disabled?: boolean; // Added disabled prop
+  hideDescription?: boolean; // Added to hide the description text
+  disabled?: boolean; // Add disabled prop
 }
 
 export const FileUploadField = ({ 
   onChange, 
+  onFileChange, 
   fileError, 
   setFileError, 
+  acceptedFileTypes, 
   hideLabel = false,
-  maxSizeMB = 5, // Default max size is 5MB
-  allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-  acceptedFileTypes, // Added acceptedFileTypes prop
-  disabled = false // Added disabled prop with default value
+  hideDescription = false,
+  disabled = false // Default to false
 }: FileUploadFieldProps) => {
-  const [selectedFileName, setSelectedFileName] = useState("");
   const { t } = useLanguage();
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-
-    if (!files || files.length === 0) {
-      setSelectedFileName("");
-      onChange(null);
-      return;
+  const validateFile = (file: File) => {
+    const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
+    const isDoc = ALLOWED_DOC_TYPES.includes(file.type);
+    
+    if (!isImage && !isDoc) {
+      return "Invalid file type. Please upload an image (jpg, jpeg, png, webp) or document (pdf, docx, xlsx, pptx)";
     }
 
-    const file = files[0];
-    console.log("Selected file:", file.name, file.type, file.size);
-
-    // Validate file type
-    if (allowedTypes && allowedTypes.length > 0 && !allowedTypes.includes(file.type)) {
-      console.error("Invalid file type:", file.type);
-      setFileError(t("files.invalidType"));
-      setSelectedFileName("");
-      onChange(null);
-      return;
+    const maxSize = isImage ? MAX_FILE_SIZE_IMAGES : MAX_FILE_SIZE_DOCS;
+    if (file.size > maxSize) {
+      const sizeMB = maxSize / (1024 * 1024);
+      return `File size exceeds ${sizeMB}MB limit${isImage ? ' for images' : ' for documents'}`;
     }
 
-    // Validate file size
-    const maxSizeBytes = maxSizeMB * 1024 * 1024;
-    if (file.size > maxSizeBytes) {
-      console.error("File too large:", file.size, "max:", maxSizeBytes);
-      setFileError(`${t("files.tooLarge")} (${maxSizeMB}MB)`);
-      setSelectedFileName("");
-      onChange(null);
-      return;
-    }
-
-    setFileError("");
-    setSelectedFileName(file.name);
-    onChange(file);
-    console.log("File successfully processed:", file.name);
+    return null;
   };
 
-  // Determine accept attribute value for input
-  const acceptValue = acceptedFileTypes || allowedTypes.join(',');
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault(); // Prevent default behavior
+    const selectedFile = e.target.files?.[0];
+    setFileError("");
+
+    if (selectedFile) {
+      console.log(`Selected file: ${selectedFile.name}, Size: ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB, Type: ${selectedFile.type}`);
+      const error = validateFile(selectedFile);
+      if (error) {
+        setFileError(error);
+        if (onChange) onChange(null);
+        if (onFileChange) onFileChange(null);
+        return;
+      }
+      if (onChange) onChange(selectedFile);
+      if (onFileChange) onFileChange(selectedFile);
+    }
+  };
 
   return (
-    <div className="space-y-2">
-      {!hideLabel && <Label htmlFor="file-upload">{t("calendar.attachment")}</Label>}
-      
-      <div className="flex flex-col gap-2">
-        <Input
-          type="file"
-          id="file-upload"
-          onChange={handleFileChange}
-          className="hidden"
-          accept={acceptValue}
-          disabled={disabled}
-        />
-        <div className="flex gap-2 items-center">
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-full h-9"
-            onClick={() => document.getElementById("file-upload")?.click()}
-            disabled={disabled}
-          >
-            {t("calendar.chooseFile")}
-          </Button>
-          <span className={`text-sm ${selectedFileName ? 'text-primary' : 'text-muted-foreground'} overflow-hidden overflow-ellipsis whitespace-nowrap max-w-[200px]`}>
-            {selectedFileName || t("calendar.noFileSelected")}
-          </span>
-        </div>
-        {fileError && <p className="text-red-500 text-xs">{fileError}</p>}
-      </div>
+    <div className={`${hideLabel && hideDescription ? '' : 'space-y-2'}`}>
+      {!hideLabel && (
+        <label htmlFor="file" className="block text-gray-700">{t("calendar.attachment")}</label>
+      )}
+      <Input
+        id="file"
+        type="file"
+        onChange={handleFileChange}
+        accept={acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")}
+        className="cursor-pointer bg-background border-gray-300"
+        onClick={(e) => {
+          // Reset value before opening to ensure onChange triggers even if same file is selected
+          (e.target as HTMLInputElement).value = '';
+        }}
+        disabled={disabled}
+      />
+      {fileError && (
+        <p className="text-sm text-red-500 mt-1">{fileError}</p>
+      )}
+      {!hideDescription && !fileError && (
+        <p className="text-xs text-muted-foreground mt-1">
+          Supported formats: images (jpg, png, webp) up to 50MB, documents (pdf, docx, xlsx, pptx) up to 1MB
+        </p>
+      )}
     </div>
   );
 };

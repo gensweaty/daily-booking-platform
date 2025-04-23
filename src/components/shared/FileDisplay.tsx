@@ -1,7 +1,6 @@
-
 import { Button } from "@/components/ui/button";
 import { supabase, normalizeFilePath, getStorageUrl } from "@/integrations/supabase/client";
-import { determineEffectiveBucket, getDirectFileUrl, safeSupabaseQuery } from "@/integrations/supabase/utils";
+import { determineEffectiveBucket, getDirectFileUrl } from "@/integrations/supabase/utils";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
@@ -54,9 +53,8 @@ export const FileDisplay = ({
         }
         
         const normalizedPath = normalizeFilePath(file.file_path);
-        // Use source if provided in the file object
         const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
-        console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path} (source: ${file.source || 'unknown'})`);
+        console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path}`);
         newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
       }
     });
@@ -87,15 +85,11 @@ export const FileDisplay = ({
         return;
       }
       
-      // Get the source from the file object if available
-      const fileObject = files.find(f => f.id === fileId);
-      const source = fileObject?.source;
-      
-      const effectiveBucket = determineEffectiveBucket(filePath, parentType, source);
-      console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath} (source: ${source || 'unknown'})`);
+      const effectiveBucket = determineEffectiveBucket(filePath, parentType);
+      console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath}`);
       
       const directUrl = fileURLs[fileId] || 
-        getDirectFileUrl(filePath, fileId, parentType, source);
+        `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
       
       console.log('Using direct URL for download:', directUrl);
       
@@ -142,11 +136,7 @@ export const FileDisplay = ({
         throw new Error('File path is missing');
       }
       
-      // Get the source from the file object if available
-      const fileObject = files.find(f => f.id === fileId);
-      const source = fileObject?.source;
-      
-      const directUrl = getDirectFileUrl(filePath, fileId, parentType, source);
+      const directUrl = getDirectFileUrl(filePath, fileId, parentType);
       console.log('Opening file with direct URL:', directUrl);
       
       // Open in a new tab to prevent navigating away
@@ -170,54 +160,41 @@ export const FileDisplay = ({
         console.log("Cannot delete external file from storage:", filePath);
         
         // But we can delete the reference from our database
-        const fileObj = files.find(f => f.id === fileId);
-        const source = fileObj?.source;
-        let tableName = parentType === 'event' ? 'event_files' : 
-                       parentType === 'customer' ? 'customer_files_new' : 'files';
+        const tableName = parentType === 'event' ? 'event_files' : 
+                          parentType === 'customer' ? 'customer_files_new' : 'files';
         
-        // Override tableName based on source if available
-        if (source === 'booking_files') {
-          tableName = 'booking_files';
-          // Handle the booking_files table with the safe query helper
-          const { error: dbError } = await safeSupabaseQuery(tableName, 
-            query => query.delete().eq('id', fileId));
-            
+        console.log(`Deleting file reference from table ${tableName}, id: ${fileId}`);
+        
+        // Use the correct table name with type assertion to fix the TypeScript error
+        if (tableName === 'event_files') {
+          const { error: dbError } = await supabase
+            .from('event_files')
+            .delete()
+            .eq('id', fileId);
+          
+          if (dbError) {
+            console.error(`Error deleting file from ${tableName}:`, dbError);
+            throw dbError;
+          }
+        } else if (tableName === 'customer_files_new') {
+          const { error: dbError } = await supabase
+            .from('customer_files_new')
+            .delete()
+            .eq('id', fileId);
+          
           if (dbError) {
             console.error(`Error deleting file from ${tableName}:`, dbError);
             throw dbError;
           }
         } else {
-          // Use the correct table name with type assertion to fix the TypeScript error
-          if (tableName === 'event_files') {
-            const { error: dbError } = await supabase
-              .from('event_files')
-              .delete()
-              .eq('id', fileId);
-            
-            if (dbError) {
-              console.error(`Error deleting file from ${tableName}:`, dbError);
-              throw dbError;
-            }
-          } else if (tableName === 'customer_files_new') {
-            const { error: dbError } = await supabase
-              .from('customer_files_new')
-              .delete()
-              .eq('id', fileId);
-            
-            if (dbError) {
-              console.error(`Error deleting file from ${tableName}:`, dbError);
-              throw dbError;
-            }
-          } else {
-            const { error: dbError } = await supabase
-              .from('files')
-              .delete()
-              .eq('id', fileId);
-            
-            if (dbError) {
-              console.error(`Error deleting file from ${tableName}:`, dbError);
-              throw dbError;
-            }
+          const { error: dbError } = await supabase
+            .from('files')
+            .delete()
+            .eq('id', fileId);
+          
+          if (dbError) {
+            console.error(`Error deleting file from ${tableName}:`, dbError);
+            throw dbError;
           }
         }
         
@@ -233,20 +210,11 @@ export const FileDisplay = ({
         return;
       }
       
-      // Get the source from the file object if available
-      const fileObj = files.find(f => f.id === fileId);
-      const source = fileObj?.source;
+      const effectiveBucket = determineEffectiveBucket(filePath, parentType);
+      console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}`);
       
-      const effectiveBucket = determineEffectiveBucket(filePath, parentType, source);
-      console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}, source: ${source || 'unknown'}`);
-      
-      // Skip storage delete for virtual files
-      const isVirtualFile = fileId.startsWith('booking-') || 
-                          fileId.startsWith('event-file-') || 
-                          source === 'booking_request' ||
-                          source === 'booking_files';
-                          
-      if (!isVirtualFile) {
+      // Skip storage delete if it's a booking file (just a reference)
+      if (!fileId.startsWith('booking-')) {
         const { error: storageError } = await supabase.storage
           .from(effectiveBucket)
           .remove([normalizeFilePath(filePath)]);
@@ -259,59 +227,27 @@ export const FileDisplay = ({
       }
       
       // Skip database delete for virtual booking files
-      if (!isVirtualFile) {
-        let tableName = 'files';
+      if (!fileId.startsWith('booking-')) {
+        let tableName: 'files' | 'event_files' | 'customer_files_new' | 'note_files' = 'files';
         
-        // Determine table based on source if available
-        if (source === 'booking_files') {
-          // Use the safe query helper for the booking_files table
-          const { error: fileError } = await safeSupabaseQuery('booking_files',
-            query => query.delete().eq('id', fileId));
-            
-          if (fileError) {
-            console.error("Error deleting file from booking_files:", fileError);
-            throw fileError;
-          }
-        } else if (effectiveBucket === 'event_attachments' || parentType === 'event' || source === 'event') {
-          const { error: dbError } = await supabase
-            .from('event_files')
-            .delete()
-            .eq('id', fileId);
-            
-          if (dbError) {
-            console.error(`Error deleting file from event_files:`, dbError);
-            throw dbError;
-          }
-        } else if (effectiveBucket === 'customer_attachments' || parentType === 'customer' || source === 'customer') {
-          const { error: dbError } = await supabase
-            .from('customer_files_new')
-            .delete()
-            .eq('id', fileId);
-            
-          if (dbError) {
-            console.error(`Error deleting file from customer_files_new:`, dbError);
-            throw dbError;
-          }
+        if (effectiveBucket === 'event_attachments' || parentType === 'event') {
+          tableName = 'event_files';
+        } else if (effectiveBucket === 'customer_attachments' || parentType === 'customer') {
+          tableName = 'customer_files_new';
         } else if (effectiveBucket === 'note_attachments' || parentType === 'note') {
-          const { error: dbError } = await supabase
-            .from('note_files')
-            .delete()
-            .eq('id', fileId);
-            
-          if (dbError) {
-            console.error(`Error deleting file from note_files:`, dbError);
-            throw dbError;
-          }
-        } else {
-          const { error: dbError } = await supabase
-            .from('files')
-            .delete()
-            .eq('id', fileId);
-            
-          if (dbError) {
-            console.error(`Error deleting file from files:`, dbError);
-            throw dbError;
-          }
+          tableName = 'note_files';
+        }
+        
+        console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);
+        
+        const { error: dbError } = await supabase
+          .from(tableName)
+          .delete()
+          .eq('id', fileId);
+          
+        if (dbError) {
+          console.error(`Error deleting file from ${tableName}:`, dbError);
+          throw dbError;
         }
       }
       
@@ -368,7 +304,7 @@ export const FileDisplay = ({
           const isPublicUrl = file.file_path.startsWith('http://') || file.file_path.startsWith('https://');
           const imageUrl = isPublicUrl ? file.file_path : (
             fileURLs[file.id] || 
-            getDirectFileUrl(file.file_path, file.id, parentType, file.source)
+            `${getStorageUrl()}/object/public/${determineEffectiveBucket(file.file_path, parentType, file.source)}/${normalizeFilePath(file.file_path)}`
           );
           
           console.log(`Rendering file: ${file.filename}, URL: ${imageUrl.substring(0, 100)}...`);

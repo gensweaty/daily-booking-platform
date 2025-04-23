@@ -35,7 +35,7 @@ export const NoteList = () => {
   });
 
   const deleteNoteMutation = useMutation({
-    mutationFn: (id: string) => deleteNote(id),
+    mutationFn: deleteNote,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
       toast({ 
@@ -62,7 +62,7 @@ export const NoteList = () => {
 
   const handleDragEnd = (result: any) => {
     if (!result.destination) return;
-    const items = Array.from(notes);
+    const items = Array.from(notes || []);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
     queryClient.setQueryData(['notes'], items);
@@ -80,7 +80,7 @@ export const NoteList = () => {
               ref={provided.innerRef}
               className="space-y-4"
             >
-              {notes.map((note: Note, index: number) => (
+              {(notes || []).map((note: Note, index: number) => (
                 <Draggable key={note.id} draggableId={note.id} index={index}>
                   {(provided) => (
                     <div

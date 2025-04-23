@@ -24,5 +24,4 @@ export interface CalendarEventType {
   filename?: string;
   booking_request_id?: string;
   source?: string;
-  deleted_at?: string | null;
 }
