@@ -62,23 +62,30 @@ export const CalendarGrid = ({
 
   const renderEventContent = (event: CalendarEventType) => {
     const bookingHours = getBookingHours(event);
+
+    // For external calendar
     if (isExternalCalendar) {
       return (
         <div className="w-full">
-          <span className="block font-medium text-xs sm:text-sm">{/* on mobile, smaller font */}
+          <span className="block font-medium text-xs sm:text-sm sm:inline">{/* on mobile, smaller font */}
             Booked
           </span>
-          <span className="block text-[0.7rem] sm:text-xs opacity-80 mt-0.5">{bookingHours}</span>
+          <span className="block text-[0.7rem] sm:text-xs opacity-80 mt-0.5 sm:mt-0 sm:inline sm:ml-2">
+            {bookingHours}
+          </span>
         </div>
       );
     }
+    // For internal (dashboard) calendar
     const name = event.requester_name || event.title || "";
     return (
       <div className="w-full">
-        <span className="block font-medium text-xs sm:text-sm">
+        <span className="block font-medium text-xs sm:text-sm sm:inline">
           {name}
         </span>
-        <span className="block text-[0.7rem] sm:text-xs opacity-80 mt-0.5">{bookingHours}</span>
+        <span className="block text-[0.7rem] sm:text-xs opacity-80 mt-0.5 sm:mt-0 sm:inline sm:ml-2">
+          {bookingHours}
+        </span>
       </div>
     );
   };
