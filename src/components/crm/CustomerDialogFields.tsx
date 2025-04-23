@@ -8,6 +8,7 @@ import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format } from "date-fns";
 import { FileDisplay } from "@/components/shared/FileDisplay";
+import { getStorageUrl } from "@/integrations/supabase/client";
 
 interface CustomerDialogFieldsProps {
   title: string;

@@ -1,5 +1,6 @@
+
 import { Button } from "@/components/ui/button";
-import { supabase, normalizeFilePath } from "@/integrations/supabase/client";
+import { supabase, normalizeFilePath, getStorageUrl } from "@/integrations/supabase/client";
 import { determineEffectiveBucket, getDirectFileUrl } from "@/integrations/supabase/utils";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
