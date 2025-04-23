@@ -313,7 +313,7 @@ export const CalendarGrid = ({
                             onEventClick?.(event);
                           }}
                         >
-                          <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
+                          <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
                           <div className="flex flex-col min-w-0 leading-tight">
                             <span className="truncate font-medium">{event.requester_name || event.title || ""}</span>
                             <span className="truncate opacity-80">
