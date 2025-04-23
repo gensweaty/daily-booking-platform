@@ -49,9 +49,16 @@ export const BusinessPage = () => {
     ? `${window.location.protocol}//${window.location.host}/business/${businessProfile.slug}`
     : null;
 
+  // Create a type-safe handler for tab changes
+  const handleTabChange = (value: string) => {
+    if (value === "profile" || value === "bookings") {
+      setActiveTab(value);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="profile">Business Profile</TabsTrigger>
           <TabsTrigger value="bookings" className="relative">
