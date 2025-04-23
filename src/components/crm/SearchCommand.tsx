@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import {
   Command,
@@ -96,7 +97,7 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
           placeholder="Search..."
           className="h-9"
           value={searchValue}
-          onChange={(e) => handleSearch(e.target.value)}
+          onValueChange={handleSearch}
         />
       </Command>
     </div>
