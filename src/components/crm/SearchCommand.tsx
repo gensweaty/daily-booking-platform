@@ -33,7 +33,8 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
   }, [data, searchValue, setFilteredData]);
 
   // Real-time elastic-like search implementation
-  const handleSearch = React.useCallback((search: string) => {
+  // Removed useCallback to ensure it always has access to latest dataRef.current
+  const handleSearch = (search: string) => {
     setSearchValue(search);
     
     if (debounceTimeout.current) {
@@ -71,8 +72,7 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
     
     // Update the filtered data to show in the main table
     setFilteredData(filtered);
-    
-  }, [setFilteredData]);
+  };
   
   // Clean up timeout on unmount
   React.useEffect(() => {
