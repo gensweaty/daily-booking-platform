@@ -15,8 +15,7 @@ interface SearchCommandProps {
 }
 
 export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: SearchCommandProps) => {
-  // Use ref for the timeout and the current data to avoid unnecessary re-renders
-  const debounceTimeout = React.useRef<NodeJS.Timeout | null>(null);
+  // Use ref for the current data to avoid unnecessary re-renders
   const dataRef = React.useRef(data);
   const [searchValue, setSearchValue] = React.useState<string>("");
 
@@ -35,10 +34,6 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
   // Real-time elastic-like search implementation
   const handleSearch = (search: string) => {
     setSearchValue(search);
-    
-    if (debounceTimeout.current) {
-      clearTimeout(debounceTimeout.current);
-    }
     
     // Empty search shows all results
     if (!search.trim()) {
@@ -72,15 +67,6 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
     setFilteredData(filtered);
   };
 
-  // Clean up timeout on unmount
-  React.useEffect(() => {
-    return () => {
-      if (debounceTimeout.current) {
-        clearTimeout(debounceTimeout.current);
-      }
-    };
-  }, []);
-
   if (isLoading) {
     return (
       <div className="w-full md:w-[200px] rounded-lg border -mt-4 p-2 space-y-2">
@@ -92,14 +78,12 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
 
   return (
     <div className="w-full md:w-[200px] -mt-4">
-      <Command 
-        className="rounded-lg border"
-        value={searchValue}
-        onValueChange={handleSearch}
-      >
+      <Command className="rounded-lg border">
         <CommandInput
           placeholder="Search..."
           className="h-9"
+          value={searchValue}
+          onValueChange={handleSearch}
         />
       </Command>
     </div>
