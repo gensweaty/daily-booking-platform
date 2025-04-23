@@ -32,7 +32,6 @@ interface CustomerDialogProps {
   onSubmit?: (data: CustomerType) => void;
   isOpen?: boolean;
   onClose?: () => void;
-  bookingEvent?: any; // Added to handle creating customers from booking events
 }
 
 // Define a consistent return type interface for the sendApprovalEmail function
@@ -50,7 +49,6 @@ export const CustomerDialog = ({
   onSubmit,
   isOpen,
   onClose,
-  bookingEvent,
 }: CustomerDialogProps) => {
   const isDialogOpen = open || isOpen || false;
   const handleOpenChange = (value: boolean) => {
@@ -70,8 +68,6 @@ export const CustomerDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [isEventBased, setIsEventBased] = useState(false);
-  const [bookingFilePath, setBookingFilePath] = useState<string | null>(null);
-  const [bookingFileName, setBookingFileName] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -100,52 +96,7 @@ export const CustomerDialog = ({
       setCustomerNotes("");
       setIsEventBased(false);
     }
-    
-    // If we have a booking event, check for file
-    if (bookingEvent?.id) {
-      const checkBookingFile = async () => {
-        try {
-          // First check if it's a regular event with file
-          const { data: eventFiles, error: eventError } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', bookingEvent.id);
-            
-          if (!eventError && eventFiles && eventFiles.length > 0) {
-            console.log("Found event file for customer creation:", eventFiles[0]);
-            setBookingFilePath(eventFiles[0].file_path);
-            setBookingFileName(eventFiles[0].filename);
-            return;
-          }
-          
-          // Check if the event itself has file info
-          if (bookingEvent.file_path) {
-            console.log("Found file data directly in the event:", bookingEvent);
-            setBookingFilePath(bookingEvent.file_path);
-            setBookingFileName(bookingEvent.filename || 'attachment');
-            return;
-          }
-          
-          // If no event files, check if it's a booking request with file
-          const { data: booking, error: bookingError } = await supabase
-            .from('booking_requests')
-            .select('file_path, filename')
-            .eq('id', bookingEvent.booking_request_id || bookingEvent.id)
-            .maybeSingle();
-            
-          if (!bookingError && booking && booking.file_path) {
-            console.log("Found booking file for customer creation:", booking);
-            setBookingFilePath(booking.file_path);
-            setBookingFileName(booking.filename);
-          }
-        } catch (error) {
-          console.error("Error checking for event/booking files:", error);
-        }
-      };
-      
-      checkBookingFile();
-    }
-  }, [initialData, open, bookingEvent]);
+  }, [initialData, open]);
 
   const sendApprovalEmail = async (recipient: string, fullName: string, businessName: string, startDate: Date, endDate: Date): Promise<EmailResult> => {
     try {
@@ -277,37 +228,6 @@ export const CustomerDialog = ({
 
         customerId = data.id;
         console.log("Created customer:", data);
-        
-        // If this customer was created from a booking with a file, transfer the file
-        if (customerId && bookingFilePath && user) {
-          try {
-            console.log("Transferring file from booking/event to customer:", {
-              filePath: bookingFilePath,
-              fileName: bookingFileName,
-              customerId
-            });
-            
-            const { error: fileError } = await supabase
-              .from('customer_files_new')
-              .insert({
-                customer_id: customerId,
-                filename: bookingFileName || 'attachment',
-                file_path: bookingFilePath,
-                content_type: 'application/octet-stream',
-                size: 0,
-                user_id: user.id,
-                source: bookingEvent?.type === 'booking_request' ? 'booking_request' : 'event'
-              });
-              
-            if (fileError) {
-              console.error("Error transferring file to customer:", fileError);
-            } else {
-              console.log("Successfully transferred file to customer");
-            }
-          } catch (transferError) {
-            console.error("Error transferring file to customer:", transferError);
-          }
-        }
       }
 
       let emailResult: EmailResult = { success: false };
@@ -475,8 +395,6 @@ export const CustomerDialog = ({
             isEventBased={isEventBased}
             startDate={initialData?.start_date}
             endDate={initialData?.end_date}
-            bookingFilePath={bookingFilePath}
-            bookingFileName={bookingFileName}
           />
           <DialogFooter className="mt-6">
             <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>

@@ -7,8 +7,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format } from "date-fns";
-import { FileDisplay } from "@/components/shared/FileDisplay";
-import { getStorageUrl } from "@/integrations/supabase/client";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -34,8 +32,6 @@ interface CustomerDialogFieldsProps {
   isEventBased?: boolean;
   startDate?: string | null;
   endDate?: string | null;
-  bookingFilePath?: string | null;
-  bookingFileName?: string | null;
 }
 
 export const CustomerDialogFields = ({
@@ -62,8 +58,6 @@ export const CustomerDialogFields = ({
   isEventBased = false,
   startDate,
   endDate,
-  bookingFilePath,
-  bookingFileName,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
 
@@ -77,19 +71,6 @@ export const CustomerDialogFields = ({
       return dateStr;
     }
   };
-
-  // Create a virtual file entry for booking file if it exists
-  const bookingFiles = bookingFilePath ? [
-    {
-      id: `booking-file-${Date.now()}`,
-      filename: bookingFileName || 'attachment',
-      file_path: bookingFilePath,
-      content_type: '',
-      size: 0,
-      created_at: new Date().toISOString(),
-      source: 'booking_request'
-    }
-  ] : [];
 
   return (
     <div className="space-y-4 mt-4">
@@ -204,19 +185,6 @@ export const CustomerDialogFields = ({
           className="min-h-[100px]"
         />
       </div>
-
-      {/* Display existing booking file if available */}
-      {bookingFilePath && (
-        <div className="space-y-2">
-          <Label>{t("common.existingAttachment")}</Label>
-          <FileDisplay 
-            files={bookingFiles} 
-            bucketName="event_attachments" 
-            allowDelete={false}
-            parentType="booking_request"
-          />
-        </div>
-      )}
 
       <div className="space-y-2">
         <FileUploadField 

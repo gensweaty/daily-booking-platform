@@ -15,6 +15,8 @@ export type Database = {
           created_at: string | null
           description: string | null
           end_date: string
+          file_path: string | null
+          filename: string | null
           id: string
           payment_amount: number | null
           payment_status: string | null
@@ -32,6 +34,8 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           end_date: string
+          file_path?: string | null
+          filename?: string | null
           id?: string
           payment_amount?: number | null
           payment_status?: string | null
@@ -49,6 +53,8 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           end_date?: string
+          file_path?: string | null
+          filename?: string | null
           id?: string
           payment_amount?: number | null
           payment_status?: string | null
@@ -297,6 +303,39 @@ export type Database = {
         }
         Relationships: []
       }
+      event_files: {
+        Row: {
+          content_type: string | null
+          created_at: string | null
+          event_id: string | null
+          file_path: string
+          filename: string
+          id: string
+          size: number | null
+          user_id: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string | null
+          event_id?: string | null
+          file_path: string
+          filename: string
+          id?: string
+          size?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string | null
+          event_id?: string | null
+          file_path?: string
+          filename?: string
+          id?: string
+          size?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       event_requests: {
         Row: {
           business_id: string
@@ -366,6 +405,8 @@ export type Database = {
           deleted_at: string | null
           end_date: string
           event_notes: string | null
+          file_path: string | null
+          filename: string | null
           id: string
           payment_amount: number | null
           payment_status: string | null
@@ -383,6 +424,8 @@ export type Database = {
           deleted_at?: string | null
           end_date: string
           event_notes?: string | null
+          file_path?: string | null
+          filename?: string | null
           id?: string
           payment_amount?: number | null
           payment_status?: string | null
@@ -400,6 +443,8 @@ export type Database = {
           deleted_at?: string | null
           end_date?: string
           event_notes?: string | null
+          file_path?: string | null
+          filename?: string | null
           id?: string
           payment_amount?: number | null
           payment_status?: string | null
@@ -750,6 +795,8 @@ export type Database = {
           deleted_at: string | null
           end_date: string
           event_notes: string | null
+          file_path: string | null
+          filename: string | null
           id: string
           payment_amount: number | null
           payment_status: string | null

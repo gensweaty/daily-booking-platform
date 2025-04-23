@@ -123,8 +123,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             event_notes: booking.description || '',
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
-            file_path: booking.file_path,
-            filename: booking.filename
           }))
         ];
         

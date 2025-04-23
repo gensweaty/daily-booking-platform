@@ -11,6 +11,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const { toast } = useToast();
   const { t } = useLanguage();
 
+  // Helper to determine if times have changed between original and new dates
   const haveTimesChanged = (
     originalStartDate: string,
     originalEndDate: string,
@@ -188,8 +189,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         requester_email: booking.requester_email || '',
         requester_phone: booking.requester_phone || '',
         description: booking.description || '',
-        file_path: booking.file_path,
-        filename: booking.filename
       }));
       
       return bookingEvents;
@@ -240,11 +239,14 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     console.log("Update data:", data);
     console.log("Event type:", data.type);
     
+    // For existing events, first check if we need to validate time conflicts
     if (data.start_date && data.end_date) {
+      // First get the original event to check if times changed
       let skipTimeCheck = false;
       let originalEvent: any = null;
       
       if (data.type === 'booking_request' || (id && typeof id === 'string' && id.includes('-'))) {
+        // Check for booking request with this ID
         const { data: bookingData } = await supabase
           .from('booking_requests')
           .select('*')
@@ -257,6 +259,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
       
       if (!originalEvent) {
+        // Check for regular event
         const { data: eventData } = await supabase
           .from('events')
           .select('*')
@@ -268,6 +271,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
+      // If we found the original event, check if times changed
       if (originalEvent) {
         skipTimeCheck = !haveTimesChanged(
           originalEvent.start_date,
@@ -279,6 +283,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.log("Should skip time conflict check?", skipTimeCheck);
       }
       
+      // Only perform conflict check if times have changed
       if (!skipTimeCheck) {
         const startDateTime = new Date(data.start_date);
         const endDateTime = new Date(data.end_date);
@@ -295,8 +300,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
-    let wasBookingRequest = false;
-    
     if (data.type === 'booking_request' || (id && typeof id === 'string' && id.includes('-'))) {
       try {
         console.log("Checking for booking request with ID:", id);
@@ -308,8 +311,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
         if (!bookingError && bookingData) {
           console.log("Found booking request, updating:", id);
-          wasBookingRequest = true;
-          
           const { data: updatedBooking, error: updateError } = await supabase
             .from('booking_requests')
             .update({
@@ -328,147 +329,49 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               
           if (updateError) throw updateError;
           
-          if (data.type === 'booking_request') {
-            toast({
-              title: "Booking updated",
-              description: "The booking request has been updated successfully."
-            });
-            
-            return {
-              id: updatedBooking.id,
-              title: updatedBooking.title,
-              start_date: updatedBooking.start_date,
-              end_date: updatedBooking.end_date,
-              user_id: updatedBooking.user_id || '',
-              user_surname: updatedBooking.requester_name,
-              user_number: updatedBooking.requester_phone || '',
-              social_network_link: updatedBooking.requester_email,
-              event_notes: updatedBooking.description || '',
-              type: 'booking_request',
-              created_at: updatedBooking.created_at,
-              requester_name: updatedBooking.requester_name,
-              requester_email: updatedBooking.requester_email,
-              requester_phone: updatedBooking.requester_phone || '',
-              file_path: updatedBooking.file_path,
-              filename: updatedBooking.filename
-            } as CalendarEventType;
-          }
-          
-          const eventPayload = {
-            title: data.title,
-            user_surname: data.user_surname,
-            user_number: data.user_number,
-            social_network_link: data.social_network_link,
-            event_notes: data.event_notes,
-            start_date: data.start_date,
-            end_date: data.end_date,
-            payment_status: data.payment_status,
-            payment_amount: data.payment_amount,
-            user_id: user.id,
-            booking_request_id: id,
-            type: 'event',
-            file_path: bookingData.file_path,
-            filename: bookingData.filename
-          };
-          
-          console.log("Creating new event from booking request with file data:", {
-            file_path: bookingData.file_path,
-            filename: bookingData.filename
-          });
-          
-          const { data: newEvent, error: createError } = await supabase
-            .from('events')
-            .insert(eventPayload)
-            .select()
-            .single();
-            
-          if (createError) throw createError;
-          
-          console.log("Successfully created event from booking request:", newEvent);
-          
-          try {
-            const customerData = {
-              title: data.title,
-              user_surname: data.user_surname,
-              user_number: data.user_number,
-              social_network_link: data.social_network_link,
-              event_notes: data.event_notes,
-              start_date: data.start_date,
-              end_date: data.end_date,
-              payment_status: data.payment_status || null,
-              payment_amount: data.payment_amount || null,
-              user_id: user.id,
-              type: 'customer',
-              create_event: false,
-              file_path: bookingData.file_path,
-              filename: bookingData.filename
-            };
-
-            console.log("Creating customer from approved booking with file data:", {
-              file_path: bookingData.file_path,
-              filename: bookingData.filename
-            });
-            
-            const { data: newCustomer, error: customerError } = await supabase
-              .from('customers')
-              .insert(customerData)
-              .select()
-              .single();
-              
-            if (customerError) {
-              console.error("Error creating customer from booking:", customerError);
-            } else if (newCustomer) {
-              console.log("Created customer from booking:", newCustomer);
-
-              const { error: eventUpdateError } = await supabase
-                .from('events')
-                .update({ customer_id: newCustomer.id })
-                .eq('id', newEvent.id);
-                
-              if (eventUpdateError) {
-                console.error("Error updating event with customer ID:", eventUpdateError);
-              }
-            }
-          } catch (customerCreationError) {
-            console.error("Error in customer creation flow:", customerCreationError);
-          }
-          
           toast({
-            title: "Booking approved",
-            description: "The booking request has been approved and converted to an event."
+            title: "Booking updated",
+            description: "The booking request has been updated successfully."
           });
           
-          return newEvent;
+          return {
+            id: updatedBooking.id,
+            title: updatedBooking.title,
+            start_date: updatedBooking.start_date,
+            end_date: updatedBooking.end_date,
+            user_id: updatedBooking.user_id || '',
+            user_surname: updatedBooking.requester_name,
+            user_number: updatedBooking.requester_phone || '',
+            social_network_link: updatedBooking.requester_email,
+            event_notes: updatedBooking.description || '',
+            type: 'booking_request',
+            created_at: updatedBooking.created_at,
+            requester_name: updatedBooking.requester_name,
+            requester_email: updatedBooking.requester_email,
+            requester_phone: updatedBooking.requester_phone || '',
+          } as CalendarEventType;
         } else {
           console.log("No booking request found with ID:", id);
         }
       } catch (error) {
         console.error("Error checking for booking request:", error);
-        throw error;
       }
     }
     
     console.log("Updating standard event:", id);
-    
-    let updateData: any = {
-      title: data.title,
-      user_surname: data.user_surname,
-      user_number: data.user_number,
-      social_network_link: data.social_network_link,
-      event_notes: data.event_notes,
-      start_date: data.start_date,
-      end_date: data.end_date,
-      payment_status: data.payment_status,
-      payment_amount: data.payment_amount
-    };
-    
-    if (data.booking_request_id) {
-      updateData.booking_request_id = data.booking_request_id;
-    }
-    
     const { data: updatedEvent, error } = await supabase
       .from('events')
-      .update(updateData)
+      .update({
+        title: data.title,
+        user_surname: data.user_surname,
+        user_number: data.user_number,
+        social_network_link: data.social_network_link,
+        event_notes: data.event_notes,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        payment_status: data.payment_status,
+        payment_amount: data.payment_amount
+      })
       .eq('id', id)
       .select()
       .single();
@@ -517,6 +420,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventsError) throw eventsError;
       
+      // Helper function to identify if this is the event being edited
       const isSameEvent = (item: any) => {
         return item.id === excludeEventId;
       };
@@ -537,6 +441,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         };
       }
       
+      // Check for booking conflicts
       if (businessId || businessUserId) {
         const targetBusinessId = businessId;
         
@@ -558,6 +463,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             conflictingBookings: conflictingBookings?.map(b => b.id)
           });
           
+          // Helper function to identify if this is the booking being edited
           const isSameBooking = (booking: any) => {
             return booking.id === excludeEventId;
           };
@@ -568,6 +474,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               endDate.getTime() <= new Date(booking.start_date).getTime())
           );
           
+          console.log("Filtered conflicting bookings:", bookingsConflict);
+          
           if (bookingsConflict && bookingsConflict.length > 0) {
             const conflictBooking = bookingsConflict[0];
             return { 
@@ -577,6 +485,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           }
         }
       } else if (!businessId && !businessUserId && user) {
+        // Check for user's own business bookings
         const { data: userBusinessProfile } = await supabase
           .from("business_profiles")
           .select("id")
@@ -599,6 +508,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             conflictingBookings: conflictingBookings?.map(b => b.id)
           });
           
+          // Helper function to identify if this is the booking being edited
           const isSameBooking = (booking: any) => {
             return booking.id === excludeEventId;
           };
@@ -678,7 +588,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     try {
       const { data: eventData, error: eventError } = await supabase
         .from('events')
-        .select('title, start_date, end_date, file_path')
+        .select('title, start_date, end_date')
         .eq('id', id)
         .maybeSingle();
       
@@ -710,24 +620,39 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             console.error('Error updating customer:', updateError);
           }
         }
-        
-        // Delete file from storage if it exists
-        if (eventData.file_path) {
-          try {
-            const { error: storageError } = await supabase.storage
-              .from('event_attachments')
-              .remove([eventData.file_path]);
-
-            if (storageError) {
-              console.error('Error deleting file from storage:', storageError);
-            }
-          } catch (fileError) {
-            console.error('Error handling file deletion:', fileError);
-          }
-        }
       }
     } catch (error) {
       console.error('Error handling customer association:', error);
+    }
+
+    try {
+      const { data: files } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', id);
+
+      if (files && files.length > 0) {
+        for (const file of files) {
+          const { error: storageError } = await supabase.storage
+            .from('event_attachments')
+            .remove([file.file_path]);
+
+          if (storageError) {
+            console.error('Error deleting file from storage:', storageError);
+          }
+        }
+
+        const { error: filesDeleteError } = await supabase
+          .from('event_files')
+          .delete()
+          .eq('event_id', id);
+
+        if (filesDeleteError) {
+          console.error('Error deleting file records:', filesDeleteError);
+        }
+      }
+    } catch (error) {
+      console.error('Error handling file deletion:', error);
     }
 
     const { error } = await supabase

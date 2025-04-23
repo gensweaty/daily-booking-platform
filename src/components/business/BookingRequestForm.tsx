@@ -132,6 +132,7 @@ export const BookingRequestForm = ({
       
       console.log("Business data retrieved:", businessData);
       
+      // If contact_email exists and is valid, use it
       if (businessData?.contact_email && businessData.contact_email.includes('@')) {
         console.log("Using contact_email from business profile:", businessData.contact_email);
         return businessData.contact_email;
@@ -142,6 +143,7 @@ export const BookingRequestForm = ({
         throw new Error("Invalid business configuration");
       }
       
+      // Try to get user email directly from auth
       try {
         const { data: userData } = await supabase.auth.getUser();
         
@@ -153,6 +155,7 @@ export const BookingRequestForm = ({
         console.error("Error getting user data:", userError);
       }
       
+      // Fallback to user_email field in business_profiles
       const { data: profileData } = await supabase
         .from('business_profiles')
         .select('user_email')
@@ -164,6 +167,7 @@ export const BookingRequestForm = ({
         return profileData.user_email;
       }
       
+      // Last resort fallback
       console.warn("No valid email found for business, using fallback");
       return "info@smartbookly.com";
     } catch (error) {
@@ -390,7 +394,6 @@ export const BookingRequestForm = ({
             console.error('❌ Error uploading file:', uploadError);
           } else {
             console.log("✅ File uploaded successfully:", filePath);
-            
             const { error: fileError } = await supabase
               .from('booking_files')
               .insert({
@@ -402,23 +405,9 @@ export const BookingRequestForm = ({
               });
               
             if (fileError) {
-              console.error('❌ Error saving file metadata to booking_files:', fileError);
+              console.error('❌ Error saving file metadata:', fileError);
             } else {
-              console.log("✅ File metadata saved to booking_files successfully");
-              
-              const { error: updateError } = await supabase
-                .from('booking_requests')
-                .update({
-                  file_path: filePath,
-                  filename: selectedFile.name
-                })
-                .eq('id', data.id);
-                
-              if (updateError) {
-                console.error('❌ Error updating booking_requests with file metadata:', updateError);
-              } else {
-                console.log("✅ Updated booking_requests with file metadata successfully");
-              }
+              console.log("✅ File metadata saved successfully");
             }
           }
         } catch (fileError) {

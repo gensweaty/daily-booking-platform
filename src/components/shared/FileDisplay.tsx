@@ -1,7 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { supabase, normalizeFilePath, getStorageUrl } from "@/integrations/supabase/client";
-import { determineEffectiveBucket, getDirectFileUrl } from "@/integrations/supabase/utils";
+import { supabase, getStorageUrl, normalizeFilePath } from "@/lib/supabase";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
@@ -32,29 +31,11 @@ export const FileDisplay = ({
   const { t } = useLanguage();
 
   useEffect(() => {
-    console.log("FileDisplay - Received files:", files?.length || 0, "for parentType:", parentType);
-    if (files && files.length > 0) {
-      console.log("First file details:", {
-        id: files[0].id,
-        filename: files[0].filename,
-        path: files[0].file_path,
-        source: files[0].source
-      });
-    }
-    
     const newURLs: {[key: string]: string} = {};
     files.forEach(file => {
       if (file.file_path) {
-        // Special handling for fully qualified URLs (public links)
-        if (file.file_path.startsWith('http://') || file.file_path.startsWith('https://')) {
-          // For public URLs, just use the URL directly
-          newURLs[file.id] = file.file_path;
-          console.log(`File ${file.filename}: Using public URL ${file.file_path}`);
-          return;
-        }
-        
         const normalizedPath = normalizeFilePath(file.file_path);
-        const effectiveBucket = determineEffectiveBucket(file.file_path);
+        const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
         console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path}`);
         newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
       }
@@ -75,18 +56,44 @@ export const FileDisplay = ({
     return <FileIcon className="h-5 w-5" />;
   };
 
+  const determineEffectiveBucket = (filePath: string, parentType?: string, source?: string): string => {
+    if (source === 'event') {
+      return "event_attachments";
+    }
+    
+    if (source === 'customer') {
+      return "customer_attachments";
+    }
+    
+    if (filePath && (
+      filePath.includes("b22b") || 
+      /^\d{13}_/.test(filePath) || 
+      filePath.includes("event_") ||
+      filePath.startsWith("event/")
+    )) {
+      return "event_attachments";
+    }
+    
+    if (parentType === "customer" && filePath && 
+      !filePath.includes("b22b") && 
+      !/^\d{13}_/.test(filePath) &&
+      !filePath.includes("event_") &&
+      !filePath.startsWith("event/")) {
+      return "customer_attachments";
+    }
+    
+    if (parentType === "event") {
+      return "event_attachments";
+    }
+    
+    return bucketName;
+  };
+
   const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
     try {
       console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
       
-      // Special handling for fully qualified URLs (public links)
-      if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-        // For public URLs, open in new tab instead of downloading
-        window.open(filePath, '_blank', 'noopener,noreferrer');
-        return;
-      }
-      
-      const effectiveBucket = determineEffectiveBucket(filePath);
+      const effectiveBucket = determineEffectiveBucket(filePath, parentType);
       console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath}`);
       
       const directUrl = fileURLs[fileId] || 
@@ -131,13 +138,27 @@ export const FileDisplay = ({
     }
   };
 
+  const getDirectFileUrl = (filePath: string, fileId: string): string => {
+    if (!filePath) return '';
+    
+    if (fileURLs[fileId]) {
+      return fileURLs[fileId];
+    }
+    
+    const normalizedPath = normalizeFilePath(filePath);
+    const effectiveBucket = determineEffectiveBucket(filePath, parentType);
+    console.log(`Open: Using bucket ${effectiveBucket} for path ${filePath}`);
+    
+    return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
+  };
+
   const handleOpenFile = async (filePath: string, fileId: string) => {
     try {
       if (!filePath) {
         throw new Error('File path is missing');
       }
       
-      const directUrl = getDirectFileUrl(filePath);
+      const directUrl = getDirectFileUrl(filePath, fileId);
       console.log('Opening file with direct URL:', directUrl);
       
       // Open in a new tab to prevent navigating away
@@ -156,124 +177,36 @@ export const FileDisplay = ({
     try {
       setDeletingFileId(fileId);
       
-      // Special handling for public links - we can't delete them
-      if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-        console.log("Cannot delete external file from storage:", filePath);
-        
-        // But we can delete the reference from our database
-        const tableName = parentType === 'event' ? 'event_files' : 
-                          parentType === 'customer' ? 'customer_files_new' : 'files';
-        
-        console.log(`Deleting file reference from table ${tableName}, id: ${fileId}`);
-        
-        // Use the correct table as a string literal for TypeScript compatibility
-        if (tableName === 'event_files') {
-          // Using a type assertion since 'event_files' is not recognized in the schema
-          const { error: dbError } = await supabase
-            .from('event_files' as any)
-            .delete()
-            .eq('id', fileId);
-          
-          if (dbError) {
-            console.error(`Error deleting file from ${tableName}:`, dbError);
-            throw dbError;
-          }
-        } else if (tableName === 'customer_files_new') {
-          const { error: dbError } = await supabase
-            .from('customer_files_new')
-            .delete()
-            .eq('id', fileId);
-          
-          if (dbError) {
-            console.error(`Error deleting file from ${tableName}:`, dbError);
-            throw dbError;
-          }
-        } else {
-          const { error: dbError } = await supabase
-            .from('files')
-            .delete()
-            .eq('id', fileId);
-          
-          if (dbError) {
-            console.error(`Error deleting file from ${tableName}:`, dbError);
-            throw dbError;
-          }
-        }
-        
-        if (onFileDeleted) {
-          onFileDeleted(fileId);
-        }
-        
-        toast({
-          title: t("common.success"),
-          description: t("common.fileDeleted"),
-        });
-        
-        return;
-      }
-      
-      const effectiveBucket = determineEffectiveBucket(filePath);
+      const effectiveBucket = determineEffectiveBucket(filePath, parentType);
       console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}`);
       
-      // Skip storage delete if it's a booking file (just a reference)
-      if (!fileId.startsWith('booking-')) {
-        const { error: storageError } = await supabase.storage
-          .from(effectiveBucket)
-          .remove([normalizeFilePath(filePath)]);
-  
-        if (storageError) {
-          console.error('Error deleting file from storage:', storageError);
-          // We continue even if we can't delete from storage
-          // It may be a reference to a file in another record
-        }
+      const { error: storageError } = await supabase.storage
+        .from(effectiveBucket)
+        .remove([normalizeFilePath(filePath)]);
+
+      if (storageError) {
+        console.error('Error deleting file from storage:', storageError);
+        throw storageError;
       }
       
-      // Skip database delete for virtual booking files
-      if (!fileId.startsWith('booking-')) {
-        let tableName: 'files' | 'note_files' = 'files';
+      let tableName = 'files';
+      if (effectiveBucket === 'event_attachments' || parentType === 'event') {
+        tableName = 'event_files';
+      } else if (effectiveBucket === 'customer_attachments' || parentType === 'customer') {
+        tableName = 'customer_files_new';
+      } else if (effectiveBucket === 'note_attachments' || parentType === 'note') {
+        tableName = 'note_files';
+      }
+      
+      console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);
+      const { error: dbError } = await supabase
+        .from(tableName)
+        .delete()
+        .eq('id', fileId);
         
-        if (parentType === 'event') {
-          // Use type assertion for tables not in the schema
-          const { error: dbError } = await supabase
-            .from('event_files' as any)
-            .delete()
-            .eq('id', fileId);
-            
-          if (dbError) {
-            console.error(`Error deleting file from event_files:`, dbError);
-            throw dbError;
-          }
-        } else if (parentType === 'customer') {
-          const { error: dbError } = await supabase
-            .from('customer_files_new')
-            .delete()
-            .eq('id', fileId);
-            
-          if (dbError) {
-            console.error(`Error deleting file from customer_files_new:`, dbError);
-            throw dbError;
-          }
-        } else if (parentType === 'note') {
-          const { error: dbError } = await supabase
-            .from('note_files')
-            .delete()
-            .eq('id', fileId);
-            
-          if (dbError) {
-            console.error(`Error deleting file from note_files:`, dbError);
-            throw dbError;
-          }
-        } else {
-          const { error: dbError } = await supabase
-            .from('files')
-            .delete()
-            .eq('id', fileId);
-            
-          if (dbError) {
-            console.error(`Error deleting file from files:`, dbError);
-            throw dbError;
-          }
-        }
+      if (dbError) {
+        console.error(`Error deleting file from ${tableName}:`, dbError);
+        throw dbError;
       }
       
       if (onFileDeleted) {
@@ -305,34 +238,23 @@ export const FileDisplay = ({
   };
 
   if (!files || files.length === 0) {
-    console.log("FileDisplay - No files to display");
     return null;
   }
 
-  console.log("FileDisplay - Rendering files:", files.length);
-  
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-medium">{t("common.attachments")}</h3>
       <div className="space-y-2">
         {files.map((file) => {
-          if (!file.file_path) {
-            console.log("Skipping file with no path:", file.id);
-            return null;
-          }
+          if (!file.file_path) return null;
           
           const fileNameDisplay = file.filename && file.filename.length > 20 
             ? file.filename.substring(0, 20) + '...' 
             : file.filename;
           
-          // Special handling for public URLs
-          const isPublicUrl = file.file_path.startsWith('http://') || file.file_path.startsWith('https://');
-          const imageUrl = isPublicUrl ? file.file_path : (
-            fileURLs[file.id] || 
-            `${getStorageUrl()}/object/public/${determineEffectiveBucket(file.file_path)}/${normalizeFilePath(file.file_path)}`
-          );
-          
-          console.log(`Rendering file: ${file.filename}, URL: ${imageUrl.substring(0, 100)}...`);
+          const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
+          const imageUrl = fileURLs[file.id] || 
+            `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(file.file_path)}`;
             
           return (
             <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">

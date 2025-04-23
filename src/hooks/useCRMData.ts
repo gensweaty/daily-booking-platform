@@ -1,8 +1,8 @@
+
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { endOfDay } from 'date-fns';
-import { createFileObjectFromEvent } from '@/integrations/supabase/utils';
 
 export function useCRMData(userId: string | undefined, dateRange: { start: Date, end: Date }) {
   // Memoize query keys to prevent unnecessary re-renders
@@ -51,19 +51,6 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       .is('deleted_at', null);
 
     if (error) throw error;
-    
-    // Log file paths for debugging
-    if (data && data.length > 0) {
-      data.forEach(event => {
-        if (event.file_path && event.filename) {
-          console.log(`Event ${event.id} has direct file: ${event.filename} (${event.file_path})`);
-        }
-        if (event.event_files && event.event_files.length > 0) {
-          console.log(`Event ${event.id} has ${event.event_files.length} related files`);
-        }
-      });
-    }
-    
     return data || [];
   }, [userId, dateRange.start, dateRange.end]);
 
@@ -107,13 +94,10 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       const eventKey = `${event.title}-${event.start_date}-${event.end_date}`;
       
       if (!existingIds.has(eventKey)) {
-        // Use our helper function to get all files from the event
-        const customerFiles = createFileObjectFromEvent(event);
-        
         combined.push({
           ...event,
           id: `event-${event.id}`,
-          customer_files_new: customerFiles
+          customer_files_new: event.event_files
         });
       }
     });

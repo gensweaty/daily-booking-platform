@@ -20,8 +20,4 @@ export interface CalendarEventType {
   requester_phone?: string;
   description?: string;
   file?: File;
-  booking_request_id?: string;
-  file_path?: string;
-  filename?: string;
-  event_files?: any[];
 }
