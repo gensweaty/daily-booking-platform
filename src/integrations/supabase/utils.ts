@@ -1,7 +1,7 @@
 
 import { normalizeFilePath, getStorageUrl } from "./client";
 
-// Helper function to determine which storage bucket to use based on file path and entity type
+// Helper function to determine which storage bucket to use based on file path
 export const determineEffectiveBucket = (filePath: string): string => {
   // Check if this is a public URL
   if (filePath && (filePath.startsWith('http://') || filePath.startsWith('https://'))) {
