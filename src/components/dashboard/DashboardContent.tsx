@@ -1,8 +1,7 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
-import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefcase, MessageSquare } from "lucide-react"
+import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefcase, Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TaskList } from "@/components/TaskList"
 import { Calendar } from "@/components/Calendar/Calendar"
@@ -15,6 +14,8 @@ import { useLanguage } from "@/contexts/LanguageContext"
 import { useBusinessProfile } from "@/hooks/useBusinessProfile"
 import { useBookingRequests } from "@/hooks/useBookingRequests"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
+import { useEffect } from "react"
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
@@ -48,9 +49,20 @@ export const DashboardContent = ({
   isTaskDialogOpen, 
   setIsTaskDialogOpen 
 }: DashboardContentProps) => {
-  const { t } = useLanguage();
-  const { pendingRequests } = useBookingRequests();
-  const pendingCount = pendingRequests?.length || 0;
+  const { t } = useLanguage()
+  const { pendingRequests } = useBookingRequests()
+  const { toast } = useToast()
+  const pendingCount = pendingRequests?.length || 0
+
+  useEffect(() => {
+    if (pendingCount > 0) {
+      toast({
+        title: "New Booking Request",
+        description: `You have ${pendingCount} new booking ${pendingCount === 1 ? 'request' : 'requests'} pending`,
+        duration: 5000,
+      })
+    }
+  }, [pendingCount, toast])
 
   return (
     <Tabs defaultValue="calendar" className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
@@ -115,12 +127,19 @@ export const DashboardContent = ({
           </motion.div>
           <span className="hidden sm:inline">My Business</span>
           {pendingCount > 0 && (
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 p-0 text-xs"
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 500, damping: 25 }}
             >
-              {pendingCount}
-            </Badge>
+              <Badge 
+                variant="destructive" 
+                className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 p-1 text-xs rounded-full gap-1"
+              >
+                <Bell className="w-3 h-3" />
+                {pendingCount}
+              </Badge>
+            </motion.div>
           )}
         </TabsTrigger>
       </TabsList>
