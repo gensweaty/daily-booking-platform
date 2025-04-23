@@ -312,7 +312,8 @@ export const EventDialog = ({
           };
 
           const { error: fileRecordError } = await supabase
-            .rpc('insert_event_file', fileData);
+            .from('event_files')
+            .insert(fileData);
             
           if (fileRecordError) {
             console.error('Error creating file record:', fileRecordError);

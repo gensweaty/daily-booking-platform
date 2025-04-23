@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -190,13 +190,14 @@ export const FileDisplay = ({
         throw storageError;
       }
       
-      let tableName = 'files';
+      // Fix the table name issue by using type assertion
+      let tableName: "event_files" | "customer_files_new" | "note_files" = "customer_files_new";
       if (effectiveBucket === 'event_attachments' || parentType === 'event') {
-        tableName = 'event_files';
+        tableName = "event_files";
       } else if (effectiveBucket === 'customer_attachments' || parentType === 'customer') {
-        tableName = 'customer_files_new';
+        tableName = "customer_files_new";
       } else if (effectiveBucket === 'note_attachments' || parentType === 'note') {
-        tableName = 'note_files';
+        tableName = "note_files";
       }
       
       console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);

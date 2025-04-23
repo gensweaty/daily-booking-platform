@@ -1,3 +1,4 @@
+
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -110,10 +111,18 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     
     console.log("Processing combined data from", customers.length, "customers and", events.length, "events");
     
-    const combined = [...customers];
+    const combined = [];
     const existingIds = new Set(customers.map(c => 
       `${c.title}-${c.start_date}-${c.end_date}`
     ));
+
+    // Add customers with default create_event property if missing
+    for (const customer of customers) {
+      combined.push({
+        ...customer,
+        create_event: customer.create_event !== undefined ? customer.create_event : false
+      });
+    }
 
     events.forEach(event => {
       const eventKey = `${event.title}-${event.start_date}-${event.end_date}`;
@@ -122,7 +131,8 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
         combined.push({
           ...event,
           id: `event-${event.id}`,
-          customer_files_new: event.event_files
+          customer_files_new: event.event_files,
+          create_event: false // Add default create_event property
         });
       }
     });
