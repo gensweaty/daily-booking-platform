@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { supabase, normalizeFilePath, getStorageUrl } from "@/integrations/supabase/client";
 import { determineEffectiveBucket, getDirectFileUrl, safeSupabaseQuery } from "@/integrations/supabase/utils";
@@ -34,12 +33,12 @@ export const FileDisplay = ({
   useEffect(() => {
     console.log("FileDisplay - Received files:", files?.length || 0, "for parentType:", parentType);
     if (files && files.length > 0) {
-      console.log("First file details:", {
-        id: files[0].id,
-        filename: files[0].filename,
-        path: files[0].file_path,
-        source: files[0].source
-      });
+      console.log("Files details:", files.map(file => ({
+        id: file.id,
+        filename: file.filename,
+        path: file.file_path,
+        source: file.source
+      })));
     }
     
     const newURLs: {[key: string]: string} = {};
@@ -53,11 +52,9 @@ export const FileDisplay = ({
           return;
         }
         
-        const normalizedPath = normalizeFilePath(file.file_path);
         // Use source if provided in the file object
-        const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
-        console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path} (source: ${file.source || 'unknown'})`);
-        newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
+        newURLs[file.id] = getDirectFileUrl(file.file_path, file.id, parentType, file.source);
+        console.log(`File ${file.filename}: URL set to ${newURLs[file.id]}`);
       }
     });
     setFileURLs(newURLs);
@@ -90,9 +87,6 @@ export const FileDisplay = ({
       // Get the source from the file object if available
       const fileObject = files.find(f => f.id === fileId);
       const source = fileObject?.source;
-      
-      const effectiveBucket = determineEffectiveBucket(filePath, parentType, source);
-      console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath} (source: ${source || 'unknown'})`);
       
       const directUrl = fileURLs[fileId] || 
         getDirectFileUrl(filePath, fileId, parentType, source);
@@ -371,7 +365,7 @@ export const FileDisplay = ({
             getDirectFileUrl(file.file_path, file.id, parentType, file.source)
           );
           
-          console.log(`Rendering file: ${file.filename}, URL: ${imageUrl.substring(0, 100)}...`);
+          console.log(`Rendering file: ${file.filename}, URL: ${imageUrl}`);
             
           return (
             <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">
