@@ -64,7 +64,7 @@ export const CalendarGrid = ({
   const renderEventContent = (event: CalendarEventType) => {
     const bookingHours = getBookingHours(event);
 
-    // For external calendar
+    // For external calendar - always show "Booked" instead of event title for privacy
     if (isExternalCalendar) {
       return (
         <div className="w-full">
