@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -372,7 +371,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             filename: bookingData.filename
           };
           
-          console.log("Creating new event from booking request:", eventPayload);
+          console.log("Creating new event from booking request with file data:", {
+            file_path: bookingData.file_path,
+            filename: bookingData.filename
+          });
           
           const { data: newEvent, error: createError } = await supabase
             .from('events')
@@ -402,7 +404,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               filename: bookingData.filename
             };
 
-            console.log("Creating customer from approved booking:", customerData);
+            console.log("Creating customer from approved booking with file data:", {
+              file_path: bookingData.file_path,
+              filename: bookingData.filename
+            });
             
             const { data: newCustomer, error: customerError } = await supabase
               .from('customers')

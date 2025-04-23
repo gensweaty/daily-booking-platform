@@ -52,11 +52,14 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
 
     if (error) throw error;
     
-    // Log the file path and filename for debugging
+    // Log file paths for debugging
     if (data && data.length > 0) {
       data.forEach(event => {
         if (event.file_path && event.filename) {
           console.log(`Event ${event.id} has direct file: ${event.filename} (${event.file_path})`);
+        }
+        if (event.event_files && event.event_files.length > 0) {
+          console.log(`Event ${event.id} has ${event.event_files.length} related files`);
         }
       });
     }
@@ -109,6 +112,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
         
         // If event has direct file_path and filename, add it to the files array
         if (event.file_path && event.filename) {
+          console.log(`Adding direct file from event ${event.id}: ${event.filename} (${event.file_path})`);
           customerFiles = [{
             id: `event-file-${event.id}`,
             file_path: event.file_path,

@@ -1,3 +1,5 @@
+
+// This is a large file so we'll focus just on the essential changes needed
 import React, { useState, useEffect } from 'react';
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -77,6 +79,7 @@ export const EventDialog = ({
       
       console.log("EventDialog - Loaded event with type:", event.type);
       console.log("EventDialog - Loaded event with file_path:", event.file_path);
+      console.log("EventDialog - Loaded event with filename:", event.filename);
       
       const files = createFileObjectFromEvent(event);
       console.log("EventDialog - files for display:", files);
@@ -219,12 +222,31 @@ export const EventDialog = ({
       if (event.booking_request_id) {
         eventData.booking_request_id = event.booking_request_id;
       }
+      
+      // Make sure we preserve file information when updating
+      if (event.file_path && event.filename) {
+        eventData.file_path = event.file_path;
+        eventData.filename = event.filename;
+      }
     }
 
     if (wasBookingRequest) {
       eventData.type = 'event';
       eventData.booking_request_id = event.id;
-      console.log("Converting booking request to event:", { wasBookingRequest, isApprovingBookingRequest, bookingId: event.id });
+      
+      // When converting a booking request to an event, preserve any file information
+      if (event.file_path && event.filename) {
+        eventData.file_path = event.file_path;
+        eventData.filename = event.filename;
+      }
+      
+      console.log("Converting booking request to event:", { 
+        wasBookingRequest, 
+        isApprovingBookingRequest, 
+        bookingId: event.id,
+        filePath: eventData.file_path,
+        fileName: eventData.filename
+      });
     } else if (event?.type) {
       eventData.type = event.type;
     }

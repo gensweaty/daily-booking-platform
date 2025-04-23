@@ -53,6 +53,12 @@ export const createFileObjectFromEvent = (event: any): any[] => {
     console.log(`Found ${event.event_files.length} files in event ${event.id}`);
     return event.event_files;
   }
+
+  // For approved booking requests, the file information would be on the original booking
+  if (event.booking_request_id) {
+    console.log(`Event ${event.id} is from booking request ${event.booking_request_id}, checking for files`);
+    // The file data should have been copied to the event itself, but we log this for debugging purposes
+  }
   
   console.log(`No files found for event ${event.id}`);
   return [];
