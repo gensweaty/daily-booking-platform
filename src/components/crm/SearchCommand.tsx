@@ -46,31 +46,33 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
       return;
     }
     
-    // Apply immediate search with elastic-like functionality
-    const searchTerms = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
-    
-    const filtered = dataRef.current.filter((item) => {
-      // Create a combined text from all searchable fields
-      const itemText = [
-        item.title,
-        item.user_number,
-        item.social_network_link,
-        item.event_notes,
-        item.payment_status,
-        // Add any other fields that might contain relevant search data
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
+    debounceTimeout.current = setTimeout(() => {
+      // Apply immediate search with elastic-like functionality
+      const searchTerms = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
       
-      // More flexible search: match any term for more elastic-like behavior
-      return searchTerms.some(term => itemText.includes(term));
-    });
-    
-    console.log(`Search: "${search}" found ${filtered.length} matches from ${dataRef.current.length} items`);
-    
-    // Update the filtered data to show in the main table
-    setFilteredData(filtered);
+      const filtered = dataRef.current.filter((item) => {
+        // Create a combined text from all searchable fields
+        const itemText = [
+          item.title,
+          item.user_number,
+          item.social_network_link,
+          item.event_notes,
+          item.payment_status,
+          // Add any other fields that might contain relevant search data
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        
+        // More flexible search: match any term for more elastic-like behavior
+        return searchTerms.some(term => itemText.includes(term));
+      });
+      
+      console.log(`Search: "${search}" found ${filtered.length} matches from ${dataRef.current.length} items`);
+      
+      // Update the filtered data to show in the main table
+      setFilteredData(filtered);
+    }, 200); // Small debounce for better performance
     
   }, [setFilteredData]);
   
@@ -95,15 +97,12 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
   return (
     <div className="w-full md:w-[200px] -mt-4">
       <Command className="rounded-lg border">
-        <div className="flex items-center px-2 border-b">
-          <Search className="h-4 w-4 shrink-0 opacity-50 mr-2" />
-          <CommandInput
-            placeholder="Search..."
-            className="h-9 border-0 focus:ring-0 px-0"
-            value={searchValue}
-            onValueChange={handleSearch}
-          />
-        </div>
+        <CommandInput
+          placeholder="Search..."
+          className="h-9"
+          value={searchValue}
+          onValueChange={handleSearch}
+        />
       </Command>
     </div>
   );
