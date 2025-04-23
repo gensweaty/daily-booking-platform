@@ -95,7 +95,7 @@ export const FileDisplay = ({
       console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath} (source: ${source || 'unknown'})`);
       
       const directUrl = fileURLs[fileId] || 
-        `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
+        getDirectFileUrl(filePath, fileId, parentType, source);
       
       console.log('Using direct URL for download:', directUrl);
       
@@ -146,7 +146,7 @@ export const FileDisplay = ({
       const fileObject = files.find(f => f.id === fileId);
       const source = fileObject?.source;
       
-      const directUrl = getDirectFileUrl(filePath, fileId, source || parentType);
+      const directUrl = getDirectFileUrl(filePath, fileId, parentType, source);
       console.log('Opening file with direct URL:', directUrl);
       
       // Open in a new tab to prevent navigating away
@@ -368,7 +368,7 @@ export const FileDisplay = ({
           const isPublicUrl = file.file_path.startsWith('http://') || file.file_path.startsWith('https://');
           const imageUrl = isPublicUrl ? file.file_path : (
             fileURLs[file.id] || 
-            `${getStorageUrl()}/object/public/${determineEffectiveBucket(file.file_path, parentType, file.source)}/${normalizeFilePath(file.file_path)}`
+            getDirectFileUrl(file.file_path, file.id, parentType, file.source)
           );
           
           console.log(`Rendering file: ${file.filename}, URL: ${imageUrl.substring(0, 100)}...`);

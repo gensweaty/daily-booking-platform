@@ -11,12 +11,15 @@ export const determineEffectiveBucket = (filePath: string, parentType?: string, 
   }
   
   // First, prioritize source parameter if provided
-  if (source === 'event' || source === 'booking_request' || source === 'booking_files') {
-    return "event_attachments";
-  }
-  
-  if (source === 'customer') {
-    return "customer_attachments";
+  // This ensures files are fetched from the correct bucket based on their original source
+  if (source) {
+    if (['event', 'booking_request', 'booking_files'].includes(source)) {
+      return "event_attachments";
+    }
+    
+    if (source === 'customer') {
+      return "customer_attachments";
+    }
   }
   
   // Then check file path patterns
@@ -55,7 +58,7 @@ export const determineEffectiveBucket = (filePath: string, parentType?: string, 
 };
 
 // Helper function to get the direct file URL
-export const getDirectFileUrl = (filePath: string, fileId: string, parentType?: string): string => {
+export const getDirectFileUrl = (filePath: string, fileId: string, parentType?: string, source?: string): string => {
   if (!filePath) return '';
   
   // Special handling for fully qualified URLs (public links)
@@ -64,15 +67,16 @@ export const getDirectFileUrl = (filePath: string, fileId: string, parentType?: 
   }
   
   const normalizedPath = normalizeFilePath(filePath);
-  let effectiveBucket = determineEffectiveBucket(filePath, parentType);
+  // Pass the source parameter to determineEffectiveBucket to use the correct bucket
+  let effectiveBucket = determineEffectiveBucket(filePath, parentType, source);
   
   // Special handling for booking files
-  if (filePath.includes("booking_")) {
-    console.log(`Using booking_attachments bucket for booking file: ${filePath}`);
+  if (filePath.includes("booking_") || source === "booking_request" || source === "booking_files") {
+    console.log(`Using booking_attachments bucket for booking file: ${filePath} (source: ${source || 'unknown'})`);
     effectiveBucket = "booking_attachments";
   }
   
-  console.log(`Using bucket ${effectiveBucket} for path ${filePath}`);
+  console.log(`Using bucket ${effectiveBucket} for path ${filePath} (source: ${source || 'unknown'})`);
   
   return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
 };
