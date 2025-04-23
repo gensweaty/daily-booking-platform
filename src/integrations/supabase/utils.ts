@@ -29,3 +29,31 @@ export const getDirectFileUrl = (filePath: string): string => {
   
   return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
 };
+
+// Create a utility function to construct file objects from event data
+export const createFileObjectFromEvent = (event: any): any[] => {
+  if (!event) return [];
+  
+  // Check if the event has file_path and filename directly
+  if (event.file_path && event.filename) {
+    console.log(`Creating file object from event: ${event.id} with file path: ${event.file_path}`);
+    return [{
+      id: `event-file-${event.id}`,
+      file_path: event.file_path,
+      filename: event.filename,
+      content_type: '',
+      size: 0,
+      created_at: event.created_at,
+      user_id: event.user_id
+    }];
+  }
+  
+  // Check if the event has event_files collection
+  if (event.event_files && event.event_files.length > 0) {
+    console.log(`Found ${event.event_files.length} files in event ${event.id}`);
+    return event.event_files;
+  }
+  
+  console.log(`No files found for event ${event.id}`);
+  return [];
+};

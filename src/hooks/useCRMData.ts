@@ -51,6 +51,16 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       .is('deleted_at', null);
 
     if (error) throw error;
+    
+    // Log the file path and filename for debugging
+    if (data && data.length > 0) {
+      data.forEach(event => {
+        if (event.file_path && event.filename) {
+          console.log(`Event ${event.id} has direct file: ${event.filename} (${event.file_path})`);
+        }
+      });
+    }
+    
     return data || [];
   }, [userId, dateRange.start, dateRange.end]);
 
@@ -94,10 +104,26 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       const eventKey = `${event.title}-${event.start_date}-${event.end_date}`;
       
       if (!existingIds.has(eventKey)) {
+        // Create fake customer_files_new array from event file data if present
+        let customerFiles = event.event_files || [];
+        
+        // If event has direct file_path and filename, add it to the files array
+        if (event.file_path && event.filename) {
+          customerFiles = [{
+            id: `event-file-${event.id}`,
+            file_path: event.file_path,
+            filename: event.filename,
+            content_type: '',
+            size: 0,
+            created_at: event.created_at,
+            user_id: event.user_id
+          }];
+        }
+        
         combined.push({
           ...event,
           id: `event-${event.id}`,
-          customer_files_new: event.event_files
+          customer_files_new: customerFiles
         });
       }
     });

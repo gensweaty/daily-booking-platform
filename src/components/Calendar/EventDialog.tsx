@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -11,6 +10,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CalendarEventType } from "@/lib/types/calendar";
+import { FileDisplay } from "@/components/shared/FileDisplay";
+import { createFileObjectFromEvent } from "@/integrations/supabase/utils";
 
 interface EventDialogProps {
   open: boolean;
@@ -45,6 +46,7 @@ export const EventDialog = ({
   const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  const [eventFiles, setEventFiles] = useState<any[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -74,6 +76,11 @@ export const EventDialog = ({
       setIsBookingEvent(event.type === 'booking_request');
       
       console.log("EventDialog - Loaded event with type:", event.type);
+      console.log("EventDialog - Loaded event with file_path:", event.file_path);
+      
+      const files = createFileObjectFromEvent(event);
+      console.log("EventDialog - files for display:", files);
+      setEventFiles(files);
     } else if (selectedDate) {
       const start = new Date(selectedDate.getTime());
       const end = new Date(selectedDate.getTime());
@@ -366,6 +373,16 @@ export const EventDialog = ({
     return true;
   };
 
+  const handleFileDeleted = (fileId: string) => {
+    console.log("File deleted, refreshing file list");
+    // For direct file in event, we'll just clear the array since we'll get fresh data on next load
+    setEventFiles([]);
+    
+    // Invalidate queries to refresh data
+    queryClient.invalidateQueries({ queryKey: ['events'] });
+    queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -397,6 +414,19 @@ export const EventDialog = ({
             eventId={event?.id}
             isBookingRequest={isBookingRequest}
           />
+          
+          {event && eventFiles.length > 0 && (
+            <div className="mt-4">
+              <FileDisplay 
+                files={eventFiles} 
+                bucketName="event_attachments" 
+                allowDelete={true}
+                onFileDeleted={handleFileDeleted}
+                parentId={event.id}
+                parentType="event"
+              />
+            </div>
+          )}
           
           <div className="flex justify-between gap-4">
             <Button type="submit" className="flex-1">
