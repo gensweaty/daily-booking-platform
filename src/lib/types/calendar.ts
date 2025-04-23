@@ -23,4 +23,5 @@ export interface CalendarEventType {
   file_path?: string;
   filename?: string;
   booking_request_id?: string;
+  source?: string;
 }

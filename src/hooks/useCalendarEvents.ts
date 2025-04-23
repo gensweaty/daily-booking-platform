@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -377,7 +376,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             filename: bookingFile?.filename || null
           };
           
-          console.log("Creating new event from booking request:", eventPayload);
+          console.log("Creating new event from booking request with file data:", eventPayload);
           
           const { data: newEvent, error: createError } = await supabase
             .from('events')
@@ -411,15 +410,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             }
           }
           
-          const { error: statusError } = await supabase
-            .from('booking_requests')
-            .update({ status: 'approved' })
-            .eq('id', id);
-            
-          if (statusError) {
-            console.error("Error updating booking status:", statusError);
-          }
-          
           try {
             const customerData = {
               title: data.title,
@@ -433,10 +423,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               payment_amount: data.payment_amount || null,
               user_id: user.id,
               type: 'customer',
-              create_event: false
+              create_event: false,
+              file_path: bookingFile?.file_path || null,
+              filename: bookingFile?.filename || null
             };
 
-            console.log("Creating customer from approved booking:", customerData);
+            console.log("Creating customer from approved booking with file data:", customerData);
             
             const { data: newCustomer, error: customerError } = await supabase
               .from('customers')
@@ -497,7 +489,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     
     console.log("Updating standard event:", id);
     
-    // If this is a regular event but has a booking_request_id, preserve it in the update
     let updateData: any = {
       title: data.title,
       user_surname: data.user_surname,

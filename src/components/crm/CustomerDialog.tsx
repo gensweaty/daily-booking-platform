@@ -130,7 +130,7 @@ export const CustomerDialog = ({
           const { data: booking, error: bookingError } = await supabase
             .from('booking_requests')
             .select('file_path, filename')
-            .eq('id', bookingEvent.id)
+            .eq('id', bookingEvent.booking_request_id || bookingEvent.id)
             .maybeSingle();
             
           if (!bookingError && booking && booking.file_path) {

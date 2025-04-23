@@ -129,6 +129,25 @@ export const EventDialog = ({
           }
         }
         
+        // Check if the event itself has file info (direct properties)
+        if (!foundFiles && (event.file_path || event.filename)) {
+          console.log("Found file information directly on the event:", event.file_path);
+          const eventFile = {
+            id: `event-file-${event.id}`,
+            event_id: event.id,
+            filename: event.filename || 'attachment',
+            file_path: event.file_path || '',
+            content_type: '',
+            size: 0,
+            created_at: new Date().toISOString(),
+            user_id: user?.id,
+            source: 'event'
+          };
+          
+          setDisplayedFiles([eventFile]);
+          foundFiles = true;
+        }
+        
         // Next check if this is a booking request
         if (!foundFiles && event.type === 'booking_request') {
           console.log("Loading files for booking request:", event.id);
@@ -158,25 +177,6 @@ export const EventDialog = ({
             setDisplayedFiles([bookingFile]);
             foundFiles = true;
           }
-        }
-        
-        // Check if the event itself has file path
-        if (!foundFiles && event.file_path) {
-          console.log("Found file information directly on the event:", event.file_path);
-          const eventFile = {
-            id: `event-file-${event.id}`,
-            event_id: event.id,
-            filename: event.filename || 'attachment',
-            file_path: event.file_path,
-            content_type: '',
-            size: 0,
-            created_at: new Date().toISOString(),
-            user_id: user?.id,
-            source: 'event'
-          };
-          
-          setDisplayedFiles([eventFile]);
-          foundFiles = true;
         }
         
         // If no files found so far, check standard event files

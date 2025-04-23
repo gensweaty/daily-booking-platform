@@ -22,7 +22,8 @@ export const determineEffectiveBucket = (filePath: string, parentType?: string, 
     filePath.includes("b22b") || 
     /^\d{13}_/.test(filePath) || 
     filePath.includes("event_") ||
-    filePath.startsWith("event/")
+    filePath.startsWith("event/") ||
+    filePath.includes("booking_")
   )) {
     return "event_attachments";
   }
@@ -31,11 +32,12 @@ export const determineEffectiveBucket = (filePath: string, parentType?: string, 
     !filePath.includes("b22b") && 
     !/^\d{13}_/.test(filePath) &&
     !filePath.includes("event_") &&
-    !filePath.startsWith("event/")) {
+    !filePath.startsWith("event/") &&
+    !filePath.includes("booking_")) {
     return "customer_attachments";
   }
   
-  if (parentType === "event") {
+  if (parentType === "event" || parentType === "booking_request") {
     return "event_attachments";
   }
   
