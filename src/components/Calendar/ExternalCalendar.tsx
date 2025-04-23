@@ -133,9 +133,9 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         
         console.log(`[External Calendar] Combined ${allEvents.length} total events`);
         
-        // Filter out any events with deleted_at not null (explicitly deleted events)
+        // IMPORTANT FIX: Filter out any events with deleted_at not null (explicitly deleted events)
         const nonDeletedEvents = allEvents.filter(event => !event.deleted_at);
-        console.log(`[External Calendar] After filtering deleted events: ${nonDeletedEvents.length} events`);
+        console.log(`[External Calendar] After filtering deleted events: ${nonDeletedEvents.length} events remaining from ${allEvents.length} total`);
         
         // Validate all events have proper dates
         const validEvents = nonDeletedEvents.filter(event => {

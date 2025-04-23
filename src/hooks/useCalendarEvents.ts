@@ -860,17 +860,28 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.error('Error handling file deletion:', error);
     }
 
-    const { error } = await supabase
-      .from('events')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-    
-    toast({
-      title: "Success",
-      description: "Event deleted successfully",
-    });
+    try {
+      console.log("Setting deleted_at for event:", id);
+      const { error } = await supabase
+        .from('events')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+  
+      if (error) {
+        console.error("Error marking event as deleted:", error);
+        throw error;
+      }
+      
+      console.log("Successfully marked event as deleted");
+      
+      toast({
+        title: "Success",
+        description: "Event deleted successfully",
+      });
+    } catch (deleteError) {
+      console.error("Final error in deleteEvent:", deleteError);
+      throw deleteError;
+    }
   };
 
   const { data: events = [], isLoading: isLoadingUserEvents, error: userEventsError } = useQuery({
