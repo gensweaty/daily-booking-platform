@@ -324,11 +324,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             .select("*")
             .eq("booking_id", id);
             
-          if (bookingFilesError) {
-            console.error("Error checking booking_files table:", bookingFilesError);
-          } else if (bookingFilesData && bookingFilesData.length > 0) {
+          if (!bookingFilesError && bookingFilesData && bookingFilesData.length > 0) {
             console.log("Found files in booking_files table:", bookingFilesData);
             bookingFiles = bookingFilesData;
+          } else if (bookingFilesError) {
+            console.error("Error checking booking_files table:", bookingFilesError);
           } else {
             console.log("No files found in booking_files table");
           }

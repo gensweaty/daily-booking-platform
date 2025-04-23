@@ -11,33 +11,32 @@ export const determineEffectiveBucket = (filePath: string, parentType?: string, 
   }
   
   // First, prioritize source parameter if provided
+  // This ensures files are fetched from the correct bucket based on their original source
   if (source) {
-    if (source === 'booking_request' || source === 'booking_files' || source === 'event') {
-      console.log(`Using event_attachments bucket based on source: ${source}`);
+    if (['event', 'booking_request', 'booking_files'].includes(source)) {
       return "event_attachments";
     }
     
     if (source === 'customer') {
-      console.log(`Using customer_attachments bucket based on source: ${source}`);
       return "customer_attachments";
     }
   }
   
   // Then check file path patterns
-  if (filePath) {
+  if (filePath && (
+    filePath.includes("b22b") || 
+    /^\d{13}_/.test(filePath) || 
+    filePath.includes("event_") ||
+    filePath.startsWith("event/") ||
+    filePath.includes("booking_")
+  )) {
     // Check specifically for booking paths
     if (filePath.includes("booking_")) {
-      console.log("Using event_attachments bucket for booking-related file:", filePath);
-      return "event_attachments";
+      console.log("Using booking_attachments bucket for booking-related file:", filePath);
+      return "booking_attachments";
     }
     
-    if (filePath.includes("b22b") || 
-        /^\d{13}_/.test(filePath) || 
-        filePath.includes("event_") ||
-        filePath.startsWith("event/")) {
-      console.log("Using event_attachments bucket based on path pattern:", filePath);
-      return "event_attachments";
-    }
+    return "event_attachments";
   }
   
   // Then check parent type
@@ -51,32 +50,33 @@ export const determineEffectiveBucket = (filePath: string, parentType?: string, 
   }
   
   if (parentType === "event" || parentType === "booking_request") {
-    console.log(`Using event_attachments bucket based on parentType: ${parentType}`);
     return "event_attachments";
   }
   
   // Default fallback
-  console.log("Using default event_attachments bucket");
   return "event_attachments";
 };
 
 // Helper function to get the direct file URL
 export const getDirectFileUrl = (filePath: string, fileId: string, parentType?: string, source?: string): string => {
-  if (!filePath) {
-    console.log("Empty file path provided to getDirectFileUrl");
-    return '';
-  }
+  if (!filePath) return '';
   
   // Special handling for fully qualified URLs (public links)
   if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-    console.log("Using direct public URL:", filePath);
     return filePath;
   }
   
   const normalizedPath = normalizeFilePath(filePath);
-  const effectiveBucket = determineEffectiveBucket(filePath, parentType, source);
+  // Pass the source parameter to determineEffectiveBucket to use the correct bucket
+  let effectiveBucket = determineEffectiveBucket(filePath, parentType, source);
   
-  console.log(`[getDirectFileUrl] Using bucket ${effectiveBucket} for path ${filePath} (source: ${source || 'unknown'})`);
+  // Special handling for booking files
+  if (filePath.includes("booking_") || source === "booking_request" || source === "booking_files") {
+    console.log(`Using booking_attachments bucket for booking file: ${filePath} (source: ${source || 'unknown'})`);
+    effectiveBucket = "booking_attachments";
+  }
+  
+  console.log(`Using bucket ${effectiveBucket} for path ${filePath} (source: ${source || 'unknown'})`);
   
   return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
 };
