@@ -3,7 +3,7 @@ import { BusinessProfileForm } from "./BusinessProfileForm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { BookingRequestsList } from "./BookingRequestsList";
@@ -13,7 +13,7 @@ import { MessageSquare } from "lucide-react";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "bookings">("profile");
   const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest } = useBookingRequests();
   const pendingCount = pendingRequests?.length || 0;
 
@@ -21,18 +21,25 @@ export const BusinessPage = () => {
     queryKey: ["businessProfile", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      
       const { data, error } = await supabase
         .from("business_profiles")
         .select("*")
         .eq("user_id", user.id)
         .single();
-
       if (error && error.code !== 'PGRST116') throw error;
       return data;
     },
     enabled: !!user?.id,
   });
+
+  // Auto-select "bookings" if profile exists, "profile" if not
+  useEffect(() => {
+    if (businessProfile) {
+      setActiveTab("bookings");
+    } else {
+      setActiveTab("profile");
+    }
+  }, [businessProfile]);
 
   if (isLoading) {
     return <div className="text-center p-8">Loading...</div>;
@@ -44,7 +51,7 @@ export const BusinessPage = () => {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="profile">Business Profile</TabsTrigger>
           <TabsTrigger value="bookings" className="relative">
