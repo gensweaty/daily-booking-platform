@@ -17,14 +17,32 @@ function Calendar({
   ...props
 }: CalendarProps) {
   const { language } = useLanguage();
-  const { theme, setTheme } = useTheme();
-  const [currentTheme, setCurrentTheme] = React.useState<string | undefined>(theme);
+  const { theme, resolvedTheme } = useTheme();
+  const [currentTheme, setCurrentTheme] = React.useState<string | undefined>(
+    // Initialize with resolvedTheme first, fallback to theme, then check document class
+    resolvedTheme || theme || (typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light')
+  );
   const isDarkTheme = currentTheme === "dark";
 
   // Listen for theme changes
   React.useEffect(() => {
     // Update state when theme changes from context
-    setCurrentTheme(theme);
+    const newTheme = resolvedTheme || theme;
+    if (newTheme) {
+      setCurrentTheme(newTheme);
+    }
+    
+    // Initial theme check from HTML class
+    const checkInitialTheme = () => {
+      if (typeof document !== 'undefined') {
+        if (document.documentElement.classList.contains('dark')) {
+          setCurrentTheme('dark');
+        }
+      }
+    };
+    
+    // Check on mount
+    checkInitialTheme();
     
     // Listen for manual theme changes
     const handleThemeChange = (event: CustomEvent) => {
@@ -40,12 +58,20 @@ function Calendar({
     document.addEventListener('themeChanged', handleThemeChange as EventListener);
     document.addEventListener('themeInit', handleThemeInit as EventListener);
     
+    // Debug logging
+    console.log("[Calendar UI] Current theme state:", { 
+      theme, 
+      resolvedTheme, 
+      currentTheme,
+      isDarkClass: typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+    });
+    
     return () => {
       // Remove event listeners
       document.removeEventListener('themeChanged', handleThemeChange as EventListener);
       document.removeEventListener('themeInit', handleThemeInit as EventListener);
     };
-  }, [theme, setTheme]);
+  }, [theme, resolvedTheme]);
 
   return (
     <DayPicker

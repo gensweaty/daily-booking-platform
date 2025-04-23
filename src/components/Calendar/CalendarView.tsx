@@ -26,13 +26,19 @@ export function CalendarView({
   isExternalCalendar = false,
 }: CalendarViewProps) {
   const { t } = useLanguage();
-  const { theme } = useTheme();
-  const [currentTheme, setCurrentTheme] = useState<string | undefined>(theme);
+  const { theme, resolvedTheme } = useTheme();
+  const [currentTheme, setCurrentTheme] = useState<string | undefined>(
+    // Initialize with resolvedTheme first, fallback to theme, then check document class
+    resolvedTheme || theme || (typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light')
+  );
   
   // Listen for theme changes
   useEffect(() => {
     // Update state when theme changes from context
-    setCurrentTheme(theme);
+    const newTheme = resolvedTheme || theme;
+    if (newTheme) {
+      setCurrentTheme(newTheme);
+    }
     
     const handleThemeChange = (event: CustomEvent) => {
       setCurrentTheme(event.detail.theme);
@@ -41,6 +47,18 @@ export function CalendarView({
     const handleThemeInit = (event: CustomEvent) => {
       setCurrentTheme(event.detail.theme);
     };
+    
+    // Initial theme check from HTML class
+    const checkInitialTheme = () => {
+      if (typeof document !== 'undefined') {
+        if (document.documentElement.classList.contains('dark')) {
+          setCurrentTheme('dark');
+        }
+      }
+    };
+    
+    // Check on mount
+    checkInitialTheme();
     
     // Add event listeners
     document.addEventListener('themeChanged', handleThemeChange as EventListener);
@@ -51,7 +69,7 @@ export function CalendarView({
       document.removeEventListener('themeChanged', handleThemeChange as EventListener);
       document.removeEventListener('themeInit', handleThemeInit as EventListener);
     };
-  }, [theme]);
+  }, [theme, resolvedTheme]);
   
   // For month view, ensure we have days from both previous and next months to fill the grid
   const getDaysWithSurroundingMonths = () => {
@@ -77,7 +95,14 @@ export function CalendarView({
         console.log("[CalendarView] First event sample:", events[0]);
       }
     }
-  }, [events, isExternalCalendar]);
+    // Debug theme state
+    console.log("[CalendarView] Current theme state:", { 
+      theme, 
+      resolvedTheme, 
+      currentTheme,
+      isDarkClass: typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+    });
+  }, [events, isExternalCalendar, theme, resolvedTheme, currentTheme]);
 
   const formattedSelectedDate = formatDate(selectedDate, "yyyy-MM-dd");
 

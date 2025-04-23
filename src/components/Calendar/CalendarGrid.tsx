@@ -1,8 +1,8 @@
+
 import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { useTheme } from "next-themes";
 
 interface CalendarGridProps {
   days: Date[];
@@ -23,10 +23,10 @@ export const CalendarGrid = ({
   onDayClick,
   onEventClick,
   isExternalCalendar = false,
+  theme,
 }: CalendarGridProps) => {
   const startDate = startOfWeek(days[0]);
   const isMobile = useMediaQuery("(max-width: 640px)");
-  const { theme } = useTheme();
   const isDarkTheme = theme === "dark";
   
   const weekDays = Array.from({ length: 7 }, (_, i) => 

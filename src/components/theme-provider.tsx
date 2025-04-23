@@ -47,9 +47,14 @@ export function ThemeProvider({
     // Apply theme class immediately to prevent flash
     document.documentElement.classList.toggle('dark', initialTheme === 'dark');
     
+    // Set a data attribute to track the current theme
+    document.documentElement.setAttribute('data-theme', initialTheme);
+    
     // Broadcast initial theme for components to react
     const event = new CustomEvent('themeInit', { detail: { theme: initialTheme } });
     document.dispatchEvent(event);
+    
+    console.log("[ThemeProvider] Initialized with theme:", initialTheme);
   }, [storageKey, defaultTheme, forcedTheme, enableSystem]);
 
   return (
