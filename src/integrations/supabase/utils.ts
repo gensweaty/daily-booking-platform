@@ -34,10 +34,18 @@ export const getDirectFileUrl = (filePath: string): string => {
 export const createFileObjectFromEvent = (event: any): any[] => {
   if (!event) return [];
   
-  // Check if the event has file_path and filename directly
+  let files = [];
+  
+  // Check if the event has event_files collection
+  if (event.event_files && event.event_files.length > 0) {
+    console.log(`Found ${event.event_files.length} files in event ${event.id}`);
+    files = [...event.event_files];
+  }
+  
+  // Check if the event has direct file_path and filename
   if (event.file_path && event.filename) {
-    console.log(`Creating file object from event: ${event.id} with file path: ${event.file_path}`);
-    return [{
+    console.log(`Event ${event.id} has direct file: ${event.filename} (${event.file_path})`);
+    files.push({
       id: `event-file-${event.id}`,
       file_path: event.file_path,
       filename: event.filename,
@@ -45,21 +53,18 @@ export const createFileObjectFromEvent = (event: any): any[] => {
       size: 0,
       created_at: event.created_at,
       user_id: event.user_id
-    }];
+    });
   }
   
-  // Check if the event has event_files collection
-  if (event.event_files && event.event_files.length > 0) {
-    console.log(`Found ${event.event_files.length} files in event ${event.id}`);
-    return event.event_files;
-  }
-
-  // For approved booking requests, the file information would be on the original booking
+  // For approved booking requests, check if we need to log anything
   if (event.booking_request_id) {
     console.log(`Event ${event.id} is from booking request ${event.booking_request_id}, checking for files`);
-    // The file data should have been copied to the event itself, but we log this for debugging purposes
+    // Files from booking requests should already be copied to the event itself
   }
   
-  console.log(`No files found for event ${event.id}`);
-  return [];
+  if (files.length === 0) {
+    console.log(`No files found for event ${event.id}`);
+  }
+  
+  return files;
 };

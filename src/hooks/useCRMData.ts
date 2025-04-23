@@ -1,8 +1,8 @@
-
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { endOfDay } from 'date-fns';
+import { createFileObjectFromEvent } from '@/integrations/supabase/utils';
 
 export function useCRMData(userId: string | undefined, dateRange: { start: Date, end: Date }) {
   // Memoize query keys to prevent unnecessary re-renders
@@ -107,22 +107,8 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       const eventKey = `${event.title}-${event.start_date}-${event.end_date}`;
       
       if (!existingIds.has(eventKey)) {
-        // Create fake customer_files_new array from event file data if present
-        let customerFiles = event.event_files || [];
-        
-        // If event has direct file_path and filename, add it to the files array
-        if (event.file_path && event.filename) {
-          console.log(`Adding direct file from event ${event.id}: ${event.filename} (${event.file_path})`);
-          customerFiles = [{
-            id: `event-file-${event.id}`,
-            file_path: event.file_path,
-            filename: event.filename,
-            content_type: '',
-            size: 0,
-            created_at: event.created_at,
-            user_id: event.user_id
-          }];
-        }
+        // Use our helper function to get all files from the event
+        const customerFiles = createFileObjectFromEvent(event);
         
         combined.push({
           ...event,

@@ -1,5 +1,3 @@
-
-// This is a large file so we'll focus just on the essential changes needed
 import React, { useState, useEffect } from 'react';
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -223,7 +221,6 @@ export const EventDialog = ({
         eventData.booking_request_id = event.booking_request_id;
       }
       
-      // Make sure we preserve file information when updating
       if (event.file_path && event.filename) {
         eventData.file_path = event.file_path;
         eventData.filename = event.filename;
@@ -234,7 +231,6 @@ export const EventDialog = ({
       eventData.type = 'event';
       eventData.booking_request_id = event.id;
       
-      // When converting a booking request to an event, preserve any file information
       if (event.file_path && event.filename) {
         eventData.file_path = event.file_path;
         eventData.filename = event.filename;
@@ -377,7 +373,6 @@ export const EventDialog = ({
       throw uploadError;
     }
 
-    // Update the event with the file path instead of creating a record in event_files
     const { error: updateError } = await supabase
       .from('events')
       .update({
@@ -392,15 +387,16 @@ export const EventDialog = ({
     }
 
     console.log('Event updated with file path successfully');
+    
+    queryClient.invalidateQueries({ queryKey: ['events'] });
+    
     return true;
   };
 
   const handleFileDeleted = (fileId: string) => {
     console.log("File deleted, refreshing file list");
-    // For direct file in event, we'll just clear the array since we'll get fresh data on next load
     setEventFiles([]);
     
-    // Invalidate queries to refresh data
     queryClient.invalidateQueries({ queryKey: ['events'] });
     queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
   };
