@@ -36,6 +36,12 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading, res
   const handleSearch = (search: string) => {
     setSearchValue(search);
     
+    // Dispatch event to notify CustomerList about search value change
+    if (typeof window !== 'undefined') {
+      const evt = new CustomEvent('crm-search-updated', { detail: search });
+      window.dispatchEvent(evt);
+    }
+    
     // Empty search shows all results
     if (!search.trim()) {
       setFilteredData(dataRef.current);
@@ -72,6 +78,15 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading, res
       resetPagination();
     }
   };
+
+  // Clean up event listener on component unmount
+  React.useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('crm-search-updated', () => {});
+      }
+    };
+  }, []);
 
   if (isLoading) {
     return (

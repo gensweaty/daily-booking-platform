@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -89,14 +89,24 @@ export const CustomerList = () => {
     end: endOfMonth(currentDate)
   });
   const [hoveredField, setHoveredField] = useState<{id: string, field: string} | null>(null);
+  const searchValueRef = useRef("");
 
   const { combinedData, isLoading, isFetching } = useCRMData(user?.id, dateRange);
 
   useEffect(() => {
-    if (combinedData.length > 0) {
+    if (combinedData.length > 0 && !searchValueRef.current) {
       setFilteredData(combinedData);
     }
   }, [combinedData]);
+
+  useEffect(() => {
+    const handleSearchUpdate = (e: CustomEvent) => {
+      searchValueRef.current = e.detail || "";
+    };
+    
+    window.addEventListener('crm-search-updated', handleSearchUpdate as any);
+    return () => window.removeEventListener('crm-search-updated', handleSearchUpdate as any);
+  }, []);
 
   const resetPagination = useCallback(() => {
     setCurrentPage(1);
