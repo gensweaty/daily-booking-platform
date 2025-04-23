@@ -46,33 +46,31 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
       return;
     }
     
-    debounceTimeout.current = setTimeout(() => {
-      // Apply immediate search with elastic-like functionality
-      const searchTerms = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    // Apply immediate search without debounce for better UX
+    const searchTerms = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    
+    const filtered = dataRef.current.filter((item) => {
+      // Create a combined text from all searchable fields
+      const itemText = [
+        item.title,
+        item.user_number,
+        item.social_network_link,
+        item.event_notes,
+        item.payment_status,
+        // Add any other fields that might contain relevant search data
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
       
-      const filtered = dataRef.current.filter((item) => {
-        // Create a combined text from all searchable fields
-        const itemText = [
-          item.title,
-          item.user_number,
-          item.social_network_link,
-          item.event_notes,
-          item.payment_status,
-          // Add any other fields that might contain relevant search data
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-        
-        // More flexible search: match any term for more elastic-like behavior
-        return searchTerms.some(term => itemText.includes(term));
-      });
-      
-      console.log(`Search: "${search}" found ${filtered.length} matches from ${dataRef.current.length} items`);
-      
-      // Update the filtered data to show in the main table
-      setFilteredData(filtered);
-    }, 200); // Small debounce for better performance
+      // More flexible search: match any term for more elastic-like behavior
+      return searchTerms.some(term => itemText.includes(term));
+    });
+    
+    console.log(`Search: "${search}" found ${filtered.length} matches from ${dataRef.current.length} items`);
+    
+    // Update the filtered data to show in the main table
+    setFilteredData(filtered);
     
   }, [setFilteredData]);
   
