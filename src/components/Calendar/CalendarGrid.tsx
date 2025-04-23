@@ -292,8 +292,8 @@ export const CalendarGrid = ({
                   : (isOtherMonth 
                       ? 'bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-400' 
                       : 'bg-white hover:bg-gray-50 text-gray-900')
-              } p-1 sm:p-2 flex flex-col min-h-[90px] sm:min-h-[120px] cursor-pointer border-r border-b`}
-              style={{ height: '120px' }}
+              } p-1 sm:p-2 flex flex-col min-h-[140px] sm:min-h-[160px] cursor-pointer border-r border-b`}
+              style={{ height: '160px' }}
               onClick={() => onDayClick?.(day)}
             >
               <div className={`font-medium text-xs sm:text-sm ${isDarkTheme ? 'text-gray-100' : ''}`}>
