@@ -17,13 +17,40 @@ function Calendar({
   ...props
 }: CalendarProps) {
   const { language } = useLanguage();
-  const { theme } = useTheme();
-  const isDarkTheme = theme === "dark";
+  const { theme, setTheme } = useTheme();
+  const [currentTheme, setCurrentTheme] = React.useState<string | undefined>(theme);
+  const isDarkTheme = currentTheme === "dark";
+
+  // Listen for theme changes
+  React.useEffect(() => {
+    // Update state when theme changes from context
+    setCurrentTheme(theme);
+    
+    // Listen for manual theme changes
+    const handleThemeChange = (event: CustomEvent) => {
+      setCurrentTheme(event.detail.theme);
+    };
+    
+    // Listen for initial theme
+    const handleThemeInit = (event: CustomEvent) => {
+      setCurrentTheme(event.detail.theme);
+    };
+
+    // Add event listeners
+    document.addEventListener('themeChanged', handleThemeChange as EventListener);
+    document.addEventListener('themeInit', handleThemeInit as EventListener);
+    
+    return () => {
+      // Remove event listeners
+      document.removeEventListener('themeChanged', handleThemeChange as EventListener);
+      document.removeEventListener('themeInit', handleThemeInit as EventListener);
+    };
+  }, [theme, setTheme]);
 
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-3", className)}
+      className={cn("p-3 pointer-events-auto", className)}
       locale={language === 'es' ? es : undefined}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",

@@ -27,20 +27,29 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
   // Force immediate theme application to prevent flicker
   React.useEffect(() => {
-    if (forcedTheme === "light") {
-      // Force light mode
-      document.documentElement.classList.remove('dark');
-    } else {
-      const savedTheme = localStorage.getItem(storageKey);
-      if (savedTheme) {
-        document.documentElement.classList.toggle('dark', savedTheme === 'dark');
-      } else if (defaultTheme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else if (defaultTheme === 'system' && enableSystem) {
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.classList.toggle('dark', systemPrefersDark);
+    // Get stored theme or use default
+    const storedTheme = localStorage.getItem(storageKey);
+    let initialTheme = storedTheme;
+    
+    if (!initialTheme) {
+      if (defaultTheme === 'system' && enableSystem) {
+        initialTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      } else {
+        initialTheme = defaultTheme;
       }
     }
+    
+    // When theme is forced, use that instead
+    if (forcedTheme) {
+      initialTheme = forcedTheme;
+    }
+    
+    // Apply theme class immediately to prevent flash
+    document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+    
+    // Broadcast initial theme for components to react
+    const event = new CustomEvent('themeInit', { detail: { theme: initialTheme } });
+    document.dispatchEvent(event);
   }, [storageKey, defaultTheme, forcedTheme, enableSystem]);
 
   return (

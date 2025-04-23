@@ -56,6 +56,22 @@ const RouteAwareThemeProvider = ({ children }: { children: React.ReactNode }) =>
   const location = useLocation();
   const isExternalPage = location.pathname.startsWith('/business/');
   
+  useEffect(() => {
+    // Initialize theme based on stored preference or system preference
+    const storedTheme = localStorage.getItem('vite-ui-theme');
+    if (storedTheme) {
+      document.documentElement.classList.toggle('dark', storedTheme === 'dark');
+      // Dispatch theme init event for components to react
+      const event = new CustomEvent('themeInit', { detail: { theme: storedTheme } });
+      document.dispatchEvent(event);
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+      // Dispatch theme init event for components to react
+      const event = new CustomEvent('themeInit', { detail: { theme: 'dark' } });
+      document.dispatchEvent(event);
+    }
+  }, []);
+  
   return (
     <ThemeProvider 
       defaultTheme="system" 

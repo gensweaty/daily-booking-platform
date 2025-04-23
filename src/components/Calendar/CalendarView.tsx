@@ -27,6 +27,31 @@ export function CalendarView({
 }: CalendarViewProps) {
   const { t } = useLanguage();
   const { theme } = useTheme();
+  const [currentTheme, setCurrentTheme] = useState<string | undefined>(theme);
+  
+  // Listen for theme changes
+  useEffect(() => {
+    // Update state when theme changes from context
+    setCurrentTheme(theme);
+    
+    const handleThemeChange = (event: CustomEvent) => {
+      setCurrentTheme(event.detail.theme);
+    };
+    
+    const handleThemeInit = (event: CustomEvent) => {
+      setCurrentTheme(event.detail.theme);
+    };
+    
+    // Add event listeners
+    document.addEventListener('themeChanged', handleThemeChange as EventListener);
+    document.addEventListener('themeInit', handleThemeInit as EventListener);
+    
+    return () => {
+      // Remove event listeners
+      document.removeEventListener('themeChanged', handleThemeChange as EventListener);
+      document.removeEventListener('themeInit', handleThemeInit as EventListener);
+    };
+  }, [theme]);
   
   // For month view, ensure we have days from both previous and next months to fill the grid
   const getDaysWithSurroundingMonths = () => {
@@ -66,7 +91,7 @@ export function CalendarView({
         onDayClick={onDayClick}
         onEventClick={onEventClick}
         isExternalCalendar={isExternalCalendar}
-        theme={theme}
+        theme={currentTheme}
       />
     </div>
   );

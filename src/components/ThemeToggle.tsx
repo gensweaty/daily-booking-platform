@@ -15,13 +15,19 @@ export function ThemeToggle() {
     
     // Immediately apply the theme class to prevent delay in visual feedback
     document.documentElement.classList.toggle('dark', newTheme === 'dark');
+    
+    // Dispatch an event for components to react immediately
+    const event = new CustomEvent('themeChanged', { detail: { theme: newTheme } });
+    document.dispatchEvent(event);
   };
 
   // Force calendar to update when theme changes
   useEffect(() => {
-    // Dispatch a custom event that components can listen for to force rerender
-    const event = new CustomEvent('themeChanged', { detail: { theme } });
-    document.dispatchEvent(event);
+    if (theme) {
+      // Dispatch a custom event that components can listen for to force rerender
+      const event = new CustomEvent('themeChanged', { detail: { theme } });
+      document.dispatchEvent(event);
+    }
   }, [theme]);
 
   return (
