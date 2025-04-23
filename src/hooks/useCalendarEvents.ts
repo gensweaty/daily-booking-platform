@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -188,6 +189,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         requester_email: booking.requester_email || '',
         requester_phone: booking.requester_phone || '',
         description: booking.description || '',
+        file_path: booking.file_path,
+        filename: booking.filename
       }));
       
       return bookingEvents;
@@ -294,7 +297,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
     
     let wasBookingRequest = false;
-    let bookingFile = null;
     
     if (data.type === 'booking_request' || (id && typeof id === 'string' && id.includes('-'))) {
       try {
@@ -308,14 +310,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         if (!bookingError && bookingData) {
           console.log("Found booking request, updating:", id);
           wasBookingRequest = true;
-          
-          if (bookingData.file_path) {
-            bookingFile = {
-              file_path: bookingData.file_path,
-              filename: bookingData.filename || 'attachment'
-            };
-            console.log("Booking has associated file:", bookingFile);
-          }
           
           const { data: updatedBooking, error: updateError } = await supabase
             .from('booking_requests')
@@ -356,6 +350,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               requester_name: updatedBooking.requester_name,
               requester_email: updatedBooking.requester_email,
               requester_phone: updatedBooking.requester_phone || '',
+              file_path: updatedBooking.file_path,
+              filename: updatedBooking.filename
             } as CalendarEventType;
           }
           
@@ -372,11 +368,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             user_id: user.id,
             booking_request_id: id,
             type: 'event',
-            file_path: bookingFile?.file_path || null,
-            filename: bookingFile?.filename || null
+            file_path: bookingData.file_path,
+            filename: bookingData.filename
           };
           
-          console.log("Creating new event from booking request with file data:", eventPayload);
+          console.log("Creating new event from booking request:", eventPayload);
           
           const { data: newEvent, error: createError } = await supabase
             .from('events')
@@ -387,28 +383,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           if (createError) throw createError;
           
           console.log("Successfully created event from booking request:", newEvent);
-          
-          if (bookingFile && newEvent.id) {
-            console.log("Creating file record for booking file:", bookingFile);
-            
-            const { error: fileError } = await supabase
-              .from('event_files')
-              .insert({
-                event_id: newEvent.id,
-                file_path: bookingFile.file_path,
-                filename: bookingFile.filename,
-                content_type: 'application/octet-stream',
-                size: 0,
-                user_id: user.id,
-                source: 'booking_request'
-              });
-              
-            if (fileError) {
-              console.error("Error creating file record for booking file:", fileError);
-            } else {
-              console.log("Successfully created file record for booking file");
-            }
-          }
           
           try {
             const customerData = {
@@ -424,11 +398,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               user_id: user.id,
               type: 'customer',
               create_event: false,
-              file_path: bookingFile?.file_path || null,
-              filename: bookingFile?.filename || null
+              file_path: bookingData.file_path,
+              filename: bookingData.filename
             };
 
-            console.log("Creating customer from approved booking with file data:", customerData);
+            console.log("Creating customer from approved booking:", customerData);
             
             const { data: newCustomer, error: customerError } = await supabase
               .from('customers')
@@ -438,26 +412,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               
             if (customerError) {
               console.error("Error creating customer from booking:", customerError);
-            } else if (newCustomer && bookingFile) {
-              console.log("Created customer from booking, transferring file:", newCustomer);
-              
-              const { error: customerFileError } = await supabase
-                .from('customer_files_new')
-                .insert({
-                  customer_id: newCustomer.id,
-                  file_path: bookingFile.file_path,
-                  filename: bookingFile.filename,
-                  content_type: 'application/octet-stream',
-                  size: 0,
-                  user_id: user.id,
-                  source: 'booking_request'
-                });
-                
-              if (customerFileError) {
-                console.error("Error creating file record for customer:", customerFileError);
-              } else {
-                console.log("Successfully created file record for customer");
-              }
+            } else if (newCustomer) {
+              console.log("Created customer from booking:", newCustomer);
 
               const { error: eventUpdateError } = await supabase
                 .from('events')
@@ -717,7 +673,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     try {
       const { data: eventData, error: eventError } = await supabase
         .from('events')
-        .select('title, start_date, end_date')
+        .select('title, start_date, end_date, file_path')
         .eq('id', id)
         .maybeSingle();
       
@@ -749,39 +705,24 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             console.error('Error updating customer:', updateError);
           }
         }
+        
+        // Delete file from storage if it exists
+        if (eventData.file_path) {
+          try {
+            const { error: storageError } = await supabase.storage
+              .from('event_attachments')
+              .remove([eventData.file_path]);
+
+            if (storageError) {
+              console.error('Error deleting file from storage:', storageError);
+            }
+          } catch (fileError) {
+            console.error('Error handling file deletion:', fileError);
+          }
+        }
       }
     } catch (error) {
       console.error('Error handling customer association:', error);
-    }
-
-    try {
-      const { data: files } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', id);
-
-      if (files && files.length > 0) {
-        for (const file of files) {
-          const { error: storageError } = await supabase.storage
-            .from('event_attachments')
-            .remove([file.file_path]);
-
-          if (storageError) {
-            console.error('Error deleting file from storage:', storageError);
-          }
-        }
-
-        const { error: filesDeleteError } = await supabase
-          .from('event_files')
-          .delete()
-          .eq('event_id', id);
-
-        if (filesDeleteError) {
-          console.error('Error deleting file records:', filesDeleteError);
-        }
-      }
-    } catch (error) {
-      console.error('Error handling file deletion:', error);
     }
 
     const { error } = await supabase

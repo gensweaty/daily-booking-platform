@@ -5,8 +5,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { FileDisplay } from "@/components/shared/FileDisplay";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useEffect } from "react";
 import { format } from "date-fns";
@@ -35,8 +33,6 @@ interface EventDialogFieldsProps {
   fileError: string;
   setFileError: (error: string) => void;
   eventId?: string;
-  onFileDeleted?: (fileId: string) => void;
-  displayedFiles?: any[];
   isBookingRequest?: boolean;
 }
 
@@ -64,8 +60,6 @@ export const EventDialogFields = ({
   fileError,
   setFileError,
   eventId,
-  onFileDeleted,
-  displayedFiles = [],
   isBookingRequest = false,
 }: EventDialogFieldsProps) => {
   const { t, language } = useLanguage();
@@ -153,69 +147,6 @@ export const EventDialogFields = ({
       sessionStorage.removeItem('eventFormData');
     }
   }, [eventId]);
-
-  const { data: allFiles = [] } = useQuery({
-    queryKey: ['eventFiles', eventId, title],
-    queryFn: async () => {
-      if (!eventId && !title) return [];
-      
-      try {
-        const uniqueFiles = new Map();
-        console.log('Starting file fetch for eventId:', eventId, 'and title:', title);
-
-        if (eventId) {
-          const { data: eventFiles, error: eventFilesError } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', eventId);
-          
-          if (eventFilesError) throw eventFilesError;
-
-          console.log('Found event files:', eventFiles?.length || 0);
-          eventFiles?.forEach(file => {
-            const uniqueKey = `${file.file_path}_event`;
-            uniqueFiles.set(uniqueKey, {
-              ...file,
-              source: 'event'
-            });
-          });
-        }
-
-        if (title) {
-          const { data: customer, error: customerError } = await supabase
-            .from('customers')
-            .select(`
-              id,
-              customer_files_new (*)
-            `)
-            .eq('title', title)
-            .maybeSingle();
-
-          if (!customerError && customer?.customer_files_new) {
-            console.log('Found customer files:', customer.customer_files_new.length);
-            customer.customer_files_new.forEach(file => {
-              const uniqueKey = `${file.file_path}_customer`;
-              const eventFileKey = `${file.file_path}_event`;
-              if (!uniqueFiles.has(eventFileKey)) {
-                uniqueFiles.set(uniqueKey, {
-                  ...file,
-                  source: 'customer'
-                });
-              }
-            });
-          }
-        }
-
-        const files = Array.from(uniqueFiles.values());
-        console.log('Final unique files count:', files.length);
-        return files;
-      } catch (error) {
-        console.error('Error in file fetching:', error);
-        return [];
-      }
-    },
-    enabled: !!(eventId || title),
-  });
 
   return (
     <div className="space-y-4">
@@ -336,18 +267,6 @@ export const EventDialogFields = ({
         />
       </div>
 
-      {(eventId || title) && ((allFiles && allFiles.length > 0) || (displayedFiles && displayedFiles.length > 0)) && (
-        <div className="space-y-2">
-          <Label>{t("calendar.attachment")}</Label>
-          <FileDisplay 
-            files={displayedFiles?.length > 0 ? displayedFiles : allFiles} 
-            bucketName="event_attachments"
-            allowDelete
-            onFileDeleted={onFileDeleted}
-          />
-        </div>
-      )}
-
       <FileUploadField 
         onChange={setSelectedFile}
         fileError={fileError}
@@ -357,4 +276,3 @@ export const EventDialogFields = ({
     </div>
   );
 };
-

@@ -2,7 +2,7 @@
 import { normalizeFilePath, getStorageUrl } from "./client";
 
 // Helper function to determine which storage bucket to use based on file path and entity type
-export const determineEffectiveBucket = (filePath: string, parentType?: string, source?: string): string => {
+export const determineEffectiveBucket = (filePath: string): string => {
   // Check if this is a public URL
   if (filePath && (filePath.startsWith('http://') || filePath.startsWith('https://'))) {
     console.log("File path is a public URL:", filePath);
@@ -10,48 +10,11 @@ export const determineEffectiveBucket = (filePath: string, parentType?: string, 
     return ''; 
   }
   
-  if (source === 'event' || source === 'booking_request') {
-    return "event_attachments";
-  }
-  
-  if (source === 'customer') {
-    return "customer_attachments";
-  }
-  
-  if (filePath && (
-    filePath.includes("b22b") || 
-    /^\d{13}_/.test(filePath) || 
-    filePath.includes("event_") ||
-    filePath.startsWith("event/") ||
-    filePath.includes("booking_")
-  )) {
-    // Check specifically for booking paths
-    if (filePath.includes("booking_")) {
-      console.log("Using booking_attachments bucket for booking-related file:", filePath);
-      return "booking_attachments";
-    }
-    
-    return "event_attachments";
-  }
-  
-  if (parentType === "customer" && filePath && 
-    !filePath.includes("b22b") && 
-    !/^\d{13}_/.test(filePath) &&
-    !filePath.includes("event_") &&
-    !filePath.startsWith("event/") &&
-    !filePath.includes("booking_")) {
-    return "customer_attachments";
-  }
-  
-  if (parentType === "event" || parentType === "booking_request") {
-    return "event_attachments";
-  }
-  
   return "event_attachments"; // Default to event_attachments
 };
 
 // Helper function to get the direct file URL
-export const getDirectFileUrl = (filePath: string, fileId: string, parentType?: string): string => {
+export const getDirectFileUrl = (filePath: string): string => {
   if (!filePath) return '';
   
   // Special handling for fully qualified URLs (public links)
@@ -60,13 +23,7 @@ export const getDirectFileUrl = (filePath: string, fileId: string, parentType?: 
   }
   
   const normalizedPath = normalizeFilePath(filePath);
-  let effectiveBucket = determineEffectiveBucket(filePath, parentType);
-  
-  // Special handling for booking files
-  if (filePath.includes("booking_")) {
-    console.log(`Using booking_attachments bucket for booking file: ${filePath}`);
-    effectiveBucket = "booking_attachments";
-  }
+  let effectiveBucket = determineEffectiveBucket(filePath);
   
   console.log(`Using bucket ${effectiveBucket} for path ${filePath}`);
   
