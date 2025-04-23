@@ -25,6 +25,12 @@ export const determineEffectiveBucket = (filePath: string, parentType?: string, 
     filePath.startsWith("event/") ||
     filePath.includes("booking_")
   )) {
+    // Check specifically for booking paths
+    if (filePath.includes("booking_")) {
+      console.log("Using booking_attachments bucket for booking-related file:", filePath);
+      return "booking_attachments";
+    }
+    
     return "event_attachments";
   }
   
@@ -54,7 +60,14 @@ export const getDirectFileUrl = (filePath: string, fileId: string, parentType?: 
   }
   
   const normalizedPath = normalizeFilePath(filePath);
-  const effectiveBucket = determineEffectiveBucket(filePath, parentType);
+  let effectiveBucket = determineEffectiveBucket(filePath, parentType);
+  
+  // Special handling for booking files
+  if (filePath.includes("booking_")) {
+    console.log(`Using booking_attachments bucket for booking file: ${filePath}`);
+    effectiveBucket = "booking_attachments";
+  }
+  
   console.log(`Using bucket ${effectiveBucket} for path ${filePath}`);
   
   return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;

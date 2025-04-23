@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -107,6 +106,12 @@ export const EventDialog = ({
             .select('file_path, filename')
             .eq('id', event.booking_request_id)
             .single();
+            
+          if (bookingError) {
+            console.error("Error loading booking request file data:", bookingError);
+          }
+          
+          console.log("DEBUG: Loaded file data from booking_requests:", bookingData);
             
           if (!bookingError && bookingData && bookingData.file_path) {
             console.log("Found original booking file:", bookingData);
