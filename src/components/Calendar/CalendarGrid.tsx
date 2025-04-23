@@ -292,35 +292,40 @@ export const CalendarGrid = ({
                   : (isOtherMonth 
                       ? 'bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-400' 
                       : 'bg-white hover:bg-gray-50 text-gray-900')
-              } p-1 sm:p-4 min-h-[90px] sm:min-h-[120px] cursor-pointer border-r border-b`}
+              } p-1 sm:p-2 flex flex-col min-h-[90px] sm:min-h-[120px] cursor-pointer border-r border-b`}
+              style={{ height: '120px' }}
               onClick={() => onDayClick?.(day)}
             >
               <div className={`font-medium text-xs sm:text-sm ${isDarkTheme ? 'text-gray-100' : ''}`}>
                 {format(day, "d")}
               </div>
-              <div className="mt-1 sm:mt-2 space-y-0.5 sm:space-y-1">
+              <div className="flex flex-col flex-1 min-h-0 justify-center">
                 {dayEvents.length > 0 ? (
                   <>
-                    {eventsToShow.map((event) => (
-                      <div
-                        key={event.id}
-                        className={`text-[0.65rem] sm:text-sm p-1 sm:p-2 rounded flex items-center gap-1 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
-                          isOtherMonth ? 'opacity-60' : ''
-                        }`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEventClick?.(event);
-                        }}
-                      >
-                        <CalendarIcon className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5 sm:mr-1.5 shrink-0" />
-                        {renderEventContent(event)}
-                      </div>
-                    ))}
+                    <div className="flex flex-col flex-1 min-h-0 justify-stretch">
+                      {eventsToShow.map((event) => (
+                        <div
+                          key={event.id}
+                          className={`flex-1 min-h-0 flex items-center overflow-hidden mb-1 last:mb-0 text-[0.7rem] sm:text-[0.84rem] p-1 sm:p-2 rounded ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${isOtherMonth ? 'opacity-60' : ''}`}
+                          style={{ maxHeight: "calc(50% - 0.25rem)" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEventClick?.(event);
+                          }}
+                        >
+                          <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
+                          <div className="flex flex-col min-w-0 leading-tight">
+                            <span className="truncate font-medium">{event.requester_name || event.title || ""}</span>
+                            <span className="truncate opacity-80">
+                              {getBookingHours(event)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                     {hiddenEventsCount > 0 && (
-                      <div className={`text-[0.65rem] sm:text-xs ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium pl-1 ${
-                        isOtherMonth ? 'opacity-60' : ''
-                      }`}>
-                        {`+${hiddenEventsCount} more`}
+                      <div className={`mt-0.5 text-[0.7rem] sm:text-xs ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium ${isOtherMonth ? 'opacity-60' : ''}`}>
+                        +{hiddenEventsCount} more
                       </div>
                     )}
                   </>
