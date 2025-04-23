@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import {
   Command,
@@ -24,7 +23,7 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
     dataRef.current = data;
   }, [data]);
 
-  // Search implementation with optimized debouncing  
+  // Search implementation with improved immediate response  
   const handleSearch = React.useCallback((search: string) => {
     setSearchValue(search);
     
@@ -32,26 +31,26 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
       clearTimeout(debounceTimeout.current);
     }
     
-    // Immediate response for empty search
-    if (!search.trim()) {
-      setFilteredData(dataRef.current);
-      return;
-    }
+    // Apply immediate search for any input
+    const searchLower = search.toLowerCase();
+    const filtered = search.trim() 
+      ? dataRef.current.filter((item) => {
+          return (
+            (item.title?.toLowerCase().includes(searchLower)) ||
+            (item.user_number?.toLowerCase().includes(searchLower)) ||
+            (item.social_network_link?.toLowerCase().includes(searchLower)) ||
+            (item.event_notes?.toLowerCase().includes(searchLower)) ||
+            (item.payment_status?.toLowerCase().includes(searchLower))
+          );
+        })
+      : dataRef.current;
     
+    setFilteredData(filtered);
+    
+    // Still keep the debounce for potential expensive operations in the future
     debounceTimeout.current = setTimeout(() => {
-      const searchLower = search.toLowerCase();
-      const filtered = dataRef.current.filter((item) => {
-        return (
-          (item.title?.toLowerCase().includes(searchLower)) ||
-          (item.user_number?.toLowerCase().includes(searchLower)) ||
-          (item.social_network_link?.toLowerCase().includes(searchLower)) ||
-          (item.event_notes?.toLowerCase().includes(searchLower)) ||
-          (item.payment_status?.toLowerCase().includes(searchLower))
-        );
-      });
-      
-      setFilteredData(filtered);
-    }, 200);
+      // Additional processing could be done here if needed
+    }, 100);
   }, [setFilteredData]);
   
   // Clean up timeout on unmount
