@@ -95,6 +95,38 @@ export const EventDialog = ({
     const loadFiles = async () => {
       if (event?.id) {
         try {
+          // First check if this is a booking request
+          if (event.type === 'booking_request') {
+            console.log("Loading files for booking request:", event.id);
+            
+            const { data: bookingData, error: bookingError } = await supabase
+              .from('booking_requests')
+              .select('file_path, filename')
+              .eq('id', event.id)
+              .single();
+              
+            if (!bookingError && bookingData && bookingData.file_path) {
+              console.log("Found booking file:", bookingData);
+              
+              // Create a virtual file entry for the booking request file
+              const bookingFile = {
+                id: `booking-${event.id}`,
+                event_id: event.id,
+                filename: bookingData.filename || 'attachment',
+                file_path: bookingData.file_path,
+                content_type: '',
+                size: 0,
+                created_at: new Date().toISOString(),
+                user_id: user?.id,
+                source: 'booking_request'
+              };
+              
+              setDisplayedFiles([bookingFile]);
+              return;
+            }
+          }
+          
+          // If not a booking or no file in booking, check standard event files
           const { data, error } = await supabase
             .from('event_files')
             .select('*')
@@ -118,7 +150,7 @@ export const EventDialog = ({
     if (open) {
       loadFiles();
     }
-  }, [event, open]);
+  }, [event, open, user?.id]);
 
   const sendApprovalEmail = async (
     startDateTime: Date,
@@ -288,46 +320,50 @@ export const EventDialog = ({
 
       // Handle file upload if there's a selected file
       if (!isBookingEvent) {
+        // Process files from both sources - selected file and booking request file
         if (selectedFile && createdEvent?.id && user) {
           try {
-            const fileExt = selectedFile.name.split('.').pop();
-            const filePath = `${crypto.randomUUID()}.${fileExt}`;
-            
-            console.log('Uploading file:', filePath);
-            
-            const { error: uploadError } = await supabase.storage
-              .from('event_attachments')
-              .upload(filePath, selectedFile);
-
-            if (uploadError) {
-              console.error('Error uploading file:', uploadError);
-              throw uploadError;
-            }
-
-            const fileData = {
-              filename: selectedFile.name,
-              file_path: filePath,
-              content_type: selectedFile.type,
-              size: selectedFile.size,
-              user_id: user.id
-            };
-
-            const { error: fileRecordError } = await supabase
-              .from('event_files')
-              .insert({
-                ...fileData,
-                event_id: createdEvent.id
-              });
-              
-            if (fileRecordError) {
-              console.error('Error creating file record:', fileRecordError);
-              throw fileRecordError;
-            }
-
-            console.log('File record created successfully');
+            // Upload the new selected file
+            await uploadFileToEvent(selectedFile, createdEvent.id, user.id);
           } catch (fileError) {
             console.error("Error handling file upload:", fileError);
             // Continue even if file upload fails
+          }
+        }
+        
+        // Transfer file from booking request if approving
+        if (isApprovingBookingRequest && event?.id && createdEvent?.id) {
+          try {
+            // Check if booking request has a file
+            const { data: bookingData, error: bookingError } = await supabase
+              .from('booking_requests')
+              .select('file_path, filename')
+              .eq('id', event.id)
+              .single();
+              
+            if (!bookingError && bookingData && bookingData.file_path && user) {
+              console.log("Transferring file from booking request to event:", bookingData.file_path);
+              
+              // Create a file record for the booking request file
+              const { error: fileRecordError } = await supabase
+                .from('event_files')
+                .insert({
+                  event_id: createdEvent.id,
+                  filename: bookingData.filename || 'attachment',
+                  file_path: bookingData.file_path,
+                  content_type: 'application/octet-stream',
+                  size: 0,
+                  user_id: user.id
+                });
+                
+              if (fileRecordError) {
+                console.error('Error creating file record from booking:', fileRecordError);
+              } else {
+                console.log('Successfully transferred file from booking to event');
+              }
+            }
+          } catch (transferError) {
+            console.error("Error transferring booking file:", transferError);
           }
         }
 
@@ -389,6 +425,42 @@ export const EventDialog = ({
         variant: "destructive",
       });
     }
+  };
+
+  // New helper function to upload files to events
+  const uploadFileToEvent = async (file: File, eventId: string, userId: string) => {
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${crypto.randomUUID()}.${fileExt}`;
+    
+    console.log('Uploading file:', filePath);
+    
+    const { error: uploadError } = await supabase.storage
+      .from('event_attachments')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      console.error('Error uploading file:', uploadError);
+      throw uploadError;
+    }
+
+    const { error: fileRecordError } = await supabase
+      .from('event_files')
+      .insert({
+        event_id: eventId,
+        filename: file.name,
+        file_path: filePath,
+        content_type: file.type,
+        size: file.size,
+        user_id: userId
+      });
+      
+    if (fileRecordError) {
+      console.error('Error creating file record:', fileRecordError);
+      throw fileRecordError;
+    }
+
+    console.log('File record created successfully');
+    return true;
   };
 
   const handleFileDeleted = (fileId: string) => {

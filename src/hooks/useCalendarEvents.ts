@@ -300,6 +300,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
+    // Check if this is a booking request being approved (converted to event)
+    let wasBookingRequest = false;
+    let bookingFile = null;
+    
     if (data.type === 'booking_request' || (id && typeof id === 'string' && id.includes('-'))) {
       try {
         console.log("Checking for booking request with ID:", id);
@@ -311,6 +315,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
         if (!bookingError && bookingData) {
           console.log("Found booking request, updating:", id);
+          wasBookingRequest = true;
+          
+          // If there's a file associated with the booking, save its info
+          if (bookingData.file_path) {
+            bookingFile = {
+              file_path: bookingData.file_path,
+              filename: bookingData.filename || 'attachment'
+            };
+            console.log("Booking has associated file:", bookingFile);
+          }
+          
           const { data: updatedBooking, error: updateError } = await supabase
             .from('booking_requests')
             .update({
@@ -329,32 +344,102 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               
           if (updateError) throw updateError;
           
+          // If we're not converting to an event, we're done
+          if (data.type === 'booking_request') {
+            toast({
+              title: "Booking updated",
+              description: "The booking request has been updated successfully."
+            });
+            
+            return {
+              id: updatedBooking.id,
+              title: updatedBooking.title,
+              start_date: updatedBooking.start_date,
+              end_date: updatedBooking.end_date,
+              user_id: updatedBooking.user_id || '',
+              user_surname: updatedBooking.requester_name,
+              user_number: updatedBooking.requester_phone || '',
+              social_network_link: updatedBooking.requester_email,
+              event_notes: updatedBooking.description || '',
+              type: 'booking_request',
+              created_at: updatedBooking.created_at,
+              requester_name: updatedBooking.requester_name,
+              requester_email: updatedBooking.requester_email,
+              requester_phone: updatedBooking.requester_phone || '',
+            } as CalendarEventType;
+          }
+          
+          // Otherwise, we're converting the booking to an event
+          // Create a new event based on the booking
+          const eventPayload = {
+            title: data.title,
+            user_surname: data.user_surname,
+            user_number: data.user_number,
+            social_network_link: data.social_network_link,
+            event_notes: data.event_notes,
+            start_date: data.start_date,
+            end_date: data.end_date,
+            payment_status: data.payment_status,
+            payment_amount: data.payment_amount,
+            user_id: user.id,
+            booking_request_id: id,
+            type: 'event'
+          };
+          
+          console.log("Creating new event from booking request:", eventPayload);
+          
+          const { data: newEvent, error: createError } = await supabase
+            .from('events')
+            .insert(eventPayload)
+            .select()
+            .single();
+            
+          if (createError) throw createError;
+          
+          console.log("Successfully created event from booking request:", newEvent);
+          
+          // If the booking had a file, create a record for it in the event_files table
+          if (bookingFile && newEvent.id) {
+            console.log("Creating file record for booking file:", bookingFile);
+            
+            const { error: fileError } = await supabase
+              .from('event_files')
+              .insert({
+                event_id: newEvent.id,
+                file_path: bookingFile.file_path,
+                filename: bookingFile.filename,
+                content_type: 'application/octet-stream',
+                size: 0,
+                user_id: user.id
+              });
+              
+            if (fileError) {
+              console.error("Error creating file record for booking file:", fileError);
+            }
+          }
+          
+          // Update the booking status to approved
+          const { error: statusError } = await supabase
+            .from('booking_requests')
+            .update({ status: 'approved' })
+            .eq('id', id);
+            
+          if (statusError) {
+            console.error("Error updating booking status:", statusError);
+          }
+          
           toast({
-            title: "Booking updated",
-            description: "The booking request has been updated successfully."
+            title: "Booking approved",
+            description: "The booking request has been approved and converted to an event."
           });
           
-          return {
-            id: updatedBooking.id,
-            title: updatedBooking.title,
-            start_date: updatedBooking.start_date,
-            end_date: updatedBooking.end_date,
-            user_id: updatedBooking.user_id || '',
-            user_surname: updatedBooking.requester_name,
-            user_number: updatedBooking.requester_phone || '',
-            social_network_link: updatedBooking.requester_email,
-            event_notes: updatedBooking.description || '',
-            type: 'booking_request',
-            created_at: updatedBooking.created_at,
-            requester_name: updatedBooking.requester_name,
-            requester_email: updatedBooking.requester_email,
-            requester_phone: updatedBooking.requester_phone || '',
-          } as CalendarEventType;
+          return newEvent;
         } else {
           console.log("No booking request found with ID:", id);
         }
       } catch (error) {
         console.error("Error checking for booking request:", error);
+        throw error;
       }
     }
     

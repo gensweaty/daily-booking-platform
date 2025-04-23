@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { supabase, getStorageUrl, normalizeFilePath } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
@@ -30,10 +30,41 @@ export const FileDisplay = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
+  // Helper function to normalize file path by removing prefixes
+  const normalizeFilePath = (path: string): string => {
+    if (!path) return '';
+    
+    // Remove any leading directory prefixes
+    if (path.startsWith('event/')) {
+      return path.substring('event/'.length);
+    }
+    
+    // Handle public paths
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      // This is already a full URL, return as is
+      return path;
+    }
+    
+    return path;
+  };
+
+  // Helper to get the storage URL for supabase
+  const getStorageUrl = () => {
+    return "https://mrueqpffzauvdxmuwhfa.supabase.co/storage/v1";
+  };
+
   useEffect(() => {
     const newURLs: {[key: string]: string} = {};
     files.forEach(file => {
       if (file.file_path) {
+        // Special handling for fully qualified URLs (public links)
+        if (file.file_path.startsWith('http://') || file.file_path.startsWith('https://')) {
+          // For public URLs, just use the URL directly
+          newURLs[file.id] = file.file_path;
+          console.log(`File ${file.filename}: Using public URL ${file.file_path}`);
+          return;
+        }
+        
         const normalizedPath = normalizeFilePath(file.file_path);
         const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
         console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path}`);
@@ -57,7 +88,14 @@ export const FileDisplay = ({
   };
 
   const determineEffectiveBucket = (filePath: string, parentType?: string, source?: string): string => {
-    if (source === 'event') {
+    // Check if this is a public URL
+    if (filePath && (filePath.startsWith('http://') || filePath.startsWith('https://'))) {
+      console.log("File path is a public URL:", filePath);
+      // This is not a local Supabase file, so bucket is irrelevant
+      return ''; 
+    }
+    
+    if (source === 'event' || source === 'booking_request') {
       return "event_attachments";
     }
     
@@ -92,6 +130,13 @@ export const FileDisplay = ({
   const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
     try {
       console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
+      
+      // Special handling for fully qualified URLs (public links)
+      if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        // For public URLs, open in new tab instead of downloading
+        window.open(filePath, '_blank', 'noopener,noreferrer');
+        return;
+      }
       
       const effectiveBucket = determineEffectiveBucket(filePath, parentType);
       console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath}`);
@@ -141,6 +186,11 @@ export const FileDisplay = ({
   const getDirectFileUrl = (filePath: string, fileId: string): string => {
     if (!filePath) return '';
     
+    // Special handling for fully qualified URLs (public links)
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath;
+    }
+    
     if (fileURLs[fileId]) {
       return fileURLs[fileId];
     }
@@ -177,36 +227,74 @@ export const FileDisplay = ({
     try {
       setDeletingFileId(fileId);
       
+      // Special handling for public links - we can't delete them
+      if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        console.log("Cannot delete external file from storage:", filePath);
+        
+        // But we can delete the reference from our database
+        const tableName = parentType === 'event' ? 'event_files' : 
+                          parentType === 'customer' ? 'customer_files_new' : 'files';
+        
+        console.log(`Deleting file reference from table ${tableName}, id: ${fileId}`);
+        const { error: dbError } = await supabase
+          .from(tableName)
+          .delete()
+          .eq('id', fileId);
+          
+        if (dbError) {
+          console.error(`Error deleting file from ${tableName}:`, dbError);
+          throw dbError;
+        }
+        
+        if (onFileDeleted) {
+          onFileDeleted(fileId);
+        }
+        
+        toast({
+          title: t("common.success"),
+          description: t("common.fileDeleted"),
+        });
+        
+        return;
+      }
+      
       const effectiveBucket = determineEffectiveBucket(filePath, parentType);
       console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}`);
       
-      const { error: storageError } = await supabase.storage
-        .from(effectiveBucket)
-        .remove([normalizeFilePath(filePath)]);
-
-      if (storageError) {
-        console.error('Error deleting file from storage:', storageError);
-        throw storageError;
+      // Skip storage delete if it's a booking file (just a reference)
+      if (!fileId.startsWith('booking-')) {
+        const { error: storageError } = await supabase.storage
+          .from(effectiveBucket)
+          .remove([normalizeFilePath(filePath)]);
+  
+        if (storageError) {
+          console.error('Error deleting file from storage:', storageError);
+          // We continue even if we can't delete from storage
+          // It may be a reference to a file in another record
+        }
       }
       
-      let tableName = 'files';
-      if (effectiveBucket === 'event_attachments' || parentType === 'event') {
-        tableName = 'event_files';
-      } else if (effectiveBucket === 'customer_attachments' || parentType === 'customer') {
-        tableName = 'customer_files_new';
-      } else if (effectiveBucket === 'note_attachments' || parentType === 'note') {
-        tableName = 'note_files';
-      }
-      
-      console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);
-      const { error: dbError } = await supabase
-        .from(tableName)
-        .delete()
-        .eq('id', fileId);
+      // Skip database delete for virtual booking files
+      if (!fileId.startsWith('booking-')) {
+        let tableName = 'files';
+        if (effectiveBucket === 'event_attachments' || parentType === 'event') {
+          tableName = 'event_files';
+        } else if (effectiveBucket === 'customer_attachments' || parentType === 'customer') {
+          tableName = 'customer_files_new';
+        } else if (effectiveBucket === 'note_attachments' || parentType === 'note') {
+          tableName = 'note_files';
+        }
         
-      if (dbError) {
-        console.error(`Error deleting file from ${tableName}:`, dbError);
-        throw dbError;
+        console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);
+        const { error: dbError } = await supabase
+          .from(tableName)
+          .delete()
+          .eq('id', fileId);
+          
+        if (dbError) {
+          console.error(`Error deleting file from ${tableName}:`, dbError);
+          throw dbError;
+        }
       }
       
       if (onFileDeleted) {
@@ -252,9 +340,12 @@ export const FileDisplay = ({
             ? file.filename.substring(0, 20) + '...' 
             : file.filename;
           
-          const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
-          const imageUrl = fileURLs[file.id] || 
-            `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(file.file_path)}`;
+          // Special handling for public URLs
+          const isPublicUrl = file.file_path.startsWith('http://') || file.file_path.startsWith('https://');
+          const imageUrl = isPublicUrl ? file.file_path : (
+            fileURLs[file.id] || 
+            `${getStorageUrl()}/object/public/${determineEffectiveBucket(file.file_path, parentType, file.source)}/${normalizeFilePath(file.file_path)}`
+          );
             
           return (
             <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">
