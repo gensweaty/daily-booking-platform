@@ -186,7 +186,7 @@ export const CalendarGrid = ({
                           }}
                         >
                           <div className="flex items-center mb-0.5">
-                            <CalendarIcon className="h-2 w-2 mr-0.5 shrink-0" />
+                            <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
                             {renderEventContent(event)}
                           </div>
                         </div>
@@ -251,7 +251,7 @@ export const CalendarGrid = ({
                             }}
                           >
                             <div className="flex items-center mb-0.5">
-                              <CalendarIcon className="h-2 w-2 mr-0.5 shrink-0" />
+                              <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
                               {renderEventContent(event)}
                             </div>
                           </div>
