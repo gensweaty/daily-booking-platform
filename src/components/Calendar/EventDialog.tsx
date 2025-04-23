@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -97,11 +96,12 @@ export const EventDialog = ({
       
       try {
         console.log("Loading files for event:", event.id, "type:", event.type, "booking_request_id:", event.booking_request_id);
+        setDisplayedFiles([]); // Clear existing files to avoid duplicates
         let foundFiles = false;
         
         // If this is a converted booking request, check the original booking request files
         if (event.booking_request_id) {
-          console.log("This is a converted booking. Checking original booking request files:", event.booking_request_id);
+          console.log("Checking files for converted booking. Original booking ID:", event.booking_request_id);
           
           // First check the booking_requests table
           const { data: bookingData, error: bookingError } = await supabase
@@ -114,8 +114,6 @@ export const EventDialog = ({
             console.error("Error loading booking request file data:", bookingError);
           }
           
-          console.log("DEBUG: Loaded file data from booking_requests:", bookingData);
-            
           if (!bookingError && bookingData && bookingData.file_path) {
             console.log("Found original booking file:", bookingData);
             
@@ -262,18 +260,20 @@ export const EventDialog = ({
         
         if (!foundFiles) {
           console.log("No files found for this event after checking all sources");
+        } else {
+          console.log("Total files found:", displayedFiles.length);
         }
       } catch (err) {
         console.error("Exception loading event files:", err);
       }
     };
     
-    if (open) {
+    if (open && event?.id) {
       // Clear displayed files before loading new ones to avoid duplicates
       setDisplayedFiles([]);
       loadFiles();
     }
-  }, [event, open, user?.id]);
+  }, [event?.id, event, open, user?.id]);
 
   const sendApprovalEmail = async (
     startDateTime: Date,

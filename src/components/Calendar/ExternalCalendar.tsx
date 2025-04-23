@@ -18,14 +18,16 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [businessUserId, setBusinessUserId] = useState<string | null>(null);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [lastRefreshTime, setLastRefreshTime] = useState(Date.now());
   const { t } = useLanguage();
 
   // Diagnostic logging for businessId
   useEffect(() => {
     console.log("External Calendar mounted with business ID:", businessId);
     
-    // Reset error state when business ID changes
+    // Reset error state and force refresh when business ID changes
     setLoadingError(null);
+    setLastRefreshTime(Date.now());
   }, [businessId]);
 
   // Retry mechanism for failed API calls
@@ -36,6 +38,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           console.log(`[External Calendar] Retrying API call, attempt ${retryCount + 1}`);
           setRetryCount(prev => prev + 1);
           setLoadingError(null); // Clear error to trigger a new fetch
+          setLastRefreshTime(Date.now()); // Force refresh
         }
       }, 3000); // Retry after 3 seconds
       
@@ -96,8 +99,10 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("[External Calendar] Starting to fetch events for business ID:", businessId);
       
       try {
+        // Clear session storage cache to get fresh data
+        sessionStorage.removeItem(`calendar_events_${businessId}`);
+        
         // Get events from the API function which includes approved bookings and user events
-        // This now uses our security definer function to bypass RLS
         const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
         
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
@@ -128,8 +133,12 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         
         console.log(`[External Calendar] Combined ${allEvents.length} total events`);
         
+        // Filter out any events with deleted_at not null (explicitly deleted events)
+        const nonDeletedEvents = allEvents.filter(event => !event.deleted_at);
+        console.log(`[External Calendar] After filtering deleted events: ${nonDeletedEvents.length} events`);
+        
         // Validate all events have proper dates
-        const validEvents = allEvents.filter(event => {
+        const validEvents = nonDeletedEvents.filter(event => {
           try {
             // Check if start_date and end_date are valid
             const startValid = !!new Date(event.start_date).getTime();
@@ -141,8 +150,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           }
         });
         
-        if (validEvents.length !== allEvents.length) {
-          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates`);
+        if (validEvents.length !== nonDeletedEvents.length) {
+          console.warn(`Filtered out ${nonDeletedEvents.length - validEvents.length} events with invalid dates`);
         }
         
         // Remove duplicate events (same time slot)
@@ -198,13 +207,22 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("[External Calendar] Have business ID, fetching events");
       fetchAllEvents();
       
-      // Set up polling to refresh data every 30 seconds
-      const intervalId = setInterval(fetchAllEvents, 30000);
+      // Set up polling to refresh data every 20 seconds
+      const intervalId = setInterval(() => {
+        fetchAllEvents();
+        setLastRefreshTime(Date.now()); // Update refresh time
+      }, 20000);
+      
       return () => {
         clearInterval(intervalId);
       };
     }
-  }, [businessId, toast, t, retryCount]);
+  }, [businessId, toast, t, retryCount, lastRefreshTime]);
+  
+  // Add manual refresh function
+  const handleManualRefresh = () => {
+    setLastRefreshTime(Date.now());
+  };
 
   if (!businessId) {
     return (
@@ -234,6 +252,20 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
               <p className="text-red-500 mb-2">{loadingError}</p>
               <Button onClick={() => setRetryCount(prev => prev + 1)} className="mt-2">
                 Retry Loading
+              </Button>
+            </div>
+          )}
+          
+          {!isLoading && !loadingError && (
+            <div className="absolute top-6 right-6 z-10">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleManualRefresh} 
+                title="Refresh Calendar"
+              >
+                <Loader2 className="h-4 w-4 mr-1" />
+                Refresh
               </Button>
             </div>
           )}
