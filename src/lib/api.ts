@@ -1,6 +1,7 @@
 
 import { supabase } from "./supabase";
 import { CalendarEventType } from "./types/calendar";
+import { Task, Note, Reminder } from "./types";
 
 export const getPublicCalendarEvents = async (businessId: string) => {
   try {
@@ -57,5 +58,164 @@ export const getPublicCalendarEvents = async (businessId: string) => {
   } catch (error) {
     console.error("Error in getPublicCalendarEvents:", error);
     return { events: [], bookings: [] };
+  }
+};
+
+// Tasks API
+export const getTasks = async (): Promise<Task[]> => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .order('position', { ascending: true });
+  
+  if (error) {
+    console.error('Error fetching tasks:', error);
+    throw error;
+  }
+  
+  return data || [];
+};
+
+export const createTask = async (taskData: Partial<Task>): Promise<Task> => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .insert([taskData])
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error creating task:', error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const updateTask = async (id: string, updates: Partial<Task>): Promise<Task> => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error updating task:', error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const deleteTask = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('tasks')
+    .delete()
+    .eq('id', id);
+  
+  if (error) {
+    console.error('Error deleting task:', error);
+    throw error;
+  }
+};
+
+// Notes API
+export const getNotes = async (): Promise<Note[]> => {
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*')
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching notes:', error);
+    throw error;
+  }
+  
+  return data || [];
+};
+
+export const updateNote = async (id: string, updates: Partial<Note>): Promise<Note> => {
+  const { data, error } = await supabase
+    .from('notes')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error updating note:', error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const deleteNote = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('notes')
+    .delete()
+    .eq('id', id);
+  
+  if (error) {
+    console.error('Error deleting note:', error);
+    throw error;
+  }
+};
+
+// Reminders API
+export const getReminders = async (): Promise<Reminder[]> => {
+  const { data, error } = await supabase
+    .from('reminders')
+    .select('*')
+    .order('remind_at', { ascending: true });
+  
+  if (error) {
+    console.error('Error fetching reminders:', error);
+    throw error;
+  }
+  
+  return data || [];
+};
+
+export const createReminder = async (reminderData: Partial<Reminder>): Promise<Reminder> => {
+  const { data, error } = await supabase
+    .from('reminders')
+    .insert([reminderData])
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error creating reminder:', error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const updateReminder = async (id: string, updates: Partial<Reminder>): Promise<Reminder> => {
+  const { data, error } = await supabase
+    .from('reminders')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error updating reminder:', error);
+    throw error;
+  }
+  
+  return data;
+};
+
+export const deleteReminder = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('reminders')
+    .delete()
+    .eq('id', id);
+  
+  if (error) {
+    console.error('Error deleting reminder:', error);
+    throw error;
   }
 };

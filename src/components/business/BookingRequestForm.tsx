@@ -573,12 +573,9 @@ export const BookingRequestForm = ({
         onChange={setSelectedFile}
         fileError={fileError}
         setFileError={setFileError}
-        disabled={isSubmitting || rateLimitExceeded}
       />
       
       <div className="flex justify-between space-x-2 pt-4">
-        
-        
         <div className="flex justify-end space-x-2">
           {onCancel && (
             <Button 

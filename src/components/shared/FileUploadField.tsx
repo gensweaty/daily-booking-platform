@@ -12,6 +12,8 @@ interface FileUploadFieldProps {
   hideLabel?: boolean;
   maxSizeMB?: number; // Max file size in MB
   allowedTypes?: string[]; // Array of allowed MIME types
+  acceptedFileTypes?: string; // String of accepted file types for input element
+  disabled?: boolean; // Added disabled prop
 }
 
 export const FileUploadField = ({ 
@@ -20,7 +22,9 @@ export const FileUploadField = ({
   setFileError, 
   hideLabel = false,
   maxSizeMB = 5, // Default max size is 5MB
-  allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'] 
+  allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  acceptedFileTypes, // Added acceptedFileTypes prop
+  disabled = false // Added disabled prop with default value
 }: FileUploadFieldProps) => {
   const [selectedFileName, setSelectedFileName] = useState("");
   const { t } = useLanguage();
@@ -62,6 +66,9 @@ export const FileUploadField = ({
     console.log("File successfully processed:", file.name);
   };
 
+  // Determine accept attribute value for input
+  const acceptValue = acceptedFileTypes || allowedTypes.join(',');
+
   return (
     <div className="space-y-2">
       {!hideLabel && <Label htmlFor="file-upload">{t("calendar.attachment")}</Label>}
@@ -72,7 +79,8 @@ export const FileUploadField = ({
           id="file-upload"
           onChange={handleFileChange}
           className="hidden"
-          accept={allowedTypes.join(',')}
+          accept={acceptValue}
+          disabled={disabled}
         />
         <div className="flex gap-2 items-center">
           <Button
@@ -80,6 +88,7 @@ export const FileUploadField = ({
             variant="secondary"
             className="w-full h-9"
             onClick={() => document.getElementById("file-upload")?.click()}
+            disabled={disabled}
           >
             {t("calendar.chooseFile")}
           </Button>
