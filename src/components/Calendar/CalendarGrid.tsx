@@ -1,4 +1,3 @@
-
 import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -14,6 +13,15 @@ interface CalendarGridProps {
   isExternalCalendar?: boolean;
   theme?: string;
 }
+
+const getBookingHours = (event: CalendarEventType) => {
+  const start = new Date(event.start_date);
+  const end = new Date(event.end_date);
+  const startHour = Math.max(0, Math.min(23, start.getHours()));
+  let endHour = Math.max(0, Math.min(23, end.getHours()));
+  if (endHour <= startHour) endHour = startHour + 1 > 23 ? 23 : startHour + 1;
+  return `${startHour}–${endHour}`;
+};
 
 export const CalendarGrid = ({
   days,
@@ -52,11 +60,27 @@ export const CalendarGrid = ({
     }
   };
 
-  const getEventTitle = (event: CalendarEventType): string => {
+  const renderEventContent = (event: CalendarEventType) => {
+    const bookingHours = getBookingHours(event);
     if (isExternalCalendar) {
-      return "Booked";
+      return (
+        <div className="w-full">
+          <span className="block font-medium text-xs sm:text-sm">{/* on mobile, smaller font */}
+            Booked
+          </span>
+          <span className="block text-[0.7rem] sm:text-xs opacity-80 mt-0.5">{bookingHours}</span>
+        </div>
+      );
     }
-    return event.title;
+    const name = event.requester_name || event.title || "";
+    return (
+      <div className="w-full">
+        <span className="block font-medium text-xs sm:text-sm">
+          {name}
+        </span>
+        <span className="block text-[0.7rem] sm:text-xs opacity-80 mt-0.5">{bookingHours}</span>
+      </div>
+    );
   };
 
   if (view === 'week' || view === 'day') {
@@ -152,47 +176,10 @@ export const CalendarGrid = ({
                             onEventClick?.(event);
                           }}
                         >
-                          {isMobile ? (
-                            <>
-                              <div className="flex items-center mb-0.5">
-                                <CalendarIcon className="h-2 w-2 mr-0.5 shrink-0" />
-                                <span className="truncate font-medium text-[0.7rem]">
-                                  {getEventTitle(event)}
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-center text-[0.65rem]">
-                                <span className="truncate">
-                                  {format(startTime, 'HH:mm')}
-                                </span>
-                                <span className="truncate">
-                                  {format(endTime, 'HH:mm')}
-                                </span>
-                              </div>
-                              {event.requester_name && (
-                                <div className="truncate text-[0.65rem] mt-0.5">
-                                  {event.requester_name}
-                                </div>
-                              )}
-                              {!event.requester_name && event.description && (
-                                <div className="truncate text-[0.65rem] mt-0.5">
-                                  {event.description.slice(0, 20)}
-                                  {event.description.length > 20 ? '...' : ''}
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex items-center">
-                                <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
-                                <span className="truncate font-medium text-sm">
-                                  {getEventTitle(event)}
-                                </span>
-                              </div>
-                              <div className="truncate text-xs">
-                                {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
-                              </div>
-                            </>
-                          )}
+                          <div className="flex items-center mb-0.5">
+                            <CalendarIcon className="h-2 w-2 mr-0.5 shrink-0" />
+                            {renderEventContent(event)}
+                          </div>
                         </div>
                       );
                     })}
@@ -254,47 +241,10 @@ export const CalendarGrid = ({
                               onEventClick?.(event);
                             }}
                           >
-                            {isMobile ? (
-                              <>
-                                <div className="flex items-center mb-0.5">
-                                  <CalendarIcon className="h-2 w-2 mr-0.5 shrink-0" />
-                                  <span className="truncate font-medium text-[0.7rem]">
-                                    {getEventTitle(event)}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between items-center text-[0.65rem]">
-                                  <span className="truncate">
-                                    {format(startTime, 'HH:mm')}
-                                  </span>
-                                  <span className="truncate">
-                                    {format(endTime, 'HH:mm')}
-                                  </span>
-                                </div>
-                                {event.requester_name && (
-                                  <div className="truncate text-[0.65rem] mt-0.5">
-                                    {event.requester_name}
-                                  </div>
-                                )}
-                                {!event.requester_name && event.description && (
-                                  <div className="truncate text-[0.65rem] mt-0.5">
-                                    {event.description.slice(0, 20)}
-                                    {event.description.length > 20 ? '...' : ''}
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <div className="flex items-center">
-                                  <CalendarIcon className="h-3 w-3 mr-1 shrink-0" />
-                                  <span className="truncate font-medium text-sm">
-                                    {getEventTitle(event)}
-                                  </span>
-                                </div>
-                                <div className="truncate text-xs">
-                                  {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
-                                </div>
-                              </>
-                            )}
+                            <div className="flex items-center mb-0.5">
+                              <CalendarIcon className="h-2 w-2 mr-0.5 shrink-0" />
+                              {renderEventContent(event)}
+                            </div>
                           </div>
                         );
                       })}
@@ -344,7 +294,7 @@ export const CalendarGrid = ({
                       {dayEvents.slice(0, 2).map((event) => (
                         <div
                           key={event.id}
-                          className={`text-[0.65rem] sm:text-sm p-0.5 pl-1 sm:p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
+                          className={`text-[0.65rem] sm:text-sm p-0.5 pl-1 sm:p-1.5 rounded flex items-center gap-1 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
                             isOtherMonth ? 'opacity-60' : ''
                           }`}
                           onClick={(e) => {
@@ -353,9 +303,7 @@ export const CalendarGrid = ({
                           }}
                         >
                           <CalendarIcon className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5 sm:mr-1.5 shrink-0" />
-                          <span className="truncate font-medium">
-                            {getEventTitle(event)}
-                          </span>
+                          {renderEventContent(event)}
                         </div>
                       ))}
                       {dayEvents.length > 2 && (
@@ -370,7 +318,7 @@ export const CalendarGrid = ({
                     dayEvents.map((event) => (
                       <div
                         key={event.id}
-                        className={`text-sm p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
+                        className={`text-sm p-1.5 rounded flex items-center gap-2 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
                           isOtherMonth ? 'opacity-60' : ''
                         }`}
                         onClick={(e) => {
@@ -379,9 +327,7 @@ export const CalendarGrid = ({
                         }}
                       >
                         <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
-                        <span className="truncate font-medium">
-                          {getEventTitle(event)}
-                        </span>
+                        {renderEventContent(event)}
                       </div>
                     ))
                   )
@@ -427,7 +373,7 @@ export const CalendarGrid = ({
                     {dayEvents.slice(0, 2).map((event) => (
                       <div
                         key={event.id}
-                        className={`text-[0.65rem] sm:text-sm p-0.5 pl-1 sm:p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
+                        className={`text-[0.65rem] sm:text-sm p-0.5 pl-1 sm:p-1.5 rounded flex items-center gap-1 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
                           isOtherMonth ? 'opacity-60' : ''
                         }`}
                         onClick={(e) => {
@@ -436,9 +382,7 @@ export const CalendarGrid = ({
                         }}
                       >
                         <CalendarIcon className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5 sm:mr-1.5 shrink-0" />
-                        <span className="truncate font-medium">
-                          {getEventTitle(event)}
-                        </span>
+                        {renderEventContent(event)}
                       </div>
                     ))}
                     {dayEvents.length > 2 && (
@@ -453,7 +397,7 @@ export const CalendarGrid = ({
                   dayEvents.map((event) => (
                     <div
                       key={event.id}
-                      className={`text-sm p-1.5 rounded flex items-center ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
+                      className={`text-sm p-1.5 rounded flex items-center gap-2 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
                         isOtherMonth ? 'opacity-60' : ''
                       }`}
                       onClick={(e) => {
@@ -462,9 +406,7 @@ export const CalendarGrid = ({
                       }}
                     >
                       <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
-                      <span className="truncate font-medium">
-                        {getEventTitle(event)}
-                      </span>
+                      {renderEventContent(event)}
                     </div>
                   ))
                 )
