@@ -92,12 +92,14 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
 
   return (
     <div className="w-full md:w-[200px] -mt-4">
-      <Command className="rounded-lg border">
+      <Command 
+        className="rounded-lg border"
+        value={searchValue}
+        onValueChange={handleSearch}
+      >
         <CommandInput
           placeholder="Search..."
           className="h-9"
-          value={searchValue}
-          onValueChange={handleSearch}
         />
       </Command>
     </div>
