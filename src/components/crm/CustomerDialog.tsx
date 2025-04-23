@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -116,6 +115,14 @@ export const CustomerDialog = ({
             console.log("Found event file for customer creation:", eventFiles[0]);
             setBookingFilePath(eventFiles[0].file_path);
             setBookingFileName(eventFiles[0].filename);
+            return;
+          }
+          
+          // Check if the event itself has file info
+          if (bookingEvent.file_path) {
+            console.log("Found file data directly in the event:", bookingEvent);
+            setBookingFilePath(bookingEvent.file_path);
+            setBookingFileName(bookingEvent.filename || 'attachment');
             return;
           }
           
@@ -288,7 +295,8 @@ export const CustomerDialog = ({
                 file_path: bookingFilePath,
                 content_type: 'application/octet-stream',
                 size: 0,
-                user_id: user.id
+                user_id: user.id,
+                source: bookingEvent?.type === 'booking_request' ? 'booking_request' : 'event'
               });
               
             if (fileError) {

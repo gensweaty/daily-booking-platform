@@ -1,6 +1,6 @@
-
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase";
+import { supabase, normalizeFilePath } from "@/integrations/supabase/client";
+import { determineEffectiveBucket, getDirectFileUrl } from "@/integrations/supabase/utils";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
@@ -29,29 +29,6 @@ export const FileDisplay = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
-
-  // Helper function to normalize file path by removing prefixes
-  const normalizeFilePath = (path: string): string => {
-    if (!path) return '';
-    
-    // Remove any leading directory prefixes
-    if (path.startsWith('event/')) {
-      return path.substring('event/'.length);
-    }
-    
-    // Handle public paths
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      // This is already a full URL, return as is
-      return path;
-    }
-    
-    return path;
-  };
-
-  // Helper to get the storage URL for supabase
-  const getStorageUrl = () => {
-    return "https://mrueqpffzauvdxmuwhfa.supabase.co/storage/v1";
-  };
 
   useEffect(() => {
     const newURLs: {[key: string]: string} = {};
@@ -85,46 +62,6 @@ export const FileDisplay = ({
 
   const getFileIcon = (filename: string) => {
     return <FileIcon className="h-5 w-5" />;
-  };
-
-  const determineEffectiveBucket = (filePath: string, parentType?: string, source?: string): string => {
-    // Check if this is a public URL
-    if (filePath && (filePath.startsWith('http://') || filePath.startsWith('https://'))) {
-      console.log("File path is a public URL:", filePath);
-      // This is not a local Supabase file, so bucket is irrelevant
-      return ''; 
-    }
-    
-    if (source === 'event' || source === 'booking_request') {
-      return "event_attachments";
-    }
-    
-    if (source === 'customer') {
-      return "customer_attachments";
-    }
-    
-    if (filePath && (
-      filePath.includes("b22b") || 
-      /^\d{13}_/.test(filePath) || 
-      filePath.includes("event_") ||
-      filePath.startsWith("event/")
-    )) {
-      return "event_attachments";
-    }
-    
-    if (parentType === "customer" && filePath && 
-      !filePath.includes("b22b") && 
-      !/^\d{13}_/.test(filePath) &&
-      !filePath.includes("event_") &&
-      !filePath.startsWith("event/")) {
-      return "customer_attachments";
-    }
-    
-    if (parentType === "event") {
-      return "event_attachments";
-    }
-    
-    return bucketName;
   };
 
   const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
@@ -183,32 +120,13 @@ export const FileDisplay = ({
     }
   };
 
-  const getDirectFileUrl = (filePath: string, fileId: string): string => {
-    if (!filePath) return '';
-    
-    // Special handling for fully qualified URLs (public links)
-    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-      return filePath;
-    }
-    
-    if (fileURLs[fileId]) {
-      return fileURLs[fileId];
-    }
-    
-    const normalizedPath = normalizeFilePath(filePath);
-    const effectiveBucket = determineEffectiveBucket(filePath, parentType);
-    console.log(`Open: Using bucket ${effectiveBucket} for path ${filePath}`);
-    
-    return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
-  };
-
   const handleOpenFile = async (filePath: string, fileId: string) => {
     try {
       if (!filePath) {
         throw new Error('File path is missing');
       }
       
-      const directUrl = getDirectFileUrl(filePath, fileId);
+      const directUrl = getDirectFileUrl(filePath, fileId, parentType);
       console.log('Opening file with direct URL:', directUrl);
       
       // Open in a new tab to prevent navigating away

@@ -11,7 +11,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const { toast } = useToast();
   const { t } = useLanguage();
 
-  // Helper to determine if times have changed between original and new dates
   const haveTimesChanged = (
     originalStartDate: string,
     originalEndDate: string,
@@ -239,14 +238,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     console.log("Update data:", data);
     console.log("Event type:", data.type);
     
-    // For existing events, first check if we need to validate time conflicts
     if (data.start_date && data.end_date) {
-      // First get the original event to check if times changed
       let skipTimeCheck = false;
       let originalEvent: any = null;
       
       if (data.type === 'booking_request' || (id && typeof id === 'string' && id.includes('-'))) {
-        // Check for booking request with this ID
         const { data: bookingData } = await supabase
           .from('booking_requests')
           .select('*')
@@ -259,7 +255,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
       
       if (!originalEvent) {
-        // Check for regular event
         const { data: eventData } = await supabase
           .from('events')
           .select('*')
@@ -271,7 +266,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
-      // If we found the original event, check if times changed
       if (originalEvent) {
         skipTimeCheck = !haveTimesChanged(
           originalEvent.start_date,
@@ -283,7 +277,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.log("Should skip time conflict check?", skipTimeCheck);
       }
       
-      // Only perform conflict check if times have changed
       if (!skipTimeCheck) {
         const startDateTime = new Date(data.start_date);
         const endDateTime = new Date(data.end_date);
@@ -300,7 +293,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
-    // Check if this is a booking request being approved (converted to event)
     let wasBookingRequest = false;
     let bookingFile = null;
     
@@ -317,7 +309,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           console.log("Found booking request, updating:", id);
           wasBookingRequest = true;
           
-          // If there's a file associated with the booking, save its info
           if (bookingData.file_path) {
             bookingFile = {
               file_path: bookingData.file_path,
@@ -344,7 +335,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               
           if (updateError) throw updateError;
           
-          // If we're not converting to an event, we're done
           if (data.type === 'booking_request') {
             toast({
               title: "Booking updated",
@@ -369,8 +359,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             } as CalendarEventType;
           }
           
-          // Otherwise, we're converting the booking to an event
-          // Create a new event based on the booking
           const eventPayload = {
             title: data.title,
             user_surname: data.user_surname,
@@ -383,7 +371,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             payment_amount: data.payment_amount,
             user_id: user.id,
             booking_request_id: id,
-            type: 'event'
+            type: 'event',
+            file_path: bookingFile?.file_path || null,
+            filename: bookingFile?.filename || null
           };
           
           console.log("Creating new event from booking request:", eventPayload);
@@ -398,7 +388,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           console.log("Successfully created event from booking request:", newEvent);
           
-          // If the booking had a file, create a record for it in the event_files table
           if (bookingFile && newEvent.id) {
             console.log("Creating file record for booking file:", bookingFile);
             
@@ -410,15 +399,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
                 filename: bookingFile.filename,
                 content_type: 'application/octet-stream',
                 size: 0,
-                user_id: user.id
+                user_id: user.id,
+                source: 'booking_request'
               });
               
             if (fileError) {
               console.error("Error creating file record for booking file:", fileError);
+            } else {
+              console.log("Successfully created file record for booking file");
             }
           }
           
-          // Update the booking status to approved
           const { error: statusError } = await supabase
             .from('booking_requests')
             .update({ status: 'approved' })
@@ -426,6 +417,66 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             
           if (statusError) {
             console.error("Error updating booking status:", statusError);
+          }
+          
+          try {
+            const customerData = {
+              title: data.title,
+              user_surname: data.user_surname,
+              user_number: data.user_number,
+              social_network_link: data.social_network_link,
+              event_notes: data.event_notes,
+              start_date: data.start_date,
+              end_date: data.end_date,
+              payment_status: data.payment_status || null,
+              payment_amount: data.payment_amount || null,
+              user_id: user.id,
+              type: 'customer',
+              create_event: false
+            };
+
+            console.log("Creating customer from approved booking:", customerData);
+            
+            const { data: newCustomer, error: customerError } = await supabase
+              .from('customers')
+              .insert(customerData)
+              .select()
+              .single();
+              
+            if (customerError) {
+              console.error("Error creating customer from booking:", customerError);
+            } else if (newCustomer && bookingFile) {
+              console.log("Created customer from booking, transferring file:", newCustomer);
+              
+              const { error: customerFileError } = await supabase
+                .from('customer_files_new')
+                .insert({
+                  customer_id: newCustomer.id,
+                  file_path: bookingFile.file_path,
+                  filename: bookingFile.filename,
+                  content_type: 'application/octet-stream',
+                  size: 0,
+                  user_id: user.id,
+                  source: 'booking_request'
+                });
+                
+              if (customerFileError) {
+                console.error("Error creating file record for customer:", customerFileError);
+              } else {
+                console.log("Successfully created file record for customer");
+              }
+
+              const { error: eventUpdateError } = await supabase
+                .from('events')
+                .update({ customer_id: newCustomer.id })
+                .eq('id', newEvent.id);
+                
+              if (eventUpdateError) {
+                console.error("Error updating event with customer ID:", eventUpdateError);
+              }
+            }
+          } catch (customerCreationError) {
+            console.error("Error in customer creation flow:", customerCreationError);
           }
           
           toast({
@@ -505,7 +556,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (eventsError) throw eventsError;
       
-      // Helper function to identify if this is the event being edited
       const isSameEvent = (item: any) => {
         return item.id === excludeEventId;
       };
@@ -526,7 +576,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         };
       }
       
-      // Check for booking conflicts
       if (businessId || businessUserId) {
         const targetBusinessId = businessId;
         
@@ -548,7 +597,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             conflictingBookings: conflictingBookings?.map(b => b.id)
           });
           
-          // Helper function to identify if this is the booking being edited
           const isSameBooking = (booking: any) => {
             return booking.id === excludeEventId;
           };
@@ -559,8 +607,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               endDate.getTime() <= new Date(booking.start_date).getTime())
           );
           
-          console.log("Filtered conflicting bookings:", bookingsConflict);
-          
           if (bookingsConflict && bookingsConflict.length > 0) {
             const conflictBooking = bookingsConflict[0];
             return { 
@@ -570,7 +616,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           }
         }
       } else if (!businessId && !businessUserId && user) {
-        // Check for user's own business bookings
         const { data: userBusinessProfile } = await supabase
           .from("business_profiles")
           .select("id")
@@ -593,7 +638,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             conflictingBookings: conflictingBookings?.map(b => b.id)
           });
           
-          // Helper function to identify if this is the booking being edited
           const isSameBooking = (booking: any) => {
             return booking.id === excludeEventId;
           };

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -95,6 +94,8 @@ export const EventDialog = ({
     const loadFiles = async () => {
       if (event?.id) {
         try {
+          let foundFiles = false;
+          
           // First check if this is a booking request
           if (event.type === 'booking_request') {
             console.log("Loading files for booking request:", event.id);
@@ -122,24 +123,45 @@ export const EventDialog = ({
               };
               
               setDisplayedFiles([bookingFile]);
-              return;
+              foundFiles = true;
             }
           }
           
-          // If not a booking or no file in booking, check standard event files
-          const { data, error } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', event.id);
+          // Check if the event itself has file path
+          if (!foundFiles && event.file_path) {
+            console.log("Found file information directly on the event:", event.file_path);
+            const eventFile = {
+              id: `event-file-${event.id}`,
+              event_id: event.id,
+              filename: event.filename || 'attachment',
+              file_path: event.file_path,
+              content_type: '',
+              size: 0,
+              created_at: new Date().toISOString(),
+              user_id: user?.id,
+              source: 'event'
+            };
             
-          if (error) {
-            console.error("Error loading event files:", error);
-            return;
+            setDisplayedFiles([eventFile]);
+            foundFiles = true;
           }
           
-          if (data && data.length > 0) {
-            console.log("Loaded event files:", data);
-            setDisplayedFiles(data);
+          // If no files found so far, check standard event files
+          if (!foundFiles) {
+            const { data, error } = await supabase
+              .from('event_files')
+              .select('*')
+              .eq('event_id', event.id);
+              
+            if (error) {
+              console.error("Error loading event files:", error);
+              return;
+            }
+            
+            if (data && data.length > 0) {
+              console.log("Loaded event files:", data);
+              setDisplayedFiles(data);
+            }
           }
         } catch (err) {
           console.error("Exception loading event files:", err);
