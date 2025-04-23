@@ -12,9 +12,10 @@ interface SearchCommandProps {
   data: any[]
   setFilteredData: (data: any[]) => void
   isLoading?: boolean
+  resetPagination?: () => void
 }
 
-export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: SearchCommandProps) => {
+export const SearchCommand = React.memo(({ data, setFilteredData, isLoading, resetPagination }: SearchCommandProps) => {
   // Use ref for the current data to avoid unnecessary re-renders
   const dataRef = React.useRef(data);
   const [searchValue, setSearchValue] = React.useState<string>("");
@@ -65,6 +66,11 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
     
     // Update the filtered data to show in the main table
     setFilteredData(filtered);
+    
+    // Reset pagination to the first page when search results change
+    if (resetPagination) {
+      resetPagination();
+    }
   };
 
   if (isLoading) {

@@ -98,6 +98,10 @@ export const CustomerList = () => {
     }
   }, [combinedData]);
 
+  const resetPagination = useCallback(() => {
+    setCurrentPage(1);
+  }, []);
+
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
@@ -341,6 +345,7 @@ export const CustomerList = () => {
               data={combinedData}
               setFilteredData={setFilteredData}
               isLoading={isFetching}
+              resetPagination={resetPagination}
             />
           </div>
           <Button
