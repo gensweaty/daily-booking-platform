@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import {
   Command,
@@ -23,7 +24,7 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
     dataRef.current = data;
   }, [data]);
 
-  // Search implementation with improved immediate response  
+  // Enhanced search implementation with improved matching
   const handleSearch = React.useCallback((search: string) => {
     setSearchValue(search);
     
@@ -31,25 +32,35 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading }: S
       clearTimeout(debounceTimeout.current);
     }
     
-    // Apply immediate search for any input
-    const searchLower = search.toLowerCase();
-    const filtered = search.trim() 
-      ? dataRef.current.filter((item) => {
-          return (
-            (item.title?.toLowerCase().includes(searchLower)) ||
-            (item.user_number?.toLowerCase().includes(searchLower)) ||
-            (item.social_network_link?.toLowerCase().includes(searchLower)) ||
-            (item.event_notes?.toLowerCase().includes(searchLower)) ||
-            (item.payment_status?.toLowerCase().includes(searchLower))
-          );
-        })
-      : dataRef.current;
+    // Apply immediate search for any input with more thorough filtering
+    const searchTerms = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
     
+    const filtered = !searchTerms.length 
+      ? dataRef.current 
+      : dataRef.current.filter((item) => {
+          // Create a combined text from all searchable fields
+          const itemText = [
+            item.title,
+            item.user_number,
+            item.social_network_link,
+            item.event_notes,
+            item.payment_status,
+            // Add any other fields that might contain relevant search data
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+          
+          // Check if ALL search terms are found in any of the fields
+          return searchTerms.every(term => itemText.includes(term));
+        });
+    
+    console.log(`Search: "${search}" found ${filtered.length} matches from ${dataRef.current.length} items`);
     setFilteredData(filtered);
     
     // Still keep the debounce for potential expensive operations in the future
     debounceTimeout.current = setTimeout(() => {
-      // Additional processing could be done here if needed
+      // This could be used for analytics or other side effects
     }, 100);
   }, [setFilteredData]);
   
