@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { supabase, normalizeFilePath, getStorageUrl } from "@/integrations/supabase/client";
 import { determineEffectiveBucket, getDirectFileUrl } from "@/integrations/supabase/utils";
@@ -32,6 +31,16 @@ export const FileDisplay = ({
   const { t } = useLanguage();
 
   useEffect(() => {
+    console.log("FileDisplay - Received files:", files?.length || 0, "for parentType:", parentType);
+    if (files && files.length > 0) {
+      console.log("First file details:", {
+        id: files[0].id,
+        filename: files[0].filename,
+        path: files[0].file_path,
+        source: files[0].source
+      });
+    }
+    
     const newURLs: {[key: string]: string} = {};
     files.forEach(file => {
       if (file.file_path) {
@@ -271,15 +280,21 @@ export const FileDisplay = ({
   };
 
   if (!files || files.length === 0) {
+    console.log("FileDisplay - No files to display");
     return null;
   }
 
+  console.log("FileDisplay - Rendering files:", files.length);
+  
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-medium">{t("common.attachments")}</h3>
       <div className="space-y-2">
         {files.map((file) => {
-          if (!file.file_path) return null;
+          if (!file.file_path) {
+            console.log("Skipping file with no path:", file.id);
+            return null;
+          }
           
           const fileNameDisplay = file.filename && file.filename.length > 20 
             ? file.filename.substring(0, 20) + '...' 
@@ -291,6 +306,8 @@ export const FileDisplay = ({
             fileURLs[file.id] || 
             `${getStorageUrl()}/object/public/${determineEffectiveBucket(file.file_path, parentType, file.source)}/${normalizeFilePath(file.file_path)}`
           );
+          
+          console.log(`Rendering file: ${file.filename}, URL: ${imageUrl.substring(0, 100)}...`);
             
           return (
             <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">

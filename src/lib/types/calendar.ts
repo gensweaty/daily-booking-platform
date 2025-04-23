@@ -20,6 +20,7 @@ export interface CalendarEventType {
   requester_phone?: string;
   description?: string;
   file?: File;
-  file_path?: string; // Added this property
-  filename?: string; // Added this property
+  file_path?: string;
+  filename?: string;
+  booking_request_id?: string;
 }

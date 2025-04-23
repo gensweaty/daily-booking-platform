@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -495,19 +496,27 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
     
     console.log("Updating standard event:", id);
+    
+    // If this is a regular event but has a booking_request_id, preserve it in the update
+    let updateData: any = {
+      title: data.title,
+      user_surname: data.user_surname,
+      user_number: data.user_number,
+      social_network_link: data.social_network_link,
+      event_notes: data.event_notes,
+      start_date: data.start_date,
+      end_date: data.end_date,
+      payment_status: data.payment_status,
+      payment_amount: data.payment_amount
+    };
+    
+    if (data.booking_request_id) {
+      updateData.booking_request_id = data.booking_request_id;
+    }
+    
     const { data: updatedEvent, error } = await supabase
       .from('events')
-      .update({
-        title: data.title,
-        user_surname: data.user_surname,
-        user_number: data.user_number,
-        social_network_link: data.social_network_link,
-        event_notes: data.event_notes,
-        start_date: data.start_date,
-        end_date: data.end_date,
-        payment_status: data.payment_status,
-        payment_amount: data.payment_amount
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();

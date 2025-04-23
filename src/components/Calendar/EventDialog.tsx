@@ -92,80 +92,119 @@ export const EventDialog = ({
 
   useEffect(() => {
     const loadFiles = async () => {
-      if (event?.id) {
-        try {
-          let foundFiles = false;
+      if (!event?.id) return;
+      
+      try {
+        console.log("Loading files for event:", event.id, "type:", event.type);
+        let foundFiles = false;
+        
+        // First check if this is a converted booking request (check booking_request_id)
+        if (event.booking_request_id) {
+          console.log("This is a converted booking. Checking original booking request files:", event.booking_request_id);
           
-          // First check if this is a booking request
-          if (event.type === 'booking_request') {
-            console.log("Loading files for booking request:", event.id);
+          const { data: bookingData, error: bookingError } = await supabase
+            .from('booking_requests')
+            .select('file_path, filename')
+            .eq('id', event.booking_request_id)
+            .single();
             
-            const { data: bookingData, error: bookingError } = await supabase
-              .from('booking_requests')
-              .select('file_path, filename')
-              .eq('id', event.id)
-              .single();
-              
-            if (!bookingError && bookingData && bookingData.file_path) {
-              console.log("Found booking file:", bookingData);
-              
-              // Create a virtual file entry for the booking request file
-              const bookingFile = {
-                id: `booking-${event.id}`,
-                event_id: event.id,
-                filename: bookingData.filename || 'attachment',
-                file_path: bookingData.file_path,
-                content_type: '',
-                size: 0,
-                created_at: new Date().toISOString(),
-                user_id: user?.id,
-                source: 'booking_request'
-              };
-              
-              setDisplayedFiles([bookingFile]);
-              foundFiles = true;
-            }
-          }
-          
-          // Check if the event itself has file path
-          if (!foundFiles && event.file_path) {
-            console.log("Found file information directly on the event:", event.file_path);
-            const eventFile = {
-              id: `event-file-${event.id}`,
+          if (!bookingError && bookingData && bookingData.file_path) {
+            console.log("Found original booking file:", bookingData);
+            
+            // Create a virtual file entry for the booking request file
+            const bookingFile = {
+              id: `booking-${event.booking_request_id}`,
               event_id: event.id,
-              filename: event.filename || 'attachment',
-              file_path: event.file_path,
+              filename: bookingData.filename || 'attachment',
+              file_path: bookingData.file_path,
               content_type: '',
               size: 0,
               created_at: new Date().toISOString(),
               user_id: user?.id,
-              source: 'event'
+              source: 'booking_request'
             };
             
-            setDisplayedFiles([eventFile]);
+            setDisplayedFiles([bookingFile]);
             foundFiles = true;
           }
-          
-          // If no files found so far, check standard event files
-          if (!foundFiles) {
-            const { data, error } = await supabase
-              .from('event_files')
-              .select('*')
-              .eq('event_id', event.id);
-              
-            if (error) {
-              console.error("Error loading event files:", error);
-              return;
-            }
-            
-            if (data && data.length > 0) {
-              console.log("Loaded event files:", data);
-              setDisplayedFiles(data);
-            }
-          }
-        } catch (err) {
-          console.error("Exception loading event files:", err);
         }
+        
+        // Next check if this is a booking request
+        if (!foundFiles && event.type === 'booking_request') {
+          console.log("Loading files for booking request:", event.id);
+          
+          const { data: bookingData, error: bookingError } = await supabase
+            .from('booking_requests')
+            .select('file_path, filename')
+            .eq('id', event.id)
+            .single();
+            
+          if (!bookingError && bookingData && bookingData.file_path) {
+            console.log("Found booking file:", bookingData);
+            
+            // Create a virtual file entry for the booking request file
+            const bookingFile = {
+              id: `booking-${event.id}`,
+              event_id: event.id,
+              filename: bookingData.filename || 'attachment',
+              file_path: bookingData.file_path,
+              content_type: '',
+              size: 0,
+              created_at: new Date().toISOString(),
+              user_id: user?.id,
+              source: 'booking_request'
+            };
+            
+            setDisplayedFiles([bookingFile]);
+            foundFiles = true;
+          }
+        }
+        
+        // Check if the event itself has file path
+        if (!foundFiles && event.file_path) {
+          console.log("Found file information directly on the event:", event.file_path);
+          const eventFile = {
+            id: `event-file-${event.id}`,
+            event_id: event.id,
+            filename: event.filename || 'attachment',
+            file_path: event.file_path,
+            content_type: '',
+            size: 0,
+            created_at: new Date().toISOString(),
+            user_id: user?.id,
+            source: 'event'
+          };
+          
+          setDisplayedFiles([eventFile]);
+          foundFiles = true;
+        }
+        
+        // If no files found so far, check standard event files
+        if (!foundFiles) {
+          const { data, error } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', event.id);
+            
+          if (error) {
+            console.error("Error loading event files:", error);
+            return;
+          }
+          
+          if (data && data.length > 0) {
+            console.log("Loaded event files:", data);
+            setDisplayedFiles(data);
+            foundFiles = true;
+          } else {
+            console.log("No event files found in event_files table");
+          }
+        }
+        
+        if (!foundFiles) {
+          console.log("No files found for this event after checking all sources");
+        }
+      } catch (err) {
+        console.error("Exception loading event files:", err);
       }
     };
     
@@ -296,11 +335,15 @@ export const EventDialog = ({
 
     if (event?.id) {
       eventData.id = event.id;
+      if (event.booking_request_id) {
+        eventData.booking_request_id = event.booking_request_id;
+      }
     }
 
     if (wasBookingRequest) {
       eventData.type = 'event';
-      console.log("Converting booking request to event:", { wasBookingRequest, isApprovingBookingRequest });
+      eventData.booking_request_id = event.id;
+      console.log("Converting booking request to event:", { wasBookingRequest, isApprovingBookingRequest, bookingId: event.id });
     } else if (event?.type) {
       eventData.type = event.type;
     }
@@ -375,13 +418,29 @@ export const EventDialog = ({
                   file_path: bookingData.file_path,
                   content_type: 'application/octet-stream',
                   size: 0,
-                  user_id: user.id
+                  user_id: user.id,
+                  source: 'booking_request'
                 });
                 
               if (fileRecordError) {
                 console.error('Error creating file record from booking:', fileRecordError);
               } else {
                 console.log('Successfully transferred file from booking to event');
+                
+                // Also update the main event record with file_path and filename
+                const { error: eventUpdateError } = await supabase
+                  .from('events')
+                  .update({
+                    file_path: bookingData.file_path,
+                    filename: bookingData.filename
+                  })
+                  .eq('id', createdEvent.id);
+                  
+                if (eventUpdateError) {
+                  console.error('Error updating event with file info:', eventUpdateError);
+                } else {
+                  console.log('Successfully updated event with file info');
+                }
               }
             }
           } catch (transferError) {
@@ -449,7 +508,6 @@ export const EventDialog = ({
     }
   };
 
-  // New helper function to upload files to events
   const uploadFileToEvent = async (file: File, eventId: string, userId: string) => {
     const fileExt = file.name.split('.').pop();
     const filePath = `${crypto.randomUUID()}.${fileExt}`;
