@@ -131,13 +131,13 @@ export const DashboardContent = ({
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 500, damping: 25 }}
-              className="absolute -bottom-3 -right-3"
+              className="absolute top-1/2 -translate-y-1/2 right-0 transform -translate-x-full ml-1"
             >
               <Badge 
                 variant="destructive" 
-                className="flex items-center justify-center h-7 min-w-7 p-1.5 text-sm rounded-full gap-2"
+                className="flex items-center justify-center h-5 min-w-5 p-1 text-xs rounded-full gap-1"
               >
-                <Bell className="w-4 h-4" />
+                <Bell className="w-3 h-3" />
                 {pendingCount}
               </Badge>
             </motion.div>
