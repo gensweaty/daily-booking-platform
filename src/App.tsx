@@ -54,27 +54,39 @@ const SessionRecoveryWrapper = ({ children }: { children: React.ReactNode }) => 
 // Route-aware theme wrapper component
 const RouteAwareThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
+
+  // External business page detection
   const isExternalPage = location.pathname.startsWith('/business/');
-  
+
   useEffect(() => {
-    // Initialize theme based on stored preference or system preference
-    const storedTheme = localStorage.getItem('vite-ui-theme');
-    if (storedTheme) {
-      document.documentElement.classList.toggle('dark', storedTheme === 'dark');
-      // Dispatch theme init event for components to react
-      const event = new CustomEvent('themeInit', { detail: { theme: storedTheme } });
-      document.dispatchEvent(event);
-    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      document.documentElement.classList.add('dark');
-      // Dispatch theme init event for components to react
-      const event = new CustomEvent('themeInit', { detail: { theme: 'dark' } });
-      document.dispatchEvent(event);
+    if (isExternalPage) {
+      // ALWAYS remove dark mode class and set light attribute, no flicker
+      document.documentElement.classList.remove('dark');
+      document.documentElement.setAttribute('data-theme', 'light');
+      // Overwrite next-themes localStorage while on public business route
+      localStorage.setItem('vite-ui-theme', 'light');
+      console.log("[ForceLightMode] Forced theme to LIGHT for external business page.");
+    } else {
+      // Let normal theming logic apply
+      const storedTheme = localStorage.getItem('vite-ui-theme');
+      if (storedTheme) {
+        document.documentElement.classList.toggle('dark', storedTheme === 'dark');
+        const event = new CustomEvent('themeInit', { detail: { theme: storedTheme } });
+        document.dispatchEvent(event);
+      } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+        const event = new CustomEvent('themeInit', { detail: { theme: 'dark' } });
+        document.dispatchEvent(event);
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
     }
-  }, []);
-  
+  }, [isExternalPage, location.pathname]);
+
   return (
     <ThemeProvider 
-      defaultTheme="system" 
+      defaultTheme={isExternalPage ? "light" : "system"}
       storageKey="vite-ui-theme"
       forcedTheme={isExternalPage ? "light" : undefined}
       enableSystem={!isExternalPage}
@@ -118,3 +130,4 @@ function App() {
 }
 
 export default App;
+
