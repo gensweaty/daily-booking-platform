@@ -1,6 +1,7 @@
+
 import { Button } from "@/components/ui/button";
 import { supabase, normalizeFilePath, getStorageUrl } from "@/integrations/supabase/client";
-import { determineEffectiveBucket, getDirectFileUrl } from "@/integrations/supabase/utils";
+import { determineEffectiveBucket, getDirectFileUrl, safeSupabaseQuery } from "@/integrations/supabase/utils";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
@@ -177,50 +178,46 @@ export const FileDisplay = ({
         // Override tableName based on source if available
         if (source === 'booking_files') {
           tableName = 'booking_files';
-        }
-        
-        console.log(`Deleting file reference from table ${tableName}, id: ${fileId}`);
-        
-        // Use the correct table name with type assertion to fix the TypeScript error
-        if (tableName === 'event_files') {
-          const { error: dbError } = await supabase
-            .from('event_files')
-            .delete()
-            .eq('id', fileId);
-          
-          if (dbError) {
-            console.error(`Error deleting file from ${tableName}:`, dbError);
-            throw dbError;
-          }
-        } else if (tableName === 'customer_files_new') {
-          const { error: dbError } = await supabase
-            .from('customer_files_new')
-            .delete()
-            .eq('id', fileId);
-          
-          if (dbError) {
-            console.error(`Error deleting file from ${tableName}:`, dbError);
-            throw dbError;
-          }
-        } else if (tableName === 'booking_files') {
-          const { error: dbError } = await supabase
-            .from('booking_files')
-            .delete()
-            .eq('id', fileId);
-          
+          // Handle the booking_files table with the safe query helper
+          const { error: dbError } = await safeSupabaseQuery(tableName, 
+            query => query.delete().eq('id', fileId));
+            
           if (dbError) {
             console.error(`Error deleting file from ${tableName}:`, dbError);
             throw dbError;
           }
         } else {
-          const { error: dbError } = await supabase
-            .from('files')
-            .delete()
-            .eq('id', fileId);
-          
-          if (dbError) {
-            console.error(`Error deleting file from ${tableName}:`, dbError);
-            throw dbError;
+          // Use the correct table name with type assertion to fix the TypeScript error
+          if (tableName === 'event_files') {
+            const { error: dbError } = await supabase
+              .from('event_files')
+              .delete()
+              .eq('id', fileId);
+            
+            if (dbError) {
+              console.error(`Error deleting file from ${tableName}:`, dbError);
+              throw dbError;
+            }
+          } else if (tableName === 'customer_files_new') {
+            const { error: dbError } = await supabase
+              .from('customer_files_new')
+              .delete()
+              .eq('id', fileId);
+            
+            if (dbError) {
+              console.error(`Error deleting file from ${tableName}:`, dbError);
+              throw dbError;
+            }
+          } else {
+            const { error: dbError } = await supabase
+              .from('files')
+              .delete()
+              .eq('id', fileId);
+            
+            if (dbError) {
+              console.error(`Error deleting file from ${tableName}:`, dbError);
+              throw dbError;
+            }
           }
         }
         
@@ -263,29 +260,58 @@ export const FileDisplay = ({
       
       // Skip database delete for virtual booking files
       if (!isVirtualFile) {
-        let tableName: 'files' | 'event_files' | 'customer_files_new' | 'note_files' | 'booking_files' = 'files';
+        let tableName = 'files';
         
         // Determine table based on source if available
         if (source === 'booking_files') {
-          tableName = 'booking_files';
+          // Use the safe query helper for the booking_files table
+          const { error: fileError } = await safeSupabaseQuery('booking_files',
+            query => query.delete().eq('id', fileId));
+            
+          if (fileError) {
+            console.error("Error deleting file from booking_files:", fileError);
+            throw fileError;
+          }
         } else if (effectiveBucket === 'event_attachments' || parentType === 'event' || source === 'event') {
-          tableName = 'event_files';
+          const { error: dbError } = await supabase
+            .from('event_files')
+            .delete()
+            .eq('id', fileId);
+            
+          if (dbError) {
+            console.error(`Error deleting file from event_files:`, dbError);
+            throw dbError;
+          }
         } else if (effectiveBucket === 'customer_attachments' || parentType === 'customer' || source === 'customer') {
-          tableName = 'customer_files_new';
+          const { error: dbError } = await supabase
+            .from('customer_files_new')
+            .delete()
+            .eq('id', fileId);
+            
+          if (dbError) {
+            console.error(`Error deleting file from customer_files_new:`, dbError);
+            throw dbError;
+          }
         } else if (effectiveBucket === 'note_attachments' || parentType === 'note') {
-          tableName = 'note_files';
-        }
-        
-        console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);
-        
-        const { error: dbError } = await supabase
-          .from(tableName)
-          .delete()
-          .eq('id', fileId);
-          
-        if (dbError) {
-          console.error(`Error deleting file from ${tableName}:`, dbError);
-          throw dbError;
+          const { error: dbError } = await supabase
+            .from('note_files')
+            .delete()
+            .eq('id', fileId);
+            
+          if (dbError) {
+            console.error(`Error deleting file from note_files:`, dbError);
+            throw dbError;
+          }
+        } else {
+          const { error: dbError } = await supabase
+            .from('files')
+            .delete()
+            .eq('id', fileId);
+            
+          if (dbError) {
+            console.error(`Error deleting file from files:`, dbError);
+            throw dbError;
+          }
         }
       }
       

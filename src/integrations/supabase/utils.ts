@@ -76,3 +76,25 @@ export const getDirectFileUrl = (filePath: string, fileId: string, parentType?: 
   
   return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
 };
+
+// Generic function for safely calling supabase.from() with type casting
+export const safeSupabaseQuery = async <T>(
+  tableName: string, 
+  queryBuilder: (query: any) => any
+): Promise<{ data: T[] | null; error: any }> => {
+  try {
+    // Import supabase here to avoid circular dependencies
+    const { supabase } = await import("./client");
+    
+    // Use type assertion to bypass TypeScript's type checking for dynamic table names
+    const query = supabase.from(tableName as any);
+    
+    // Apply the query builder function
+    const result = await queryBuilder(query);
+    
+    return result;
+  } catch (error) {
+    console.error(`Error in safeSupabaseQuery for table ${tableName}:`, error);
+    return { data: null, error };
+  }
+};
