@@ -174,15 +174,7 @@ const ka: TranslationType = {
     reject: "უარყოფა",
     delete: "წაშლა",
     deleteBookingRequest: "წაშალეთ ჯავშნის მოთხოვნა",
-    deleteConfirmation: "დარწმუნებული ხართ, რომ გსურთ ამ ჯავშნის მოთხოვნის წაშლა? ეს მოქმედება ვერ იქნება გაუქმებული.",
-    businessName: "ბიზნესის სახელი",
-    urlSlug: "URL მისამართი",
-    description: "აღწერა",
-    coverPhoto: "სურათი",
-    phone: "ტელეფონი",
-    email: "ელ-ფოსტა",
-    website: "ვებსაიტი",
-    address: "მისამართი"
+    deleteConfirmation: "დარწმუნებული ხართ, რომ გსურთ ამ ჯავშნის მოთხოვნის წაშლა? ეს მოქმედება ვერ იქნება გაუქმებული."
   },
   dashboard: {
     welcome: "მოგესალმებით",

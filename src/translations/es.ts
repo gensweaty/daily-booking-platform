@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 const es: TranslationType = {
@@ -163,6 +164,7 @@ const es: TranslationType = {
     publicPageUrl: "Esto será utilizado para la URL de tu página pública:",
     notFound: "Negocio no encontrado",
     notFoundDescription: "Lo sentimos, no pudimos encontrar un negocio con esta URL. Por favor, verifique la URL e intente nuevamente.",
+    viewPublicPage: "Ver Página Pública",
     customer: "Cliente",
     title: "Título",
     dateTime: "Fecha y Hora",
