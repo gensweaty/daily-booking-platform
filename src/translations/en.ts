@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 const en: TranslationType = {
@@ -178,7 +179,9 @@ const en: TranslationType = {
     noFileChosen: "No file chosen",
     supportedFormats: "Supported formats: Images (jpg, png, webp) up to 50MB, Documents (pdf, docx, xlsx, pptx) up to 1MB",
     uploadImageCover: "Upload an image for your business cover (JPEG, PNG, WebP)",
-    publicPageUrl: "This will be used for your public page URL:"
+    publicPageUrl: "This will be used for your public page URL:",
+    notFound: "Business not found",
+    notFoundDescription: "Sorry, we couldn't find a business at this URL. Please check the URL and try again."
   },
   dashboard: {
     welcome: "Welcome back",

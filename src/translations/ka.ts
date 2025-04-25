@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 const ka: TranslationType = {
@@ -174,11 +175,7 @@ const ka: TranslationType = {
     uploadImageCover: "ატვირთეთ სურათი თქვენი ბიზნესის გარეკანისთვის (JPEG, PNG, WebP)",
     publicPageUrl: "ეს გამოყენებული იქნება თქვენი საჯარო გვერდისთვის:",
     notFound: "ბიზნესი ვერ მოიძებნა",
-    notFoundDescription: "ბოდიშს გიხდით, ამ URL-ით ბიზნესი ვერ მოიძებნა. გთხოვთ, შეამოწმოთ URL და სცადოთ ხელახლა.",
-    myBusiness: "ჩემი ბიზნესი",
-    businessProfile: "ბიზნეს პროფილი",
-    editBusinessProfile: "ბიზნეს პროფილის რედაქტირება",
-    viewPublicPage: "საჯარო გვერდის ნახვა",
+    notFoundDescription: "ბოდიშს გიხდით, ამ URL-ით ბიზნესი ვერ მოიძებნა. გთხოვთ, შეამოწმოთ URL და სცადოთ ხელახლა."
   },
   dashboard: {
     welcome: "მოგესალმებით",
@@ -285,7 +282,8 @@ const ka: TranslationType = {
     errorOccurred: "დაფიქსირდა შეცდომა",
     new: "ახალი",
     request: "მოთხოვნა",
-    requests: "მოთხოვნები"
+    requests: "მოთხოვნები",
+    backToHome: "მთავარ გვერდზე დაბრუნება"
   },
   auth: {
     welcome: "მოგესალმებით",

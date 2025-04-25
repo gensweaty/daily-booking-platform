@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -288,6 +289,7 @@ export interface TranslationType {
     new: string;
     request: string;
     requests: string;
+    backToHome: string;
   };
   auth: {
     welcome: string;
