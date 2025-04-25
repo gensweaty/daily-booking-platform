@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 const ka: TranslationType = {
@@ -167,7 +166,6 @@ const ka: TranslationType = {
     notFound: "ბიზნესი ვერ მოიძებნა",
     notFoundDescription: "ბოდიშს გიხდით, ამ URL-ით ბიზნესი ვერ მოიძებნა. გთხოვთ, შეამოწმოთ URL და სცადოთ ხელახლა.",
     viewPublicPage: "საჯარო გვერდის ნახვა",
-    // Adding the missing properties
     customer: "კლიენტი",
     title: "სათაური",
     dateTime: "თარიღი და დრო",
@@ -176,7 +174,15 @@ const ka: TranslationType = {
     reject: "უარყოფა",
     delete: "წაშლა",
     deleteBookingRequest: "წაშალეთ ჯავშნის მოთხოვნა",
-    deleteConfirmation: "დარწმუნებული ხართ, რომ გსურთ ამ ჯავშნის მოთხოვნის წაშლა? ეს მოქმედება ვერ იქნება გაუქმებული."
+    deleteConfirmation: "დარწმუნებული ხართ, რომ გსურთ ამ ჯავშნის მოთხოვნის წაშლა? ეს მოქმედება ვერ იქნება გაუქმებული.",
+    businessName: "ბიზნესის სახელი",
+    urlSlug: "URL მისამართი",
+    description: "აღწერა",
+    coverPhoto: "სურათი",
+    phone: "ტელეფონი",
+    email: "ელ-ფოსტა",
+    website: "ვებსაიტი",
+    address: "მისამართი"
   },
   dashboard: {
     welcome: "მოგესალმებით",
