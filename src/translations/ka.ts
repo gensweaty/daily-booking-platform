@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 const ka: TranslationType = {
@@ -140,6 +139,7 @@ const ka: TranslationType = {
     educationDesc: "საგანმანათლებლო სერვისები",
     myBusiness: "ჩემი ბიზნესი",
     businessProfile: "ბიზნეს პროფილი",
+    editBusinessProfile: "ბიზნეს პროფილის რედაქტირება",
     bookingRequests: "ჯავშნის მოთხოვნები",
     pendingRequests: "მიმდინარე მოთხოვნები",
     approvedRequests: "დადასტურებული მოთხოვნები",
@@ -150,8 +150,6 @@ const ka: TranslationType = {
     pendingRequestsDescription: "როდესაც მომხმარებლები შეავსებენ ჯავშნის მოთხოვნებს, ისინი გამოჩნდება აქ თქვენი დასადასტურებლად.",
     approvedRequestsDescription: "დადასტურებული ჯავშნის მოთხოვნები გამოჩნდება აქ.",
     rejectedRequestsDescription: "უარყოფილი ჯავშნის მოთხოვნები გამოჩნდება აქ.",
-    editBusinessProfile: "ბიზნეს პროფილის რედაქტირება",
-    viewPublicPage: "საჯარო გვერდის ნახვა",
     businessName: "ბიზნესის სახელი",
     urlSlug: "URL მისამართი",
     description: "აღწერა",
@@ -160,22 +158,14 @@ const ka: TranslationType = {
     email: "ელ-ფოსტა",
     website: "ვებსაიტი",
     address: "მისამართი",
-    customer: "მომხმარებელი",
-    title: "სათაური",
-    dateTime: "თარიღი და დრო",
-    actions: "მოქმედებები",
-    approve: "დადასტურება",
-    reject: "უარყოფა",
-    delete: "წაშლა",
-    deleteBookingRequest: "წაშალეთ ჯავშნის მოთხოვნა",
-    deleteConfirmation: "დარწმუნებული ხართ, რომ გსურთ ამ ჯავშნის მოთხოვნის წაშლა? ეს მოქმედება ვერ იქნება გაუქმებული.",
     chooseFile: "აირჩიეთ ფაილი",
     noFileChosen: "ფაილი არ არის არჩეული",
     supportedFormats: "მხარდაჭერილი ფორმატები: სურათები (jpg, png, webp) ზომით 50MB, დოკუმენტები (pdf, docx, xlsx, pptx) ზომით 1MB",
     uploadImageCover: "ატვირთეთ სურათი თქვენი ბიზნესის გარეკანისთვის (JPEG, PNG, WebP)",
     publicPageUrl: "ეს გამოყენებული იქნება თქვენი საჯარო გვერდისთვის:",
     notFound: "ბიზნესი ვერ მოიძებნა",
-    notFoundDescription: "ბოდიშს გიხდით, ამ URL-ით ბიზნესი ვერ მოიძებნა. გთხოვთ, შეამოწმოთ URL და სცადოთ ხელახლა."
+    notFoundDescription: "ბოდიშს გიხდით, ამ URL-ით ბიზნესი ვერ მოიძებნა. გთხოვთ, შეამოწმოთ URL და სცადოთ ხელახლა.",
+    viewPublicPage: "საჯარო გვერდის ნახვა"
   },
   dashboard: {
     welcome: "მოგესალმებით",
