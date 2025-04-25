@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -19,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoaderCircle } from "lucide-react";
 import { BusinessProfile } from "@/types/database";
 import { FileUploadField } from "@/components/shared/FileUploadField";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // Define the schema making slug required
 const businessProfileSchema = z.object({
@@ -36,6 +38,7 @@ const businessProfileSchema = z.object({
 type BusinessProfileFormValues = z.infer<typeof businessProfileSchema>;
 
 export const BusinessProfileForm = () => {
+  const { t } = useLanguage();
   const { businessProfile, isLoading, createBusinessProfile, updateBusinessProfile, generateSlug, uploadCoverPhoto } = useBusinessProfile();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileError, setFileError] = useState("");
@@ -236,7 +239,7 @@ export const BusinessProfileForm = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{businessProfile ? "Edit Business Profile" : "Create Business Profile"}</CardTitle>
+        <CardTitle>{businessProfile ? t("business.editBusinessProfile") : t("business.businessProfile")}</CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -246,7 +249,7 @@ export const BusinessProfileForm = () => {
               name="business_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Business Name *</FormLabel>
+                  <FormLabel>{t("business.businessName")} *</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Your Business Name"
@@ -264,12 +267,12 @@ export const BusinessProfileForm = () => {
               name="slug"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>URL Slug *</FormLabel>
+                  <FormLabel>{t("business.urlSlug")} *</FormLabel>
                   <FormControl>
                     <Input placeholder="your-business-name" {...field} />
                   </FormControl>
                   <FormDescription>
-                    This will be used for your public page: smartbookly.com/business/{form.watch("slug")}
+                    {t("business.publicPageUrl")} smartbookly.com/business/{form.watch("slug")}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -281,7 +284,7 @@ export const BusinessProfileForm = () => {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>{t("business.description")}</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Tell potential customers about your business"
@@ -300,7 +303,7 @@ export const BusinessProfileForm = () => {
               name="cover_photo_url"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cover Photo</FormLabel>
+                  <FormLabel>{t("business.coverPhoto")}</FormLabel>
                   <div className="space-y-4">
                     {previewUrl && (
                       <div className="relative w-full h-40 rounded-md overflow-hidden border border-gray-200">
@@ -322,7 +325,7 @@ export const BusinessProfileForm = () => {
                         hideLabel={true}
                       />
                       <FormDescription>
-                        Upload an image for your business cover (JPEG, PNG, WebP)
+                        {t("business.uploadImageCover")}
                       </FormDescription>
                       
                       {coverPhotoFile && (
@@ -334,7 +337,7 @@ export const BusinessProfileForm = () => {
                           className="mt-2"
                         >
                           {uploadInProgress && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
-                          Upload Cover Photo Now
+                          {t("business.chooseFile")}
                         </Button>
                       )}
                     </div>
@@ -350,7 +353,7 @@ export const BusinessProfileForm = () => {
                 name="contact_phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone</FormLabel>
+                    <FormLabel>{t("business.phone")}</FormLabel>
                     <FormControl>
                       <Input placeholder="+1 (555) 123-4567" {...field} />
                     </FormControl>
@@ -364,7 +367,7 @@ export const BusinessProfileForm = () => {
                 name="contact_email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t("business.email")}</FormLabel>
                     <FormControl>
                       <Input placeholder="contact@yourbusiness.com" {...field} />
                     </FormControl>
@@ -378,7 +381,7 @@ export const BusinessProfileForm = () => {
                 name="contact_website"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Website</FormLabel>
+                    <FormLabel>{t("business.website")}</FormLabel>
                     <FormControl>
                       <Input placeholder="https://yourbusiness.com" {...field} />
                     </FormControl>
@@ -392,7 +395,7 @@ export const BusinessProfileForm = () => {
                 name="contact_address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Address</FormLabel>
+                    <FormLabel>{t("business.address")}</FormLabel>
                     <FormControl>
                       <Input placeholder="123 Main St, City, Country" {...field} />
                     </FormControl>
@@ -404,7 +407,7 @@ export const BusinessProfileForm = () => {
 
             <Button type="submit" disabled={isSubmitting || !!fileError || uploadInProgress}>
               {isSubmitting && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
-              {businessProfile ? "Update Profile" : "Create Profile"}
+              {businessProfile ? t("business.updateProfile") : t("business.create")}
             </Button>
           </form>
         </Form>

@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 const ka: TranslationType = {
@@ -139,7 +140,6 @@ const ka: TranslationType = {
     educationDesc: "საგანმანათლებლო სერვისები",
     myBusiness: "ჩემი ბიზნესი",
     businessProfile: "ბიზნეს პროფილი",
-    editBusinessProfile: "ბიზნეს პროფილის რედაქტირება",
     bookingRequests: "ჯავშნის მოთხოვნები",
     pendingRequests: "მიმდინარე მოთხოვნები",
     approvedRequests: "დადასტურებული მოთხოვნები",
@@ -150,6 +150,7 @@ const ka: TranslationType = {
     pendingRequestsDescription: "როდესაც მომხმარებლები შეავსებენ ჯავშნის მოთხოვნებს, ისინი გამოჩნდება აქ თქვენი დასადასტურებლად.",
     approvedRequestsDescription: "დადასტურებული ჯავშნის მოთხოვნები გამოჩნდება აქ.",
     rejectedRequestsDescription: "უარყოფილი ჯავშნის მოთხოვნები გამოჩნდება აქ.",
+    editBusinessProfile: "ბიზნეს პროფილის რედაქტირება",
     businessName: "ბიზნესის სახელი",
     urlSlug: "URL მისამართი",
     description: "აღწერა",
@@ -174,7 +175,8 @@ const ka: TranslationType = {
     reject: "უარყოფა",
     delete: "წაშლა",
     deleteBookingRequest: "წაშალეთ ჯავშნის მოთხოვნა",
-    deleteConfirmation: "დარწმუნებული ხართ, რომ გსურთ ამ ჯავშნის მოთხოვნის წაშლა? ეს მოქმედება ვერ იქნება გაუქმებული."
+    deleteConfirmation: "დარწმუნებული ხართ, რომ გსურთ ამ ჯავშნის მოთხოვნის წაშლა? ეს მოქმედება ვერ იქნება გაუქმებული.",
+    updateProfile: "პროფილის განახლება"
   },
   dashboard: {
     welcome: "მოგესალმებით",

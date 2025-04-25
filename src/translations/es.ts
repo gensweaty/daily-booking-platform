@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 const es: TranslationType = {
@@ -181,7 +180,8 @@ const es: TranslationType = {
     phone: "Teléfono",
     email: "Correo Electrónico",
     website: "Sitio Web",
-    address: "Dirección"
+    address: "Dirección",
+    updateProfile: "Actualizar Perfil"
   },
   dashboard: {
     welcome: "Bienvenido de nuevo",
