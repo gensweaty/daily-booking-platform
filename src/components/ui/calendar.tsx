@@ -23,6 +23,7 @@ function Calendar({
     resolvedTheme || theme || (typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light')
   );
   const isDarkTheme = currentTheme === "dark";
+  const isGeorgian = language === 'ka';
 
   // Listen for theme changes
   React.useEffect(() => {
@@ -76,7 +77,7 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-3 pointer-events-auto", className)}
+      className={cn("p-3 pointer-events-auto", isGeorgian ? "font-georgian" : "", className)}
       locale={language === 'es' ? es : undefined}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",

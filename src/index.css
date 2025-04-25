@@ -80,7 +80,7 @@
   
   /* Ensure proper font rendering for Georgian text */
   .font-georgian {
-    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif;
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
     font-display: swap;
   }
 }

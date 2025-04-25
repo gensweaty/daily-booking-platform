@@ -3,6 +3,8 @@ import { Button } from "../ui/button";
 import { FileSpreadsheet } from "lucide-react";
 import { DateRangeSelect } from "./DateRangeSelect";
 import { memo, useCallback } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { cn } from "@/lib/utils";
 
 interface StatsHeaderProps {
   dateRange: { start: Date; end: Date };
@@ -17,8 +19,14 @@ export const StatsHeader = memo(({ dateRange, onDateChange, onExport, isLoading 
     onDateChange(start, end || start);
   }, [onDateChange]);
 
+  const { language } = useLanguage();
+  const isGeorgian = language === 'ka';
+
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
+    <div className={cn(
+      "flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4", 
+      isGeorgian ? "font-georgian" : ""
+    )}>
       <DateRangeSelect 
         selectedDate={dateRange}
         onDateChange={handleDateChange}
