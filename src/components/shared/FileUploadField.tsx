@@ -67,7 +67,7 @@ export const FileUploadField = ({
         return;
       }
       if (onChange) onChange(selectedFile);
-      if (onFileChange) onFileChange(selectedFile);
+      if (onFileChange) onFileChange(null);
     }
   };
 

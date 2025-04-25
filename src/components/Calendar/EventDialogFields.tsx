@@ -7,6 +7,7 @@ import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { cn } from "@/lib/utils";
+import { FileRecord } from "@/types/files";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -32,7 +33,7 @@ interface EventDialogFieldsProps {
   fileError: string;
   setFileError: (error: string) => void;
   eventId?: string;
-  displayedFiles: any[];
+  displayedFiles: FileRecord[];
   onFileDeleted: (fileId: string) => void;
   isBookingRequest?: boolean;
 }
@@ -211,24 +212,22 @@ export const EventDialogFields = ({
           {t("common.attachments")}
         </Label>
         <FileUploadField
-          onFileSelected={setSelectedFile}
-          error={fileError}
-          setError={setFileError}
-          acceptedTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+          onChange={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+          acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
         />
       </div>
       
       {displayedFiles.length > 0 && (
         <div className="flex flex-col gap-2">
-          {displayedFiles.map((file) => (
-            <FileDisplay
-              key={file.id}
-              file={file}
-              onDelete={onFileDeleted}
-              entityId={eventId}
-              entityType="event"
-            />
-          ))}
+          <FileDisplay
+            files={displayedFiles}
+            bucketName="event_attachments"
+            allowDelete={true}
+            onFileDeleted={onFileDeleted}
+            parentType="event"
+          />
         </div>
       )}
     </>
