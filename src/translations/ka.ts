@@ -341,7 +341,6 @@ const ka: TranslationType = {
     and: "და",
     resetInstructions: "შეიყვანეთ თქვენი ელ-ფოსტა და ჩვენ გამოგიგზავნით პაროლის აღდგენის ინსტრუქციას",
     signingIn: "შესვლა...",
-    signingUp: "რეგისტრაცია...",
     loading: "იტვირთება..."
   },
   footer: {

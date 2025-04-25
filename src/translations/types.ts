@@ -1,3 +1,5 @@
+import { TranslationType } from "./types";
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -266,6 +268,7 @@ export interface TranslationType {
   };
   contact: {
     email: string;
+    getInTouch?: string;
   };
   calendar: {
     attachment: string;
@@ -335,6 +338,8 @@ export interface TranslationType {
     privacy: string;
     and: string;
     resetInstructions: string;
+    signingIn?: string;
+    loading?: string;
   };
 }
 
