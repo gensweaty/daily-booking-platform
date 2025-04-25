@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "./shared/LanguageText";
 
 export const LanguageSwitcher = () => {
   const { language, setLanguage } = useLanguage();
@@ -56,7 +57,7 @@ export const LanguageSwitcher = () => {
               alt={code.toUpperCase()}
               className="w-5 h-5 rounded-full"
             />
-            {label}
+            <LanguageText>{label}</LanguageText>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
