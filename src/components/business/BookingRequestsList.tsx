@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/hover-card";
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
@@ -48,6 +49,7 @@ export const BookingRequestsList = ({
   const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const handleDeleteConfirm = () => {
     if (requestToDelete) {
@@ -63,15 +65,15 @@ export const BookingRequestsList = ({
       setProcessingId(id);
       await onApprove(id);
       toast({
-        title: "Success",
-        description: "Booking approved. Email notification has been processed.",
+        title: t("common.success"),
+        description: t("business.approvalSuccess"),
         duration: 5000,
       });
     } catch (error) {
       console.error("Error approving booking:", error);
       toast({
-        title: "Error",
-        description: "There was a problem approving the booking. Please try again.",
+        title: t("common.error"),
+        description: t("business.approvalError"),
         variant: "destructive",
         duration: 5000,
       });
@@ -89,8 +91,8 @@ export const BookingRequestsList = ({
     } catch (error) {
       console.error("Error rejecting booking:", error);
       toast({
-        title: "Error",
-        description: "There was a problem rejecting the booking. Please try again.",
+        title: t("common.error"),
+        description: t("business.rejectionError"),
         variant: "destructive",
       });
     } finally {
@@ -110,13 +112,19 @@ export const BookingRequestsList = ({
             <XCircle className="h-12 w-12 text-muted-foreground" />
           )}
         </div>
-        <h3 className="mt-4 text-lg font-medium">No {type} booking requests</h3>
+        <h3 className="mt-4 text-lg font-medium">
+          {type === "pending" 
+            ? t("business.noPendingRequests") 
+            : type === "approved" 
+              ? t("business.noApprovedRequests") 
+              : t("business.noRejectedRequests")}
+        </h3>
         <p className="mt-2 text-sm text-muted-foreground">
           {type === "pending"
-            ? "When customers make booking requests, they'll appear here for your approval."
+            ? t("business.pendingRequestsDescription")
             : type === "approved"
-            ? "Approved booking requests will appear here."
-            : "Rejected booking requests will appear here."}
+            ? t("business.approvedRequestsDescription")
+            : t("business.rejectedRequestsDescription")}
         </p>
       </div>
     );
@@ -127,10 +135,10 @@ export const BookingRequestsList = ({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Customer</TableHead>
-            <TableHead>Title</TableHead>
-            <TableHead>Date & Time</TableHead>
-            <TableHead className="w-[150px]">Actions</TableHead>
+            <TableHead>{t("business.customer")}</TableHead>
+            <TableHead>{t("business.title")}</TableHead>
+            <TableHead>{t("business.dateTime")}</TableHead>
+            <TableHead className="w-[150px]">{t("business.actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -158,7 +166,7 @@ export const BookingRequestsList = ({
                       {request.description ? (
                         <p className="text-sm">{request.description}</p>
                       ) : (
-                        <p className="text-sm text-muted-foreground italic">No description provided</p>
+                        <p className="text-sm text-muted-foreground italic">{t("business.noDescription")}</p>
                       )}
                     </div>
                   </HoverCardContent>
@@ -191,7 +199,7 @@ export const BookingRequestsList = ({
                         ) : (
                           <CheckCircle className="h-4 w-4" />
                         )}
-                        <span className="sr-only sm:not-sr-only sm:inline">Approve</span>
+                        <span className="sr-only sm:not-sr-only sm:inline">{t("business.approve")}</span>
                       </Button>
                       <Button
                         size="sm"
@@ -201,7 +209,7 @@ export const BookingRequestsList = ({
                         disabled={processingId === request.id}
                       >
                         <XCircle className="h-4 w-4" />
-                        <span className="sr-only sm:not-sr-only sm:inline">Reject</span>
+                        <span className="sr-only sm:not-sr-only sm:inline">{t("business.reject")}</span>
                       </Button>
                     </>
                   )}
@@ -215,19 +223,19 @@ export const BookingRequestsList = ({
                         disabled={processingId === request.id}
                       >
                         <Trash2 className="h-4 w-4" />
-                        <span className="sr-only sm:not-sr-only sm:inline">Delete</span>
+                        <span className="sr-only sm:not-sr-only sm:inline">{t("business.delete")}</span>
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Booking Request</AlertDialogTitle>
+                        <AlertDialogTitle>{t("business.deleteBookingRequest")}</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Are you sure you want to delete this booking request? This action cannot be undone.
+                          {t("business.deleteConfirmation")}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
+                        <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteConfirm}>{t("business.delete")}</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>

@@ -10,9 +10,11 @@ import { BookingRequestsList } from "./BookingRequestsList";
 import { useBookingRequests } from "@/hooks/useBookingRequests";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<"profile" | "bookings">("profile");
   const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest } = useBookingRequests();
   const pendingCount = pendingRequests?.length || 0;
@@ -42,7 +44,7 @@ export const BusinessPage = () => {
   }, [businessProfile]);
 
   if (isLoading) {
-    return <div className="text-center p-8">Loading...</div>;
+    return <div className="text-center p-8">{t("common.loading")}</div>;
   }
 
   const publicUrl = businessProfile?.slug 
@@ -60,9 +62,9 @@ export const BusinessPage = () => {
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
-          <TabsTrigger value="profile">Business Profile</TabsTrigger>
+          <TabsTrigger value="profile">{t("business.businessProfile")}</TabsTrigger>
           <TabsTrigger value="bookings" className="relative">
-            Booking Requests
+            {t("business.bookingRequests")}
             {pendingCount > 0 && (
               <Badge 
                 variant="destructive" 
@@ -76,13 +78,13 @@ export const BusinessPage = () => {
 
         <TabsContent value="profile" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">My Business Profile</h1>
+            <h1 className="text-2xl font-bold">{t("business.myBusiness")}</h1>
             {publicUrl && (
               <Button 
                 variant="outline"
                 onClick={() => window.open(publicUrl, '_blank')}
               >
-                View Public Page
+                {t("business.viewPublicPage")}
               </Button>
             )}
           </div>
@@ -92,18 +94,18 @@ export const BusinessPage = () => {
 
         <TabsContent value="bookings" className="space-y-6">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">Booking Requests</h1>
+            <h1 className="text-2xl font-bold">{t("business.bookingRequests")}</h1>
             {pendingCount > 0 && (
               <div className="flex items-center gap-2 text-destructive bg-destructive/10 px-3 py-1 rounded-full">
                 <MessageSquare className="h-4 w-4" />
-                <span className="font-medium">{pendingCount} new {pendingCount === 1 ? 'request' : 'requests'}</span>
+                <span className="font-medium">{pendingCount} {pendingCount === 1 ? t("common.new") : t("common.new")} {pendingCount === 1 ? t("business.request") : t("business.requests")}</span>
               </div>
             )}
           </div>
 
           <div className="space-y-8">
             <div>
-              <h2 className="text-xl font-semibold mb-4">Pending Requests ({pendingRequests.length})</h2>
+              <h2 className="text-xl font-semibold mb-4">{t("business.pendingRequests")} ({pendingRequests.length})</h2>
               <BookingRequestsList
                 requests={pendingRequests}
                 type="pending"
@@ -114,7 +116,7 @@ export const BusinessPage = () => {
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold mb-4">Approved Requests ({approvedRequests.length})</h2>
+              <h2 className="text-xl font-semibold mb-4">{t("business.approvedRequests")} ({approvedRequests.length})</h2>
               <BookingRequestsList
                 requests={approvedRequests}
                 type="approved"
@@ -123,7 +125,7 @@ export const BusinessPage = () => {
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold mb-4">Rejected Requests ({rejectedRequests.length})</h2>
+              <h2 className="text-xl font-semibold mb-4">{t("business.rejectedRequests")} ({rejectedRequests.length})</h2>
               <BookingRequestsList
                 requests={rejectedRequests}
                 type="rejected"
