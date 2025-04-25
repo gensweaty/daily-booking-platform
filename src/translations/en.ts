@@ -181,7 +181,10 @@ const en: TranslationType = {
     publicPageUrl: "This will be used for your public page URL:",
     notFound: "Business not found",
     notFoundDescription: "Sorry, we couldn't find a business at this URL. Please check the URL and try again.",
-    updateProfile: "Update Profile"
+    updateProfile: "Update Profile",
+    availableTimes: "Available Times",
+    clickToRequest: "Click on any time to request a booking",
+    contactInformation: "Contact Information",
   },
   dashboard: {
     welcome: "Welcome back",

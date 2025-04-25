@@ -177,8 +177,8 @@ const ka: TranslationType = {
     deleteConfirmation: "დარწმუნებული ხართ, რომ გსურთ ამ ჯავშნის მოთხოვნის წაშლა? ეს მოქმედება ვერ იქნება გაუქმებული.",
     updateProfile: "პროფილის განახლება",
     availableTimes: "ხელმისაწვდომი დრო",
-    clickToRequest: "დააჭირეთ ნებისმიერ დროს ჯავშნი�� მოთხოვნისთვის",
-    contactInformation: "საკონტაქტო ინფორმაცია"
+    clickToRequest: "ჯავშნის მოთხოვნისთვის დააჭირეთ ნებისმიერ დროს",
+    contactInformation: "საკონტაქტო ინფორმაცია",
   },
   dashboard: {
     welcome: "მოგესალმებით",
