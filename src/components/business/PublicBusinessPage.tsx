@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
@@ -12,7 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   const getBusinessSlug = () => {
     if (slug) return slug;
@@ -199,7 +200,7 @@ export const PublicBusinessPage = () => {
                 document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
               }}
             >
-              View & Book Calendar
+              {t("calendar.bookNow")}
             </Button>
           </div>
         </div>

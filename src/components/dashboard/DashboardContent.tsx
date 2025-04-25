@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -125,7 +126,7 @@ export const DashboardContent = ({
           >
             <Briefcase className="w-4 h-4" />
           </motion.div>
-          <span className="hidden sm:inline">My Business</span>
+          <span className="hidden sm:inline">{t("business.myBusiness")}</span>
           {pendingCount > 0 && (
             <motion.div
               initial={{ scale: 0 }}
