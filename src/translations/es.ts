@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 const es: TranslationType = {
@@ -262,7 +261,8 @@ const es: TranslationType = {
     time: "Hora",
     start: "Inicio",
     end: "Fin",
-    eventDetails: "Detalles del Evento"
+    eventDetails: "Detalles del Evento",
+    title: "Título del Evento"
   },
   contact: {
     email: "Correo electrónico",
