@@ -22,7 +22,7 @@ export const LanguageSwitcher = () => {
     },
     ka: {
       label: "ქართული (KA)",
-      flag: "/lovable-uploads/georgian-flag.png" // You'll need to upload a Georgian flag
+      flag: "/lovable-uploads/112e2c85-5a54-4606-9d67-afe677501f2c.png"
     }
   };
 

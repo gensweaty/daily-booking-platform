@@ -153,7 +153,7 @@ const ka: TranslationType = {
     business: "ბიზნესი",
     stats: "სტატისტიკა",
     statistics: "სტატისტიკა",
-    crm: "CRM",
+    crm: "კლიენტები",
     signOut: "გასვლა",
     darkMode: "მუქი თემა",
     lightMode: "ნათელი თემა",
