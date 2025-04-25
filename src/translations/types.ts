@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -105,6 +106,11 @@ export interface TranslationType {
     feature5: string;
     addTask: string;
     editTask: string;
+    titlePlaceholder: string;
+    descriptionLabel: string;
+    todo: string;
+    inProgress: string;
+    done: string;
   };
   website: {
     title: string;

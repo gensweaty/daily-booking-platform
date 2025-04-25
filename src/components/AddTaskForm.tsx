@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { createTask, updateTask } from "@/lib/api";
@@ -9,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { TaskFormHeader } from "./tasks/TaskFormHeader";
 import { TaskFormFields } from "./tasks/TaskFormFields";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "./shared/LanguageText";
 
 interface AddTaskFormProps {
   onClose: () => void;
@@ -23,7 +25,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
 
   useEffect(() => {
     if (editingTask) {
