@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { createTask, updateTask } from "@/lib/api";
@@ -129,10 +128,9 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           editingTask={editingTask}
         />
         <Button type="submit" className="w-full">
-          {language === 'es'
-            ? editingTask ? 'Actualizar Tarea' : 'Agregar Tarea'
-            : editingTask ? 'Update Task' : 'Add Task'
-          }
+          <LanguageText>
+            {editingTask ? t("tasks.editTask") : t("tasks.addTask")}
+          </LanguageText>
         </Button>
       </form>
     </>

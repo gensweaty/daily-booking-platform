@@ -2,6 +2,7 @@
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "../shared/RichTextEditor";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "../shared/LanguageText";
 
 interface TaskFormDescriptionProps {
   description: string;
@@ -9,11 +10,13 @@ interface TaskFormDescriptionProps {
 }
 
 export const TaskFormDescription = ({ description, setDescription }: TaskFormDescriptionProps) => {
-  const { language } = useLanguage();
+  const { t } = useLanguage();
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="description">{language === 'es' ? 'Descripción' : 'Description'}</Label>
+      <Label htmlFor="description">
+        <LanguageText>{t("tasks.descriptionLabel")}</LanguageText>
+      </Label>
       <RichTextEditor
         content={description}
         onChange={setDescription}

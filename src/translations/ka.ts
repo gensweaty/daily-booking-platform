@@ -99,6 +99,11 @@ const ka: TranslationType = {
     feature5: "შეტყობინებები",
     addTask: "დავალების დამატება",
     editTask: "დავალების რედაქტირება",
+    titlePlaceholder: "დავალების სათაური",
+    descriptionLabel: "აღწერა",
+    todo: "შესასრულებელი",
+    inProgress: "მიმდინარე",
+    done: "დასრულებული"
   },
   website: {
     title: "ვებსაიტი",

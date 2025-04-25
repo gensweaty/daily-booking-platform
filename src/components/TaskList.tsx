@@ -69,7 +69,7 @@ export const TaskList = () => {
 
   const columns = {
     todo: tasks.filter((task: Task) => task.status === 'todo'),
-    'inprogress': tasks.filter((task: Task) => task.status === 'inprogress'),
+    'in-progress': tasks.filter((task: Task) => task.status === 'inprogress'),
     done: tasks.filter((task: Task) => task.status === 'done'),
   };
 
