@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 const ka: TranslationType = {
@@ -88,8 +87,7 @@ const ka: TranslationType = {
     customerCreated: "კლიენტი შექმნილია",
     customerUpdated: "კლიენტი განახლებულია",
     noDataToExport: "მონაცემები არ არის",
-    error: "შეცდომა",
-    open: "გახსნა"
+    error: "შეცდომა"
   },
   tasks: {
     title: "დავალებები",
@@ -101,7 +99,6 @@ const ka: TranslationType = {
     feature5: "შეტყობინებები",
     addTask: "დავალების დამატება",
     editTask: "დავალების რედაქტირება",
-    titlePlaceholder: "დავალების სათაური"
   },
   website: {
     title: "ვებსაიტი",
@@ -162,6 +159,10 @@ const ka: TranslationType = {
     lightMode: "ნათელი თემა",
     systemMode: "სისტემური თემა",
     more: "მეტი",
+    addEvent: "ივენთის დამატება",
+    day: "დღე",
+    week: "კვირა",
+    month: "თვე",
     totalTasks: "სულ დავალებები",
     completed: "შესრულებული",
     inProgress: "მიმდინარე",
@@ -239,13 +240,7 @@ const ka: TranslationType = {
     deleteSuccess: "წარმატებით წაიშალა",
     deleteError: "წაშლის შეცდომა",
     missingUserInfo: "ინფორმაცია აკლია",
-    errorOccurred: "დაფიქსირდა შეცდომა",
-    download: "ჩამოტვირთვა",
-    delete: "წაშლა",
-    fileAccessError: "ფაილთან წვდომის შეცდომა",
-    fileDeleted: "ფაილი წაიშალა",
-    downloadStarted: "ჩამოტვირთვა დაიწყო",
-    downloadError: "ჩამოტვირთვის შეცდომა"
+    errorOccurred: "დაფიქსირდა შეცდომა"
   },
   auth: {
     welcome: "მოგესალმებით",
