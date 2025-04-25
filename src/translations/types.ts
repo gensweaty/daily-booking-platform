@@ -1,5 +1,4 @@
-
-export type Language = 'en' | 'es';
+export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
   language: Language;
@@ -69,7 +68,7 @@ export interface TranslationType {
     createEventForCustomer: string;
     customerFromEvent: string;
     paymentStatus: string;
-    paymentAmount: string; // Added this missing property
+    paymentAmount: string;
     selectPaymentStatus: string;
     comment: string;
     commentPlaceholder: string;
@@ -213,9 +212,9 @@ export interface TranslationType {
     dateAndTime: string;
     date: string;
     time: string;
-    start: string; // Added
-    end: string; // Added
-    eventDetails: string; // Added
+    start: string;
+    end: string;
+    eventDetails: string;
   };
   contact: {
     email: string;
@@ -247,7 +246,7 @@ export interface TranslationType {
     deleteSuccess: string;
     deleteError: string;
     missingUserInfo: string;
-    errorOccurred: string; // Added
+    errorOccurred: string;
   };
   auth: {
     welcome: string;
