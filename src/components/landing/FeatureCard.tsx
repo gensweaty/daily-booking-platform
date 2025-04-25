@@ -1,4 +1,3 @@
-
 import { LucideIcon } from "lucide-react";
 import { CheckCircle } from "lucide-react";
 import { ImageCarousel } from "./ImageCarousel";
@@ -33,7 +32,6 @@ export const FeatureCard = ({
 }: FeatureCardProps) => {
   const { t } = useLanguage();
   
-  // Fix: Change the return type to string instead of keyof TranslationType
   const getTranslationKey = (key: string): string => {
     return `${translationPrefix}.${key}`;
   };
@@ -92,7 +90,7 @@ export const FeatureCard = ({
             <img 
               src={image} 
               alt={t(getTranslationKey('title'))} 
-              className="w-full h-[440px] object-contain p-4"  // Increased height from 400px to 440px
+              className="w-full h-[440px] object-contain p-4"
             />
           )}
         </div>

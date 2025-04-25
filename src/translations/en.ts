@@ -15,7 +15,7 @@ const en: TranslationType = {
   features: {
     title: "Features",
     mainTitle: "Everything you need to make your business thrive",
-    booking: "Booking",
+    booking: "Live Bookings",
     tasks: "Tasks",
     crm: "CRM",
     analytics: "Analytics",
@@ -32,8 +32,9 @@ const en: TranslationType = {
     feature3: "Email notifications",
     feature4: "Online recipe tracking",
     feature5: "Month, Week, and Day view of the Booking Calendar",
+    feature6: "Automatic Email Notifications",
     requestSubmitted: "Your booking request has been submitted successfully!",
-    yourEmailPlaceholder: "Enter your email",
+    yourEmailPlaceholder: "Enter your email"
   },
   analytics: {
     title: "Analytics",

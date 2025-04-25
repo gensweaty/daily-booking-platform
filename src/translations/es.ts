@@ -25,15 +25,15 @@ const es: TranslationType = {
   },
   booking: {
     title: "Reservas en Vivo",
-    description:
-      "Optimiza tu proceso de programación de citas con nuestro sistema intuitivo de reservas.",
+    description: "Optimiza tu proceso de programación de citas con nuestro sistema intuitivo de reservas.",
     feature1: "Programación fácil de citas",
     feature2: "Recordatorios automáticos",
     feature3: "Notificaciones por correo electrónico",
     feature4: "Seguimiento de recetas en línea",
     feature5: "Vista Mensual, Semanal y Diaria del Calendario de Reservas",
+    feature6: "Notificaciones Automáticas por Correo Electrónico",
     requestSubmitted: "¡Tu solicitud de reserva ha sido enviada con éxito!",
-    yourEmailPlaceholder: "Introduce tu correo electrónico",
+    yourEmailPlaceholder: "Introduce tu correo electrónico"
   },
   analytics: {
     title: "Analítica",
