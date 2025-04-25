@@ -270,7 +270,7 @@ const ka: TranslationType = {
     addressLine2: "ჭავჭავაძის გამზირი 74",
     businessHours: "სამუშაო საათები",
     workingHours: "ორშაბათი - პარასკევი: 09:00 - 18:00",
-    weekendHours: "შაბათ-კვირა: დასვენება",
+    weekendHours: "შაბათ-კვირა: ���ასვენება",
     sendMessage: "გამოგვიგზავნეთ შეტყობინება",
     name: "სახელი და გვარი",
     namePlaceholder: "შეიყვანეთ თქვენი სახელი და გვარი",
@@ -346,7 +346,7 @@ const ka: TranslationType = {
     businessTypeLabel: "ბიზნესის ტიპი",
     selectBusinessType: "აირჩიეთ ბიზნესის ტიპი",
     fullNameLabel: "სახელი და გვარი",
-    fullName: "სახელი და გვარი",
+    fullName: "სრული სახელი",
     phoneLabel: "ტელეფონის ნომერი",
     terms: "წესები",
     privacy: "კონფიდენციალურობა",
@@ -356,7 +356,13 @@ const ka: TranslationType = {
     signingUp: "რეგისტრაცია...",
     loading: "იტვირთება...",
     passwordRequirements: "პაროლი უნდა შეიცავდეს მინიმუმ 6 სიმბოლოს",
-    confirmPasswordLabel: "დაადასტურეთ პაროლი"
+    confirmPasswordLabel: "დაადასტურეთ პაროლი",
+    enterEmail: "შეიყვანეთ თქვენი ელ-ფოსტა",
+    redeemCode: "გამოყენების კოდი",
+    redeemCodeOptional: "გამოყენების კოდი (არასავალდებულო)",
+    enterRedeemCode: "შეიყვანეთ გამოყენების კოდი",
+    sendResetLink: "პაროლის აღდგენის ბმულის გაგზავნა",
+    backToSignIn: "სისტემაში შესვლა"
   },
   legal: {
     title: "წესები და კონფიდენციალურობის პოლიტიკა",
@@ -376,7 +382,7 @@ const ka: TranslationType = {
     accountSecurity: {
       title: "3. ანგარიშის რეგისტრაცია და უსაფრთხოება",
       requirements: [
-        "თქვენ უნდა მიაწოდოთ ზუსტი და სრული ინფორმაცია ანგარიშის შექმნისას.",
+        "თქვენ უნდა მიაწოდოთ ზუსტი და სრული ინფორმაცია ან���არიშის შექმნისას.",
         "თქვენ პასუხისმგებელ�� ხართ თქვენი ანგარიშისა და პაროლის კონფიდენციალურობის დაცვაზე.",
         "დაუყოვნებლივ შეგვატყობინეთ თქვენს ანგარიშზე არაავტორიზებული წვდომის შესახებ."
       ]

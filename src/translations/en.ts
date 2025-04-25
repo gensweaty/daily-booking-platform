@@ -341,7 +341,13 @@ const en: TranslationType = {
     confirmPasswordLabel: "Confirm Password",
     signingIn: "Signing in...",
     signingUp: "Signing up...",
-    loading: "Loading..."
+    loading: "Loading...",
+    enterEmail: "Enter your email",
+    redeemCode: "Redeem Code",
+    redeemCodeOptional: "Redeem Code (Optional)",
+    enterRedeemCode: "Enter your redeem code",
+    sendResetLink: "Send Reset Link",
+    backToSignIn: "Back to Sign In"
   },
   legal: {
     title: "Terms and Privacy Policy",

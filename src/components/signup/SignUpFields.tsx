@@ -1,4 +1,3 @@
-
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -33,7 +32,7 @@ export const SignUpFields = ({
   const { t } = useLanguage();
   
   return (
-    <>
+    <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="username">{t("auth.usernameLabel")}</Label>
         <Input
@@ -88,20 +87,19 @@ export const SignUpFields = ({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="redeemCode" className="flex items-center gap-2">
-          Redeem Code
-          <span className="text-sm text-muted-foreground">(Optional)</span>
+        <Label htmlFor="redeemCode">
+          {t("auth.redeemCodeOptional")}
         </Label>
         <Input
           id="redeemCode"
           type="text"
-          placeholder="Enter your redeem code"
+          placeholder={t("auth.enterRedeemCode")}
           value={redeemCode}
           onChange={(e) => setRedeemCode(e.target.value)}
           className="w-full"
           disabled={isLoading}
         />
       </div>
-    </>
+    </div>
   );
 };

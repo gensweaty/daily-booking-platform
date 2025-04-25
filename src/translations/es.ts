@@ -340,7 +340,13 @@ const es: TranslationType = {
     confirmPasswordLabel: "Confirmar Contraseña",
     signingIn: "Iniciando sesión...",
     signingUp: "Registrando...",
-    loading: "Cargando..."
+    loading: "Cargando...",
+    enterEmail: "Ingrese su correo electrónico",
+    redeemCode: "Código de canje",
+    redeemCodeOptional: "Código de canje (Opcional)",
+    enterRedeemCode: "Ingrese su código de canje",
+    sendResetLink: "Enviar enlace de restablecimiento",
+    backToSignIn: "Volver a iniciar sesión"
   },
   legal: {
     title: "Términos y Política de Privacidad",

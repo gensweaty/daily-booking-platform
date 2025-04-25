@@ -363,6 +363,12 @@ export interface TranslationType {
     loading?: string;
     passwordRequirements?: string;
     confirmPasswordLabel?: string;
+    enterEmail: string;
+    redeemCode: string;
+    redeemCodeOptional: string;
+    enterRedeemCode: string;
+    sendResetLink: string;
+    backToSignIn: string;
   };
   
   legal: {
