@@ -141,7 +141,7 @@ const ka: TranslationType = {
     sportsDesc: "სპორტული აქტივობები",
     beautyDesc: "სილამაზის სალონები",
     personalDesc: "პირადი მომსახურება",
-    educationDesc: "საგანმანათლებ���ო სერვისები",
+    educationDesc: "საგა���მანათლებ���ო სერვისები",
     myBusiness: "ჩემი ბიზნესი",
     businessProfile: "ბიზნეს პროფილი",
     bookingRequests: "ჯავშნის მოთხოვნები",
@@ -182,7 +182,7 @@ const ka: TranslationType = {
     deleteConfirmation: "დარწმუნებული ხართ, რომ გსურთ ამ ჯავშნის მოთხოვნის წაშლა? ეს მოქმედება ვერ იქნება გაუქმებული.",
     updateProfile: "პროფილის განახლება",
     availableTimes: "ხელმისაწვდომი დრო",
-    clickToRequest: "ჯავშნის მოთხოვნისთვის დააჭირეთ ნებისმიერ დროს",
+    clickToRequest: "ჯავშნის მოთხოვნისთვის დააჭირეთ ნების���იერ დროს",
     contactInformation: "საკონტაქტო ინფორმაცია",
   },
   dashboard: {
@@ -193,7 +193,7 @@ const ka: TranslationType = {
     goodEvening: "საღამო მშვიდობისა",
     overview: "მიმოხილვა",
     calendar: "კალენდარი",
-    bookingCalendar: "ჯავშნების ��ალენდარი",
+    bookingCalendar: "ჯავშნების კალენდარი",
     tasks: "დავალებები",
     reminders: "შეხსენებები",
     notes: "ჩანაწერები",
@@ -250,12 +250,13 @@ const ka: TranslationType = {
     updateEvent: "ივენთის განახლება",
     createEvent: "ივენთის შექმნა",
     socialLinkEmail: "ელ-ფოსტა/სოც. ბმული",
-    dateAndTime: "თარიღი და დრ��",
+    dateAndTime: "თარიღი და დრო",
     date: "თარიღი",
     time: "დრო",
     start: "დაწყება",
     end: "დასრულება",
-    eventDetails: "ივენთის დეტალები"
+    eventDetails: "ივენთის დეტალები",
+    title: "სათაური"
   },
   contact: {
     email: "ელ-ფოსტა"

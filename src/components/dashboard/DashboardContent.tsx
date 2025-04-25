@@ -50,10 +50,11 @@ export const DashboardContent = ({
   isTaskDialogOpen, 
   setIsTaskDialogOpen 
 }: DashboardContentProps) => {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const { pendingRequests } = useBookingRequests()
   const { toast } = useToast()
   const pendingCount = pendingRequests?.length || 0
+  const isGeorgian = language === 'ka'
 
   useEffect(() => {
     if (pendingCount > 0) {
@@ -78,7 +79,7 @@ export const DashboardContent = ({
           >
             <CalendarIcon className="w-4 h-4" />
           </motion.div>
-          <span className="hidden sm:inline font-georgian">
+          <span className={isGeorgian ? "hidden sm:inline font-georgian" : "hidden sm:inline"}>
             {t("dashboard.bookingCalendar")}
           </span>
         </TabsTrigger>

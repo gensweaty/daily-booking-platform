@@ -120,7 +120,7 @@ export const EventDialogFields = ({
           type="email"
         />
       </div>
-      <div className={cn(isGeorgian ? "font-georgian" : "")}>
+      <div>
         <Label htmlFor="dateTime" className={labelClass}>
           {t("events.dateAndTime")}
         </Label>

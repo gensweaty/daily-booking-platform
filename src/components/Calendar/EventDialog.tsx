@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { cn } from "@/lib/utils";
 
 interface EventDialogProps {
   open: boolean;
@@ -50,6 +51,7 @@ export const EventDialog = ({
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
   const [isBookingEvent, setIsBookingEvent] = useState(false);
+  const isGeorgian = language === 'ka';
 
   useEffect(() => {
     if (event) {
@@ -394,7 +396,7 @@ export const EventDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle className={language === 'ka' ? "font-georgian" : ""}>
+        <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")}>
           {event ? t("events.editEvent") : t("events.addNewEvent")}
         </DialogTitle>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
@@ -428,7 +430,7 @@ export const EventDialog = ({
           />
           
           <div className="flex justify-between gap-4">
-            <Button type="submit" className={language === 'ka' ? "flex-1 font-georgian" : "flex-1"}>
+            <Button type="submit" className="flex-1">
               {event ? t("events.updateEvent") : t("events.createEvent")}
             </Button>
             {event && onDelete && (
