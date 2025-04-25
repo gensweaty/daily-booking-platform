@@ -269,6 +269,26 @@ export interface TranslationType {
   contact: {
     email: string;
     getInTouch?: string;
+    contactInfo?: string;
+    phone?: string;
+    address?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    businessHours?: string;
+    workingHours?: string;
+    weekendHours?: string;
+    sendMessage?: string;
+    name?: string;
+    namePlaceholder?: string;
+    emailPlaceholder?: string;
+    message?: string;
+    messagePlaceholder?: string;
+    send?: string;
+    sending?: string;
+    messageSent?: string;
+    messageSentDesc?: string;
+    error?: string;
+    errorDesc?: string;
   };
   calendar: {
     attachment: string;
