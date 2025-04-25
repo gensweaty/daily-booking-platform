@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 const ka: TranslationType = {

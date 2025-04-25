@@ -143,6 +143,12 @@ export interface TranslationType {
     beautyDesc: string;
     personalDesc: string;
     educationDesc: string;
+    myBusiness: string;
+    businessProfile: string;
+    bookingRequests: string;
+    pendingRequests: string;
+    approvedRequests: string;
+    rejectedRequests: string;
   };
   dashboard: {
     welcome: string;
