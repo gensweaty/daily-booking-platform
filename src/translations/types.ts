@@ -357,9 +357,10 @@ export interface TranslationType {
     and: string;
     resetInstructions: string;
     signingIn?: string;
+    signingUp?: string;
     loading?: string;
-    passwordRequirements: string;
-    confirmPasswordLabel: string;
+    passwordRequirements?: string;
+    confirmPasswordLabel?: string;
   };
   
   legal: {
