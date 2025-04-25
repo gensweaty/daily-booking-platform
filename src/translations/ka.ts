@@ -141,7 +141,7 @@ const ka: TranslationType = {
     sportsDesc: "სპორტული აქტივობები",
     beautyDesc: "სილამაზის სალონები",
     personalDesc: "პირადი მომსახურება",
-    educationDesc: "საგა���მანათლებ���ო სერვისები",
+    educationDesc: "საგა���მანათ��ებ���ო სერვისები",
     myBusiness: "ჩემი ბიზნესი",
     businessProfile: "ბიზნეს პროფილი",
     bookingRequests: "ჯავშნის მოთხოვნები",
@@ -182,7 +182,7 @@ const ka: TranslationType = {
     deleteConfirmation: "დარწმუნებული ხართ, რომ გსურთ ამ ჯავშნის მოთხოვნის წაშლა? ეს მოქმედება ვერ იქნება გაუქმებული.",
     updateProfile: "პროფილის განახლება",
     availableTimes: "ხელმისაწვდომი დრო",
-    clickToRequest: "ჯავშნის მოთხოვნისთვის დააჭირეთ ნების���იერ დროს",
+    clickToRequest: "ჯავშნის მოთხოვნისთვის დააჭირეთ ნების���იერ ���როს",
     contactInformation: "საკონტაქტო ინფორმაცია",
   },
   dashboard: {

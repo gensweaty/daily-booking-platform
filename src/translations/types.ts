@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -263,6 +262,7 @@ export interface TranslationType {
     start: string;
     end: string;
     eventDetails: string;
+    title: string;
   };
   contact: {
     email: string;
