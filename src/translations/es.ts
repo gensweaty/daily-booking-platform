@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 const es: TranslationType = {
@@ -143,6 +144,42 @@ const es: TranslationType = {
     beautyDesc: "Peluquerías, barberos, salones de uñas, centros de spa",
     personalDesc: "Consultores, fotógrafos, servicios domésticos",
     educationDesc: "Profesores, tutores, coaches de vida, proveedores de talleres",
+    myBusiness: "Mi Negocio",
+    businessProfile: "Perfil de Negocio",
+    bookingRequests: "Solicitudes de Reserva",
+    pendingRequests: "Solicitudes Pendientes",
+    approvedRequests: "Solicitudes Aprobadas",
+    rejectedRequests: "Solicitudes Rechazadas",
+    noPendingRequests: "No hay solicitudes pendientes",
+    noApprovedRequests: "No hay solicitudes aprobadas",
+    noRejectedRequests: "No hay solicitudes rechazadas",
+    pendingRequestsDescription: "Cuando los usuarios envíen solicitudes de reserva, aparecerán aquí para tu aprobación.",
+    approvedRequestsDescription: "Las solicitudes de reserva aprobadas aparecerán aquí.",
+    rejectedRequestsDescription: "Las solicitudes de reserva rechazadas aparecerán aquí.",
+    editBusinessProfile: "Editar Perfil de Negocio",
+    viewPublicPage: "Ver Página Pública",
+    businessName: "Nombre del Negocio",
+    urlSlug: "Slug de URL",
+    description: "Descripción",
+    coverPhoto: "Foto de Portada",
+    phone: "Teléfono",
+    email: "Correo electrónico",
+    website: "Sitio Web",
+    address: "Dirección",
+    customer: "Cliente",
+    title: "Título",
+    dateTime: "Fecha y Hora",
+    actions: "Acciones",
+    approve: "Aprobar",
+    reject: "Rechazar",
+    delete: "Eliminar",
+    deleteBookingRequest: "Eliminar Solicitud de Reserva",
+    deleteConfirmation: "¿Estás seguro de que quieres eliminar esta solicitud de reserva? Esta acción no se puede deshacer.",
+    chooseFile: "Elegir Archivo",
+    noFileChosen: "Ningún archivo seleccionado",
+    supportedFormats: "Formatos compatibles: Imágenes (jpg, png, webp) hasta 50MB, Documentos (pdf, docx, xlsx, pptx) hasta 1MB",
+    uploadImageCover: "Sube una imagen para la portada de tu negocio (JPEG, PNG, WebP)",
+    publicPageUrl: "Esto será utilizado para la URL de tu página pública:"
   },
   dashboard: {
     welcome: "Bienvenido de nuevo",
@@ -246,7 +283,10 @@ const es: TranslationType = {
     deleteSuccess: "Eliminado con éxito",
     deleteError: "Error al eliminar",
     missingUserInfo: "Falta información del usuario",
-    errorOccurred: "Ha ocurrido un error. Por favor, inténtelo de nuevo."
+    errorOccurred: "Ha ocurrido un error. Por favor, inténtelo de nuevo.",
+    new: "nueva",
+    request: "solicitud",
+    requests: "solicitudes"
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",

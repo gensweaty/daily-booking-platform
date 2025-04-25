@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -149,6 +150,36 @@ export interface TranslationType {
     pendingRequests: string;
     approvedRequests: string;
     rejectedRequests: string;
+    noPendingRequests: string;
+    noApprovedRequests: string;
+    noRejectedRequests: string;
+    pendingRequestsDescription: string;
+    approvedRequestsDescription: string;
+    rejectedRequestsDescription: string;
+    editBusinessProfile: string;
+    viewPublicPage: string;
+    businessName: string;
+    urlSlug: string;
+    description: string;
+    coverPhoto: string;
+    phone: string;
+    email: string;
+    website: string;
+    address: string;
+    customer: string;
+    title: string;
+    dateTime: string;
+    actions: string;
+    approve: string;
+    reject: string;
+    delete: string;
+    deleteBookingRequest: string;
+    deleteConfirmation: string;
+    chooseFile: string;
+    noFileChosen: string;
+    supportedFormats: string;
+    uploadImageCover: string;
+    publicPageUrl: string;
   };
   dashboard: {
     welcome: string;
@@ -253,6 +284,9 @@ export interface TranslationType {
     deleteError: string;
     missingUserInfo: string;
     errorOccurred: string;
+    new: string;
+    request: string;
+    requests: string;
   };
   auth: {
     welcome: string;

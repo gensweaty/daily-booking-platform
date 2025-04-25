@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 const ka: TranslationType = {
@@ -276,7 +277,10 @@ const ka: TranslationType = {
     deleteSuccess: "წარმატებით წაიშალა",
     deleteError: "წაშლის შეცდომა",
     missingUserInfo: "ინფორმაცია აკლია",
-    errorOccurred: "დაფიქსირდა შეცდომა"
+    errorOccurred: "დაფიქსირდა შეცდომა",
+    new: "ახალი",
+    request: "მოთხოვნა",
+    requests: "მოთხოვნები"
   },
   auth: {
     welcome: "მოგესალმებით",
