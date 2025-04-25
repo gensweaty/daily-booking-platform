@@ -287,7 +287,8 @@ const es: TranslationType = {
     errorOccurred: "Ha ocurrido un error. Por favor, inténtelo de nuevo.",
     new: "nueva",
     request: "solicitud",
-    requests: "solicitudes"
+    requests: "solicitudes",
+    backToHome: "Volver a la página de inicio"
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",
