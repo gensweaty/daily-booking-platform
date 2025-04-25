@@ -181,7 +181,10 @@ const es: TranslationType = {
     email: "Correo Electrónico",
     website: "Sitio Web",
     address: "Dirección",
-    updateProfile: "Actualizar Perfil"
+    updateProfile: "Actualizar Perfil",
+    availableTimes: "Horarios Disponibles",
+    clickToRequest: "Haga clic en cualquier horario para solicitar una reserva",
+    contactInformation: "Información de Contacto"
   },
   dashboard: {
     welcome: "Bienvenido de nuevo",

@@ -219,9 +219,9 @@ export const PublicBusinessPage = () => {
       <div className="container mx-auto px-4 py-12">
         <div className="mb-8" id="calendar-section">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">Available Times</h2>
+            <h2 className="text-2xl font-bold">{t("business.availableTimes")}</h2>
             <div className="text-sm text-muted-foreground">
-              Click on any time slot to request a booking
+              {t("business.clickToRequest")}
             </div>
           </div>
           
@@ -233,7 +233,7 @@ export const PublicBusinessPage = () => {
         <div className="mt-12">
           <Card>
             <CardContent className="p-6 space-y-4">
-              <h2 className="text-xl font-semibold">Contact Information</h2>
+              <h2 className="text-xl font-semibold">{t("business.contactInformation")}</h2>
               
               <div className="grid md:grid-cols-2 gap-6">
                 {business.contact_email && (

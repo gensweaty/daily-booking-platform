@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -182,7 +181,10 @@ export interface TranslationType {
     publicPageUrl: string;
     notFound: string;
     notFoundDescription: string;
-    updateProfile: string; // Added the missing property
+    updateProfile: string;
+    availableTimes: string;
+    clickToRequest: string;
+    contactInformation: string;
   };
   dashboard: {
     welcome: string;

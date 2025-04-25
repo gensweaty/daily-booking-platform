@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 const ka: TranslationType = {
@@ -70,7 +69,7 @@ const ka: TranslationType = {
     create: "შექმნა",
     cancel: "გაუქმება",
     addCustomer: "კლიენტის დამატება",
-    editCustomer: "კლიენტის რედაქტირება",
+    editCustomer: "კლიენტის რედა��ტირება",
     update: "განახლება",
     dates: "თარიღები",
     actions: "მოქმედებები",
@@ -176,7 +175,10 @@ const ka: TranslationType = {
     delete: "წაშლა",
     deleteBookingRequest: "წაშალეთ ჯავშნის მოთხოვნა",
     deleteConfirmation: "დარწმუნებული ხართ, რომ გსურთ ამ ჯავშნის მოთხოვნის წაშლა? ეს მოქმედება ვერ იქნება გაუქმებული.",
-    updateProfile: "პროფილის განახლება"
+    updateProfile: "პროფილის განახლება",
+    availableTimes: "ხელმისაწვდომი დრო",
+    clickToRequest: "დააჭირეთ ნებისმიერ დროს ჯავშნი�� მოთხოვნისთვის",
+    contactInformation: "საკონტაქტო ინფორმაცია"
   },
   dashboard: {
     welcome: "მოგესალმებით",
@@ -186,7 +188,7 @@ const ka: TranslationType = {
     goodEvening: "საღამო მშვიდობისა",
     overview: "მიმოხილვა",
     calendar: "კალენდარი",
-    bookingCalendar: "ჯავშნების კალენდარი",
+    bookingCalendar: "ჯავშნების ��ალენდარი",
     tasks: "დავალებები",
     reminders: "შეხსენებები",
     notes: "ჩანაწერები",
@@ -260,7 +262,7 @@ const ka: TranslationType = {
     month: "თვე",
     addEvent: "ივენთის დამატება",
     bookNow: "დაჯავშნე ახლავე",
-    weekOf: "კვირა:"
+    weekOf: "კვი���ა:"
   },
   common: {
     cancel: "გაუქმება",
