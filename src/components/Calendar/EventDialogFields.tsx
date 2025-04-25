@@ -1,15 +1,12 @@
 
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUploadField } from "@/components/shared/FileUploadField";
-import { FileDisplay } from "@/components/shared/FileDisplay";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useEffect } from "react";
-import { format } from "date-fns";
+import { FileDisplay } from "@/components/shared/FileDisplay";
+import { cn } from "@/lib/utils";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -35,8 +32,8 @@ interface EventDialogFieldsProps {
   fileError: string;
   setFileError: (error: string) => void;
   eventId?: string;
-  onFileDeleted?: (fileId: string) => void;
-  displayedFiles?: any[];
+  displayedFiles: any[];
+  onFileDeleted: (fileId: string) => void;
   isBookingRequest?: boolean;
 }
 
@@ -64,203 +61,72 @@ export const EventDialogFields = ({
   fileError,
   setFileError,
   eventId,
+  displayedFiles,
   onFileDeleted,
-  displayedFiles = [],
   isBookingRequest = false,
 }: EventDialogFieldsProps) => {
   const { t, language } = useLanguage();
-
-  const formattedMinDate = format(new Date(), "yyyy-MM-dd'T'HH:mm");
-
-  // If it's a booking request, we only show date and time fields
-  if (isBookingRequest) {
-    return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="start-date">{t("events.startDateTime")}</Label>
-            <Input
-              id="start-date"
-              type="datetime-local"
-              min={formattedMinDate}
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="end-date">{t("events.endDateTime")}</Label>
-            <Input
-              id="end-date"
-              type="datetime-local"
-              min={startDate || formattedMinDate}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  useEffect(() => {
-    // Set default times if no startDate or endDate is provided
-    if (!startDate || !endDate) {
-      const now = new Date();
-      now.setHours(9, 0, 0, 0);
-      const end = new Date(now);
-      end.setHours(10, 0, 0, 0);
-      
-      setStartDate(format(now, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-    }
-  }, []);
-
-  useEffect(() => {
-    const formData = {
-      title,
-      userSurname,
-      userNumber,
-      socialNetworkLink,
-      eventNotes,
-      startDate,
-      endDate,
-      paymentStatus,
-      paymentAmount,
-    };
-    sessionStorage.setItem('eventFormData', JSON.stringify(formData));
-  }, [title, userSurname, userNumber, socialNetworkLink, eventNotes, startDate, endDate, paymentStatus, paymentAmount]);
-
-  useEffect(() => {
-    const savedFormData = sessionStorage.getItem('eventFormData');
-    if (savedFormData && !title) {
-      const parsedData = JSON.parse(savedFormData);
-      setTitle(parsedData.title || '');
-      setUserSurname(parsedData.userSurname || '');
-      setUserNumber(parsedData.userNumber || '');
-      setSocialNetworkLink(parsedData.socialNetworkLink || '');
-      setEventNotes(parsedData.eventNotes || '');
-      if (parsedData.startDate) setStartDate(parsedData.startDate);
-      if (parsedData.endDate) setEndDate(parsedData.endDate);
-      setPaymentStatus(parsedData.paymentStatus || '');
-      setPaymentAmount(parsedData.paymentAmount || '');
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!eventId) {
-      sessionStorage.removeItem('eventFormData');
-    }
-  }, [eventId]);
-
-  const { data: allFiles = [] } = useQuery({
-    queryKey: ['eventFiles', eventId, title],
-    queryFn: async () => {
-      if (!eventId && !title) return [];
-      
-      try {
-        const uniqueFiles = new Map();
-        console.log('Starting file fetch for eventId:', eventId, 'and title:', title);
-
-        if (eventId) {
-          const { data: eventFiles, error: eventFilesError } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', eventId);
-          
-          if (eventFilesError) throw eventFilesError;
-
-          console.log('Found event files:', eventFiles?.length || 0);
-          eventFiles?.forEach(file => {
-            const uniqueKey = `${file.file_path}_event`;
-            uniqueFiles.set(uniqueKey, {
-              ...file,
-              source: 'event'
-            });
-          });
-        }
-
-        if (title) {
-          const { data: customer, error: customerError } = await supabase
-            .from('customers')
-            .select(`
-              id,
-              customer_files_new (*)
-            `)
-            .eq('title', title)
-            .maybeSingle();
-
-          if (!customerError && customer?.customer_files_new) {
-            console.log('Found customer files:', customer.customer_files_new.length);
-            customer.customer_files_new.forEach(file => {
-              const uniqueKey = `${file.file_path}_customer`;
-              const eventFileKey = `${file.file_path}_event`;
-              if (!uniqueFiles.has(eventFileKey)) {
-                uniqueFiles.set(uniqueKey, {
-                  ...file,
-                  source: 'customer'
-                });
-              }
-            });
-          }
-        }
-
-        const files = Array.from(uniqueFiles.values());
-        console.log('Final unique files count:', files.length);
-        return files;
-      } catch (error) {
-        console.error('Error in file fetching:', error);
-        return [];
-      }
-    },
-    enabled: !!(eventId || title),
-  });
-
+  const isGeorgian = language === 'ka';
+  
+  const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
+  
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="title">{t("events.fullNameRequired")}</Label>
+    <>
+      <div>
+        <Label htmlFor="title" className={labelClass}>
+          {t("events.title")}
+        </Label>
         <Input
           id="title"
-          placeholder={t("events.fullName")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          placeholder={t("events.title")}
           required
         />
       </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="number">{t("events.phoneNumber")}</Label>
+      <div>
+        <Label htmlFor="userSurname" className={labelClass}>
+          {t("events.fullName")}
+        </Label>
         <Input
-          id="number"
-          type="tel"
-          placeholder={t("events.phoneNumber")}
+          id="userSurname"
+          value={userSurname}
+          onChange={(e) => setUserSurname(e.target.value)}
+          placeholder={t("events.fullName")}
+          required
+        />
+      </div>
+      <div>
+        <Label htmlFor="userNumber" className={labelClass}>
+          {t("events.phoneNumber")}
+        </Label>
+        <Input
+          id="userNumber"
           value={userNumber}
           onChange={(e) => setUserNumber(e.target.value)}
+          placeholder={t("events.phoneNumber")}
         />
       </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="email">{t("auth.emailLabel")}</Label>
+      <div>
+        <Label htmlFor="socialNetworkLink" className={labelClass}>
+          {t("events.socialLinkEmail")}
+        </Label>
         <Input
-          id="email"
-          type="email"
-          placeholder={t("auth.emailLabel")}
+          id="socialNetworkLink"
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
-          required
-          pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
-          title="Please enter a valid email address"
+          placeholder="email@example.com"
+          type="email"
         />
       </div>
-
-      <div className="space-y-2">
-        <Label>{t("events.dateAndTime")}</Label>
-        <div className="grid grid-cols-2 gap-4">
+      <div className={cn(isGeorgian ? "font-georgian" : "")}>
+        <Label htmlFor="dateTime" className={labelClass}>
+          {t("events.dateAndTime")}
+        </Label>
+        <div className="grid grid-cols-2 gap-2">
           <div>
-            <Label htmlFor="startDate" className="text-sm text-muted-foreground mb-1">
-              {t("events.startDateTime")}
+            <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
+              {t("events.start")}
             </Label>
             <Input
               id="startDate"
@@ -268,12 +134,11 @@ export const EventDialogFields = ({
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               required
-              className="bg-background border-input"
             />
           </div>
           <div>
-            <Label htmlFor="endDate" className="text-sm text-muted-foreground mb-1">
-              {t("events.endDateTime")}
+            <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
+              {t("events.end")}
             </Label>
             <Input
               id="endDate"
@@ -281,80 +146,91 @@ export const EventDialogFields = ({
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               required
-              className="bg-background border-input"
             />
           </div>
         </div>
       </div>
-
-      <div className="space-y-2">
-        <Label>{t("events.paymentStatus")}</Label>
-        <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-          <SelectTrigger className="w-full bg-background border-input">
-            <SelectValue placeholder={t("events.selectPaymentStatus")} />
-          </SelectTrigger>
-          <SelectContent className="bg-background border-input shadow-md">
-            <SelectItem value="not_paid" className="hover:bg-muted focus:bg-muted">
-              {t("crm.notPaid")}
-            </SelectItem>
-            <SelectItem value="partly" className="hover:bg-muted focus:bg-muted">
-              {t("crm.paidPartly")}
-            </SelectItem>
-            <SelectItem value="fully" className="hover:bg-muted focus:bg-muted">
-              {t("crm.paidFully")}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {paymentStatus && paymentStatus !== 'not_paid' && (
-        <div className="space-y-2">
-          <Label htmlFor="amount">
-            {t("events.paymentAmount")} ({language === 'es' ? '€' : '$'})
-          </Label>
-          <Input
-            id="amount"
-            type="number"
-            step="0.01"
-            placeholder={`${t("events.paymentAmount")} ${language === 'es' ? '(€)' : '($)'}`}
-            value={paymentAmount}
-            onChange={(e) => setPaymentAmount(e.target.value)}
-            required
-            className="bg-background border-input"
-          />
-        </div>
+      
+      {!isBookingRequest && (
+        <>
+          <div>
+            <Label htmlFor="paymentStatus" className={labelClass}>
+              {t("events.paymentStatus")}
+            </Label>
+            <Select
+              value={paymentStatus}
+              onValueChange={setPaymentStatus}
+            >
+              <SelectTrigger id="paymentStatus" className={isGeorgian ? "font-georgian" : ""}>
+                <SelectValue placeholder={t("events.selectPaymentStatus")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">--</SelectItem>
+                <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.notPaid")}</SelectItem>
+                <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidPartly")}</SelectItem>
+                <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidFully")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="paymentAmount" className={labelClass}>
+              {t("events.paymentAmount")}
+            </Label>
+            <Input
+              id="paymentAmount"
+              value={paymentAmount}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                  setPaymentAmount(value);
+                }
+              }}
+              placeholder="0.00"
+              type="text"
+              inputMode="decimal"
+            />
+          </div>
+        </>
       )}
-
-      <div className="space-y-2">
-        <Label htmlFor="notes">{t("events.eventNotes")}</Label>
+      
+      <div>
+        <Label htmlFor="eventNotes" className={labelClass}>
+          {t("events.eventNotes")}
+        </Label>
         <Textarea
-          id="notes"
-          placeholder={t("events.addEventNotes")}
+          id="eventNotes"
           value={eventNotes}
           onChange={(e) => setEventNotes(e.target.value)}
-          className="bg-background border-input"
+          placeholder={t("events.addEventNotes")}
+          className="min-h-[100px] resize-none"
         />
       </div>
-
-      {(eventId || title) && ((allFiles && allFiles.length > 0) || (displayedFiles && displayedFiles.length > 0)) && (
-        <div className="space-y-2">
-          <Label>{t("calendar.attachment")}</Label>
-          <FileDisplay 
-            files={displayedFiles?.length > 0 ? displayedFiles : allFiles} 
-            bucketName="event_attachments"
-            allowDelete
-            onFileDeleted={onFileDeleted}
-            parentType="event"
-          />
+      
+      <div>
+        <Label htmlFor="file" className={labelClass}>
+          {t("common.attachments")}
+        </Label>
+        <FileUploadField
+          onFileSelected={setSelectedFile}
+          error={fileError}
+          setError={setFileError}
+          acceptedTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+        />
+      </div>
+      
+      {displayedFiles.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {displayedFiles.map((file) => (
+            <FileDisplay
+              key={file.id}
+              file={file}
+              onDelete={onFileDeleted}
+              entityId={eventId}
+              entityType="event"
+            />
+          ))}
         </div>
       )}
-
-      <FileUploadField 
-        onChange={setSelectedFile}
-        fileError={fileError}
-        setFileError={setFileError}
-        hideLabel={true}
-      />
-    </div>
+    </>
   );
 };

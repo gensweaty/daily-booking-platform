@@ -48,7 +48,7 @@ export const EventDialog = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [isBookingEvent, setIsBookingEvent] = useState(false);
 
   useEffect(() => {
@@ -394,7 +394,9 @@ export const EventDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle>{event ? t("events.editEvent") : t("events.addNewEvent")}</DialogTitle>
+        <DialogTitle className={language === 'ka' ? "font-georgian" : ""}>
+          {event ? t("events.editEvent") : t("events.addNewEvent")}
+        </DialogTitle>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <EventDialogFields
             title={title}
@@ -426,7 +428,7 @@ export const EventDialog = ({
           />
           
           <div className="flex justify-between gap-4">
-            <Button type="submit" className="flex-1">
+            <Button type="submit" className={language === 'ka' ? "flex-1 font-georgian" : "flex-1"}>
               {event ? t("events.updateEvent") : t("events.createEvent")}
             </Button>
             {event && onDelete && (

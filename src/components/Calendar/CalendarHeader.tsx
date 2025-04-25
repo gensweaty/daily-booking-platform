@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { CalendarViewType } from "@/lib/types/calendar";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { LanguageText } from "@/components/shared/LanguageText";
+import { cn } from "@/lib/utils";
 
 interface CalendarHeaderProps {
   selectedDate: Date;
@@ -25,7 +25,8 @@ export const CalendarHeader = ({
   onAddEvent,
   isExternalCalendar = false,
 }: CalendarHeaderProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
 
   const getFormattedDate = () => {
     switch (view) {
@@ -49,8 +50,8 @@ export const CalendarHeader = ({
         <Button variant="outline" size="icon" onClick={onNext}>
           <ChevronRight className="h-4 w-4" />
         </Button>
-        <h2 className="text-xl font-semibold ml-2">
-          <LanguageText>{getFormattedDate()}</LanguageText>
+        <h2 className={cn("text-xl font-semibold ml-2", isGeorgian ? "font-georgian" : "")}>
+          {getFormattedDate()}
         </h2>
       </div>
 
@@ -60,32 +61,36 @@ export const CalendarHeader = ({
             variant={view === "day" ? "default" : "outline"}
             size="sm"
             onClick={() => onViewChange("day")}
-            className="px-2 sm:px-4"
+            className={cn("px-2 sm:px-4", isGeorgian ? "font-georgian" : "")}
           >
-            <LanguageText>{t("calendar.day")}</LanguageText>
+            {t("calendar.day")}
           </Button>
           <Button
             variant={view === "week" ? "default" : "outline"}
             size="sm"
             onClick={() => onViewChange("week")}
-            className="px-2 sm:px-4"
+            className={cn("px-2 sm:px-4", isGeorgian ? "font-georgian" : "")}
           >
-            <LanguageText>{t("calendar.week")}</LanguageText>
+            {t("calendar.week")}
           </Button>
           <Button
             variant={view === "month" ? "default" : "outline"}
             size="sm"
             onClick={() => onViewChange("month")}
-            className="px-2 sm:px-4"
+            className={cn("px-2 sm:px-4", isGeorgian ? "font-georgian" : "")}
           >
-            <LanguageText>{t("calendar.month")}</LanguageText>
+            {t("calendar.month")}
           </Button>
         </div>
         
         {onAddEvent && (
-          <Button onClick={onAddEvent} size="sm" className="ml-auto sm:ml-0">
+          <Button 
+            onClick={onAddEvent} 
+            size="sm" 
+            className={cn("ml-auto sm:ml-0", isGeorgian ? "font-georgian" : "")}
+          >
             <Plus className="h-4 w-4 mr-1" />
-            <LanguageText>{isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}</LanguageText>
+            {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
           </Button>
         )}
       </div>

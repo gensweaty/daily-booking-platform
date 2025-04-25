@@ -79,7 +79,7 @@ export const DashboardContent = ({
             <CalendarIcon className="w-4 h-4" />
           </motion.div>
           <span className="hidden sm:inline font-georgian">
-            <LanguageText>{t("dashboard.bookingCalendar")}</LanguageText>
+            {t("dashboard.bookingCalendar")}
           </span>
         </TabsTrigger>
         <TabsTrigger 
