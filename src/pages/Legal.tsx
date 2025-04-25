@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -6,33 +5,22 @@ import { useTheme } from "next-themes";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
-
 const Legal = () => {
-  const { theme } = useTheme();
-  const { t } = useLanguage();
-
-  return (
-    <div className="min-h-screen bg-background">
+  const {
+    theme
+  } = useTheme();
+  const {
+    t
+  } = useLanguage();
+  return <div className="min-h-screen bg-background">
       <header className="container mx-auto px-4 py-8">
         <nav className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => window.history.back()}
-              className="hover:bg-accent"
-            >
+            <Button variant="ghost" size="icon" onClick={() => window.history.back()} className="hover:bg-accent">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <Link to="/" className="flex items-center gap-2">
-              <img 
-                src={theme === 'dark' 
-                  ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
-                  : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
-                }
-                alt="SmartBookly Logo" 
-                className="h-8 md:h-10 w-auto"
-              />
+              <img src={theme === 'dark' ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"} alt="SmartBookly Logo" className="h-8 md:h-10 w-auto" />
             </Link>
           </div>
           <div className="flex items-center gap-4">
@@ -50,7 +38,7 @@ const Legal = () => {
             
             <section className="mb-10">
               <h2 className="text-2xl font-semibold mb-4">Terms of Service</h2>
-              <p className="mb-6">Welcome to Taskify Minder. These Terms of Service ("Terms") govern your use of our SaaS platform and services ("Services"). By accessing or using our Services, you agree to these Terms. If you do not agree, please do not use our Services.</p>
+              <p className="mb-6">Welcome to Smartbookly.com. These Terms of Service ("Terms") govern your use of our SaaS platform and services ("Services"). By accessing or using our Services, you agree to these Terms. If you do not agree, please do not use our Services.</p>
               
               <div className="space-y-6">
                 <div className="p-4 rounded-md bg-muted">
@@ -140,8 +128,6 @@ const Legal = () => {
           </div>
         </div>
       </main>
-    </div>
-  );
+    </div>;
 };
-
 export default Legal;
