@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -17,6 +16,7 @@ import { useBookingRequests } from "@/hooks/useBookingRequests"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useEffect } from "react"
+import { LanguageText } from "@/components/shared/LanguageText"
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
@@ -78,7 +78,9 @@ export const DashboardContent = ({
           >
             <CalendarIcon className="w-4 h-4" />
           </motion.div>
-          <span className="hidden sm:inline">{t("dashboard.bookingCalendar")}</span>
+          <span className="hidden sm:inline">
+            <LanguageText>{t("dashboard.bookingCalendar")}</LanguageText>
+          </span>
         </TabsTrigger>
         <TabsTrigger 
           value="statistics" 
@@ -90,7 +92,9 @@ export const DashboardContent = ({
           >
             <BarChart className="w-4 h-4" />
           </motion.div>
-          <span className="hidden sm:inline">{t("dashboard.statistics")}</span>
+          <span className="hidden sm:inline">
+            <LanguageText>{t("dashboard.statistics")}</LanguageText>
+          </span>
         </TabsTrigger>
         <TabsTrigger 
           value="tasks" 
@@ -102,7 +106,9 @@ export const DashboardContent = ({
           >
             <ListTodo className="w-4 h-4" />
           </motion.div>
-          <span className="hidden sm:inline">{t("dashboard.tasks")}</span>
+          <span className="hidden sm:inline">
+            <LanguageText>{t("dashboard.tasks")}</LanguageText>
+          </span>
         </TabsTrigger>
         <TabsTrigger 
           value="crm" 
@@ -114,7 +120,9 @@ export const DashboardContent = ({
           >
             <Users className="w-4 h-4" />
           </motion.div>
-          <span className="hidden sm:inline">{t("dashboard.crm")}</span>
+          <span className="hidden sm:inline">
+            <LanguageText>{t("dashboard.crm")}</LanguageText>
+          </span>
         </TabsTrigger>
         <TabsTrigger 
           value="business" 
@@ -126,7 +134,9 @@ export const DashboardContent = ({
           >
             <Briefcase className="w-4 h-4" />
           </motion.div>
-          <span className="hidden sm:inline">{t("business.myBusiness")}</span>
+          <span className="hidden sm:inline">
+            <LanguageText>{t("business.myBusiness")}</LanguageText>
+          </span>
           {pendingCount > 0 && (
             <motion.div
               initial={{ scale: 0 }}

@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -76,6 +77,12 @@
     /* Temporarily removed for debugging */
     /* cursor: none; */
   }
+  
+  /* Ensure proper font rendering for Georgian text */
+  .font-georgian {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif;
+    font-display: swap;
+  }
 }
 
 /* TipTap placeholder styling */
@@ -86,3 +93,4 @@
   pointer-events: none;
   height: 0;
 }
+

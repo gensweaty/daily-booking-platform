@@ -24,7 +24,18 @@ interface StatsData {
 export const useExcelExport = () => {
   const { toast } = useToast();
   const { t, language } = useLanguage();
-  const isSpanish = language === 'es';
+  
+  // Currency symbol and formatting based on language
+  const getCurrencySymbol = () => {
+    switch (language) {
+      case 'es':
+        return '€';
+      case 'ka':
+        return '₾';
+      default:
+        return '$';
+    }
+  };
 
   const exportToExcel = useMemo(() => (data: StatsData) => {
     if (!data.eventStats?.events) {
@@ -36,7 +47,9 @@ export const useExcelExport = () => {
       return;
     }
 
-    // Create statistics summary data - using properly translated values
+    const currencySymbol = getCurrencySymbol();
+
+    // Create statistics summary data with properly translated values
     const statsData = [{
       [t('dashboard.category')]: t('dashboard.taskStatistics'),
       [t('dashboard.total')]: data.taskStats?.total || 0,
@@ -55,7 +68,7 @@ export const useExcelExport = () => {
     }, {
       [t('dashboard.category')]: t('dashboard.financialSummary'),
       [t('dashboard.total')]: t('dashboard.totalIncome'),
-      [t('dashboard.details')]: `${isSpanish ? '€' : '$'}${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
+      [t('dashboard.details')]: `${currencySymbol}${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
       [t('dashboard.additionalInfo')]: t('dashboard.fromAllEvents'),
     }];
 
@@ -70,15 +83,21 @@ export const useExcelExport = () => {
         event.payment_status === 'fully' ? t("crm.paidFully") :
         event.payment_status
       ) : '',
-      [t('events.paymentAmount')]: event.payment_amount ? `${isSpanish ? '€' : '$'}${event.payment_amount}` : '',
+      [t('events.paymentAmount')]: event.payment_amount ? `${currencySymbol}${event.payment_amount}` : '',
       [t('events.date')]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
       [t('events.time')]: event.start_date && event.end_date ? 
         `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',
       [t('events.eventNotes')]: event.event_notes || '',
     }));
 
-    // Create workbook
+    // Set Excel metadata in current language
     const wb = XLSX.utils.book_new();
+    wb.Props = {
+      Title: t('dashboard.statistics'),
+      Subject: t('dashboard.statistics'),
+      Author: "SmartBookly",
+      CreatedDate: new Date()
+    };
 
     // Create and add statistics worksheet
     const wsStats = XLSX.utils.json_to_sheet(statsData);
@@ -108,9 +127,10 @@ export const useExcelExport = () => {
       { wch: 40 },
     ];
 
-    // Generate Excel file
+    // Generate Excel file with localized filename
     const dateStr = format(new Date(), 'dd-MM-yyyy');
-    XLSX.writeFile(wb, `statistics-${dateStr}.xlsx`);
+    const fileName = `${t('dashboard.statistics').toLowerCase()}-${dateStr}.xlsx`;
+    XLSX.writeFile(wb, fileName);
 
     toast({
       title: t("dashboard.exportSuccessful"),
