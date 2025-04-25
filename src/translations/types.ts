@@ -35,6 +35,7 @@ export interface TranslationType {
     feature2: string;
     feature3: string;
     feature4: string;
+    feature5: string;
     requestSubmitted: string;
     yourEmailPlaceholder: string;
   };
