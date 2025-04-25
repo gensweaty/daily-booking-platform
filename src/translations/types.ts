@@ -182,6 +182,7 @@ export interface TranslationType {
     publicPageUrl: string;
     notFound: string;
     notFoundDescription: string;
+    updateProfile: string; // Added the missing property
   };
   dashboard: {
     welcome: string;
