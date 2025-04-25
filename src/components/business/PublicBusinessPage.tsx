@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
@@ -7,26 +6,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoaderCircle, Globe, Mail, Phone, MapPin } from "lucide-react";
 import { ExternalCalendar } from "../Calendar/ExternalCalendar";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
+  const { t } = useLanguage();
   
-  // More robust slug extraction that handles multiple URL formats
   const getBusinessSlug = () => {
-    // First try from URL params
     if (slug) return slug;
     
-    // Then try to extract from path
     const pathMatch = location.pathname.match(/\/business\/([^\/]+)/);
     if (pathMatch && pathMatch[1]) return pathMatch[1];
     
-    // Try to extract from URL search params
     const searchParams = new URLSearchParams(location.search);
     const slugFromSearch = searchParams.get('slug') || searchParams.get('business');
     if (slugFromSearch) return slugFromSearch;
     
-    // Last resort, check local storage
     return localStorage.getItem('lastVisitedBusinessSlug') || null;
   };
 
@@ -43,19 +40,16 @@ export const PublicBusinessPage = () => {
 
   console.log("[PublicBusinessPage] Using business slug:", businessSlug);
 
-  // Set up a refresh interval to periodically refetch the business profile
   useEffect(() => {
-    // Set up an interval to trigger refreshes
     const intervalId = setInterval(() => {
       if (retryCount < 3 && !business) {
         setRetryCount(prev => prev + 1);
       }
-    }, 5000); // Retry every 5 seconds for first 15 seconds
+    }, 5000);
     
     return () => clearInterval(intervalId);
   }, [business, retryCount]);
 
-  // Save business slug to localStorage when found for recovery
   useEffect(() => {
     if (businessSlug) {
       localStorage.setItem('lastVisitedBusinessSlug', businessSlug);
@@ -74,7 +68,6 @@ export const PublicBusinessPage = () => {
         setIsLoading(true);
         console.log("[PublicBusinessPage] Fetching business profile for slug:", businessSlug);
         
-        // Ensure storage buckets exist
         await forceBucketCreation();
         
         const { data, error } = await supabase
@@ -98,20 +91,15 @@ export const PublicBusinessPage = () => {
         console.log("[PublicBusinessPage] Fetched business profile:", data);
         setBusiness(data as BusinessProfile);
         
-        // Set the cover photo URL with a cache-busting parameter
         if (data.cover_photo_url) {
-          // Skip blob URLs which are temporary
           if (!data.cover_photo_url.startsWith('blob:')) {
-            // Always add a fresh timestamp query parameter
             const timestamp = Date.now();
-            let photoUrl = data.cover_photo_url.split('?')[0]; // Remove any existing parameters
+            let photoUrl = data.cover_photo_url.split('?')[0];
             photoUrl = `${photoUrl}?t=${timestamp}`;
             
             console.log("[PublicBusinessPage] Setting cover photo URL with cache busting:", photoUrl);
             setCoverPhotoUrl(photoUrl);
-            // Reset image loaded state
             setImageLoaded(false);
-            // Reset retry count
             imageRetryCount.current = 0;
           } else {
             console.warn("[PublicBusinessPage] Ignoring blob URL:", data.cover_photo_url);
@@ -131,35 +119,28 @@ export const PublicBusinessPage = () => {
     };
 
     fetchBusinessProfile();
-  }, [businessSlug, retryCount]); // Also refetch when retryCount changes
+  }, [businessSlug, retryCount]);
 
-  // Handle image load success
   const handleImageLoad = () => {
     console.log("[PublicBusinessPage] Cover photo loaded successfully");
     setImageLoaded(true);
-    // Reset retry count on successful load
     imageRetryCount.current = 0;
   };
 
-  // Handle image load error and retry with a new URL if needed
   const handleImageError = () => {
     console.error("[PublicBusinessPage] Error loading cover photo:", coverPhotoUrl);
     
-    // Only retry a limited number of times to prevent infinite loops
     if (imageRetryCount.current < maxRetryCount && business?.cover_photo_url && !business.cover_photo_url.startsWith('blob:')) {
       imageRetryCount.current++;
       
-      // Generate a new URL with a fresh timestamp
-      const baseUrl = business.cover_photo_url.split('?')[0]; // Remove any existing query parameters
+      const baseUrl = business.cover_photo_url.split('?')[0];
       const refreshedUrl = `${baseUrl}?t=${Date.now()}&retry=${imageRetryCount.current}`;
       console.log(`[PublicBusinessPage] Retry #${imageRetryCount.current} with refreshed URL:`, refreshedUrl);
       
-      // Set a small delay before retrying to avoid hammering the server
       setTimeout(() => {
         setCoverPhotoUrl(refreshedUrl);
-      }, 1000); 
+      }, 1000);
     } else {
-      // Fall back to the default cover after max retries
       console.log("[PublicBusinessPage] Max retries reached, using default cover");
       setImageLoaded(false);
     }
@@ -169,7 +150,7 @@ export const PublicBusinessPage = () => {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <LoaderCircle className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading business calendar...</span>
+        <span className="ml-2">{t("common.loading")}</span>
       </div>
     );
   }
@@ -177,34 +158,33 @@ export const PublicBusinessPage = () => {
   if (error || !business) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12">
-        <h1 className="text-3xl font-bold mb-4">Business Not Found</h1>
+        <h1 className="text-3xl font-bold mb-4">{t("business.notFound")}</h1>
         <p className="text-center text-muted-foreground">
-          {error || "Sorry, we couldn't find a business with this URL. Please check the URL and try again."}
+          {error || t("business.notFoundDescription")}
         </p>
         <Button className="mt-6" onClick={() => window.location.href = "/"}>
-          Back to Homepage
+          {t("common.backToHome")}
         </Button>
       </div>
     );
   }
 
-  console.log("[PublicBusinessPage] Rendering calendar for business ID:", business.id);
-
-  // Use the stored coverPhotoUrl state instead of relying on businessProfile directly
   const defaultCoverUrl = 'https://placehold.co/1200x400/e2e8f0/64748b?text=Business+Cover';
   const displayCoverUrl = coverPhotoUrl || defaultCoverUrl;
 
   return (
     <div className="min-h-screen bg-background">
-      <div 
-        className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-16"
+      <div className="fixed top-4 right-4 z-50">
+        <LanguageSwitcher />
+      </div>
+      
+      <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-16"
         style={{
           backgroundImage: `url(${displayCoverUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
       >
-        {/* Overlay for text readability when cover photo is present */}
         <div className="absolute inset-0 bg-black bg-opacity-50"></div>
         
         <div className="container mx-auto px-4 relative">
@@ -225,7 +205,6 @@ export const PublicBusinessPage = () => {
         </div>
       </div>
 
-      {/* Hidden image preloader to ensure the image is properly loaded and cached */}
       {coverPhotoUrl && (
         <img 
           src={coverPhotoUrl} 

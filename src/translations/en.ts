@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 const en: TranslationType = {
@@ -286,7 +285,8 @@ const en: TranslationType = {
     errorOccurred: "An error occurred. Please try again.",
     new: "new",
     request: "request",
-    requests: "requests"
+    requests: "requests",
+    backToHome: "Back to Homepage"
   },
   auth: {
     welcome: "Welcome to SmartBookly",

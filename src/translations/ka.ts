@@ -1,5 +1,4 @@
-
-import { TranslationType } from './types';
+import { TranslationType } from "./types";
 
 const ka: TranslationType = {
   nav: {
@@ -173,7 +172,13 @@ const ka: TranslationType = {
     noFileChosen: "ფაილი არ არის არჩეული",
     supportedFormats: "მხარდაჭერილი ფორმატები: სურათები (jpg, png, webp) ზომით 50MB, დოკუმენტები (pdf, docx, xlsx, pptx) ზომით 1MB",
     uploadImageCover: "ატვირთეთ სურათი თქვენი ბიზნესის გარეკანისთვის (JPEG, PNG, WebP)",
-    publicPageUrl: "ეს გამოყენებული იქნება თქვენი საჯარო გვერდისთვის:"
+    publicPageUrl: "ეს გამოყენებული იქნება თქვენი საჯარო გვერდისთვის:",
+    notFound: "ბიზნესი ვერ მოიძებნა",
+    notFoundDescription: "ბოდიშს გიხდით, ამ URL-ით ბიზნესი ვერ მოიძებნა. გთხოვთ, შეამოწმოთ URL და სცადოთ ხელახლა.",
+    myBusiness: "ჩემი ბიზნესი",
+    businessProfile: "ბიზნეს პროფილი",
+    editBusinessProfile: "ბიზნეს პროფილის რედაქტირება",
+    viewPublicPage: "საჯარო გვერდის ნახვა",
   },
   dashboard: {
     welcome: "მოგესალმებით",

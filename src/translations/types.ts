@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -180,6 +179,8 @@ export interface TranslationType {
     supportedFormats: string;
     uploadImageCover: string;
     publicPageUrl: string;
+    notFound: string;
+    notFoundDescription: string;
   };
   dashboard: {
     welcome: string;
