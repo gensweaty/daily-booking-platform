@@ -335,6 +335,30 @@ const es: TranslationType = {
     privacy: "Privacidad",
     and: "y",
     resetInstructions: "Ingresa tu correo electrónico y te enviaremos instrucciones sobre cómo restablecer tu contraseña."
+  },
+  legal: {
+    title: "Términos y Política de Privacidad",
+    lastUpdated: "Última actualización: {{date}}",
+    termsOfService: "Términos de Servicio",
+    welcomeText: "Bienvenido a SmartBookly. Estos Términos de Servicio ('Términos') rigen el uso de nuestra plataforma SaaS y servicios ('Servicios'). Al acceder o utilizar nuestros Servicios, aceptas estos Términos. Si no estás de acuerdo, por favor no uses nuestros Servicios.",
+    generalInfo: {
+      title: "1. Información General",
+      companyName: "Nombre de la Empresa: SmartBookly",
+      registered: "Registrada en: Georgia",
+      contact: "Correo de Contacto: info@smartbookly.com"
+    },
+    eligibility: {
+      title: "2. Elegibilidad",
+      description: "Debes tener al menos 18 años para usar nuestros Servicios. Al usar nuestra plataforma, confirmas que cumples con este requisito."
+    },
+    accountSecurity: {
+      title: "3. Registro de Cuenta y Seguridad",
+      requirements: [
+        "Debes proporcionar información precisa y completa al crear una cuenta.",
+        "Eres responsable de mantener la confidencialidad de tu cuenta y contraseña.",
+        "Notifícanos inmediatamente de cualquier acceso no autorizado a tu cuenta."
+      ]
+    }
   }
 };
 

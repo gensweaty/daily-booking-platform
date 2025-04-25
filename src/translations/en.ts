@@ -335,6 +335,30 @@ const en: TranslationType = {
     privacy: "Privacy",
     and: "and",
     resetInstructions: "Enter your email and we'll send you instructions on how to reset your password."
+  },
+  legal: {
+    title: "Terms and Privacy Policy",
+    lastUpdated: "Last Updated: {{date}}",
+    termsOfService: "Terms of Service",
+    welcomeText: "Welcome to SmartBookly. These Terms of Service ('Terms') govern your use of our SaaS platform and services ('Services'). By accessing or using our Services, you agree to these Terms. If you do not agree, please do not use our Services.",
+    generalInfo: {
+      title: "1. General Information",
+      companyName: "Company Name: SmartBookly",
+      registered: "Registered in: Georgia",
+      contact: "Contact Email: info@smartbookly.com"
+    },
+    eligibility: {
+      title: "2. Eligibility",
+      description: "You must be at least 18 years old to use our Services. By using our platform, you confirm that you meet this requirement."
+    },
+    accountSecurity: {
+      title: "3. Account Registration & Security",
+      requirements: [
+        "You must provide accurate and complete information when creating an account.",
+        "You are responsible for maintaining the confidentiality of your account and password.",
+        "Notify us immediately of any unauthorized access to your account."
+      ]
+    }
   }
 };
 

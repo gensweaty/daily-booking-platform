@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -359,6 +358,29 @@ export interface TranslationType {
     resetInstructions: string;
     signingIn?: string;
     loading?: string;
+    passwordRequirements: string;
+    confirmPasswordLabel: string;
+  };
+  
+  legal: {
+    title: string;
+    lastUpdated: string;
+    termsOfService: string;
+    welcomeText: string;
+    generalInfo: {
+      title: string;
+      companyName: string;
+      registered: string;
+      contact: string;
+    };
+    eligibility: {
+      title: string;
+      description: string;
+    };
+    accountSecurity: {
+      title: string;
+      requirements: string[];
+    };
   };
 }
 
