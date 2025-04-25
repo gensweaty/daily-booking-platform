@@ -1,4 +1,3 @@
-import { TranslationType } from "./types";
 
 export type Language = 'en' | 'es' | 'ka';
 
