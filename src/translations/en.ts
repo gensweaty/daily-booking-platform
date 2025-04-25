@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 const en: TranslationType = {
@@ -181,7 +180,8 @@ const en: TranslationType = {
     uploadImageCover: "Upload an image for your business cover (JPEG, PNG, WebP)",
     publicPageUrl: "This will be used for your public page URL:",
     notFound: "Business not found",
-    notFoundDescription: "Sorry, we couldn't find a business at this URL. Please check the URL and try again."
+    notFoundDescription: "Sorry, we couldn't find a business at this URL. Please check the URL and try again.",
+    updateProfile: "Update Profile"
   },
   dashboard: {
     welcome: "Welcome back",
