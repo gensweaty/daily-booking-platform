@@ -334,7 +334,12 @@ const en: TranslationType = {
     terms: "Terms",
     privacy: "Privacy",
     and: "and",
-    resetInstructions: "Enter your email and we'll send you instructions on how to reset your password."
+    resetInstructions: "Enter your email and we'll send you instructions on how to reset your password.",
+    passwordRequirements: "Password must be at least 6 characters long",
+    confirmPasswordLabel: "Confirm Password",
+    signingIn: "Signing in...",
+    signingUp: "Signing up...",
+    loading: "Loading..."
   },
   legal: {
     title: "Terms and Privacy Policy",

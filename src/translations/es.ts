@@ -334,7 +334,12 @@ const es: TranslationType = {
     terms: "Términos",
     privacy: "Privacidad",
     and: "y",
-    resetInstructions: "Ingresa tu correo electrónico y te enviaremos instrucciones sobre cómo restablecer tu contraseña."
+    resetInstructions: "Ingresa tu correo electrónico y te enviaremos instrucciones sobre cómo restablecer tu contraseña.",
+    passwordRequirements: "La contraseña debe tener al menos 6 caracteres",
+    confirmPasswordLabel: "Confirmar Contraseña",
+    signingIn: "Iniciando sesión...",
+    signingUp: "Registrando...",
+    loading: "Cargando..."
   },
   legal: {
     title: "Términos y Política de Privacidad",
