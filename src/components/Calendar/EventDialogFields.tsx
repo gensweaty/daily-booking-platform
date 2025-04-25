@@ -166,7 +166,7 @@ export const EventDialogFields = ({
                 <SelectValue placeholder={t("events.selectPaymentStatus")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">--</SelectItem>
+                <SelectItem value="none" className={isGeorgian ? "font-georgian" : ""}>--</SelectItem>
                 <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.notPaid")}</SelectItem>
                 <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidPartly")}</SelectItem>
                 <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidFully")}</SelectItem>
