@@ -111,14 +111,14 @@ const es: TranslationType = {
     done: "Completada"
   },
   website: {
-    title: "Sitio Web",
+    title: "Sitio Web Gratuito para tu negocio",
     description:
       "Obtén un sitio web profesional de reservas para tu negocio sin ningún código.",
     feature1: "Diseño profesional",
-    feature2: "Responsive para móviles",
-    feature3: "Listados de servicios",
+    feature2: "Adaptable a móviles",
+    feature3: "Listado de servicios",
     feature4: "Integración de reservas en línea",
-    feature5: "Plantillas personalizables",
+    feature5: "Aprobación de citas por correo electrónico",
   },
   cta: {
     title: "¿Listo para hacer crecer tu negocio?",

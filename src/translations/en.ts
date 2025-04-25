@@ -111,14 +111,14 @@ const en: TranslationType = {
     done: "Done"
   },
   website: {
-    title: "Website",
+    title: "Free Website for your business",
     description:
       "Get a professional booking website for your business without any coding.",
     feature1: "Professional design",
     feature2: "Mobile responsive",
     feature3: "Service listings",
     feature4: "Online booking integration",
-    feature5: "Customizable templates",
+    feature5: "Booking appointment approvement by email",
   },
   cta: {
     title: "Ready to grow your business?",
