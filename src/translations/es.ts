@@ -24,13 +24,14 @@ const es: TranslationType = {
     businessTitle: "Para cualquier tipo de negocio",
   },
   booking: {
-    title: "Reservas",
+    title: "Reservas en Vivo",
     description:
       "Optimiza tu proceso de programación de citas con nuestro sistema intuitivo de reservas.",
     feature1: "Programación fácil de citas",
     feature2: "Recordatorios automáticos",
-    feature3: "Integración con calendario",
-    feature4: "Opciones de pago en línea",
+    feature3: "Notificaciones por correo electrónico",
+    feature4: "Seguimiento de recetas en línea",
+    feature5: "Vista Mensual, Semanal y Diaria del Calendario de Reservas",
     requestSubmitted: "¡Tu solicitud de reserva ha sido enviada con éxito!",
     yourEmailPlaceholder: "Introduce tu correo electrónico",
   },

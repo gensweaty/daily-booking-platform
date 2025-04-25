@@ -24,13 +24,14 @@ const en: TranslationType = {
     businessTitle: "For any type of business",
   },
   booking: {
-    title: "Booking",
+    title: "Live Bookings",
     description:
       "Streamline your appointment scheduling process with our intuitive booking system.",
     feature1: "Easy appointment scheduling",
     feature2: "Automated reminders",
-    feature3: "Calendar integration",
-    feature4: "Online payment options",
+    feature3: "Email notifications",
+    feature4: "Online recipe tracking",
+    feature5: "Month, Week, and Day view of the Booking Calendar",
     requestSubmitted: "Your booking request has been submitted successfully!",
     yourEmailPlaceholder: "Enter your email",
   },
