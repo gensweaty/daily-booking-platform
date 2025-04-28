@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,7 +6,7 @@ import {
   ImageIcon,
   FileTextIcon,
   FileSpreadsheetIcon,
-  FilePresentationIcon,
+  PresentationIcon,
   FileArchiveIcon,
   FileBarChartIcon,
   FileDigitIcon,
@@ -29,68 +28,60 @@ interface FileDisplayProps {
   bucketName: string;
   allowDelete?: boolean;
   onFileDeleted?: (fileId: string) => void;
-  parentType?: 'event' | 'customer' | 'booking';
+  parentType?: 'event' | 'customer' | 'booking' | 'task' | 'note';
+  parentId?: string;
 }
 
-const BUCKET_NAME = 'event_attachments';  // Default bucket name
+const BUCKET_NAME = 'event_attachments';
 
 export const FileDisplay = ({
   files,
   bucketName = BUCKET_NAME,
   allowDelete = false,
   onFileDeleted,
-  parentType = 'event'
+  parentType = 'event',
+  parentId
 }: FileDisplayProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentFileId, setCurrentFileId] = useState<string | null>(null);
 
-  // Helper function to determine the appropriate icon based on file type
   const getFileIcon = (contentType: string | null, fileName: string) => {
     const fileExt = fileName.split('.').pop()?.toLowerCase();
     
-    // Image types
     if (contentType?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(fileExt || '')) {
       return <ImageIcon className="h-5 w-5" />;
     }
     
-    // Document types
     if (contentType?.includes('pdf') || fileExt === 'pdf') {
       return <FileTextIcon className="h-5 w-5" />;
     }
     
-    // Spreadsheet types
     if (['xlsx', 'xls', 'csv'].includes(fileExt || '')) {
       return <FileSpreadsheetIcon className="h-5 w-5" />;
     }
     
-    // Presentation types
     if (['ppt', 'pptx'].includes(fileExt || '')) {
-      return <FilePresentationIcon className="h-5 w-5" />;
+      return <PresentationIcon className="h-5 w-5" />;
     }
     
-    // Archive types
     if (['zip', 'rar', '7z', 'tar', 'gz'].includes(fileExt || '')) {
       return <FileArchiveIcon className="h-5 w-5" />;
     }
     
-    // Code types
     if (['js', 'ts', 'jsx', 'tsx', 'html', 'css', 'php', 'py', 'java', 'c', 'cpp'].includes(fileExt || '')) {
       return <FileCode2Icon className="h-5 w-5" />;
     }
     
-    // Text types
     if (['txt', 'md', 'rtf'].includes(fileExt || '')) {
       return <FileTextIcon className="h-5 w-5" />;
     }
     
-    // Data types
     if (['json', 'xml'].includes(fileExt || '')) {
       return <FileDigitIcon className="h-5 w-5" />;
     }
     
-    // Default file icon
     return <FileIcon className="h-5 w-5" />;
   };
 
@@ -125,7 +116,7 @@ export const FileDisplay = ({
       
       const { data, error } = await supabase.storage
         .from(bucketName)
-        .createSignedUrl(file.file_path, 60); // 60 seconds expiry
+        .createSignedUrl(file.file_path, 60);
   
       if (error) {
         console.error('Error getting signed URL:', error);
@@ -138,7 +129,6 @@ export const FileDisplay = ({
   
       console.log('Received signed URL:', data.signedUrl);
   
-      // Open in new tab
       window.open(data.signedUrl, '_blank');
     } catch (error) {
       console.error('Error opening file:', error);
@@ -161,7 +151,6 @@ export const FileDisplay = ({
         throw error;
       }
   
-      // Create a download link and click it
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
@@ -194,22 +183,23 @@ export const FileDisplay = ({
       
       console.log(`Deleting file: ${fileId}, path: ${fileToDelete.file_path} from bucket: ${bucketName}`);
       
-      // Delete the file from storage
       const { error: storageError } = await supabase.storage
         .from(bucketName)
         .remove([fileToDelete.file_path]);
       
       if (storageError) {
         console.error('Error removing file from storage:', storageError);
-        // Continue with database record deletion even if storage removal fails
       }
 
-      // Delete the file record from database
       let tableToDeleteFrom;
       if (parentType === 'customer') {
         tableToDeleteFrom = 'customer_files_new';
       } else if (parentType === 'booking') {
-        tableToDeleteFrom = 'event_files'; // assuming bookings use event_files
+        tableToDeleteFrom = 'event_files';
+      } else if (parentType === 'task') {
+        tableToDeleteFrom = 'files';
+      } else if (parentType === 'note') {
+        tableToDeleteFrom = 'note_files';
       } else {
         tableToDeleteFrom = 'event_files';
       }
