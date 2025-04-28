@@ -8,15 +8,15 @@ import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format } from "date-fns";
 import { FileDisplay } from "@/components/shared/FileDisplay";
-import { Badge } from "@/components/ui/badge";
 import { PaymentStatus } from "@/lib/types";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Clock, ChevronUp, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -149,47 +149,21 @@ export const CustomerDialogFields = ({
     );
   };
 
-  // Generate time options for the time picker (every 15 minutes)
-  const generateTimeOptions = () => {
-    const options = [];
-    for (let hour = 8; hour <= 10; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
-        const formattedHour = hour.toString().padStart(2, '0');
-        const formattedMinute = minute.toString().padStart(2, '0');
-        options.push({
-          value: `${formattedHour}:${formattedMinute}`,
-          label: `${formattedHour}:${formattedMinute}`
-        });
-      }
-    }
-    return options;
-  };
-
-  const timeOptions = generateTimeOptions();
-
-  // Format display values for UI
-  const formatTimeDisplay = (date: Date) => {
-    return format(date, 'HH:mm');
-  };
-
   const formatDateDisplay = (date: Date) => {
-    return format(date, 'MM/dd/yyyy');
+    return format(date, 'MM/dd/yyyy HH:mm');
   };
 
-  // Update time handlers
-  const updateStartTime = (time: string) => {
-    const [hours, minutes] = time.split(':').map(Number);
-    const newDate = new Date(eventStartDate);
-    newDate.setHours(hours, minutes);
-    setEventStartDate(newDate);
-  };
+  // Generate time options for hours selection grid - full 24 hours
+  const hours = Array.from({ length: 24 }, (_, i) => {
+    const hour = i.toString().padStart(2, '0');
+    return { value: hour, label: hour };
+  });
 
-  const updateEndTime = (time: string) => {
-    const [hours, minutes] = time.split(':').map(Number);
-    const newDate = new Date(eventEndDate);
-    newDate.setHours(hours, minutes);
-    setEventEndDate(newDate);
-  };
+  // Generate time options for minutes selection grid - every 15 minutes
+  const minutes = ['00', '15', '30', '45'].map(minute => ({
+    value: minute,
+    label: minute
+  }));
 
   return (
     <div className="space-y-4 mt-4">
@@ -269,98 +243,196 @@ export const CustomerDialogFields = ({
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label htmlFor="startDate" className="text-xs text-muted-foreground">
-                  <LanguageText>{t("events.start")}</LanguageText>
+                  {t("events.start")}
                 </Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button 
                       variant="outline" 
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !eventStartDate && "text-muted-foreground"
-                      )}
+                      className="w-full justify-start text-left font-normal"
                     >
-                      <div className="flex-1 text-left">
-                        {eventStartDate ? `${formatDateDisplay(eventStartDate)} ${formatTimeDisplay(eventStartDate)}` : "Select date"}
-                      </div>
+                      {formatDateDisplay(eventStartDate)}
                       <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={eventStartDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          const newDate = new Date(date);
-                          newDate.setHours(eventStartDate.getHours(), eventStartDate.getMinutes());
-                          setEventStartDate(newDate);
-                        }
-                      }}
-                      initialFocus
-                      className="p-3 pointer-events-auto"
-                    />
-                    <div className="grid grid-cols-3 gap-1 p-2 border-t">
-                      {timeOptions.slice(0, 12).map((option) => (
-                        <Button 
-                          key={option.value}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-8"
-                          onClick={() => updateStartTime(option.value)}
-                        >
-                          {option.label}
-                        </Button>
-                      ))}
+                  <PopoverContent 
+                    className="w-auto p-0 bg-popover" 
+                    align="start"
+                    sideOffset={4}
+                  >
+                    <div className="flex">
+                      <div className="border-r">
+                        <div className="flex items-center justify-between px-3 py-2 bg-muted">
+                          <h4 className="font-medium text-sm">
+                            {format(eventStartDate, 'MMMM yyyy')}
+                          </h4>
+                          <div className="flex items-center space-x-1">
+                            <Button variant="outline" size="icon" className="h-7 w-7 bg-background">
+                              <ChevronUp className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" className="h-7 w-7 bg-background">
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <Calendar
+                          mode="single"
+                          selected={eventStartDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              const newDate = new Date(date);
+                              newDate.setHours(eventStartDate.getHours(), eventStartDate.getMinutes());
+                              setEventStartDate(newDate);
+                            }
+                          }}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </div>
+                      <div className="flex">
+                        <div className="grid auto-rows-max overflow-hidden">
+                          <ScrollArea className="h-72 w-16">
+                            <div className="flex flex-col items-center">
+                              {hours.map((hour) => (
+                                <div
+                                  key={hour.value}
+                                  className={cn(
+                                    "flex items-center justify-center text-center h-10 w-full cursor-pointer hover:bg-muted",
+                                    eventStartDate.getHours() === parseInt(hour.value) && "bg-primary text-primary-foreground"
+                                  )}
+                                  onClick={() => {
+                                    const newDate = new Date(eventStartDate);
+                                    newDate.setHours(parseInt(hour.value));
+                                    setEventStartDate(newDate);
+                                  }}
+                                >
+                                  {hour.label}
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                        <div className="grid auto-rows-max overflow-hidden">
+                          <ScrollArea className="h-72 w-16">
+                            <div className="flex flex-col items-center">
+                              {minutes.map((minute) => (
+                                <div
+                                  key={minute.value}
+                                  className={cn(
+                                    "flex items-center justify-center text-center h-10 w-full cursor-pointer hover:bg-muted",
+                                    eventStartDate.getMinutes() === parseInt(minute.value) && "bg-primary text-primary-foreground"
+                                  )}
+                                  onClick={() => {
+                                    const newDate = new Date(eventStartDate);
+                                    newDate.setMinutes(parseInt(minute.value));
+                                    setEventStartDate(newDate);
+                                  }}
+                                >
+                                  {minute.label}
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                      </div>
                     </div>
                   </PopoverContent>
                 </Popover>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="endDate" className="text-xs text-muted-foreground">
-                  <LanguageText>{t("events.end")}</LanguageText>
+                  {t("events.end")}
                 </Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button 
                       variant="outline" 
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !eventEndDate && "text-muted-foreground"
-                      )}
+                      className="w-full justify-start text-left font-normal"
                     >
-                      <div className="flex-1 text-left">
-                        {eventEndDate ? `${formatDateDisplay(eventEndDate)} ${formatTimeDisplay(eventEndDate)}` : "Select date"}
-                      </div>
+                      {formatDateDisplay(eventEndDate)}
                       <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={eventEndDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          const newDate = new Date(date);
-                          newDate.setHours(eventEndDate.getHours(), eventEndDate.getMinutes());
-                          setEventEndDate(newDate);
-                        }
-                      }}
-                      initialFocus
-                      className="p-3 pointer-events-auto"
-                    />
-                    <div className="grid grid-cols-3 gap-1 p-2 border-t">
-                      {timeOptions.slice(0, 12).map((option) => (
-                        <Button 
-                          key={option.value}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-8"
-                          onClick={() => updateEndTime(option.value)}
-                        >
-                          {option.label}
-                        </Button>
-                      ))}
+                  <PopoverContent 
+                    className="w-auto p-0 bg-popover" 
+                    align="start"
+                    sideOffset={4}
+                  >
+                    <div className="flex">
+                      <div className="border-r">
+                        <div className="flex items-center justify-between px-3 py-2 bg-muted">
+                          <h4 className="font-medium text-sm">
+                            {format(eventEndDate, 'MMMM yyyy')}
+                          </h4>
+                          <div className="flex items-center space-x-1">
+                            <Button variant="outline" size="icon" className="h-7 w-7 bg-background">
+                              <ChevronUp className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" className="h-7 w-7 bg-background">
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <Calendar
+                          mode="single"
+                          selected={eventEndDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              const newDate = new Date(date);
+                              newDate.setHours(eventEndDate.getHours(), eventEndDate.getMinutes());
+                              setEventEndDate(newDate);
+                            }
+                          }}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </div>
+                      <div className="flex">
+                        <div className="grid auto-rows-max overflow-hidden">
+                          <ScrollArea className="h-72 w-16">
+                            <div className="flex flex-col items-center">
+                              {hours.map((hour) => (
+                                <div
+                                  key={hour.value}
+                                  className={cn(
+                                    "flex items-center justify-center text-center h-10 w-full cursor-pointer hover:bg-muted",
+                                    eventEndDate.getHours() === parseInt(hour.value) && "bg-primary text-primary-foreground"
+                                  )}
+                                  onClick={() => {
+                                    const newDate = new Date(eventEndDate);
+                                    newDate.setHours(parseInt(hour.value));
+                                    setEventEndDate(newDate);
+                                  }}
+                                >
+                                  {hour.label}
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                        <div className="grid auto-rows-max overflow-hidden">
+                          <ScrollArea className="h-72 w-16">
+                            <div className="flex flex-col items-center">
+                              {minutes.map((minute) => (
+                                <div
+                                  key={minute.value}
+                                  className={cn(
+                                    "flex items-center justify-center text-center h-10 w-full cursor-pointer hover:bg-muted",
+                                    eventEndDate.getMinutes() === parseInt(minute.value) && "bg-primary text-primary-foreground"
+                                  )}
+                                  onClick={() => {
+                                    const newDate = new Date(eventEndDate);
+                                    newDate.setMinutes(parseInt(minute.value));
+                                    setEventEndDate(newDate);
+                                  }}
+                                >
+                                  {minute.label}
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                      </div>
                     </div>
                   </PopoverContent>
                 </Popover>
@@ -374,7 +446,7 @@ export const CustomerDialogFields = ({
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={t("crm.selectPaymentStatus")} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-popover">
                 <SelectItem value="not_paid">{t("crm.notPaid")}</SelectItem>
                 <SelectItem value="partly">{t("crm.paidPartly")}</SelectItem>
                 <SelectItem value="fully">{t("crm.paidFully")}</SelectItem>
