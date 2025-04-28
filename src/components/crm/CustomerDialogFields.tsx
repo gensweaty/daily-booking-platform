@@ -147,6 +147,26 @@ export const CustomerDialogFields = ({
     );
   };
 
+  // Format event date and time for display
+  const formatEventDateTime = (date: Date | undefined) => {
+    if (!date) return "";
+    return format(date, "PPp");
+  };
+  
+  // Function to adjust the time of a date
+  const updateTime = (date: Date, timeString: string): Date => {
+    if (!timeString) return date;
+    
+    const newDate = new Date(date);
+    const [hours, minutes] = timeString.split(':').map(Number);
+    
+    if (!isNaN(hours) && !isNaN(minutes)) {
+      newDate.setHours(hours, minutes, 0, 0);
+    }
+    
+    return newDate;
+  };
+
   return (
     <div className="space-y-4 mt-4">
       <div className="space-y-2">
@@ -220,62 +240,90 @@ export const CustomerDialogFields = ({
 
       {createEvent && (
         <>
-          {/* Date selection fields */}
+          {/* Updated Date selection fields with time picker */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Start Date */}
             <div className="space-y-2">
               <Label>{t("events.eventStart")}</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left",
-                      !eventStart && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {eventStart ? format(eventStart, "PPp") : t("events.selectDate")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={eventStart}
-                    onSelect={(date) => date && setEventStart && setEventStart(date)}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="flex flex-col space-y-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left",
+                        !eventStart && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {eventStart ? format(eventStart, "PPP") : t("events.selectDate")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-800" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={eventStart}
+                      onSelect={(date) => date && setEventStart && setEventStart(date)}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                
+                {/* Time input for start */}
+                <Input
+                  type="time"
+                  value={eventStart ? format(eventStart, "HH:mm") : "09:00"}
+                  onChange={(e) => {
+                    if (setEventStart && eventStart) {
+                      setEventStart(updateTime(eventStart, e.target.value));
+                    }
+                  }}
+                  className="mt-2"
+                />
+              </div>
             </div>
 
             {/* End Date */}
             <div className="space-y-2">
               <Label>{t("events.eventEnd")}</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left",
-                      !eventEnd && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {eventEnd ? format(eventEnd, "PPp") : t("events.selectDate")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={eventEnd}
-                    onSelect={(date) => date && setEventEnd && setEventEnd(date)}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="flex flex-col space-y-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left",
+                        !eventEnd && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {eventEnd ? format(eventEnd, "PPP") : t("events.selectDate")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-800" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={eventEnd}
+                      onSelect={(date) => date && setEventEnd && setEventEnd(date)}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                
+                {/* Time input for end */}
+                <Input
+                  type="time"
+                  value={eventEnd ? format(eventEnd, "HH:mm") : "10:00"}
+                  onChange={(e) => {
+                    if (setEventEnd && eventEnd) {
+                      setEventEnd(updateTime(eventEnd, e.target.value));
+                    }
+                  }}
+                  className="mt-2"
+                />
+              </div>
             </div>
           </div>
 
