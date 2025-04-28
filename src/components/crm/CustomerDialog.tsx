@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -68,6 +69,17 @@ export const CustomerDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [isEventBased, setIsEventBased] = useState(false);
+  
+  // Add start and end date state with proper initialization
+  const now = new Date();
+  const startHour = new Date(now);
+  startHour.setHours(9, 0, 0, 0);
+  const endHour = new Date(now);
+  endHour.setHours(10, 0, 0, 0);
+  
+  const [eventStartDate, setEventStartDate] = useState<Date>(startHour);
+  const [eventEndDate, setEventEndDate] = useState<Date>(endHour);
+  
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -85,6 +97,15 @@ export const CustomerDialog = ({
       setCustomerNotes(initialData.event_notes || "");
       
       setIsEventBased(!!initialData.start_date && !!initialData.end_date);
+      
+      // Initialize dates from initialData if available
+      if (initialData.start_date) {
+        setEventStartDate(new Date(initialData.start_date));
+      }
+      
+      if (initialData.end_date) {
+        setEventEndDate(new Date(initialData.end_date));
+      }
     } else {
       setTitle("");
       setUserSurname("");
@@ -95,6 +116,16 @@ export const CustomerDialog = ({
       setPaymentAmount("");
       setCustomerNotes("");
       setIsEventBased(false);
+      
+      // Reset to default dates
+      const now = new Date();
+      const startHour = new Date(now);
+      startHour.setHours(9, 0, 0, 0);
+      const endHour = new Date(now);
+      endHour.setHours(10, 0, 0, 0);
+      
+      setEventStartDate(startHour);
+      setEventEndDate(endHour);
     }
   }, [initialData, open]);
 
@@ -171,12 +202,6 @@ export const CustomerDialog = ({
     if (!title) return;
     if (isSubmitting) return;
 
-    const now = new Date();
-    const start = new Date(now);
-    start.setHours(9, 0, 0, 0);
-    const end = new Date(now);
-    end.setHours(10, 0, 0, 0);
-
     setIsSubmitting(true);
 
     try {
@@ -216,8 +241,8 @@ export const CustomerDialog = ({
           .insert({
             ...customerData,
             type: 'customer',
-            start_date: createEvent ? start.toISOString() : null,
-            end_date: createEvent ? end.toISOString() : null,
+            start_date: createEvent ? eventStartDate.toISOString() : null,
+            end_date: createEvent ? eventEndDate.toISOString() : null,
           })
           .select()
           .single();
@@ -239,8 +264,8 @@ export const CustomerDialog = ({
           user_number: userNumber,
           social_network_link: socialNetworkLink,
           event_notes: customerNotes,
-          start_date: format(start, "yyyy-MM-dd'T'HH:mm"),
-          end_date: format(end, "yyyy-MM-dd'T'HH:mm"),
+          start_date: eventStartDate.toISOString(),
+          end_date: eventEndDate.toISOString(),
           payment_status: paymentStatus || null,
           payment_amount: paymentStatus && paymentStatus !== 'not_paid' ? parseFloat(paymentAmount) : null,
           user_id: user?.id,
@@ -276,8 +301,8 @@ export const CustomerDialog = ({
                 socialNetworkLink,
                 userSurname || title,
                 businessName,
-                start,
-                end
+                eventStartDate,
+                eventEndDate
               );
               
               if (emailResult.success) {
@@ -395,6 +420,10 @@ export const CustomerDialog = ({
             isEventBased={isEventBased}
             startDate={initialData?.start_date}
             endDate={initialData?.end_date}
+            eventStartDate={eventStartDate}
+            setEventStartDate={setEventStartDate}
+            eventEndDate={eventEndDate}
+            setEventEndDate={setEventEndDate}
           />
           <DialogFooter className="mt-6">
             <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>

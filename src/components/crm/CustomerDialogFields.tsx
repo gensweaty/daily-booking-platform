@@ -11,6 +11,12 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import { Badge } from "@/components/ui/badge";
 import { PaymentStatus } from "@/lib/types";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -39,6 +45,10 @@ interface CustomerDialogFieldsProps {
   customerId?: string;
   displayedFiles?: any[];
   onFileDeleted?: (fileId: string) => void;
+  eventStartDate: Date;
+  setEventStartDate: (date: Date) => void;
+  eventEndDate: Date;
+  setEventEndDate: (date: Date) => void;
 }
 
 export const CustomerDialogFields = ({
@@ -68,10 +78,14 @@ export const CustomerDialogFields = ({
   customerId,
   displayedFiles = [],
   onFileDeleted,
+  eventStartDate,
+  setEventStartDate,
+  eventEndDate,
+  setEventEndDate,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
   
-  // Check if we should show the payment amount field
+  // Show payment amount field if payment status is partly paid or fully paid
   const showPaymentAmount = paymentStatus === "partly" || paymentStatus === "fully";
 
   const formatDateTime = (dateStr: string | null | undefined) => {
@@ -133,6 +147,55 @@ export const CustomerDialogFields = ({
         </div>
       </div>
     );
+  };
+
+  // Datetime picker helpers
+  const [timePickerOpen, setTimePickerOpen] = useState<{ start: boolean, end: boolean }>({
+    start: false,
+    end: false,
+  });
+
+  const generateTimeOptions = () => {
+    const options = [];
+    for (let hour = 0; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 15) {
+        const formattedHour = hour.toString().padStart(2, '0');
+        const formattedMinute = minute.toString().padStart(2, '0');
+        options.push({
+          value: `${formattedHour}:${formattedMinute}`,
+          label: `${formattedHour}:${formattedMinute}`
+        });
+      }
+    }
+    return options;
+  };
+
+  const timeOptions = generateTimeOptions();
+
+  const updateStartTime = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const newDate = new Date(eventStartDate);
+    newDate.setHours(hours, minutes);
+    setEventStartDate(newDate);
+    setTimePickerOpen(prev => ({ ...prev, start: false }));
+  };
+
+  const updateEndTime = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const newDate = new Date(eventEndDate);
+    newDate.setHours(hours, minutes);
+    setEventEndDate(newDate);
+    setTimePickerOpen(prev => ({ ...prev, end: false }));
+  };
+
+  // Format displayed time
+  const formatTimeDisplay = (date: Date) => {
+    return format(date, 'HH:mm');
+  };
+
+  // Format displayed date
+  const formatDateDisplay = (date: Date) => {
+    return format(date, 'MM/dd/yyyy');
   };
 
   return (
@@ -208,6 +271,114 @@ export const CustomerDialogFields = ({
 
       {createEvent && (
         <>
+          <div className="space-y-2">
+            <Label>{t("events.dateAndTime")}</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="startDate" className="text-xs text-muted-foreground">
+                  <LanguageText>{t("events.start")}</LanguageText>
+                </Label>
+                <div className="relative">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !eventStartDate && "text-muted-foreground"
+                        )}
+                      >
+                        <div className="flex-1 text-left">
+                          {eventStartDate ? `${formatDateDisplay(eventStartDate)} ${formatTimeDisplay(eventStartDate)}` : "Select date"}
+                        </div>
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={eventStartDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            const newDate = new Date(date);
+                            newDate.setHours(eventStartDate.getHours(), eventStartDate.getMinutes());
+                            setEventStartDate(newDate);
+                          }
+                        }}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                      <div className="grid grid-cols-3 gap-1 p-2 border-t">
+                        {timeOptions.slice(32, 44).map((option) => (
+                          <Button 
+                            key={option.value}
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-8"
+                            onClick={() => updateStartTime(option.value)}
+                          >
+                            {option.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="endDate" className="text-xs text-muted-foreground">
+                  <LanguageText>{t("events.end")}</LanguageText>
+                </Label>
+                <div className="relative">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !eventEndDate && "text-muted-foreground"
+                        )}
+                      >
+                        <div className="flex-1 text-left">
+                          {eventEndDate ? `${formatDateDisplay(eventEndDate)} ${formatTimeDisplay(eventEndDate)}` : "Select date"}
+                        </div>
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={eventEndDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            const newDate = new Date(date);
+                            newDate.setHours(eventEndDate.getHours(), eventEndDate.getMinutes());
+                            setEventEndDate(newDate);
+                          }
+                        }}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                      <div className="grid grid-cols-3 gap-1 p-2 border-t">
+                        {timeOptions.slice(32, 44).map((option) => (
+                          <Button 
+                            key={option.value}
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-8"
+                            onClick={() => updateEndTime(option.value)}
+                          >
+                            {option.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label>{t("crm.paymentStatus")}</Label>
             <Select value={paymentStatus} onValueChange={setPaymentStatus}>
