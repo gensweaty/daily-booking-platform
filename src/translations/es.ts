@@ -24,16 +24,16 @@ export const es: TranslationType = {
     businessTitle: "Para cualquier tipo de negocio",
   },
   booking: {
-    title: "Sistema de Reservas Inteligente",
+    title: "Sistema Inteligente de Reservas",
     description: "Gestiona eficientemente tus citas y eventos",
     feature1: "Múltiples vistas de calendario (mes, semana, día)",
     feature2: "Programación de eventos con franjas horarias personalizables",
     feature3: "Gestión de reservas de clientes con seguimiento de pagos",
-    feature4: "Sincronización automatizada de eventos con CRM",
+    feature4: "Sincronización automática de eventos con CRM",
     feature5: "Vista de calendario mensual, semanal y diaria",
-    feature6: "Notificaciones de reserva por correo electrónico y panel",
+    feature6: "Notificaciones de reservas por correo electrónico y panel",
     requestSubmitted: "¡Tu solicitud de reserva ha sido enviada con éxito!",
-    yourEmailPlaceholder: "Introduce tu correo electrónico"
+    yourEmailPlaceholder: "Ingresa tu correo electrónico"
   },
   analytics: {
     title: "Análisis Integral",
