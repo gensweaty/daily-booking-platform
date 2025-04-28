@@ -50,7 +50,9 @@ export const FeatureSection = () => {
         t('booking.feature1'),
         t('booking.feature2'),
         t('booking.feature3'),
-        t('booking.feature4')
+        t('booking.feature4'),
+        t('booking.feature5'),
+        t('booking.feature6')
       ],
       translationPrefix: 'booking' as const,
       id: "smart-booking",
