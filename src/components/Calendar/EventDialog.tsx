@@ -90,6 +90,12 @@ export const EventDialog = ({
       setOriginalStartDate(formattedStart);
       setOriginalEndDate(formattedEnd);
       setPaymentStatus("not_paid");
+      
+      setTitle("");
+      setUserSurname("");
+      setUserNumber("");
+      setSocialNetworkLink("");
+      setEventNotes("");
     }
   }, [selectedDate, event, open]);
 
@@ -219,6 +225,8 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    const finalTitle = userSurname;
+    
     const startDateTime = new Date(startDate);
     const endDateTime = new Date(endDate);
     
@@ -234,7 +242,7 @@ export const EventDialog = ({
     const isApprovingBookingRequest = wasBookingRequest && !isBookingEvent;
     
     const eventData: Partial<CalendarEventType> = {
-      title,
+      title: finalTitle,
       user_surname: userSurname,
       user_number: userNumber,
       social_network_link: socialNetworkLink,

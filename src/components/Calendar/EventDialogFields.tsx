@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -75,25 +76,16 @@ export const EventDialogFields = ({
   return (
     <>
       <div>
-        <Label htmlFor="title" className={labelClass}>
-          {t("events.title")}
-        </Label>
-        <Input
-          id="title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={t("events.title")}
-          required
-        />
-      </div>
-      <div>
         <Label htmlFor="userSurname" className={labelClass}>
           {t("events.fullName")}
         </Label>
         <Input
           id="userSurname"
           value={userSurname}
-          onChange={(e) => setUserSurname(e.target.value)}
+          onChange={(e) => {
+            setUserSurname(e.target.value);
+            setTitle(e.target.value); // Set title to same as userSurname
+          }}
           placeholder={t("events.fullName")}
           required
         />
