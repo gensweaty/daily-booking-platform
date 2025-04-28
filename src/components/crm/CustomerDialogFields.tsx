@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -228,101 +227,151 @@ export const CustomerDialogFields = ({
                 <Label htmlFor="startDate" className="text-xs text-muted-foreground">
                   {t("events.start")}
                 </Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !eventStart && "text-muted-foreground"
-                      )}
+                <Input
+                  id="startDate"
+                  type="datetime-local"
+                  value={eventStart ? format(eventStart, "yyyy-MM-dd'T'HH:mm") : ""}
+                  onChange={(e) => {
+                    if (setEventStart && e.target.value) {
+                      setEventStart(new Date(e.target.value));
+                    }
+                  }}
+                  className="bg-background"
+                  required
+                />
+                {/* Custom date picker popup */}
+                <div className="relative mt-1">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button 
+                        type="button" 
+                        className="absolute right-2 top-[-34px] p-1 rounded-md hover:bg-muted"
+                        aria-label="Pick a date"
+                      >
+                        <CalendarIcon className="h-4 w-4" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent 
+                      className="w-auto p-0 bg-popover" 
+                      align="end"
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {eventStart ? format(eventStart, "PPP") : t("events.pickDate")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-background" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={eventStart}
-                      onSelect={(date) => date && setEventStart && setEventStart(date)}
-                      initialFocus
-                    />
-                    <div className="grid grid-cols-4 gap-1 p-2 border-t border-border bg-background">
-                      {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hour) => (
-                        <button
-                          key={`start-hour-${hour}`}
-                          type="button"
-                          onClick={() => {
-                            if (eventStart && setEventStart) {
-                              const newDate = new Date(eventStart);
-                              newDate.setHours(hour, 0, 0, 0);
-                              setEventStart(newDate);
+                      <Calendar
+                        mode="single"
+                        selected={eventStart}
+                        onSelect={(date) => {
+                          if (date && setEventStart) {
+                            // Keep the time from the existing date
+                            const newDate = new Date(date);
+                            if (eventStart) {
+                              newDate.setHours(
+                                eventStart.getHours(),
+                                eventStart.getMinutes(),
+                                0,
+                                0
+                              );
                             }
-                          }}
-                          className="rounded hover:bg-gray-100 dark:hover:bg-gray-700 p-1 text-center text-sm"
-                        >
-                          {hour}:00
-                        </button>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                {eventStart && (
-                  <div className="text-xs mt-1 text-muted-foreground">
-                    {format(eventStart, "h:mm a, MMM d, yyyy")}
-                  </div>
-                )}
+                            setEventStart(newDate);
+                          }
+                        }}
+                        initialFocus
+                        className="bg-background p-3 pointer-events-auto"
+                      />
+                      <div className="grid grid-cols-4 gap-1 p-2 border-t border-border bg-background">
+                        {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hour) => (
+                          <button
+                            key={`start-hour-${hour}`}
+                            type="button"
+                            onClick={() => {
+                              if (eventStart && setEventStart) {
+                                const newDate = new Date(eventStart);
+                                newDate.setHours(hour, 0, 0, 0);
+                                setEventStart(newDate);
+                              }
+                            }}
+                            className="rounded hover:bg-muted p-1 text-center text-sm"
+                          >
+                            {hour}:00
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
               <div>
                 <Label htmlFor="endDate" className="text-xs text-muted-foreground">
                   {t("events.end")}
                 </Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !eventEnd && "text-muted-foreground"
-                      )}
+                <Input
+                  id="endDate"
+                  type="datetime-local"
+                  value={eventEnd ? format(eventEnd, "yyyy-MM-dd'T'HH:mm") : ""}
+                  onChange={(e) => {
+                    if (setEventEnd && e.target.value) {
+                      setEventEnd(new Date(e.target.value));
+                    }
+                  }}
+                  className="bg-background"
+                  required
+                />
+                {/* Custom date picker popup */}
+                <div className="relative mt-1">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="absolute right-2 top-[-34px] p-1 rounded-md hover:bg-muted"
+                        aria-label="Pick a date"
+                      >
+                        <CalendarIcon className="h-4 w-4" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent 
+                      className="w-auto p-0 bg-popover" 
+                      align="end"
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {eventEnd ? format(eventEnd, "PPP") : t("events.pickDate")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-background" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={eventEnd}
-                      onSelect={(date) => date && setEventEnd && setEventEnd(date)}
-                      initialFocus
-                    />
-                    <div className="grid grid-cols-4 gap-1 p-2 border-t border-border bg-background">
-                      {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hour) => (
-                        <button
-                          key={`end-hour-${hour}`}
-                          type="button"
-                          onClick={() => {
-                            if (eventEnd && setEventEnd) {
-                              const newDate = new Date(eventEnd);
-                              newDate.setHours(hour, 0, 0, 0);
-                              setEventEnd(newDate);
+                      <Calendar
+                        mode="single"
+                        selected={eventEnd}
+                        onSelect={(date) => {
+                          if (date && setEventEnd) {
+                            // Keep the time from the existing date
+                            const newDate = new Date(date);
+                            if (eventEnd) {
+                              newDate.setHours(
+                                eventEnd.getHours(),
+                                eventEnd.getMinutes(),
+                                0,
+                                0
+                              );
                             }
-                          }}
-                          className="rounded hover:bg-gray-100 dark:hover:bg-gray-700 p-1 text-center text-sm"
-                        >
-                          {hour}:00
-                        </button>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                {eventEnd && (
-                  <div className="text-xs mt-1 text-muted-foreground">
-                    {format(eventEnd, "h:mm a, MMM d, yyyy")}
-                  </div>
-                )}
+                            setEventEnd(newDate);
+                          }
+                        }}
+                        initialFocus
+                        className="bg-background p-3 pointer-events-auto"
+                      />
+                      <div className="grid grid-cols-4 gap-1 p-2 border-t border-border bg-background">
+                        {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hour) => (
+                          <button
+                            key={`end-hour-${hour}`}
+                            type="button"
+                            onClick={() => {
+                              if (eventEnd && setEventEnd) {
+                                const newDate = new Date(eventEnd);
+                                newDate.setHours(hour, 0, 0, 0);
+                                setEventEnd(newDate);
+                              }
+                            }}
+                            className="rounded hover:bg-muted p-1 text-center text-sm"
+                          >
+                            {hour}:00
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
             </div>
           </div>
