@@ -1,3 +1,4 @@
+
 import { Calendar, ChartBar, ListTodo, Users, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ClientLogos } from "./ClientLogos";
@@ -31,7 +32,7 @@ export const FeatureSection = () => {
     title: t('booking.title'),
     description: t('booking.description'),
     carousel: calendarViews,
-    benefits: [t('booking.feature1'), t('booking.feature2'), t('booking.feature3'), t('booking.feature4'), t('booking.feature5'), t('booking.feature6')],
+    benefits: [t('booking.feature1'), t('booking.feature2'), t('booking.feature3'), t('booking.feature4'), t('booking.feature5')],
     translationPrefix: 'booking' as const,
     id: "smart-booking",
     reverse: true
