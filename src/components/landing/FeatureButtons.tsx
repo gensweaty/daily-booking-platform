@@ -16,8 +16,8 @@ export const FeatureButtons = () => {
   return (
     <div className="mb-16">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-          {t('features.title')}
+        <h2 className="text-2xl font-semibold text-[#E17B9E]">
+          What we offer
         </h2>
       </div>
       <div className="max-w-4xl mx-auto">
@@ -36,7 +36,7 @@ export const FeatureButtons = () => {
             className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
           >
             <Calendar className="w-5 h-5 text-primary shrink-0" />
-            <span className="text-sm font-medium">{t('features.booking')}</span>
+            <span className="text-sm font-medium">Smart Appointment Scheduling</span>
           </Button>
           <Button 
             variant="outline"
@@ -44,7 +44,7 @@ export const FeatureButtons = () => {
             className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
           >
             <BarChart className="w-5 h-5 text-accent shrink-0" />
-            <span className="text-sm font-medium">{t('features.analytics')}</span>
+            <span className="text-sm font-medium">Automated Performance Analytics</span>
           </Button>
           <Button 
             variant="outline"
@@ -52,7 +52,7 @@ export const FeatureButtons = () => {
             className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
           >
             <Users className="w-5 h-5 text-primary shrink-0" />
-            <span className="text-sm font-medium">{t('features.crm')}</span>
+            <span className="text-sm font-medium">Modern CRM Solution</span>
           </Button>
           <Button 
             variant="outline"
@@ -60,7 +60,7 @@ export const FeatureButtons = () => {
             className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
           >
             <ListTodo className="w-5 h-5 text-accent shrink-0" />
-            <span className="text-sm font-medium">{t('features.tasks')}</span>
+            <span className="text-sm font-medium">Kanban Board Task Management</span>
           </Button>
         </div>
       </div>
