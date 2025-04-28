@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const ka: TranslationType = {
@@ -33,6 +34,7 @@ export const ka: TranslationType = {
     feature2: "ღონისძიებების დაგეგმვა მოქნილი დროის სლოტებით",
     feature3: "კლიენტების ჯავშნის მართვა გადახდის თრექინგით",
     feature4: "ავტომატური სინქრონიზაცია CRM-თან",
+    feature5: "შეტყობინებების სისტემა კლიენტებთან კომუნიკაციისთვის",
     feature6: "ჯავშნის მოთხოვნების მართვა და ემაილ შეტყობინებები",
     requestSubmitted: "თქვენი მოთხოვნა წარმატებით გაიგზავნა!",
     yourEmailPlaceholder: "შეიყვანეთ თქვენი ელ-ფოსტა"
