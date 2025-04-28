@@ -21,10 +21,10 @@ export const ka: TranslationType = {
     website: "ვებგვერდი",
     ownBookingWebsite: "საკუთარი დაჯავშნის ვებგვერდი",
     businessTitle: "For any type of business",
-    smartAppointment: "ჭკვიანი შეხვედრების დაგეგმვა",
+    smartAppointment: "ჭკვიანი ივენთების ჯავშნები",
     automatedAnalytics: "ავტომატიზირებული ანალიტიკა",
     modernCRM: "თანამედროვე CRM გადაწყვეტა",
-    kanbanManagement: "Kanban დავალებების მართვა"
+    kanbanManagement: "Kanban ბორდი და დავალებები"
   },
   booking: {
     title: "ჭკვიანი დაჯავშნის სისტემა",
@@ -235,7 +235,7 @@ export const ka: TranslationType = {
     details: "დეტალები",
     additionalInfo: "Დამატებითი ინფორმაცია",
     taskStatistics: "დავალების სტატისტიკა",
-    eventStatistics: "ღონი��ძიების სტატისტიკა",
+    eventStatistics: "ღონისძიების სტატისტიკა",
     financialSummary: "Ფინანსური შეჯამება",
     summaryStatistics: "შეჯამების სტატისტიკა",
     eventsData: "მოვლენების მონაცემები",
@@ -389,7 +389,7 @@ export const ka: TranslationType = {
       requirements: [
         "თქვენ უნდა მიაწოდოთ ზუსტი და სრული ინფორმაცია ანგარიშის შექმნისას.",
         "თქვენ ხართ პასუხისმგებელი თქვენი ანგარიშისა და პაროლის კონფიდენციალურობის შენარჩუნებაზე.",
-        "��აუყოვნებლივ შეგვატყობინეთ თქვენს ანგარიშზე ნებისმიერი არაავტორიზებული წვდომის შესახებ."
+        "აუყოვნებლივ შეგვატყობინეთ თქვენს ანგარიშზე ნებისმიერი არაავტორიზებული წვდომის შესახებ."
       ]
     }
   }

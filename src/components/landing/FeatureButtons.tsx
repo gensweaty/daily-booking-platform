@@ -22,6 +22,7 @@ export const FeatureButtons = () => {
       </div>
       <div className="max-w-4xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* First row */}
           <Button 
             variant="outline"
             onClick={() => scrollToSection('booking-website')}
@@ -46,6 +47,12 @@ export const FeatureButtons = () => {
             <BarChart className="w-5 h-5 text-accent shrink-0" />
             <span className="text-sm font-medium">{t('features.automatedAnalytics')}</span>
           </Button>
+        </div>
+        {/* Second row with offset */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+          <div className="hidden md:block">
+            {/* Empty column for offset */}
+          </div>
           <Button 
             variant="outline"
             onClick={() => scrollToSection('crm-solution')}
