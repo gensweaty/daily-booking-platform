@@ -11,6 +11,7 @@ import { useBookingRequests } from "@/hooks/useBookingRequests";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "@/components/shared/LanguageText";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -44,7 +45,7 @@ export const BusinessPage = () => {
   }, [businessProfile]);
 
   if (isLoading) {
-    return <div className="text-center p-8">{t("common.loading")}</div>;
+    return <div className="text-center p-8"><LanguageText>{t("common.loading")}</LanguageText></div>;
   }
 
   const publicUrl = businessProfile?.slug 
@@ -62,9 +63,11 @@ export const BusinessPage = () => {
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
-          <TabsTrigger value="profile">{t("business.businessProfile")}</TabsTrigger>
+          <TabsTrigger value="profile">
+            <LanguageText>{t("business.businessProfile")}</LanguageText>
+          </TabsTrigger>
           <TabsTrigger value="bookings" className="relative">
-            {t("business.bookingRequests")}
+            <LanguageText>{t("business.bookingRequests")}</LanguageText>
             {pendingCount > 0 && (
               <Badge 
                 variant="destructive" 
@@ -78,13 +81,15 @@ export const BusinessPage = () => {
 
         <TabsContent value="profile" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">{t("business.myBusiness")}</h1>
+            <h1 className="text-2xl font-bold">
+              <LanguageText>{t("business.myBusiness")}</LanguageText>
+            </h1>
             {publicUrl && (
               <Button 
                 variant="outline"
                 onClick={() => window.open(publicUrl, '_blank')}
               >
-                {t("business.viewPublicPage")}
+                <LanguageText>{t("business.viewPublicPage")}</LanguageText>
               </Button>
             )}
           </div>
@@ -94,18 +99,25 @@ export const BusinessPage = () => {
 
         <TabsContent value="bookings" className="space-y-6">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{t("business.bookingRequests")}</h1>
+            <h1 className="text-2xl font-bold">
+              <LanguageText>{t("business.bookingRequests")}</LanguageText>
+            </h1>
             {pendingCount > 0 && (
               <div className="flex items-center gap-2 text-destructive bg-destructive/10 px-3 py-1 rounded-full">
                 <MessageSquare className="h-4 w-4" />
-                <span className="font-medium">{pendingCount} {pendingCount === 1 ? t("common.new") : t("common.new")} {pendingCount === 1 ? t("business.request") : t("business.requests")}</span>
+                <span className="font-medium">
+                  {pendingCount} <LanguageText>{pendingCount === 1 ? t("common.new") : t("common.new")}</LanguageText>{" "}
+                  <LanguageText>{pendingCount === 1 ? t("common.request") : t("common.requests")}</LanguageText>
+                </span>
               </div>
             )}
           </div>
 
           <div className="space-y-8">
             <div>
-              <h2 className="text-xl font-semibold mb-4">{t("business.pendingRequests")} ({pendingRequests.length})</h2>
+              <h2 className="text-xl font-semibold mb-4">
+                <LanguageText>{t("business.pendingRequests")}</LanguageText> ({pendingRequests.length})
+              </h2>
               <BookingRequestsList
                 requests={pendingRequests}
                 type="pending"
@@ -116,7 +128,9 @@ export const BusinessPage = () => {
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold mb-4">{t("business.approvedRequests")} ({approvedRequests.length})</h2>
+              <h2 className="text-xl font-semibold mb-4">
+                <LanguageText>{t("business.approvedRequests")}</LanguageText> ({approvedRequests.length})
+              </h2>
               <BookingRequestsList
                 requests={approvedRequests}
                 type="approved"
@@ -125,7 +139,9 @@ export const BusinessPage = () => {
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold mb-4">{t("business.rejectedRequests")} ({rejectedRequests.length})</h2>
+              <h2 className="text-xl font-semibold mb-4">
+                <LanguageText>{t("business.rejectedRequests")}</LanguageText> ({rejectedRequests.length})
+              </h2>
               <BookingRequestsList
                 requests={rejectedRequests}
                 type="rejected"

@@ -1,250 +1,167 @@
 
-import { format } from "date-fns";
-import { BookingRequest } from "@/types/database";
-import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle, Trash2, AlertCircle, Clock } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
-import { useState } from "react";
-import { useToast } from "@/components/ui/use-toast";
+// If you have this file, update it to use LanguageText components
+import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "@/components/shared/LanguageText";
+import { BookingRequest } from '@/lib/types';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { formatDate } from 'date-fns';
+import { Check, X, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
-  type: "pending" | "approved" | "rejected";
+  type: 'pending' | 'approved' | 'rejected';
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
   onDelete: (id: string) => void;
 }
 
-export const BookingRequestsList = ({
-  requests,
+export const BookingRequestsList = ({ 
+  requests, 
   type,
-  onApprove,
+  onApprove, 
   onReject,
-  onDelete,
+  onDelete 
 }: BookingRequestsListProps) => {
-  const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
-  const [processingId, setProcessingId] = useState<string | null>(null);
-  const { toast } = useToast();
   const { t } = useLanguage();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
+
+  const handleDeleteClick = (id: string) => {
+    setRequestToDelete(id);
+    setDeleteDialogOpen(true);
+  };
 
   const handleDeleteConfirm = () => {
     if (requestToDelete) {
       onDelete(requestToDelete);
+      setDeleteDialogOpen(false);
       setRequestToDelete(null);
-    }
-  };
-
-  const handleApprove = async (id: string) => {
-    if (!onApprove) return;
-    
-    try {
-      setProcessingId(id);
-      await onApprove(id);
-      toast({
-        title: t("common.success"),
-        description: t("business.approvalSuccess"),
-        duration: 5000,
-      });
-    } catch (error) {
-      console.error("Error approving booking:", error);
-      toast({
-        title: t("common.error"),
-        description: t("business.approvalError"),
-        variant: "destructive",
-        duration: 5000,
-      });
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const handleReject = async (id: string) => {
-    if (!onReject) return;
-    
-    try {
-      setProcessingId(id);
-      await onReject(id);
-    } catch (error) {
-      console.error("Error rejecting booking:", error);
-      toast({
-        title: t("common.error"),
-        description: t("business.rejectionError"),
-        variant: "destructive",
-      });
-    } finally {
-      setProcessingId(null);
     }
   };
 
   if (requests.length === 0) {
     return (
-      <div className="text-center py-8 border rounded-md bg-muted/20">
-        <div className="flex justify-center">
-          {type === "pending" ? (
-            <Clock className="h-12 w-12 text-muted-foreground" />
-          ) : type === "approved" ? (
-            <CheckCircle className="h-12 w-12 text-muted-foreground" />
-          ) : (
-            <XCircle className="h-12 w-12 text-muted-foreground" />
+      <div className="text-center p-10 border border-dashed rounded-lg">
+        <div className="flex justify-center mb-4">
+          {type === 'pending' && (
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full border-2 border-muted-foreground border-dashed"></div>
+            </div>
+          )}
+          {type === 'approved' && (
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <Check className="w-8 h-8 text-muted-foreground" />
+            </div>
+          )}
+          {type === 'rejected' && (
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <X className="w-8 h-8 text-muted-foreground" />
+            </div>
           )}
         </div>
-        <h3 className="mt-4 text-lg font-medium">
-          {type === "pending" 
-            ? t("business.noPendingRequests") 
-            : type === "approved" 
-              ? t("business.noApprovedRequests") 
-              : t("business.noRejectedRequests")}
+        <h3 className="text-lg font-medium">
+          <LanguageText>
+            {type === 'pending' ? t("business.noPendingRequests") : 
+             type === 'approved' ? t("business.noApprovedRequests") : 
+             t("business.noRejectedRequests")}
+          </LanguageText>
         </h3>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {type === "pending"
-            ? t("business.pendingRequestsDescription")
-            : type === "approved"
-            ? t("business.approvedRequestsDescription")
-            : t("business.rejectedRequestsDescription")}
+        <p className="text-muted-foreground mt-2">
+          <LanguageText>
+            {type === 'pending' ? t("business.pendingRequestsDescription") : 
+             type === 'approved' ? t("business.approvedRequestsDescription") : 
+             t("business.rejectedRequestsDescription")}
+          </LanguageText>
         </p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("business.customer")}</TableHead>
-            <TableHead>{t("business.title")}</TableHead>
-            <TableHead>{t("business.dateTime")}</TableHead>
-            <TableHead className="w-[150px]">{t("business.actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+    <>
+      <div className="rounded-md border">
+        <div className="bg-muted/50 p-4 grid grid-cols-4 font-medium">
+          <div><LanguageText>{t("business.customer")}</LanguageText></div>
+          <div><LanguageText>{t("business.title")}</LanguageText></div>
+          <div><LanguageText>{t("business.dateTime")}</LanguageText></div>
+          <div className="text-right"><LanguageText>{t("business.actions")}</LanguageText></div>
+        </div>
+        <div className="divide-y">
           {requests.map((request) => (
-            <TableRow key={request.id}>
-              <TableCell>
-                <div>
-                  <div className="font-medium">{request.requester_name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {request.requester_email}
-                    {request.requester_phone && ` • ${request.requester_phone}`}
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <HoverCard>
-                  <HoverCardTrigger asChild>
-                    <Button variant="ghost" className="p-0 font-normal text-left">
-                      {request.title}
-                    </Button>
-                  </HoverCardTrigger>
-                  <HoverCardContent className="w-80">
-                    <div>
-                      <h4 className="font-semibold mb-2">{request.title}</h4>
-                      {request.description ? (
-                        <p className="text-sm">{request.description}</p>
-                      ) : (
-                        <p className="text-sm text-muted-foreground italic">{t("business.noDescription")}</p>
-                      )}
-                    </div>
-                  </HoverCardContent>
-                </HoverCard>
-              </TableCell>
-              <TableCell>
-                <div>
-                  <div className="font-medium">
-                    {format(new Date(request.start_date), "MMM dd, yyyy")}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {format(new Date(request.start_date), "h:mm a")} -{" "}
-                    {format(new Date(request.end_date), "h:mm a")}
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex gap-1">
-                  {type === "pending" && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex gap-1 text-green-600 hover:text-green-700"
-                        onClick={() => handleApprove(request.id)}
-                        disabled={processingId === request.id}
-                      >
-                        {processingId === request.id ? (
-                          <span className="animate-spin h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full" />
-                        ) : (
-                          <CheckCircle className="h-4 w-4" />
-                        )}
-                        <span className="sr-only sm:not-sr-only sm:inline">{t("business.approve")}</span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex gap-1 text-red-600 hover:text-red-700"
-                        onClick={() => handleReject(request.id)}
-                        disabled={processingId === request.id}
-                      >
-                        <XCircle className="h-4 w-4" />
-                        <span className="sr-only sm:not-sr-only sm:inline">{t("business.reject")}</span>
-                      </Button>
-                    </>
-                  )}
-                  <AlertDialog open={requestToDelete === request.id} onOpenChange={(open) => !open && setRequestToDelete(null)}>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex gap-1 hover:text-red-600"
-                        onClick={() => setRequestToDelete(request.id)}
-                        disabled={processingId === request.id}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only sm:not-sr-only sm:inline">{t("business.delete")}</span>
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>{t("business.deleteBookingRequest")}</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {t("business.deleteConfirmation")}
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteConfirm}>{t("business.delete")}</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </TableCell>
-            </TableRow>
+            <div key={request.id} className="p-4 grid grid-cols-4 items-center">
+              <div className="overflow-hidden">
+                <div className="font-medium truncate">{request.full_name}</div>
+                <div className="text-sm text-muted-foreground truncate">{request.email || request.phone}</div>
+              </div>
+              <div className="truncate pr-4">{request.title}</div>
+              <div className="text-sm">
+                {request.start_time && (
+                  <>
+                    {formatDate(new Date(request.start_time), 'MMM d, yyyy')}
+                    <br />
+                    {formatDate(new Date(request.start_time), 'h:mm a')} - {request.end_time ? formatDate(new Date(request.end_time), 'h:mm a') : ''}
+                  </>
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                {type === 'pending' && onApprove && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex gap-1 items-center" 
+                    onClick={() => onApprove(request.id)}
+                  >
+                    <Check className="h-4 w-4" />
+                    <span><LanguageText>{t("business.approve")}</LanguageText></span>
+                  </Button>
+                )}
+                {type === 'pending' && onReject && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex gap-1 items-center" 
+                    onClick={() => onReject(request.id)}
+                  >
+                    <X className="h-4 w-4" />
+                    <span><LanguageText>{t("business.reject")}</LanguageText></span>
+                  </Button>
+                )}
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-destructive flex gap-1 items-center hover:bg-destructive/10" 
+                  onClick={() => handleDeleteClick(request.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span><LanguageText>{t("business.delete")}</LanguageText></span>
+                </Button>
+              </div>
+            </div>
           ))}
-        </TableBody>
-      </Table>
-    </div>
+        </div>
+      </div>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle><LanguageText>{t("business.deleteBookingRequest")}</LanguageText></DialogTitle>
+            <DialogDescription>
+              <LanguageText>{t("business.deleteConfirmation")}</LanguageText>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              <LanguageText>{t("common.cancel")}</LanguageText>
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm}>
+              <LanguageText>{t("business.delete")}</LanguageText>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
