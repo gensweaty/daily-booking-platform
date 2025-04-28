@@ -8,13 +8,9 @@ import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format } from "date-fns";
 import { FileDisplay } from "@/components/shared/FileDisplay";
+import { Badge } from "@/components/ui/badge";
+import { PaymentStatus } from "@/lib/types";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { Button } from "@/components/ui/button";
-import { CalendarIcon } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
-import { useState } from "react";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -40,10 +36,6 @@ interface CustomerDialogFieldsProps {
   isEventBased?: boolean;
   startDate?: string | null;
   endDate?: string | null;
-  eventStart?: Date;
-  setEventStart?: (date: Date) => void;
-  eventEnd?: Date;
-  setEventEnd?: (date: Date) => void;
   customerId?: string;
   displayedFiles?: any[];
   onFileDeleted?: (fileId: string) => void;
@@ -73,16 +65,11 @@ export const CustomerDialogFields = ({
   isEventBased = false,
   startDate,
   endDate,
-  eventStart,
-  setEventStart,
-  eventEnd,
-  setEventEnd,
   customerId,
   displayedFiles = [],
   onFileDeleted,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
-  const isGeorgian = language === 'ka';
   
   // Check if we should show the payment amount field
   const showPaymentAmount = paymentStatus === "partly" || paymentStatus === "fully";
@@ -221,148 +208,6 @@ export const CustomerDialogFields = ({
 
       {createEvent && (
         <>
-          {/* Date and Time Selection - Exactly like in Event Dialog */}
-          <div className="space-y-2">
-            <Label htmlFor="dateTime">{t("events.dateAndTime")}</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="startDate" className="text-xs text-muted-foreground">
-                  {t("events.start")}
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="startDate"
-                    type="text"
-                    value={eventStart ? format(eventStart, "MM/dd/yyyy HH:mm") : ""}
-                    className="bg-background"
-                    readOnly
-                  />
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        type="button"
-                        size="icon"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-md hover:bg-muted"
-                      >
-                        <CalendarIcon className="h-4 w-4" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="end">
-                      <Calendar
-                        mode="single"
-                        selected={eventStart}
-                        onSelect={(date) => {
-                          if (date && setEventStart) {
-                            const newDate = new Date(date);
-                            if (eventStart) {
-                              newDate.setHours(
-                                eventStart.getHours(),
-                                eventStart.getMinutes(),
-                                0,
-                                0
-                              );
-                            }
-                            setEventStart(newDate);
-                          }
-                        }}
-                        initialFocus
-                        className="bg-background p-3 pointer-events-auto"
-                      />
-                      <div className="grid grid-cols-4 gap-1 p-2 border-t border-border bg-background">
-                        {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hour) => (
-                          <Button
-                            key={`start-hour-${hour}`}
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              if (eventStart && setEventStart) {
-                                const newDate = new Date(eventStart);
-                                newDate.setHours(hour, 0, 0, 0);
-                                setEventStart(newDate);
-                              }
-                            }}
-                            className="text-center text-sm h-8"
-                          >
-                            {hour}:00
-                          </Button>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="endDate" className="text-xs text-muted-foreground">
-                  {t("events.end")}
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="endDate"
-                    type="text"
-                    value={eventEnd ? format(eventEnd, "MM/dd/yyyy HH:mm") : ""}
-                    className="bg-background"
-                    readOnly
-                  />
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        type="button"
-                        size="icon"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-md hover:bg-muted"
-                      >
-                        <CalendarIcon className="h-4 w-4" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="end">
-                      <Calendar
-                        mode="single"
-                        selected={eventEnd}
-                        onSelect={(date) => {
-                          if (date && setEventEnd) {
-                            const newDate = new Date(date);
-                            if (eventEnd) {
-                              newDate.setHours(
-                                eventEnd.getHours(),
-                                eventEnd.getMinutes(),
-                                0,
-                                0
-                              );
-                            }
-                            setEventEnd(newDate);
-                          }
-                        }}
-                        initialFocus
-                        className="bg-background p-3 pointer-events-auto"
-                      />
-                      <div className="grid grid-cols-4 gap-1 p-2 border-t border-border bg-background">
-                        {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hour) => (
-                          <Button
-                            key={`end-hour-${hour}`}
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              if (eventEnd && setEventEnd) {
-                                const newDate = new Date(eventEnd);
-                                newDate.setHours(hour, 0, 0, 0);
-                                setEventEnd(newDate);
-                              }
-                            }}
-                            className="text-center text-sm h-8"
-                          >
-                            {hour}:00
-                          </Button>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <div className="space-y-2">
             <Label>{t("crm.paymentStatus")}</Label>
             <Select value={paymentStatus} onValueChange={setPaymentStatus}>
