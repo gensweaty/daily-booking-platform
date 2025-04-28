@@ -1,5 +1,3 @@
-import { Language } from './types';
-
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
