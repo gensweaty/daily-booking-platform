@@ -76,9 +76,11 @@ export const ClientLogos = () => {
             <div className={`p-4 rounded-full ${company.bgColor} group-hover:scale-110 transition-transform duration-300`}>
               <company.icon className={`w-8 h-8 ${company.iconColor}`} />
             </div>
-            <span className="text-base font-medium text-center leading-tight">{company.name}</span>
+            <span className="text-base font-medium text-center leading-tight">
+              <LanguageText withFont={true}>{company.name}</LanguageText>
+            </span>
             <span className="text-sm text-muted-foreground text-center hidden lg:block leading-snug">
-              {company.description}
+              <LanguageText withFont={true}>{company.description}</LanguageText>
             </span>
           </motion.div>
         ))}
