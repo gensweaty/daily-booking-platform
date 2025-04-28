@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 const ka: TranslationType = {
@@ -59,7 +58,7 @@ const ka: TranslationType = {
     fullNameRequired: "სახელი სავალდებულოა",
     fullNamePlaceholder: "სრული სახელი",
     phoneNumber: "ტელეფონის ნომერი",
-    phoneNumberPlaceholder: "ტელეფონის ნომერი",
+    phoneNumberPlaceholder: "ტელეფონის ��ომერი",
     socialLinkEmail: "ელ-ფოსტა/სოც. ბმული",
     socialLinkEmailPlaceholder: "ელ-ფოსტა ან სოციალური ბმული",
     createEventForCustomer: "შექმენით ივენთი კლიენტისთვის",
@@ -127,7 +126,7 @@ const ka: TranslationType = {
     terms: "წესები და პირობები",
     privacy: "კონფიდენციალურობა",
     description: "ერთიანი ციფრული პლატფორმა თქვენი ბიზნესისთვის",
-    navigation: "ნავიგაცია",
+    navigation: "��ავიგაცია",
     legal: "სამართლებრივი",
     termsAndPrivacy: "წესები და კონფიდენციალურობა",
     rights: "ყველა უფლება დაცულია"
@@ -229,7 +228,7 @@ const ka: TranslationType = {
     profile: "პროფილი",
     category: "კატეგორია",
     details: "დეტალები",
-    additionalInfo: "დამატებითი ინფორმაცია",
+    additionalInfo: "და��ატებითი ინფორმაცია",
     taskStatistics: "დავალებების სტატისტიკა",
     eventStatistics: "ივენთების სტატისტიკა",
     financialSummary: "ფინანსური მიმოხილვა",
@@ -391,4 +390,4 @@ const ka: TranslationType = {
   }
 };
 
-export default ka;
+export { ka };

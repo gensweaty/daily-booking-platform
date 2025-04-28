@@ -374,4 +374,4 @@ const es: TranslationType = {
   }
 };
 
-export default es;
+export { es };
