@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -68,6 +69,19 @@ export const CustomerDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [isEventBased, setIsEventBased] = useState(false);
+  
+  // New state for event start and end dates
+  const [eventStart, setEventStart] = useState<Date>(() => {
+    const now = new Date();
+    now.setHours(9, 0, 0, 0);
+    return now;
+  });
+  const [eventEnd, setEventEnd] = useState<Date>(() => {
+    const now = new Date();
+    now.setHours(10, 0, 0, 0);
+    return now;
+  });
+  
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -85,6 +99,14 @@ export const CustomerDialog = ({
       setCustomerNotes(initialData.event_notes || "");
       
       setIsEventBased(!!initialData.start_date && !!initialData.end_date);
+      
+      // Set event dates if available
+      if (initialData.start_date) {
+        setEventStart(new Date(initialData.start_date));
+      }
+      if (initialData.end_date) {
+        setEventEnd(new Date(initialData.end_date));
+      }
     } else {
       setTitle("");
       setUserSurname("");
@@ -95,6 +117,16 @@ export const CustomerDialog = ({
       setPaymentAmount("");
       setCustomerNotes("");
       setIsEventBased(false);
+      
+      // Reset dates to default values
+      const now = new Date();
+      const start = new Date(now);
+      start.setHours(9, 0, 0, 0);
+      const end = new Date(now);
+      end.setHours(10, 0, 0, 0);
+      
+      setEventStart(start);
+      setEventEnd(end);
     }
   }, [initialData, open]);
 
@@ -171,12 +203,6 @@ export const CustomerDialog = ({
     if (!title) return;
     if (isSubmitting) return;
 
-    const now = new Date();
-    const start = new Date(now);
-    start.setHours(9, 0, 0, 0);
-    const end = new Date(now);
-    end.setHours(10, 0, 0, 0);
-
     setIsSubmitting(true);
 
     try {
@@ -216,8 +242,8 @@ export const CustomerDialog = ({
           .insert({
             ...customerData,
             type: 'customer',
-            start_date: createEvent ? start.toISOString() : null,
-            end_date: createEvent ? end.toISOString() : null,
+            start_date: createEvent ? eventStart.toISOString() : null,
+            end_date: createEvent ? eventEnd.toISOString() : null,
           })
           .select()
           .single();
@@ -239,8 +265,8 @@ export const CustomerDialog = ({
           user_number: userNumber,
           social_network_link: socialNetworkLink,
           event_notes: customerNotes,
-          start_date: format(start, "yyyy-MM-dd'T'HH:mm"),
-          end_date: format(end, "yyyy-MM-dd'T'HH:mm"),
+          start_date: format(eventStart, "yyyy-MM-dd'T'HH:mm"),
+          end_date: format(eventEnd, "yyyy-MM-dd'T'HH:mm"),
           payment_status: paymentStatus || null,
           payment_amount: paymentStatus && paymentStatus !== 'not_paid' ? parseFloat(paymentAmount) : null,
           user_id: user?.id,
@@ -276,8 +302,8 @@ export const CustomerDialog = ({
                 socialNetworkLink,
                 userSurname || title,
                 businessName,
-                start,
-                end
+                eventStart,
+                eventEnd
               );
               
               if (emailResult.success) {
@@ -395,6 +421,10 @@ export const CustomerDialog = ({
             isEventBased={isEventBased}
             startDate={initialData?.start_date}
             endDate={initialData?.end_date}
+            eventStart={eventStart}
+            setEventStart={setEventStart}
+            eventEnd={eventEnd}
+            setEventEnd={setEventEnd}
           />
           <DialogFooter className="mt-6">
             <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>

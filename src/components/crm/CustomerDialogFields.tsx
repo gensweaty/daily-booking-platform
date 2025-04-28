@@ -8,9 +8,13 @@ import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format } from "date-fns";
 import { FileDisplay } from "@/components/shared/FileDisplay";
-import { Badge } from "@/components/ui/badge";
-import { PaymentStatus } from "@/lib/types";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { Button } from "@/components/ui/button";
+import { CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -36,6 +40,10 @@ interface CustomerDialogFieldsProps {
   isEventBased?: boolean;
   startDate?: string | null;
   endDate?: string | null;
+  eventStart?: Date;
+  setEventStart?: (date: Date) => void;
+  eventEnd?: Date;
+  setEventEnd?: (date: Date) => void;
   customerId?: string;
   displayedFiles?: any[];
   onFileDeleted?: (fileId: string) => void;
@@ -65,6 +73,10 @@ export const CustomerDialogFields = ({
   isEventBased = false,
   startDate,
   endDate,
+  eventStart,
+  setEventStart,
+  eventEnd,
+  setEventEnd,
   customerId,
   displayedFiles = [],
   onFileDeleted,
@@ -208,6 +220,65 @@ export const CustomerDialogFields = ({
 
       {createEvent && (
         <>
+          {/* Date selection fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Start Date */}
+            <div className="space-y-2">
+              <Label>{t("events.eventStart")}</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left",
+                      !eventStart && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {eventStart ? format(eventStart, "PPp") : t("events.selectDate")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={eventStart}
+                    onSelect={(date) => date && setEventStart && setEventStart(date)}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* End Date */}
+            <div className="space-y-2">
+              <Label>{t("events.eventEnd")}</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left",
+                      !eventEnd && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {eventEnd ? format(eventEnd, "PPp") : t("events.selectDate")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={eventEnd}
+                    onSelect={(date) => date && setEventEnd && setEventEnd(date)}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label>{t("crm.paymentStatus")}</Label>
             <Select value={paymentStatus} onValueChange={setPaymentStatus}>
