@@ -159,11 +159,11 @@ export const CustomerDialogFields = ({
     return { value: hour, label: hour };
   });
 
-  // Generate time options for minutes selection grid - every 15 minutes
-  const minutes = ['00', '15', '30', '45'].map(minute => ({
-    value: minute,
-    label: minute
-  }));
+  // Generate time options for minutes selection grid - all 60 minutes
+  const minutes = Array.from({ length: 60 }, (_, i) => {
+    const minute = i.toString().padStart(2, '0');
+    return { value: minute, label: minute };
+  });
 
   return (
     <div className="space-y-4 mt-4">
@@ -256,7 +256,7 @@ export const CustomerDialogFields = ({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent 
-                    className="w-auto p-0 bg-popover" 
+                    className="w-auto p-0 bg-background" 
                     align="start"
                     sideOffset={4}
                   >
@@ -354,7 +354,7 @@ export const CustomerDialogFields = ({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent 
-                    className="w-auto p-0 bg-popover" 
+                    className="w-auto p-0 bg-background" 
                     align="start"
                     sideOffset={4}
                   >
@@ -446,7 +446,7 @@ export const CustomerDialogFields = ({
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={t("crm.selectPaymentStatus")} />
               </SelectTrigger>
-              <SelectContent className="bg-popover">
+              <SelectContent className="bg-background">
                 <SelectItem value="not_paid">{t("crm.notPaid")}</SelectItem>
                 <SelectItem value="partly">{t("crm.paidPartly")}</SelectItem>
                 <SelectItem value="fully">{t("crm.paidFully")}</SelectItem>
