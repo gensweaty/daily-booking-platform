@@ -54,11 +54,11 @@ export const FeatureCard = ({
             <Icon className="w-6 h-6 text-primary animate-pulse" />
           </div>
           <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            <LanguageText withFont={true}>{t(getTranslationKey('title'))}</LanguageText>
+            <LanguageText>{t(getTranslationKey('title'))}</LanguageText>
           </h3>
         </div>
         <p className="text-lg text-muted-foreground">
-          <LanguageText withFont={true}>{t(getTranslationKey('description'))}</LanguageText>
+          <LanguageText>{t(getTranslationKey('description'))}</LanguageText>
         </p>
         <ul className="space-y-3">
           {benefits.map((benefit, idx) => (
@@ -71,7 +71,7 @@ export const FeatureCard = ({
               className="flex items-start gap-2"
             >
               <CheckCircle className="w-5 h-5 text-primary mt-1" />
-              <span><LanguageText withFont={true}>{t(getTranslationKey(`feature${idx + 1}`))}</LanguageText></span>
+              <span><LanguageText>{t(getTranslationKey(`feature${idx + 1}`))}</LanguageText></span>
             </motion.li>
           ))}
         </ul>
