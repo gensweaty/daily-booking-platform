@@ -67,6 +67,9 @@ export const CustomerDialogFields = ({
   onFileDeleted,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
+  
+  // Check if we should show the payment amount field
+  const showPaymentAmount = paymentStatus === "partly" || paymentStatus === "fully";
 
   const formatDateTime = (dateStr: string | null | undefined) => {
     if (!dateStr) return "-";
@@ -163,7 +166,7 @@ export const CustomerDialogFields = ({
             </Select>
           </div>
 
-          {paymentStatus && paymentStatus !== 'not_paid' && (
+          {showPaymentAmount && (
             <div className="space-y-2">
               <Label htmlFor="amount">
                 {t("events.paymentAmount")} ({language === 'es' ? '€' : '$'})

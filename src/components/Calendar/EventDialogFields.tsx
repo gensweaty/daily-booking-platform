@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,6 +69,8 @@ export const EventDialogFields = ({
   const isGeorgian = language === 'ka';
   
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
+  
+  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
   
   return (
     <>
@@ -166,31 +167,33 @@ export const EventDialogFields = ({
                 <SelectValue placeholder={t("events.selectPaymentStatus")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none" className={isGeorgian ? "font-georgian" : ""}>--</SelectItem>
                 <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.notPaid")}</SelectItem>
                 <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidPartly")}</SelectItem>
                 <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidFully")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label htmlFor="paymentAmount" className={labelClass}>
-              {t("events.paymentAmount")}
-            </Label>
-            <Input
-              id="paymentAmount"
-              value={paymentAmount}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                  setPaymentAmount(value);
-                }
-              }}
-              placeholder="0.00"
-              type="text"
-              inputMode="decimal"
-            />
-          </div>
+          
+          {showPaymentAmount && (
+            <div>
+              <Label htmlFor="paymentAmount" className={labelClass}>
+                {t("events.paymentAmount")}
+              </Label>
+              <Input
+                id="paymentAmount"
+                value={paymentAmount}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                    setPaymentAmount(value);
+                  }
+                }}
+                placeholder="0.00"
+                type="text"
+                inputMode="decimal"
+              />
+            </div>
+          )}
         </>
       )}
       

@@ -41,7 +41,7 @@ export const EventDialog = ({
   const [endDate, setEndDate] = useState("");
   const [originalStartDate, setOriginalStartDate] = useState("");
   const [originalEndDate, setOriginalEndDate] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState(event?.payment_status || "");
+  const [paymentStatus, setPaymentStatus] = useState(event?.payment_status || "not_paid");
   const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
@@ -62,7 +62,7 @@ export const EventDialog = ({
       setUserNumber(event.user_number || event.requester_phone || "");
       setSocialNetworkLink(event.social_network_link || event.requester_email || "");
       setEventNotes(event.event_notes || event.description || "");
-      setPaymentStatus(event.payment_status || "");
+      setPaymentStatus(event.payment_status || "not_paid");
       setPaymentAmount(event.payment_amount?.toString() || "");
       
       const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
@@ -89,6 +89,7 @@ export const EventDialog = ({
       setEndDate(formattedEnd);
       setOriginalStartDate(formattedStart);
       setOriginalEndDate(formattedEnd);
+      setPaymentStatus("not_paid");
     }
   }, [selectedDate, event, open]);
 
