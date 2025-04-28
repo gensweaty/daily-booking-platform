@@ -9,6 +9,8 @@ import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PaymentStatus } from "@/lib/types";
 
 interface BookingRequestFormProps {
   businessId: string;
@@ -44,9 +46,14 @@ export const BookingRequestForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rateLimitExceeded, setRateLimitExceeded] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("not_paid");
+  const [paymentAmount, setPaymentAmount] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
+  
+  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
 
   useEffect(() => {
     const checkRateLimit = async () => {
@@ -132,7 +139,6 @@ export const BookingRequestForm = ({
       
       console.log("Business data retrieved:", businessData);
       
-      // If contact_email exists and is valid, use it
       if (businessData?.contact_email && businessData.contact_email.includes('@')) {
         console.log("Using contact_email from business profile:", businessData.contact_email);
         return businessData.contact_email;
@@ -143,7 +149,6 @@ export const BookingRequestForm = ({
         throw new Error("Invalid business configuration");
       }
       
-      // Try to get user email directly from auth
       try {
         const { data: userData } = await supabase.auth.getUser();
         
@@ -155,7 +160,6 @@ export const BookingRequestForm = ({
         console.error("Error getting user data:", userError);
       }
       
-      // Fallback to user_email field in business_profiles
       const { data: profileData } = await supabase
         .from('business_profiles')
         .select('user_email')
@@ -167,7 +171,6 @@ export const BookingRequestForm = ({
         return profileData.user_email;
       }
       
-      // Last resort fallback
       console.warn("No valid email found for business, using fallback");
       return "info@smartbookly.com";
     } catch (error) {
@@ -324,6 +327,14 @@ export const BookingRequestForm = ({
       console.log(`🔍 Creating booking request for business: ${businessId}`);
       console.log(`🔍 Start date: ${startDateTime.toISOString()}, End date: ${endDateTime.toISOString()}`);
       
+      let parsedPaymentAmount = null;
+      if (showPaymentAmount && paymentAmount) {
+        parsedPaymentAmount = parseFloat(paymentAmount);
+        if (isNaN(parsedPaymentAmount)) {
+          parsedPaymentAmount = null;
+        }
+      }
+
       const { data, error } = await supabase
         .from('booking_requests')
         .insert({
@@ -335,7 +346,9 @@ export const BookingRequestForm = ({
           description: notes,
           start_date: startDateTime.toISOString(),
           end_date: endDateTime.toISOString(),
-          status: 'pending'
+          status: 'pending',
+          payment_status: paymentStatus,
+          payment_amount: parsedPaymentAmount
         })
         .select()
         .single();
@@ -437,6 +450,8 @@ export const BookingRequestForm = ({
       setPhone("");
       setNotes("");
       setSelectedFile(null);
+      setPaymentStatus("not_paid");
+      setPaymentAmount("");
       
       if (onSuccess) {
         onSuccess();
@@ -547,6 +562,44 @@ export const BookingRequestForm = ({
       </div>
       
       <div className="space-y-2">
+        <Label htmlFor="paymentStatus">{t("events.paymentStatus")}</Label>
+        <Select
+          value={paymentStatus}
+          onValueChange={(value) => setPaymentStatus(value as PaymentStatus)}
+          disabled={isSubmitting || rateLimitExceeded}
+        >
+          <SelectTrigger id="paymentStatus" className={isGeorgian ? "font-georgian" : ""}>
+            <SelectValue placeholder={t("events.selectPaymentStatus")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.notPaid")}</SelectItem>
+            <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidPartly")}</SelectItem>
+            <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidFully")}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      
+      {showPaymentAmount && (
+        <div className="space-y-2">
+          <Label htmlFor="paymentAmount">{t("events.paymentAmount")}</Label>
+          <Input
+            id="paymentAmount"
+            value={paymentAmount}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                setPaymentAmount(value);
+              }
+            }}
+            placeholder="0.00"
+            type="text"
+            inputMode="decimal"
+            disabled={isSubmitting || rateLimitExceeded}
+          />
+        </div>
+      )}
+      
+      <div className="space-y-2">
         <Label htmlFor="notes">{t("events.eventNotes")}</Label>
         <Textarea
           id="notes"
@@ -566,8 +619,6 @@ export const BookingRequestForm = ({
       />
       
       <div className="flex justify-between space-x-2 pt-4">
-        
-        
         <div className="flex justify-end space-x-2">
           {onCancel && (
             <Button 
