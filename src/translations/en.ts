@@ -12,7 +12,7 @@ export const en: TranslationType = {
     description: "Take full control of your workflow with our seamless booking calendar, powerful task management, intelligent customer relationship management, and integrated analytics. Everything your business needs, all in one place.",
   },
   features: {
-    title: "Features",
+    title: "What we offer",
     mainTitle: "Everything you need to make your business thrive",
     booking: "Booking",
     tasks: "Tasks",
@@ -21,6 +21,10 @@ export const en: TranslationType = {
     website: "Website",
     ownBookingWebsite: "Your own booking website",
     businessTitle: "For any type of business",
+    smartAppointment: "Smart Appointment Scheduling",
+    automatedAnalytics: "Automated Performance Analytics",
+    modernCRM: "Modern CRM Solution",
+    kanbanManagement: "Kanban Board Task Management"
   },
   booking: {
     title: "Smart Booking System",

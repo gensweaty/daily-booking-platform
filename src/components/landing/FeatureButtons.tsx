@@ -17,7 +17,7 @@ export const FeatureButtons = () => {
     <div className="mb-16">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-semibold text-[#E17B9E]">
-          What we offer
+          {t('features.title')}
         </h2>
       </div>
       <div className="max-w-4xl mx-auto">
@@ -36,7 +36,7 @@ export const FeatureButtons = () => {
             className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
           >
             <Calendar className="w-5 h-5 text-primary shrink-0" />
-            <span className="text-sm font-medium">Smart Appointment Scheduling</span>
+            <span className="text-sm font-medium">{t('features.smartAppointment')}</span>
           </Button>
           <Button 
             variant="outline"
@@ -44,7 +44,7 @@ export const FeatureButtons = () => {
             className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
           >
             <BarChart className="w-5 h-5 text-accent shrink-0" />
-            <span className="text-sm font-medium">Automated Performance Analytics</span>
+            <span className="text-sm font-medium">{t('features.automatedAnalytics')}</span>
           </Button>
           <Button 
             variant="outline"
@@ -52,7 +52,7 @@ export const FeatureButtons = () => {
             className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
           >
             <Users className="w-5 h-5 text-primary shrink-0" />
-            <span className="text-sm font-medium">Modern CRM Solution</span>
+            <span className="text-sm font-medium">{t('features.modernCRM')}</span>
           </Button>
           <Button 
             variant="outline"
@@ -60,7 +60,7 @@ export const FeatureButtons = () => {
             className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
           >
             <ListTodo className="w-5 h-5 text-accent shrink-0" />
-            <span className="text-sm font-medium">Kanban Board Task Management</span>
+            <span className="text-sm font-medium">{t('features.kanbanManagement')}</span>
           </Button>
         </div>
       </div>

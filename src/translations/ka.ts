@@ -12,15 +12,19 @@ export const ka: TranslationType = {
     description: "სრულად აკონტროლეთ თქვენი სამუშაო პროცესი ჩვენი მოქნილი დაჯავშნის კალენდრით, მძლავრი დავალებების მართვით, ჭკვიანი კლიენტებთან ურთიერთობის მართვით და ინტეგრირებული ანალიტიკით. ყველაფერი, რაც თქვენს ბიზნესს სჭირდება, ერთ ადგილას.",
   },
   features: {
-    title: "ფუნქციები",
-    mainTitle: "ყველაფერი, რაც თქვენს ბიზნესს წარმატებისთვის სჭირდება",
+    title: "რას გთავაზობთ",
+    mainTitle: "Everything you need to make your business thrive",
     booking: "დაჯავშნა",
     tasks: "დავალებები",
     crm: "CRM",
     analytics: "ანალიტიკა",
     website: "ვებგვერდი",
-    ownBookingWebsite: "თქვენი საკუთარი დაჯავშნის ვებგვერდი",
-    businessTitle: "ნებისმიერი ტიპის ბიზნესისთვის"
+    ownBookingWebsite: "საკუთარი დაჯავშნის ვებგვერდი",
+    businessTitle: "For any type of business",
+    smartAppointment: "ჭკვიანი შეხვედრების დაგეგმვა",
+    automatedAnalytics: "ავტომატიზირებული ანალიტიკა",
+    modernCRM: "თანამედროვე CRM გადაწყვეტა",
+    kanbanManagement: "Kanban დავალებების მართვა"
   },
   booking: {
     title: "ჭკვიანი დაჯავშნის სისტემა",
@@ -231,7 +235,7 @@ export const ka: TranslationType = {
     details: "დეტალები",
     additionalInfo: "Დამატებითი ინფორმაცია",
     taskStatistics: "დავალების სტატისტიკა",
-    eventStatistics: "ღონისძიების სტატისტიკა",
+    eventStatistics: "ღონი��ძიების სტატისტიკა",
     financialSummary: "Ფინანსური შეჯამება",
     summaryStatistics: "შეჯამების სტატისტიკა",
     eventsData: "მოვლენების მონაცემები",
@@ -320,7 +324,7 @@ export const ka: TranslationType = {
   },
   auth: {
     welcome: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში",
-    description: "მართეთ თქვენი ბიზნესი ჩვენი სრული გადაწყვეტილებით",
+    description: "მართეთ თქვენი ბიზნეს ჩვენი სრული გადაწყვეტილებით",
     signInButton: "Შესვლა",
     signUpButton: "Რეგისტრაცია",
     emailLabel: "ელფოსტა",
@@ -385,7 +389,7 @@ export const ka: TranslationType = {
       requirements: [
         "თქვენ უნდა მიაწოდოთ ზუსტი და სრული ინფორმაცია ანგარიშის შექმნისას.",
         "თქვენ ხართ პასუხისმგებელი თქვენი ანგარიშისა და პაროლის კონფიდენციალურობის შენარჩუნებაზე.",
-        "დაუყოვნებლივ შეგვატყობინეთ თქვენს ანგარიშზე ნებისმიერი არაავტორიზებული წვდომის შესახებ."
+        "��აუყოვნებლივ შეგვატყობინეთ თქვენს ანგარიშზე ნებისმიერი არაავტორიზებული წვდომის შესახებ."
       ]
     }
   }

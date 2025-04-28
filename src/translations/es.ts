@@ -12,7 +12,7 @@ export const es: TranslationType = {
     description: "Toma el control total de tu flujo de trabajo con nuestro calendario de reservas sin problemas, potente gestión de tareas, gestión inteligente de relaciones con clientes y análisis integrado. Todo lo que tu negocio necesita, en un solo lugar.",
   },
   features: {
-    title: "Características",
+    title: "Qué ofrecemos",
     mainTitle: "Todo lo que necesitas para que tu negocio prospere",
     booking: "Reservas",
     tasks: "Tareas",
@@ -21,6 +21,10 @@ export const es: TranslationType = {
     website: "Sitio Web",
     ownBookingWebsite: "Tu propio sitio web de reservas",
     businessTitle: "Para cualquier tipo de negocio",
+    smartAppointment: "Programación Inteligente de Citas",
+    automatedAnalytics: "Análisis de Rendimiento Automatizado",
+    modernCRM: "Solución CRM Moderna",
+    kanbanManagement: "Gestión de Tareas con Kanban"
   },
   booking: {
     title: "Sistema Inteligente de Reservas",
