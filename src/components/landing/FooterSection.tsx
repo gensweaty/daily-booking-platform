@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Facebook, Twitter, Instagram, Linkedin, Github } from "lucide-react";
+import { LanguageText } from "../shared/LanguageText";
 
 export const FooterSection = () => {
   const { theme } = useTheme();
@@ -21,7 +22,7 @@ export const FooterSection = () => {
               />
             </Link>
             <p className="text-muted-foreground">
-              {t('footer.description')}
+              <LanguageText>{t('footer.description')}</LanguageText>
             </p>
             <div className="flex space-x-4">
               <a href="#" className="text-muted-foreground hover:text-foreground" aria-label="Visit our Facebook page">
@@ -43,32 +44,32 @@ export const FooterSection = () => {
           </div>
           
           <div>
-            <h3 className="text-lg font-medium mb-4">{t('footer.navigation')}</h3>
+            <h3 className="text-lg font-medium mb-4"><LanguageText>{t('footer.navigation')}</LanguageText></h3>
             <ul className="space-y-2">
               <li>
                 <Link to="/login" className="text-muted-foreground hover:text-foreground transition-colors">
-                  {t('nav.signin')}
+                  <LanguageText>{t('nav.signin')}</LanguageText>
                 </Link>
               </li>
               <li>
                 <Link to="/signup" className="text-muted-foreground hover:text-foreground transition-colors">
-                  {t('nav.signup')}
+                  <LanguageText>{t('auth.signUpButton')}</LanguageText>
                 </Link>
               </li>
               <li>
                 <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
-                  {t('nav.contact')}
+                  <LanguageText>{t('nav.contact')}</LanguageText>
                 </Link>
               </li>
             </ul>
           </div>
           
           <div>
-            <h3 className="text-lg font-medium mb-4">{t('footer.legal')}</h3>
+            <h3 className="text-lg font-medium mb-4"><LanguageText>{t('footer.legal')}</LanguageText></h3>
             <ul className="space-y-2">
               <li>
                 <Link to="/legal" className="text-muted-foreground hover:text-foreground transition-colors">
-                  {t('footer.termsAndPrivacy')}
+                  <LanguageText>{t('footer.termsAndPrivacy')}</LanguageText>
                 </Link>
               </li>
             </ul>
@@ -76,7 +77,7 @@ export const FooterSection = () => {
         </div>
         
         <div className="border-t mt-8 pt-8 text-center text-muted-foreground">
-          <p>{t('footer.rights')}</p>
+          <p><LanguageText>{t('footer.rights')}</LanguageText></p>
         </div>
       </div>
     </footer>
