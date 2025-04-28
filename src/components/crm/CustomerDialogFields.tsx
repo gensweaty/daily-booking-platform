@@ -82,6 +82,7 @@ export const CustomerDialogFields = ({
   onFileDeleted,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
   
   // Check if we should show the payment amount field
   const showPaymentAmount = paymentStatus === "partly" || paymentStatus === "fully";
@@ -220,7 +221,7 @@ export const CustomerDialogFields = ({
 
       {createEvent && (
         <>
-          {/* Date and Time Selection - Made exactly like in Event Dialog */}
+          {/* Date and Time Selection - Exactly like in Event Dialog */}
           <div className="space-y-2">
             <Label htmlFor="dateTime">{t("events.dateAndTime")}</Label>
             <div className="grid grid-cols-2 gap-2">
@@ -228,26 +229,21 @@ export const CustomerDialogFields = ({
                 <Label htmlFor="startDate" className="text-xs text-muted-foreground">
                   {t("events.start")}
                 </Label>
-                <Input
-                  id="startDate"
-                  type="datetime-local"
-                  value={eventStart ? format(eventStart, "yyyy-MM-dd'T'HH:mm") : ""}
-                  onChange={(e) => {
-                    if (setEventStart && e.target.value) {
-                      setEventStart(new Date(e.target.value));
-                    }
-                  }}
-                  className="bg-background"
-                  required
-                />
                 <div className="relative">
+                  <Input
+                    id="startDate"
+                    type="text"
+                    value={eventStart ? format(eventStart, "MM/dd/yyyy HH:mm") : ""}
+                    className="bg-background"
+                    readOnly
+                  />
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         type="button"
                         size="icon"
-                        className="absolute right-2 top-[-34px] p-1 rounded-md hover:bg-muted"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-md hover:bg-muted"
                       >
                         <CalendarIcon className="h-4 w-4" />
                       </Button>
@@ -301,26 +297,21 @@ export const CustomerDialogFields = ({
                 <Label htmlFor="endDate" className="text-xs text-muted-foreground">
                   {t("events.end")}
                 </Label>
-                <Input
-                  id="endDate"
-                  type="datetime-local"
-                  value={eventEnd ? format(eventEnd, "yyyy-MM-dd'T'HH:mm") : ""}
-                  onChange={(e) => {
-                    if (setEventEnd && e.target.value) {
-                      setEventEnd(new Date(e.target.value));
-                    }
-                  }}
-                  className="bg-background"
-                  required
-                />
                 <div className="relative">
+                  <Input
+                    id="endDate"
+                    type="text"
+                    value={eventEnd ? format(eventEnd, "MM/dd/yyyy HH:mm") : ""}
+                    className="bg-background"
+                    readOnly
+                  />
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         type="button"
                         size="icon"
-                        className="absolute right-2 top-[-34px] p-1 rounded-md hover:bg-muted"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-md hover:bg-muted"
                       >
                         <CalendarIcon className="h-4 w-4" />
                       </Button>
