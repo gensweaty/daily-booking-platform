@@ -9,6 +9,7 @@ import {
   GraduationCap 
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "@/components/shared/LanguageText";
 
 export const ClientLogos = () => {
   const { t } = useLanguage();
@@ -61,7 +62,7 @@ export const ClientLogos = () => {
   return (
     <div className="mb-16">
       <h3 className="text-center text-2xl font-semibold mb-8 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-        {t('features.businessTitle')}
+        <LanguageText withFont={true}>{t('features.businessTitle')}</LanguageText>
       </h3>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
         {logos.map((company, index) => (
