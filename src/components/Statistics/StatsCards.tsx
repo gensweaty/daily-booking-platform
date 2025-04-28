@@ -9,6 +9,7 @@ import {
   DollarSign,
   EuroIcon,
 } from "lucide-react";
+import { LanguageText } from "@/components/shared/LanguageText";
 
 interface StatsCardsProps {
   taskStats: {
@@ -33,7 +34,11 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
   const formattedIncome = `${isSpanish ? '€' : '$'}${eventStats.totalIncome.toFixed(2)}`;
   
   // Create descriptive payment information
-  const paymentDescription = `${eventStats.partlyPaid} ${t("dashboard.partlyPaid")}, ${eventStats.fullyPaid} ${t("dashboard.fullyPaid")}`;
+  const paymentDescription = (
+    <>
+      <LanguageText>{eventStats.partlyPaid} {t("dashboard.partlyPaid")}, {eventStats.fullyPaid} {t("dashboard.fullyPaid")}</LanguageText>
+    </>
+  );
 
   return (
     <div className="grid gap-4 md:grid-cols-4">
@@ -52,7 +57,7 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
       <StatCard
         title={t("dashboard.totalEvents")}
         value={eventStats.total}
-        description={paymentDescription}
+        description={`${eventStats.partlyPaid} ${t("dashboard.partlyPaid")}, ${eventStats.fullyPaid} ${t("dashboard.fullyPaid")}`}
         icon={CalendarCheck}
       />
       <StatCard

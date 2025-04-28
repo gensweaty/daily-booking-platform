@@ -216,21 +216,17 @@ export const CustomerList = () => {
       status.includes('fully') ? 'fully' : 
       'not_paid';
     
-    let variantClass;
-    let textColor;
+    let textColorClass = '';
     
     switch(normalizedStatus) {
       case 'fully':
-        variantClass = 'bg-[#F2FCE2] text-green-700 border-green-200';
-        textColor = 'text-green-600';
+        textColorClass = 'text-green-600';
         break;
       case 'partly':
-        variantClass = 'bg-[#FEF7CD] text-amber-700 border-amber-200';
-        textColor = 'text-yellow-600';
+        textColorClass = 'text-amber-600';
         break;
       default: // not_paid
-        variantClass = '';
-        textColor = 'text-[#ea384c]';
+        textColorClass = 'text-[#ea384c]';
         break;
     }
     
@@ -249,23 +245,23 @@ export const CustomerList = () => {
         displayStatus = status;
     }
     
-    if ((normalizedStatus === 'partly' || normalizedStatus === 'fully') && amount) {
+    if (normalizedStatus === 'not_paid') {
       return (
-        <Badge variant="outline" className={`font-medium ${variantClass}`}>
-          <span>{displayStatus}</span>
-          <span className="text-xs block mt-0.5">
-            ({language === 'es' ? '€' : '$'}{amount})
-          </span>
-        </Badge>
+        <span className={textColorClass}>
+          <LanguageText>{displayStatus}</LanguageText>
+        </span>
       );
     }
     
-    return normalizedStatus === 'not_paid' ? (
-      <span className={textColor}>{displayStatus}</span>
-    ) : (
-      <Badge variant="outline" className={`font-medium ${variantClass}`}>
-        {displayStatus}
-      </Badge>
+    return (
+      <div className={`font-medium ${textColorClass}`}>
+        <LanguageText>{displayStatus}</LanguageText>
+        {(normalizedStatus === 'partly' || normalizedStatus === 'fully') && amount && (
+          <div className="text-xs mt-0.5">
+            ({language === 'es' ? '€' : '$'}{amount.toFixed(2)})
+          </div>
+        )}
+      </div>
     );
   }, [t, language]);
 

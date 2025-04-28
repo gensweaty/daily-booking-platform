@@ -8,6 +8,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { cn } from "@/lib/utils";
 import { FileRecord } from "@/types/files";
+import { LanguageText } from "@/components/shared/LanguageText";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -77,7 +78,7 @@ export const EventDialogFields = ({
     <>
       <div>
         <Label htmlFor="userSurname" className={labelClass}>
-          {t("events.fullName")}
+          <LanguageText>{t("events.fullName")}</LanguageText>
         </Label>
         <Input
           id="userSurname"
@@ -92,7 +93,7 @@ export const EventDialogFields = ({
       </div>
       <div>
         <Label htmlFor="userNumber" className={labelClass}>
-          {t("events.phoneNumber")}
+          <LanguageText>{t("events.phoneNumber")}</LanguageText>
         </Label>
         <Input
           id="userNumber"
@@ -103,7 +104,7 @@ export const EventDialogFields = ({
       </div>
       <div>
         <Label htmlFor="socialNetworkLink" className={labelClass}>
-          {t("events.socialLinkEmail")}
+          <LanguageText>{t("events.socialLinkEmail")}</LanguageText>
         </Label>
         <Input
           id="socialNetworkLink"
@@ -115,12 +116,12 @@ export const EventDialogFields = ({
       </div>
       <div>
         <Label htmlFor="dateTime" className={labelClass}>
-          {t("events.dateAndTime")}
+          <LanguageText>{t("events.dateAndTime")}</LanguageText>
         </Label>
         <div className="grid grid-cols-2 gap-2">
           <div>
             <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
-              {t("events.start")}
+              <LanguageText>{t("events.start")}</LanguageText>
             </Label>
             <Input
               id="startDate"
@@ -132,7 +133,7 @@ export const EventDialogFields = ({
           </div>
           <div>
             <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
-              {t("events.end")}
+              <LanguageText>{t("events.end")}</LanguageText>
             </Label>
             <Input
               id="endDate"
@@ -149,7 +150,7 @@ export const EventDialogFields = ({
         <>
           <div>
             <Label htmlFor="paymentStatus" className={labelClass}>
-              {t("events.paymentStatus")}
+              <LanguageText>{t("events.paymentStatus")}</LanguageText>
             </Label>
             <Select
               value={paymentStatus}
@@ -159,9 +160,9 @@ export const EventDialogFields = ({
                 <SelectValue placeholder={t("events.selectPaymentStatus")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.notPaid")}</SelectItem>
-                <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidPartly")}</SelectItem>
-                <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidFully")}</SelectItem>
+                <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.notPaid")}</LanguageText></SelectItem>
+                <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.paidPartly")}</LanguageText></SelectItem>
+                <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.paidFully")}</LanguageText></SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -169,7 +170,7 @@ export const EventDialogFields = ({
           {showPaymentAmount && (
             <div>
               <Label htmlFor="paymentAmount" className={labelClass}>
-                {t("events.paymentAmount")}
+                <LanguageText>{t("events.paymentAmount")}</LanguageText>
               </Label>
               <Input
                 id="paymentAmount"
@@ -191,7 +192,7 @@ export const EventDialogFields = ({
       
       <div>
         <Label htmlFor="eventNotes" className={labelClass}>
-          {t("events.eventNotes")}
+          <LanguageText>{t("events.eventNotes")}</LanguageText>
         </Label>
         <Textarea
           id="eventNotes"
@@ -204,7 +205,7 @@ export const EventDialogFields = ({
       
       <div>
         <Label htmlFor="file" className={labelClass}>
-          {t("common.attachments")}
+          <LanguageText>{t("common.attachments")}</LanguageText>
         </Label>
         <FileUploadField
           onChange={setSelectedFile}

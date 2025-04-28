@@ -9,6 +9,7 @@ import { StatsCards } from "./Statistics/StatsCards";
 import { useStatistics } from "./Statistics/useStatistics";
 import { useExcelExport } from "./Statistics/ExcelExport";
 import { Skeleton } from "./ui/skeleton";
+import { LanguageText } from "./shared/LanguageText";
 
 export const Statistics = () => {
   const { user } = useAuth();

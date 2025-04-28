@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { Badge } from "@/components/ui/badge";
 import { PaymentStatus } from "@/lib/types";
+import { LanguageText } from "@/components/shared/LanguageText";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -94,17 +95,17 @@ export const CustomerDialogFields = ({
       paymentStatus.includes('fully') ? 'fully' : 
       'not_paid';
     
-    let badgeVariant = '';
+    let textColorClass = '';
     
     switch(normalizedStatus) {
       case 'fully':
-        badgeVariant = 'bg-[#F2FCE2] text-green-700 border-green-200';
+        textColorClass = 'text-green-600';
         break;
       case 'partly':
-        badgeVariant = 'bg-[#FEF7CD] text-amber-700 border-amber-200';
+        textColorClass = 'text-amber-600';
         break;
       default: // not_paid
-        badgeVariant = '';
+        textColorClass = 'text-[#ea384c]';
         break;
     }
 
@@ -117,30 +118,19 @@ export const CustomerDialogFields = ({
     
     const text = statusTextMap[normalizedStatus as keyof typeof statusTextMap];
     
-    // For "not paid", just show text in red without badge
-    if (normalizedStatus === 'not_paid') {
-      return (
-        <div className="mt-2 space-y-1">
-          <Label>{t('crm.paymentDetails')}</Label>
-          <div className="text-[#ea384c] font-medium">{text}</div>
-        </div>
-      );
-    }
-    
     return (
       <div className="mt-2 space-y-1">
         <Label>{t('crm.paymentDetails')}</Label>
-        <Badge 
-          variant="outline" 
-          className={`${badgeVariant} font-medium`}
-        >
-          <span>{text}</span>
+        <div className={`font-medium ${textColorClass}`}>
+          <LanguageText>
+            {text}
+          </LanguageText>
           {(normalizedStatus === 'partly' || normalizedStatus === 'fully') && paymentAmount && (
-            <span className="text-xs block mt-0.5">
+            <div className="text-xs mt-0.5">
               ({language === 'es' ? '€' : '$'}{paymentAmount})
-            </span>
+            </div>
           )}
-        </Badge>
+        </div>
       </div>
     );
   };
