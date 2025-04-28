@@ -20,7 +20,7 @@ export const ka: TranslationType = {
     analytics: "ანალიტიკა",
     website: "ვებგვერდი",
     ownBookingWebsite: "საკუთარი დაჯავშნის ვებგვერდი",
-    businessTitle: "For any type of business",
+    businessTitle: "იდეალურია ბიზნესებისთვის როგორიცა:",
     smartAppointment: "ჭკვიანი ივენთების ჯავშნები",
     automatedAnalytics: "ავტომატიზირებული ანალიტიკა",
     modernCRM: "თანამედროვე CRM გადაწყვეტა",

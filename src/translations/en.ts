@@ -20,7 +20,7 @@ export const en: TranslationType = {
     analytics: "Analytics",
     website: "Website",
     ownBookingWebsite: "Your own booking website",
-    businessTitle: "For any type of business",
+    businessTitle: "Ideal for Businesses like:",
     smartAppointment: "Smart Appointment Scheduling",
     automatedAnalytics: "Automated Performance Analytics",
     modernCRM: "Modern CRM Solution",
