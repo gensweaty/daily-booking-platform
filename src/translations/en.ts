@@ -34,7 +34,6 @@ export const en: TranslationType = {
     feature3: "Client booking management with payment tracking",
     feature4: "Automated Event Synchronization with CRM",
     feature5: "Booking Notifications by Email & Dashboard",
-    feature6: "Booking Notifications by Email & Dashboard",
     requestSubmitted: "Your booking request has been successfully submitted!",
     yourEmailPlaceholder: "Enter your email"
   },
