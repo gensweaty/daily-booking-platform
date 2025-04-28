@@ -11,6 +11,7 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import { SearchCommand } from "./SearchCommand";
 import { DateRangeSelect } from "@/components/Statistics/DateRangeSelect";
 import * as XLSX from 'xlsx';
+import { LanguageText } from "@/components/shared/LanguageText"; // Add this import
 import {
   Table,
   TableBody,
