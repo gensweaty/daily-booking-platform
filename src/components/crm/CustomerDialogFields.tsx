@@ -8,6 +8,7 @@ import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format } from "date-fns";
 import { FileDisplay } from "@/components/shared/FileDisplay";
+import { Badge } from "@/components/ui/badge";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -83,6 +84,51 @@ export const CustomerDialogFields = ({
     }
   };
 
+  // Function to format payment status display
+  const renderPaymentStatus = () => {
+    if (!isEventBased || !paymentStatus) return null;
+
+    // Normalize payment status to handle both 'partly' and 'partly_paid' formats
+    const normalizedStatus = 
+      paymentStatus.includes('partly') ? 'partly' : 
+      paymentStatus.includes('fully') ? 'fully' : 
+      'not_paid';
+    
+    // Text colors based on status
+    const statusColorMap = {
+      'not_paid': 'text-[#ea384c]', // Red
+      'partly': 'bg-[#FEF7CD] text-amber-700', // Yellow background with amber text
+      'fully': 'bg-[#F2FCE2] text-green-700' // Green background with green text
+    };
+
+    // Display labels in user language
+    const statusTextMap = {
+      'not_paid': t('crm.notPaid'),
+      'partly': t('crm.paidPartly'),
+      'fully': t('crm.paidFully')
+    };
+    
+    const colorClass = statusColorMap[normalizedStatus as keyof typeof statusColorMap];
+    const text = statusTextMap[normalizedStatus as keyof typeof statusTextMap];
+    
+    return (
+      <div className="mt-2 space-y-1">
+        <Label>{t('crm.paymentDetails')}</Label>
+        <Badge 
+          variant="outline" 
+          className={`${colorClass} font-medium px-3 py-1 rounded-md inline-flex flex-col text-center w-auto`}
+        >
+          <span>{text}</span>
+          {(normalizedStatus === 'partly' || normalizedStatus === 'fully') && paymentAmount && (
+            <span className="text-xs mt-0.5">
+              ({language === 'es' ? '€' : '$'}{paymentAmount})
+            </span>
+          )}
+        </Badge>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4 mt-4">
       <div className="space-y-2">
@@ -131,6 +177,9 @@ export const CustomerDialogFields = ({
               <div>{formatDateTime(endDate)}</div>
             </div>
           </div>
+          
+          {/* Payment status display for existing events */}
+          {renderPaymentStatus()}
         </div>
       )}
 

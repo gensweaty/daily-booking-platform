@@ -71,9 +71,15 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         throw error;
       }
 
-      // Get payment status counts
-      const partlyPaid = events?.filter(e => e.payment_status === 'partly').length || 0;
-      const fullyPaid = events?.filter(e => e.payment_status === 'fully').length || 0;
+      // Get payment status counts - Fix: use 'partly_paid' and 'fully_paid' as database values
+      // Also handle 'partly' and 'fully' formats for compatibility
+      const partlyPaid = events?.filter(e => 
+        e.payment_status === 'partly_paid' || e.payment_status === 'partly'
+      ).length || 0;
+      
+      const fullyPaid = events?.filter(e => 
+        e.payment_status === 'fully_paid' || e.payment_status === 'fully'
+      ).length || 0;
 
       // Get all days in the selected range for daily bookings
       const daysInRange = eachDayOfInterval({
@@ -138,20 +144,32 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           };
         }
 
+        // Fix: calculate income from events with partly_paid/fully_paid or partly/fully
         return {
           month: format(month, 'MMM yyyy'),
           income: monthEvents?.reduce((acc, event) => {
-            if (event.payment_status === 'fully' || event.payment_status === 'partly') {
-              return acc + (event.payment_amount || 0);
+            const isPaid = event.payment_status === 'fully_paid' || 
+                           event.payment_status === 'partly_paid' ||
+                           event.payment_status === 'fully' ||
+                           event.payment_status === 'partly';
+                           
+            if (isPaid && event.payment_amount) {
+              return acc + Number(event.payment_amount);
             }
             return acc;
           }, 0) || 0,
         };
       }));
 
+      // Fix: calculate total income correctly considering both payment status formats
       const totalIncome = events?.reduce((acc, event) => {
-        if (event.payment_status === 'fully' || event.payment_status === 'partly') {
-          return acc + (event.payment_amount || 0);
+        const isPaid = event.payment_status === 'fully_paid' || 
+                       event.payment_status === 'partly_paid' ||
+                       event.payment_status === 'fully' ||
+                       event.payment_status === 'partly';
+                       
+        if (isPaid && event.payment_amount) {
+          return acc + Number(event.payment_amount);
         }
         return acc;
       }, 0) || 0;
