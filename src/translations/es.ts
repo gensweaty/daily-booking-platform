@@ -1,6 +1,6 @@
 import { TranslationType } from "./types";
 
-const es: TranslationType = {
+export const es: TranslationType = {
   nav: {
     signin: "Iniciar sesión",
     startJourney: "Comienza tu viaje",
@@ -24,36 +24,34 @@ const es: TranslationType = {
     businessTitle: "Para cualquier tipo de negocio",
   },
   booking: {
-    title: "Reservas en Vivo",
-    description: "Optimiza tu proceso de programación de citas con nuestro sistema intuitivo de reservas.",
-    feature1: "Programación fácil de citas",
-    feature2: "Recordatorios automáticos",
-    feature3: "Notificaciones por correo electrónico",
-    feature4: "Seguimiento de recetas en línea",
-    feature5: "Vista Mensual, Semanal y Diaria del Calendario de Reservas",
-    feature6: "Notificaciones Automáticas por Correo Electrónico",
+    title: "Sistema de Reservas Inteligente",
+    description: "Gestiona eficientemente tus citas y eventos",
+    feature1: "Múltiples vistas de calendario (mes, semana, día)",
+    feature2: "Programación de eventos con franjas horarias personalizables",
+    feature3: "Gestión de reservas de clientes con seguimiento de pagos",
+    feature4: "Sincronización automatizada de eventos con CRM",
+    feature5: "Vista de calendario mensual, semanal y diaria",
+    feature6: "Notificaciones automáticas por correo electrónico",
     requestSubmitted: "¡Tu solicitud de reserva ha sido enviada con éxito!",
     yourEmailPlaceholder: "Introduce tu correo electrónico"
   },
   analytics: {
-    title: "Analítica",
-    description:
-      "Obtén información valiosa sobre el rendimiento de tu negocio con análisis detallados.",
-    feature1: "Informes financieros",
-    feature2: "Análisis del comportamiento del cliente",
-    feature3: "Tendencias de popularidad del servicio",
-    feature4: "Previsión de ingresos",
-    feature5: "Exportar datos a Excel",
+    title: "Análisis Integral",
+    description: "Rastrea tu rendimiento y crecimiento",
+    feature1: "Análisis de reservas e ingresos",
+    feature2: "Filtrado personalizado por rango de fechas",
+    feature3: "Comparación de ingresos entre meses",
+    feature4: "Métricas visuales interactivas y gráficos",
+    feature5: "Descarga en Excel con un clic"
   },
   crm: {
-    title: "CRM",
-    description:
-      "Gestiona eficazmente tus relaciones con los clientes con nuestras herramientas CRM.",
-    feature1: "Perfiles de clientes",
-    feature2: "Historial de interacciones",
-    feature3: "Recordatorios de seguimiento",
-    feature4: "Servicio personalizado",
-    feature5: "Segmentación de clientes",
+    title: "Gestión de Relaciones con Clientes",
+    description: "Construye y mantén relaciones sólidas con los clientes mediante nuestro CRM",
+    feature1: "Gestión centralizada de información de clientes",
+    feature2: "Archivos adjuntos y organización de documentos",
+    feature3: "Seguimiento de pagos y monitoreo de estado",
+    feature4: "Búsqueda elástica para acceso rápido a datos",
+    feature5: "Descarga en Excel con un clic de todos los datos mostrados",
     notPaid: "No Pagado",
     paidPartly: "Pagado Parcialmente",
     paidFully: "Pagado Completamente",
@@ -95,14 +93,13 @@ const es: TranslationType = {
     error: "Error"
   },
   tasks: {
-    title: "Tareas",
-    description:
-      "Realiza un seguimiento de tus tareas y nunca te pierdas plazos importantes.",
-    feature1: "Priorización de tareas",
-    feature2: "Seguimiento de plazos",
-    feature3: "Tareas asignables",
-    feature4: "Monitoreo de progreso",
-    feature5: "Tareas recurrentes",
+    title: "Gestión de Tareas",
+    description: "Mantente organizado y productivo",
+    feature1: "Tablero Kanban para organización visual de tareas",
+    feature2: "Seguimiento de estado y monitoreo de progreso",
+    feature3: "Priorización eficiente de tareas",
+    feature4: "Funcionalidad simple de arrastrar y soltar",
+    feature5: "Guardado rápido de notas para tareas",
     addTask: "Agregar Tarea",
     editTask: "Editar Tarea",
     titlePlaceholder: "Título de la tarea",
@@ -373,5 +370,3 @@ const es: TranslationType = {
     }
   }
 };
-
-export { es };

@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const en: TranslationType = {
@@ -25,36 +24,34 @@ export const en: TranslationType = {
     businessTitle: "For any type of business",
   },
   booking: {
-    title: "Live Booking",
-    description: "Streamline your appointment scheduling with our intuitive booking system.",
-    feature1: "Easy scheduling of appointments",
-    feature2: "Automatic reminders",
-    feature3: "Email notifications",
-    feature4: "Online recipe tracking",
+    title: "Smart Booking System",
+    description: "Efficiently manage your appointments and events",
+    feature1: "Multiple calendar views (month, week, day)",
+    feature2: "Event scheduling with customizable time slots",
+    feature3: "Client booking management with payment tracking",
+    feature4: "Automated Event Synchronization with CRM",
     feature5: "Monthly, Weekly, and Daily Booking Calendar View",
-    feature6: "Automatic Email Notifications",
+    feature6: "Automated Email Notifications",
     requestSubmitted: "Your booking request has been successfully submitted!",
     yourEmailPlaceholder: "Enter your email"
   },
   analytics: {
-    title: "Analytics",
-    description:
-      "Get valuable insights about your business performance with detailed analytics.",
-    feature1: "Financial reports",
-    feature2: "Customer behavior analysis",
-    feature3: "Service popularity trends",
-    feature4: "Revenue forecasting",
-    feature5: "Export data to Excel",
+    title: "Comprehensive Analytics",
+    description: "Track your performance and growth",
+    feature1: "Booking and revenue analytics",
+    feature2: "Custom date range filtering",
+    feature3: "Income comparison across months",
+    feature4: "Interactive visual metrics & graphs",
+    feature5: "One-click Excel download"
   },
   crm: {
-    title: "CRM",
-    description:
-      "Effectively manage your customer relationships with our CRM tools.",
-    feature1: "Customer profiles",
-    feature2: "Interaction history",
-    feature3: "Follow-up reminders",
-    feature4: "Personalized service",
-    feature5: "Customer segmentation",
+    title: "Customer Relationship Management",
+    description: "Build and maintain strong client relationships with our CRM",
+    feature1: "Centralized customer information management",
+    feature2: "File attachments and document organization",
+    feature3: "Payment tracking and status monitoring",
+    feature4: "Elastic search for quick data access",
+    feature5: "One-click Excel download of all displayed data",
     notPaid: "Not Paid",
     paidPartly: "Partly Paid",
     paidFully: "Fully Paid",
@@ -96,14 +93,13 @@ export const en: TranslationType = {
     error: "Error"
   },
   tasks: {
-    title: "Tasks",
-    description:
-      "Track your tasks and never miss important deadlines.",
-    feature1: "Task prioritization",
-    feature2: "Deadline tracking",
-    feature3: "Assignable tasks",
-    feature4: "Progress monitoring",
-    feature5: "Recurring tasks",
+    title: "Task Management",
+    description: "Stay organized and productive",
+    feature1: "Kanban board for visual task organization",
+    feature2: "Task status tracking and progress monitoring",
+    feature3: "Efficient task prioritization",
+    feature4: "Simple drag-and-drop functionality",
+    feature5: "Quick note-saving for tasks",
     addTask: "Add Task",
     editTask: "Edit Task",
     titlePlaceholder: "Task title",
