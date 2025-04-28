@@ -5,6 +5,7 @@ import { DateRangeSelect } from "./DateRangeSelect";
 import { memo, useCallback } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
+import { LanguageText } from "@/components/shared/LanguageText";
 
 interface StatsHeaderProps {
   dateRange: { start: Date; end: Date };
