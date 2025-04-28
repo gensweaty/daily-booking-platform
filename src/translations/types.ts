@@ -27,6 +27,10 @@ export interface TranslationType {
     website: string;
     ownBookingWebsite: string;
     businessTitle: string;
+    smartAppointment: string;
+    automatedAnalytics: string;
+    modernCRM: string;
+    kanbanManagement: string;
   };
   booking: {
     title: string;
