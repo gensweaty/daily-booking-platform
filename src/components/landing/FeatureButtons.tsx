@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Calendar, ListTodo, Users, BarChart, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "@/components/shared/LanguageText";
 
 export const FeatureButtons = () => {
   const { t } = useLanguage();
@@ -17,7 +18,7 @@ export const FeatureButtons = () => {
     <div className="mb-16">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-semibold text-[#E17B9E]">
-          {t('features.title')}
+          <LanguageText>{t('features.title')}</LanguageText>
         </h2>
       </div>
       <div className="max-w-4xl mx-auto">
@@ -29,7 +30,9 @@ export const FeatureButtons = () => {
             className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
           >
             <Globe className="w-5 h-5 text-accent shrink-0" />
-            <span className="text-sm font-medium">{t('features.ownBookingWebsite')}</span>
+            <span className="text-sm font-medium">
+              <LanguageText>{t('features.ownBookingWebsite')}</LanguageText>
+            </span>
           </Button>
           <Button 
             variant="outline"
@@ -37,7 +40,9 @@ export const FeatureButtons = () => {
             className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
           >
             <Calendar className="w-5 h-5 text-primary shrink-0" />
-            <span className="text-sm font-medium">{t('features.smartAppointment')}</span>
+            <span className="text-sm font-medium">
+              <LanguageText>{t('features.smartAppointment')}</LanguageText>
+            </span>
           </Button>
           <Button 
             variant="outline"
@@ -45,7 +50,9 @@ export const FeatureButtons = () => {
             className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
           >
             <BarChart className="w-5 h-5 text-accent shrink-0" />
-            <span className="text-sm font-medium">{t('features.automatedAnalytics')}</span>
+            <span className="text-sm font-medium">
+              <LanguageText>{t('features.automatedAnalytics')}</LanguageText>
+            </span>
           </Button>
         </div>
         {/* Second row - centered */}
@@ -56,7 +63,9 @@ export const FeatureButtons = () => {
             className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
           >
             <Users className="w-5 h-5 text-primary shrink-0" />
-            <span className="text-sm font-medium">{t('features.modernCRM')}</span>
+            <span className="text-sm font-medium">
+              <LanguageText>{t('features.modernCRM')}</LanguageText>
+            </span>
           </Button>
           <Button 
             variant="outline"
@@ -64,11 +73,12 @@ export const FeatureButtons = () => {
             className="h-12 flex items-center justify-center gap-3 hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4"
           >
             <ListTodo className="w-5 h-5 text-accent shrink-0" />
-            <span className="text-sm font-medium">{t('features.kanbanManagement')}</span>
+            <span className="text-sm font-medium">
+              <LanguageText>{t('features.kanbanManagement')}</LanguageText>
+            </span>
           </Button>
         </div>
       </div>
     </div>
   );
 };
-

@@ -1,9 +1,11 @@
+
 import { LucideIcon } from "lucide-react";
 import { CheckCircle } from "lucide-react";
 import { ImageCarousel } from "./ImageCarousel";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { TranslationType } from "@/translations/types";
+import { LanguageText } from "@/components/shared/LanguageText";
 
 interface FeatureCardProps {
   icon: LucideIcon;
@@ -52,10 +54,12 @@ export const FeatureCard = ({
             <Icon className="w-6 h-6 text-primary animate-pulse" />
           </div>
           <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            {t(getTranslationKey('title'))}
+            <LanguageText>{t(getTranslationKey('title'))}</LanguageText>
           </h3>
         </div>
-        <p className="text-lg text-muted-foreground">{t(getTranslationKey('description'))}</p>
+        <p className="text-lg text-muted-foreground">
+          <LanguageText>{t(getTranslationKey('description'))}</LanguageText>
+        </p>
         <ul className="space-y-3">
           {benefits.map((benefit, idx) => (
             <motion.li
@@ -67,7 +71,7 @@ export const FeatureCard = ({
               className="flex items-start gap-2"
             >
               <CheckCircle className="w-5 h-5 text-primary mt-1" />
-              <span>{t(getTranslationKey(`feature${idx + 1}`))}</span>
+              <span><LanguageText>{t(getTranslationKey(`feature${idx + 1}`))}</LanguageText></span>
             </motion.li>
           ))}
         </ul>
