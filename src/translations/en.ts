@@ -7,10 +7,9 @@ export const en: TranslationType = {
     contact: "Contact",
   },
   hero: {
-    title: "Manage your business with our",
-    subtitle: "All-In-One Solution",
-    description:
-      "A complete platform designed for service providers. Calendar, CRM, task management, statistics, and a booking website, all in one place!",
+    title: "Boost Your Business Productivity with SmartBookly",
+    subtitle: "All-in-One SaaS - Event Booking, Task Management, CRM, and Analytics Solution",
+    description: "Take full control of your workflow with our seamless booking calendar, powerful task management, intelligent customer relationship management, and integrated analytics. Everything your business needs, all in one place.",
   },
   features: {
     title: "Features",

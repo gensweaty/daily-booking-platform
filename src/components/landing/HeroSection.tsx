@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
@@ -8,9 +7,6 @@ import { Menu, X, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
-// Remove the imports for these components since we don't need them here anymore
-// import { FeatureButtons } from "./FeatureButtons";
-// import { ClientLogos } from "./ClientLogos";
 
 const productImages = [{
   src: "/lovable-uploads/a00576d5-fb16-4a4b-a313-0e1cbb61b00c.png",
@@ -107,9 +103,9 @@ export const HeroSection = () => {
                 <h2 className="text-2xl font-semibold text-foreground/90 md:text-2xl">
                   {t('hero.subtitle')}
                 </h2>
-                <p className="text-lg text-muted-foreground leading-relaxed md:text-lg">
+                <h3 className="text-lg text-muted-foreground leading-relaxed md:text-lg">
                   {t('hero.description')}
-                </p>
+                </h3>
               </article>
               <div className="pt-3">
                 <Link to="/signup">

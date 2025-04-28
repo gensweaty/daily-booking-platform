@@ -7,10 +7,9 @@ export const es: TranslationType = {
     contact: "Contacto",
   },
   hero: {
-    title: "Gestiona tu negocio con nuestra",
-    subtitle: "Solución Todo en Uno",
-    description:
-      "Una plataforma completa diseñada para proveedores de servicios. Calendario, CRM, gestor de tareas, estadísticas y un sitio web de reservas, ¡todo en un solo lugar!",
+    title: "Impulsa la Productividad de tu Negocio con SmartBookly",
+    subtitle: "Solución Todo en Uno - Reservas de Eventos, Gestión de Tareas, CRM y Análisis",
+    description: "Toma el control total de tu flujo de trabajo con nuestro calendario de reservas sin problemas, potente gestión de tareas, gestión inteligente de relaciones con clientes y análisis integrado. Todo lo que tu negocio necesita, en un solo lugar.",
   },
   features: {
     title: "Características",
