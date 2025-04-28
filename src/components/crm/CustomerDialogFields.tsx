@@ -69,6 +69,7 @@ export const CustomerDialogFields = ({
   const { t, language } = useLanguage();
   
   // Check if we should show the payment amount field
+  // Fixed comparison to match the values used in the Select component (not_paid, partly, fully)
   const showPaymentAmount = paymentStatus === "partly" || paymentStatus === "fully";
 
   const formatDateTime = (dateStr: string | null | undefined) => {
@@ -178,7 +179,7 @@ export const CustomerDialogFields = ({
                 placeholder={`${t("events.paymentAmount")} ${language === 'es' ? '(€)' : '($)'}`}
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(e.target.value)}
-                required={paymentStatus !== 'not_paid'}
+                required={showPaymentAmount}
               />
             </div>
           )}
