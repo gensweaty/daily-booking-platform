@@ -147,12 +147,6 @@ export const CustomerDialogFields = ({
     );
   };
 
-  // Function to format date for display in input fields
-  const formatDateForInput = (date: Date | undefined) => {
-    if (!date) return "";
-    return format(date, "MM/dd/yyyy HH:mm");
-  };
-
   return (
     <div className="space-y-4 mt-4">
       <div className="space-y-2">
@@ -234,117 +228,101 @@ export const CustomerDialogFields = ({
                 <Label htmlFor="startDate" className="text-xs text-muted-foreground">
                   {t("events.start")}
                 </Label>
-                <div className="flex flex-col space-y-2">
-                  <Input
-                    id="startDate"
-                    type="text"
-                    value={eventStart ? formatDateForInput(eventStart) : ""}
-                    readOnly
-                    placeholder={t("events.selectDateTime")}
-                    onClick={() => document.getElementById("startDateTrigger")?.click()}
-                    className="cursor-pointer"
-                  />
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="startDateTrigger"
-                        type="button"
-                        variant="outline"
-                        className="hidden"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {eventStart ? format(eventStart, "PPP") : t("events.selectDate")}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-800" align="start">
-                      <div>
-                        <Calendar
-                          mode="single"
-                          selected={eventStart}
-                          onSelect={(date) => date && setEventStart && setEventStart(date)}
-                          initialFocus
-                          className="pointer-events-auto"
-                        />
-                        <div className="grid grid-cols-4 gap-1 p-2 border-t dark:border-gray-700">
-                          {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hour) => (
-                            <button
-                              key={`hour-${hour}`}
-                              type="button"
-                              onClick={() => {
-                                if (eventStart && setEventStart) {
-                                  const newDate = new Date(eventStart);
-                                  newDate.setHours(hour, 0, 0, 0);
-                                  setEventStart(newDate);
-                                }
-                              }}
-                              className="rounded hover:bg-gray-100 dark:hover:bg-gray-700 p-1 text-center text-sm"
-                            >
-                              {hour}:00
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !eventStart && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {eventStart ? format(eventStart, "PPP") : t("events.pickDate")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-background" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={eventStart}
+                      onSelect={(date) => date && setEventStart && setEventStart(date)}
+                      initialFocus
+                    />
+                    <div className="grid grid-cols-4 gap-1 p-2 border-t border-border bg-background">
+                      {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hour) => (
+                        <button
+                          key={`start-hour-${hour}`}
+                          type="button"
+                          onClick={() => {
+                            if (eventStart && setEventStart) {
+                              const newDate = new Date(eventStart);
+                              newDate.setHours(hour, 0, 0, 0);
+                              setEventStart(newDate);
+                            }
+                          }}
+                          className="rounded hover:bg-gray-100 dark:hover:bg-gray-700 p-1 text-center text-sm"
+                        >
+                          {hour}:00
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {eventStart && (
+                  <div className="text-xs mt-1 text-muted-foreground">
+                    {format(eventStart, "h:mm a, MMM d, yyyy")}
+                  </div>
+                )}
               </div>
               <div>
                 <Label htmlFor="endDate" className="text-xs text-muted-foreground">
                   {t("events.end")}
                 </Label>
-                <div className="flex flex-col space-y-2">
-                  <Input
-                    id="endDate"
-                    type="text"
-                    value={eventEnd ? formatDateForInput(eventEnd) : ""}
-                    readOnly
-                    placeholder={t("events.selectDateTime")}
-                    onClick={() => document.getElementById("endDateTrigger")?.click()}
-                    className="cursor-pointer"
-                  />
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="endDateTrigger"
-                        type="button"
-                        variant="outline"
-                        className="hidden"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {eventEnd ? format(eventEnd, "PPP") : t("events.selectDate")}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-800" align="start">
-                      <div>
-                        <Calendar
-                          mode="single"
-                          selected={eventEnd}
-                          onSelect={(date) => date && setEventEnd && setEventEnd(date)}
-                          initialFocus
-                          className="pointer-events-auto"
-                        />
-                        <div className="grid grid-cols-4 gap-1 p-2 border-t dark:border-gray-700">
-                          {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hour) => (
-                            <button
-                              key={`hour-${hour}`}
-                              type="button"
-                              onClick={() => {
-                                if (eventEnd && setEventEnd) {
-                                  const newDate = new Date(eventEnd);
-                                  newDate.setHours(hour, 0, 0, 0);
-                                  setEventEnd(newDate);
-                                }
-                              }}
-                              className="rounded hover:bg-gray-100 dark:hover:bg-gray-700 p-1 text-center text-sm"
-                            >
-                              {hour}:00
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !eventEnd && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {eventEnd ? format(eventEnd, "PPP") : t("events.pickDate")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-background" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={eventEnd}
+                      onSelect={(date) => date && setEventEnd && setEventEnd(date)}
+                      initialFocus
+                    />
+                    <div className="grid grid-cols-4 gap-1 p-2 border-t border-border bg-background">
+                      {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hour) => (
+                        <button
+                          key={`end-hour-${hour}`}
+                          type="button"
+                          onClick={() => {
+                            if (eventEnd && setEventEnd) {
+                              const newDate = new Date(eventEnd);
+                              newDate.setHours(hour, 0, 0, 0);
+                              setEventEnd(newDate);
+                            }
+                          }}
+                          className="rounded hover:bg-gray-100 dark:hover:bg-gray-700 p-1 text-center text-sm"
+                        >
+                          {hour}:00
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {eventEnd && (
+                  <div className="text-xs mt-1 text-muted-foreground">
+                    {format(eventEnd, "h:mm a, MMM d, yyyy")}
+                  </div>
+                )}
               </div>
             </div>
           </div>
