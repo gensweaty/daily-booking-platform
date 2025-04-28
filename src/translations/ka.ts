@@ -63,7 +63,7 @@ export const ka: TranslationType = {
     fullNameRequired: "სრული სახელი",
     fullNamePlaceholder: "სრული სახელი",
     phoneNumber: "ტელეფონის ნომერი",
-    phoneNumberPlaceholder: "ტელეფონის ��ომერი",
+    phoneNumberPlaceholder: "ტელეფონის ომერი",
     socialLinkEmail: "ელ-ფოსტა/სოც. ბმული",
     socialLinkEmailPlaceholder: "ელ-ფოსტა ან სოციალური ბმული",
     createEventForCustomer: "შექმენით ივენთი კლიენტისთვის",
@@ -102,7 +102,7 @@ export const ka: TranslationType = {
     feature1: "Kanban დაფა დავალებების ვიზუალური ორგანიზებისთვის",
     feature2: "დავალებების სტატუსის და პროგრესის მონიტორინგი",
     feature3: "დავალებების ეფექტური პრიორიტიზაცია",
-    feature4: "მარტი���ი drag-and-drop ფუნქციონალი",
+    feature4: "მარტიი drag-and-drop ფუნქციონალი",
     feature5: "დავალებებისთვის სწრაფი ჩანიშვნები",
     addTask: "დავალების დამატება",
     editTask: "დავალების რედაქტირება",
@@ -131,7 +131,7 @@ export const ka: TranslationType = {
     terms: "წესები და პირობები",
     privacy: "კონფიდენციალურობა",
     description: "ერთიანი ციფრული პლატფორმა თქვენი ბიზნესისთვის",
-    navigation: "��ავიგაცია",
+    navigation: "ავიგაცია",
     legal: "სამართლებრივი",
     termsAndPrivacy: "წესები და კონფიდენციალურობა",
     rights: "ყველა უფლება დაცულია"
@@ -233,7 +233,7 @@ export const ka: TranslationType = {
     profile: "პროფილი",
     category: "კატეგორია",
     details: "დეტალები",
-    additionalInfo: "და��ატებითი ინფორმაცია",
+    additionalInfo: "დაატებითი ინფორმაცია",
     taskStatistics: "დავალებების სტატისტიკა",
     eventStatistics: "ივენთების სტატისტიკა",
     financialSummary: "ფინანსური მიმოხილვა",
@@ -275,7 +275,7 @@ export const ka: TranslationType = {
     addressLine2: "ჭავჭავაძის გამზირი 74",
     businessHours: "სამუშაო საათები",
     workingHours: "ორშაბათი - პარასკევი: 09:00 - 18:00",
-    weekendHours: "შაბათ-კვირა: ���ასვენება",
+    weekendHours: "ასვენება",
     sendMessage: "გამოგვიგზავნეთ შეტყობინება",
     name: "სახელი და გვარი",
     namePlaceholder: "შეიყვანეთ თქვენი სახელი და გვარი",
@@ -387,12 +387,10 @@ export const ka: TranslationType = {
     accountSecurity: {
       title: "3. ანგარიშის რეგისტრაცია და უსაფრთხოება",
       requirements: [
-        "თქვენ უნდა მიაწოდოთ ზუსტი და სრული ინფორმაცია ან���არიშის შექმნისას.",
-        "თქვენ პასუხისმგებელ�� ხართ თქვენი ანგარიშისა და პაროლის კონფიდენციალურობის დაცვაზე.",
+        "თქვენ უნდა მიაწოდოთ ზუსტი და სრული ინფორმაცია ანგარიშის შექმნისას.",
+        "თქვენ პასუხისმგებელი ხართ თქვენი ანგარიშისა და პაროლის კონფიდენციალურობის დაცვაზე.",
         "დაუყოვნებლივ შეგვატყობინეთ თქვენს ანგარიშზე არაავტორიზებული წვდომის შესახებ."
       ]
     }
   }
 };
-
-export { ka };
