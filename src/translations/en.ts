@@ -31,7 +31,7 @@ export const en: TranslationType = {
     feature3: "Client booking management with payment tracking",
     feature4: "Automated Event Synchronization with CRM",
     feature5: "Monthly, Weekly, and Daily Booking Calendar View",
-    feature6: "Automated Email Notifications",
+    feature6: "Booking Notifications by Email & Dashboard",
     requestSubmitted: "Your booking request has been successfully submitted!",
     yourEmailPlaceholder: "Enter your email"
   },
@@ -154,7 +154,7 @@ export const en: TranslationType = {
     rejectedRequests: "Rejected Requests",
     noPendingRequests: "No pending requests",
     noApprovedRequests: "No approved requests",
-    noRejectedRequests: "No rejected requests",
+    noRejectedRequests: "No rejectedRequests",
     pendingRequestsDescription: "When users submit booking requests, they'll appear here for your approval.",
     approvedRequestsDescription: "Approved booking requests will appear here.",
     rejectedRequestsDescription: "Rejected booking requests will appear here.",

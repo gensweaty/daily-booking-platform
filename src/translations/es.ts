@@ -31,7 +31,7 @@ export const es: TranslationType = {
     feature3: "Gestión de reservas de clientes con seguimiento de pagos",
     feature4: "Sincronización automatizada de eventos con CRM",
     feature5: "Vista de calendario mensual, semanal y diaria",
-    feature6: "Notificaciones automáticas por correo electrónico",
+    feature6: "Notificaciones de reserva por correo electrónico y panel",
     requestSubmitted: "¡Tu solicitud de reserva ha sido enviada con éxito!",
     yourEmailPlaceholder: "Introduce tu correo electrónico"
   },
