@@ -3,7 +3,7 @@
 import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { BookingRequest } from '@/lib/types';
+import { BookingRequest } from '@/types/database';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatDate } from 'date-fns';
@@ -93,16 +93,16 @@ export const BookingRequestsList = ({
           {requests.map((request) => (
             <div key={request.id} className="p-4 grid grid-cols-4 items-center">
               <div className="overflow-hidden">
-                <div className="font-medium truncate">{request.full_name}</div>
-                <div className="text-sm text-muted-foreground truncate">{request.email || request.phone}</div>
+                <div className="font-medium truncate">{request.requester_name}</div>
+                <div className="text-sm text-muted-foreground truncate">{request.requester_email || request.requester_phone}</div>
               </div>
               <div className="truncate pr-4">{request.title}</div>
               <div className="text-sm">
-                {request.start_time && (
+                {request.start_date && (
                   <>
-                    {formatDate(new Date(request.start_time), 'MMM d, yyyy')}
+                    {formatDate(new Date(request.start_date), 'MMM d, yyyy')}
                     <br />
-                    {formatDate(new Date(request.start_time), 'h:mm a')} - {request.end_time ? formatDate(new Date(request.end_time), 'h:mm a') : ''}
+                    {formatDate(new Date(request.start_date), 'h:mm a')} - {request.end_date ? formatDate(new Date(request.end_date), 'h:mm a') : ''}
                   </>
                 )}
               </div>

@@ -28,3 +28,7 @@ export interface Reminder {
   created_at: string;
   user_id?: string;
 }
+
+// Export BookingRequest from database.ts
+export { type BookingRequest } from '../types/database';
+
