@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const ka: TranslationType = {
@@ -53,7 +54,7 @@ export const ka: TranslationType = {
     feature2: "ფაილების მიმაგრება და დოკუმენტების ორგანიზება",
     feature3: "გადახდის თვალყურის დევნება და სტატუსის მონიტორინგი",
     feature4: "ელასტიური ძიება მონაცემებზე სწრაფი წვდომისთვის",
-    feature5: "ყველა ნაჩვენები მონაცემის Excel-ში ჩამოტვირთვა ერთი დაწკაპუნებით",
+    feature5: "ყველა ნაჩვენები მონაცემის Excel-ად ჩამოტვირთვა",
     notPaid: "გადაუხდელი",
     paidPartly: "ნაწილობრივ გადახდილი",
     paidFully: "სრულად გადახდილი",
