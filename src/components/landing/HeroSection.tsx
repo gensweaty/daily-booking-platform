@@ -61,17 +61,17 @@ export const HeroSection = () => {
                 <ThemeToggle />
                 <Link to="/login">
                   <Button variant="outline" className="hover:scale-105 transition-transform">
-                    <LanguageText>{t('nav.signin')}</LanguageText>
+                    <LanguageText withFont={true}>{t('nav.signin')}</LanguageText>
                   </Button>
                 </Link>
                 <Link to="/signup">
                   <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
-                    <LanguageText>{t('nav.startJourney')}</LanguageText>
+                    <LanguageText withFont={true}>{t('nav.startJourney')}</LanguageText>
                   </Button>
                 </Link>
                 <Link to="/contact">
                   <Button variant="outline" className="hover:scale-105 transition-transform">
-                    <LanguageText>{t('nav.contact')}</LanguageText>
+                    <LanguageText withFont={true}>{t('nav.contact')}</LanguageText>
                   </Button>
                 </Link>
               </div>
@@ -80,17 +80,17 @@ export const HeroSection = () => {
             {isMobileMenuOpen && <div id="mobile-menu" className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50" role="menu">
                 <Link to="/login" onClick={handleMenuClose} role="menuitem">
                   <Button variant="outline" className="w-full justify-start">
-                    <LanguageText>{t('nav.signin')}</LanguageText>
+                    <LanguageText withFont={true}>{t('nav.signin')}</LanguageText>
                   </Button>
                 </Link>
                 <Link to="/signup" onClick={handleMenuClose} role="menuitem">
                   <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90">
-                    <LanguageText>{t('nav.startJourney')}</LanguageText>
+                    <LanguageText withFont={true}>{t('nav.startJourney')}</LanguageText>
                   </Button>
                 </Link>
                 <Link to="/contact" onClick={handleMenuClose} role="menuitem">
                   <Button variant="outline" className="w-full justify-start">
-                    <LanguageText>{t('nav.contact')}</LanguageText>
+                    <LanguageText withFont={true}>{t('nav.contact')}</LanguageText>
                   </Button>
                 </Link>
               </div>}
@@ -100,20 +100,20 @@ export const HeroSection = () => {
             <div className="space-y-4 animate-fade-in">
               <article className="space-y-4">
                 <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary lg:text-5xl">
-                  <LanguageText>{t('hero.title')}</LanguageText>
+                  <LanguageText withFont={true}>{t('hero.title')}</LanguageText>
                 </h1>
                 <h2 className="text-2xl font-semibold text-foreground/90 md:text-2xl">
-                  <LanguageText>{t('hero.subtitle')}</LanguageText>
+                  <LanguageText withFont={true}>{t('hero.subtitle')}</LanguageText>
                 </h2>
                 <h3 className="text-lg text-muted-foreground leading-relaxed md:text-lg">
-                  <LanguageText>{t('hero.description')}</LanguageText>
+                  <LanguageText withFont={true}>{t('hero.description')}</LanguageText>
                 </h3>
               </article>
               <div className="pt-3">
                 <Link to="/signup">
                   <Button size="lg" className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
                     <span className="flex items-center gap-2">
-                      <LanguageText>{t('nav.startJourney')}</LanguageText>
+                      <LanguageText withFont={true}>{t('nav.startJourney')}</LanguageText>
                       <Sparkles className="w-5 h-5 animate-pulse" aria-hidden="true" />
                     </span>
                   </Button>

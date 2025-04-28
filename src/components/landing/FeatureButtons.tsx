@@ -18,7 +18,7 @@ export const FeatureButtons = () => {
     <div className="mb-16">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-semibold text-[#E17B9E]">
-          <LanguageText>{t('features.title')}</LanguageText>
+          <LanguageText withFont={true}>{t('features.title')}</LanguageText>
         </h2>
       </div>
       <div className="max-w-4xl mx-auto">
@@ -31,7 +31,7 @@ export const FeatureButtons = () => {
           >
             <Globe className="w-5 h-5 text-accent shrink-0" />
             <span className="text-sm font-medium">
-              <LanguageText>{t('features.ownBookingWebsite')}</LanguageText>
+              <LanguageText withFont={true}>{t('features.ownBookingWebsite')}</LanguageText>
             </span>
           </Button>
           <Button 
@@ -41,7 +41,7 @@ export const FeatureButtons = () => {
           >
             <Calendar className="w-5 h-5 text-primary shrink-0" />
             <span className="text-sm font-medium">
-              <LanguageText>{t('features.smartAppointment')}</LanguageText>
+              <LanguageText withFont={true}>{t('features.smartAppointment')}</LanguageText>
             </span>
           </Button>
           <Button 
@@ -51,7 +51,7 @@ export const FeatureButtons = () => {
           >
             <BarChart className="w-5 h-5 text-accent shrink-0" />
             <span className="text-sm font-medium">
-              <LanguageText>{t('features.automatedAnalytics')}</LanguageText>
+              <LanguageText withFont={true}>{t('features.automatedAnalytics')}</LanguageText>
             </span>
           </Button>
         </div>
@@ -64,7 +64,7 @@ export const FeatureButtons = () => {
           >
             <Users className="w-5 h-5 text-primary shrink-0" />
             <span className="text-sm font-medium">
-              <LanguageText>{t('features.modernCRM')}</LanguageText>
+              <LanguageText withFont={true}>{t('features.modernCRM')}</LanguageText>
             </span>
           </Button>
           <Button 
@@ -74,7 +74,7 @@ export const FeatureButtons = () => {
           >
             <ListTodo className="w-5 h-5 text-accent shrink-0" />
             <span className="text-sm font-medium">
-              <LanguageText>{t('features.kanbanManagement')}</LanguageText>
+              <LanguageText withFont={true}>{t('features.kanbanManagement')}</LanguageText>
             </span>
           </Button>
         </div>
