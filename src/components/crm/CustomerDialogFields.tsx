@@ -9,6 +9,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { format } from "date-fns";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { Badge } from "@/components/ui/badge";
+import { PaymentStatus } from "@/lib/types";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -70,7 +71,6 @@ export const CustomerDialogFields = ({
   const { t, language } = useLanguage();
   
   // Check if we should show the payment amount field
-  // Fixed comparison to match the values used in the Select component (not_paid, partly, fully)
   const showPaymentAmount = paymentStatus === "partly" || paymentStatus === "fully";
 
   const formatDateTime = (dateStr: string | null | undefined) => {
@@ -94,12 +94,19 @@ export const CustomerDialogFields = ({
       paymentStatus.includes('fully') ? 'fully' : 
       'not_paid';
     
-    // Text colors based on status
-    const statusColorMap = {
-      'not_paid': 'text-[#ea384c]', // Red
-      'partly': 'bg-[#FEF7CD] text-amber-700', // Yellow background with amber text
-      'fully': 'bg-[#F2FCE2] text-green-700' // Green background with green text
-    };
+    let badgeVariant = '';
+    
+    switch(normalizedStatus) {
+      case 'fully':
+        badgeVariant = 'bg-[#F2FCE2] text-green-700 border-green-200';
+        break;
+      case 'partly':
+        badgeVariant = 'bg-[#FEF7CD] text-amber-700 border-amber-200';
+        break;
+      default: // not_paid
+        badgeVariant = '';
+        break;
+    }
 
     // Display labels in user language
     const statusTextMap = {
@@ -108,19 +115,28 @@ export const CustomerDialogFields = ({
       'fully': t('crm.paidFully')
     };
     
-    const colorClass = statusColorMap[normalizedStatus as keyof typeof statusColorMap];
     const text = statusTextMap[normalizedStatus as keyof typeof statusTextMap];
+    
+    // For "not paid", just show text in red without badge
+    if (normalizedStatus === 'not_paid') {
+      return (
+        <div className="mt-2 space-y-1">
+          <Label>{t('crm.paymentDetails')}</Label>
+          <div className="text-[#ea384c] font-medium">{text}</div>
+        </div>
+      );
+    }
     
     return (
       <div className="mt-2 space-y-1">
         <Label>{t('crm.paymentDetails')}</Label>
         <Badge 
           variant="outline" 
-          className={`${colorClass} font-medium px-3 py-1 rounded-md inline-flex flex-col text-center w-auto`}
+          className={`${badgeVariant} font-medium`}
         >
           <span>{text}</span>
           {(normalizedStatus === 'partly' || normalizedStatus === 'fully') && paymentAmount && (
-            <span className="text-xs mt-0.5">
+            <span className="text-xs block mt-0.5">
               ({language === 'es' ? '€' : '$'}{paymentAmount})
             </span>
           )}

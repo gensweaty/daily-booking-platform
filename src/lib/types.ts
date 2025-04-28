@@ -33,8 +33,7 @@ export interface Reminder {
 export { type BookingRequest } from '../types/database';
 
 // Payment status type for consistency across components 
-// Updated to include both naming conventions
+// Includes both database and display formats
 export type PaymentStatus = 
   'not_paid' | 'partly' | 'fully' | 
   'partly_paid' | 'fully_paid';
-

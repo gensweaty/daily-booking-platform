@@ -29,6 +29,8 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCRMData } from "@/hooks/useCRMData";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { PaymentStatus } from "@/lib/types";
 
 const LoadingCustomerList = React.memo(() => {
   return (
@@ -206,11 +208,34 @@ export const CustomerList = () => {
     return `${format(start, 'hh:mma')}-${format(end, 'hh:mma')}`.toLowerCase();
   }, []);
 
-  const formatPaymentStatus = useCallback((status: string, amount: number | null) => {
+  const formatPaymentStatus = useCallback((status: PaymentStatus | string, amount: number | null) => {
     if (!status) return '-';
     
+    const normalizedStatus = 
+      status.includes('partly') ? 'partly' : 
+      status.includes('fully') ? 'fully' : 
+      'not_paid';
+    
+    let variantClass;
+    let textColor;
+    
+    switch(normalizedStatus) {
+      case 'fully':
+        variantClass = 'bg-[#F2FCE2] text-green-700 border-green-200';
+        textColor = 'text-green-600';
+        break;
+      case 'partly':
+        variantClass = 'bg-[#FEF7CD] text-amber-700 border-amber-200';
+        textColor = 'text-yellow-600';
+        break;
+      default: // not_paid
+        variantClass = '';
+        textColor = 'text-[#ea384c]';
+        break;
+    }
+    
     let displayStatus = '';
-    switch (status) {
+    switch (normalizedStatus) {
       case 'not_paid':
         displayStatus = t("crm.notPaid");
         break;
@@ -224,26 +249,23 @@ export const CustomerList = () => {
         displayStatus = status;
     }
     
-    if ((status === 'partly' || status === 'fully') && amount) {
+    if ((normalizedStatus === 'partly' || normalizedStatus === 'fully') && amount) {
       return (
-        <span className={`${
-          status === 'fully' ? 'text-green-600' :
-          status === 'partly' ? 'text-yellow-600' :
-          'text-red-600'
-        }`}>
-          {`${displayStatus} (${language === 'es' ? '€' : '$'}${amount})`}
-        </span>
+        <Badge variant="outline" className={`font-medium ${variantClass}`}>
+          <span>{displayStatus}</span>
+          <span className="text-xs block mt-0.5">
+            ({language === 'es' ? '€' : '$'}{amount})
+          </span>
+        </Badge>
       );
     }
-
-    return (
-      <span className={`${
-        status === 'fully' ? 'text-green-600' :
-        status === 'partly' ? 'text-yellow-600' :
-        'text-red-600'
-      }`}>
+    
+    return normalizedStatus === 'not_paid' ? (
+      <span className={textColor}>{displayStatus}</span>
+    ) : (
+      <Badge variant="outline" className={`font-medium ${variantClass}`}>
         {displayStatus}
-      </span>
+      </Badge>
     );
   }, [t, language]);
 
