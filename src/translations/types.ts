@@ -40,7 +40,6 @@ export interface TranslationType {
     feature3: string;
     feature4: string;
     feature5: string;
-    feature6: string;
     requestSubmitted: string;
     yourEmailPlaceholder: string;
   };
