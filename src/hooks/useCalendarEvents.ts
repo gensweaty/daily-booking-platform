@@ -212,6 +212,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         requester_email: booking.requester_email || '',
         requester_phone: booking.requester_phone || '',
         description: booking.description || '',
+        deleted_at: booking.deleted_at // Add deleted_at to the mapped object
       }));
       
       return bookingEvents;
