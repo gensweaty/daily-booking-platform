@@ -362,6 +362,45 @@ export const BookingRequestForm = ({
 
       localStorage.setItem(`booking_last_request_${businessId}`, Date.now().toString());
       
+      // Process file upload if a file was selected
+      if (selectedFile && data) {
+        try {
+          console.log("🔍 Processing file upload:", selectedFile.name);
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `booking_${data.id}_${Date.now()}.${fileExt}`;
+          
+          console.log(`🔍 Uploading file to booking_attachments/${filePath}`);
+          const { error: uploadError } = await supabase.storage
+            .from('booking_attachments')
+            .upload(filePath, selectedFile);
+            
+          if (uploadError) {
+            console.error('❌ Error uploading file to storage:', uploadError);
+          } else {
+            console.log("✅ File uploaded successfully to storage");
+            
+            // Create entry in booking_files table - this is the critical fix
+            const { error: bookingFileError } = await supabase
+              .from('booking_files')
+              .insert({
+                booking_request_id: data.id,
+                filename: selectedFile.name,
+                file_path: filePath,
+                content_type: selectedFile.type,
+                size: selectedFile.size
+              });
+              
+            if (bookingFileError) {
+              console.error('❌ Error saving file metadata to booking_files:', bookingFileError);
+            } else {
+              console.log("✅ File metadata saved successfully to booking_files table");
+            }
+          }
+        } catch (fileError) {
+          console.error("❌ Error processing file upload:", fileError);
+        }
+      }
+      
       let emailSent = false;
       let emailError = null;
       
@@ -391,41 +430,6 @@ export const BookingRequestForm = ({
       } catch (emailErr: any) {
         console.error("❌ Error handling notification:", emailErr);
         emailError = emailErr.message || "Unknown email error";
-      }
-      
-      if (selectedFile && data) {
-        try {
-          console.log("🔍 Processing file upload:", selectedFile.name);
-          const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `booking_${data.id}_${Date.now()}.${fileExt}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('booking_attachments')
-            .upload(filePath, selectedFile);
-            
-          if (uploadError) {
-            console.error('❌ Error uploading file:', uploadError);
-          } else {
-            console.log("✅ File uploaded successfully:", filePath);
-            const { error: fileError } = await supabase
-              .from('booking_files')
-              .insert({
-                booking_request_id: data.id,
-                filename: selectedFile.name,
-                file_path: filePath,
-                content_type: selectedFile.type,
-                size: selectedFile.size
-              });
-              
-            if (fileError) {
-              console.error('❌ Error saving file metadata:', fileError);
-            } else {
-              console.log("✅ File metadata saved successfully");
-            }
-          }
-        } catch (fileError) {
-          console.error("❌ Error processing file upload:", fileError);
-        }
       }
       
       queryClient.invalidateQueries({ queryKey: ['business-bookings'] });

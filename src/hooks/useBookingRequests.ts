@@ -241,7 +241,9 @@ export const useBookingRequests = () => {
         console.log('Created customer:', customerData);
       }
       
-      // Use the booking_request_files RPC function to get files associated with the booking
+      // Use the get_booking_request_files function to fetch files associated with the booking
+      // This looks for files in the booking_files table
+      console.log('Fetching booking files using get_booking_request_files for booking ID:', bookingId);
       const { data: bookingFiles, error: filesError } = await supabase
         .rpc('get_booking_request_files', { booking_id_param: bookingId });
       

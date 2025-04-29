@@ -2,8 +2,11 @@
 // This function will be used by our edge functions to get booking request files
 export const getBookingRequestFiles = async (supabase: any, bookingId: string) => {
   try {
+    // Get files from the booking_files table instead of event_files
     const { data, error } = await supabase
-      .rpc('get_booking_request_files', { booking_id_param: bookingId });
+      .from('booking_files')
+      .select('*')
+      .eq('booking_request_id', bookingId);
       
     if (error) throw error;
     return data || [];
