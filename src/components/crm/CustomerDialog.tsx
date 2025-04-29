@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -260,18 +261,20 @@ export const CustomerDialog = ({
 
       // If createEvent is checked, create a corresponding event
       if (createEvent) {
+        // This is the critical part - make sure all fields are properly carried over
+        // Ensure user_surname and title are consistent
         const eventData = {
-          title: userSurname, // Use userSurname as title to ensure consistent display
-          user_surname: userSurname,
+          title: userSurname, // Set title to match user_surname
+          user_surname: userSurname, // Make sure this is explicitly set
           user_number: userNumber,
           social_network_link: socialNetworkLink,
           event_notes: customerNotes,
           start_date: eventStartDate.toISOString(),
           end_date: eventEndDate.toISOString(),
-          payment_status: paymentStatus || 'not_paid',
+          payment_status: paymentStatus, // Ensure payment status is properly set
           payment_amount: paymentStatus && paymentStatus !== 'not_paid' ? parseFloat(paymentAmount) : null,
           user_id: user?.id,
-          type: 'event'  // Explicitly set the type field to ensure it appears in the calendar
+          type: 'event'  // Explicitly set the type
         };
 
         console.log("Creating event with data:", eventData);
@@ -284,7 +287,7 @@ export const CustomerDialog = ({
 
         if (eventError) {
           console.error("Error creating event:", eventError);
-          throw eventError; // Make sure we throw the error so it's properly handled
+          throw eventError;
         } else {
           console.log("Created event:", eventData2);
           eventId = eventData2.id;

@@ -54,20 +54,23 @@ export const EventDialog = ({
   const [isBookingEvent, setIsBookingEvent] = useState(false);
   const isGeorgian = language === 'ka';
 
+  // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
     if (event) {
       const start = new Date(event.start_date);
       const end = new Date(event.end_date);
       
-      // Use the correct field for display name
-      setTitle(event.title || "");
+      console.log("Loading event data:", event);
       
-      // Always use user_surname for the full name field
-      setUserSurname(event.user_surname || "");
+      // Always use user_surname for the full name field and ensure title is synchronized
+      setTitle(event.user_surname || event.title || "");
+      setUserSurname(event.user_surname || event.title || "");
       
       setUserNumber(event.user_number || event.requester_phone || "");
       setSocialNetworkLink(event.social_network_link || event.requester_email || "");
       setEventNotes(event.event_notes || event.description || "");
+      
+      // Ensure payment status is properly set
       setPaymentStatus(event.payment_status || "not_paid");
       setPaymentAmount(event.payment_amount?.toString() || "");
       
@@ -105,6 +108,7 @@ export const EventDialog = ({
     }
   }, [selectedDate, event, open]);
 
+  // Load files for this event
   useEffect(() => {
     const loadFiles = async () => {
       if (event?.id) {
@@ -248,6 +252,7 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Always use userSurname for consistent naming across the app
     const finalTitle = userSurname;
     
     const startDateTime = new Date(startDate);
@@ -266,13 +271,13 @@ export const EventDialog = ({
     
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
-      user_surname: userSurname,
+      user_surname: userSurname, // Use userSurname for consistent naming
       user_number: userNumber,
       social_network_link: socialNetworkLink,
       event_notes: eventNotes,
       start_date: startDateTime.toISOString(),
       end_date: endDateTime.toISOString(),
-      payment_status: paymentStatus || null,
+      payment_status: paymentStatus || 'not_paid', // Ensure payment_status is always set
       payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
     };
 
@@ -285,6 +290,8 @@ export const EventDialog = ({
       console.log("Converting booking request to event:", { wasBookingRequest, isApprovingBookingRequest });
     } else if (event?.type) {
       eventData.type = event.type;
+    } else {
+      eventData.type = 'event'; // Default type if not set
     }
 
     try {
@@ -404,6 +411,7 @@ export const EventDialog = ({
 
       onOpenChange(false);
       
+      // Invalidate all queries to ensure data is refreshed
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
       queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });

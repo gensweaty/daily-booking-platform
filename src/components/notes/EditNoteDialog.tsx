@@ -49,6 +49,7 @@ export const EditNoteDialog = ({
   const [fileError, setFileError] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
+  // Use react-query to fetch existing files for this note
   const { data: existingFiles } = useQuery({
     queryKey: ['noteFiles', note?.id],
     queryFn: async () => {
@@ -59,7 +60,21 @@ export const EditNoteDialog = ({
         .eq('note_id', note.id);
       
       if (error) throw error;
-      return data || [];
+
+      // Ensure we're returning unique files if there are duplicates
+      const uniqueFileIds = new Set<string>();
+      const uniqueFiles: any[] = [];
+      
+      if (data && data.length > 0) {
+        data.forEach(file => {
+          if (!uniqueFileIds.has(file.id)) {
+            uniqueFileIds.add(file.id);
+            uniqueFiles.push(file);
+          }
+        });
+      }
+      
+      return uniqueFiles || [];
     },
     enabled: !!note?.id,
   });

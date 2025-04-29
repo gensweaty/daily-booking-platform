@@ -26,10 +26,15 @@ export const useEventDialog = ({
         ...data,
         type: 'event',
         // Make sure title and user_surname match for consistency
-        title: data.user_surname || data.title
+        title: data.user_surname || data.title,
+        user_surname: data.user_surname || data.title,
+        // Ensure payment_status is properly set
+        payment_status: data.payment_status || 'not_paid'
       };
       
       if (!createEvent) throw new Error("Create event function not provided");
+      
+      console.log("Creating event with data:", eventData);
       const createdEvent = await createEvent(eventData);
       
       setIsNewEventDialogOpen(false);
@@ -57,9 +62,13 @@ export const useEventDialog = ({
       const eventData = {
         ...data,
         type: selectedEvent.type || 'event',
-        title: data.user_surname || data.title
+        title: data.user_surname || data.title,
+        user_surname: data.user_surname || data.title,
+        // Ensure payment_status is properly passed
+        payment_status: data.payment_status || selectedEvent.payment_status || 'not_paid'
       };
       
+      console.log("Updating event with data:", eventData);
       const updatedEvent = await updateEvent(eventData);
       
       setSelectedEvent(null);
