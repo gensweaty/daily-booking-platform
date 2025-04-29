@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
@@ -40,15 +41,24 @@ export const FileDisplay = ({
   }, []);
 
   useEffect(() => {
+    // Debug logging for files being displayed
+    console.log('FileDisplay received files:', files);
+    console.log('After deduplication, unique files:', uniqueFiles);
+    
     const newURLs: {[key: string]: string} = {};
     uniqueFiles.forEach(file => {
       if (file.file_path) {
         const normalizedPath = normalizeFilePath(file.file_path);
-        const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
-        console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path}`);
+        
+        // Always use event_attachments bucket for all files
+        // This is critical - all files are now stored in event_attachments bucket
+        const effectiveBucket = "event_attachments";
+        
+        console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${normalizedPath}`);
         newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
       }
     });
+    
     setFileURLs(newURLs);
   }, [uniqueFiles, parentType]);
 
@@ -65,9 +75,8 @@ export const FileDisplay = ({
     return <FileIcon className="h-5 w-5" />;
   };
 
-  const determineEffectiveBucket = (filePath: string, parentType?: string, source?: string): string => {
-    // Always default to event_attachments bucket for all files from this app
-    // This ensures consistency since all files are now uploaded to event_attachments
+  // Always use event_attachments bucket for consistency
+  const determineEffectiveBucket = (): string => {
     return "event_attachments";
   };
 
@@ -79,8 +88,9 @@ export const FileDisplay = ({
       const effectiveBucket = "event_attachments";
       console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath}`);
       
+      const normalizedPath = normalizeFilePath(filePath);
       const directUrl = fileURLs[fileId] || 
-        `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
+        `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
       
       console.log('Using direct URL for download:', directUrl);
       
@@ -136,7 +146,6 @@ export const FileDisplay = ({
     const normalizedPath = normalizeFilePath(filePath);
     // Always use event_attachments bucket
     const effectiveBucket = "event_attachments";
-    console.log(`Open: Using bucket ${effectiveBucket} for path ${filePath}`);
     
     return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
   };
@@ -252,9 +261,13 @@ export const FileDisplay = ({
             ? file.filename.substring(0, 20) + '...' 
             : file.filename;
           
-          const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
+          // Always use event_attachments bucket for consistency
+          const effectiveBucket = "event_attachments";
+          const normalizedPath = normalizeFilePath(file.file_path);
           const imageUrl = fileURLs[file.id] || 
-            `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(file.file_path)}`;
+            `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
+          
+          console.log(`Rendering file: ${file.filename}, path: ${file.file_path}, url: ${imageUrl}`);
             
           return (
             <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">

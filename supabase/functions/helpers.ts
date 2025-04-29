@@ -21,7 +21,25 @@ export const getBookingRequestFiles = async (supabase: any, bookingId: string) =
       })));
     }
     
-    // STEP 2: Fallback - check if the booking request has file metadata directly
+    // STEP 2: Check booking_files table if it exists
+    try {
+      const { data: bookingFilesData, error: bookingFilesError } = await supabase
+        .from('booking_files')
+        .select('*')
+        .eq('booking_request_id', bookingId);
+        
+      if (!bookingFilesError && bookingFilesData && bookingFilesData.length > 0) {
+        console.log(`Found ${bookingFilesData.length} files in booking_files`);
+        allFiles.push(...bookingFilesData.map(file => ({
+          ...file,
+          source: 'booking_files'
+        })));
+      }
+    } catch (e) {
+      console.log("booking_files table might not exist, ignoring:", e);
+    }
+    
+    // STEP 3: Fallback - check if the booking request has file metadata directly
     if (allFiles.length === 0) {
       console.log("No files found in dedicated tables, checking booking_requests for file metadata");
       const { data: bookingData, error: bookingError } = await supabase
@@ -33,7 +51,7 @@ export const getBookingRequestFiles = async (supabase: any, bookingId: string) =
       if (bookingError) {
         console.error("Error fetching from booking_requests:", bookingError);
       } else if (bookingData && bookingData.file_path) {
-        console.log("Found file metadata directly in booking_requests");
+        console.log("Found file metadata directly in booking_requests:", bookingData.file_path);
         allFiles.push({
           id: `fallback_${bookingId}`,
           booking_request_id: bookingId,
@@ -45,6 +63,34 @@ export const getBookingRequestFiles = async (supabase: any, bookingId: string) =
           source: 'booking_request_direct'
         });
       }
+    }
+
+    // STEP 4: Try using get_all_related_files function to find more files
+    try {
+      console.log("Trying get_all_related_files function for booking:", bookingId);
+      const { data: relatedFiles, error: relatedError } = await supabase
+        .rpc('get_all_related_files', {
+          event_id_param: bookingId,
+          customer_id_param: null,
+          entity_name_param: null
+        });
+        
+      if (!relatedError && relatedFiles && relatedFiles.length > 0) {
+        console.log(`Found ${relatedFiles.length} related files via RPC`);
+        // Filter out any duplicates we might already have
+        const existingPaths = new Set(allFiles.map(f => f.file_path));
+        const uniqueRelatedFiles = relatedFiles.filter(f => !existingPaths.has(f.file_path));
+        
+        if (uniqueRelatedFiles.length > 0) {
+          console.log(`Adding ${uniqueRelatedFiles.length} unique related files`);
+          allFiles.push(...uniqueRelatedFiles.map(file => ({
+            ...file,
+            source: 'related_files_rpc'
+          })));
+        }
+      }
+    } catch (e) {
+      console.log("Error using get_all_related_files RPC, ignoring:", e);
     }
     
     console.log(`Total files found for booking ID ${bookingId}: ${allFiles.length}`);

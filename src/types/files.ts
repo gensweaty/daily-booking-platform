@@ -10,4 +10,6 @@ export interface FileRecord {
   event_id?: string | null;
   customer_id?: string | null;
   source?: string;
+  booking_request_id?: string | null;
+  parentType?: string;
 }

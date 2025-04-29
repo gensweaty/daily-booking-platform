@@ -23,7 +23,7 @@ export interface CalendarEventType {
   deleted_at?: string;
   event_files?: any[]; // Store associated event files
   booking_request_id?: string;
-  // File metadata properties
+  // File metadata properties - ensure these match what's in the database
   file_path?: string;
   filename?: string;
   content_type?: string;

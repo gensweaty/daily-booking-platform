@@ -59,52 +59,129 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       throw eventsError;
     }
 
-    // Fetch files for each event, including those that came from booking requests
+    console.log(`Found ${events.length} events, now fetching their files...`);
+
+    // Fetch files for each event using multiple approaches for redundancy
     const eventsWithFiles = await Promise.all(events.map(async (event) => {
-      // First try getting files directly associated with the event
+      console.log(`Fetching files for event ID: ${event.id}`);
+      const allFiles: any[] = [];
+      const filePathsAdded = new Set<string>();
+      
+      // Strategy 1: Get files directly associated with the event from event_files table
       const { data: eventFiles } = await supabase
         .from('event_files')
         .select('*')
         .eq('event_id', event.id);
         
-      // If this event was created from a booking request, also get those files
-      let bookingFiles: any[] = [];
+      if (eventFiles && eventFiles.length > 0) {
+        console.log(`Found ${eventFiles.length} files in event_files table`);
+        eventFiles.forEach(file => {
+          if (file.file_path && !filePathsAdded.has(file.file_path)) {
+            allFiles.push({
+              ...file,
+              source: 'event_files'
+            });
+            filePathsAdded.add(file.file_path);
+          }
+        });
+      }
+      
+      // Strategy 2: If the event was created from a booking request, get those files
       if (event.booking_request_id) {
-        const { data: bookingRequestFiles } = await supabase
-          .from('event_files')
+        console.log(`Event has booking_request_id: ${event.booking_request_id}, looking for related files...`);
+        
+        // Try the RPC function first
+        try {
+          const { data: bookingFiles } = await supabase
+            .rpc('get_booking_request_files', { booking_id_param: event.booking_request_id });
+            
+          if (bookingFiles && bookingFiles.length > 0) {
+            console.log(`Found ${bookingFiles.length} files from booking request via RPC`);
+            bookingFiles.forEach(file => {
+              if (file.file_path && !filePathsAdded.has(file.file_path)) {
+                allFiles.push({
+                  ...file,
+                  source: 'booking_request_rpc'
+                });
+                filePathsAdded.add(file.file_path);
+              }
+            });
+          }
+        } catch (rpcError) {
+          console.error("Error using get_booking_request_files RPC:", rpcError);
+        }
+        
+        // Check booking_request directly as backup
+        const { data: bookingData } = await supabase
+          .from('booking_requests')
           .select('*')
-          .eq('event_id', event.booking_request_id);
+          .eq('id', event.booking_request_id)
+          .maybeSingle();
           
-        if (bookingRequestFiles && bookingRequestFiles.length > 0) {
-          bookingFiles = bookingRequestFiles;
-          console.log(`Found ${bookingRequestFiles.length} files from original booking request`);
+        if (bookingData && bookingData.file_path && !filePathsAdded.has(bookingData.file_path)) {
+          console.log("Found file metadata in booking_requests table");
+          allFiles.push({
+            id: `fallback_${bookingData.id}`,
+            filename: bookingData.filename || 'attachment',
+            file_path: bookingData.file_path,
+            content_type: bookingData.content_type || 'application/octet-stream',
+            size: bookingData.file_size || bookingData.size || 0,
+            created_at: bookingData.created_at,
+            source: 'booking_requests'
+          });
+          filePathsAdded.add(bookingData.file_path);
         }
       }
       
-      // Also try getting any related files
-      const { data: relatedFiles } = await supabase
-        .rpc('get_all_related_files', {
-          event_id_param: event.id,
-          customer_id_param: null,
-          entity_name_param: event.title
+      // Strategy 3: Check if the event itself has file metadata 
+      if (event.file_path && !filePathsAdded.has(event.file_path)) {
+        console.log("Event itself has file metadata");
+        allFiles.push({
+          id: `event_metadata_${event.id}`,
+          filename: event.filename || 'attachment',
+          file_path: event.file_path,
+          content_type: event.content_type || 'application/octet-stream',
+          size: event.file_size || event.size || 0,
+          created_at: event.created_at,
+          source: 'event_metadata'
         });
+        filePathsAdded.add(event.file_path);
+      }
       
-      // Combine all files, removing duplicates by file_path
-      const allFiles = [...(eventFiles || []), ...(bookingFiles || []), ...(relatedFiles || [])];
-      const uniqueFilePaths = new Set();
-      const uniqueFiles = allFiles.filter(file => {
-        if (uniqueFilePaths.has(file.file_path)) return false;
-        uniqueFilePaths.add(file.file_path);
-        return true;
-      });
+      // Strategy 4: Try getting related files
+      try {
+        const { data: relatedFiles } = await supabase
+          .rpc('get_all_related_files', {
+            event_id_param: event.id,
+            customer_id_param: null,
+            entity_name_param: event.title
+          });
+        
+        if (relatedFiles && relatedFiles.length > 0) {
+          console.log(`Found ${relatedFiles.length} related files`);
+          relatedFiles.forEach(file => {
+            if (file.file_path && !filePathsAdded.has(file.file_path)) {
+              allFiles.push({
+                ...file,
+                source: 'related_files'
+              });
+              filePathsAdded.add(file.file_path);
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error getting related files:", error);
+      }
+
+      console.log(`Total files found for event ${event.id}: ${allFiles.length}`);
       
       return {
         ...event,
-        event_files: uniqueFiles || []
+        event_files: allFiles
       };
     }));
 
-    console.log("Retrieved events:", eventsWithFiles.length);
+    console.log("Retrieved events with files:", eventsWithFiles.length);
     return eventsWithFiles;
   }, [userId, dateRange.start, dateRange.end]);
 

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -156,7 +155,7 @@ export const EventDialog = ({
           console.log("No files found in event_files for event ID:", event.id);
         }
         
-        // STEP 2: If this event has a booking_request_id, check for files
+        // STEP 2: If this event has a booking_request_id, check for files there
         if (event.booking_request_id) {
           console.log("This event was created from booking_request_id:", event.booking_request_id);
           
@@ -191,22 +190,18 @@ export const EventDialog = ({
           if (bookingError) {
             console.error("Error checking booking_requests table:", bookingError);
           } else if (booking) {
+            console.log("Found booking request:", booking);
+            
             // Check if the booking has file metadata
-            // Use type assertion to access potentially missing properties
-            const bookingAny = booking as any;
-            const hasFileMetadata = bookingAny && 
-              bookingAny.file_path && 
-              typeof bookingAny.file_path === 'string';
-              
-            if (hasFileMetadata) {
-              console.log("Found file metadata directly in booking_requests:", bookingAny.file_path);
+            if (booking.file_path) {
+              console.log("Found file metadata directly in booking_requests:", booking.file_path);
               
               combinedFiles.push({
                 id: `fallback_${event.booking_request_id}`,
-                file_path: bookingAny.file_path,
-                filename: bookingAny.filename || 'attachment',
-                content_type: bookingAny.content_type || 'application/octet-stream',
-                size: bookingAny.file_size || 0,
+                file_path: booking.file_path,
+                filename: booking.filename || 'attachment',
+                content_type: booking.content_type || 'application/octet-stream',
+                size: booking.file_size || booking.size || 0,
                 created_at: booking.created_at || new Date().toISOString(),
                 parentType: 'event',
                 source: 'booking_request_direct'
@@ -216,6 +211,25 @@ export const EventDialog = ({
             }
           } else {
             console.log("Could not find booking request record");
+          }
+        }
+        
+        // STEP 3.5: Check if event itself has file metadata
+        if (event.file_path) {
+          console.log("Event itself has file metadata:", event.file_path);
+          
+          // Only add if we don't already have a file with the same path
+          if (!combinedFiles.some(file => file.file_path === event.file_path)) {
+            combinedFiles.push({
+              id: `event_file_${event.id}`,
+              file_path: event.file_path,
+              filename: event.filename || 'attachment',
+              content_type: event.content_type || 'application/octet-stream',
+              size: event.file_size || event.size || 0,
+              created_at: event.created_at,
+              parentType: 'event',
+              source: 'event_metadata'
+            });
           }
         }
         
