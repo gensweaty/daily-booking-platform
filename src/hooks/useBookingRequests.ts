@@ -41,21 +41,35 @@ export const useBookingRequests = () => {
     if (!businessId) return { pending: [], approved: [], rejected: [] };
     
     try {
+      console.log("Fetching booking requests for business ID:", businessId);
+      
       const { data, error } = await supabase
         .from('booking_requests')
         .select('*')
-        .eq('business_id', businessId)
-        .is('deleted_at', null)  // Only fetch non-deleted requests
-        .order('created_at', { ascending: false });
+        .eq('business_id', businessId);
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching booking requests:", error);
+        throw error;
+      }
       
-      // Group requests by status
-      const pending = data?.filter(request => request.status === 'pending') || [];
-      const approved = data?.filter(request => request.status === 'approved') || [];
-      const rejected = data?.filter(request => request.status === 'rejected') || [];
+      if (!data) {
+        console.log("No booking requests data returned");
+        return { pending: [], approved: [], rejected: [] };
+      }
       
-      console.log("Fetched booking requests:", { pending, approved, rejected });
+      console.log(`Fetched ${data.length} total booking requests`);
+      
+      // Group requests by status and filter out soft-deleted ones
+      const pending = data.filter(request => request.status === 'pending' && !request.deleted_at) || [];
+      const approved = data.filter(request => request.status === 'approved' && !request.deleted_at) || [];
+      const rejected = data.filter(request => request.status === 'rejected' && !request.deleted_at) || [];
+      
+      console.log("Booking requests by status:", { 
+        pending: pending.length, 
+        approved: approved.length, 
+        rejected: rejected.length 
+      });
       
       return { pending, approved, rejected };
     } catch (error) {
@@ -220,8 +234,7 @@ export const useBookingRequests = () => {
       const { error } = await supabase
         .from('booking_requests')
         .update({ 
-          deleted_at: new Date().toISOString(),
-          status: 'rejected' // Also mark as rejected to ensure it's filtered properly
+          deleted_at: new Date().toISOString()
         })
         .eq('id', id);
         

@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FileIcon, Loader2, Download, Trash } from "lucide-react";
+import { FileIcon, Loader2, Download, Trash, Image as ImageIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { FileRecord } from "@/types/files";
@@ -17,7 +17,14 @@ interface FileDisplayProps {
   parentId?: string;
 }
 
-export function FileDisplay({ files, bucketName, allowDelete = false, onFileDeleted, parentType = 'event', parentId }: FileDisplayProps) {
+export function FileDisplay({ 
+  files, 
+  bucketName, 
+  allowDelete = false, 
+  onFileDeleted, 
+  parentType = 'event', 
+  parentId 
+}: FileDisplayProps) {
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [fileUrls, setFileUrls] = useState<Record<string, string>>({});
   const { toast } = useToast();
@@ -59,6 +66,11 @@ export function FileDisplay({ files, bucketName, allowDelete = false, onFileDele
 
     loadFileUrls();
   }, [files, bucketName]);
+
+  const isImageFile = (contentType: string | null): boolean => {
+    if (!contentType) return false;
+    return contentType.startsWith('image/');
+  };
 
   const handleDownload = async (file: FileRecord) => {
     try {
@@ -148,15 +160,40 @@ export function FileDisplay({ files, bucketName, allowDelete = false, onFileDele
         {files.map((file) => (
           <div key={file.id} className="flex items-center justify-between p-2 border rounded-md bg-background">
             <div className="flex items-center space-x-2 overflow-hidden">
-              <FileIcon className="h-4 w-4 flex-shrink-0" />
-              <span className="text-sm truncate" title={file.filename}>
-                {file.filename}
-              </span>
-              {file.size && (
-                <span className="text-xs text-muted-foreground">
-                  ({(file.size / 1024).toFixed(1)} KB)
-                </span>
+              {isImageFile(file.content_type) && fileUrls[file.id] ? (
+                <div className="h-10 w-10 rounded overflow-hidden flex-shrink-0">
+                  <img 
+                    src={fileUrls[file.id]} 
+                    alt={file.filename} 
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="h-10 w-10 flex items-center justify-center bg-gray-100 rounded">
+                  {isImageFile(file.content_type) ? (
+                    <ImageIcon className="h-6 w-6 text-gray-400" />
+                  ) : (
+                    <FileIcon className="h-6 w-6 text-gray-400" />
+                  )}
+                </div>
               )}
+              <div className="flex flex-col overflow-hidden">
+                <span className="text-sm truncate font-medium" title={file.filename}>
+                  {file.filename}
+                </span>
+                <div className="flex items-center space-x-1">
+                  {file.content_type && (
+                    <span className="text-xs text-muted-foreground">
+                      {file.content_type.split('/')[1]?.toUpperCase()}
+                    </span>
+                  )}
+                  {file.size && (
+                    <span className="text-xs text-muted-foreground">
+                      • {(file.size / 1024).toFixed(1)} KB
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="flex items-center space-x-1">
               <Button 

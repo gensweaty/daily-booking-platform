@@ -17,7 +17,15 @@ export const BusinessPage = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<"profile" | "bookings">("profile");
-  const { pendingRequests, approvedRequests, rejectedRequests, approveBooking, rejectBooking, deleteBooking } = useBookingRequests();
+  const { 
+    pendingRequests, 
+    approvedRequests, 
+    rejectedRequests, 
+    approveBooking, 
+    rejectBooking, 
+    deleteBooking 
+  } = useBookingRequests();
+  
   const pendingCount = pendingRequests?.length || 0;
 
   const { data: businessProfile, isLoading } = useQuery({
