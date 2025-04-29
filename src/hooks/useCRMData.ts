@@ -1,3 +1,4 @@
+
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -118,26 +119,38 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
           .maybeSingle();
           
         // Safely access potential file data with explicit type checking
-        if (bookingData && typeof bookingData === 'object' && 'file_path' in bookingData && bookingData.file_path && !filePathsAdded.has(bookingData.file_path)) {
-          console.log("Found file metadata in booking_requests table");
-          allFiles.push({
-            id: `fallback_${bookingData.id}`,
-            filename: 'filename' in bookingData && typeof bookingData.filename === 'string' ? 
-                      bookingData.filename : 'attachment',
-            file_path: bookingData.file_path,
-            content_type: 'content_type' in bookingData && typeof bookingData.content_type === 'string' ? 
-                          bookingData.content_type : 'application/octet-stream',
-            size: 'file_size' in bookingData ? Number(bookingData.file_size) || 
-                  ('size' in bookingData ? Number(bookingData.size) : 0) : 0,
-            created_at: bookingData.created_at,
-            source: 'booking_requests'
-          });
-          filePathsAdded.add(bookingData.file_path);
+        if (bookingData && typeof bookingData === 'object') {
+          // Check if file_path exists and is a string
+          const filePath = 'file_path' in bookingData && typeof bookingData.file_path === 'string' 
+            ? bookingData.file_path 
+            : null;
+            
+          if (filePath && !filePathsAdded.has(filePath)) {
+            console.log("Found file metadata in booking_requests table");
+            allFiles.push({
+              id: `fallback_${bookingData.id}`,
+              filename: 'filename' in bookingData && typeof bookingData.filename === 'string' 
+                      ? bookingData.filename 
+                      : 'attachment',
+              file_path: filePath,
+              content_type: 'content_type' in bookingData && typeof bookingData.content_type === 'string' 
+                          ? bookingData.content_type 
+                          : 'application/octet-stream',
+              size: 'file_size' in bookingData && typeof bookingData.file_size === 'number' 
+                  ? bookingData.file_size 
+                  : ('size' in bookingData && typeof bookingData.size === 'number' 
+                    ? bookingData.size 
+                    : 0),
+              created_at: bookingData.created_at,
+              source: 'booking_requests'
+            });
+            filePathsAdded.add(filePath);
+          }
         }
       }
       
       // Strategy 3: Check if the event itself has file metadata 
-      if (event.file_path && !filePathsAdded.has(event.file_path)) {
+      if (event.file_path && typeof event.file_path === 'string' && !filePathsAdded.has(event.file_path)) {
         console.log("Event itself has file metadata");
         allFiles.push({
           id: `event_metadata_${event.id}`,
