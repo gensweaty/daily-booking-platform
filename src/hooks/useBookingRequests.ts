@@ -241,10 +241,9 @@ export const useBookingRequests = () => {
         console.log('Created customer:', customerData);
       }
       
+      // Use the booking_request_files RPC function to get files associated with the booking
       const { data: bookingFiles, error: filesError } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', bookingId);
+        .rpc('get_booking_request_files', { booking_id_param: bookingId });
       
       if (filesError) {
         console.error('Error fetching booking files:', filesError);
@@ -259,7 +258,8 @@ export const useBookingRequests = () => {
           try {
             console.log(`Processing file: ${file.filename}, path: ${file.file_path}`);
             
-            const { data: fileData, error: fileError } = await supabase.storage
+            // Download the file from storage
+            const { data: fileBlob, error: fileError } = await supabase.storage
               .from('booking_attachments')
               .download(file.file_path);
               
@@ -268,10 +268,13 @@ export const useBookingRequests = () => {
               continue;
             }
             
+            // Generate a new unique file path for the event attachment
             const newFilePath = `${Date.now()}_${file.filename.replace(/\s+/g, '_')}`;
+            
+            // Upload to event_attachments bucket
             const { error: uploadError } = await supabase.storage
               .from('event_attachments')
-              .upload(newFilePath, fileData);
+              .upload(newFilePath, fileBlob);
               
             if (uploadError) {
               console.error('Error uploading file to event_attachments:', uploadError);
@@ -280,6 +283,7 @@ export const useBookingRequests = () => {
             
             console.log(`Successfully copied file to event_attachments/${newFilePath}`);
             
+            // Create the event_files record
             const { error: eventFileError } = await supabase
               .from('event_files')
               .insert({
@@ -295,6 +299,7 @@ export const useBookingRequests = () => {
               console.error('Error creating event file record:', eventFileError);
             }
             
+            // If we have a customer, also create a customer file record
             if (customerData) {
               const { error: customerFileError } = await supabase
                 .from('customer_files_new')
@@ -307,83 +312,83 @@ export const useBookingRequests = () => {
                   customer_id: customerData.id
                 });
               
-            if (customerFileError) {
-              console.error('Error creating customer file record:', customerFileError);
+              if (customerFileError) {
+                console.error('Error creating customer file record:', customerFileError);
+              }
             }
+          } catch (error) {
+            console.error('Error processing file:', error);
           }
-        } catch (error) {
-          console.error('Error processing file:', error);
         }
       }
-    }
     
-    if (booking && booking.requester_email) {
-      let businessName = "Our Business";
-      try {
-        const { data: businessProfile } = await supabase
-          .from('business_profiles')
-          .select('business_name')
-          .eq('id', booking.business_id)
-          .maybeSingle();
-        if (businessProfile && businessProfile.business_name) {
-          businessName = businessProfile.business_name;
+      if (booking && booking.requester_email) {
+        let businessName = "Our Business";
+        try {
+          const { data: businessProfile } = await supabase
+            .from('business_profiles')
+            .select('business_name')
+            .eq('id', booking.business_id)
+            .maybeSingle();
+          if (businessProfile && businessProfile.business_name) {
+            businessName = businessProfile.business_name;
+          }
+        } catch (err) {
+          console.warn("Could not load business profile for email:", err);
         }
-      } catch (err) {
-        console.warn("Could not load business profile for email:", err);
-      }
-      
-      console.log(`Preparing to send email to ${booking.requester_email} for business ${businessName}`);
-      console.log("Email data:", {
-        email: booking.requester_email,
-        fullName: booking.requester_name || booking.user_surname || "",
-        businessName,
-        startDate: booking.start_date,
-        endDate: booking.end_date,
-      });
-      
-      const emailResult = await sendApprovalEmail({
-        email: booking.requester_email,
-        fullName: booking.requester_name || booking.user_surname || "",
-        businessName,
-        startDate: booking.start_date,
-        endDate: booking.end_date,
-      });
-      
-      if (emailResult.success) {
-        console.log("Email notification processed during booking approval");
+        
+        console.log(`Preparing to send email to ${booking.requester_email} for business ${businessName}`);
+        console.log("Email data:", {
+          email: booking.requester_email,
+          fullName: booking.requester_name || booking.user_surname || "",
+          businessName,
+          startDate: booking.start_date,
+          endDate: booking.end_date,
+        });
+        
+        const emailResult = await sendApprovalEmail({
+          email: booking.requester_email,
+          fullName: booking.requester_name || booking.user_surname || "",
+          businessName,
+          startDate: booking.start_date,
+          endDate: booking.end_date,
+        });
+        
+        if (emailResult.success) {
+          console.log("Email notification processed during booking approval");
+        } else {
+          console.error("Failed to process email during booking approval:", emailResult.error);
+          // We continue even if email fails to ensure the booking is still approved
+        }
       } else {
-        console.error("Failed to process email during booking approval:", emailResult.error);
-        // We continue even if email fails to ensure the booking is still approved
+        console.warn("No email address found for booking request, can't send notification");
       }
-    } else {
-      console.warn("No email address found for booking request, can't send notification");
+      
+      console.log('Booking approval process completed successfully');
+      return booking;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      toast({
+        title: "Success",
+        description: "Booking request approved and notification email processed"
+      });
+    },
+    onError: (error: Error) => {
+      console.error('Error in approval mutation:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve booking request",
+        variant: "destructive"
+      });
     }
-
-    console.log('Booking approval process completed successfully');
-    return booking;
-  },
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
-    queryClient.invalidateQueries({ queryKey: ['events'] });
-    queryClient.invalidateQueries({ queryKey: ['business-events'] });
-    queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-    queryClient.invalidateQueries({ queryKey: ['customers'] });
-    queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-    queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-    toast({
-      title: "Success",
-      description: "Booking request approved and notification email processed"
-    });
-  },
-  onError: (error: Error) => {
-    console.error('Error in approval mutation:', error);
-    toast({
-      title: "Error",
-      description: error.message || "Failed to approve booking request",
-      variant: "destructive"
-    });
-  }
-});
+  });
   
   const rejectMutation = useMutation({
     mutationFn: async (bookingId: string) => {
