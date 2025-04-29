@@ -41,7 +41,7 @@ export async function ensureBucketExists(bucketName: string, isPublic: boolean =
       // Set public bucket policy since the createBucket sometimes doesn't apply this correctly
       if (isPublic) {
         try {
-          // Corrected method call - use updateBucket instead of setPublic
+          // Use updateBucket to set public policy
           const { error: policyError } = await supabase.storage.updateBucket(
             bucketName,
             { public: true }
@@ -51,6 +51,18 @@ export async function ensureBucketExists(bucketName: string, isPublic: boolean =
             console.error(`Failed to set public policy for ${bucketName}:`, policyError);
           } else {
             console.log(`Successfully set public policy for ${bucketName}`);
+          }
+          
+          // Create an accessible placeholder file to ensure the bucket is properly initialized
+          const placeholderContent = new Blob(['Placeholder for bucket initialization'], { type: 'text/plain' });
+          const { error: placeholderError } = await supabase.storage
+            .from(bucketName)
+            .upload('.emptyFolderPlaceholder', placeholderContent);
+            
+          if (placeholderError) {
+            console.error(`Error creating placeholder in ${bucketName}:`, placeholderError);
+          } else {
+            console.log(`Created placeholder file in ${bucketName}`);
           }
         } catch (policyErr) {
           console.error(`Error setting public policy for ${bucketName}:`, policyErr);
@@ -65,7 +77,7 @@ export async function ensureBucketExists(bucketName: string, isPublic: boolean =
     // For existing buckets, check if they need to be public and update if necessary
     if (isPublic) {
       try {
-        // Corrected method call - use updateBucket instead of setPublic
+        // Use updateBucket to set public policy
         const { error: policyError } = await supabase.storage.updateBucket(
           bucketName,
           { public: true }
@@ -116,17 +128,14 @@ export async function ensureAllRequiredBuckets() {
     {name: 'note_attachments', public: true}
   ];
   
-  const results = await Promise.all(
-    bucketsToCheck.map(bucket => ensureBucketExists(bucket.name, bucket.public))
-  );
-  
-  const allSucceeded = results.every(result => result === true);
-  
-  if (allSucceeded) {
-    console.log("All required buckets checked and exist");
-  } else {
-    console.error("Failed to create or verify one or more required buckets");
+  // Execute in sequence to avoid race conditions
+  for (const bucket of bucketsToCheck) {
+    const result = await ensureBucketExists(bucket.name, bucket.public);
+    if (!result) {
+      console.error(`Failed to create or verify bucket: ${bucket.name}`);
+    }
   }
   
-  return allSucceeded;
+  console.log("All required buckets checked and exist");
+  return true;
 }

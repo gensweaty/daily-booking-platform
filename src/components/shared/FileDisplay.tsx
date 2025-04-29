@@ -1,3 +1,4 @@
+
 import { FileRecord } from "@/types/files";
 import { Button } from "@/components/ui/button";
 import { Trash2, FileText, Download, ExternalLink, Image as ImageIcon, FileIcon } from "lucide-react";
@@ -98,11 +99,17 @@ export const FileDisplay = ({
         
         try {
           const bucket = getBucketName(fileItem);
-          console.log(`Getting URL for ${fileItem.filename} from bucket ${bucket}`);
+          console.log(`Getting URL for ${fileItem.filename} from bucket ${bucket}, path: ${fileItem.file_path}`);
+          
+          // Check if the file path already includes the bucket name
+          let filePath = fileItem.file_path;
+          if (filePath.startsWith(`${bucket}/`)) {
+            filePath = filePath.substring(bucket.length + 1);
+          }
           
           const { data } = supabase.storage
             .from(bucket)
-            .getPublicUrl(fileItem.file_path);
+            .getPublicUrl(filePath);
             
           const fileId = fileItem.id || `file-${Math.random().toString(36).substring(7)}`;
           urls[fileId] = data.publicUrl;
@@ -131,9 +138,17 @@ export const FileDisplay = ({
     // Otherwise get it from storage
     try {
       const bucket = getBucketName(fileItem);
+      
+      // Check if the file path already includes the bucket name
+      let filePath = fileItem.file_path;
+      if (filePath.startsWith(`${bucket}/`)) {
+        filePath = filePath.substring(bucket.length + 1);
+        console.log(`Adjusted file path: ${filePath}`);
+      }
+      
       const { data } = supabase.storage
         .from(bucket)
-        .getPublicUrl(fileItem.file_path);
+        .getPublicUrl(filePath);
       
       // Cache the URL
       setFileUrls(prev => ({
@@ -174,11 +189,18 @@ export const FileDisplay = ({
       // Step 1: Delete the file from storage if it has a path
       if (fileToDelete.file_path) {
         const bucket = getBucketName(fileToDelete);
-        console.log(`Attempting to delete file from ${bucket}/${fileToDelete.file_path}`);
+        
+        // Check if the file path already includes the bucket name
+        let filePath = fileToDelete.file_path;
+        if (filePath.startsWith(`${bucket}/`)) {
+          filePath = filePath.substring(bucket.length + 1);
+        }
+        
+        console.log(`Attempting to delete file from ${bucket}/${filePath}`);
         
         const { error: storageError } = await supabase.storage
           .from(bucket)
-          .remove([fileToDelete.file_path]);
+          .remove([filePath]);
           
         if (storageError) {
           console.error('Error deleting file from storage:', storageError);
@@ -276,12 +298,19 @@ export const FileDisplay = ({
     try {
       console.log("Downloading file:", fileToDownload);
       const bucket = getBucketName(fileToDownload);
-      console.log(`Downloading from bucket: ${bucket}, path: ${fileToDownload.file_path}`);
+      
+      // Check if the file path already includes the bucket name
+      let filePath = fileToDownload.file_path;
+      if (filePath.startsWith(`${bucket}/`)) {
+        filePath = filePath.substring(bucket.length + 1);
+      }
+      
+      console.log(`Downloading from bucket: ${bucket}, path: ${filePath}`);
       
       // First try using the Supabase storage API
       const { data, error } = await supabase.storage
         .from(bucket)
-        .download(fileToDownload.file_path);
+        .download(filePath);
         
       if (error) {
         console.error("Download error:", error);
