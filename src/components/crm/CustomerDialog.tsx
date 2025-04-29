@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -266,11 +265,10 @@ export const CustomerDialog = ({
           event_notes: customerNotes,
           start_date: eventStartDate.toISOString(),
           end_date: eventEndDate.toISOString(),
-          payment_status: paymentStatus || 'not_paid',
+          payment_status: paymentStatus || null,
           payment_amount: paymentStatus && paymentStatus !== 'not_paid' ? parseFloat(paymentAmount) : null,
           user_id: user?.id,
           customer_id: customerId,
-          type: 'event',
         };
 
         console.log("Creating event with data:", eventData);
@@ -283,7 +281,6 @@ export const CustomerDialog = ({
 
         if (eventError) {
           console.error("Error creating event:", eventError);
-          throw eventError;
         } else {
           console.log("Created event:", eventData2);
           

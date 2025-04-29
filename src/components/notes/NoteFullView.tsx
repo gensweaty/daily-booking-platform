@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Note } from "@/lib/types";
 import { FileDisplay } from "../shared/FileDisplay";
@@ -38,12 +37,7 @@ export const NoteFullView = ({ note, isOpen, onClose }: NoteFullViewProps) => {
           {files && files.length > 0 && (
             <div className="mt-4">
               <h3 className="text-sm font-medium mb-2">Attachments</h3>
-              <FileDisplay 
-                files={files} 
-                bucketName="note_attachments"
-                parentType="note"
-                parentId={note.id}
-              />
+              <FileDisplay files={files} bucketName="note_attachments" />
             </div>
           )}
         </div>
