@@ -37,6 +37,7 @@ interface EventDialogFieldsProps {
   displayedFiles: FileRecord[];
   onFileDeleted: (fileId: string) => void;
   isBookingRequest?: boolean;
+  isLoading?: boolean; // Added isLoading prop
 }
 
 export const EventDialogFields = ({
@@ -66,6 +67,7 @@ export const EventDialogFields = ({
   displayedFiles,
   onFileDeleted,
   isBookingRequest = false,
+  isLoading = false, // Added default value for isLoading
 }: EventDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
@@ -222,6 +224,7 @@ export const EventDialogFields = ({
             onFileDeleted={onFileDeleted}
             parentType="event" 
             parentId={eventId}
+            isLoading={isLoading} // Pass isLoading to FileDisplay component
           />
         </div>
       )}
