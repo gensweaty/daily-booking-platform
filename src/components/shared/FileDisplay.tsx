@@ -32,6 +32,7 @@ export const FileDisplay = ({
   
   console.log("FileDisplay rendered with files:", files);
   console.log("File count:", files?.length || 0);
+  console.log("File bucket name:", bucketName);
   
   const handleDownload = async (file: FileRecord) => {
     try {
@@ -116,6 +117,7 @@ export const FileDisplay = ({
           .from(bucketName)
           .getPublicUrl(file.file_path);
           
+        console.log("Generated public URL for image:", publicUrl);
         setViewImageUrl(publicUrl);
       }
     } catch (error) {

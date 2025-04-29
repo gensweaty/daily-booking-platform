@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
+import { FileRecord } from "@/types/files";
 
 interface EventDialogProps {
   open: boolean;
@@ -46,7 +48,7 @@ export const EventDialog = ({
   const [paymentAmount, setPaymentAmount] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
-  const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
+  const [displayedFiles, setDisplayedFiles] = useState<FileRecord[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -126,62 +128,80 @@ export const EventDialog = ({
   // Load files for this event
   useEffect(() => {
     const loadFiles = async () => {
-      if (!event?.id) return;
+      if (!event?.id && !open) return;
       
       try {
-        console.log("Loading files for event:", event.id);
-        console.log("Event type:", event.type);
-        console.log("Booking request ID:", event.booking_request_id);
+        console.log("Loading files for event:", event?.id);
+        console.log("Event type:", event?.type);
+        console.log("Booking request ID:", event?.booking_request_id);
         
-        // Get files directly associated with this event
-        const { data: eventFiles, error: eventFilesError } = await supabase
-          .from('event_files')
-          .select('*')
-          .eq('event_id', event.id);
-          
-        if (eventFilesError) {
-          console.error("Error loading event files:", eventFilesError);
-        } else if (eventFiles && eventFiles.length > 0) {
-          console.log("Found files directly associated with event ID:", eventFiles.length);
+        let allFiles: FileRecord[] = [];
+        
+        // Get files directly associated with this event if it's a regular event
+        if (event?.id && !isBookingRequest) {
+          const { data: eventFiles, error: eventFilesError } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', event.id);
+            
+          if (eventFilesError) {
+            console.error("Error loading event files:", eventFilesError);
+          } else if (eventFiles && eventFiles.length > 0) {
+            console.log("Found files directly associated with event ID:", eventFiles.length);
+            allFiles = [...allFiles, ...eventFiles.map(file => ({...file, parentType: 'event' as const}))];
+          }
         }
         
-        // Get any files associated with the booking request that created this event
-        let relatedBookingFiles: any[] = [];
-        if (event.booking_request_id) {
+        // Get files associated with the booking request that created this event
+        if (event?.booking_request_id) {
           console.log("This event has a booking request ID, checking for booking files:", event.booking_request_id);
           
-          const { data: relatedFiles, error: relatedFilesError } = await supabase
+          const { data: bookingFiles, error: bookingFilesError } = await supabase
             .from('event_files')
             .select('*')
             .eq('event_id', event.booking_request_id);
             
-          if (!relatedFilesError && relatedFiles) {
-            console.log("Found files from the original booking request:", relatedFiles.length);
-            relatedBookingFiles = relatedFiles;
+          if (bookingFilesError) {
+            console.error("Error loading booking request files:", bookingFilesError);
+          } else if (bookingFiles && bookingFiles.length > 0) {
+            console.log("Found files from the original booking request:", bookingFiles.length);
+            allFiles = [...allFiles, ...bookingFiles.map(file => ({...file, parentType: 'event' as const}))];
+          }
+        }
+        
+        // If this is a booking request itself, get its files
+        if (event?.id && isBookingRequest) {
+          console.log("This is a booking request, checking for its own files:", event.id);
+          
+          const { data: bookingRequestFiles, error: bookingRequestFilesError } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', event.id);
+            
+          if (bookingRequestFilesError) {
+            console.error("Error loading booking request's own files:", bookingRequestFilesError);
+          } else if (bookingRequestFiles && bookingRequestFiles.length > 0) {
+            console.log("Found files for this booking request:", bookingRequestFiles.length);
+            allFiles = [...allFiles, ...bookingRequestFiles.map(file => ({...file, parentType: 'event' as const}))];
           }
         }
         
         // Use a Set to track unique file IDs to avoid duplicates
         const uniqueFileIds = new Set<string>();
-        const uniqueFiles: any[] = [];
-        
-        const allFiles = [...(eventFiles || []), ...relatedBookingFiles];
+        const uniqueFiles: FileRecord[] = [];
         
         allFiles.forEach(file => {
           if (!uniqueFileIds.has(file.id)) {
             uniqueFileIds.add(file.id);
-            uniqueFiles.push({
-              ...file,
-              parentType: 'event'
-            });
+            uniqueFiles.push(file);
           }
         });
         
         if (uniqueFiles.length > 0) {
-          console.log("Loaded unique event files:", uniqueFiles.length);
+          console.log("Loaded unique files:", uniqueFiles.length);
           setDisplayedFiles(uniqueFiles);
         } else {
-          console.log("No files found for event or booking ID:", event.id);
+          console.log("No files found for event or booking ID:", event?.id);
           setDisplayedFiles([]);
         }
         

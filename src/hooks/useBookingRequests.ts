@@ -60,7 +60,7 @@ export const useBookingRequests = () => {
       console.log("Fetched booking requests:", data);
       
       // Normalize payment status in fetched data
-      return (data || []).map(request => {
+      const normalizedRequests = (data || []).map(request => {
         // Make a copy of the original request
         const normalizedRequest = { ...request };
         
@@ -75,6 +75,32 @@ export const useBookingRequests = () => {
         
         return normalizedRequest;
       });
+      
+      // Fetch files for each booking request
+      for (const request of normalizedRequests) {
+        try {
+          console.log(`Fetching files for booking request: ${request.id}`);
+          
+          const { data: files, error: filesError } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', request.id);
+            
+          if (filesError) {
+            console.error(`Error fetching files for booking request ${request.id}:`, filesError);
+          } else if (files && files.length > 0) {
+            console.log(`Found ${files.length} files for booking request ${request.id}:`, files);
+            request.files = files;
+          } else {
+            console.log(`No files found for booking request ${request.id}`);
+            request.files = [];
+          }
+        } catch (err) {
+          console.error(`Exception fetching files for booking request ${request.id}:`, err);
+        }
+      }
+      
+      return normalizedRequests;
     },
     enabled: !!businessId,
     staleTime: 1000 * 60,
@@ -128,6 +154,18 @@ export const useBookingRequests = () => {
 
       console.log("Successfully updated booking request status to approved:", data);
 
+      // Fetch files associated with this booking request
+      const { data: files, error: filesError } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', id);
+
+      if (filesError) {
+        console.error("Error fetching booking request files:", filesError);
+      } else {
+        console.log(`Found ${files?.length || 0} files for booking request ${id}:`, files);
+      }
+
       // Create an event based on the booking details with the payment information
       const { data: eventData, error: eventError } = await supabase
         .from('events')
@@ -155,18 +193,10 @@ export const useBookingRequests = () => {
 
       console.log("Successfully created event from booking with payment data:", eventData);
 
-      // Find any files associated with this booking request
-      const { data: files, error: filesError } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', id);
-
-      if (filesError) {
-        console.error("Error fetching booking request files:", filesError);
-      } else if (files && files.length > 0) {
-        console.log(`Found ${files.length} files for booking request ${id}:`, files);
+      // Copy files associated with this booking request to reference the new event
+      if (files && files.length > 0) {
+        console.log(`Found ${files.length} files to copy for booking request ${id}`);
         
-        // Copy files to reference the new event
         for (const file of files) {
           const fileData = {
             filename: file.filename,

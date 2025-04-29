@@ -1,3 +1,4 @@
+
 export interface Task {
   id: string;
   title: string;
@@ -64,4 +65,5 @@ export interface BookingRequest {
   event_notes?: string;
   payment_status?: 'not_paid' | 'partly_paid' | 'fully_paid' | 'partly' | 'fully';
   payment_amount?: number | null;
+  files?: any[]; // Added to track associated files
 }
