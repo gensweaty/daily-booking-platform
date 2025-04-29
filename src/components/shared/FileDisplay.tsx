@@ -176,7 +176,9 @@ export const FileDisplay = ({
 
       if (storageError) {
         console.error('Error deleting file from storage:', storageError);
-        throw storageError;
+        // Don't throw error here - we still want to delete the database record
+        // even if the file is missing from storage
+        console.warn('Continuing with database record deletion despite storage error');
       }
       
       // Determine the appropriate table name based on the parent type
@@ -210,6 +212,7 @@ export const FileDisplay = ({
         onFileDeleted(fileId);
       }
       
+      // Invalidate all relevant queries to ensure UI is updated
       queryClient.invalidateQueries({ queryKey: ['files'] });
       queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
       queryClient.invalidateQueries({ queryKey: ['noteFiles'] });

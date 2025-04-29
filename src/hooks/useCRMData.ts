@@ -59,18 +59,48 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       throw eventsError;
     }
 
-    // Fetch files for each event
+    // Fetch files for each event, including those that came from booking requests
     const eventsWithFiles = await Promise.all(events.map(async (event) => {
-      const { data: files } = await supabase
+      // First try getting files directly associated with the event
+      const { data: eventFiles } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', event.id);
+        
+      // If this event was created from a booking request, also get those files
+      let bookingFiles: any[] = [];
+      if (event.booking_request_id) {
+        const { data: bookingRequestFiles } = await supabase
+          .from('event_files')
+          .select('*')
+          .eq('event_id', event.booking_request_id);
+          
+        if (bookingRequestFiles && bookingRequestFiles.length > 0) {
+          bookingFiles = bookingRequestFiles;
+          console.log(`Found ${bookingRequestFiles.length} files from original booking request`);
+        }
+      }
+      
+      // Also try getting any related files
+      const { data: relatedFiles } = await supabase
         .rpc('get_all_related_files', {
           event_id_param: event.id,
           customer_id_param: null,
           entity_name_param: event.title
         });
       
+      // Combine all files, removing duplicates by file_path
+      const allFiles = [...(eventFiles || []), ...(bookingFiles || []), ...(relatedFiles || [])];
+      const uniqueFilePaths = new Set();
+      const uniqueFiles = allFiles.filter(file => {
+        if (uniqueFilePaths.has(file.file_path)) return false;
+        uniqueFilePaths.add(file.file_path);
+        return true;
+      });
+      
       return {
         ...event,
-        event_files: files || []
+        event_files: uniqueFiles || []
       };
     }));
 

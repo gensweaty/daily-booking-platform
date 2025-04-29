@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -136,6 +135,26 @@ export const EventDialog = ({
           if (eventFilesError) {
             console.error("Error loading event files:", eventFilesError);
             return;
+          }
+          
+          // If this is a booking request, also check if there are files attached to it
+          if (event.type === 'booking_request') {
+            console.log("This is a booking request, checking for booking files");
+            
+            // Check if we can find booking request files
+            const { data: bookingFiles } = await supabase
+              .rpc('get_booking_request_files', { booking_id_param: event.id });
+              
+            if (bookingFiles && bookingFiles.length > 0) {
+              console.log("Found booking request files:", bookingFiles.length);
+              
+              // Combine the files
+              if (eventFiles) {
+                eventFiles.push(...bookingFiles);
+              } else {
+                eventFiles = bookingFiles;
+              }
+            }
           }
           
           // Use a Set to track unique file IDs to avoid duplicates
