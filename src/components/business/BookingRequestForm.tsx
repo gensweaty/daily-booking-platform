@@ -9,25 +9,37 @@ import { useToast } from '@/components/ui/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { FileUploadField } from '../shared/FileUploadField';
 
-interface BookingRequestFormProps {
+export interface BookingRequestFormProps {
   businessId: string | undefined;
   onRequestSubmitted?: () => void;
   businessSlug?: string;
   businessName?: string;
+  selectedDate?: Date;
+  startTime?: string;
+  endTime?: string;
+  isExternalBooking?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 export const BookingRequestForm = ({
   businessId,
   onRequestSubmitted,
   businessSlug,
-  businessName
+  businessName,
+  selectedDate,
+  startTime: initialStartTime = '09:00',
+  endTime: initialEndTime = '10:00',
+  isExternalBooking,
+  onOpenChange,
+  onSuccess
 }: BookingRequestFormProps) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [date, setDate] = useState('');
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:00');
+  const [date, setDate] = useState(selectedDate ? selectedDate.toISOString().split('T')[0] : '');
+  const [startTime, setStartTime] = useState(initialStartTime);
+  const [endTime, setEndTime] = useState(initialEndTime);
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -138,22 +150,34 @@ export const BookingRequestForm = ({
         console.error("Error sending notification:", notificationError);
       }
 
+      // Reset form
       setName('');
       setEmail('');
       setPhone('');
       setDate('');
-      setStartTime('09:00');
-      setEndTime('10:00');
+      setStartTime(initialStartTime);
+      setEndTime(initialEndTime);
       setDescription('');
       setSelectedFile(null);
 
+      // Show success notification
       toast({
         title: t('business.requestSuccessTitle'),
         description: t('business.requestSuccessDescription'),
       });
 
+      // Call callbacks
       if (onRequestSubmitted) {
         onRequestSubmitted();
+      }
+      
+      if (onSuccess) {
+        onSuccess();
+      }
+      
+      // Close the dialog if we're in a dialog
+      if (onOpenChange) {
+        onOpenChange(false);
       }
     } catch (error: any) {
       console.error('Error submitting booking request:', error);
