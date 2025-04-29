@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -80,7 +79,6 @@ export const EventDialog = ({
       let normalizedStatus = event.payment_status || "not_paid";
       if (normalizedStatus === 'partly') normalizedStatus = 'partly_paid';
       else if (normalizedStatus === 'fully') normalizedStatus = 'fully_paid';
-      else normalizedStatus = 'not_paid';
       
       console.log("Setting normalized payment status:", normalizedStatus);
       setPaymentStatus(normalizedStatus);
@@ -310,7 +308,6 @@ export const EventDialog = ({
     let normalizedPaymentStatus = paymentStatus;
     if (normalizedPaymentStatus === 'partly') normalizedPaymentStatus = 'partly_paid';
     else if (normalizedPaymentStatus === 'fully') normalizedPaymentStatus = 'fully_paid';
-    else if (normalizedPaymentStatus === 'not_paid') normalizedPaymentStatus = 'not_paid';
     
     console.log("Submitting with payment status:", normalizedPaymentStatus);
     console.log("Submitting with payment amount:", paymentAmount);

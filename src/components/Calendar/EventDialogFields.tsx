@@ -76,6 +76,11 @@ export const EventDialogFields = ({
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid" || 
                            paymentStatus === "partly" || paymentStatus === "fully";
   
+  // Log payment status for debugging
+  console.log("EventDialogFields - Current payment status:", paymentStatus);
+  console.log("EventDialogFields - Show payment amount field:", showPaymentAmount);
+  console.log("EventDialogFields - Current payment amount:", paymentAmount);
+  
   return (
     <>
       <div>
@@ -163,8 +168,8 @@ export const EventDialogFields = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.notPaid")}</LanguageText></SelectItem>
-                <SelectItem value="partly" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.paidPartly")}</LanguageText></SelectItem>
-                <SelectItem value="fully" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.paidFully")}</LanguageText></SelectItem>
+                <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.paidPartly")}</LanguageText></SelectItem>
+                <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.paidFully")}</LanguageText></SelectItem>
               </SelectContent>
             </Select>
           </div>

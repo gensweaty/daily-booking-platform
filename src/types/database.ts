@@ -1,4 +1,3 @@
-
 export interface Task {
   id: string;
   title: string;
@@ -63,6 +62,6 @@ export interface BookingRequest {
   user_number?: string;
   social_network_link?: string;
   event_notes?: string;
-  payment_status?: string;
+  payment_status?: 'not_paid' | 'partly_paid' | 'fully_paid' | 'partly' | 'fully';
   payment_amount?: number | null;
 }

@@ -58,7 +58,23 @@ export const useBookingRequests = () => {
       }
 
       console.log("Fetched booking requests:", data);
-      return data || [];
+      
+      // Normalize payment status in fetched data
+      return (data || []).map(request => {
+        // Make a copy of the original request
+        const normalizedRequest = { ...request };
+        
+        // Normalize payment status
+        if (normalizedRequest.payment_status) {
+          if (normalizedRequest.payment_status === 'partly') {
+            normalizedRequest.payment_status = 'partly_paid';
+          } else if (normalizedRequest.payment_status === 'fully') {
+            normalizedRequest.payment_status = 'fully_paid';
+          }
+        }
+        
+        return normalizedRequest;
+      });
     },
     enabled: !!businessId,
     staleTime: 1000 * 60,
@@ -89,15 +105,14 @@ export const useBookingRequests = () => {
 
       console.log("Full booking data retrieved for approval:", bookingData);
       
-      // Capture payment data before updating request status
-      const paymentStatus = bookingData.payment_status || 'not_paid';
-      const paymentAmount = bookingData.payment_amount;
+      // Normalize payment status for consistency
+      let normalizedPaymentStatus = bookingData.payment_status || 'not_paid';
+      if (normalizedPaymentStatus === 'partly') normalizedPaymentStatus = 'partly_paid';
+      else if (normalizedPaymentStatus === 'fully') normalizedPaymentStatus = 'fully_paid';
       
-      console.log("Payment data captured for transfer:", {
-        status: paymentStatus,
-        amount: paymentAmount
-      });
-
+      console.log("Normalized payment status for transfer:", normalizedPaymentStatus);
+      console.log("Payment amount for transfer:", bookingData.payment_amount);
+      
       // Update booking request status
       const { data, error } = await supabase
         .from('booking_requests')
@@ -124,8 +139,8 @@ export const useBookingRequests = () => {
           event_notes: bookingData.description,
           start_date: bookingData.start_date,
           end_date: bookingData.end_date,
-          payment_status: paymentStatus, // Use the captured payment status
-          payment_amount: paymentAmount, // Use the captured payment amount
+          payment_status: normalizedPaymentStatus, // Use the normalized payment status
+          payment_amount: bookingData.payment_amount, // Use the original payment amount
           user_id: user?.id,
           type: 'event',
           booking_request_id: id // Store reference to the original booking request

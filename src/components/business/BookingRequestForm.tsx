@@ -340,9 +340,14 @@ export const BookingRequestForm = ({
         }
       }
 
+      // Normalize payment status for consistency
+      let normalizedPaymentStatus = paymentStatus;
+      if (normalizedPaymentStatus === 'partly') normalizedPaymentStatus = 'partly_paid';
+      else if (normalizedPaymentStatus === 'fully') normalizedPaymentStatus = 'fully_paid';
+
       // Log the payment data for debugging
       console.log("Submitting booking request with payment data:", {
-        status: paymentStatus,
+        status: normalizedPaymentStatus,
         amount: parsedPaymentAmount
       });
 
@@ -359,7 +364,7 @@ export const BookingRequestForm = ({
           start_date: startDateTime.toISOString(),
           end_date: endDateTime.toISOString(),
           status: 'pending',
-          payment_status: paymentStatus,
+          payment_status: normalizedPaymentStatus,
           payment_amount: parsedPaymentAmount
         })
         .select()
