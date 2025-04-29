@@ -17,15 +17,7 @@ export const BusinessPage = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<"profile" | "bookings">("profile");
-  const { 
-    pendingRequests, 
-    approvedRequests, 
-    rejectedRequests, 
-    approveBooking, 
-    rejectBooking, 
-    deleteBooking 
-  } = useBookingRequests();
-  
+  const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest } = useBookingRequests();
   const pendingCount = pendingRequests?.length || 0;
 
   const { data: businessProfile, isLoading } = useQuery({
@@ -129,9 +121,9 @@ export const BusinessPage = () => {
               <BookingRequestsList
                 requests={pendingRequests}
                 type="pending"
-                onApprove={approveBooking}
-                onReject={rejectBooking}
-                onDelete={deleteBooking}
+                onApprove={approveRequest}
+                onReject={rejectRequest}
+                onDelete={deleteBookingRequest}
               />
             </div>
 
@@ -142,7 +134,7 @@ export const BusinessPage = () => {
               <BookingRequestsList
                 requests={approvedRequests}
                 type="approved"
-                onDelete={deleteBooking}
+                onDelete={deleteBookingRequest}
               />
             </div>
 
@@ -153,7 +145,7 @@ export const BusinessPage = () => {
               <BookingRequestsList
                 requests={rejectedRequests}
                 type="rejected"
-                onDelete={deleteBooking}
+                onDelete={deleteBookingRequest}
               />
             </div>
           </div>

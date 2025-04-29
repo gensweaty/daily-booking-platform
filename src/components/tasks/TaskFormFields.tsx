@@ -74,8 +74,8 @@ export const TaskFormFields = ({
             bucketName="task_attachments"
             allowDelete
             onFileDeleted={handleFileDeleted}
-            parentType="task"
             parentId={editingTask.id}
+            parentType="task"
           />
         </div>
       )}

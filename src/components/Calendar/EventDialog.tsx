@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -32,18 +33,19 @@ export const EventDialog = ({
   event,
   isBookingRequest = false
 }: EventDialogProps) => {
-  // Always use user_surname as the primary name field to ensure consistency
-  const [title, setTitle] = useState("");
-  const [userSurname, setUserSurname] = useState("");
-  const [userNumber, setUserNumber] = useState("");
-  const [socialNetworkLink, setSocialNetworkLink] = useState("");
-  const [eventNotes, setEventNotes] = useState("");
+  // Always initialize with user_surname as the primary name field
+  // This ensures we're using the correct field for full name
+  const [title, setTitle] = useState(event?.user_surname || event?.title || "");
+  const [userSurname, setUserSurname] = useState(event?.user_surname || event?.title || "");
+  const [userNumber, setUserNumber] = useState(event?.user_number || "");
+  const [socialNetworkLink, setSocialNetworkLink] = useState(event?.social_network_link || "");
+  const [eventNotes, setEventNotes] = useState(event?.event_notes || "");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [originalStartDate, setOriginalStartDate] = useState("");
   const [originalEndDate, setOriginalEndDate] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("not_paid");
-  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState(event?.payment_status || "not_paid");
+  const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
@@ -63,6 +65,7 @@ export const EventDialog = ({
       console.log("Loading event data:", event);
       
       // Set both title and userSurname to the user_surname value for consistency
+      // If user_surname is missing, fall back to title
       const fullName = event.user_surname || event.title || "";
       setTitle(fullName);
       setUserSurname(fullName);
@@ -108,15 +111,12 @@ export const EventDialog = ({
       setOriginalEndDate(formattedEnd);
       setPaymentStatus("not_paid");
       
-      // Clear all other fields when creating a new event
       setTitle("");
       setUserSurname("");
       setUserNumber("");
       setSocialNetworkLink("");
       setEventNotes("");
       setPaymentAmount("");
-      setSelectedFile(null);
-      setFileError("");
     }
   }, [selectedDate, event, open]);
 
@@ -127,7 +127,7 @@ export const EventDialog = ({
         try {
           console.log("Loading files for event:", event.id);
           
-          // Get event files directly
+          // First get event files directly
           const { data: eventFiles, error: eventFilesError } = await supabase
             .from('event_files')
             .select('*')
@@ -138,55 +138,27 @@ export const EventDialog = ({
             return;
           }
           
-          // If this is from a booking request that was approved, also check for files with the booking request ID
-          const allFiles = [...(eventFiles || [])];
-          
-          if (event.booking_request_id) {
-            console.log("This event has a booking request ID, checking for booking files:", event.booking_request_id);
-            
-            const { data: bookingFiles, error: bookingFilesError } = await supabase
-              .from('event_files')
-              .select('*')
-              .eq('event_id', event.booking_request_id);
-              
-            if (!bookingFilesError && bookingFiles && bookingFiles.length > 0) {
-              console.log("Found files from the original booking request:", bookingFiles);
-              allFiles.push(...bookingFiles);
-            }
-          }
-          
-          if (isBookingRequest && event.type === 'booking_request') {
-            // For booking requests, we want to show files associated with this booking request
-            const { data: bookingRequestFiles, error: bookingRequestFilesError } = await supabase
-              .from('event_files')
-              .select('*')
-              .eq('event_id', event.id);
-              
-            if (!bookingRequestFilesError && bookingRequestFiles) {
-              console.log("Found files for booking request:", bookingRequestFiles.length);
-              allFiles.push(...bookingRequestFiles);
-            }
-          }
-          
           // Use a Set to track unique file IDs to avoid duplicates
           const uniqueFileIds = new Set<string>();
           const uniqueFiles: any[] = [];
           
-          allFiles.forEach(file => {
-            if (!uniqueFileIds.has(file.id)) {
-              uniqueFileIds.add(file.id);
-              uniqueFiles.push({
-                ...file,
-                parentType: 'event'
-              });
-            }
-          });
+          if (eventFiles && eventFiles.length > 0) {
+            eventFiles.forEach(file => {
+              if (!uniqueFileIds.has(file.id)) {
+                uniqueFileIds.add(file.id);
+                uniqueFiles.push({
+                  ...file,
+                  parentType: 'event'
+                });
+              }
+            });
+          }
           
           if (uniqueFiles.length > 0) {
-            console.log("Loaded unique event files:", uniqueFiles.length);
+            console.log("Loaded unique event files:", uniqueFiles);
             setDisplayedFiles(uniqueFiles);
           } else {
-            console.log("No files found for event or booking ID:", event.id);
+            console.log("No files found for event:", event.id);
             setDisplayedFiles([]);
           }
           
@@ -199,9 +171,8 @@ export const EventDialog = ({
     if (open) {
       loadFiles();
     }
-  }, [event, open, isBookingRequest]);
+  }, [event, open]);
 
-  // Function to send approval email notification
   const sendApprovalEmail = async (
     startDateTime: Date,
     endDateTime: Date,
@@ -333,23 +304,10 @@ export const EventDialog = ({
     if (event?.id) {
       eventData.id = event.id;
     }
-    
-    // Preserve the booking_request_id if it exists
-    if (event?.booking_request_id) {
-      eventData.booking_request_id = event.booking_request_id;
-    }
 
     if (wasBookingRequest) {
       eventData.type = 'event';
-      // If this is a booking request being approved, store its ID to track relationship
-      if (isApprovingBookingRequest) {
-        eventData.booking_request_id = event.id;
-      }
-      console.log("Converting booking request to event:", { 
-        wasBookingRequest, 
-        isApprovingBookingRequest,
-        bookingRequestId: eventData.booking_request_id 
-      });
+      console.log("Converting booking request to event:", { wasBookingRequest, isApprovingBookingRequest });
     } else if (event?.type) {
       eventData.type = event.type;
     } else {
@@ -389,7 +347,6 @@ export const EventDialog = ({
         }
       }
 
-      // Handle file upload for new event
       if (selectedFile && createdEvent?.id && user) {
         try {
           const fileExt = selectedFile.name.split('.').pop();
@@ -427,49 +384,6 @@ export const EventDialog = ({
           console.log('File record created successfully');
         } catch (fileError) {
           console.error("Error handling file upload:", fileError);
-        }
-      }
-
-      // Special handling for booking requests being converted to events
-      if (isApprovingBookingRequest && event?.id) {
-        try {
-          console.log("Copying files from booking request to approved event");
-          
-          // Get files associated with the booking request
-          const { data: requestFiles, error: filesError } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', event.id);
-            
-          if (filesError) {
-            console.error("Error fetching booking request files:", filesError);
-          } else if (requestFiles && requestFiles.length > 0) {
-            console.log(`Found ${requestFiles.length} files to copy from booking request`);
-            
-            // Create new file records linking to the created event
-            for (const file of requestFiles) {
-              const newFileData = {
-                filename: file.filename,
-                file_path: file.file_path, // Reuse the same file in storage
-                content_type: file.content_type,
-                size: file.size,
-                user_id: user.id,
-                event_id: createdEvent.id
-              };
-              
-              const { error: copyError } = await supabase
-                .from('event_files')
-                .insert(newFileData);
-                
-              if (copyError) {
-                console.error("Error copying file record:", copyError);
-              } else {
-                console.log("Successfully copied file from booking request to event");
-              }
-            }
-          }
-        } catch (copyError) {
-          console.error("Error copying booking request files:", copyError);
         }
       }
 
@@ -524,7 +438,6 @@ export const EventDialog = ({
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['bookingRequests'] });
       
     } catch (error: any) {
       console.error('Error handling event submission:', error);

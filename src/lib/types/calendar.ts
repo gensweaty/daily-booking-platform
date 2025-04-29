@@ -20,6 +20,5 @@ export interface CalendarEventType {
   requester_phone?: string;
   description?: string;
   file?: File;
-  deleted_at?: string; // This field is important for soft deletion functionality
-  booking_request_id?: string; // Added to link events to their corresponding booking requests
+  deleted_at?: string; // Added deleted_at property
 }

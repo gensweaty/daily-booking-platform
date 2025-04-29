@@ -1,4 +1,5 @@
 
+// If you have this file, update it to use LanguageText components
 import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
