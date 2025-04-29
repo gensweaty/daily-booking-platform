@@ -446,13 +446,14 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         return { available: true, conflictDetails: "" };
       }
       
+      // FIXED: Added explicit filter for deleted_at IS NULL to exclude deleted events
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('id, title, start_date, end_date, deleted_at, type')
         .eq('user_id', userId)
         .filter('start_date', 'lt', endDate.toISOString())
         .filter('end_date', 'gt', startDate.toISOString())
-        .is('deleted_at', null);
+        .is('deleted_at', null); // This ensures we only check against non-deleted events
       
       if (eventsError) throw eventsError;
       
@@ -461,13 +462,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         return item.id === excludeEventId;
       };
       
+      // Log what we got before filtering
+      console.log("Found potential conflicting events before filtering:", conflictingEvents?.length || 0);
+      
       const eventsConflict = conflictingEvents?.filter(event => 
         !isSameEvent(event) &&
         !(startDate.getTime() >= new Date(event.end_date).getTime() || 
           endDate.getTime() <= new Date(event.start_date).getTime())
       );
       
-      console.log("Conflicting events (excluding current):", eventsConflict);
+      console.log("Conflicting events (excluding current):", eventsConflict?.length || 0);
       
       if (eventsConflict && eventsConflict.length > 0) {
         const conflictEvent = eventsConflict[0];
@@ -484,13 +488,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         if (targetBusinessId) {
           console.log("Booking conflict check for excludeEventId:", excludeEventId);
           
+          // FIXED: Added explicit filter for deleted_at IS NULL to exclude deleted bookings
           const { data: conflictingBookings, error: bookingsError } = await supabase
             .from('booking_requests')
-            .select('id, title, start_date, end_date, type')
+            .select('id, title, start_date, end_date, type, deleted_at')
             .eq('business_id', targetBusinessId)
             .eq('status', 'approved')
             .filter('start_date', 'lt', endDate.toISOString())
-            .filter('end_date', 'gt', startDate.toISOString());
+            .filter('end_date', 'gt', startDate.toISOString())
+            .is('deleted_at', null); // This ensures we only check against non-deleted bookings
           
           if (bookingsError) throw bookingsError;
           
@@ -504,13 +510,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             return booking.id === excludeEventId;
           };
           
+          // Log what we got before filtering
+          console.log("Found potential conflicting bookings before filtering:", conflictingBookings?.length || 0);
+          
           const bookingsConflict = conflictingBookings?.filter(booking => 
             !isSameBooking(booking) &&
             !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
               endDate.getTime() <= new Date(booking.start_date).getTime())
           );
           
-          console.log("Filtered conflicting bookings:", bookingsConflict);
+          console.log("Filtered conflicting bookings:", bookingsConflict?.length || 0);
           
           if (bookingsConflict && bookingsConflict.length > 0) {
             const conflictBooking = bookingsConflict[0];
@@ -529,13 +538,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           .maybeSingle();
           
         if (userBusinessProfile?.id) {
+          // FIXED: Added explicit filter for deleted_at IS NULL to exclude deleted bookings
           const { data: conflictingBookings, error: bookingsError } = await supabase
             .from('booking_requests')
-            .select('id, title, start_date, end_date')
+            .select('id, title, start_date, end_date, deleted_at')
             .eq('business_id', userBusinessProfile.id)
             .eq('status', 'approved')
             .filter('start_date', 'lt', endDate.toISOString())
-            .filter('end_date', 'gt', startDate.toISOString());
+            .filter('end_date', 'gt', startDate.toISOString())
+            .is('deleted_at', null); // This ensures we only check against non-deleted bookings
             
           if (bookingsError) throw bookingsError;
           
