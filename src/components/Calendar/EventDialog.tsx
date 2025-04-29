@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -191,19 +192,21 @@ export const EventDialog = ({
             console.error("Error checking booking_requests table:", bookingError);
           } else if (booking) {
             // Check if the booking has file metadata
-            const hasFileMetadata = booking && 
-              booking.file_path && 
-              typeof booking.file_path === 'string';
+            // Use type assertion to access potentially missing properties
+            const bookingAny = booking as any;
+            const hasFileMetadata = bookingAny && 
+              bookingAny.file_path && 
+              typeof bookingAny.file_path === 'string';
               
             if (hasFileMetadata) {
-              console.log("Found file metadata directly in booking_requests:", booking.file_path);
+              console.log("Found file metadata directly in booking_requests:", bookingAny.file_path);
               
               combinedFiles.push({
                 id: `fallback_${event.booking_request_id}`,
-                file_path: booking.file_path,
-                filename: booking.filename || 'attachment',
-                content_type: booking.content_type || 'application/octet-stream',
-                size: booking.file_size || 0,
+                file_path: bookingAny.file_path,
+                filename: bookingAny.filename || 'attachment',
+                content_type: bookingAny.content_type || 'application/octet-stream',
+                size: bookingAny.file_size || 0,
                 created_at: booking.created_at || new Date().toISOString(),
                 parentType: 'event',
                 source: 'booking_request_direct'
