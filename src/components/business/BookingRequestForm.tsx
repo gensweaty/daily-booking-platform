@@ -20,6 +20,7 @@ export interface BookingRequestFormProps {
   isExternalBooking?: boolean;
   onOpenChange?: (open: boolean) => void;
   onSuccess?: () => void;
+  open?: boolean; // Added this property to match the Calendar.tsx usage
 }
 
 export const BookingRequestForm = ({
