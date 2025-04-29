@@ -1,4 +1,3 @@
-
 import { FileRecord } from "@/types/files";
 import { Button } from "@/components/ui/button";
 import { Trash2, FileText, Download, ExternalLink, Image as ImageIcon, FileIcon } from "lucide-react";
@@ -203,9 +202,9 @@ export const FileDisplay = ({
           
         error = dbError;
       } else if (fileToDelete.source?.includes('booking_request') || fileToDelete.booking_request_id) {
-        console.log("Deleting from booking_files table");
+        console.log("Deleting from event_files table for booking request");
         const { error: dbError } = await supabase
-          .from('booking_files')
+          .from('event_files')
           .delete()
           .eq('id', fileToDelete.id);
           
