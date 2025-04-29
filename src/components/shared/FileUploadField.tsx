@@ -85,6 +85,12 @@ export const FileUploadField = ({
 
     if (selectedFile) {
       console.log(`Selected file: ${selectedFile.name}, Size: ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB, Type: ${selectedFile.type}`);
+      
+      // If this is for a booking request, log the ID
+      if (bookingRequestId) {
+        console.log(`File selected for booking request ID: ${bookingRequestId}`);
+      }
+      
       const error = validateFile(selectedFile);
       if (error) {
         actualSetFileError(error);

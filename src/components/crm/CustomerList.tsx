@@ -213,17 +213,17 @@ export const CustomerList = () => {
     if (!status) return '-';
     
     const normalizedStatus = 
-      status.includes('partly') ? 'partly' : 
-      status.includes('fully') ? 'fully' : 
+      status.includes('partly') ? 'partly_paid' : 
+      status.includes('fully') ? 'fully_paid' : 
       'not_paid';
     
     let textColorClass = '';
     
     switch(normalizedStatus) {
-      case 'fully':
+      case 'fully_paid':
         textColorClass = 'text-green-600';
         break;
-      case 'partly':
+      case 'partly_paid':
         textColorClass = 'text-amber-600';
         break;
       default: // not_paid
@@ -236,10 +236,10 @@ export const CustomerList = () => {
       case 'not_paid':
         displayStatus = t("crm.notPaid");
         break;
-      case 'partly':
+      case 'partly_paid':
         displayStatus = t("crm.paidPartly");
         break;
-      case 'fully':
+      case 'fully_paid':
         displayStatus = t("crm.paidFully");
         break;
       default:
@@ -257,7 +257,7 @@ export const CustomerList = () => {
     return (
       <div className={`font-medium ${textColorClass}`}>
         <LanguageText>{displayStatus}</LanguageText>
-        {(normalizedStatus === 'partly' || normalizedStatus === 'fully') && amount && (
+        {(normalizedStatus === 'partly_paid' || normalizedStatus === 'fully_paid') && amount && (
           <div className="text-xs mt-0.5">
             ({language === 'es' ? '€' : '$'}{amount.toFixed(2)})
           </div>
