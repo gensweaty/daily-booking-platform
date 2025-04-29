@@ -179,45 +179,21 @@ export const EventDialog = ({
             console.log("No files found via get_booking_request_files for booking request ID:", event.booking_request_id);
           }
           
-          // STEP 3: Check booking_files table directly
-          console.log("Checking booking_files table directly...");
-          const { data: bookingFileData, error: bookingFileError } = await supabase
-            .from('booking_files')
-            .select('*')
-            .eq('booking_request_id', event.booking_request_id);
-            
-          if (bookingFileError) {
-            console.error("Error checking booking_files table:", bookingFileError);
-          } else if (bookingFileData && bookingFileData.length > 0) {
-            console.log("Found files directly in booking_files table:", bookingFileData.length);
-            
-            const formattedDirectBookingFiles = bookingFileData.map(file => ({
-              ...file,
-              parentType: 'event',
-              source: 'booking_files_direct'
-            }));
-            
-            combinedFiles.push(...formattedDirectBookingFiles);
-          } else {
-            console.log("No files found in booking_files for booking request ID:", event.booking_request_id);
-          }
-          
-          // STEP 4: Try fallback - check if booking_requests has file metadata directly
-          console.log("Checking booking_requests for file metadata...");
-          const { data: booking } = await supabase
+          // STEP 3: Check booking_requests table directly for file metadata
+          console.log("Checking booking_requests table for file metadata...");
+          const { data: booking, error: bookingError } = await supabase
             .from('booking_requests')
             .select('*')
             .eq('id', event.booking_request_id)
             .maybeSingle();
             
-          if (booking) {
+          if (bookingError) {
+            console.error("Error checking booking_requests table:", bookingError);
+          } else if (booking) {
             // Check if the booking has file metadata
-            const hasFileMetadata = 
-              booking && 
-              typeof booking === 'object' &&
-              booking !== null &&
-              'file_path' in booking && 
-              booking.file_path;
+            const hasFileMetadata = booking && 
+              booking.file_path && 
+              typeof booking.file_path === 'string';
               
             if (hasFileMetadata) {
               console.log("Found file metadata directly in booking_requests:", booking.file_path);
@@ -227,7 +203,7 @@ export const EventDialog = ({
                 file_path: booking.file_path,
                 filename: booking.filename || 'attachment',
                 content_type: booking.content_type || 'application/octet-stream',
-                size: booking.file_size || booking.size || 0,
+                size: booking.file_size || 0,
                 created_at: booking.created_at || new Date().toISOString(),
                 parentType: 'event',
                 source: 'booking_request_direct'
@@ -240,7 +216,7 @@ export const EventDialog = ({
           }
         }
         
-        // STEP 5: If we still don't have files, try looking for files with the same name/title
+        // STEP 4: If we still don't have files, try looking for files with the same name/title
         if (combinedFiles.length === 0 && event.title) {
           console.log("Looking for files by event title:", event.title);
           

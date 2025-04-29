@@ -21,23 +21,7 @@ export const getBookingRequestFiles = async (supabase: any, bookingId: string) =
       })));
     }
     
-    // STEP 2: Check booking_files table next (this is for pending booking files)
-    const { data: bookingFileData, error: bookingFileError } = await supabase
-      .from('booking_files')
-      .select('*')
-      .eq('booking_request_id', bookingId);
-      
-    if (bookingFileError) {
-      console.error("Error fetching from booking_files:", bookingFileError);
-    } else if (bookingFileData && bookingFileData.length > 0) {
-      console.log(`Found ${bookingFileData.length} files in booking_files`);
-      allFiles.push(...bookingFileData.map(file => ({
-        ...file,
-        source: 'booking_files'
-      })));
-    }
-    
-    // STEP 3: Fallback - check if the booking request has file metadata directly
+    // STEP 2: Fallback - check if the booking request has file metadata directly
     if (allFiles.length === 0) {
       console.log("No files found in dedicated tables, checking booking_requests for file metadata");
       const { data: bookingData, error: bookingError } = await supabase
