@@ -1,6 +1,6 @@
 import { FileRecord } from "@/types/files";
 import { Button } from "@/components/ui/button";
-import { Trash2, FileText, Download } from "lucide-react";
+import { Trash2, FileText, Download, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -39,9 +39,22 @@ export const FileDisplay = ({
   const effectiveOnDelete = onDelete || onFileDeleted;
   
   // Get the appropriate bucket name based on the file source or parent type
-  const getBucketName = () => {
+  const getBucketName = (fileItem?: FileRecord) => {
     // If bucketName is provided directly, use that
     if (bucketName) return bucketName;
+    
+    // If file has source info, use that to determine bucket
+    if (fileItem?.source) {
+      if (fileItem.source.includes('booking') || fileItem.source.includes('event')) {
+        return 'event_attachments';
+      } else if (fileItem.source.includes('customer')) {
+        return 'customer_attachments';
+      } else if (fileItem.source.includes('note')) {
+        return 'note_attachments';
+      } else if (fileItem.source.includes('task')) {
+        return 'task_attachments';
+      }
+    }
     
     // Otherwise determine from parentType
     switch (parentType) {
@@ -57,6 +70,22 @@ export const FileDisplay = ({
     }
   };
   
+  // Check if the file is an image that can be previewed
+  const isImage = (fileItem: FileRecord) => {
+    const contentType = fileItem.content_type?.toLowerCase() || '';
+    return contentType.startsWith('image/');
+  };
+  
+  // Get public URL for a file
+  const getFileUrl = (fileItem: FileRecord) => {
+    if (!fileItem?.file_path) return null;
+    
+    const bucket = getBucketName(fileItem);
+    return supabase.storage
+      .from(bucket)
+      .getPublicUrl(fileItem.file_path).data.publicUrl;
+  };
+  
   const handleDelete = async (fileToDelete: FileRecord) => {
     if (!fileToDelete.id) return;
     
@@ -65,7 +94,7 @@ export const FileDisplay = ({
       
       // Step 1: Delete the file from storage if it has a path
       if (fileToDelete.file_path) {
-        const bucket = getBucketName();
+        const bucket = getBucketName(fileToDelete);
         console.log(`Attempting to delete file from ${bucket}/${fileToDelete.file_path}`);
         
         const { error: storageError } = await supabase.storage
@@ -81,7 +110,7 @@ export const FileDisplay = ({
       // Step 2: Delete the file record from the database
       let error;
       
-      // Determine which table to delete from based on parentType
+      // Determine which table to delete from based on parentType or file source
       if (fileToDelete.source === 'event_files' || parentType === 'event') {
         const { error: dbError } = await supabase
           .from('event_files')
@@ -150,7 +179,7 @@ export const FileDisplay = ({
     }
     
     try {
-      const bucket = getBucketName();
+      const bucket = getBucketName(fileToDownload);
       const { data, error } = await supabase.storage
         .from(bucket)
         .download(fileToDownload.file_path);
@@ -192,9 +221,44 @@ export const FileDisplay = ({
     }
   };
   
+  // Function to open file in a new tab
+  const handleOpenFile = (fileToOpen: FileRecord) => {
+    const fileUrl = getFileUrl(fileToOpen);
+    if (fileUrl) {
+      window.open(fileUrl, '_blank');
+    } else {
+      toast({
+        title: t("common.error"),
+        description: t("Unable to open file"),
+        variant: "destructive",
+      });
+    }
+  };
+  
   // Function to get file type icon based on content type
-  const getFileIcon = () => {
+  const getFileIcon = (fileItem: FileRecord) => {
     return <FileText className="mr-2 h-4 w-4" />;
+  };
+
+  // Render file thumbnail for images
+  const renderThumbnail = (fileItem: FileRecord) => {
+    if (isImage(fileItem)) {
+      const fileUrl = getFileUrl(fileItem);
+      if (fileUrl) {
+        return (
+          <div className="h-8 w-8 rounded overflow-hidden mr-2 flex-shrink-0">
+            <img 
+              src={fileUrl} 
+              alt={fileItem.filename} 
+              className="h-full w-full object-cover"
+              onClick={() => handleOpenFile(fileItem)}
+            />
+          </div>
+        );
+      }
+    }
+    
+    return getFileIcon(fileItem);
   };
 
   // If we have a files array, render multiple files
@@ -203,13 +267,22 @@ export const FileDisplay = ({
       <div className="space-y-1">
         {files.map((fileItem) => (
           <div key={fileItem.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
-            <div className="flex items-center overflow-hidden">
-              {getFileIcon()}
-              <span className="text-sm truncate" title={fileItem.filename}>
+            <div className="flex items-center overflow-hidden cursor-pointer" onClick={() => handleOpenFile(fileItem)}>
+              {renderThumbnail(fileItem)}
+              <span className="text-sm truncate hover:underline" title={fileItem.filename}>
                 {fileItem.filename || "Unnamed file"}
               </span>
             </div>
             <div className="flex gap-2">
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                onClick={() => handleOpenFile(fileItem)}
+                title={t("common.open")}
+              >
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+              
               <Button 
                 size="icon" 
                 variant="ghost" 
@@ -241,13 +314,22 @@ export const FileDisplay = ({
   if (file) {
     return (
       <div className="flex items-center justify-between p-2 bg-muted/50 rounded-md my-1">
-        <div className="flex items-center overflow-hidden">
-          {getFileIcon()}
-          <span className="text-sm truncate" title={file.filename}>
+        <div className="flex items-center overflow-hidden cursor-pointer" onClick={() => handleOpenFile(file)}>
+          {renderThumbnail(file)}
+          <span className="text-sm truncate hover:underline" title={file.filename}>
             {file.filename || "Unnamed file"}
           </span>
         </div>
         <div className="flex gap-2">
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            onClick={() => handleOpenFile(file)}
+            title={t("common.open")}
+          >
+            <ExternalLink className="h-4 w-4" />
+          </Button>
+        
           <Button 
             size="icon" 
             variant="ghost" 
