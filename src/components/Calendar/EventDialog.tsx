@@ -127,7 +127,7 @@ export const EventDialog = ({
           console.log("Loading files for event:", event.id);
           
           // First get event files directly
-          const { data: eventFiles, error: eventFilesError } = await supabase
+          const { data: eventFilesData, error: eventFilesError } = await supabase
             .from('event_files')
             .select('*')
             .eq('event_id', event.id);
@@ -136,6 +136,9 @@ export const EventDialog = ({
             console.error("Error loading event files:", eventFilesError);
             return;
           }
+          
+          // Define a mutable variable for files
+          let allEventFiles = eventFilesData || [];
           
           // If this is a booking request, also check if there are files attached to it
           if (event.type === 'booking_request') {
@@ -149,11 +152,7 @@ export const EventDialog = ({
               console.log("Found booking request files:", bookingFiles.length);
               
               // Combine the files
-              if (eventFiles) {
-                eventFiles.push(...bookingFiles);
-              } else {
-                eventFiles = bookingFiles;
-              }
+              allEventFiles = [...allEventFiles, ...bookingFiles];
             }
           }
           
@@ -161,8 +160,8 @@ export const EventDialog = ({
           const uniqueFileIds = new Set<string>();
           const uniqueFiles: any[] = [];
           
-          if (eventFiles && eventFiles.length > 0) {
-            eventFiles.forEach(file => {
+          if (allEventFiles && allEventFiles.length > 0) {
+            allEventFiles.forEach(file => {
               if (!uniqueFileIds.has(file.id)) {
                 uniqueFileIds.add(file.id);
                 uniqueFiles.push({
