@@ -244,7 +244,7 @@ export const useBookingRequests = () => {
       // Use the get_booking_request_files function to fetch files associated with the booking
       // This looks for files in the booking_files table
       console.log('Fetching booking files using get_booking_request_files for booking ID:', bookingId);
-      const { data: bookingFiles, error: filesError } = await supabase
+      let { data: bookingFiles, error: filesError } = await supabase
         .rpc('get_booking_request_files', { booking_id_param: bookingId });
       
       if (filesError) {
@@ -252,6 +252,20 @@ export const useBookingRequests = () => {
       }
       
       console.log('Found booking files:', bookingFiles);
+      
+      // FALLBACK: Check booking_requests.file_path if no files found in booking_files
+      if (!bookingFiles || bookingFiles.length === 0) {
+        console.log('No files found in booking_files, checking booking_requests for file_path');
+        if (booking.file_path) {
+          console.log('Fallback: Found file in booking_requests:', booking.file_path);
+          bookingFiles = [{
+            filename: booking.filename || 'attachment',
+            file_path: booking.file_path,
+            content_type: booking.content_type || 'application/octet-stream',
+            size: booking.file_size || booking.size || 0
+          }];
+        }
+      }
         
       if (bookingFiles && bookingFiles.length > 0) {
         console.log(`Processing ${bookingFiles.length} files for the booking`);

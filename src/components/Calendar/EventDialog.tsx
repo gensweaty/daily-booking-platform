@@ -126,7 +126,7 @@ export const EventDialog = ({
         try {
           console.log("Loading files for event:", event.id);
           
-          // Always fetch files directly from event_files table by event ID first
+          // STEP 1: Always fetch files directly from event_files table by event ID first
           const { data: eventFilesData, error: eventFilesError } = await supabase
             .from('event_files')
             .select('*')
@@ -148,21 +148,22 @@ export const EventDialog = ({
             console.log("No files found in event_files for event ID:", event.id);
           }
           
-          // If this event has a booking_request_id, also check for files associated with that ID
+          // STEP 2: If this event has a booking_request_id, check for files associated with that ID
           if (event.booking_request_id) {
             console.log("This event was created from booking_request_id:", event.booking_request_id);
             
-            const { data: bookingEventFiles, error: bookingFilesError } = await supabase
-              .from('event_files')
+            // First try booking_files table
+            const { data: bookingFiles, error: bookingFilesError } = await supabase
+              .from('booking_files')
               .select('*')
-              .eq('event_id', event.booking_request_id);
+              .eq('booking_request_id', event.booking_request_id);
               
             if (bookingFilesError) {
-              console.error("Error loading files from original booking:", bookingFilesError);
-            } else if (bookingEventFiles && bookingEventFiles.length > 0) {
-              console.log("Found files from original booking:", bookingEventFiles.length);
+              console.error("Error loading booking files:", bookingFilesError);
+            } else if (bookingFiles && bookingFiles.length > 0) {
+              console.log("Found files in booking_files:", bookingFiles.length);
               
-              const formattedBookingFiles = bookingEventFiles.map(file => ({
+              const formattedBookingFiles = bookingFiles.map(file => ({
                 ...file,
                 parentType: 'event',
                 source: 'booking_request'
@@ -171,11 +172,37 @@ export const EventDialog = ({
               setDisplayedFiles(formattedBookingFiles);
               return; // Files found, no need to continue
             } else {
-              console.log("No files found linked to the original booking request");
+              console.log("No files found in booking_files for booking request ID:", event.booking_request_id);
+            }
+            
+            // STEP 3: Try fallback - check if booking_requests has file metadata directly
+            console.log("Checking booking_requests for file metadata...");
+            const { data: booking } = await supabase
+              .from('booking_requests')
+              .select('file_path, filename, content_type, file_size')
+              .eq('id', event.booking_request_id)
+              .maybeSingle();
+              
+            if (booking?.file_path) {
+              console.log("Found file metadata directly in booking_requests:", booking);
+              
+              setDisplayedFiles([{
+                id: `fallback_${event.booking_request_id}`,
+                file_path: booking.file_path,
+                filename: booking.filename || 'attachment',
+                content_type: booking.content_type || 'application/octet-stream',
+                size: booking.file_size || 0,
+                created_at: new Date().toISOString(),
+                parentType: 'event',
+                source: 'booking_request_direct'
+              }]);
+              return; // Files found via fallback
+            } else {
+              console.log("No file metadata found in booking_requests");
             }
           }
           
-          // As a fallback, try looking for files with the same name/title
+          // STEP 4: As a fallback, try looking for files with the same name/title
           if (event.title) {
             console.log("Looking for files by event title:", event.title);
             

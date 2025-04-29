@@ -392,6 +392,23 @@ export const BookingRequestForm = ({
               
             if (bookingFileError) {
               console.error('❌ Error saving file metadata to booking_files:', bookingFileError);
+              
+              // FALLBACK: Update booking_requests with file metadata directly
+              const { error: updateError } = await supabase
+                .from('booking_requests')
+                .update({
+                  file_path: filePath,
+                  filename: selectedFile.name,
+                  content_type: selectedFile.type, 
+                  file_size: selectedFile.size
+                })
+                .eq('id', data.id);
+                
+              if (updateError) {
+                console.error('❌ Error updating booking request with file metadata fallback:', updateError);
+              } else {
+                console.log("✅ File metadata saved via fallback to booking_requests table");
+              }
             } else {
               console.log("✅ File metadata saved successfully to booking_files table");
             }
