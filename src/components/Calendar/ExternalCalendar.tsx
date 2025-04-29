@@ -123,12 +123,13 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             event_notes: booking.description || '',
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
+            deleted_at: booking.deleted_at
           }))
         ];
         
         console.log(`[External Calendar] Combined ${allEvents.length} total events`);
         
-        // Validate all events have proper dates
+        // Validate all events have proper dates and filter out deleted events
         const validEvents = allEvents.filter(event => {
           try {
             // Check if start_date and end_date are valid
@@ -149,7 +150,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         });
         
         if (validEvents.length !== allEvents.length) {
-          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates or deleted`);
+          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates or deleted status`);
         }
         
         // Remove duplicate events (same time slot)

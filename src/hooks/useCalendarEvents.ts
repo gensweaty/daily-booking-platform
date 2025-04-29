@@ -46,6 +46,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         .from('events')
         .select('*')
         .eq('user_id', user.id)
+        .is('deleted_at', null) // Ensure we only get non-deleted events
         .order('start_date', { ascending: true });
 
       if (error) {
@@ -128,6 +129,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         .from('events')
         .select('*')
         .eq('user_id', targetUserId)
+        .is('deleted_at', null) // Ensure we only get non-deleted events
         .order('start_date', { ascending: true });
 
       if (error) {
@@ -573,9 +575,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     if (!user) throw new Error("User must be authenticated to delete events");
     
     try {
+      // First check if this is a booking event with an associated booking request
       const { data: eventData, error: eventError } = await supabase
         .from('events')
-        .select('booking_request_id')
+        .select('booking_request_id, type')
         .eq('id', id)
         .maybeSingle();
         
@@ -593,9 +596,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
         if (bookingError) {
           console.error("Error updating associated booking:", bookingError);
+        } else {
+          console.log("Successfully soft-deleted associated booking request");
         }
       }
       
+      // Check if this is a direct booking request (from booking_requests table)
       const { data: bookingData, error: bookingError } = await supabase
         .from('booking_requests')
         .select('*')
@@ -603,7 +609,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         .maybeSingle();
       
       if (!bookingError && bookingData) {
-        console.log("Deleting booking request:", id);
+        console.log("Soft deleting booking request:", id);
         const { error } = await supabase
           .from('booking_requests')
           .update({
@@ -612,7 +618,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           })
           .eq('id', id);
           
-        if (error) throw error;
+        if (error) {
+          console.error("Error soft-deleting booking request:", error);
+          throw error;
+        }
         
         toast({
           title: "Booking deleted",
@@ -625,6 +634,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
     
     try {
+      // Handle any customer relations
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('title, start_date, end_date')
@@ -634,6 +644,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       if (eventError) {
         console.error('Error finding event:', eventError);
       } else if (eventData) {
+        // Check for related customer data
         const { data: customer, error: customerError } = await supabase
           .from('customers')
           .select('*')
@@ -647,6 +658,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
 
         if (customer) {
+          // Update the customer record instead of deleting it
           const { error: updateError } = await supabase
             .from('customers')
             .update({
@@ -657,6 +669,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
           if (updateError) {
             console.error('Error updating customer:', updateError);
+          } else {
+            console.log('Successfully updated customer record on event deletion');
           }
         }
       }
@@ -665,33 +679,18 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
 
     try {
+      // Handle associated files
       const { data: files } = await supabase
         .from('event_files')
         .select('*')
         .eq('event_id', id);
 
       if (files && files.length > 0) {
-        for (const file of files) {
-          const { error: storageError } = await supabase.storage
-            .from('event_attachments')
-            .remove([file.file_path]);
-
-          if (storageError) {
-            console.error('Error deleting file from storage:', storageError);
-          }
-        }
-
-        const { error: filesDeleteError } = await supabase
-          .from('event_files')
-          .delete()
-          .eq('event_id', id);
-
-        if (filesDeleteError) {
-          console.error('Error deleting file records:', filesDeleteError);
-        }
+        // We're not deleting the actual files, just updating the relationship
+        console.log(`Found ${files.length} associated files`);
       }
     } catch (error) {
-      console.error('Error handling file deletion:', error);
+      console.error('Error handling file associations:', error);
     }
 
     // Use soft delete for events instead of hard delete
@@ -702,7 +701,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       })
       .eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error soft-deleting event:', error);
+      throw error;
+    }
+    
+    console.log('Successfully soft-deleted event:', id);
     
     toast({
       title: "Success",
@@ -764,10 +768,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   let allEvents: CalendarEventType[] = [];
   
   if (businessId || businessUserId) {
-    allEvents = [...businessEvents, ...approvedBookings];
+    // Make sure we filter out deleted events
+    const filteredBusinessEvents = businessEvents.filter(event => !event.deleted_at);
+    const filteredApprovedBookings = approvedBookings.filter(booking => !booking.deleted_at);
+    allEvents = [...filteredBusinessEvents, ...filteredApprovedBookings];
   } else if (user) {
     const isUserBusiness = approvedBookings.length > 0 && approvedBookings[0].user_id === user.id;
-    allEvents = [...events, ...(isUserBusiness ? approvedBookings : [])];
+    // Filter out deleted events in both arrays
+    const filteredEvents = events.filter(event => !event.deleted_at);
+    const filteredBookings = isUserBusiness ? approvedBookings.filter(booking => !booking.deleted_at) : [];
+    allEvents = [...filteredEvents, ...filteredBookings];
   }
 
   console.log("useCalendarEvents combined data:", {
