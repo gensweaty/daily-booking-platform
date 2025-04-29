@@ -3,7 +3,7 @@ import { Calendar as CalendarIcon } from "lucide-react";
 import { format, addHours } from "date-fns";
 import { DayPicker } from "react-day-picker";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { EventDialog } from "./EventDialog";
@@ -13,12 +13,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { BookingRequestForm } from "@/components/business/BookingRequestForm";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { CalendarEventType } from "@/lib/types/calendar";
 
 interface Props {
   className?: string;
 }
 
-export function DatePickerWithEvents({ className }: Props) {
+// Renamed to DatePickerWithEvents to avoid name conflict with Calendar export
+function DatePickerWithEvents({ className }: Props) {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [showEventDialog, setShowEventDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -43,11 +45,13 @@ export function DatePickerWithEvents({ className }: Props) {
     setShowEventDialog(true);
   };
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: any): Promise<CalendarEventType> => {
     try {
-      const { error } = await supabase
+      const { error, data: eventData } = await supabase
         .from("events")
-        .insert({ ...data, user_id: user?.id });
+        .insert({ ...data, user_id: user?.id })
+        .select()
+        .single();
 
       if (error) {
         throw error;
@@ -58,12 +62,16 @@ export function DatePickerWithEvents({ className }: Props) {
         description: t('events.eventCreated')
       });
       setShowEventDialog(false);
+      
+      // Return the created event data to satisfy the type requirement
+      return eventData as CalendarEventType;
     } catch (error: any) {
       toast({
         title: t('common.error'),
         description: error.message,
         variant: "destructive",
       });
+      throw error;
     }
   };
 
@@ -88,7 +96,7 @@ export function DatePickerWithEvents({ className }: Props) {
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
+          <CalendarUI
             mode="single"
             selected={date}
             onSelect={handleDateSelect}
@@ -139,3 +147,8 @@ export function DatePickerWithEvents({ className }: Props) {
     </div>
   );
 }
+
+// Export both the DatePickerWithEvents component and the Calendar component
+// that other files are trying to import
+export { DatePickerWithEvents };
+export { DatePickerWithEvents as Calendar };
