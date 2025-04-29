@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FileIcon, Loader2, Download, Trash } from "lucide-react";
@@ -12,10 +13,11 @@ interface FileDisplayProps {
   bucketName: string;
   allowDelete?: boolean;
   onFileDeleted?: (fileId: string) => void;
-  parentType?: 'event' | 'customer' | 'note';
+  parentType?: 'event' | 'customer' | 'note' | 'task';
+  parentId?: string;
 }
 
-export function FileDisplay({ files, bucketName, allowDelete = false, onFileDeleted, parentType = 'event' }: FileDisplayProps) {
+export function FileDisplay({ files, bucketName, allowDelete = false, onFileDeleted, parentType = 'event', parentId }: FileDisplayProps) {
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [fileUrls, setFileUrls] = useState<Record<string, string>>({});
   const { toast } = useToast();
@@ -99,7 +101,8 @@ export function FileDisplay({ files, bucketName, allowDelete = false, onFileDele
       const { error: dbError } = await supabase
         .from(parentType === 'event' ? 'event_files' : 
               parentType === 'customer' ? 'customer_files_new' : 
-              'note_files')
+              parentType === 'note' ? 'note_files' : 
+              'files')
         .delete()
         .eq('id', file.id);
       

@@ -72,8 +72,8 @@ export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
                 bucketName="task_attachments" 
                 allowDelete 
                 onFileDeleted={handleFileDeleted}
-                parentId={task.id}
                 parentType="task"
+                parentId={task.id}
               />
             </div>
           )}

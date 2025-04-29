@@ -505,8 +505,8 @@ export const CustomerList = () => {
                               files={customer.customer_files_new || customer.event_files}
                               bucketName={customer.id.startsWith('event-') ? "event_attachments" : "customer_attachments"}
                               allowDelete={false}
-                              parentId={customer.id.startsWith('event-') ? customer.id.replace('event-', '') : customer.id}
                               parentType={customer.id.startsWith('event-') ? "event" : "customer"}
+                              parentId={customer.id.startsWith('event-') ? customer.id.replace('event-', '') : customer.id}
                             />
                           </div>
                         ) : '-'}
