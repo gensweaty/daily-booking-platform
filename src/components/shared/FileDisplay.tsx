@@ -204,7 +204,7 @@ export const FileDisplay = ({
       }
       
       // Determine the appropriate table name based on the parent type
-      let tableName: "event_files" | "customer_files_new" | "note_files" | "task_files" = "customer_files_new";
+      let tableName: "files" | "customer_files_new" | "note_files" | "event_files";
       
       if (parentType === 'event' || effectiveBucket === 'event_attachments') {
         tableName = "event_files";
@@ -213,7 +213,10 @@ export const FileDisplay = ({
       } else if (parentType === 'note' || effectiveBucket === 'note_attachments') {
         tableName = "note_files";
       } else if (parentType === 'task' || effectiveBucket === 'task_attachments') {
-        tableName = "task_files";
+        tableName = "files";  // Task files are stored in the "files" table
+      } else {
+        // Default to customer_files_new if we can't determine
+        tableName = "customer_files_new";
       }
       
       console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);

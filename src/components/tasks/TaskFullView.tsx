@@ -26,7 +26,7 @@ export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
     queryKey: ['taskFiles', task.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('files')
+        .from('files')  // Task files are stored in the 'files' table
         .select('*')
         .eq('task_id', task.id);
       

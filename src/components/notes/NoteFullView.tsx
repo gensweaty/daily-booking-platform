@@ -23,6 +23,7 @@ export const NoteFullView = ({ note, isOpen, onClose }: NoteFullViewProps) => {
       if (error) throw error;
       return data;
     },
+    enabled: isOpen && !!note.id,
   });
 
   return (
@@ -41,7 +42,8 @@ export const NoteFullView = ({ note, isOpen, onClose }: NoteFullViewProps) => {
               <FileDisplay 
                 files={files} 
                 bucketName="note_attachments" 
-                parentType="note" 
+                parentType="note"
+                parentId={note.id}
               />
             </div>
           )}

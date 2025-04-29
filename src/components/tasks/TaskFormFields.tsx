@@ -40,7 +40,7 @@ export const TaskFormFields = ({
     queryFn: async () => {
       if (!editingTask?.id) return [];
       const { data, error } = await supabase
-        .from('files')
+        .from('files')  // Task files are stored in the 'files' table
         .select('*')
         .eq('task_id', editingTask.id);
       
