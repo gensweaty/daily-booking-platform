@@ -8,7 +8,7 @@ export interface FileRecord {
   file_size?: number;
   created_at: string;
   user_id?: string;
-  event_id?: string;
+  event_id: string; // Making this required for event files
   customer_id?: string;
   note_id?: string;
   task_id?: string;

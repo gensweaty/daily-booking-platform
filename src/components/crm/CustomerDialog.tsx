@@ -8,6 +8,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { crypto } from "crypto";
 
 export interface CustomerType {
   id?: string;
@@ -270,7 +271,6 @@ export const CustomerDialog = ({
 
       let emailResult: EmailResult = { success: false };
       let eventId: string | undefined;
-      let uploadedFilePath: string | undefined;
 
       // If createEvent is checked, create a corresponding event
       if (createEvent) {
@@ -347,11 +347,12 @@ export const CustomerDialog = ({
       }
 
       // Handle file upload if a file is selected
-      if (selectedFile) {
+      if (selectedFile && customerId && user) {
         try {
+          // First upload to storage
           const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${Date.now()}_${customerId}.${fileExt}`;
-          uploadedFilePath = filePath;
+          const uniqueId = crypto.randomUUID();
+          const filePath = `${customerId}/${Date.now()}_${uniqueId}.${fileExt}`;
           
           // Upload file to storage - Always use event_attachments for consistency
           const { error: uploadError } = await supabase.storage
@@ -362,6 +363,8 @@ export const CustomerDialog = ({
             console.error('Error uploading file:', uploadError);
             throw uploadError;
           }
+          
+          console.log('File uploaded successfully to path:', filePath);
   
           // Create customer file record
           const customerFileData = {
@@ -382,8 +385,8 @@ export const CustomerDialog = ({
             throw customerFileError;
           }
           
-          // Only create event file record if event was created and we haven't already created a file for this event
-          if (createEvent && eventId && uploadedFilePath) {
+          // Only create event file record if event was created
+          if (createEvent && eventId) {
             const eventFileData = {
               event_id: eventId,
               filename: selectedFile.name,
@@ -400,6 +403,8 @@ export const CustomerDialog = ({
             if (eventFileError) {
               console.error('Error creating event file record:', eventFileError);
               // Don't throw here, continue with customer file at least
+            } else {
+              console.log('Successfully created event file record');
             }
           }
         } catch (fileError) {

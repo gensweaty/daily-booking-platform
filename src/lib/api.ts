@@ -465,6 +465,201 @@ export const openFile = async (bucketName: string, filePath: string) => {
   }
 };
 
+// New function to directly fetch event files by event ID
+export const getEventFiles = async (eventId: string): Promise<FileRecord[]> => {
+  try {
+    if (!eventId) {
+      console.warn("No event ID provided to getEventFiles");
+      return [];
+    }
+    
+    console.log("Fetching files directly from event_files table for event:", eventId);
+    
+    const { data, error } = await supabase
+      .from('event_files')
+      .select('*')
+      .eq('event_id', eventId);
+      
+    if (error) {
+      console.error("Error fetching event files:", error);
+      throw error;
+    }
+    
+    console.log(`Found ${data?.length || 0} files for event ${eventId}:`, data);
+    return data || [];
+  } catch (error) {
+    console.error("Error in getEventFiles:", error);
+    return [];
+  }
+};
+
+// Function to copy files from booking request to event
+export const copyBookingFilesToEvent = async (bookingId: string, eventId: string): Promise<boolean> => {
+  try {
+    if (!bookingId || !eventId) {
+      console.error("Missing required IDs:", { bookingId, eventId });
+      return false;
+    }
+    
+    console.log(`Copying files from booking ${bookingId} to event ${eventId}`);
+    
+    // First find all files associated with the booking request
+    const { data: bookingFiles, error: fetchError } = await supabase
+      .from('event_files')
+      .select('*')
+      .eq('event_id', bookingId);
+      
+    if (fetchError) {
+      console.error("Error fetching booking files:", fetchError);
+      return false;
+    }
+    
+    if (!bookingFiles || bookingFiles.length === 0) {
+      console.log("No files found to copy from booking request");
+      return true; // Nothing to copy, but not an error
+    }
+    
+    console.log(`Found ${bookingFiles.length} files to copy to new event`);
+    
+    // Create new file records for the event
+    const newFileRecords = bookingFiles.map(file => ({
+      event_id: eventId,
+      filename: file.filename,
+      file_path: file.file_path,
+      content_type: file.content_type,
+      size: file.size,
+      user_id: file.user_id
+    }));
+    
+    const { error: insertError } = await supabase
+      .from('event_files')
+      .insert(newFileRecords);
+      
+    if (insertError) {
+      console.error("Error copying booking files to event:", insertError);
+      return false;
+    }
+    
+    console.log(`Successfully copied ${newFileRecords.length} files to event ${eventId}`);
+    return true;
+  } catch (error) {
+    console.error("Error in copyBookingFilesToEvent:", error);
+    return false;
+  }
+};
+
+// Function to upload file and create metadata record for an event
+export const uploadEventFile = async (
+  eventId: string, 
+  file: File, 
+  userId: string
+): Promise<{ success: boolean; file?: FileRecord; error?: string }> => {
+  try {
+    if (!eventId || !file || !userId) {
+      return { success: false, error: "Missing required parameters" };
+    }
+    
+    console.log(`Uploading file for event ${eventId}:`, file.name);
+    
+    // Ensure storage bucket exists
+    await ensureAllRequiredBuckets();
+    
+    // Create a unique file path to prevent collisions
+    const fileExt = file.name.split('.').pop();
+    const uniqueId = crypto.randomUUID();
+    const filePath = `${eventId}/${Date.now()}_${uniqueId}.${fileExt}`;
+    
+    // Upload the file to the event_attachments bucket
+    const { error: uploadError } = await supabase.storage
+      .from('event_attachments')
+      .upload(filePath, file);
+      
+    if (uploadError) {
+      console.error("Error uploading file to storage:", uploadError);
+      return { success: false, error: uploadError.message };
+    }
+    
+    // Create metadata record in the event_files table
+    const fileRecord = {
+      event_id: eventId,
+      filename: file.name,
+      file_path: filePath,
+      content_type: file.type,
+      size: file.size,
+      user_id: userId
+    };
+    
+    const { data, error: insertError } = await supabase
+      .from('event_files')
+      .insert(fileRecord)
+      .select()
+      .single();
+      
+    if (insertError) {
+      console.error("Error creating file metadata record:", insertError);
+      return { success: false, error: insertError.message };
+    }
+    
+    console.log("File uploaded and metadata created successfully:", data);
+    return { success: true, file: data };
+  } catch (error) {
+    console.error("Error in uploadEventFile:", error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Unknown error occurred" 
+    };
+  }
+};
+
+// Function to delete an event file
+export const deleteEventFile = async (fileId: string): Promise<boolean> => {
+  try {
+    // First get the file record to find the file path
+    const { data: fileRecord, error: fetchError } = await supabase
+      .from('event_files')
+      .select('*')
+      .eq('id', fileId)
+      .single();
+      
+    if (fetchError) {
+      console.error("Error fetching file record for deletion:", fetchError);
+      return false;
+    }
+    
+    if (!fileRecord || !fileRecord.file_path) {
+      console.error("File record not found or missing file_path");
+      return false;
+    }
+    
+    // Delete the file from storage
+    const { error: storageError } = await supabase.storage
+      .from('event_attachments')
+      .remove([fileRecord.file_path]);
+      
+    if (storageError) {
+      console.error("Error removing file from storage:", storageError);
+      // Continue to delete the database record even if storage deletion fails
+    }
+    
+    // Delete the file record from the database
+    const { error: deleteError } = await supabase
+      .from('event_files')
+      .delete()
+      .eq('id', fileId);
+      
+    if (deleteError) {
+      console.error("Error deleting file record:", deleteError);
+      return false;
+    }
+    
+    console.log("File deleted successfully:", fileId);
+    return true;
+  } catch (error) {
+    console.error("Error in deleteEventFile:", error);
+    return false;
+  }
+};
+
 // Reminder related functions
 export const getReminders = async (): Promise<Reminder[]> => {
   try {
