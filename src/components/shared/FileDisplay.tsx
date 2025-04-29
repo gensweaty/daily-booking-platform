@@ -1,6 +1,7 @@
+
 import { FileRecord } from "@/types/files";
 import { Button } from "@/components/ui/button";
-import { Trash2, FileText, Download, ExternalLink } from "lucide-react";
+import { Trash2, FileText, Download, ExternalLink, Image as ImageIcon, FileIcon } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +32,7 @@ export const FileDisplay = ({
   parentId
 }: FileDisplayProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
   const { t } = useLanguage();
   
@@ -84,6 +86,21 @@ export const FileDisplay = ({
     return supabase.storage
       .from(bucket)
       .getPublicUrl(fileItem.file_path).data.publicUrl;
+  };
+  
+  const handleImageLoad = (fileId: string) => {
+    setLoadedImages(prev => ({
+      ...prev,
+      [fileId]: true
+    }));
+  };
+  
+  const handleImageError = (fileId: string) => {
+    console.error(`Failed to load image for file ID: ${fileId}`);
+    setLoadedImages(prev => ({
+      ...prev,
+      [fileId]: false
+    }));
   };
   
   const handleDelete = async (fileToDelete: FileRecord) => {
@@ -225,7 +242,7 @@ export const FileDisplay = ({
   const handleOpenFile = (fileToOpen: FileRecord) => {
     const fileUrl = getFileUrl(fileToOpen);
     if (fileUrl) {
-      window.open(fileUrl, '_blank');
+      window.open(fileUrl, '_blank', 'noopener,noreferrer');
     } else {
       toast({
         title: t("common.error"),
@@ -237,28 +254,44 @@ export const FileDisplay = ({
   
   // Function to get file type icon based on content type
   const getFileIcon = (fileItem: FileRecord) => {
-    return <FileText className="mr-2 h-4 w-4" />;
+    const contentType = fileItem.content_type?.toLowerCase() || '';
+    
+    if (contentType.startsWith('image/')) {
+      return <ImageIcon className="mr-2 h-4 w-4" />;
+    }
+    
+    return <FileIcon className="mr-2 h-4 w-4" />;
   };
 
   // Render file thumbnail for images
   const renderThumbnail = (fileItem: FileRecord) => {
     if (isImage(fileItem)) {
       const fileUrl = getFileUrl(fileItem);
+      const fileId = fileItem.id || `file-${Math.random().toString(36).substring(7)}`;
+      
       if (fileUrl) {
         return (
-          <div className="h-8 w-8 rounded overflow-hidden mr-2 flex-shrink-0">
+          <div className="h-8 w-8 rounded overflow-hidden mr-2 flex-shrink-0 bg-muted flex items-center justify-center">
             <img 
               src={fileUrl} 
               alt={fileItem.filename} 
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover cursor-pointer"
               onClick={() => handleOpenFile(fileItem)}
+              onLoad={() => handleImageLoad(fileId)}
+              onError={() => handleImageError(fileId)}
+              style={{ display: loadedImages[fileId] === false ? 'none' : 'block' }}
             />
+            {loadedImages[fileId] === false && getFileIcon(fileItem)}
           </div>
         );
       }
     }
     
-    return getFileIcon(fileItem);
+    return (
+      <div className="h-8 w-8 rounded overflow-hidden mr-2 flex-shrink-0 bg-muted flex items-center justify-center">
+        {getFileIcon(fileItem)}
+      </div>
+    );
   };
 
   // If we have a files array, render multiple files
@@ -266,7 +299,7 @@ export const FileDisplay = ({
     return (
       <div className="space-y-1">
         {files.map((fileItem) => (
-          <div key={fileItem.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+          <div key={fileItem.id || `file-${Math.random().toString(36).substring(7)}`} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
             <div className="flex items-center overflow-hidden cursor-pointer" onClick={() => handleOpenFile(fileItem)}>
               {renderThumbnail(fileItem)}
               <span className="text-sm truncate hover:underline" title={fileItem.filename}>

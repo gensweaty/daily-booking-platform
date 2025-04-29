@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
+import { ensureEventAttachmentsBucket } from "@/integrations/supabase/checkStorage";
 
 interface EventDialogProps {
   open: boolean;
@@ -49,12 +50,22 @@ export const EventDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
   const [isBookingEvent, setIsBookingEvent] = useState(false);
   const isGeorgian = language === 'ka';
+
+  // When dialog opens, ensure storage buckets exist
+  useEffect(() => {
+    if (open) {
+      ensureEventAttachmentsBucket().catch(err => {
+        console.error("Error ensuring event attachments bucket:", err);
+      });
+    }
+  }, [open]);
 
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
@@ -133,10 +144,12 @@ export const EventDialog = ({
       }
       
       try {
+        setIsLoading(true);
         console.log("Loading files for event:", event.id, "Type:", event.type, "Booking Request ID:", event.booking_request_id);
         
         // Create an array to store all found files from various sources
         const combinedFiles: any[] = [];
+        const processedPaths = new Set(); // To avoid duplicate files
         
         // STEP 1: First check event_files table by event ID
         const { data: eventFilesData, error: eventFilesError } = await supabase
@@ -149,39 +162,50 @@ export const EventDialog = ({
         } else if (eventFilesData && eventFilesData.length > 0) {
           console.log("Found files in event_files table:", eventFilesData.length);
           
-          const formattedFiles = eventFilesData.map(file => ({
-            ...file,
-            parentType: 'event',
-            source: 'event_files'
-          }));
-          
-          combinedFiles.push(...formattedFiles);
+          for (const file of eventFilesData) {
+            if (file.file_path && !processedPaths.has(file.file_path)) {
+              combinedFiles.push({
+                ...file,
+                parentType: 'event',
+                source: 'event_files'
+              });
+              processedPaths.add(file.file_path);
+            }
+          }
         } else {
           console.log("No files found in event_files for event ID:", event.id);
         }
         
         // STEP 2: If this event has a booking_request_id, check for files there
-        if (event.booking_request_id) {
-          console.log("This event was created from booking_request_id:", event.booking_request_id);
+        const bookingId = event.booking_request_id || event.id;
+        if (event.type === 'booking_request' || event.booking_request_id) {
+          console.log("This is a booking event with ID:", bookingId);
           
           // Use the RPC function to get booking files
-          const { data: bookingFiles, error: bookingFilesError } = await supabase
-            .rpc('get_booking_request_files', { booking_id_param: event.booking_request_id });
-            
-          if (bookingFilesError) {
-            console.error("Error loading booking files via RPC:", bookingFilesError);
-          } else if (bookingFiles && bookingFiles.length > 0) {
-            console.log("Found files using get_booking_request_files RPC:", bookingFiles.length);
-            
-            const formattedBookingFiles = bookingFiles.map(file => ({
-              ...file,
-              parentType: 'event',
-              source: 'booking_request'
-            }));
-            
-            combinedFiles.push(...formattedBookingFiles);
-          } else {
-            console.log("No files found via get_booking_request_files for booking request ID:", event.booking_request_id);
+          try {
+            const { data: bookingFiles, error: bookingFilesError } = await supabase
+              .rpc('get_booking_request_files', { booking_id_param: bookingId });
+              
+            if (bookingFilesError) {
+              console.error("Error loading booking files via RPC:", bookingFilesError);
+            } else if (bookingFiles && bookingFiles.length > 0) {
+              console.log("Found files using get_booking_request_files RPC:", bookingFiles.length);
+              
+              for (const file of bookingFiles) {
+                if (file.file_path && !processedPaths.has(file.file_path)) {
+                  combinedFiles.push({
+                    ...file,
+                    parentType: 'event',
+                    source: 'booking_request'
+                  });
+                  processedPaths.add(file.file_path);
+                }
+              }
+            } else {
+              console.log("No files found via get_booking_request_files for booking request ID:", bookingId);
+            }
+          } catch (rpcError) {
+            console.error("Error with get_booking_request_files RPC:", rpcError);
           }
           
           // STEP 3: Check booking_requests table directly for file metadata
@@ -189,7 +213,7 @@ export const EventDialog = ({
           const { data: booking, error: bookingError } = await supabase
             .from('booking_requests')
             .select('*')
-            .eq('id', event.booking_request_id)
+            .eq('id', bookingId)
             .maybeSingle();
             
           if (bookingError) {
@@ -219,21 +243,54 @@ export const EventDialog = ({
                 fileSize = booking.size;
               }
               
-              combinedFiles.push({
-                id: `fallback_${event.booking_request_id}`,
-                file_path: booking.file_path,
-                filename: filename,
-                content_type: contentType,
-                size: fileSize,
-                created_at: booking.created_at || new Date().toISOString(),
-                parentType: 'event',
-                source: 'booking_request_direct'
-              });
-            } else {
-              console.log("No file metadata found in booking_requests");
+              if (!processedPaths.has(booking.file_path)) {
+                combinedFiles.push({
+                  id: `fallback_${bookingId}`,
+                  file_path: booking.file_path,
+                  filename: filename || 'attachment',
+                  content_type: contentType,
+                  size: fileSize,
+                  created_at: booking.created_at || new Date().toISOString(),
+                  parentType: 'event',
+                  source: 'booking_request_direct'
+                });
+                processedPaths.add(booking.file_path);
+              }
             }
-          } else {
-            console.log("Could not find booking request record");
+          }
+          
+          // STEP 3.5: Check storage bucket directly
+          try {
+            console.log("Checking storage bucket directly for files with booking ID");
+            // Try to check direct folder match first
+            const { data: bucketFiles, error: bucketError } = await supabase.storage
+              .from('event_attachments')
+              .list(bookingId);
+              
+            if (!bucketError && bucketFiles && bucketFiles.length > 0) {
+              console.log(`Found ${bucketFiles.length} files in storage bucket folder ${bookingId}`);
+              
+              for (const file of bucketFiles) {
+                if (!file.name || file.name === '.emptyFolderPlaceholder') continue;
+                
+                const filePath = `${bookingId}/${file.name}`;
+                if (!processedPaths.has(filePath)) {
+                  combinedFiles.push({
+                    id: `storage_${bookingId}_${file.name}`,
+                    file_path: filePath,
+                    filename: file.name,
+                    content_type: guessContentType(file.name),
+                    size: file.metadata?.size || 0,
+                    created_at: new Date().toISOString(),
+                    parentType: 'event',
+                    source: 'storage_bucket'
+                  });
+                  processedPaths.add(filePath);
+                }
+              }
+            }
+          } catch (storageErr) {
+            console.log("Error checking storage bucket:", storageErr);
           }
         }
         
@@ -242,7 +299,7 @@ export const EventDialog = ({
           console.log("Event itself has file metadata:", event.file_path);
           
           // Only add if we don't already have a file with the same path
-          if (!combinedFiles.some(file => file.file_path === event.file_path)) {
+          if (!processedPaths.has(event.file_path)) {
             combinedFiles.push({
               id: `event_file_${event.id}`,
               file_path: event.file_path,
@@ -253,6 +310,7 @@ export const EventDialog = ({
               parentType: 'event',
               source: 'event_metadata'
             });
+            processedPaths.add(event.file_path);
           }
         }
         
@@ -272,15 +330,16 @@ export const EventDialog = ({
           } else if (relatedFiles && relatedFiles.length > 0) {
             console.log("Found related files by name:", relatedFiles.length);
             
-            const formattedRelatedFiles = relatedFiles.map(file => ({
-              ...file,
-              parentType: 'event',
-              source: 'related_by_name'
-            }));
-            
-            combinedFiles.push(...formattedRelatedFiles);
-          } else {
-            console.log("No related files found by name");
+            for (const file of relatedFiles) {
+              if (file.file_path && !processedPaths.has(file.file_path)) {
+                combinedFiles.push({
+                  ...file,
+                  parentType: 'event',
+                  source: 'related_by_name'
+                });
+                processedPaths.add(file.file_path);
+              }
+            }
           }
         }
         
@@ -293,6 +352,8 @@ export const EventDialog = ({
       } catch (err) {
         console.error("Exception loading event files:", err);
         setDisplayedFiles([]);
+      } finally {
+        setIsLoading(false);
       }
     };
     
@@ -300,6 +361,33 @@ export const EventDialog = ({
       loadFiles();
     }
   }, [event, open]);
+
+  // Helper function to guess content type from filename
+  function guessContentType(filename: string): string {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    if (!ext) return 'application/octet-stream';
+    
+    const mimeTypes: Record<string, string> = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'svg': 'image/svg+xml',
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xls': 'application/vnd.ms-excel',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'txt': 'text/plain',
+      'csv': 'text/csv',
+      'json': 'application/json',
+      'mp4': 'video/mp4',
+      'mp3': 'audio/mpeg'
+    };
+    
+    return mimeTypes[ext] || 'application/octet-stream';
+  }
 
   const sendApprovalEmail = async (
     startDateTime: Date,
@@ -622,6 +710,12 @@ export const EventDialog = ({
 
   const handleFileDeleted = (fileId: string) => {
     setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
+    
+    // Refresh files after a short delay
+    setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['booking-files'] });
+    }, 300);
   };
 
   return (
@@ -658,6 +752,7 @@ export const EventDialog = ({
             onFileDeleted={handleFileDeleted}
             displayedFiles={displayedFiles}
             isBookingRequest={isBookingRequest}
+            isLoading={isLoading}
           />
           
           <div className="flex justify-between gap-4">

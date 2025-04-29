@@ -20,20 +20,20 @@ export async function ensureEventAttachmentsBucket() {
       console.log('Event attachments bucket not found, creating it...');
       
       // Try to create the bucket
-      const { data, error: createError } = await supabase.storage.createBucket(
-        'event_attachments',
-        { 
-          public: true, // Make it public so files can be accessed without authentication
-          fileSizeLimit: 50 * 1024 * 1024 // 50MB file size limit
-        }
-      );
+      const { data, error: createError } = await supabase.storage
+        .createBucket(
+          'event_attachments',
+          { 
+            public: true, // Make it public so files can be accessed without authentication
+            fileSizeLimit: 50 * 1024 * 1024 // 50MB file size limit
+          }
+        );
       
       if (createError) {
         console.error('Failed to create event_attachments bucket:', createError);
         return false;
       }
       
-      // We can't use RPC to create policies directly, log a message instead
       console.log('Successfully created event_attachments bucket with public access');
       return true;
     }
@@ -72,20 +72,20 @@ export async function ensureAllRequiredBuckets() {
         console.log(`${bucketConfig.name} bucket not found, creating it...`);
         
         try {
-          const { error: createError } = await supabase.storage.createBucket(
-            bucketConfig.name,
-            { 
-              public: bucketConfig.public,
-              fileSizeLimit: 50 * 1024 * 1024 // 50MB file size limit
-            }
-          );
+          const { error: createError } = await supabase.storage
+            .createBucket(
+              bucketConfig.name,
+              { 
+                public: bucketConfig.public,
+                fileSizeLimit: 50 * 1024 * 1024 // 50MB file size limit
+              }
+            );
           
           if (createError) {
             console.error(`Failed to create ${bucketConfig.name} bucket:`, createError);
             continue;
           }
           
-          // We can't use RPC to create policies directly, log a message instead
           if (bucketConfig.public) {
             console.log(`Created ${bucketConfig.name} bucket with public access`);
           }
