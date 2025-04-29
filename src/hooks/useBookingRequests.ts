@@ -91,7 +91,10 @@ export const useBookingRequests = () => {
             console.error(`Error fetching files for booking request ${request.id}:`, filesError);
           } else if (files && files.length > 0) {
             console.log(`Found ${files.length} files for booking request ${request.id}:`, files);
-            request.files = files;
+            request.files = files.map(file => ({
+              ...file,
+              parentType: 'event' as const
+            }));
             request.file_count = files.length;
           } else {
             console.log(`No files found for booking request ${request.id}`);

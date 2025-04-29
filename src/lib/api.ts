@@ -1,3 +1,4 @@
+
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
@@ -41,11 +42,12 @@ export const checkRateLimitStatus = async (): Promise<{ isLimited: boolean, rema
   }
 };
 
-export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">) => {
+export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">, file?: File) => {
   // Get current user if available
   const { data: userData } = await supabase.auth.getUser();
   
   console.log("Creating booking request:", request);
+  console.log("File attached:", file ? file.name : "No file");
   
   try {
     // Check rate limit before creating booking
@@ -81,6 +83,51 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
     if (error) {
       console.error("Error creating booking request:", error);
       throw error;
+    }
+    
+    // Handle file upload if a file is provided
+    if (file && data?.id) {
+      try {
+        console.log("Uploading file for booking request:", file.name);
+        
+        // Generate a unique filename
+        const fileExt = file.name.split('.').pop();
+        const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        
+        // Upload the file to storage
+        const { error: uploadError } = await supabase.storage
+          .from('event_attachments')
+          .upload(filePath, file);
+          
+        if (uploadError) {
+          console.error("Error uploading file:", uploadError);
+          throw uploadError;
+        }
+        
+        // Create a file record in the database linked to the booking request
+        const fileData = {
+          filename: file.name,
+          file_path: filePath,
+          content_type: file.type,
+          size: file.size,
+          event_id: data.id,
+          user_id: userData?.user?.id || null
+        };
+        
+        const { error: fileRecordError } = await supabase
+          .from('event_files')
+          .insert(fileData);
+          
+        if (fileRecordError) {
+          console.error("Error creating file record:", fileRecordError);
+          throw fileRecordError;
+        }
+        
+        console.log("File uploaded and associated with booking request:", data.id);
+      } catch (fileError) {
+        console.error("Error handling file upload:", fileError);
+        // Continue even if file upload fails, we've already created the booking request
+      }
     }
     
     // Store current timestamp in localStorage for rate limiting
