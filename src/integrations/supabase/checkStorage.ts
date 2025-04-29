@@ -41,7 +41,12 @@ export async function ensureBucketExists(bucketName: string, isPublic: boolean =
       // Set public bucket policy since the createBucket sometimes doesn't apply this correctly
       if (isPublic) {
         try {
-          const { error: policyError } = await supabase.storage.from(bucketName).setPublic();
+          // Corrected method call - use updateBucket instead of setPublic
+          const { error: policyError } = await supabase.storage.updateBucket(
+            bucketName,
+            { public: true }
+          );
+          
           if (policyError) {
             console.error(`Failed to set public policy for ${bucketName}:`, policyError);
           } else {
@@ -60,7 +65,12 @@ export async function ensureBucketExists(bucketName: string, isPublic: boolean =
     // For existing buckets, check if they need to be public and update if necessary
     if (isPublic) {
       try {
-        const { error: policyError } = await supabase.storage.from(bucketName).setPublic();
+        // Corrected method call - use updateBucket instead of setPublic
+        const { error: policyError } = await supabase.storage.updateBucket(
+          bucketName,
+          { public: true }
+        );
+        
         if (policyError) {
           console.error(`Failed to set public policy for existing ${bucketName}:`, policyError);
         } else {
