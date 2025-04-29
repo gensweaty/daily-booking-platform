@@ -30,6 +30,7 @@ interface FileUploadFieldProps {
   chooseFileText?: string; // Added to support BusinessProfileForm
   noFileText?: string; // Added to support BusinessProfileForm
   maxSizeMB?: number; // Added to support BusinessProfileForm
+  bookingRequestId?: string; // Added to link files to booking requests
 }
 
 export const FileUploadField = ({ 
@@ -47,7 +48,8 @@ export const FileUploadField = ({
   uploadText,
   chooseFileText,
   noFileText,
-  maxSizeMB
+  maxSizeMB,
+  bookingRequestId
 }: FileUploadFieldProps) => {
   const { t } = useLanguage();
   const [localFileError, setLocalFileError] = useState("");
