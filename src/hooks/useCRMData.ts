@@ -117,15 +117,18 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
           .eq('id', event.booking_request_id)
           .maybeSingle();
           
-        // Safely access potential file data with type checking
-        if (bookingData && 'file_path' in bookingData && bookingData.file_path && !filePathsAdded.has(bookingData.file_path)) {
+        // Safely access potential file data with explicit type checking
+        if (bookingData && typeof bookingData === 'object' && 'file_path' in bookingData && bookingData.file_path && !filePathsAdded.has(bookingData.file_path)) {
           console.log("Found file metadata in booking_requests table");
           allFiles.push({
             id: `fallback_${bookingData.id}`,
-            filename: 'filename' in bookingData ? bookingData.filename || 'attachment' : 'attachment',
+            filename: 'filename' in bookingData && typeof bookingData.filename === 'string' ? 
+                      bookingData.filename : 'attachment',
             file_path: bookingData.file_path,
-            content_type: 'content_type' in bookingData ? bookingData.content_type || 'application/octet-stream' : 'application/octet-stream',
-            size: 'file_size' in bookingData ? bookingData.file_size || ('size' in bookingData ? bookingData.size : 0) : 0,
+            content_type: 'content_type' in bookingData && typeof bookingData.content_type === 'string' ? 
+                          bookingData.content_type : 'application/octet-stream',
+            size: 'file_size' in bookingData ? Number(bookingData.file_size) || 
+                  ('size' in bookingData ? Number(bookingData.size) : 0) : 0,
             created_at: bookingData.created_at,
             source: 'booking_requests'
           });

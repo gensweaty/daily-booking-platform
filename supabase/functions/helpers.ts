@@ -1,3 +1,4 @@
+
 // This function will be used by our edge functions to get booking request files
 export const getBookingRequestFiles = async (supabase: any, bookingId: string) => {
   try {
@@ -49,15 +50,16 @@ export const getBookingRequestFiles = async (supabase: any, bookingId: string) =
         
       if (bookingError) {
         console.error("Error fetching from booking_requests:", bookingError);
-      } else if (bookingData && bookingData.file_path) {
+      } else if (bookingData && typeof bookingData === 'object' && 'file_path' in bookingData && bookingData.file_path) {
         console.log("Found file metadata directly in booking_requests:", bookingData.file_path);
         allFiles.push({
           id: `fallback_${bookingId}`,
           booking_request_id: bookingId,
-          filename: bookingData.filename || 'attachment',
+          filename: 'filename' in bookingData && bookingData.filename ? bookingData.filename : 'attachment',
           file_path: bookingData.file_path,
-          content_type: bookingData.content_type || 'application/octet-stream',
-          size: bookingData.file_size || bookingData.size || 0,
+          content_type: 'content_type' in bookingData ? bookingData.content_type || 'application/octet-stream' : 'application/octet-stream',
+          size: 'file_size' in bookingData ? Number(bookingData.file_size) || 
+                ('size' in bookingData ? Number(bookingData.size) : 0) : 0,
           created_at: new Date().toISOString(),
           source: 'booking_request_direct'
         });

@@ -192,16 +192,17 @@ export const EventDialog = ({
           } else if (booking) {
             console.log("Found booking request:", booking);
             
-            // Check if the booking has file metadata - add optional chaining and type safety
-            if (booking && 'file_path' in booking && booking.file_path) {
+            // Check if the booking has file metadata - add explicit property checks
+            if (booking && typeof booking === 'object' && 'file_path' in booking && booking.file_path) {
               console.log("Found file metadata directly in booking_requests:", booking.file_path);
               
               combinedFiles.push({
                 id: `fallback_${event.booking_request_id}`,
                 file_path: booking.file_path,
-                filename: booking.filename || 'attachment',
-                content_type: booking.content_type || 'application/octet-stream',
-                size: booking.file_size || booking.size || 0,
+                filename: 'filename' in booking && booking.filename ? booking.filename : 'attachment',
+                content_type: 'content_type' in booking && booking.content_type ? booking.content_type : 'application/octet-stream',
+                size: 'file_size' in booking && booking.file_size ? booking.file_size : 
+                      ('size' in booking && booking.size ? booking.size : 0),
                 created_at: booking.created_at || new Date().toISOString(),
                 parentType: 'event',
                 source: 'booking_request_direct'
