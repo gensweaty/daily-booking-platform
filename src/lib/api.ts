@@ -11,15 +11,8 @@ export const getFileUrl = (bucketName: string, filePath: string) => {
   const baseUrl = import.meta.env.VITE_SUPABASE_URL;
   const normalizedPath = normalizeFilePath(filePath);
   
-  // Better bucket determination logic based on file path patterns
-  let effectiveBucket = bucketName;
-  
-  // Files with b22b pattern (UUID format) or timestamp patterns are always from event_attachments
-  if (filePath && (filePath.includes("b22b") || /^\d{13}_/.test(filePath))) {
-    effectiveBucket = "event_attachments";
-  }
-  
-  return `${baseUrl}/storage/v1/object/public/${effectiveBucket}/${normalizedPath}`;
+  // Always use event_attachments bucket for consistent file access
+  return `${baseUrl}/storage/v1/object/public/event_attachments/${normalizedPath}`;
 };
 
 // Check if user is rate limited for booking requests
@@ -476,17 +469,14 @@ const fetchEventsWithUserId = async (userId: string, businessId: string) => {
 // Enhanced file handling functions with consistent bucket handling
 export const downloadFile = async (bucketName: string, filePath: string, fileName: string) => {
   try {
-    console.log(`Attempting to download file from ${bucketName}/${filePath}`);
+    console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
     
-    // Improved bucket determination logic
-    let effectiveBucket = bucketName;
-    if (filePath && (filePath.includes("b22b") || /^\d{13}_/.test(filePath))) {
-      effectiveBucket = "event_attachments";
-    }
+    // Always use event_attachments bucket for consistent file access
+    const effectiveBucket = "event_attachments";
     console.log(`Using effective bucket: ${effectiveBucket}`);
     
     // Direct URL for download
-    const directUrl = getFileUrl(effectiveBucket, filePath);
+    const directUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
     console.log('Using direct URL for download:', directUrl);
     
     try {
@@ -503,7 +493,7 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
       a.download = fileName; // Force download behavior
       a.style.display = 'none'; // Hide the element
       
-      // Add to DOM, click, and remove
+      // Add to DOM, click, and clean up
       document.body.appendChild(a);
       a.click();
       
@@ -535,13 +525,10 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
 
 export const openFile = async (bucketName: string, filePath: string) => {
   try {
-    // Improved bucket determination
-    let effectiveBucket = bucketName;
-    if (filePath && (filePath.includes("b22b") || /^\d{13}_/.test(filePath))) {
-      effectiveBucket = "event_attachments";
-    }
+    // Always use event_attachments bucket
+    const effectiveBucket = "event_attachments";
     
-    const directUrl = getFileUrl(effectiveBucket, filePath);
+    const directUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
     
     console.log('Opening file with direct URL:', directUrl);
     

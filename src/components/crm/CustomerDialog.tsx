@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -334,7 +333,7 @@ export const CustomerDialog = ({
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${Date.now()}_${customerId}.${fileExt}`;
           
-          // Upload file to storage
+          // Upload file to storage - Always use event_attachments for consistency
           const { error: uploadError } = await supabase.storage
             .from('event_attachments')
             .upload(filePath, selectedFile);

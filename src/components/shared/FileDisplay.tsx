@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
@@ -58,51 +57,17 @@ export const FileDisplay = ({
   };
 
   const determineEffectiveBucket = (filePath: string, parentType?: string, source?: string): string => {
-    if (source === 'event') {
-      return "event_attachments";
-    }
-    
-    if (source === 'customer') {
-      return "customer_attachments";
-    }
-    
-    if (filePath && (
-      filePath.includes("b22b") || 
-      /^\d{13}_/.test(filePath) || 
-      filePath.includes("event_") ||
-      filePath.startsWith("event/")
-    )) {
-      return "event_attachments";
-    }
-    
-    if (parentType === "customer" && filePath && 
-      !filePath.includes("b22b") && 
-      !/^\d{13}_/.test(filePath) &&
-      !filePath.includes("event_") &&
-      !filePath.startsWith("event/")) {
-      return "customer_attachments";
-    }
-    
-    if (parentType === "event") {
-      return "event_attachments";
-    }
-
-    if (parentType === "note") {
-      return "note_attachments";
-    }
-
-    if (parentType === "task") {
-      return "task_attachments";
-    }
-    
-    return bucketName;
+    // Always default to event_attachments bucket for all files from this app
+    // This ensures consistency since all files are now uploaded to event_attachments
+    return "event_attachments";
   };
 
   const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
     try {
       console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
       
-      const effectiveBucket = determineEffectiveBucket(filePath, parentType);
+      // Always use event_attachments bucket for all files
+      const effectiveBucket = "event_attachments";
       console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath}`);
       
       const directUrl = fileURLs[fileId] || 
@@ -160,7 +125,8 @@ export const FileDisplay = ({
     }
     
     const normalizedPath = normalizeFilePath(filePath);
-    const effectiveBucket = determineEffectiveBucket(filePath, parentType);
+    // Always use event_attachments bucket
+    const effectiveBucket = "event_attachments";
     console.log(`Open: Using bucket ${effectiveBucket} for path ${filePath}`);
     
     return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
@@ -191,7 +157,8 @@ export const FileDisplay = ({
     try {
       setDeletingFileId(fileId);
       
-      const effectiveBucket = determineEffectiveBucket(filePath, parentType);
+      // Always use event_attachments bucket
+      const effectiveBucket = "event_attachments";
       console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}`);
       
       const { error: storageError } = await supabase.storage
@@ -206,13 +173,13 @@ export const FileDisplay = ({
       // Determine the appropriate table name based on the parent type
       let tableName: "files" | "customer_files_new" | "note_files" | "event_files";
       
-      if (parentType === 'event' || effectiveBucket === 'event_attachments') {
+      if (parentType === 'event') {
         tableName = "event_files";
-      } else if (parentType === 'customer' || effectiveBucket === 'customer_attachments') {
+      } else if (parentType === 'customer') {
         tableName = "customer_files_new";
-      } else if (parentType === 'note' || effectiveBucket === 'note_attachments') {
+      } else if (parentType === 'note') {
         tableName = "note_files";
-      } else if (parentType === 'task' || effectiveBucket === 'task_attachments') {
+      } else if (parentType === 'task') {
         tableName = "files";  // Task files are stored in the "files" table
       } else {
         // Default to customer_files_new if we can't determine
