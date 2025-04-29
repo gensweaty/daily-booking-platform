@@ -198,7 +198,7 @@ export const EventDialog = ({
     loadFiles();
   }, [event, open, isBookingRequest]);
 
-  // Function to send approval email notification
+  // Send approval email notification
   const sendApprovalEmail = async (
     startDateTime: Date,
     endDateTime: Date,
