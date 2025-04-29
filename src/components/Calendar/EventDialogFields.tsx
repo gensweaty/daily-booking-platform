@@ -72,7 +72,7 @@ export const EventDialogFields = ({
   
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
   
-  // Only show payment amount if status is partly_paid or fully_paid
+  // Show payment amount if status is partly_paid/partly or fully_paid/fully
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid" || 
                            paymentStatus === "partly" || paymentStatus === "fully";
   
@@ -163,8 +163,8 @@ export const EventDialogFields = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.notPaid")}</LanguageText></SelectItem>
-                <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.paidPartly")}</LanguageText></SelectItem>
-                <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.paidFully")}</LanguageText></SelectItem>
+                <SelectItem value="partly" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.paidPartly")}</LanguageText></SelectItem>
+                <SelectItem value="fully" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.paidFully")}</LanguageText></SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -200,34 +200,38 @@ export const EventDialogFields = ({
           id="eventNotes"
           value={eventNotes}
           onChange={(e) => setEventNotes(e.target.value)}
-          placeholder={t("events.addEventNotes")}
-          className="min-h-[100px] resize-none"
+          className="min-h-[100px]"
+          placeholder={isBookingRequest ? t("events.addBookingNotes") : t("events.addEventNotes")}
         />
       </div>
       
-      <div>
-        <Label htmlFor="file" className={labelClass}>
-          <LanguageText>{t("common.attachments")}</LanguageText>
-        </Label>
-        <FileUploadField
-          onChange={setSelectedFile}
-          fileError={fileError}
-          setFileError={setFileError}
-          acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-        />
-      </div>
-      
-      {displayedFiles.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <FileDisplay
-            files={displayedFiles}
+      {displayedFiles && displayedFiles.length > 0 && (
+        <div>
+          <Label className={labelClass}>
+            <LanguageText>{t("events.attachments")}</LanguageText>
+          </Label>
+          <FileDisplay 
+            files={displayedFiles} 
             bucketName="event_attachments"
             allowDelete={true}
             onFileDeleted={onFileDeleted}
-            parentType="event"
+            parentType="event" 
+            parentId={eventId}
           />
         </div>
       )}
+
+      <div>
+        <Label className={labelClass}>
+          <LanguageText>{t("events.uploadFile")}</LanguageText>
+        </Label>
+        <FileUploadField 
+          onChange={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+          bookingRequestId={isBookingRequest ? eventId : undefined}
+        />
+      </div>
     </>
   );
 };

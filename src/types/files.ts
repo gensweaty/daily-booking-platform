@@ -10,6 +10,8 @@ export interface FileRecord {
   event_id?: string | null;
   customer_id?: string | null;
   task_id?: string | null;
+  note_id?: string | null;
   source?: string;
   parentType?: 'event' | 'customer' | 'note' | 'task';
+  parentId?: string;
 }
