@@ -322,25 +322,51 @@ export async function deleteReminder(id: string): Promise<boolean> {
  */
 export async function getPublicCalendarEvents(businessId: string, startDate?: string, endDate?: string) {
   try {
-    let query = supabase.rpc('get_public_events', {
-      p_business_id: businessId,
-    });
+    console.log('Fetching public calendar events for business:', businessId);
+    
+    // First, get the events directly from events table
+    let eventsQuery = supabase
+      .from('events')
+      .select('*')
+      .eq('user_id', businessId)
+      .is('deleted_at', null);
     
     if (startDate) {
-      query = query.gte('start_time', startDate);
+      eventsQuery = eventsQuery.gte('start_date', startDate);
     }
     
     if (endDate) {
-      query = query.lte('end_time', endDate);
+      eventsQuery = eventsQuery.lte('end_time', endDate);
     }
     
-    const { data, error } = await query;
+    const { data: userEvents, error: eventsError } = await eventsQuery;
     
-    if (error) throw error;
-    return data || [];
+    if (eventsError) {
+      console.error('Error fetching user events:', eventsError);
+    }
+    
+    // Then get the approved booking requests for this business
+    const { data: bookings, error: bookingsError } = await supabase
+      .from('booking_requests')
+      .select('*')
+      .eq('business_id', businessId)
+      .eq('status', 'approved');
+    
+    if (bookingsError) {
+      console.error('Error fetching approved bookings:', bookingsError);
+    }
+    
+    console.log(`Public calendar: found ${userEvents?.length || 0} direct events`);
+    console.log(`Public calendar: found ${bookings?.length || 0} booking events`);
+    
+    // Return the combined result
+    return {
+      events: userEvents || [],
+      bookings: bookings || []
+    };
   } catch (error) {
     console.error('Error fetching public calendar events:', error);
-    return [];
+    return { events: [], bookings: [] };
   }
 }
 

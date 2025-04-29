@@ -87,7 +87,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     getBusinessUserId();
   }, [businessId, retryCount]);
 
-  // Step 2: Fetch all events using the getPublicCalendarEvents API which uses our new RPC function
+  // Step 2: Fetch all events using the getPublicCalendarEvents API
   useEffect(() => {
     const fetchAllEvents = async () => {
       if (!businessId) return;
@@ -96,20 +96,21 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("[External Calendar] Starting to fetch events for business ID:", businessId);
       
       try {
-        // Get events from the API function which includes approved bookings and user events
-        // This now uses our security definer function to bypass RLS
-        const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
+        // Get events from the API function which includes both user events and approved bookings
+        const result = await getPublicCalendarEvents(businessId);
+        const apiEvents = result.events || [];
+        const approvedBookings = result.bookings || [];
         
-        console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
-        console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
+        console.log(`[External Calendar] Fetched ${apiEvents.length} API events`);
+        console.log(`[External Calendar] Fetched ${approvedBookings.length} approved booking requests`);
         
         // Combine all event sources
         const allEvents: CalendarEventType[] = [
-          ...(apiEvents || []).map(event => ({
+          ...apiEvents.map(event => ({
             ...event,
             type: event.type || 'event'
           })),
-          ...(approvedBookings || []).map(booking => ({
+          ...approvedBookings.map(booking => ({
             id: booking.id,
             title: booking.title || 'Booking',
             start_date: booking.start_date,
@@ -124,13 +125,12 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
             requester_phone: booking.requester_phone || '',
-            // Don't check for deleted_at as it doesn't exist in booking_requests table
           }))
         ];
         
         console.log(`[External Calendar] Combined ${allEvents.length} total events`);
         
-        // Validate all events have proper dates and filter out deleted events from events only (not bookings)
+        // Validate all events have proper dates and filter out deleted events
         const validEvents = allEvents.filter(event => {
           try {
             // Check if start_date and end_date are valid
@@ -138,7 +138,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             const endValid = !!new Date(event.end_date).getTime();
             
             // Only check deleted_at for events, not booking requests
-            // For booking_request type, we always include it
             if (event.type !== 'booking_request' && event.deleted_at) {
               console.log(`Filtering out deleted event with id ${event.id}`);
               return false;

@@ -17,6 +17,8 @@ export async function uploadEventFile(
     const uniqueId = uuidv4();
     const filePath = `${eventId}/${Date.now()}_${uniqueId}.${fileExt}`;
     
+    console.log(`Uploading file ${file.name} to path: ${filePath}`);
+    
     // Upload to storage
     const { error: uploadError } = await supabase.storage
       .from('event_attachments')
@@ -37,6 +39,8 @@ export async function uploadEventFile(
       user_id: userId
     };
     
+    console.log('Creating event_files record with data:', fileData);
+    
     const { data: fileRecord, error: dbError } = await supabase
       .from('event_files')
       .insert(fileData)
@@ -48,7 +52,8 @@ export async function uploadEventFile(
       return { success: false, error: dbError.message };
     }
     
-    return { success: true, file: fileRecord };
+    console.log('File uploaded successfully, record created:', fileRecord);
+    return { success: true, file: fileRecord as FileRecord };
   } catch (error) {
     console.error('Exception in uploadEventFile:', error);
     return { 
@@ -68,41 +73,81 @@ export async function copyBookingFilesToEvent(
   try {
     console.log(`Copying files from booking ${bookingId} to event ${eventId}`);
     
-    // First try to get files from booking_files table
-    const { data: bookingFiles, error: bookingFilesError } = await supabase
-      .from('booking_files')
+    // We need to check both booking_files table (if it exists) and event_files table
+    // where event_id = bookingId (since booking requests files are also stored in event_files)
+    
+    // First check if booking_files table exists and contains any files
+    try {
+      const { data: bookingFiles, error: bookingFilesError } = await supabase
+        .from('booking_files')
+        .select('*')
+        .eq('booking_request_id', bookingId);
+        
+      if (!bookingFilesError && bookingFiles && bookingFiles.length > 0) {
+        console.log(`Found ${bookingFiles.length} files in booking_files table`);
+        
+        // For each file from booking_files, create a new record in event_files
+        const eventFilesData = bookingFiles.map(file => ({
+          event_id: eventId,
+          filename: file.filename || 'attachment',
+          file_path: file.file_path,
+          content_type: file.content_type || 'application/octet-stream',
+          size: file.size || 0,
+          user_id: file.user_id,
+          created_at: new Date().toISOString()
+        }));
+        
+        const { error: insertError } = await supabase
+          .from('event_files')
+          .insert(eventFilesData);
+          
+        if (insertError) {
+          console.error('Error copying files to event:', insertError);
+          return false;
+        }
+        
+        console.log('Successfully copied files from booking_files to event');
+        return true;
+      }
+    } catch (err) {
+      console.log('booking_files table might not exist, continuing with alternate approach');
+    }
+    
+    // Check if there are files in event_files that belong to the booking
+    const { data: eventFiles, error: eventFilesError } = await supabase
+      .from('event_files')
       .select('*')
-      .eq('booking_request_id', bookingId);
-      
-    if (bookingFilesError) {
-      console.error('Error getting booking files:', bookingFilesError);
+      .eq('event_id', bookingId);
+    
+    if (eventFilesError) {
+      console.error('Error getting booking files from event_files:', eventFilesError);
       return false;
     }
     
-    if (bookingFiles && bookingFiles.length > 0) {
-      console.log(`Found ${bookingFiles.length} files to copy`);
+    if (eventFiles && eventFiles.length > 0) {
+      console.log(`Found ${eventFiles.length} files in event_files for booking`);
       
-      // For each file from booking_files, create a new record in event_files
-      const eventFilesData = bookingFiles.map(file => ({
+      // For each file, create a new record in event_files but with the new event ID
+      const newEventFilesData = eventFiles.map(file => ({
         event_id: eventId,
-        filename: file.filename || 'attachment',
+        filename: file.filename,
         file_path: file.file_path,
-        content_type: file.content_type || 'application/octet-stream',
-        size: file.size || 0,
+        content_type: file.content_type,
+        size: file.size,
         user_id: file.user_id,
         created_at: new Date().toISOString()
       }));
       
       const { error: insertError } = await supabase
         .from('event_files')
-        .insert(eventFilesData);
+        .insert(newEventFilesData);
         
       if (insertError) {
         console.error('Error copying files to event:', insertError);
         return false;
       }
       
-      console.log('Successfully copied files to event');
+      console.log('Successfully copied files from event_files to new event');
       return true;
     }
     
@@ -146,5 +191,31 @@ export async function copyBookingFilesToEvent(
   } catch (error) {
     console.error('Exception in copyBookingFilesToEvent:', error);
     return false;
+  }
+}
+
+/**
+ * Get files for an event, including those originally uploaded through booking request
+ */
+export async function getAllEventFiles(eventId: string): Promise<FileRecord[]> {
+  try {
+    console.log(`Getting all files for event: ${eventId}`);
+    
+    // First get files directly from event_files
+    const { data, error } = await supabase
+      .from('event_files')
+      .select('*')
+      .eq('event_id', eventId);
+    
+    if (error) {
+      console.error('Error fetching event files:', error);
+      throw error;
+    }
+    
+    console.log(`Found ${data?.length || 0} files for event in event_files`);
+    return data || [];
+  } catch (error) {
+    console.error('Exception in getAllEventFiles:', error);
+    return [];
   }
 }
