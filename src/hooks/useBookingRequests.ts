@@ -73,6 +73,9 @@ export const useBookingRequests = () => {
   // Approve a booking request
   const approveBookingMutation = useMutation({
     mutationFn: async (id: string) => {
+      console.log("Starting booking approval process for ID:", id);
+      
+      // Update booking request status first
       const { data, error } = await supabase
         .from('booking_requests')
         .update({ status: 'approved' })
@@ -85,78 +88,90 @@ export const useBookingRequests = () => {
         throw error;
       }
 
-      // Also create an event for this approved booking
-      try {
-        // Get the full booking request data
-        const { data: bookingData, error: fetchError } = await supabase
-          .from('booking_requests')
-          .select('*')
-          .eq('id', id)
-          .single();
+      console.log("Successfully updated booking request status to approved:", data);
 
-        if (fetchError) throw fetchError;
+      // Get the full booking request data with all fields
+      const { data: bookingData, error: fetchError } = await supabase
+        .from('booking_requests')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-        console.log("Creating event from booking request with payment data:", {
-          paymentStatus: bookingData.payment_status,
-          paymentAmount: bookingData.payment_amount
-        });
+      if (fetchError) {
+        console.error("Error fetching complete booking data:", fetchError);
+        throw fetchError;
+      }
 
-        // Create an event based on the booking details
-        const { data: eventData, error: eventError } = await supabase
-          .from('events')
-          .insert({
-            title: bookingData.title,
-            user_surname: bookingData.requester_name,
-            user_number: bookingData.requester_phone,
-            social_network_link: bookingData.requester_email,
-            event_notes: bookingData.description,
-            start_date: bookingData.start_date,
-            end_date: bookingData.end_date,
-            payment_status: bookingData.payment_status || 'not_paid',
-            payment_amount: bookingData.payment_amount,
+      console.log("Full booking data retrieved:", bookingData);
+      console.log("Creating event with payment data:", {
+        paymentStatus: bookingData.payment_status,
+        paymentAmount: bookingData.payment_amount
+      });
+
+      // Create an event based on the booking details
+      const { data: eventData, error: eventError } = await supabase
+        .from('events')
+        .insert({
+          title: bookingData.title,
+          user_surname: bookingData.requester_name,
+          user_number: bookingData.requester_phone,
+          social_network_link: bookingData.requester_email,
+          event_notes: bookingData.description,
+          start_date: bookingData.start_date,
+          end_date: bookingData.end_date,
+          payment_status: bookingData.payment_status || 'not_paid',
+          payment_amount: bookingData.payment_amount,
+          user_id: user?.id,
+          type: 'event',
+          booking_request_id: id // Store reference to the original booking request
+        })
+        .select()
+        .single();
+
+      if (eventError) {
+        console.error("Error creating event from booking:", eventError);
+        throw eventError;
+      }
+
+      console.log("Successfully created event from booking:", eventData);
+
+      // Also try to find any files associated with this booking request
+      const { data: files, error: filesError } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', id);
+
+      if (filesError) {
+        console.error("Error fetching booking request files:", filesError);
+      } else if (files && files.length > 0) {
+        console.log(`Found ${files.length} files for booking request ${id}:`, files);
+        
+        // Copy files to reference the new event
+        for (const file of files) {
+          const fileData = {
+            filename: file.filename,
+            file_path: file.file_path,
+            content_type: file.content_type,
+            size: file.size,
             user_id: user?.id,
-            type: 'event',
-            booking_request_id: id
-          })
-          .select('id')
-          .single();
-
-        if (eventError) throw eventError;
-
-        // Also try to find any files associated with this booking request
-        const { data: files, error: filesError } = await supabase
-          .from('event_files')
-          .select('*')
-          .eq('event_id', id);
-
-        if (filesError) {
-          console.error("Error fetching booking request files:", filesError);
-        } else if (files && files.length > 0) {
-          console.log(`Found ${files.length} files for booking request ${id}`);
+            event_id: eventData.id // Link to the new event
+          };
           
-          // Copy files to reference the new event
-          for (const file of files) {
-            const { error: copyError } = await supabase
-              .from('event_files')
-              .insert({
-                filename: file.filename,
-                file_path: file.file_path,
-                content_type: file.content_type,
-                size: file.size,
-                user_id: user?.id,
-                event_id: eventData.id // Link to the new event
-              });
-              
-            if (copyError) {
-              console.error("Error copying file to new event:", copyError);
-            } else {
-              console.log("Successfully copied file to new event:", eventData.id);
-            }
+          console.log("Creating file copy with data:", fileData);
+          
+          const { data: newFile, error: copyError } = await supabase
+            .from('event_files')
+            .insert(fileData)
+            .select();
+            
+          if (copyError) {
+            console.error("Error copying file to new event:", copyError);
+          } else {
+            console.log("Successfully copied file to new event:", newFile);
           }
         }
-
-      } catch (eventCreationError) {
-        console.error("Error creating event from booking:", eventCreationError);
+      } else {
+        console.log("No files found for booking request ID:", id);
       }
 
       return data;
@@ -170,6 +185,7 @@ export const useBookingRequests = () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
     },
     onError: (error) => {
       toast({

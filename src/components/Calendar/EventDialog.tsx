@@ -61,6 +61,8 @@ export const EventDialog = ({
       const end = new Date(event.end_date);
       
       console.log("Loading event data:", event);
+      console.log("Event type:", event.type);
+      console.log("Booking request ID:", event.booking_request_id);
       
       // Set both title and userSurname to the user_surname value for consistency
       const fullName = event.user_surname || event.title || "";
@@ -130,15 +132,15 @@ export const EventDialog = ({
           console.log("Booking request ID:", event.booking_request_id);
           
           // First check if this is a booking request ID directly
-          const { data: bookingFiles, error: bookingFilesError } = await supabase
+          const { data: eventFiles, error: eventFilesError } = await supabase
             .from('event_files')
             .select('*')
             .eq('event_id', event.id);
             
-          if (bookingFilesError) {
-            console.error("Error loading booking files:", bookingFilesError);
-          } else if (bookingFiles && bookingFiles.length > 0) {
-            console.log("Found files directly associated with ID:", bookingFiles.length);
+          if (eventFilesError) {
+            console.error("Error loading event files:", eventFilesError);
+          } else if (eventFiles && eventFiles.length > 0) {
+            console.log("Found files directly associated with event ID:", eventFiles.length);
           }
           
           // Get any files associated with the booking request that created this event
@@ -161,7 +163,7 @@ export const EventDialog = ({
           const uniqueFileIds = new Set<string>();
           const uniqueFiles: any[] = [];
           
-          const allFiles = [...(bookingFiles || []), ...relatedBookingFiles];
+          const allFiles = [...(eventFiles || []), ...relatedBookingFiles];
           
           allFiles.forEach(file => {
             if (!uniqueFileIds.has(file.id)) {

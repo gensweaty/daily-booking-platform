@@ -403,9 +403,11 @@ export const BookingRequestForm = ({
       
       if (selectedFile && data) {
         try {
-          console.log("🔍 Processing file upload:", selectedFile.name);
+          console.log("🔍 Processing file upload for booking request ID:", data.id);
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `booking_${data.id}_${Date.now()}.${fileExt}`;
+          
+          console.log("🔍 Upload path:", filePath);
           
           const { error: uploadError } = await supabase.storage
             .from('event_attachments')
@@ -430,7 +432,7 @@ export const BookingRequestForm = ({
             if (fileError) {
               console.error('❌ Error saving file metadata:', fileError);
             } else {
-              console.log("✅ File metadata saved successfully");
+              console.log("✅ File metadata saved successfully for booking ID:", data.id);
             }
           }
         } catch (fileError) {
