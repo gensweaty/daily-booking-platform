@@ -1,6 +1,18 @@
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
+import { ensureAllRequiredBuckets } from "@/integrations/supabase/checkStorage";
+
+// Ensure all required buckets exist when this file is imported
+ensureAllRequiredBuckets().then(success => {
+  if (success) {
+    console.log("Storage buckets verification completed successfully");
+  } else {
+    console.warn("Storage buckets verification failed, some features might not work properly");
+  }
+}).catch(error => {
+  console.error("Error during storage bucket verification:", error);
+});
 
 // Rate limiting storage in localStorage
 const RATE_LIMIT_KEY = 'booking_request_last_time';
@@ -8,11 +20,11 @@ const RATE_LIMIT_COOLDOWN = 120; // 2 minutes in seconds
 
 // Helper function to get file URL with consistent bucket handling
 export const getFileUrl = (bucketName: string, filePath: string) => {
-  const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL || "https://mrueqpffzauvdxmuwhfa.supabase.co";
   const normalizedPath = normalizeFilePath(filePath);
   
   // Always use event_attachments bucket for consistent file access
-  return `${baseUrl}/storage/v1/object/public/event_attachments/${normalizedPath}`;
+  return `${baseUrl}/storage/v1/object/public/${bucketName}/${normalizedPath}`;
 };
 
 // Check if user is rate limited for booking requests
@@ -42,6 +54,9 @@ export const checkRateLimitStatus = async (): Promise<{ isLimited: boolean, rema
 };
 
 export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">) => {
+  // Ensure buckets exist before attempting to use them
+  await ensureAllRequiredBuckets();
+
   // Get current user if available
   const { data: userData } = await supabase.auth.getUser();
   
@@ -423,12 +438,16 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
   try {
     console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
     
-    // Always use event_attachments bucket for consistent file access
-    const effectiveBucket = "event_attachments";
+    // Ensure bucket exists before attempting download
+    ensureAllRequiredBuckets();
+    
+    // Always use specified bucket for consistent file access
+    const effectiveBucket = bucketName || "event_attachments";
     console.log(`Using effective bucket: ${effectiveBucket}`);
     
     // Direct URL for download
-    const directUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL || "https://mrueqpffzauvdxmuwhfa.supabase.co";
+    const directUrl = `${baseUrl}/storage/v1/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
     console.log('Using direct URL for download:', directUrl);
     
     try {
@@ -477,10 +496,14 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
 
 export const openFile = async (bucketName: string, filePath: string) => {
   try {
-    // Always use event_attachments bucket
-    const effectiveBucket = "event_attachments";
+    // Ensure bucket exists before attempting to open
+    ensureAllRequiredBuckets();
     
-    const directUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
+    // Use specified bucket or default to event_attachments
+    const effectiveBucket = bucketName || "event_attachments";
+    
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL || "https://mrueqpffzauvdxmuwhfa.supabase.co";
+    const directUrl = `${baseUrl}/storage/v1/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
     
     console.log('Opening file with direct URL:', directUrl);
     

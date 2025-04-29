@@ -1,3 +1,4 @@
+
 import { FileRecord } from "@/types/files";
 import { Button } from "@/components/ui/button";
 import { Trash2, FileText, Download, ExternalLink, Image as ImageIcon, FileIcon } from "lucide-react";
@@ -98,6 +99,8 @@ export const FileDisplay = ({
         
         try {
           const bucket = getBucketName(fileItem);
+          console.log(`Getting URL for ${fileItem.filename} from bucket ${bucket}`);
+          
           const { data } = supabase.storage
             .from(bucket)
             .getPublicUrl(fileItem.file_path);
@@ -199,6 +202,14 @@ export const FileDisplay = ({
           .eq('id', fileToDelete.id);
           
         error = dbError;
+      } else if (fileToDelete.source?.includes('booking_request') || fileToDelete.booking_request_id) {
+        console.log("Deleting from booking_files table");
+        const { error: dbError } = await supabase
+          .from('booking_files')
+          .delete()
+          .eq('id', fileToDelete.id);
+          
+        error = dbError;
       } else if (parentType === 'customer' || fileToDelete.customer_id) {
         console.log("Deleting from customer_files_new table");
         const { error: dbError } = await supabase
@@ -238,7 +249,7 @@ export const FileDisplay = ({
       
       toast({
         title: t("common.success"),
-        description: t("File deleted successfully"),
+        description: t("common.fileDeleted"),
       });
       
     } catch (error) {
@@ -257,7 +268,7 @@ export const FileDisplay = ({
     if (!fileToDownload.file_path) {
       toast({
         title: t("common.error"),
-        description: t("File path is missing"),
+        description: t("common.fileMissing"),
         variant: "destructive",
       });
       return;
@@ -268,12 +279,35 @@ export const FileDisplay = ({
       const bucket = getBucketName(fileToDownload);
       console.log(`Downloading from bucket: ${bucket}, path: ${fileToDownload.file_path}`);
       
+      // First try using the Supabase storage API
       const { data, error } = await supabase.storage
         .from(bucket)
         .download(fileToDownload.file_path);
         
       if (error) {
         console.error("Download error:", error);
+        
+        // Fallback to direct URL download if the API fails
+        const fileUrl = getFileUrl(fileToDownload);
+        if (fileUrl) {
+          const a = document.createElement("a");
+          a.href = fileUrl;
+          a.download = fileToDownload.filename || "download";
+          document.body.appendChild(a);
+          a.click();
+          
+          setTimeout(() => {
+            document.body.removeChild(a);
+          }, 100);
+          
+          toast({
+            title: t("common.success"),
+            description: t("common.fileDownloadStarted"),
+          });
+          
+          return;
+        }
+        
         throw error;
       }
       
@@ -298,7 +332,7 @@ export const FileDisplay = ({
       
       toast({
         title: t("common.success"),
-        description: t("File downloaded successfully"),
+        description: t("common.fileDownloaded"),
       });
       
     } catch (error) {
@@ -308,6 +342,16 @@ export const FileDisplay = ({
         description: error instanceof Error ? error.message : t("common.errorDownloadingFile"),
         variant: "destructive",
       });
+      
+      // Last resort fallback - try opening the file directly
+      try {
+        const fileUrl = getFileUrl(fileToDownload);
+        if (fileUrl) {
+          window.open(fileUrl, '_blank');
+        }
+      } catch (e) {
+        console.error('Even fallback failed:', e);
+      }
     }
   };
   
@@ -321,7 +365,7 @@ export const FileDisplay = ({
     } else {
       toast({
         title: t("common.error"),
-        description: t("Unable to open file"),
+        description: t("common.unableToOpenFile"),
         variant: "destructive",
       });
     }
