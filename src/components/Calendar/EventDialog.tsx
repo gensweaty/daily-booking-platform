@@ -192,8 +192,8 @@ export const EventDialog = ({
           } else if (booking) {
             console.log("Found booking request:", booking);
             
-            // Check if the booking has file metadata
-            if (booking.file_path) {
+            // Check if the booking has file metadata - add optional chaining and type safety
+            if (booking && 'file_path' in booking && booking.file_path) {
               console.log("Found file metadata directly in booking_requests:", booking.file_path);
               
               combinedFiles.push({

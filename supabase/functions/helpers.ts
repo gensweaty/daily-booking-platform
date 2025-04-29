@@ -1,4 +1,3 @@
-
 // This function will be used by our edge functions to get booking request files
 export const getBookingRequestFiles = async (supabase: any, bookingId: string) => {
   try {

@@ -1,4 +1,3 @@
-
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -118,14 +117,15 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
           .eq('id', event.booking_request_id)
           .maybeSingle();
           
-        if (bookingData && bookingData.file_path && !filePathsAdded.has(bookingData.file_path)) {
+        // Safely access potential file data with type checking
+        if (bookingData && 'file_path' in bookingData && bookingData.file_path && !filePathsAdded.has(bookingData.file_path)) {
           console.log("Found file metadata in booking_requests table");
           allFiles.push({
             id: `fallback_${bookingData.id}`,
-            filename: bookingData.filename || 'attachment',
+            filename: 'filename' in bookingData ? bookingData.filename || 'attachment' : 'attachment',
             file_path: bookingData.file_path,
-            content_type: bookingData.content_type || 'application/octet-stream',
-            size: bookingData.file_size || bookingData.size || 0,
+            content_type: 'content_type' in bookingData ? bookingData.content_type || 'application/octet-stream' : 'application/octet-stream',
+            size: 'file_size' in bookingData ? bookingData.file_size || ('size' in bookingData ? bookingData.size : 0) : 0,
             created_at: bookingData.created_at,
             source: 'booking_requests'
           });
