@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -234,13 +233,25 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       throw new Error(`Time slot is no longer available: ${conflictDetails}`);
     }
     
+    // Make sure the type field is set, defaulting to 'event'
+    if (!event.type) {
+      event.type = 'event';
+    }
+    
+    console.log("Creating event with data:", { ...event, user_id: user.id });
+    
     const { data, error } = await supabase
       .from('events')
       .insert([{ ...event, user_id: user.id }])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error creating event:", error);
+      throw error;
+    }
+    
+    console.log("Successfully created event:", data);
     
     toast({
       title: "Event created",
@@ -693,8 +704,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     queryKey: ['events', user?.id],
     queryFn: getEvents,
     enabled: !!user && !businessId && !businessUserId,
-    staleTime: 1000 * 30,
-    refetchInterval: 2000,
+    staleTime: 1000 * 30, 
+    refetchInterval: 2000, // Refresh every 2 seconds to ensure up-to-date data
   });
 
   const { data: businessEvents = [], isLoading: isLoadingBusinessEvents, error: businessEventsError } = useQuery({

@@ -269,7 +269,6 @@ export const CustomerDialog = ({
           payment_status: paymentStatus || 'not_paid',
           payment_amount: paymentStatus && paymentStatus !== 'not_paid' ? parseFloat(paymentAmount) : null,
           user_id: user?.id,
-          customer_id: customerId,
           type: 'event'  // Explicitly set the type field to ensure it appears in the calendar
         };
 
@@ -415,6 +414,13 @@ export const CustomerDialog = ({
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      
+      // Add an additional refresh for events to ensure calendar updates
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['business-events'] });
+        queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      }, 500);
     } catch (error: any) {
       console.error('Error submitting customer:', error);
       toast({
