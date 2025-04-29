@@ -44,11 +44,11 @@ export const useBookingRequests = () => {
     queryFn: async () => {
       if (!businessId) return [];
 
+      // IMPORTANT: Removed the is('deleted_at', null) filter since the column doesn't exist
       const { data, error } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('business_id', businessId)
-        .is('deleted_at', null) // Make sure to filter out soft-deleted records
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -56,6 +56,7 @@ export const useBookingRequests = () => {
         throw error;
       }
 
+      console.log("Fetched booking requests:", data);
       return data || [];
     },
     enabled: !!businessId,
@@ -183,13 +184,13 @@ export const useBookingRequests = () => {
     }
   });
 
-  // Delete a booking request (soft delete)
+  // Delete a booking request (using status="deleted" instead of deleted_at)
   const deleteBookingMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Soft delete by setting deleted_at field
+      // Instead of setting a deleted_at timestamp, we'll update the status to 'deleted'
       const { data, error } = await supabase
         .from('booking_requests')
-        .update({ deleted_at: new Date().toISOString() })
+        .update({ status: 'deleted' })
         .eq('id', id)
         .select()
         .single();

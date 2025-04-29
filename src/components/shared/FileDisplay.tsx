@@ -1,8 +1,9 @@
+
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { FileRecord } from '@/types/files';
 import { Button } from '@/components/ui/button';
-import { Trash2, FileText, File, Image, Download, ExternalLink } from 'lucide-react';
+import { Trash2, Download, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { FileTypeIcon } from './FileTypeIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -29,23 +30,6 @@ export const FileDisplay = ({
   const [viewImageUrl, setViewImageUrl] = useState<string | null>(null);
   const { t } = useLanguage();
   
-  const getIconForFileType = (contentType: string | null) => {
-    if (!contentType) return <File className="h-6 w-6 text-blue-500" />;
-    
-    if (contentType.startsWith('image/')) {
-      return <Image className="h-6 w-6 text-green-500" />;
-    } else if (
-      contentType === 'application/pdf' ||
-      contentType.includes('document') ||
-      contentType.includes('sheet') ||
-      contentType.includes('presentation')
-    ) {
-      return <FileText className="h-6 w-6 text-amber-500" />;
-    }
-    
-    return <File className="h-6 w-6 text-blue-500" />;
-  };
-
   const handleDownload = async (file: FileRecord) => {
     try {
       setLoading(prev => ({ ...prev, [file.id]: true }));
