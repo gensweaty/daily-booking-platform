@@ -23,4 +23,9 @@ export interface CalendarEventType {
   deleted_at?: string; // Added deleted_at property
   event_files?: any[]; // Add field to store associated event files
   booking_request_id?: string; // Added booking_request_id property
+  // Adding potential file metadata properties to align with the BookingRequest type
+  file_path?: string;
+  filename?: string;
+  content_type?: string;
+  file_size?: number;
 }

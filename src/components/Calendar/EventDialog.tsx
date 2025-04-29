@@ -182,22 +182,32 @@ export const EventDialog = ({
               .eq('id', event.booking_request_id)
               .maybeSingle();
               
-            if (booking && booking.file_path) {
-              console.log("Found file metadata directly in booking_requests:", booking);
-              
-              setDisplayedFiles([{
-                id: `fallback_${event.booking_request_id}`,
-                file_path: booking.file_path,
-                filename: booking.filename || 'attachment',
-                content_type: booking.content_type || 'application/octet-stream',
-                size: booking.file_size || 0,
-                created_at: new Date().toISOString(),
-                parentType: 'event',
-                source: 'booking_request_direct'
-              }]);
-              return; // Files found via fallback
-            } else {
-              console.log("No file metadata found in booking_requests");
+            if (booking) {
+              // Check if the booking has file metadata (safely check each property)
+              const hasFileMetadata = 
+                typeof booking === 'object' &&
+                booking !== null &&
+                'file_path' in booking && 
+                booking.file_path;
+                
+              if (hasFileMetadata) {
+                console.log("Found file metadata directly in booking_requests:", booking);
+                
+                setDisplayedFiles([{
+                  id: `fallback_${event.booking_request_id}`,
+                  file_path: booking.file_path as string,
+                  filename: ('filename' in booking && booking.filename) ? booking.filename as string : 'attachment',
+                  content_type: ('content_type' in booking && booking.content_type) ? booking.content_type as string : 'application/octet-stream',
+                  size: ('file_size' in booking && booking.file_size) ? booking.file_size as number : 
+                        ('size' in booking && booking.size) ? booking.size as number : 0,
+                  created_at: new Date().toISOString(),
+                  parentType: 'event',
+                  source: 'booking_request_direct'
+                }]);
+                return; // Files found via fallback
+              } else {
+                console.log("No file metadata found in booking_requests");
+              }
             }
           }
           
@@ -584,4 +594,3 @@ export const EventDialog = ({
 };
 
 export default EventDialog;
-
