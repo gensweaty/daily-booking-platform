@@ -260,62 +260,47 @@ export const useBookingRequests = () => {
           try {
             console.log(`Processing file: ${file.filename}, path: ${file.file_path}`);
             
-            // Download the file from storage
-            const { data: fileBlob, error: fileError } = await supabase.storage
-              .from('booking_attachments')
-              .download(file.file_path);
-              
-            if (fileError) {
-              console.error('Error downloading file from booking_attachments:', fileError);
-              continue;
-            }
+            // IMPROVED APPROACH: Insert references to the original files instead of copying
+            console.log('Creating event_files record with original file path');
             
-            // Generate a new unique file path for the event attachment
-            const newFilePath = `${Date.now()}_${file.filename.replace(/\s+/g, '_')}`;
-            
-            // Upload to event_attachments bucket
-            const { error: uploadError } = await supabase.storage
-              .from('event_attachments')
-              .upload(newFilePath, fileBlob);
-              
-            if (uploadError) {
-              console.error('Error uploading file to event_attachments:', uploadError);
-              continue;
-            }
-            
-            console.log(`Successfully copied file to event_attachments/${newFilePath}`);
-            
-            // Create the event_files record
+            // Create the event_files record pointing to the original file
             const { error: eventFileError } = await supabase
               .from('event_files')
               .insert({
                 filename: file.filename,
-                file_path: newFilePath,
+                file_path: file.file_path, // Use the original file path
                 content_type: file.content_type,
                 size: file.size,
                 user_id: user?.id,
-                event_id: eventData.id
+                event_id: eventData.id,
+                source: 'booking_request'
               });
             
             if (eventFileError) {
               console.error('Error creating event file record:', eventFileError);
+            } else {
+              console.log('Successfully created event_files record with original path');
             }
             
             // If we have a customer, also create a customer file record
             if (customerData) {
+              console.log('Creating customer_files_new record with original file path');
               const { error: customerFileError } = await supabase
                 .from('customer_files_new')
                 .insert({
                   filename: file.filename,
-                  file_path: newFilePath,
+                  file_path: file.file_path, // Use the original file path
                   content_type: file.content_type,
                   size: file.size,
                   user_id: user?.id,
-                  customer_id: customerData.id
+                  customer_id: customerData.id,
+                  source: 'booking_request'
                 });
               
               if (customerFileError) {
                 console.error('Error creating customer file record:', customerFileError);
+              } else {
+                console.log('Successfully created customer_files_new record with original path');
               }
             }
           } catch (error) {
