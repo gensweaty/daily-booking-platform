@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -246,7 +245,7 @@ export const useBookingRequests = () => {
         .from('event_files')
         .select('*')
         .eq('event_id', bookingId);
-        
+      
       if (filesError) {
         console.error('Error fetching booking files:', filesError);
       }
@@ -291,7 +290,7 @@ export const useBookingRequests = () => {
                 user_id: user?.id,
                 event_id: eventData.id
               });
-              
+            
             if (eventFileError) {
               console.error('Error creating event file record:', eventFileError);
             }
@@ -307,84 +306,84 @@ export const useBookingRequests = () => {
                   user_id: user?.id,
                   customer_id: customerData.id
                 });
-                
-              if (customerFileError) {
-                console.error('Error creating customer file record:', customerFileError);
-              }
+              
+            if (customerFileError) {
+              console.error('Error creating customer file record:', customerFileError);
             }
-          } catch (error) {
-            console.error('Error processing file:', error);
           }
+        } catch (error) {
+          console.error('Error processing file:', error);
         }
+      }
+    }
+    
+    if (booking && booking.requester_email) {
+      let businessName = "Our Business";
+      try {
+        const { data: businessProfile } = await supabase
+          .from('business_profiles')
+          .select('business_name')
+          .eq('id', booking.business_id)
+          .maybeSingle();
+        if (businessProfile && businessProfile.business_name) {
+          businessName = businessProfile.business_name;
+        }
+      } catch (err) {
+        console.warn("Could not load business profile for email:", err);
       }
       
-      if (booking && booking.requester_email) {
-        let businessName = "Our Business";
-        try {
-          const { data: businessProfile } = await supabase
-            .from('business_profiles')
-            .select('business_name')
-            .eq('id', booking.business_id)
-            .maybeSingle();
-          if (businessProfile && businessProfile.business_name) {
-            businessName = businessProfile.business_name;
-          }
-        } catch (err) {
-          console.warn("Could not load business profile for email:", err);
-        }
-        
-        console.log(`Preparing to send email to ${booking.requester_email} for business ${businessName}`);
-        console.log("Email data:", {
-          email: booking.requester_email,
-          fullName: booking.requester_name || booking.user_surname || "",
-          businessName,
-          startDate: booking.start_date,
-          endDate: booking.end_date,
-        });
-        
-        const emailResult = await sendApprovalEmail({
-          email: booking.requester_email,
-          fullName: booking.requester_name || booking.user_surname || "",
-          businessName,
-          startDate: booking.start_date,
-          endDate: booking.end_date,
-        });
-        
-        if (emailResult.success) {
-          console.log("Email notification processed during booking approval");
-        } else {
-          console.error("Failed to process email during booking approval:", emailResult.error);
-          // We continue even if email fails to ensure the booking is still approved
-        }
+      console.log(`Preparing to send email to ${booking.requester_email} for business ${businessName}`);
+      console.log("Email data:", {
+        email: booking.requester_email,
+        fullName: booking.requester_name || booking.user_surname || "",
+        businessName,
+        startDate: booking.start_date,
+        endDate: booking.end_date,
+      });
+      
+      const emailResult = await sendApprovalEmail({
+        email: booking.requester_email,
+        fullName: booking.requester_name || booking.user_surname || "",
+        businessName,
+        startDate: booking.start_date,
+        endDate: booking.end_date,
+      });
+      
+      if (emailResult.success) {
+        console.log("Email notification processed during booking approval");
       } else {
-        console.warn("No email address found for booking request, can't send notification");
+        console.error("Failed to process email during booking approval:", emailResult.error);
+        // We continue even if email fails to ensure the booking is still approved
       }
-
-      console.log('Booking approval process completed successfully');
-      return booking;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['business-events'] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      toast({
-        title: "Success",
-        description: "Booking request approved and notification email processed"
-      });
-    },
-    onError: (error: Error) => {
-      console.error('Error in approval mutation:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to approve booking request",
-        variant: "destructive"
-      });
+    } else {
+      console.warn("No email address found for booking request, can't send notification");
     }
-  });
+
+    console.log('Booking approval process completed successfully');
+    return booking;
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
+    queryClient.invalidateQueries({ queryKey: ['events'] });
+    queryClient.invalidateQueries({ queryKey: ['business-events'] });
+    queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+    queryClient.invalidateQueries({ queryKey: ['customers'] });
+    queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+    queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+    toast({
+      title: "Success",
+      description: "Booking request approved and notification email processed"
+    });
+  },
+  onError: (error: Error) => {
+    console.error('Error in approval mutation:', error);
+    toast({
+      title: "Error",
+      description: error.message || "Failed to approve booking request",
+      variant: "destructive"
+    });
+  }
+});
   
   const rejectMutation = useMutation({
     mutationFn: async (bookingId: string) => {
