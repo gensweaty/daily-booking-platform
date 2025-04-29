@@ -54,7 +54,7 @@ export interface BookingRequest {
   description?: string;
   start_date: string; // ISO format date string
   end_date: string;   // ISO format date string
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'deleted';
   created_at: string;
   updated_at: string;
   deleted_at?: string; // Added this field for soft deletion
