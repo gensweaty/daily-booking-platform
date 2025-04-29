@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -148,20 +149,18 @@ export const EventDialog = ({
             console.log("No files found in event_files for event ID:", event.id);
           }
           
-          // STEP 2: If this event has a booking_request_id, check for files associated with that ID
+          // STEP 2: If this event has a booking_request_id, check for files using our helper function
           if (event.booking_request_id) {
             console.log("This event was created from booking_request_id:", event.booking_request_id);
             
-            // First try booking_files table
+            // Use the RPC function to get booking files
             const { data: bookingFiles, error: bookingFilesError } = await supabase
-              .from('booking_files')
-              .select('*')
-              .eq('booking_request_id', event.booking_request_id);
+              .rpc('get_booking_request_files', { booking_id_param: event.booking_request_id });
               
             if (bookingFilesError) {
               console.error("Error loading booking files:", bookingFilesError);
             } else if (bookingFiles && bookingFiles.length > 0) {
-              console.log("Found files in booking_files:", bookingFiles.length);
+              console.log("Found files using get_booking_request_files:", bookingFiles.length);
               
               const formattedBookingFiles = bookingFiles.map(file => ({
                 ...file,
@@ -172,18 +171,18 @@ export const EventDialog = ({
               setDisplayedFiles(formattedBookingFiles);
               return; // Files found, no need to continue
             } else {
-              console.log("No files found in booking_files for booking request ID:", event.booking_request_id);
+              console.log("No files found via get_booking_request_files for booking request ID:", event.booking_request_id);
             }
             
             // STEP 3: Try fallback - check if booking_requests has file metadata directly
             console.log("Checking booking_requests for file metadata...");
             const { data: booking } = await supabase
               .from('booking_requests')
-              .select('file_path, filename, content_type, file_size')
+              .select('*')  // Select all columns to avoid type errors
               .eq('id', event.booking_request_id)
               .maybeSingle();
               
-            if (booking?.file_path) {
+            if (booking && booking.file_path) {
               console.log("Found file metadata directly in booking_requests:", booking);
               
               setDisplayedFiles([{
@@ -585,3 +584,4 @@ export const EventDialog = ({
 };
 
 export default EventDialog;
+

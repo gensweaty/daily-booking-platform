@@ -2,15 +2,15 @@
 // This function will be used by our edge functions to get booking request files
 export const getBookingRequestFiles = async (supabase: any, bookingId: string) => {
   try {
-    // Get files from the booking_files table first
+    // Get files from the event_files table first (files are stored here)
     const { data, error } = await supabase
-      .from('booking_files')
+      .from('event_files')
       .select('*')
-      .eq('booking_request_id', bookingId);
+      .eq('event_id', bookingId);
       
     if (error) throw error;
     
-    // If files found in booking_files, return them
+    // If files found in event_files, return them
     if (data && data.length > 0) {
       return data;
     }
@@ -18,7 +18,7 @@ export const getBookingRequestFiles = async (supabase: any, bookingId: string) =
     // Fallback: check if the booking request has file metadata directly
     const { data: bookingData, error: bookingError } = await supabase
       .from('booking_requests')
-      .select('file_path, filename, content_type, file_size')
+      .select('*')  // Select all columns to avoid type errors
       .eq('id', bookingId)
       .maybeSingle();
       
