@@ -15,6 +15,19 @@ export const getBookingRequestFiles = async (supabase: any, bookingId: string) =
       return data;
     }
     
+    // Try booking_files table next (this should be the main source for pending bookings)
+    const { data: bookingFileData, error: bookingFileError } = await supabase
+      .from('booking_files')
+      .select('*')
+      .eq('booking_request_id', bookingId);
+      
+    if (bookingFileError) throw bookingFileError;
+    
+    // If files found in booking_files, return them
+    if (bookingFileData && bookingFileData.length > 0) {
+      return bookingFileData;
+    }
+    
     // Fallback: check if the booking request has file metadata directly
     const { data: bookingData, error: bookingError } = await supabase
       .from('booking_requests')
