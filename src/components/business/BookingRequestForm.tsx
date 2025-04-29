@@ -6,8 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/components/ui/use-toast';
-import { Spinner } from '@/components/ui/spinner';
 import { FileUploadField } from '../shared/FileUploadField';
+import { Loader2 } from 'lucide-react';
 
 export interface BookingRequestFormProps {
   businessId: string | undefined;
@@ -303,7 +303,7 @@ export const BookingRequestForm = ({
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? (
           <>
-            <Spinner className="mr-2 h-4 w-4" /> {t('business.submitting')}
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('business.submitting')}
           </>
         ) : (
           t('business.submitRequest')
