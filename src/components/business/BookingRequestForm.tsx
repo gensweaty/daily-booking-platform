@@ -400,17 +400,19 @@ export const BookingRequestForm = ({
           const filePath = `booking_${data.id}_${Date.now()}.${fileExt}`;
           
           const { error: uploadError } = await supabase.storage
-            .from('booking_attachments')
+            .from('event_attachments')
             .upload(filePath, selectedFile);
             
           if (uploadError) {
             console.error('❌ Error uploading file:', uploadError);
           } else {
             console.log("✅ File uploaded successfully:", filePath);
+            
+            // Store file metadata in event_files table for consistent access
             const { error: fileError } = await supabase
-              .from('booking_files')
+              .from('event_files')
               .insert({
-                booking_request_id: data.id,
+                event_id: data.id,
                 filename: selectedFile.name,
                 file_path: filePath,
                 content_type: selectedFile.type,
@@ -420,7 +422,7 @@ export const BookingRequestForm = ({
             if (fileError) {
               console.error('❌ Error saving file metadata:', fileError);
             } else {
-              console.log("✅ File metadata saved successfully");
+              console.log("✅ File metadata saved to event_files successfully");
             }
           }
         } catch (fileError) {
