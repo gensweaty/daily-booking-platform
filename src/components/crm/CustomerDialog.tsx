@@ -256,10 +256,12 @@ export const CustomerDialog = ({
 
       let emailResult: EmailResult = { success: false };
       let eventId: string | undefined;
+      let uploadedFilePath: string | undefined;
 
+      // If createEvent is checked, create a corresponding event
       if (createEvent) {
         const eventData = {
-          title,
+          title: userSurname, // Use userSurname as title to ensure consistent display
           user_surname: userSurname,
           user_number: userNumber,
           social_network_link: socialNetworkLink,
@@ -328,10 +330,12 @@ export const CustomerDialog = ({
         }
       }
 
+      // Handle file upload if a file is selected
       if (selectedFile) {
         try {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${Date.now()}_${customerId}.${fileExt}`;
+          uploadedFilePath = filePath;
           
           // Upload file to storage - Always use event_attachments for consistency
           const { error: uploadError } = await supabase.storage
@@ -362,8 +366,8 @@ export const CustomerDialog = ({
             throw customerFileError;
           }
           
-          // If event was created, also create event file record
-          if (createEvent && eventId) {
+          // Only create event file record if event was created and we haven't already created a file for this event
+          if (createEvent && eventId && uploadedFilePath) {
             const eventFileData = {
               event_id: eventId,
               filename: selectedFile.name,

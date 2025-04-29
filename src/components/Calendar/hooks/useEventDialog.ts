@@ -24,7 +24,9 @@ export const useEventDialog = ({
       // Ensure type is set to 'event'
       const eventData = {
         ...data,
-        type: 'event'
+        type: 'event',
+        // Make sure title and user_surname match for consistency
+        title: data.user_surname || data.title
       };
       
       if (!createEvent) throw new Error("Create event function not provided");
@@ -51,10 +53,11 @@ export const useEventDialog = ({
         throw new Error("Update event function not provided or no event selected");
       }
       
-      // Make sure to preserve the type field
+      // Make sure to preserve the type field and ensure title and user_surname match
       const eventData = {
         ...data,
-        type: selectedEvent.type || 'event'
+        type: selectedEvent.type || 'event',
+        title: data.user_surname || data.title
       };
       
       const updatedEvent = await updateEvent(eventData);

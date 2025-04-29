@@ -1,3 +1,4 @@
+
 import { Note } from "@/lib/types";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
@@ -119,6 +120,7 @@ export const EditNoteDialog = ({
                 files={existingFiles} 
                 bucketName="note_attachments"
                 allowDelete
+                parentType="note"
               />
             </div>
           )}

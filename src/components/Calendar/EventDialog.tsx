@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -57,8 +58,13 @@ export const EventDialog = ({
     if (event) {
       const start = new Date(event.start_date);
       const end = new Date(event.end_date);
+      
+      // Use the correct field for display name
       setTitle(event.title || "");
-      setUserSurname(event.user_surname || event.requester_name || "");
+      
+      // Always use user_surname for the full name field
+      setUserSurname(event.user_surname || "");
+      
       setUserNumber(event.user_number || event.requester_phone || "");
       setSocialNetworkLink(event.social_network_link || event.requester_email || "");
       setEventNotes(event.event_notes || event.description || "");
@@ -104,25 +110,42 @@ export const EventDialog = ({
       if (event?.id) {
         try {
           console.log("Loading files for event:", event.id);
-          const { data: files, error } = await supabase
-            .rpc('get_all_related_files', {
-              event_id_param: event.id,
-              customer_id_param: null,
-              entity_name_param: event.title
-            });
+          
+          // First get event files directly
+          const { data: eventFiles, error: eventFilesError } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', event.id);
             
-          if (error) {
-            console.error("Error loading event files:", error);
+          if (eventFilesError) {
+            console.error("Error loading event files:", eventFilesError);
             return;
           }
           
-          if (files && files.length > 0) {
-            console.log("Loaded event files:", files);
-            setDisplayedFiles(files);
+          // Use a Set to track unique file IDs to avoid duplicates
+          const uniqueFileIds = new Set<string>();
+          const uniqueFiles: any[] = [];
+          
+          if (eventFiles && eventFiles.length > 0) {
+            eventFiles.forEach(file => {
+              if (!uniqueFileIds.has(file.id)) {
+                uniqueFileIds.add(file.id);
+                uniqueFiles.push({
+                  ...file,
+                  parentType: 'event'
+                });
+              }
+            });
+          }
+          
+          if (uniqueFiles.length > 0) {
+            console.log("Loaded unique event files:", uniqueFiles);
+            setDisplayedFiles(uniqueFiles);
           } else {
             console.log("No files found for event:", event.id);
             setDisplayedFiles([]);
           }
+          
         } catch (err) {
           console.error("Exception loading event files:", err);
         }

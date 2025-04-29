@@ -30,9 +30,18 @@ export const FileDisplay = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
+  // Remove duplicate files based on file_path to prevent showing the same file twice
+  const uniqueFiles = files.reduce((acc: FileRecord[], current) => {
+    const isDuplicate = acc.some(item => item.file_path === current.file_path);
+    if (!isDuplicate) {
+      acc.push(current);
+    }
+    return acc;
+  }, []);
+
   useEffect(() => {
     const newURLs: {[key: string]: string} = {};
-    files.forEach(file => {
+    uniqueFiles.forEach(file => {
       if (file.file_path) {
         const normalizedPath = normalizeFilePath(file.file_path);
         const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
@@ -41,7 +50,7 @@ export const FileDisplay = ({
       }
     });
     setFileURLs(newURLs);
-  }, [files, parentType]);
+  }, [uniqueFiles, parentType]);
 
   const getFileExtension = (filename: string): string => {
     return filename.split('.').pop()?.toLowerCase() || '';
@@ -225,7 +234,7 @@ export const FileDisplay = ({
     }
   };
 
-  if (!files || files.length === 0) {
+  if (!uniqueFiles || uniqueFiles.length === 0) {
     return null;
   }
 
@@ -233,7 +242,7 @@ export const FileDisplay = ({
     <div className="space-y-2">
       {/* We already have the heading in some places, so let's not duplicate it */}
       <div className="space-y-2">
-        {files.map((file) => {
+        {uniqueFiles.map((file) => {
           if (!file.file_path) return null;
           
           const fileNameDisplay = file.filename && file.filename.length > 20 
