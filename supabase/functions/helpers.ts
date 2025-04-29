@@ -52,14 +52,30 @@ export const getBookingRequestFiles = async (supabase: any, bookingId: string) =
         console.error("Error fetching from booking_requests:", bookingError);
       } else if (bookingData && typeof bookingData === 'object' && 'file_path' in bookingData && bookingData.file_path) {
         console.log("Found file metadata directly in booking_requests:", bookingData.file_path);
+        
+        // Safe type checking for each property
+        const filename = 'filename' in bookingData && typeof bookingData.filename === 'string' 
+          ? bookingData.filename 
+          : 'attachment';
+          
+        const contentType = 'content_type' in bookingData && typeof bookingData.content_type === 'string' 
+          ? bookingData.content_type 
+          : 'application/octet-stream';
+          
+        let fileSize = 0;
+        if ('file_size' in bookingData && typeof bookingData.file_size === 'number') {
+          fileSize = bookingData.file_size;
+        } else if ('size' in bookingData && typeof bookingData.size === 'number') {
+          fileSize = bookingData.size;
+        }
+        
         allFiles.push({
           id: `fallback_${bookingId}`,
           booking_request_id: bookingId,
-          filename: 'filename' in bookingData && bookingData.filename ? bookingData.filename : 'attachment',
+          filename: filename,
           file_path: bookingData.file_path,
-          content_type: 'content_type' in bookingData ? bookingData.content_type || 'application/octet-stream' : 'application/octet-stream',
-          size: 'file_size' in bookingData ? Number(bookingData.file_size) || 
-                ('size' in bookingData ? Number(bookingData.size) : 0) : 0,
+          content_type: contentType,
+          size: fileSize,
           created_at: new Date().toISOString(),
           source: 'booking_request_direct'
         });

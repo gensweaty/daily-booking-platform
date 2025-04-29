@@ -1,334 +1,190 @@
 
+import { FileRecord } from "@/types/files";
 import { Button } from "@/components/ui/button";
-import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
-import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
-import { useState, useEffect } from "react";
-import { useToast } from "@/components/ui/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
+import { Trash2, FileText, Download } from "lucide-react";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import type { FileRecord } from "@/types/files";
 
 interface FileDisplayProps {
-  files: FileRecord[];
-  bucketName: string;
-  allowDelete?: boolean;
-  onFileDeleted?: (fileId: string) => void;
-  parentId?: string;
+  file: FileRecord;
+  onDelete?: (id: string) => void;
+  showDelete?: boolean;
   parentType?: string;
 }
 
-export const FileDisplay = ({ 
-  files, 
-  bucketName, 
-  allowDelete = false, 
-  onFileDeleted,
-  parentId,
-  parentType
+export const FileDisplay = ({
+  file,
+  onDelete,
+  showDelete = true,
+  parentType = 'event'
 }: FileDisplayProps) => {
-  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
-  const [fileURLs, setFileURLs] = useState<{[key: string]: string}>({});
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const { t } = useLanguage();
-
-  // Remove duplicate files based on file_path to prevent showing the same file twice
-  const uniqueFiles = files.reduce((acc: FileRecord[], current) => {
-    const isDuplicate = acc.some(item => item.file_path === current.file_path);
-    if (!isDuplicate) {
-      acc.push(current);
-    }
-    return acc;
-  }, []);
-
-  useEffect(() => {
-    // Debug logging for files being displayed
-    console.log('FileDisplay received files:', files);
-    console.log('After deduplication, unique files:', uniqueFiles);
-    
-    const newURLs: {[key: string]: string} = {};
-    uniqueFiles.forEach(file => {
-      if (file.file_path) {
-        const normalizedPath = normalizeFilePath(file.file_path);
-        
-        // Always use event_attachments bucket for all files
-        // This is critical - all files are now stored in event_attachments bucket
-        const effectiveBucket = "event_attachments";
-        
-        console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${normalizedPath}`);
-        newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
-      }
-    });
-    
-    setFileURLs(newURLs);
-  }, [uniqueFiles, parentType]);
-
-  const getFileExtension = (filename: string): string => {
-    return filename.split('.').pop()?.toLowerCase() || '';
+  
+  // Get the appropriate bucket name based on the file source or parent type
+  const getBucketName = () => {
+    // Always default to event_attachments for now as our main storage bucket
+    return 'event_attachments';
   };
   
-  const isImage = (filename: string): boolean => {
-    const ext = getFileExtension(filename);
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
-  };
-
-  const getFileIcon = (filename: string) => {
-    return <FileIcon className="h-5 w-5" />;
-  };
-
-  // Always use event_attachments bucket for consistency
-  const determineEffectiveBucket = (): string => {
-    return "event_attachments";
-  };
-
-  const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
+  const handleDelete = async () => {
+    if (!file.id) return;
+    
     try {
-      console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
+      setIsDeleting(true);
       
-      // Always use event_attachments bucket for all files
-      const effectiveBucket = "event_attachments";
-      console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath}`);
-      
-      const normalizedPath = normalizeFilePath(filePath);
-      const directUrl = fileURLs[fileId] || 
-        `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
-      
-      console.log('Using direct URL for download:', directUrl);
-      
-      // Force download using fetch to get the blob
-      const response = await fetch(directUrl);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+      // Step 1: Delete the file from storage if it has a path
+      if (file.file_path) {
+        const bucket = getBucketName();
+        console.log(`Attempting to delete file from ${bucket}/${file.file_path}`);
+        
+        const { error: storageError } = await supabase.storage
+          .from(bucket)
+          .remove([file.file_path]);
+          
+        if (storageError) {
+          console.error('Error deleting file from storage:', storageError);
+          // Continue even if storage delete fails - we still want to remove the record
+        }
       }
       
-      const blob = await response.blob();
+      // Step 2: Delete the file record from the database
+      let error;
       
-      // Create blob URL and handle download
-      const blobUrl = window.URL.createObjectURL(blob);
+      // Determine which table to delete from based on parentType
+      if (file.source === 'event_files' || parentType === 'event') {
+        const { error: dbError } = await supabase
+          .from('event_files')
+          .delete()
+          .eq('id', file.id);
+          
+        error = dbError;
+      } else if (parentType === 'customer' || file.customer_id) {
+        const { error: dbError } = await supabase
+          .from('customer_files_new')
+          .delete()
+          .eq('id', file.id);
+          
+        error = dbError;
+      }
       
-      // Create a hidden anchor element for download
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = fileName; // Set download attribute
-      a.style.display = 'none'; // Hide the element
+      if (error) {
+        console.error('Error deleting file record:', error);
+        throw error;
+      }
       
-      // Add to DOM, trigger click, and clean up
+      // Call the parent's onDelete function if provided
+      if (onDelete) {
+        onDelete(file.id);
+      }
+      
+      toast({
+        title: t("common.success"),
+        description: t("File deleted successfully"),
+      });
+      
+    } catch (error) {
+      console.error('Error handling file deletion:', error);
+      toast({
+        title: t("common.error"),
+        description: error instanceof Error ? error.message : t("common.errorDeletingFile"),
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+  
+  const handleDownload = async () => {
+    if (!file.file_path) {
+      toast({
+        title: t("common.error"),
+        description: t("File path is missing"),
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const bucket = getBucketName();
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .download(file.file_path);
+        
+      if (error) {
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error("File not found");
+      }
+      
+      // Create a download link
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.filename || "download";
       document.body.appendChild(a);
       a.click();
       
-      // Remove element and revoke blob URL after a delay
+      // Clean up
       setTimeout(() => {
+        URL.revokeObjectURL(url);
         document.body.removeChild(a);
-        window.URL.revokeObjectURL(blobUrl); // Important: free up memory
       }, 100);
       
       toast({
         title: t("common.success"),
-        description: t("common.downloadStarted"),
+        description: t("File downloaded successfully"),
       });
+      
     } catch (error) {
       console.error('Error downloading file:', error);
       toast({
         title: t("common.error"),
-        description: t("common.downloadError"),
+        description: error instanceof Error ? error.message : t("common.errorDownloadingFile"),
         variant: "destructive",
       });
     }
   };
-
-  const getDirectFileUrl = (filePath: string, fileId: string): string => {
-    if (!filePath) return '';
-    
-    if (fileURLs[fileId]) {
-      return fileURLs[fileId];
-    }
-    
-    const normalizedPath = normalizeFilePath(filePath);
-    // Always use event_attachments bucket
-    const effectiveBucket = "event_attachments";
-    
-    return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
+  
+  // Function to get file type icon based on content type
+  const getFileIcon = () => {
+    return <FileText className="mr-2 h-4 w-4" />;
   };
-
-  const handleOpenFile = async (filePath: string, fileId: string) => {
-    try {
-      if (!filePath) {
-        throw new Error('File path is missing');
-      }
-      
-      const directUrl = getDirectFileUrl(filePath, fileId);
-      console.log('Opening file with direct URL:', directUrl);
-      
-      // Open in a new tab
-      window.open(directUrl, '_blank', 'noopener,noreferrer');
-    } catch (error) {
-      console.error('Error opening file:', error);
-      toast({
-        title: t("common.error"),
-        description: t("common.fileAccessError"),
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDelete = async (fileId: string, filePath: string) => {
-    try {
-      setDeletingFileId(fileId);
-      
-      // Always use event_attachments bucket
-      const effectiveBucket = "event_attachments";
-      console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}`);
-      
-      const { error: storageError } = await supabase.storage
-        .from(effectiveBucket)
-        .remove([normalizeFilePath(filePath)]);
-
-      if (storageError) {
-        console.error('Error deleting file from storage:', storageError);
-        // Don't throw error here - we still want to delete the database record
-        // even if the file is missing from storage
-        console.warn('Continuing with database record deletion despite storage error');
-      }
-      
-      // Determine the appropriate table name based on the parent type
-      let tableName: "files" | "customer_files_new" | "note_files" | "event_files";
-      
-      if (parentType === 'event') {
-        tableName = "event_files";
-      } else if (parentType === 'customer') {
-        tableName = "customer_files_new";
-      } else if (parentType === 'note') {
-        tableName = "note_files";
-      } else if (parentType === 'task') {
-        tableName = "files";  // Task files are stored in the "files" table
-      } else {
-        // Default to customer_files_new if we can't determine
-        tableName = "customer_files_new";
-      }
-      
-      console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);
-      const { error: dbError } = await supabase
-        .from(tableName)
-        .delete()
-        .eq('id', fileId);
-        
-      if (dbError) {
-        console.error(`Error deleting file from ${tableName}:`, dbError);
-        throw dbError;
-      }
-      
-      if (onFileDeleted) {
-        onFileDeleted(fileId);
-      }
-      
-      // Invalidate all relevant queries to ensure UI is updated
-      queryClient.invalidateQueries({ queryKey: ['files'] });
-      queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      
-      toast({
-        title: t("common.success"),
-        description: t("common.fileDeleted"),
-      });
-    } catch (error) {
-      console.error('Error deleting file:', error);
-      toast({
-        title: t("common.error"),
-        description: t("common.deleteError"),
-        variant: "destructive",
-      });
-    } finally {
-      setDeletingFileId(null);
-    }
-  };
-
-  if (!uniqueFiles || uniqueFiles.length === 0) {
-    return null;
-  }
-
+  
   return (
-    <div className="space-y-2">
-      {/* We already have the heading in some places, so let's not duplicate it */}
-      <div className="space-y-2">
-        {uniqueFiles.map((file) => {
-          if (!file.file_path) return null;
-          
-          const fileNameDisplay = file.filename && file.filename.length > 20 
-            ? file.filename.substring(0, 20) + '...' 
-            : file.filename;
-          
-          // Always use event_attachments bucket for consistency
-          const effectiveBucket = "event_attachments";
-          const normalizedPath = normalizeFilePath(file.file_path);
-          const imageUrl = fileURLs[file.id] || 
-            `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
-          
-          console.log(`Rendering file: ${file.filename}, path: ${file.file_path}, url: ${imageUrl}`);
-            
-          return (
-            <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">
-              <div className="p-3 flex items-center justify-between">
-                <div className="flex items-center space-x-2 overflow-hidden">
-                  {isImage(file.filename) ? (
-                    <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
-                      <img 
-                        src={imageUrl}
-                        alt={file.filename}
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          console.error('Image failed to load', e, 'URL:', imageUrl);
-                          e.currentTarget.src = '/placeholder.svg';
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
-                      {getFileIcon(file.filename)}
-                    </div>
-                  )}
-                  <span className="truncate text-sm">{fileNameDisplay}</span>
-                </div>
-                <div className="flex space-x-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDownload(file.file_path, file.filename, file.id)}
-                    title={t("common.download")}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  {allowDelete && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(file.id, file.file_path)}
-                      disabled={deletingFileId === file.id}
-                      title={t("common.delete")}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-              
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full rounded-none border-t flex items-center justify-center gap-2 py-1.5"
-                onClick={() => handleOpenFile(file.file_path, file.id)}
-              >
-                <ExternalLink className="h-4 w-4" />
-                {t("crm.open")}
-              </Button>
-            </div>
-          );
-        })}
+    <div className="flex items-center justify-between p-2 bg-muted/50 rounded-md my-1">
+      <div className="flex items-center overflow-hidden">
+        {getFileIcon()}
+        <span className="text-sm truncate" title={file.filename}>
+          {file.filename || "Unnamed file"}
+        </span>
+      </div>
+      <div className="flex gap-2">
+        <Button 
+          size="icon" 
+          variant="ghost" 
+          onClick={handleDownload}
+          title={t("common.download")}
+        >
+          <Download className="h-4 w-4" />
+        </Button>
+        
+        {showDelete && (
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            onClick={handleDelete}
+            disabled={isDeleting}
+            title={t("common.delete")}
+          >
+            <Trash2 className="h-4 w-4 text-red-500" />
+          </Button>
+        )}
       </div>
     </div>
   );

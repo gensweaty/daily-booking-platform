@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -116,6 +117,10 @@ export const EventDialog = ({
       setSocialNetworkLink("");
       setEventNotes("");
       setPaymentAmount("");
+      
+      // Reset file state
+      setSelectedFile(null);
+      setFileError("");
     }
   }, [selectedDate, event, open]);
 
@@ -192,17 +197,34 @@ export const EventDialog = ({
           } else if (booking) {
             console.log("Found booking request:", booking);
             
-            // Check if the booking has file metadata - add explicit property checks
-            if (booking && typeof booking === 'object' && 'file_path' in booking && booking.file_path) {
+            // Safely check if booking has file_path property and it's a string
+            if (booking && typeof booking === 'object' && 'file_path' in booking && 
+                typeof booking.file_path === 'string' && booking.file_path) {
               console.log("Found file metadata directly in booking_requests:", booking.file_path);
+              
+              // Safe type checking for all properties
+              const filename = 'filename' in booking && typeof booking.filename === 'string' 
+                ? booking.filename 
+                : 'attachment';
+                
+              const contentType = 'content_type' in booking && typeof booking.content_type === 'string'
+                ? booking.content_type
+                : 'application/octet-stream';
+                
+              // Handle size with multiple fallbacks and type checking
+              let fileSize = 0;
+              if ('file_size' in booking && typeof booking.file_size === 'number') {
+                fileSize = booking.file_size;
+              } else if ('size' in booking && typeof booking.size === 'number') {
+                fileSize = booking.size;
+              }
               
               combinedFiles.push({
                 id: `fallback_${event.booking_request_id}`,
                 file_path: booking.file_path,
-                filename: 'filename' in booking && booking.filename ? booking.filename : 'attachment',
-                content_type: 'content_type' in booking && booking.content_type ? booking.content_type : 'application/octet-stream',
-                size: 'file_size' in booking && booking.file_size ? booking.file_size : 
-                      ('size' in booking && booking.size ? booking.size : 0),
+                filename: filename,
+                content_type: contentType,
+                size: fileSize,
                 created_at: booking.created_at || new Date().toISOString(),
                 parentType: 'event',
                 source: 'booking_request_direct'
@@ -216,7 +238,7 @@ export const EventDialog = ({
         }
         
         // STEP 3.5: Check if event itself has file metadata
-        if (event.file_path) {
+        if (event.file_path && typeof event.file_path === 'string') {
           console.log("Event itself has file metadata:", event.file_path);
           
           // Only add if we don't already have a file with the same path
@@ -453,43 +475,86 @@ export const EventDialog = ({
         }
       }
 
+      // File upload handling - ensure this runs for both new and existing events
       if (selectedFile && createdEvent?.id && user) {
         try {
+          console.log('Uploading file for event:', createdEvent.id, selectedFile);
+          
           const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${crypto.randomUUID()}.${fileExt}`;
+          // Use more unique ID for file path to prevent conflicts
+          const filePath = `${Date.now()}_${crypto.randomUUID()}.${fileExt}`;
           
-          console.log('Uploading file:', filePath);
+          console.log('Uploading file to path:', filePath);
           
-          const { error: uploadError } = await supabase.storage
-            .from('event_attachments')
-            .upload(filePath, selectedFile);
-
-          if (uploadError) {
-            console.error('Error uploading file:', uploadError);
-            throw uploadError;
-          }
-
-          const fileData = {
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            user_id: user.id,
-            event_id: createdEvent.id
-          };
-
-          const { error: fileRecordError } = await supabase
-            .from('event_files')
-            .insert(fileData);
+          // Check if we already have a storage bucket, if not, the upload will fail
+          const { data: bucketData } = await supabase.storage.listBuckets();
+          const eventAttachmentsBucket = bucketData?.find(bucket => bucket.name === 'event_attachments');
+          
+          if (!eventAttachmentsBucket) {
+            console.error('Missing event_attachments bucket, attempting to create');
+            // Handle gracefully if bucket doesn't exist
+            toast({
+              title: t("common.warning"),
+              description: "Storage bucket not found. Please contact the administrator.",
+              variant: "destructive",
+            });
+            // Continue with other operations, don't throw error here
+          } else {
+            // Upload file to storage
+            const { error: uploadError, data: uploadData } = await supabase.storage
+              .from('event_attachments')
+              .upload(filePath, selectedFile);
+    
+            if (uploadError) {
+              console.error('Error uploading file:', uploadError);
+              throw uploadError;
+            }
             
-          if (fileRecordError) {
-            console.error('Error creating file record:', fileRecordError);
-            throw fileRecordError;
+            console.log('File uploaded successfully:', uploadData);
+    
+            // Create file record in database
+            const fileData = {
+              filename: selectedFile.name,
+              file_path: filePath,
+              content_type: selectedFile.type,
+              size: selectedFile.size,
+              user_id: user.id,
+              event_id: createdEvent.id
+            };
+            
+            console.log('Creating file record with data:', fileData);
+    
+            const { error: fileRecordError, data: fileRecord } = await supabase
+              .from('event_files')
+              .insert(fileData)
+              .select()
+              .single();
+                
+            if (fileRecordError) {
+              console.error('Error creating file record:', fileRecordError);
+              throw fileRecordError;
+            }
+    
+            console.log('File record created successfully:', fileRecord);
+            
+            // Add the new file to the displayed files list for immediate feedback
+            setDisplayedFiles(prev => [
+              ...prev,
+              {
+                ...fileRecord,
+                parentType: 'event',
+                source: 'event_files'
+              }
+            ]);
           }
-
-          console.log('File record created successfully');
         } catch (fileError) {
           console.error("Error handling file upload:", fileError);
+          toast({
+            title: t("common.warning"),
+            description: t("Event created but file upload failed") + ": " + 
+              (fileError instanceof Error ? fileError.message : "Unknown error"),
+            variant: "destructive",
+          });
         }
       }
 

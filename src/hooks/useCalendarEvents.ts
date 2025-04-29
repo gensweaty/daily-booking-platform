@@ -186,8 +186,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         .from('booking_requests')
         .select('*')
         .eq('business_id', businessProfileId)
-        .eq('status', 'approved')
-        .is('deleted_at', null); // Add check for soft-deleted bookings
+        .eq('status', 'approved');
+        // Removed the deleted_at IS NULL check since the column doesn't exist
         
       if (error) {
         console.error("Error fetching approved bookings:", error);
@@ -196,24 +196,32 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       console.log("Fetched approved bookings:", data?.length || 0);
       
-      const bookingEvents = (data || []).map(booking => ({
-        id: booking.id,
-        title: booking.title || 'Booking',
-        start_date: booking.start_date,
-        end_date: booking.end_date,
-        type: 'booking_request',
-        created_at: booking.created_at || new Date().toISOString(),
-        user_id: booking.user_id || '',
-        user_surname: booking.requester_name || '',
-        user_number: booking.requester_phone || '',
-        social_network_link: booking.requester_email || '',
-        event_notes: booking.description || '',
-        requester_name: booking.requester_name || '',
-        requester_email: booking.requester_email || '',
-        requester_phone: booking.requester_phone || '',
-        description: booking.description || '',
-        deleted_at: booking.deleted_at // Add deleted_at to the mapped object
-      }));
+      const bookingEvents = (data || []).map(booking => {
+        // Create event object with proper fall-back and type safety
+        return {
+          id: booking.id,
+          title: booking.title || 'Booking',
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          type: 'booking_request',
+          created_at: booking.created_at || new Date().toISOString(),
+          user_id: booking.user_id || '',
+          user_surname: booking.requester_name || '',
+          user_number: booking.requester_phone || '',
+          social_network_link: booking.requester_email || '',
+          event_notes: booking.description || '',
+          requester_name: booking.requester_name || '',
+          requester_email: booking.requester_email || '',
+          requester_phone: booking.requester_phone || '',
+          description: booking.description || '',
+          // Add optional file metadata properties
+          file_path: booking.file_path,
+          filename: booking.filename,
+          content_type: booking.content_type,
+          file_size: booking.file_size,
+          size: booking.size
+        } as CalendarEventType;
+      });
       
       return bookingEvents;
     } catch (error) {
@@ -601,15 +609,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         const { error: bookingError } = await supabase
           .from('booking_requests')
           .update({ 
-            status: 'rejected',
-            deleted_at: new Date().toISOString() // Add soft delete for booking requests
+            status: 'rejected'
+            // Removed deleted_at field since it doesn't exist in the table
           })
           .eq('id', eventData.booking_request_id);
           
         if (bookingError) {
           console.error("Error updating associated booking:", bookingError);
         } else {
-          console.log("Successfully soft-deleted associated booking request");
+          console.log("Successfully updated associated booking request status to rejected");
         }
       }
       
@@ -621,23 +629,23 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         .maybeSingle();
       
       if (!bookingError && bookingData) {
-        console.log("Soft deleting booking request:", id);
+        console.log("Updating booking request status:", id);
         const { error } = await supabase
           .from('booking_requests')
           .update({
-            deleted_at: new Date().toISOString(), // Use soft delete instead of actual delete
+            // Removed deleted_at field since it doesn't exist in the table
             status: 'rejected'
           })
           .eq('id', id);
           
         if (error) {
-          console.error("Error soft-deleting booking request:", error);
+          console.error("Error updating booking request status:", error);
           throw error;
         }
         
         toast({
           title: "Booking deleted",
-          description: "The booking request has been deleted successfully."
+          description: "The booking request has been rejected successfully."
         });
         return;
       }
