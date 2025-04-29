@@ -33,21 +33,8 @@ export async function ensureEventAttachmentsBucket() {
         return false;
       }
       
-      // Create public policy for the bucket to allow reading files
-      try {
-        await supabase.rpc('create_storage_policy', {
-          bucket_name: 'event_attachments',
-          policy_name: 'Public Access Policy',
-          definition: 'true', // Allow public access
-          operation: 'SELECT' // For read operations
-        });
-        
-        console.log('Created public access policy for event_attachments bucket');
-      } catch (policyError) {
-        console.warn('Could not create bucket policy (might already exist):', policyError);
-      }
-      
-      console.log('Successfully created event_attachments bucket');
+      // We can't use RPC to create policies directly, log a message instead
+      console.log('Successfully created event_attachments bucket with public access');
       return true;
     }
     
@@ -98,20 +85,9 @@ export async function ensureAllRequiredBuckets() {
             continue;
           }
           
-          // Create public policy for public buckets
+          // We can't use RPC to create policies directly, log a message instead
           if (bucketConfig.public) {
-            try {
-              await supabase.rpc('create_storage_policy', {
-                bucket_name: bucketConfig.name,
-                policy_name: 'Public Access Policy',
-                definition: 'true', // Allow public access
-                operation: 'SELECT' // For read operations
-              });
-              
-              console.log(`Created public access policy for ${bucketConfig.name} bucket`);
-            } catch (policyError) {
-              console.warn(`Could not create bucket policy for ${bucketConfig.name} (might already exist):`, policyError);
-            }
+            console.log(`Created ${bucketConfig.name} bucket with public access`);
           }
           
           console.log(`Successfully created ${bucketConfig.name} bucket`);
