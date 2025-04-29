@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PaymentStatus } from "@/lib/types";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface BookingRequestFormProps {
   businessId: string;
@@ -51,6 +52,7 @@ export const BookingRequestForm = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
+  const { user } = useAuth(); // Add the user from auth context
   const isGeorgian = language === 'ka';
   
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
@@ -421,7 +423,8 @@ export const BookingRequestForm = ({
                 file_path: filePath,
                 content_type: selectedFile.type,
                 size: selectedFile.size,
-                user_id: user?.id
+                // Use the authenticated user ID if available, otherwise leave as null
+                user_id: user?.id || null
               });
               
             if (fileError) {
