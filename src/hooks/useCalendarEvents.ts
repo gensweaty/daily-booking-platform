@@ -187,7 +187,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         .select('*')
         .eq('business_id', businessProfileId)
         .eq('status', 'approved')
-        .is('deleted_at', null); // Add check for soft-deleted bookings
+        .is('deleted_at', null); // Explicitly check for non-deleted bookings
         
       if (error) {
         console.error("Error fetching approved bookings:", error);
@@ -212,7 +212,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         requester_email: booking.requester_email || '',
         requester_phone: booking.requester_phone || '',
         description: booking.description || '',
-        deleted_at: booking.deleted_at // Add deleted_at to the mapped object
+        deleted_at: booking.deleted_at // Include deleted_at to ensure proper filtering
       }));
       
       return bookingEvents;
@@ -578,6 +578,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     if (!user) throw new Error("User must be authenticated to delete events");
     
     try {
+      console.log("Delete event called for ID:", id);
+      
       // First check if this is a booking event with an associated booking request
       const { data: eventData, error: eventError } = await supabase
         .from('events')
@@ -761,6 +763,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       title: "Success",
       description: "Event deleted successfully",
     });
+    
+    // Invalidate the booking requests query to refresh the list
+    queryClient.invalidateQueries({ queryKey: ['bookingRequests'] });
   };
 
   const { data: events = [], isLoading: isLoadingUserEvents, error: userEventsError } = useQuery({
@@ -811,6 +816,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
       queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['bookingRequests'] });
     },
   });
 

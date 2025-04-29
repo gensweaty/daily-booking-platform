@@ -140,7 +140,11 @@ export const EventDialog = ({
           }
           
           // If this is from a booking request that was approved, also check for files with the booking request ID
+          const allFiles = [...(eventFiles || [])];
+          
           if (event.booking_request_id) {
+            console.log("This event has a booking request ID, checking for booking files:", event.booking_request_id);
+            
             const { data: bookingFiles, error: bookingFilesError } = await supabase
               .from('event_files')
               .select('*')
@@ -148,11 +152,20 @@ export const EventDialog = ({
               
             if (!bookingFilesError && bookingFiles && bookingFiles.length > 0) {
               console.log("Found files from the original booking request:", bookingFiles);
+              allFiles.push(...bookingFiles);
+            }
+          }
+          
+          if (isBookingRequest && event.type === 'booking_request') {
+            // For booking requests, we want to show files associated with this booking request
+            const { data: bookingRequestFiles, error: bookingRequestFilesError } = await supabase
+              .from('event_files')
+              .select('*')
+              .eq('event_id', event.id);
               
-              // Combine with any existing files
-              if (eventFiles) {
-                eventFiles.push(...bookingFiles);
-              }
+            if (!bookingRequestFilesError && bookingRequestFiles) {
+              console.log("Found files for booking request:", bookingRequestFiles.length);
+              allFiles.push(...bookingRequestFiles);
             }
           }
           
@@ -160,23 +173,21 @@ export const EventDialog = ({
           const uniqueFileIds = new Set<string>();
           const uniqueFiles: any[] = [];
           
-          if (eventFiles && eventFiles.length > 0) {
-            eventFiles.forEach(file => {
-              if (!uniqueFileIds.has(file.id)) {
-                uniqueFileIds.add(file.id);
-                uniqueFiles.push({
-                  ...file,
-                  parentType: 'event'
-                });
-              }
-            });
-          }
+          allFiles.forEach(file => {
+            if (!uniqueFileIds.has(file.id)) {
+              uniqueFileIds.add(file.id);
+              uniqueFiles.push({
+                ...file,
+                parentType: 'event'
+              });
+            }
+          });
           
           if (uniqueFiles.length > 0) {
-            console.log("Loaded unique event files:", uniqueFiles);
+            console.log("Loaded unique event files:", uniqueFiles.length);
             setDisplayedFiles(uniqueFiles);
           } else {
-            console.log("No files found for event:", event.id);
+            console.log("No files found for event or booking ID:", event.id);
             setDisplayedFiles([]);
           }
           
@@ -189,8 +200,9 @@ export const EventDialog = ({
     if (open) {
       loadFiles();
     }
-  }, [event, open]);
+  }, [event, open, isBookingRequest]);
 
+  // Function to send approval email notification
   const sendApprovalEmail = async (
     startDateTime: Date,
     endDateTime: Date,
@@ -513,6 +525,7 @@ export const EventDialog = ({
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['bookingRequests'] });
       
     } catch (error: any) {
       console.error('Error handling event submission:', error);
