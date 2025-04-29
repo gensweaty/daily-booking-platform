@@ -446,13 +446,14 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         return { available: true, conflictDetails: "" };
       }
       
+      // Modified to explicitly check for deleted_at being null
       const { data: conflictingEvents, error: eventsError } = await supabase
         .from('events')
         .select('id, title, start_date, end_date, deleted_at, type')
         .eq('user_id', userId)
         .filter('start_date', 'lt', endDate.toISOString())
         .filter('end_date', 'gt', startDate.toISOString())
-        .is('deleted_at', null);
+        .is('deleted_at', null); // Explicit check for soft-deleted events
       
       if (eventsError) throw eventsError;
       
@@ -461,13 +462,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         return item.id === excludeEventId;
       };
       
+      // Add debug logging for conflicting events
+      console.log("All potential conflicting events:", conflictingEvents);
+      
       const eventsConflict = conflictingEvents?.filter(event => 
         !isSameEvent(event) &&
+        !event.deleted_at && // Additional check for deleted_at
         !(startDate.getTime() >= new Date(event.end_date).getTime() || 
           endDate.getTime() <= new Date(event.start_date).getTime())
       );
       
-      console.log("Conflicting events (excluding current):", eventsConflict);
+      console.log("Conflicting events (filtered):", eventsConflict);
       
       if (eventsConflict && eventsConflict.length > 0) {
         const conflictEvent = eventsConflict[0];
@@ -477,27 +482,44 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         };
       }
       
-      // Check for booking conflicts
+      // Check for booking conflicts with updated filter for deleted_at
       if (businessId || businessUserId) {
         const targetBusinessId = businessId;
         
         if (targetBusinessId) {
           console.log("Booking conflict check for excludeEventId:", excludeEventId);
           
-          const { data: conflictingBookings, error: bookingsError } = await supabase
+          // Try with explicit IS NULL check first
+          let { data: conflictingBookings, error: bookingsError } = await supabase
             .from('booking_requests')
-            .select('id, title, start_date, end_date, type')
+            .select('id, title, start_date, end_date, type, status')
             .eq('business_id', targetBusinessId)
             .eq('status', 'approved')
             .filter('start_date', 'lt', endDate.toISOString())
-            .filter('end_date', 'gt', startDate.toISOString());
+            .filter('end_date', 'gt', startDate.toISOString())
+            .is('deleted_at', null);
           
-          if (bookingsError) throw bookingsError;
+          if (bookingsError) {
+            console.error("Error checking booking conflicts (with deleted_at):", bookingsError);
+            
+            // If the previous query failed due to missing column, try without the deleted_at check
+            if (bookingsError.message?.includes("does not exist")) {
+              const { data: fallbackBookings, error: fallbackError } = await supabase
+                .from('booking_requests')
+                .select('id, title, start_date, end_date, type, status')
+                .eq('business_id', targetBusinessId)
+                .eq('status', 'approved')
+                .filter('start_date', 'lt', endDate.toISOString())
+                .filter('end_date', 'gt', startDate.toISOString());
+                
+              conflictingBookings = fallbackBookings;
+              if (fallbackError) throw fallbackError;
+            } else {
+              throw bookingsError;
+            }
+          }
           
-          console.log("Booking conflict check against:", {
-            excludeId: excludeEventId,
-            conflictingBookings: conflictingBookings?.map(b => b.id)
-          });
+          console.log("All potential conflicting bookings:", conflictingBookings);
           
           // Helper function to identify if this is the booking being edited
           const isSameBooking = (booking: any) => {
@@ -506,6 +528,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           const bookingsConflict = conflictingBookings?.filter(booking => 
             !isSameBooking(booking) &&
+            booking.status === 'approved' && // Double check it's approved
             !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
               endDate.getTime() <= new Date(booking.start_date).getTime())
           );
@@ -521,7 +544,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           }
         }
       } else if (!businessId && !businessUserId && user) {
-        // Check for user's own business bookings
+        // Check for user's own business bookings with updated filter for deleted_at
         const { data: userBusinessProfile } = await supabase
           .from("business_profiles")
           .select("id")
@@ -529,20 +552,37 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           .maybeSingle();
           
         if (userBusinessProfile?.id) {
-          const { data: conflictingBookings, error: bookingsError } = await supabase
+          // Try with explicit IS NULL check first
+          let { data: conflictingBookings, error: bookingsError } = await supabase
             .from('booking_requests')
-            .select('id, title, start_date, end_date')
+            .select('id, title, start_date, end_date, status')
             .eq('business_id', userBusinessProfile.id)
             .eq('status', 'approved')
             .filter('start_date', 'lt', endDate.toISOString())
-            .filter('end_date', 'gt', startDate.toISOString());
+            .filter('end_date', 'gt', startDate.toISOString())
+            .is('deleted_at', null);
             
-          if (bookingsError) throw bookingsError;
+          if (bookingsError) {
+            console.error("Error checking user's business booking conflicts (with deleted_at):", bookingsError);
+            
+            // If the previous query failed due to missing column, try without the deleted_at check
+            if (bookingsError.message?.includes("does not exist")) {
+              const { data: fallbackBookings, error: fallbackError } = await supabase
+                .from('booking_requests')
+                .select('id, title, start_date, end_date, status')
+                .eq('business_id', userBusinessProfile.id)
+                .eq('status', 'approved')
+                .filter('start_date', 'lt', endDate.toISOString())
+                .filter('end_date', 'gt', startDate.toISOString());
+                
+              conflictingBookings = fallbackBookings;
+              if (fallbackError) throw fallbackError;
+            } else {
+              throw bookingsError;
+            }
+          }
           
-          console.log("Booking conflict check against:", {
-            excludeId: excludeEventId,
-            conflictingBookings: conflictingBookings?.map(b => b.id)
-          });
+          console.log("All potential conflicting user's business bookings:", conflictingBookings);
           
           // Helper function to identify if this is the booking being edited
           const isSameBooking = (booking: any) => {
@@ -551,6 +591,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           const bookingsConflict = conflictingBookings?.filter(booking => 
             !isSameBooking(booking) &&
+            booking.status === 'approved' && // Double check it's approved
             !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
               endDate.getTime() <= new Date(booking.start_date).getTime())
           );
