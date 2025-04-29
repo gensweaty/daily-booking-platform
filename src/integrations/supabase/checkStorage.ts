@@ -38,7 +38,7 @@ export async function ensureBucketExists(bucketName: string, isPublic: boolean =
       
       console.log(`Successfully created ${bucketName} bucket with public access:`, isPublic);
       
-      // Set public bucket policy since the createBucket sometimes doesn't apply this correctly
+      // IMPORTANT: Set public bucket policy since the createBucket sometimes doesn't apply this correctly
       if (isPublic) {
         try {
           // Use updateBucket to set public policy
@@ -54,15 +54,19 @@ export async function ensureBucketExists(bucketName: string, isPublic: boolean =
           }
           
           // Create an accessible placeholder file to ensure the bucket is properly initialized
-          const placeholderContent = new Blob(['Placeholder for bucket initialization'], { type: 'text/plain' });
-          const { error: placeholderError } = await supabase.storage
-            .from(bucketName)
-            .upload('.emptyFolderPlaceholder', placeholderContent);
-            
-          if (placeholderError) {
-            console.error(`Error creating placeholder in ${bucketName}:`, placeholderError);
-          } else {
-            console.log(`Created placeholder file in ${bucketName}`);
+          try {
+            const placeholderContent = new Blob(['Placeholder for bucket initialization'], { type: 'text/plain' });
+            const { error: placeholderError } = await supabase.storage
+              .from(bucketName)
+              .upload('placeholder.txt', placeholderContent);
+              
+            if (placeholderError) {
+              console.error(`Error creating placeholder in ${bucketName}:`, placeholderError);
+            } else {
+              console.log(`Created placeholder file in ${bucketName}`);
+            }
+          } catch (placeholderErr) {
+            console.error(`Error creating placeholder file in ${bucketName}:`, placeholderErr);
           }
         } catch (policyErr) {
           console.error(`Error setting public policy for ${bucketName}:`, policyErr);
@@ -120,6 +124,7 @@ export async function ensureBookingAttachmentsBucket() {
 export async function ensureAllRequiredBuckets() {
   console.log("Checking and ensuring all required storage buckets exist...");
   
+  // Define all required buckets
   const bucketsToCheck = [
     {name: 'event_attachments', public: true},
     {name: 'booking_attachments', public: true},

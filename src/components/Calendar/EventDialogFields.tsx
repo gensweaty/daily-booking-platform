@@ -1,4 +1,3 @@
-
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +9,7 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { Spinner } from "@/components/ui/spinner";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { useEffect } from "react";
+import { ensureEventAttachmentsBucket } from "@/integrations/supabase/checkStorage";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -78,8 +78,13 @@ export const EventDialogFields = ({
     { value: 'fully_paid', label: t("events.fullyPaid") },
   ];
   
-  // Debug logs for file display troubleshooting
+  // Ensure buckets exist and debug logs
   useEffect(() => {
+    // Ensure required buckets exist when component mounts
+    ensureEventAttachmentsBucket().catch(error => {
+      console.error("Error ensuring event_attachments bucket exists:", error);
+    });
+    
     if (eventId) {
       console.log("EventDialogFields - eventId:", eventId);
       console.log("EventDialogFields - displayedFiles:", displayedFiles);
@@ -244,7 +249,8 @@ export const EventDialogFields = ({
                 files={displayedFiles}
                 onFileDeleted={onFileDeleted}
                 showDelete={true}
-                parentType="event"
+                parentType={isBookingRequest ? "booking" : "event"}
+                bucketName="event_attachments"
               />
             ) : (
               eventId && <div className="text-sm text-muted-foreground"><LanguageText>{t("common.noFiles")}</LanguageText></div>

@@ -1,5 +1,5 @@
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
-import { supabase, normalizeFilePath } from "@/lib/supabase";
+import { supabase, normalizeFilePath, cleanFilePath } from "@/integrations/supabase/client";
 import { BookingRequest } from "@/types/database";
 import { ensureAllRequiredBuckets } from "@/integrations/supabase/checkStorage";
 
@@ -20,11 +20,13 @@ const RATE_LIMIT_COOLDOWN = 120; // 2 minutes in seconds
 
 // Helper function to get file URL with consistent bucket handling
 export const getFileUrl = (bucketName: string, filePath: string) => {
-  const baseUrl = import.meta.env.VITE_SUPABASE_URL || "https://mrueqpffzauvdxmuwhfa.supabase.co";
-  const normalizedPath = normalizeFilePath(filePath);
+  if (!filePath) return null;
   
-  // Always use event_attachments bucket for consistent file access
-  return `${baseUrl}/storage/v1/object/public/${bucketName}/${normalizedPath}`;
+  const baseUrl = "https://mrueqpffzauvdxmuwhfa.supabase.co";
+  const cleanedPath = cleanFilePath(filePath, bucketName);
+  
+  // Always use consistent bucket name and path format
+  return `${baseUrl}/storage/v1/object/public/${bucketName}/${cleanedPath}`;
 };
 
 // Check if user is rate limited for booking requests

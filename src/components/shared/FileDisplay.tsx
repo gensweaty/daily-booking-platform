@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "./LanguageText";
+import { ensureAllRequiredBuckets } from "@/integrations/supabase/checkStorage";
 
 interface FileDisplayProps {
   file?: FileRecord;
@@ -38,12 +39,17 @@ export const FileDisplay = ({
   const { toast } = useToast();
   const { t } = useLanguage();
   
-  // Add debug logging on mount
+  // Add debug logging on mount and ensure buckets exist
   useEffect(() => {
     console.log("FileDisplay - Mounted with files:", files);
     console.log("FileDisplay - Mounted with file:", file);
     console.log("FileDisplay - Parent type:", parentType);
     console.log("FileDisplay - Bucket name:", bucketName);
+    
+    // Ensure buckets exist when component mounts
+    ensureAllRequiredBuckets().catch(error => {
+      console.error("Error ensuring storage buckets exist:", error);
+    });
   }, [files, file, parentType, bucketName]);
   
   // Support both legacy and new properties
@@ -88,10 +94,29 @@ export const FileDisplay = ({
     return contentType.startsWith('image/');
   };
   
+  // Fix file path to ensure it doesn't include bucket name prefix
+  const cleanFilePath = (filePath?: string, bucket?: string): string => {
+    if (!filePath) return '';
+    
+    const effectiveBucket = bucket || 'event_attachments';
+    
+    // Remove bucket prefix if present
+    if (filePath.startsWith(`${effectiveBucket}/`)) {
+      const cleanedPath = filePath.substring(effectiveBucket.length + 1);
+      console.log(`Cleaned file path from ${filePath} to ${cleanedPath}`);
+      return cleanedPath;
+    }
+    
+    return filePath;
+  };
+  
   // Preload all file URLs on component mount
   useEffect(() => {
     const allFiles = files || (file ? [file] : []);
     const loadUrls = async () => {
+      // First ensure all buckets exist
+      await ensureAllRequiredBuckets();
+      
       const urls: Record<string, string | null> = {};
       
       for (const fileItem of allFiles) {
@@ -99,17 +124,13 @@ export const FileDisplay = ({
         
         try {
           const bucket = getBucketName(fileItem);
-          console.log(`Getting URL for ${fileItem.filename} from bucket ${bucket}, path: ${fileItem.file_path}`);
+          const cleanedPath = cleanFilePath(fileItem.file_path, bucket);
           
-          // Check if the file path already includes the bucket name
-          let filePath = fileItem.file_path;
-          if (filePath.startsWith(`${bucket}/`)) {
-            filePath = filePath.substring(bucket.length + 1);
-          }
+          console.log(`Getting URL for ${fileItem.filename} from bucket ${bucket}, path: ${cleanedPath}`);
           
           const { data } = supabase.storage
             .from(bucket)
-            .getPublicUrl(filePath);
+            .getPublicUrl(cleanedPath);
             
           const fileId = fileItem.id || `file-${Math.random().toString(36).substring(7)}`;
           urls[fileId] = data.publicUrl;
@@ -138,17 +159,13 @@ export const FileDisplay = ({
     // Otherwise get it from storage
     try {
       const bucket = getBucketName(fileItem);
+      const cleanedPath = cleanFilePath(fileItem.file_path, bucket);
       
-      // Check if the file path already includes the bucket name
-      let filePath = fileItem.file_path;
-      if (filePath.startsWith(`${bucket}/`)) {
-        filePath = filePath.substring(bucket.length + 1);
-        console.log(`Adjusted file path: ${filePath}`);
-      }
+      console.log(`Getting URL on-demand for ${fileItem.filename} from bucket ${bucket}, path: ${cleanedPath}`);
       
       const { data } = supabase.storage
         .from(bucket)
-        .getPublicUrl(filePath);
+        .getPublicUrl(cleanedPath);
       
       // Cache the URL
       setFileUrls(prev => ({
@@ -189,18 +206,13 @@ export const FileDisplay = ({
       // Step 1: Delete the file from storage if it has a path
       if (fileToDelete.file_path) {
         const bucket = getBucketName(fileToDelete);
+        const cleanedPath = cleanFilePath(fileToDelete.file_path, bucket);
         
-        // Check if the file path already includes the bucket name
-        let filePath = fileToDelete.file_path;
-        if (filePath.startsWith(`${bucket}/`)) {
-          filePath = filePath.substring(bucket.length + 1);
-        }
-        
-        console.log(`Attempting to delete file from ${bucket}/${filePath}`);
+        console.log(`Attempting to delete file from ${bucket}/${cleanedPath}`);
         
         const { error: storageError } = await supabase.storage
           .from(bucket)
-          .remove([filePath]);
+          .remove([cleanedPath]);
           
         if (storageError) {
           console.error('Error deleting file from storage:', storageError);
@@ -298,19 +310,14 @@ export const FileDisplay = ({
     try {
       console.log("Downloading file:", fileToDownload);
       const bucket = getBucketName(fileToDownload);
+      const cleanedPath = cleanFilePath(fileToDownload.file_path, bucket);
       
-      // Check if the file path already includes the bucket name
-      let filePath = fileToDownload.file_path;
-      if (filePath.startsWith(`${bucket}/`)) {
-        filePath = filePath.substring(bucket.length + 1);
-      }
-      
-      console.log(`Downloading from bucket: ${bucket}, path: ${filePath}`);
+      console.log(`Downloading from bucket: ${bucket}, path: ${cleanedPath}`);
       
       // First try using the Supabase storage API
       const { data, error } = await supabase.storage
         .from(bucket)
-        .download(filePath);
+        .download(cleanedPath);
         
       if (error) {
         console.error("Download error:", error);
