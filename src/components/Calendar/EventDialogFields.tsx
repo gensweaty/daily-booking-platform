@@ -8,6 +8,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Spinner } from "@/components/ui/spinner";
+import { LanguageText } from "@/components/shared/LanguageText";
+import { useEffect } from "react";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -75,6 +77,14 @@ export const EventDialogFields = ({
     { value: 'partly_paid', label: t("events.partlyPaid") },
     { value: 'fully_paid', label: t("events.fullyPaid") },
   ];
+  
+  // Debug logs for file display troubleshooting
+  useEffect(() => {
+    if (eventId) {
+      console.log("EventDialogFields - eventId:", eventId);
+      console.log("EventDialogFields - displayedFiles:", displayedFiles);
+    }
+  }, [eventId, displayedFiles]);
 
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,6 +101,7 @@ export const EventDialogFields = ({
     
     setSelectedFile(file);
     setFileError("");
+    console.log("File selected:", file.name, file.type, file.size);
   };
 
   // Handle sync between title and userSurname
@@ -218,13 +229,13 @@ export const EventDialogFields = ({
 
       <div className="space-y-2">
         <Label className={cn(isGeorgian ? "font-georgian" : "")}>
-          {t("events.attachments")}
+          <LanguageText>{t("events.attachments")}</LanguageText>
         </Label>
         
         {isLoading ? (
           <div className="flex items-center justify-center p-4 bg-muted/50 rounded-md">
             <Spinner size="sm" className="mr-2" /> 
-            <span className="text-sm">{t("common.loadingFiles")}</span>
+            <span className="text-sm"><LanguageText>{t("common.loadingFiles")}</LanguageText></span>
           </div>
         ) : (
           <>
@@ -236,7 +247,7 @@ export const EventDialogFields = ({
                 parentType="event"
               />
             ) : (
-              eventId && <div className="text-sm text-muted-foreground">{t("common.noFiles")}</div>
+              eventId && <div className="text-sm text-muted-foreground"><LanguageText>{t("common.noFiles")}</LanguageText></div>
             )}
           </>
         )}
@@ -244,7 +255,7 @@ export const EventDialogFields = ({
         {/* File upload input */}
         <div className="mt-2">
           <Label htmlFor="attachment" className={cn("text-sm", isGeorgian ? "font-georgian" : "")}>
-            {t("events.attachment")}
+            <LanguageText>{t("events.attachment")}</LanguageText>
           </Label>
           <Input
             id="attachment"
@@ -255,7 +266,7 @@ export const EventDialogFields = ({
           {fileError && <p className="text-sm text-red-500 mt-1">{fileError}</p>}
         </div>
         <p className="text-xs text-muted-foreground mt-1" id="supportedFormats">
-          {t("events.supportedFormats")}
+          <LanguageText>{t("events.supportedFormats")}</LanguageText>
         </p>
       </div>
     </div>

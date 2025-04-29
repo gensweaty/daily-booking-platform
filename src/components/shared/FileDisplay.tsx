@@ -1,11 +1,11 @@
-
 import { FileRecord } from "@/types/files";
 import { Button } from "@/components/ui/button";
 import { Trash2, FileText, Download, ExternalLink, Image as ImageIcon, FileIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "./LanguageText";
 
 interface FileDisplayProps {
   file?: FileRecord;
@@ -33,8 +33,17 @@ export const FileDisplay = ({
 }: FileDisplayProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
+  const [fileUrls, setFileUrls] = useState<Record<string, string | null>>({});
   const { toast } = useToast();
   const { t } = useLanguage();
+  
+  // Add debug logging on mount
+  useEffect(() => {
+    console.log("FileDisplay - Mounted with files:", files);
+    console.log("FileDisplay - Mounted with file:", file);
+    console.log("FileDisplay - Parent type:", parentType);
+    console.log("FileDisplay - Bucket name:", bucketName);
+  }, [files, file, parentType, bucketName]);
   
   // Support both legacy and new properties
   const effectiveShowDelete = showDelete || allowDelete;
@@ -78,14 +87,63 @@ export const FileDisplay = ({
     return contentType.startsWith('image/');
   };
   
+  // Preload all file URLs on component mount
+  useEffect(() => {
+    const allFiles = files || (file ? [file] : []);
+    const loadUrls = async () => {
+      const urls: Record<string, string | null> = {};
+      
+      for (const fileItem of allFiles) {
+        if (!fileItem?.file_path) continue;
+        
+        try {
+          const bucket = getBucketName(fileItem);
+          const { data } = supabase.storage
+            .from(bucket)
+            .getPublicUrl(fileItem.file_path);
+            
+          const fileId = fileItem.id || `file-${Math.random().toString(36).substring(7)}`;
+          urls[fileId] = data.publicUrl;
+          
+          console.log(`File URL for ${fileItem.filename} (${fileId}):`, data.publicUrl);
+        } catch (error) {
+          console.error(`Error getting URL for file ${fileItem.filename}:`, error);
+        }
+      }
+      
+      setFileUrls(urls);
+    };
+    
+    loadUrls();
+  }, [files, file]);
+  
   // Get public URL for a file
   const getFileUrl = (fileItem: FileRecord) => {
     if (!fileItem?.file_path) return null;
     
-    const bucket = getBucketName(fileItem);
-    return supabase.storage
-      .from(bucket)
-      .getPublicUrl(fileItem.file_path).data.publicUrl;
+    const fileId = fileItem.id || `file-${Math.random().toString(36).substring(7)}`;
+    
+    // If we already loaded the URL, use the cached version
+    if (fileUrls[fileId]) return fileUrls[fileId];
+    
+    // Otherwise get it from storage
+    try {
+      const bucket = getBucketName(fileItem);
+      const { data } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(fileItem.file_path);
+      
+      // Cache the URL
+      setFileUrls(prev => ({
+        ...prev,
+        [fileId]: data.publicUrl
+      }));
+      
+      return data.publicUrl;
+    } catch (error) {
+      console.error(`Error getting URL for file ${fileItem.filename}:`, error);
+      return null;
+    }
   };
   
   const handleImageLoad = (fileId: string) => {
@@ -93,6 +151,7 @@ export const FileDisplay = ({
       ...prev,
       [fileId]: true
     }));
+    console.log(`Image loaded successfully for ${fileId}`);
   };
   
   const handleImageError = (fileId: string) => {
@@ -108,6 +167,7 @@ export const FileDisplay = ({
     
     try {
       setIsDeleting(true);
+      console.log("Deleting file:", fileToDelete);
       
       // Step 1: Delete the file from storage if it has a path
       if (fileToDelete.file_path) {
@@ -128,7 +188,11 @@ export const FileDisplay = ({
       let error;
       
       // Determine which table to delete from based on parentType or file source
+      console.log("Deleting from table based on parentType:", parentType);
+      console.log("File source:", fileToDelete.source);
+      
       if (fileToDelete.source === 'event_files' || parentType === 'event') {
+        console.log("Deleting from event_files table");
         const { error: dbError } = await supabase
           .from('event_files')
           .delete()
@@ -136,6 +200,7 @@ export const FileDisplay = ({
           
         error = dbError;
       } else if (parentType === 'customer' || fileToDelete.customer_id) {
+        console.log("Deleting from customer_files_new table");
         const { error: dbError } = await supabase
           .from('customer_files_new')
           .delete()
@@ -143,6 +208,7 @@ export const FileDisplay = ({
           
         error = dbError;
       } else if (parentType === 'note') {
+        console.log("Deleting from note_files table");
         const { error: dbError } = await supabase
           .from('note_files')
           .delete()
@@ -150,6 +216,7 @@ export const FileDisplay = ({
           
         error = dbError;
       } else if (parentType === 'task') {
+        console.log("Deleting from files table");
         const { error: dbError } = await supabase
           .from('files')
           .delete()
@@ -165,6 +232,7 @@ export const FileDisplay = ({
       
       // Call the parent's onDelete function if provided
       if (effectiveOnDelete) {
+        console.log("Calling onFileDeleted callback");
         effectiveOnDelete(fileToDelete.id);
       }
       
@@ -196,16 +264,21 @@ export const FileDisplay = ({
     }
     
     try {
+      console.log("Downloading file:", fileToDownload);
       const bucket = getBucketName(fileToDownload);
+      console.log(`Downloading from bucket: ${bucket}, path: ${fileToDownload.file_path}`);
+      
       const { data, error } = await supabase.storage
         .from(bucket)
         .download(fileToDownload.file_path);
         
       if (error) {
+        console.error("Download error:", error);
         throw error;
       }
       
       if (!data) {
+        console.error("No file data returned");
         throw new Error("File not found");
       }
       
@@ -241,6 +314,8 @@ export const FileDisplay = ({
   // Function to open file in a new tab
   const handleOpenFile = (fileToOpen: FileRecord) => {
     const fileUrl = getFileUrl(fileToOpen);
+    console.log("Opening file with URL:", fileUrl);
+    
     if (fileUrl) {
       window.open(fileUrl, '_blank', 'noopener,noreferrer');
     } else {
@@ -388,6 +463,6 @@ export const FileDisplay = ({
     );
   }
   
-  // If no files, return null or an empty state message
-  return <div className="text-sm text-muted-foreground">{t("common.noFiles")}</div>;
+  // If no files, return a message
+  return <div className="text-sm text-muted-foreground"><LanguageText>{t("common.noFiles")}</LanguageText></div>;
 };
