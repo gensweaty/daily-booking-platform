@@ -395,13 +395,18 @@ export type Database = {
       events: {
         Row: {
           booking_request_id: string | null
+          content_type: string | null
           created_at: string | null
           deleted_at: string | null
           end_date: string
           event_notes: string | null
+          file_path: string | null
+          file_size: number | null
+          filename: string | null
           id: string
           payment_amount: number | null
           payment_status: string | null
+          size: number | null
           social_network_link: string | null
           start_date: string
           title: string
@@ -412,13 +417,18 @@ export type Database = {
         }
         Insert: {
           booking_request_id?: string | null
+          content_type?: string | null
           created_at?: string | null
           deleted_at?: string | null
           end_date: string
           event_notes?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          filename?: string | null
           id?: string
           payment_amount?: number | null
           payment_status?: string | null
+          size?: number | null
           social_network_link?: string | null
           start_date: string
           title: string
@@ -429,13 +439,18 @@ export type Database = {
         }
         Update: {
           booking_request_id?: string | null
+          content_type?: string | null
           created_at?: string | null
           deleted_at?: string | null
           end_date?: string
           event_notes?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          filename?: string | null
           id?: string
           payment_amount?: number | null
           payment_status?: string | null
+          size?: number | null
           social_network_link?: string | null
           start_date?: string
           title?: string
@@ -779,13 +794,18 @@ export type Database = {
         Args: { user_id_param: string }
         Returns: {
           booking_request_id: string | null
+          content_type: string | null
           created_at: string | null
           deleted_at: string | null
           end_date: string
           event_notes: string | null
+          file_path: string | null
+          file_size: number | null
+          filename: string | null
           id: string
           payment_amount: number | null
           payment_status: string | null
+          size: number | null
           social_network_link: string | null
           start_date: string
           title: string
