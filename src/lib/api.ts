@@ -142,3 +142,262 @@ export const getPublicBusinessProfile = async (slug: string) => {
 
   return data;
 };
+
+// Add the missing API functions below
+
+// Task related functions
+export const getTasks = async (): Promise<Task[]> => {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData?.user?.id) {
+    throw new Error("User not authenticated");
+  }
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('user_id', userData.user.id)
+    .order('position', { ascending: true });
+
+  if (error) {
+    console.error("Error fetching tasks:", error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const createTask = async (task: Partial<Task>): Promise<Task> => {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData?.user?.id) {
+    throw new Error("User not authenticated");
+  }
+
+  // Get the count of existing tasks to determine position
+  const { count, error: countError } = await supabase
+    .from('tasks')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userData.user.id);
+
+  if (countError) {
+    console.error("Error counting tasks:", countError);
+    throw countError;
+  }
+
+  const position = count || 0;
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .insert({ ...task, user_id: userData.user.id, position })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error creating task:", error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const updateTask = async (id: string, updates: Partial<Task>): Promise<Task> => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating task:", error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const deleteTask = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('tasks')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error("Error deleting task:", error);
+    throw error;
+  }
+};
+
+// Note related functions
+export const getNotes = async (): Promise<Note[]> => {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData?.user?.id) {
+    throw new Error("User not authenticated");
+  }
+
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*')
+    .eq('user_id', userData.user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching notes:", error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const createNote = async (note: Partial<Note>): Promise<Note> => {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData?.user?.id) {
+    throw new Error("User not authenticated");
+  }
+
+  const { data, error } = await supabase
+    .from('notes')
+    .insert({ ...note, user_id: userData.user.id })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error creating note:", error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const updateNote = async (id: string, updates: Partial<Note>): Promise<Note> => {
+  const { data, error } = await supabase
+    .from('notes')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating note:", error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const deleteNote = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('notes')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error("Error deleting note:", error);
+    throw error;
+  }
+};
+
+// Reminder related functions
+export const getReminders = async (): Promise<Reminder[]> => {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData?.user?.id) {
+    throw new Error("User not authenticated");
+  }
+
+  const { data, error } = await supabase
+    .from('reminders')
+    .select('*')
+    .eq('user_id', userData.user.id)
+    .order('remind_at', { ascending: true });
+
+  if (error) {
+    console.error("Error fetching reminders:", error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const createReminder = async (reminder: Partial<Reminder>): Promise<Reminder> => {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData?.user?.id) {
+    throw new Error("User not authenticated");
+  }
+
+  const { data, error } = await supabase
+    .from('reminders')
+    .insert({ ...reminder, user_id: userData.user.id })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error creating reminder:", error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const updateReminder = async (id: string, updates: Partial<Reminder>): Promise<Reminder> => {
+  const { data, error } = await supabase
+    .from('reminders')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating reminder:", error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const deleteReminder = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('reminders')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error("Error deleting reminder:", error);
+    throw error;
+  }
+};
+
+// Calendar events related functions
+export const getPublicCalendarEvents = async (businessId: string) => {
+  try {
+    console.log("Fetching public calendar events for business:", businessId);
+    
+    // Get public events for the business user
+    const { data: eventsData, error: eventsError } = await supabase
+      .rpc('get_public_calendar_events', { p_business_id: businessId });
+    
+    if (eventsError) {
+      console.error("Error fetching public events:", eventsError);
+      throw eventsError;
+    }
+    
+    // Get approved booking requests
+    const { data: bookingsData, error: bookingsError } = await supabase
+      .from('booking_requests')
+      .select('*')
+      .eq('business_id', businessId)
+      .eq('status', 'approved')
+      .is('deleted_at', null);
+    
+    if (bookingsError) {
+      console.error("Error fetching approved bookings:", bookingsError);
+      throw bookingsError;
+    }
+    
+    return {
+      events: eventsData || [],
+      bookings: bookingsData || []
+    };
+  } catch (error) {
+    console.error("Error in getPublicCalendarEvents:", error);
+    throw error;
+  }
+};

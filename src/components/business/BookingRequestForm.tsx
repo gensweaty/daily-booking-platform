@@ -37,13 +37,24 @@ interface BookingRequestFormProps {
   selectedDate?: Date | null;
   selectedTime?: string | null;
   onSuccess: () => void;
+  // Add these optional props to match what's used in Calendar component
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  startTime?: string;
+  endTime?: string;
+  isExternalBooking?: boolean;
 }
 
 export const BookingRequestForm = ({
   businessId,
   selectedDate,
   selectedTime,
-  onSuccess
+  onSuccess,
+  open, // Not used but added to match component interface
+  onOpenChange, // Not used but added to match component interface
+  startTime, // Use instead of selectedTime if provided
+  endTime, // Can be used to calculate duration
+  isExternalBooking
 }: BookingRequestFormProps) => {
   const { toast } = useToast();
   const { t, language } = useLanguage();
@@ -51,6 +62,32 @@ export const BookingRequestForm = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string>("");
   const isGeorgian = language === 'ka';
+
+  // Use startTime over selectedTime if provided (for Calendar integration)
+  const initialTime = startTime || selectedTime || format(new Date(), "HH:mm");
+  
+  // Calculate initial duration if both startTime and endTime are provided
+  const calculateInitialDuration = () => {
+    if (startTime && endTime) {
+      const [startHour, startMinute] = startTime.split(":").map(Number);
+      const [endHour, endMinute] = endTime.split(":").map(Number);
+      
+      const startDate = new Date();
+      startDate.setHours(startHour, startMinute, 0, 0);
+      
+      const endDate = new Date();
+      endDate.setHours(endHour, endMinute, 0, 0);
+      
+      // If end time is earlier than start time, assume it's next day
+      if (endDate < startDate) {
+        endDate.setDate(endDate.getDate() + 1);
+      }
+      
+      const diffMinutes = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60));
+      return Math.max(15, Math.min(480, diffMinutes)); // Constrain between 15 and 480 minutes
+    }
+    return 60; // Default duration
+  };
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -61,8 +98,8 @@ export const BookingRequestForm = ({
       requester_phone: "",
       description: "",
       date: selectedDate || new Date(),
-      time: selectedTime || format(new Date(), "HH:mm"),
-      duration: 60,
+      time: initialTime,
+      duration: calculateInitialDuration(),
     },
   });
 
@@ -71,10 +108,14 @@ export const BookingRequestForm = ({
       form.setValue("date", selectedDate);
     }
     
-    if (selectedTime) {
-      form.setValue("time", selectedTime);
+    if (startTime || selectedTime) {
+      form.setValue("time", startTime || selectedTime || initialTime);
     }
-  }, [selectedDate, selectedTime, form]);
+    
+    if (startTime && endTime) {
+      form.setValue("duration", calculateInitialDuration());
+    }
+  }, [selectedDate, selectedTime, startTime, endTime, form]);
 
   const onSubmit = async (values: FormValues) => {
     try {
