@@ -9,7 +9,8 @@ import { Paperclip, File, X, Download, Trash2, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
-import { deleteFile, getFileUrl, getEventFiles, getAllEventFiles } from "@/lib/api";
+import { deleteFile, getFileUrl, getEventFiles } from "@/lib/api";
+import { getAllEventFiles } from "@/lib/fileUtils";
 import { FileRecord } from "@/types/files";
 
 interface EventDialogFieldsProps {
@@ -87,7 +88,7 @@ export const EventDialogFields = ({
         setLoadingFiles(true);
         console.log("Loading files for event/booking:", eventId);
         
-        // Use enhanced file loading function
+        // Use enhanced file loading function from fileUtils.ts
         const eventFiles = await getAllEventFiles(eventId);
         console.log("Loaded files:", eventFiles);
         
