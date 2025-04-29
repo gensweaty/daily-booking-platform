@@ -1,4 +1,3 @@
-
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath, cleanFilePath } from "@/integrations/supabase/client";
 import { BookingRequest } from "@/types/database";
@@ -463,5 +462,75 @@ export const openFile = async (bucketName: string, filePath: string) => {
   } catch (error) {
     console.error('Error opening file:', error);
     return { success: false, message: 'Failed to open file' };
+  }
+};
+
+// Reminder related functions
+export const getReminders = async (): Promise<Reminder[]> => {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    
+    if (!userData?.user) {
+      throw new Error("User not authenticated");
+    }
+    
+    const { data, error } = await supabase
+      .from("reminders")
+      .select("*")
+      .eq("user_id", userData.user.id)
+      .order("remind_at", { ascending: true });
+      
+    if (error) throw error;
+    return data || [];
+  } catch (error: any) {
+    console.error("Error fetching reminders:", error);
+    throw new Error(error.message || "Failed to fetch reminders");
+  }
+};
+
+export const createReminder = async (reminder: Omit<Reminder, "id" | "created_at">): Promise<Reminder> => {
+  try {
+    const { data, error } = await supabase
+      .from("reminders")
+      .insert([reminder])
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
+  } catch (error: any) {
+    console.error("Error creating reminder:", error);
+    throw new Error(error.message || "Failed to create reminder");
+  }
+};
+
+export const updateReminder = async (id: string, updates: Partial<Reminder>): Promise<Reminder> => {
+  try {
+    const { data, error } = await supabase
+      .from("reminders")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
+  } catch (error: any) {
+    console.error("Error updating reminder:", error);
+    throw new Error(error.message || "Failed to update reminder");
+  }
+};
+
+export const deleteReminder = async (id: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from("reminders")
+      .delete()
+      .eq("id", id);
+      
+    if (error) throw error;
+  } catch (error: any) {
+    console.error("Error deleting reminder:", error);
+    throw new Error(error.message || "Failed to delete reminder");
   }
 };
