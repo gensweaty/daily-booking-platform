@@ -30,6 +30,7 @@ interface FileUploadFieldProps {
   chooseFileText?: string; // Added to support BusinessProfileForm
   noFileText?: string; // Added to support BusinessProfileForm
   maxSizeMB?: number; // Added to support BusinessProfileForm
+  bookingRequestId?: string; // Added to track booking request ID
 }
 
 export const FileUploadField = ({ 
@@ -47,7 +48,8 @@ export const FileUploadField = ({
   uploadText,
   chooseFileText,
   noFileText,
-  maxSizeMB
+  maxSizeMB,
+  bookingRequestId
 }: FileUploadFieldProps) => {
   const { t } = useLanguage();
   const [localFileError, setLocalFileError] = useState("");
@@ -83,6 +85,17 @@ export const FileUploadField = ({
 
     if (selectedFile) {
       console.log(`Selected file: ${selectedFile.name}, Size: ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB, Type: ${selectedFile.type}`);
+      
+      // Add bookingRequestId to the file object for tracking
+      if (bookingRequestId) {
+        console.log(`Associating file with booking request ID: ${bookingRequestId}`);
+        Object.defineProperty(selectedFile, 'bookingRequestId', {
+          value: bookingRequestId,
+          writable: true,
+          enumerable: true
+        });
+      }
+      
       const error = validateFile(selectedFile);
       if (error) {
         actualSetFileError(error);

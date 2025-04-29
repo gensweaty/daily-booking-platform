@@ -20,5 +20,6 @@ export interface CalendarEventType {
   requester_phone?: string;
   description?: string;
   file?: File;
-  deleted_at?: string; // Added deleted_at property
+  deleted_at?: string;
+  booking_request_id?: string; // Added this field for connecting events to their source booking requests
 }
