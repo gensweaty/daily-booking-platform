@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PaymentStatus } from "@/lib/types";
+import { ensureBookingAttachmentsBucket, ensureAllRequiredBuckets } from "@/integrations/supabase/checkStorage";
 
 interface BookingRequestFormProps {
   businessId: string;
@@ -54,6 +55,13 @@ export const BookingRequestForm = ({
   const isGeorgian = language === 'ka';
   
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
+
+  // First ensure storage bucket exists when component mounts
+  useEffect(() => {
+    ensureBookingAttachmentsBucket().catch(err => 
+      console.error("Error ensuring booking_attachments bucket:", err)
+    );
+  }, []);
 
   useEffect(() => {
     const checkRateLimit = async () => {
@@ -295,32 +303,6 @@ export const BookingRequestForm = ({
     console.log("🔍 Starting booking submission process");
     
     try {
-      const lastRequestTime = localStorage.getItem(`booking_last_request_${businessId}`);
-      if (lastRequestTime) {
-        const now = new Date();
-        const lastRequest = new Date(parseInt(lastRequestTime));
-        const timeSinceLastRequest = now.getTime() - lastRequest.getTime();
-        const twoMinutesInMs = 2 * 60 * 1000;
-        
-        if (timeSinceLastRequest < twoMinutesInMs) {
-          const remainingSecs = Math.ceil((twoMinutesInMs - timeSinceLastRequest) / 1000);
-          const remainingTime = `${Math.floor(remainingSecs / 60)}:${(remainingSecs % 60).toString().padStart(2, '0')}`;
-          
-          setRateLimitExceeded(true);
-          setTimeRemaining(remainingSecs);
-          
-          toast({
-            title: t("common.rateLimitReached"),
-            description: t("common.waitBeforeBooking", { time: remainingTime }),
-            variant: "destructive",
-          });
-          
-          console.log(`⚠️ Rate limit reached, must wait ${remainingTime}`);
-          setIsSubmitting(false);
-          return;
-        }
-      }
-      
       const startDateTime = new Date(startDate);
       const endDateTime = new Date(endDate);
       
@@ -335,7 +317,7 @@ export const BookingRequestForm = ({
         }
       }
 
-      const { data, error } = await supabase
+      const { data: bookingData, error } = await supabase
         .from('booking_requests')
         .insert({
           business_id: businessId,
@@ -358,42 +340,60 @@ export const BookingRequestForm = ({
         throw error;
       }
       
-      console.log("✅ Successfully created booking request:", data);
+      console.log("✅ Successfully created booking request:", bookingData);
 
       localStorage.setItem(`booking_last_request_${businessId}`, Date.now().toString());
       
       // Process file upload if a file was selected
-      if (selectedFile && data) {
+      if (selectedFile && bookingData) {
         try {
+          // Ensure bucket exists before uploading
+          await ensureBookingAttachmentsBucket();
+          
           console.log("🔍 Processing file upload:", selectedFile.name);
+          
+          // Generate a unique file path
           const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `booking_${data.id}_${Date.now()}.${fileExt}`;
+          const uniqueId = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+          const filePath = `${bookingData.id}/${uniqueId}_${selectedFile.name}`;
           
           console.log(`🔍 Uploading file to booking_attachments/${filePath}`);
-          const { error: uploadError } = await supabase.storage
+          
+          // Upload to Supabase Storage
+          const { error: uploadError, data: uploadData } = await supabase.storage
             .from('booking_attachments')
-            .upload(filePath, selectedFile);
+            .upload(filePath, selectedFile, {
+              contentType: selectedFile.type,
+              cacheControl: '3600',
+              upsert: false
+            });
             
           if (uploadError) {
             console.error('❌ Error uploading file to storage:', uploadError);
+            toast({
+              title: t("common.error"),
+              description: t("common.fileUploadError"),
+              variant: "destructive",
+            });
           } else {
-            console.log("✅ File uploaded successfully to storage");
+            console.log("✅ File uploaded successfully to storage:", uploadData);
             
-            // Create entry in booking_files table - this is the critical fix
-            const { error: bookingFileError } = await supabase
+            // CRITICAL: Create entry in booking_files table
+            const { error: fileRecordError } = await supabase
               .from('booking_files')
               .insert({
-                booking_request_id: data.id,
+                booking_request_id: bookingData.id,
                 filename: selectedFile.name,
                 file_path: filePath,
                 content_type: selectedFile.type,
                 size: selectedFile.size
               });
               
-            if (bookingFileError) {
-              console.error('❌ Error saving file metadata to booking_files:', bookingFileError);
+            if (fileRecordError) {
+              console.error('❌ Error saving file record to booking_files table:', fileRecordError);
               
               // FALLBACK: Update booking_requests with file metadata directly
+              console.log('Using fallback: Updating booking_requests with file metadata');
               const { error: updateError } = await supabase
                 .from('booking_requests')
                 .update({
@@ -402,15 +402,15 @@ export const BookingRequestForm = ({
                   content_type: selectedFile.type, 
                   file_size: selectedFile.size
                 })
-                .eq('id', data.id);
+                .eq('id', bookingData.id);
                 
               if (updateError) {
-                console.error('❌ Error updating booking request with file metadata fallback:', updateError);
+                console.error('❌ Error updating booking request with file metadata:', updateError);
               } else {
                 console.log("✅ File metadata saved via fallback to booking_requests table");
               }
             } else {
-              console.log("✅ File metadata saved successfully to booking_files table");
+              console.log("✅ File record saved successfully to booking_files table");
             }
           }
         } catch (fileError) {

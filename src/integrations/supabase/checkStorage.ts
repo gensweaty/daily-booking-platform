@@ -37,10 +37,40 @@ export async function ensureBucketExists(bucketName: string, isPublic: boolean =
       }
       
       console.log(`Successfully created ${bucketName} bucket with public access:`, isPublic);
+      
+      // Set public bucket policy since the createBucket sometimes doesn't apply this correctly
+      if (isPublic) {
+        try {
+          const { error: policyError } = await supabase.storage.from(bucketName).setPublic();
+          if (policyError) {
+            console.error(`Failed to set public policy for ${bucketName}:`, policyError);
+          } else {
+            console.log(`Successfully set public policy for ${bucketName}`);
+          }
+        } catch (policyErr) {
+          console.error(`Error setting public policy for ${bucketName}:`, policyErr);
+        }
+      }
+      
       return true;
     }
     
     console.log(`${bucketName} bucket already exists`);
+    
+    // For existing buckets, check if they need to be public and update if necessary
+    if (isPublic) {
+      try {
+        const { error: policyError } = await supabase.storage.from(bucketName).setPublic();
+        if (policyError) {
+          console.error(`Failed to set public policy for existing ${bucketName}:`, policyError);
+        } else {
+          console.log(`Verified public policy for existing ${bucketName}`);
+        }
+      } catch (policyErr) {
+        console.error(`Error setting public policy for existing ${bucketName}:`, policyErr);
+      }
+    }
+    
     return true;
   } catch (error) {
     console.error(`Error checking/creating storage bucket ${bucketName}:`, error);
@@ -56,6 +86,13 @@ export async function ensureEventAttachmentsBucket() {
 }
 
 /**
+ * Checks if the booking_attachments storage bucket exists and creates it if needed
+ */
+export async function ensureBookingAttachmentsBucket() {
+  return ensureBucketExists('booking_attachments', true);
+}
+
+/**
  * Ensure all required buckets exist
  */
 export async function ensureAllRequiredBuckets() {
@@ -63,6 +100,7 @@ export async function ensureAllRequiredBuckets() {
   
   const bucketsToCheck = [
     {name: 'event_attachments', public: true},
+    {name: 'booking_attachments', public: true},
     {name: 'customer_attachments', public: true},
     {name: 'task_attachments', public: true},
     {name: 'note_attachments', public: true}

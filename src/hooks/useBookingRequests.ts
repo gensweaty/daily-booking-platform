@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { BookingRequest } from "@/types/database";
+import { ensureEventAttachmentsBucket, ensureAllRequiredBuckets } from "@/integrations/supabase/checkStorage";
 
 export const useBookingRequests = () => {
   const { user } = useAuth();
@@ -32,6 +33,13 @@ export const useBookingRequests = () => {
     
     fetchBusinessProfile();
   }, [user]);
+  
+  // Ensure storage buckets on mount
+  useEffect(() => {
+    ensureAllRequiredBuckets().catch(error => 
+      console.error("Error ensuring required storage buckets:", error)
+    );
+  }, []);
   
   const { data: bookingRequests = [], isLoading, error } = useQuery({
     queryKey: ['booking_requests', businessId],
@@ -144,6 +152,9 @@ export const useBookingRequests = () => {
         throw new Error('User not authenticated');
       }
       
+      // First ensure required buckets exist
+      await ensureAllRequiredBuckets();
+      
       // Fetch the booking request first to get all details
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
@@ -250,107 +261,144 @@ export const useBookingRequests = () => {
         console.log('Created customer:', customerData);
       }
       
-      // IMPROVED FILE HANDLING: First get all files using our helper
-      console.log('Fetching all booking files for booking ID:', bookingId);
+      // Get all files associated with this booking request
+      console.log('Fetching files for booking ID:', bookingId);
       let allBookingFiles = [];
       
-      try {
-        // First check booking_files table directly 
-        const { data: bookingFiles, error: filesError } = await supabase
-          .from('booking_files')
-          .select('*')
-          .eq('booking_request_id', bookingId);
-        
-        if (filesError) {
-          console.error('Error fetching booking files:', filesError);
-        } else {
-          console.log('Found booking files in booking_files table:', bookingFiles?.length);
-          allBookingFiles = bookingFiles || [];
+      // STEP 1: First and most critical, check the booking_files table
+      const { data: bookingFiles, error: bookingFilesError } = await supabase
+        .from('booking_files')
+        .select('*')
+        .eq('booking_request_id', bookingId);
+      
+      if (bookingFilesError) {
+        console.error('Error fetching booking files:', bookingFilesError);
+      } else {
+        console.log('Files found in booking_files table:', bookingFiles?.length);
+        if (bookingFiles && bookingFiles.length > 0) {
+          allBookingFiles = bookingFiles;
         }
-        
-        // FALLBACK: Try using the RPC function if nothing found in booking_files
-        if (!allBookingFiles.length) {
-          console.log('No files found in booking_files, trying get_booking_request_files RPC');
+      }
+      
+      // STEP 2: Fallback to using the RPC function
+      if (allBookingFiles.length === 0) {
+        try {
           const { data: rpcFiles, error: rpcError } = await supabase
             .rpc('get_booking_request_files', { booking_id_param: bookingId });
             
           if (rpcError) {
             console.error('Error using get_booking_request_files RPC:', rpcError);
-          } else {
-            console.log('Files found via RPC:', rpcFiles?.length);
-            allBookingFiles = rpcFiles || [];
+          } else if (rpcFiles && rpcFiles.length > 0) {
+            console.log('Files found via RPC:', rpcFiles.length);
+            allBookingFiles = rpcFiles;
           }
+        } catch (rpcErr) {
+          console.error('Error calling get_booking_request_files RPC:', rpcErr);
         }
+      }
 
-        // FINAL FALLBACK: Check booking_requests.file_path if still no files found
-        if (!allBookingFiles.length && booking.file_path) {
-          console.log('Fallback: Using file metadata from booking_requests:', booking.file_path);
-          allBookingFiles = [{
-            filename: booking.filename || 'attachment',
-            file_path: booking.file_path,
-            content_type: booking.content_type || 'application/octet-stream',
-            size: booking.file_size || booking.size || 0
-          }];
-        }
-          
-        console.log(`Processing ${allBookingFiles.length} files for the booking`);
-        
-        for (const file of allBookingFiles) {
-          try {
-            console.log(`Processing file: ${file.filename}, path: ${file.file_path}`);
+      // STEP 3: Fallback to checking booking_requests.file_path
+      if (allBookingFiles.length === 0 && booking.file_path) {
+        console.log('Fallback: Using file metadata from booking_requests:', booking.file_path);
+        allBookingFiles.push({
+          id: `fallback_${bookingId}`,
+          booking_request_id: bookingId,
+          filename: booking.filename || 'attachment',
+          file_path: booking.file_path,
+          content_type: booking.content_type || 'application/octet-stream',
+          size: booking.file_size || booking.size || 0,
+          created_at: new Date().toISOString()
+        });
+      }
+      
+      // STEP 4: Check storage buckets directly
+      if (allBookingFiles.length === 0) {
+        try {
+          const { data: bucketFiles, error: listError } = await supabase.storage
+            .from('booking_attachments')
+            .list(bookingId);
             
-            // Create the event_files record pointing to the original file
-            const { data: eventFileData, error: eventFileError } = await supabase
-              .from('event_files')
+          if (!listError && bucketFiles && bucketFiles.length > 0) {
+            console.log('Files found in storage bucket:', bucketFiles.length);
+            
+            // Filter out placeholder files
+            const realFiles = bucketFiles.filter(file => 
+              file.name && !file.name.endsWith('.emptyFolderPlaceholder')
+            );
+            
+            for (const file of realFiles) {
+              const filePath = `${bookingId}/${file.name}`;
+              
+              allBookingFiles.push({
+                id: `storage_${Date.now()}_${file.name}`,
+                booking_request_id: bookingId,
+                filename: file.name,
+                file_path: filePath,
+                content_type: file.metadata?.mimetype || 'application/octet-stream',
+                size: file.metadata?.size || 0,
+                created_at: new Date().toISOString()
+              });
+            }
+          }
+        } catch (storageErr) {
+          console.error('Error checking storage bucket:', storageErr);
+        }
+      }
+      
+      console.log(`Processing ${allBookingFiles.length} files for the booking`);
+      
+      // Process all found files
+      for (const file of allBookingFiles) {
+        try {
+          console.log(`Processing file: ${file.filename}, path: ${file.file_path}`);
+          
+          // Create the event_files record pointing to the original file
+          const { data: eventFileData, error: eventFileError } = await supabase
+            .from('event_files')
+            .insert({
+              filename: file.filename,
+              file_path: file.file_path, // Use the original file path
+              content_type: file.content_type,
+              size: file.size,
+              user_id: user?.id,
+              event_id: eventData.id
+            })
+            .select()
+            .single();
+          
+          if (eventFileError) {
+            console.error('Error creating event file record:', eventFileError);
+          } else {
+            console.log('Successfully created event_files record:', eventFileData);
+          }
+          
+          // If we have a customer, also create a customer file record
+          if (customerData) {
+            console.log('Creating customer_files_new record with original file path');
+            const { data: customerFileData, error: customerFileError } = await supabase
+              .from('customer_files_new')
               .insert({
                 filename: file.filename,
                 file_path: file.file_path, // Use the original file path
                 content_type: file.content_type,
                 size: file.size,
                 user_id: user?.id,
-                event_id: eventData.id,
-                source: 'booking_request'
+                customer_id: customerData.id
               })
               .select()
               .single();
             
-            if (eventFileError) {
-              console.error('Error creating event file record:', eventFileError);
+            if (customerFileError) {
+              console.error('Error creating customer file record:', customerFileError);
             } else {
-              console.log('Successfully created event_files record:', eventFileData);
+              console.log('Successfully created customer_files_new record:', customerFileData);
             }
-            
-            // If we have a customer, also create a customer file record
-            if (customerData) {
-              console.log('Creating customer_files_new record with original file path');
-              const { data: customerFileData, error: customerFileError } = await supabase
-                .from('customer_files_new')
-                .insert({
-                  filename: file.filename,
-                  file_path: file.file_path, // Use the original file path
-                  content_type: file.content_type,
-                  size: file.size,
-                  user_id: user?.id,
-                  customer_id: customerData.id,
-                  source: 'booking_request'
-                })
-                .select()
-                .single();
-              
-              if (customerFileError) {
-                console.error('Error creating customer file record:', customerFileError);
-              } else {
-                console.log('Successfully created customer_files_new record:', customerFileData);
-              }
-            }
-          } catch (error) {
-            console.error('Error processing file:', error);
           }
+        } catch (error) {
+          console.error('Error processing file:', error);
         }
-      } catch (fileError) {
-        console.error("Error handling files during booking approval:", fileError);
       }
-    
+      
       if (booking && booking.requester_email) {
         let businessName = "Our Business";
         try {
