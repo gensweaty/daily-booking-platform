@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -54,6 +55,26 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
       
       console.log("Fetched user events:", data?.length || 0);
+      if (data && data.length > 0) {
+        console.log("Sample event data:", data[0]);
+        
+        // Check for events without a type
+        const eventsWithoutType = data.filter(event => !event.type);
+        if (eventsWithoutType.length > 0) {
+          console.warn("Found events without type:", eventsWithoutType.length);
+          
+          // Update events to have a default type
+          for (const event of eventsWithoutType) {
+            await supabase
+              .from('events')
+              .update({ type: 'event' })
+              .eq('id', event.id);
+          }
+          
+          console.log("Updated events without type to have default type 'event'");
+        }
+      }
+      
       return data || [];
     } catch (err) {
       console.error("Exception in getEvents:", err);

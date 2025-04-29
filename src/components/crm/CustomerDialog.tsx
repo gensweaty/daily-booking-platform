@@ -283,6 +283,7 @@ export const CustomerDialog = ({
 
         if (eventError) {
           console.error("Error creating event:", eventError);
+          throw eventError; // Make sure we throw the error so it's properly handled
         } else {
           console.log("Created event:", eventData2);
           eventId = eventData2.id;
@@ -409,6 +410,7 @@ export const CustomerDialog = ({
         });
       }
 
+      // Force refresh data to ensure calendar and lists are updated
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
