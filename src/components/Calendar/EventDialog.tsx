@@ -76,10 +76,11 @@ export const EventDialog = ({
       
       // Normalize payment status to handle different formats
       let normalizedStatus = event.payment_status || "not_paid";
-      if (normalizedStatus.includes('partly')) normalizedStatus = 'partly';
-      else if (normalizedStatus.includes('fully')) normalizedStatus = 'fully';
+      if (normalizedStatus.includes('partly')) normalizedStatus = 'partly_paid';
+      else if (normalizedStatus.includes('fully')) normalizedStatus = 'fully_paid';
       else if (normalizedStatus.includes('not')) normalizedStatus = 'not_paid';
       
+      console.log("Setting normalized payment status:", normalizedStatus);
       setPaymentStatus(normalizedStatus);
       setPaymentAmount(event.payment_amount?.toString() || "");
       
@@ -280,6 +281,14 @@ export const EventDialog = ({
     const wasBookingRequest = event?.type === 'booking_request';
     const isApprovingBookingRequest = wasBookingRequest && !isBookingEvent;
     
+    // Ensure payment status is properly normalized before submission
+    let normalizedPaymentStatus = paymentStatus;
+    if (normalizedPaymentStatus.includes('partly')) normalizedPaymentStatus = 'partly_paid';
+    else if (normalizedPaymentStatus.includes('fully')) normalizedPaymentStatus = 'fully_paid';
+    else if (normalizedPaymentStatus.includes('not')) normalizedPaymentStatus = 'not_paid';
+    
+    console.log("Submitting with payment status:", normalizedPaymentStatus);
+    
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
       user_surname: userSurname, // Use userSurname for consistent naming
@@ -288,7 +297,7 @@ export const EventDialog = ({
       event_notes: eventNotes,
       start_date: startDateTime.toISOString(),
       end_date: endDateTime.toISOString(),
-      payment_status: paymentStatus || 'not_paid', // Ensure payment_status is always set
+      payment_status: normalizedPaymentStatus, // Use normalized payment status
       payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
     };
 

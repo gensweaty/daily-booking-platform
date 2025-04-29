@@ -64,7 +64,7 @@ export const useEventDialog = ({
         type: selectedEvent.type || 'event',
         title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
-        // Ensure payment_status is properly passed and normalized
+        // Ensure payment_status is properly normalized and preserved
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid'
       };
       
@@ -109,11 +109,14 @@ export const useEventDialog = ({
   const normalizePaymentStatus = (status: string | undefined): string | undefined => {
     if (!status) return undefined;
     
+    // Log the incoming status for debugging
+    console.log("Normalizing payment status:", status);
+    
     // Normalize partly paid variants
-    if (status.includes('partly')) return 'partly';
+    if (status.includes('partly')) return 'partly_paid';
     
     // Normalize fully paid variants
-    if (status.includes('fully')) return 'fully';
+    if (status.includes('fully')) return 'fully_paid';
     
     // Normalize not paid variants
     if (status.includes('not_paid') || status === 'not paid') return 'not_paid';
