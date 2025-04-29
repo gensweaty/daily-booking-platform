@@ -364,104 +364,56 @@ export const deleteReminder = async (id: string): Promise<void> => {
 
 // Calendar events for public display
 export const getPublicCalendarEvents = async (businessId: string) => {
-  if (!businessId) {
-    console.error("No business ID provided to getPublicCalendarEvents");
-    return { events: [], bookings: [] };
-  }
-  
   try {
-    console.log("[getPublicCalendarEvents] Fetching for business ID:", businessId);
+    let userId = null;
     
-    // First fetch the business user ID
-    const { data: business, error: businessError } = await supabase
-      .from("business_profiles")
-      .select("user_id")
-      .eq("id", businessId)
+    // Get the business user ID first
+    const { data: businessData, error: businessError } = await supabase
+      .from('business_profiles')
+      .select('user_id')
+      .eq('id', businessId)
       .single();
     
     if (businessError) {
-      console.error("Error fetching business:", businessError);
-      
-      // Try with cached user ID from session storage as fallback
-      const cachedUserId = sessionStorage.getItem(`business_user_id_${businessId}`);
-      if (cachedUserId) {
-        console.log("[getPublicCalendarEvents] Using cached user ID:", cachedUserId);
-        
-        // Use the cached ID to get events
-        return await fetchEventsWithUserId(cachedUserId, businessId);
-      }
-      
+      console.error('Error fetching business user ID:', businessError);
       return { events: [], bookings: [] };
     }
     
-    if (!business?.user_id) {
-      console.error("No user ID found for business:", businessId);
+    userId = businessData?.user_id;
+    
+    if (!userId) {
+      console.error('No user ID found for business:', businessId);
       return { events: [], bookings: [] };
     }
     
-    console.log("[getPublicCalendarEvents] Using business user ID:", business.user_id);
-    
-    // Store the user ID in session storage for recovery
-    sessionStorage.setItem(`business_user_id_${businessId}`, business.user_id);
-    
-    return await fetchEventsWithUserId(business.user_id, businessId);
-  } catch (error) {
-    console.error("Exception in getPublicCalendarEvents:", error);
-    return { events: [], bookings: [] };
-  }
-};
-
-// Helper function to fetch events with a user ID
-const fetchEventsWithUserId = async (userId: string, businessId: string) => {
-  try {
-    // Use the security definer function to get events bypassing RLS
+    // Get events using the RPC function that bypasses RLS
     const { data: events, error: eventsError } = await supabase
-      .rpc('get_public_events_by_user_id', {
-        user_id_param: userId
-      });
+      .rpc('get_public_events_by_user_id', { user_id_param: userId });
     
     if (eventsError) {
-      console.error("Error fetching events with RPC:", eventsError);
+      console.error('Error fetching events:', eventsError);
       return { events: [], bookings: [] };
     }
     
-    console.log(`[getPublicCalendarEvents] Fetched ${events?.length || 0} events via RPC function`);
-    
-    // Fetch approved booking requests with retry logic
-    let bookings = [];
-    let bookingsError = null;
-    let retryCount = 0;
-    
-    while (retryCount < 3) {
-      const response = await supabase
-        .from('booking_requests')
-        .select('*')
-        .eq('business_id', businessId)
-        .eq('status', 'approved');
+    // Get all approved booking requests for this business
+    const { data: bookings, error: bookingsError } = await supabase
+      .from('booking_requests')
+      .select('*')
+      .eq('business_id', businessId)
+      .eq('status', 'approved')
+      .is('deleted_at', null); // Add check for soft-deleted bookings
       
-      if (!response.error) {
-        bookings = response.data || [];
-        break;
-      } else {
-        bookingsError = response.error;
-        retryCount++;
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
-    
     if (bookingsError) {
-      console.error("Error fetching bookings after retries:", bookingsError);
+      console.error('Error fetching approved bookings:', bookingsError);
+      return { events: events || [], bookings: [] };
     }
     
-    console.log(`[getPublicCalendarEvents] Fetched ${bookings?.length || 0} approved bookings`);
-    
-    return { 
-      events: events || [], 
-      bookings: bookings || [] 
+    return {
+      events: events || [],
+      bookings: bookings || [],
     };
   } catch (error) {
-    console.error("Exception in fetchEventsWithUserId:", error);
+    console.error('Error in getPublicCalendarEvents:', error);
     return { events: [], bookings: [] };
   }
 };

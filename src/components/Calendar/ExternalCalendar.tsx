@@ -134,6 +134,13 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             // Check if start_date and end_date are valid
             const startValid = !!new Date(event.start_date).getTime();
             const endValid = !!new Date(event.end_date).getTime();
+            
+            // Skip events that are soft deleted
+            if (event.deleted_at) {
+              console.log(`Filtering out deleted event with id ${event.id}`);
+              return false;
+            }
+            
             return startValid && endValid;
           } catch (err) {
             console.error("Invalid date in event:", event);
@@ -142,7 +149,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         });
         
         if (validEvents.length !== allEvents.length) {
-          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates`);
+          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates or deleted`);
         }
         
         // Remove duplicate events (same time slot)
