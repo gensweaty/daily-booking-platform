@@ -1,4 +1,3 @@
-
 import { FileRecord } from "@/types/files";
 import { Button } from "@/components/ui/button";
 import { Trash2, FileText, Download, ExternalLink, Image as ImageIcon, FileIcon } from "lucide-react";
@@ -82,6 +81,8 @@ export const FileDisplay = ({
         return 'note_attachments';
       case 'customer':
         return 'customer_attachments';
+      case 'booking_request':
+        return 'booking_attachments';
       case 'event':
       default:
         return 'event_attachments';
@@ -227,16 +228,8 @@ export const FileDisplay = ({
       console.log("Deleting from table based on parentType:", parentType);
       console.log("File source:", fileToDelete.source);
       
-      if (fileToDelete.source === 'event_files' || parentType === 'event') {
+      if (fileToDelete.source === 'event_files' || parentType === 'event' || parentType === 'booking_request') {
         console.log("Deleting from event_files table");
-        const { error: dbError } = await supabase
-          .from('event_files')
-          .delete()
-          .eq('id', fileToDelete.id);
-          
-        error = dbError;
-      } else if (fileToDelete.source?.includes('booking_request') || fileToDelete.booking_request_id) {
-        console.log("Deleting from event_files table for booking request");
         const { error: dbError } = await supabase
           .from('event_files')
           .delete()

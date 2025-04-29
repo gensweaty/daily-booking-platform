@@ -70,5 +70,5 @@ export interface BookingRequest {
   content_type?: string;
   file_size?: number;
   size?: number;
-  deleted_at?: string;
+  // No deleted_at field in booking_requests table
 }

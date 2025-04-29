@@ -91,6 +91,33 @@ export async function ensureBucketExists(bucketName: string, isPublic: boolean =
           console.error(`Failed to set public policy for existing ${bucketName}:`, policyError);
         } else {
           console.log(`Verified public policy for existing ${bucketName}`);
+          
+          // Try to send a test request to ensure bucket is working
+          try {
+            const { data: publicUrlData } = supabase.storage
+              .from(bucketName)
+              .getPublicUrl('placeholder.txt');
+              
+            fetch(publicUrlData.publicUrl, { method: 'HEAD' })
+              .then(() => console.log(`Successfully verified ${bucketName} bucket is accessible`))
+              .catch(() => {
+                console.log(`${bucketName} bucket may not be fully initialized, creating placeholder...`);
+                // Create a placeholder file if one doesn't exist
+                const placeholderContent = new Blob(['Placeholder for bucket initialization'], { type: 'text/plain' });
+                supabase.storage
+                  .from(bucketName)
+                  .upload('placeholder.txt', placeholderContent, { upsert: true })
+                  .then(({ error }) => {
+                    if (error) {
+                      console.error(`Error creating placeholder in ${bucketName}:`, error);
+                    } else {
+                      console.log(`Created placeholder file in ${bucketName}`);
+                    }
+                  });
+              });
+          } catch (testError) {
+            console.error(`Error testing ${bucketName} bucket:`, testError);
+          }
         }
       } catch (policyErr) {
         console.error(`Error setting public policy for existing ${bucketName}:`, policyErr);
@@ -135,6 +162,7 @@ export async function ensureAllRequiredBuckets() {
   
   // Execute in sequence to avoid race conditions
   for (const bucket of bucketsToCheck) {
+    console.log(`Checking bucket: ${bucket.name}`);
     const result = await ensureBucketExists(bucket.name, bucket.public);
     if (!result) {
       console.error(`Failed to create or verify bucket: ${bucket.name}`);

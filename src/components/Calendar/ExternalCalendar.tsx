@@ -123,21 +123,23 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             event_notes: booking.description || '',
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
-            deleted_at: booking.deleted_at
+            requester_phone: booking.requester_phone || '',
+            // Don't check for deleted_at as it doesn't exist in booking_requests table
           }))
         ];
         
         console.log(`[External Calendar] Combined ${allEvents.length} total events`);
         
-        // Validate all events have proper dates and filter out deleted events
+        // Validate all events have proper dates and filter out deleted events from events only (not bookings)
         const validEvents = allEvents.filter(event => {
           try {
             // Check if start_date and end_date are valid
             const startValid = !!new Date(event.start_date).getTime();
             const endValid = !!new Date(event.end_date).getTime();
             
-            // Skip events that are soft deleted
-            if (event.deleted_at) {
+            // Only check deleted_at for events, not booking requests
+            // For booking_request type, we always include it
+            if (event.type !== 'booking_request' && event.deleted_at) {
               console.log(`Filtering out deleted event with id ${event.id}`);
               return false;
             }
