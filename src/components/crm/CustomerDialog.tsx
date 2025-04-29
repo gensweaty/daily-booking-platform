@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -61,7 +62,7 @@ export const CustomerDialog = ({
   const [userNumber, setUserNumber] = useState(initialData?.user_number || "");
   const [socialNetworkLink, setSocialNetworkLink] = useState(initialData?.social_network_link || "");
   const [createEvent, setCreateEvent] = useState(initialData?.create_event || false);
-  const [paymentStatus, setPaymentStatus] = useState(initialData?.payment_status || "");
+  const [paymentStatus, setPaymentStatus] = useState(initialData?.payment_status || "not_paid");
   const [paymentAmount, setPaymentAmount] = useState(initialData?.payment_amount?.toString() || "");
   const [customerNotes, setCustomerNotes] = useState(initialData?.event_notes || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,7 +92,7 @@ export const CustomerDialog = ({
       setUserNumber(initialData.user_number || "");
       setSocialNetworkLink(initialData.social_network_link || "");
       setCreateEvent(initialData.create_event || false);
-      setPaymentStatus(initialData.payment_status || "");
+      setPaymentStatus(initialData.payment_status || "not_paid");
       setPaymentAmount(initialData.payment_amount?.toString() || "");
       setCustomerNotes(initialData.event_notes || "");
       
@@ -111,7 +112,7 @@ export const CustomerDialog = ({
       setUserNumber("");
       setSocialNetworkLink("");
       setCreateEvent(false);
-      setPaymentStatus("");
+      setPaymentStatus("not_paid");
       setPaymentAmount("");
       setCustomerNotes("");
       setIsEventBased(false);
@@ -265,10 +266,11 @@ export const CustomerDialog = ({
           event_notes: customerNotes,
           start_date: eventStartDate.toISOString(),
           end_date: eventEndDate.toISOString(),
-          payment_status: paymentStatus || null,
+          payment_status: paymentStatus || 'not_paid',
           payment_amount: paymentStatus && paymentStatus !== 'not_paid' ? parseFloat(paymentAmount) : null,
           user_id: user?.id,
           customer_id: customerId,
+          type: 'event'  // Add the type field to ensure it appears in the calendar
         };
 
         console.log("Creating event with data:", eventData);

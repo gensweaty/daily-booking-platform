@@ -86,6 +86,14 @@ export const FileDisplay = ({
     if (parentType === "event") {
       return "event_attachments";
     }
+
+    if (parentType === "note") {
+      return "note_attachments";
+    }
+
+    if (parentType === "task") {
+      return "task_attachments";
+    }
     
     return bucketName;
   };
@@ -104,6 +112,11 @@ export const FileDisplay = ({
       
       // Force download using fetch to get the blob
       const response = await fetch(directUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+      }
+      
       const blob = await response.blob();
       
       // Create blob URL and handle download
@@ -162,7 +175,7 @@ export const FileDisplay = ({
       const directUrl = getDirectFileUrl(filePath, fileId);
       console.log('Opening file with direct URL:', directUrl);
       
-      // Open in a new tab to prevent navigating away
+      // Open in a new tab
       window.open(directUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
       console.error('Error opening file:', error);
@@ -190,14 +203,17 @@ export const FileDisplay = ({
         throw storageError;
       }
       
-      // Fix the table name issue by using type assertion
-      let tableName: "event_files" | "customer_files_new" | "note_files" = "customer_files_new";
-      if (effectiveBucket === 'event_attachments' || parentType === 'event') {
+      // Determine the appropriate table name based on the parent type
+      let tableName: "event_files" | "customer_files_new" | "note_files" | "task_files" = "customer_files_new";
+      
+      if (parentType === 'event' || effectiveBucket === 'event_attachments') {
         tableName = "event_files";
-      } else if (effectiveBucket === 'customer_attachments' || parentType === 'customer') {
+      } else if (parentType === 'customer' || effectiveBucket === 'customer_attachments') {
         tableName = "customer_files_new";
-      } else if (effectiveBucket === 'note_attachments' || parentType === 'note') {
+      } else if (parentType === 'note' || effectiveBucket === 'note_attachments') {
         tableName = "note_files";
+      } else if (parentType === 'task' || effectiveBucket === 'task_attachments') {
+        tableName = "task_files";
       }
       
       console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);
@@ -245,7 +261,7 @@ export const FileDisplay = ({
 
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-medium">{t("common.attachments")}</h3>
+      {/* We already have the heading in some places, so let's not duplicate it */}
       <div className="space-y-2">
         {files.map((file) => {
           if (!file.file_path) return null;
