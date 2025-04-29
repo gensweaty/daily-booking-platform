@@ -1,3 +1,4 @@
+
 export interface BookingRequest {
   id: string;
   business_id: string;
@@ -14,5 +15,20 @@ export interface BookingRequest {
   user_id?: string | null;
   payment_amount?: number | null;
   payment_status?: string;
-  deleted_at?: string | null; // Add this field
+  deleted_at?: string | null;
+}
+
+export interface BusinessProfile {
+  id: string;
+  user_id: string;
+  business_name: string;
+  slug: string;
+  description?: string;
+  cover_photo_url?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  contact_address?: string;
+  contact_website?: string;
+  created_at: string;
+  updated_at: string;
 }
