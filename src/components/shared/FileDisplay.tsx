@@ -1,4 +1,3 @@
-
 import { FileRecord } from "@/types/files";
 import { Button } from "@/components/ui/button";
 import { Trash2, FileText, Download } from "lucide-react";
@@ -8,42 +7,70 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface FileDisplayProps {
-  file: FileRecord;
+  file?: FileRecord;
+  files?: FileRecord[];
   onDelete?: (id: string) => void;
+  onFileDeleted?: (fileId: string) => void;
   showDelete?: boolean;
+  allowDelete?: boolean;
   parentType?: string;
+  // For backward compatibility with other components
+  bucketName?: string;
+  parentId?: string;
 }
 
 export const FileDisplay = ({
   file,
+  files,
   onDelete,
+  onFileDeleted,
   showDelete = true,
-  parentType = 'event'
+  allowDelete = false,
+  parentType = 'event',
+  bucketName,
+  parentId
 }: FileDisplayProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
   const { t } = useLanguage();
   
+  // Support both legacy and new properties
+  const effectiveShowDelete = showDelete || allowDelete;
+  const effectiveOnDelete = onDelete || onFileDeleted;
+  
   // Get the appropriate bucket name based on the file source or parent type
   const getBucketName = () => {
-    // Always default to event_attachments for now as our main storage bucket
-    return 'event_attachments';
+    // If bucketName is provided directly, use that
+    if (bucketName) return bucketName;
+    
+    // Otherwise determine from parentType
+    switch (parentType) {
+      case 'task':
+        return 'task_attachments';
+      case 'note':
+        return 'note_attachments';
+      case 'customer':
+        return 'customer_attachments';
+      case 'event':
+      default:
+        return 'event_attachments';
+    }
   };
   
-  const handleDelete = async () => {
-    if (!file.id) return;
+  const handleDelete = async (fileToDelete: FileRecord) => {
+    if (!fileToDelete.id) return;
     
     try {
       setIsDeleting(true);
       
       // Step 1: Delete the file from storage if it has a path
-      if (file.file_path) {
+      if (fileToDelete.file_path) {
         const bucket = getBucketName();
-        console.log(`Attempting to delete file from ${bucket}/${file.file_path}`);
+        console.log(`Attempting to delete file from ${bucket}/${fileToDelete.file_path}`);
         
         const { error: storageError } = await supabase.storage
           .from(bucket)
-          .remove([file.file_path]);
+          .remove([fileToDelete.file_path]);
           
         if (storageError) {
           console.error('Error deleting file from storage:', storageError);
@@ -55,18 +82,32 @@ export const FileDisplay = ({
       let error;
       
       // Determine which table to delete from based on parentType
-      if (file.source === 'event_files' || parentType === 'event') {
+      if (fileToDelete.source === 'event_files' || parentType === 'event') {
         const { error: dbError } = await supabase
           .from('event_files')
           .delete()
-          .eq('id', file.id);
+          .eq('id', fileToDelete.id);
           
         error = dbError;
-      } else if (parentType === 'customer' || file.customer_id) {
+      } else if (parentType === 'customer' || fileToDelete.customer_id) {
         const { error: dbError } = await supabase
           .from('customer_files_new')
           .delete()
-          .eq('id', file.id);
+          .eq('id', fileToDelete.id);
+          
+        error = dbError;
+      } else if (parentType === 'note') {
+        const { error: dbError } = await supabase
+          .from('note_files')
+          .delete()
+          .eq('id', fileToDelete.id);
+          
+        error = dbError;
+      } else if (parentType === 'task') {
+        const { error: dbError } = await supabase
+          .from('files')
+          .delete()
+          .eq('id', fileToDelete.id);
           
         error = dbError;
       }
@@ -77,8 +118,8 @@ export const FileDisplay = ({
       }
       
       // Call the parent's onDelete function if provided
-      if (onDelete) {
-        onDelete(file.id);
+      if (effectiveOnDelete) {
+        effectiveOnDelete(fileToDelete.id);
       }
       
       toast({
@@ -98,8 +139,8 @@ export const FileDisplay = ({
     }
   };
   
-  const handleDownload = async () => {
-    if (!file.file_path) {
+  const handleDownload = async (fileToDownload: FileRecord) => {
+    if (!fileToDownload.file_path) {
       toast({
         title: t("common.error"),
         description: t("File path is missing"),
@@ -112,7 +153,7 @@ export const FileDisplay = ({
       const bucket = getBucketName();
       const { data, error } = await supabase.storage
         .from(bucket)
-        .download(file.file_path);
+        .download(fileToDownload.file_path);
         
       if (error) {
         throw error;
@@ -126,7 +167,7 @@ export const FileDisplay = ({
       const url = URL.createObjectURL(data);
       const a = document.createElement("a");
       a.href = url;
-      a.download = file.filename || "download";
+      a.download = fileToDownload.filename || "download";
       document.body.appendChild(a);
       a.click();
       
@@ -155,37 +196,83 @@ export const FileDisplay = ({
   const getFileIcon = () => {
     return <FileText className="mr-2 h-4 w-4" />;
   };
-  
-  return (
-    <div className="flex items-center justify-between p-2 bg-muted/50 rounded-md my-1">
-      <div className="flex items-center overflow-hidden">
-        {getFileIcon()}
-        <span className="text-sm truncate" title={file.filename}>
-          {file.filename || "Unnamed file"}
-        </span>
+
+  // If we have a files array, render multiple files
+  if (files && files.length > 0) {
+    return (
+      <div className="space-y-1">
+        {files.map((fileItem) => (
+          <div key={fileItem.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+            <div className="flex items-center overflow-hidden">
+              {getFileIcon()}
+              <span className="text-sm truncate" title={fileItem.filename}>
+                {fileItem.filename || "Unnamed file"}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                onClick={() => handleDownload(fileItem)}
+                title={t("common.download")}
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+              
+              {effectiveShowDelete && (
+                <Button 
+                  size="icon" 
+                  variant="ghost" 
+                  onClick={() => handleDelete(fileItem)}
+                  disabled={isDeleting}
+                  title={t("common.delete")}
+                >
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
-      <div className="flex gap-2">
-        <Button 
-          size="icon" 
-          variant="ghost" 
-          onClick={handleDownload}
-          title={t("common.download")}
-        >
-          <Download className="h-4 w-4" />
-        </Button>
-        
-        {showDelete && (
+    );
+  }
+  
+  // Fall back to single file display if files array isn't provided but a single file is
+  if (file) {
+    return (
+      <div className="flex items-center justify-between p-2 bg-muted/50 rounded-md my-1">
+        <div className="flex items-center overflow-hidden">
+          {getFileIcon()}
+          <span className="text-sm truncate" title={file.filename}>
+            {file.filename || "Unnamed file"}
+          </span>
+        </div>
+        <div className="flex gap-2">
           <Button 
             size="icon" 
             variant="ghost" 
-            onClick={handleDelete}
-            disabled={isDeleting}
-            title={t("common.delete")}
+            onClick={() => handleDownload(file)}
+            title={t("common.download")}
           >
-            <Trash2 className="h-4 w-4 text-red-500" />
+            <Download className="h-4 w-4" />
           </Button>
-        )}
+          
+          {effectiveShowDelete && (
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              onClick={() => handleDelete(file)}
+              disabled={isDeleting}
+              title={t("common.delete")}
+            >
+              <Trash2 className="h-4 w-4 text-red-500" />
+            </Button>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+  
+  // If no files, return null or an empty state message
+  return <div className="text-sm text-muted-foreground">{t("common.noFiles")}</div>;
 };
