@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { ensureEventAttachmentsBucket } from "@/integrations/supabase/checkStorage";
+import { uploadEventFile, copyBookingFilesToEvent } from "@/lib/fileUtils";
 
 interface EventDialogProps {
   open: boolean;

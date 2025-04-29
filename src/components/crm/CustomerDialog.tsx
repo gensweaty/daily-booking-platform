@@ -8,7 +8,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { crypto } from "crypto";
+import { v4 as uuidv4 } from 'uuid';
 
 export interface CustomerType {
   id?: string;
@@ -351,7 +351,7 @@ export const CustomerDialog = ({
         try {
           // First upload to storage
           const fileExt = selectedFile.name.split('.').pop();
-          const uniqueId = crypto.randomUUID();
+          const uniqueId = uuidv4();
           const filePath = `${customerId}/${Date.now()}_${uniqueId}.${fileExt}`;
           
           // Upload file to storage - Always use event_attachments for consistency
