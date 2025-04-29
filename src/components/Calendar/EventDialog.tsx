@@ -126,6 +126,8 @@ export const EventDialog = ({
       if (event?.id) {
         try {
           console.log("Loading files for event:", event.id);
+          console.log("Event type:", event.type);
+          console.log("Booking request ID:", event.booking_request_id);
           
           // First check if this is a booking request ID directly
           const { data: bookingFiles, error: bookingFilesError } = await supabase
@@ -135,36 +137,23 @@ export const EventDialog = ({
             
           if (bookingFilesError) {
             console.error("Error loading booking files:", bookingFilesError);
+          } else if (bookingFiles && bookingFiles.length > 0) {
+            console.log("Found files directly associated with ID:", bookingFiles.length);
           }
           
-          // If this is from a booking request that was approved, also check for files with the booking request ID
-          const { data: eventFiles, error: eventFilesError } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', event.id);
-            
-          if (eventFilesError) {
-            console.error("Error loading event files:", eventFilesError);
-          }
-          
-          // Combined files from both queries
-          const filesFromQueries = [
-            ...(bookingFiles || []),
-            ...(eventFiles || [])
-          ];
-          
-          // If this has a booking_request_id, also check for files with that ID
+          // Get any files associated with the booking request that created this event
+          let relatedBookingFiles: any[] = [];
           if (event.booking_request_id) {
             console.log("This event has a booking request ID, checking for booking files:", event.booking_request_id);
             
-            const { data: relatedBookingFiles, error: relatedBookingFilesError } = await supabase
+            const { data: relatedFiles, error: relatedFilesError } = await supabase
               .from('event_files')
               .select('*')
               .eq('event_id', event.booking_request_id);
               
-            if (!relatedBookingFilesError && relatedBookingFiles) {
-              console.log("Found files from the original booking request:", relatedBookingFiles);
-              filesFromQueries.push(...relatedBookingFiles);
+            if (!relatedFilesError && relatedFiles) {
+              console.log("Found files from the original booking request:", relatedFiles.length);
+              relatedBookingFiles = relatedFiles;
             }
           }
           
@@ -172,7 +161,9 @@ export const EventDialog = ({
           const uniqueFileIds = new Set<string>();
           const uniqueFiles: any[] = [];
           
-          filesFromQueries.forEach(file => {
+          const allFiles = [...(bookingFiles || []), ...relatedBookingFiles];
+          
+          allFiles.forEach(file => {
             if (!uniqueFileIds.has(file.id)) {
               uniqueFileIds.add(file.id);
               uniqueFiles.push({

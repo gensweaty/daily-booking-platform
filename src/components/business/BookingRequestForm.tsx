@@ -335,6 +335,12 @@ export const BookingRequestForm = ({
         }
       }
 
+      // Log the payment data for debugging
+      console.log("Submitting booking request with payment data:", {
+        status: paymentStatus,
+        amount: parsedPaymentAmount
+      });
+
       const { data, error } = await supabase
         .from('booking_requests')
         .insert({
@@ -400,7 +406,7 @@ export const BookingRequestForm = ({
           const filePath = `booking_${data.id}_${Date.now()}.${fileExt}`;
           
           const { error: uploadError } = await supabase.storage
-            .from('booking_attachments')
+            .from('event_attachments')
             .upload(filePath, selectedFile);
             
           if (uploadError) {
@@ -408,13 +414,14 @@ export const BookingRequestForm = ({
           } else {
             console.log("✅ File uploaded successfully:", filePath);
             const { error: fileError } = await supabase
-              .from('booking_files')
+              .from('event_files')
               .insert({
-                booking_request_id: data.id,
+                event_id: data.id,
                 filename: selectedFile.name,
                 file_path: filePath,
                 content_type: selectedFile.type,
-                size: selectedFile.size
+                size: selectedFile.size,
+                user_id: user?.id
               });
               
             if (fileError) {

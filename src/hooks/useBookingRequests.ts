@@ -44,11 +44,12 @@ export const useBookingRequests = () => {
     queryFn: async () => {
       if (!businessId) return [];
 
-      // IMPORTANT: Removed the is('deleted_at', null) filter since the column doesn't exist
+      // Filter by status instead of using deleted_at column
       const { data, error } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('business_id', businessId)
+        .neq('status', 'deleted')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -95,8 +96,13 @@ export const useBookingRequests = () => {
 
         if (fetchError) throw fetchError;
 
+        console.log("Creating event from booking request with payment data:", {
+          paymentStatus: bookingData.payment_status,
+          paymentAmount: bookingData.payment_amount
+        });
+
         // Create an event based on the booking details
-        const { error: eventError } = await supabase
+        const { data: eventData, error: eventError } = await supabase
           .from('events')
           .insert({
             title: bookingData.title,
@@ -111,7 +117,9 @@ export const useBookingRequests = () => {
             user_id: user?.id,
             type: 'event',
             booking_request_id: id
-          });
+          })
+          .select('id')
+          .single();
 
         if (eventError) throw eventError;
 
@@ -125,6 +133,26 @@ export const useBookingRequests = () => {
           console.error("Error fetching booking request files:", filesError);
         } else if (files && files.length > 0) {
           console.log(`Found ${files.length} files for booking request ${id}`);
+          
+          // Copy files to reference the new event
+          for (const file of files) {
+            const { error: copyError } = await supabase
+              .from('event_files')
+              .insert({
+                filename: file.filename,
+                file_path: file.file_path,
+                content_type: file.content_type,
+                size: file.size,
+                user_id: user?.id,
+                event_id: eventData.id // Link to the new event
+              });
+              
+            if (copyError) {
+              console.error("Error copying file to new event:", copyError);
+            } else {
+              console.log("Successfully copied file to new event:", eventData.id);
+            }
+          }
         }
 
       } catch (eventCreationError) {
@@ -141,6 +169,7 @@ export const useBookingRequests = () => {
       queryClient.invalidateQueries({ queryKey: ['bookingRequests'] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
     },
     onError: (error) => {
       toast({
