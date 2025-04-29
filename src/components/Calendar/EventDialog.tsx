@@ -129,76 +129,59 @@ export const EventDialog = ({
   // Load files for this event
   useEffect(() => {
     const loadFiles = async () => {
-      if (!open) return;
+      if (!open || !event?.id) return;
       
       setIsLoading(true);
+      setDisplayedFiles([]);
       
       try {
-        console.log("Loading files for event:", event?.id);
-        console.log("Event type:", event?.type);
-        console.log("Booking request ID:", event?.booking_request_id);
+        console.log("Loading files for event:", event.id);
+        console.log("Event type:", event.type);
+        console.log("Booking request ID:", event.booking_request_id);
         
-        let allFiles: FileRecord[] = [];
+        let eventId = event.id;
         
-        // If this is a booking request, get its files
-        if (event?.id && isBookingRequest) {
-          console.log("This is a booking request, fetching its files:", event.id);
-          
-          const { data: bookingFiles, error: bookingFilesError } = await supabase
+        // For approved events that were created from booking requests,
+        // we need to check files associated with both the event and the original booking request
+        const loadEventFiles = async (id: string) => {
+          console.log(`Fetching files for ID: ${id}`);
+          const { data, error } = await supabase
             .from('event_files')
             .select('*')
-            .eq('event_id', event.id);
+            .eq('event_id', id);
             
-          if (bookingFilesError) {
-            console.error("Error loading booking request files:", bookingFilesError);
-          } else if (bookingFiles && bookingFiles.length > 0) {
-            console.log("Found files for this booking request:", bookingFiles.length);
-            allFiles = [...allFiles, ...bookingFiles.map(file => ({...file, parentType: 'event' as const}))];
+          if (error) {
+            console.error(`Error loading files for ID ${id}:`, error);
+            return [];
           }
-        }
-        
-        // Get files directly associated with this event if it's a regular event
-        if (event?.id && !isBookingRequest) {
-          console.log("This is a regular event, fetching its files:", event.id);
           
-          const { data: eventFiles, error: eventFilesError } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', event.id);
-            
-          if (eventFilesError) {
-            console.error("Error loading event files:", eventFilesError);
-          } else if (eventFiles && eventFiles.length > 0) {
-            console.log("Found files directly associated with event ID:", eventFiles.length);
-            allFiles = [...allFiles, ...eventFiles.map(file => ({...file, parentType: 'event' as const}))];
-          }
+          console.log(`Found ${data?.length || 0} files for ID ${id}:`, data);
+          return data || [];
+        };
+        
+        // Get files for the current event ID
+        const currentEventFiles = await loadEventFiles(eventId);
+        
+        // Get files for the booking request if this is an approved event created from a booking
+        let bookingRequestFiles: any[] = [];
+        if (event.booking_request_id && event.type !== 'booking_request') {
+          bookingRequestFiles = await loadEventFiles(event.booking_request_id);
         }
         
-        // Get files associated with the booking request that created this event
-        if (event?.booking_request_id) {
-          console.log("This event has a booking request ID, checking for booking files:", event.booking_request_id);
-          
-          const { data: bookingFiles, error: bookingFilesError } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', event.booking_request_id);
-            
-          if (bookingFilesError) {
-            console.error("Error loading booking request files:", bookingFilesError);
-          } else if (bookingFiles && bookingFiles.length > 0) {
-            console.log("Found files from the original booking request:", bookingFiles.length);
-            allFiles = [...allFiles, ...bookingFiles.map(file => ({...file, parentType: 'event' as const}))];
-          }
-        }
+        // If this is a booking request, we only show its files
+        // If this is a regular event, we show its files + any files from the original booking request
+        const allFiles = isBookingRequest 
+          ? [...currentEventFiles] 
+          : [...currentEventFiles, ...bookingRequestFiles];
         
-        // Use a Set to track unique file IDs to avoid duplicates
+        // Remove duplicates (in case the same file was copied)
         const uniqueFileIds = new Set<string>();
         const uniqueFiles: FileRecord[] = [];
         
         allFiles.forEach(file => {
           if (!uniqueFileIds.has(file.id)) {
             uniqueFileIds.add(file.id);
-            uniqueFiles.push(file);
+            uniqueFiles.push({...file, parentType: 'event' as const});
           }
         });
         
@@ -557,6 +540,95 @@ export const EventDialog = ({
 
   const handleFileDeleted = (fileId: string) => {
     setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
+  };
+
+  // Function to send approval email notification
+  const sendApprovalEmail = async (
+    startDateTime: Date,
+    endDateTime: Date,
+    title: string,
+    userSurname: string,
+    socialNetworkLink: string
+  ) => {
+    try {
+      console.log("Sending booking approval email to", socialNetworkLink);
+      
+      const { data: businessProfile } = await supabase
+        .from('business_profiles')
+        .select('business_name')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+        
+      const businessName = businessProfile?.business_name || "Our Business";
+      
+      console.log("Email data:", {
+        recipientEmail: socialNetworkLink,
+        fullName: userSurname || title,
+        businessName,
+        startDate: startDateTime.toISOString(),
+        endDate: endDateTime.toISOString(),
+      });
+      
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (!accessToken) {
+        console.error("No access token available for authenticated request");
+        throw new Error("Authentication error");
+      }
+      
+      const response = await fetch(
+        "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+        {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            recipientEmail: socialNetworkLink.trim(),
+            fullName: userSurname || title || "Customer",
+            businessName,
+            startDate: startDateTime.toISOString(),
+            endDate: endDateTime.toISOString(),
+          }),
+        }
+      );
+      
+      console.log("Email API response status:", response.status);
+      
+      const responseText = await response.text();
+      console.log("Email API response text:", responseText);
+      
+      let responseData;
+      try {
+        responseData = responseText ? JSON.parse(responseText) : {};
+        console.log("Email API parsed response:", responseData);
+      } catch (jsonError) {
+        console.error("Failed to parse email API response as JSON:", jsonError);
+        responseData = { textResponse: responseText };
+      }
+      
+      if (!response.ok) {
+        console.error("Failed to send email notification:", responseData?.error || response.statusText);
+        throw new Error(responseData?.error || responseData?.details || `Failed to send email notification (status ${response.status})`);
+      }
+      
+      toast({
+        title: t("common.success"),
+        description: t("Email notification sent successfully to ") + socialNetworkLink,
+      });
+      
+    } catch (emailError) {
+      console.error("Error sending email notification:", emailError);
+      toast({
+        title: t("common.warning"),
+        description: t("Event created but email notification could not be sent: ") + 
+          (emailError instanceof Error ? emailError.message : "Unknown error"),
+        variant: "destructive",
+      });
+      throw emailError;
+    }
   };
 
   return (
