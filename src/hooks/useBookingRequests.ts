@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { BookingRequest } from "@/types/database";
 import { useState, useEffect } from "react";
+import { FileRecord } from "@/types/files";
 
 export const useBookingRequests = () => {
   const { user } = useAuth();
@@ -91,9 +92,11 @@ export const useBookingRequests = () => {
           } else if (files && files.length > 0) {
             console.log(`Found ${files.length} files for booking request ${request.id}:`, files);
             request.files = files;
+            request.file_count = files.length;
           } else {
             console.log(`No files found for booking request ${request.id}`);
             request.files = [];
+            request.file_count = 0;
           }
         } catch (err) {
           console.error(`Exception fetching files for booking request ${request.id}:`, err);

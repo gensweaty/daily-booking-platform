@@ -66,4 +66,5 @@ export interface BookingRequest {
   payment_status?: 'not_paid' | 'partly_paid' | 'fully_paid' | 'partly' | 'fully';
   payment_amount?: number | null;
   files?: any[]; // Added to track associated files
+  file_count?: number; // Track the number of files
 }

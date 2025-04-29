@@ -16,6 +16,7 @@ export interface FileDisplayProps {
   onFileDeleted?: (fileId: string) => void;
   parentType: 'event' | 'customer' | 'note' | 'task';
   parentId?: string;
+  isLoading?: boolean; // Added loading state
 }
 
 export const FileDisplay = ({ 
@@ -23,7 +24,8 @@ export const FileDisplay = ({
   bucketName, 
   allowDelete = false, 
   onFileDeleted,
-  parentType
+  parentType,
+  isLoading = false
 }: FileDisplayProps) => {
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -33,6 +35,7 @@ export const FileDisplay = ({
   console.log("FileDisplay rendered with files:", files);
   console.log("File count:", files?.length || 0);
   console.log("File bucket name:", bucketName);
+  console.log("Is loading:", isLoading);
   
   const handleDownload = async (file: FileRecord) => {
     try {
@@ -134,6 +137,16 @@ export const FileDisplay = ({
       return `${(kb / 1024).toFixed(1)} MB`;
     }
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-2 py-2">
+        <div className="h-10 bg-muted/30 animate-pulse rounded-lg"></div>
+        <div className="h-10 bg-muted/30 animate-pulse rounded-lg"></div>
+      </div>
+    );
+  }
 
   if (!files || files.length === 0) {
     console.log("No files to display");

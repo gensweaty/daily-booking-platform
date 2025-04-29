@@ -55,6 +55,7 @@ export const EventDialog = ({
   const { t, language } = useLanguage();
   const [isBookingEvent, setIsBookingEvent] = useState(false);
   const isGeorgian = language === 'ka';
+  const [isLoading, setIsLoading] = useState(false);
 
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
@@ -128,7 +129,9 @@ export const EventDialog = ({
   // Load files for this event
   useEffect(() => {
     const loadFiles = async () => {
-      if (!event?.id && !open) return;
+      if (!open) return;
+      
+      setIsLoading(true);
       
       try {
         console.log("Loading files for event:", event?.id);
@@ -137,8 +140,27 @@ export const EventDialog = ({
         
         let allFiles: FileRecord[] = [];
         
+        // If this is a booking request, get its files
+        if (event?.id && isBookingRequest) {
+          console.log("This is a booking request, fetching its files:", event.id);
+          
+          const { data: bookingFiles, error: bookingFilesError } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', event.id);
+            
+          if (bookingFilesError) {
+            console.error("Error loading booking request files:", bookingFilesError);
+          } else if (bookingFiles && bookingFiles.length > 0) {
+            console.log("Found files for this booking request:", bookingFiles.length);
+            allFiles = [...allFiles, ...bookingFiles.map(file => ({...file, parentType: 'event' as const}))];
+          }
+        }
+        
         // Get files directly associated with this event if it's a regular event
         if (event?.id && !isBookingRequest) {
+          console.log("This is a regular event, fetching its files:", event.id);
+          
           const { data: eventFiles, error: eventFilesError } = await supabase
             .from('event_files')
             .select('*')
@@ -169,23 +191,6 @@ export const EventDialog = ({
           }
         }
         
-        // If this is a booking request itself, get its files
-        if (event?.id && isBookingRequest) {
-          console.log("This is a booking request, checking for its own files:", event.id);
-          
-          const { data: bookingRequestFiles, error: bookingRequestFilesError } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', event.id);
-            
-          if (bookingRequestFilesError) {
-            console.error("Error loading booking request's own files:", bookingRequestFilesError);
-          } else if (bookingRequestFiles && bookingRequestFiles.length > 0) {
-            console.log("Found files for this booking request:", bookingRequestFiles.length);
-            allFiles = [...allFiles, ...bookingRequestFiles.map(file => ({...file, parentType: 'event' as const}))];
-          }
-        }
-        
         // Use a Set to track unique file IDs to avoid duplicates
         const uniqueFileIds = new Set<string>();
         const uniqueFiles: FileRecord[] = [];
@@ -197,22 +202,17 @@ export const EventDialog = ({
           }
         });
         
-        if (uniqueFiles.length > 0) {
-          console.log("Loaded unique files:", uniqueFiles.length);
-          setDisplayedFiles(uniqueFiles);
-        } else {
-          console.log("No files found for event or booking ID:", event?.id);
-          setDisplayedFiles([]);
-        }
+        console.log("Final unique files count:", uniqueFiles.length);
+        setDisplayedFiles(uniqueFiles);
         
       } catch (err) {
         console.error("Exception loading event files:", err);
+      } finally {
+        setIsLoading(false);
       }
     };
     
-    if (open) {
-      loadFiles();
-    }
+    loadFiles();
   }, [event, open, isBookingRequest]);
 
   // Function to send approval email notification
@@ -593,6 +593,7 @@ export const EventDialog = ({
             onFileDeleted={handleFileDeleted}
             displayedFiles={displayedFiles}
             isBookingRequest={isBookingRequest}
+            isLoading={isLoading}
           />
           
           <div className="flex justify-between gap-4">
