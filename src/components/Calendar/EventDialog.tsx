@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,8 @@ export const EventDialog = ({
       console.log("Loading event data:", event);
       console.log("Event type:", event.type);
       console.log("Booking request ID:", event.booking_request_id);
+      console.log("Payment status:", event.payment_status);
+      console.log("Payment amount:", event.payment_amount);
       
       // Set both title and userSurname to the user_surname value for consistency
       const fullName = event.user_surname || event.title || "";
@@ -125,67 +128,67 @@ export const EventDialog = ({
   // Load files for this event
   useEffect(() => {
     const loadFiles = async () => {
-      if (event?.id) {
-        try {
-          console.log("Loading files for event:", event.id);
-          console.log("Event type:", event.type);
-          console.log("Booking request ID:", event.booking_request_id);
+      if (!event?.id) return;
+      
+      try {
+        console.log("Loading files for event:", event.id);
+        console.log("Event type:", event.type);
+        console.log("Booking request ID:", event.booking_request_id);
+        
+        // Get files directly associated with this event
+        const { data: eventFiles, error: eventFilesError } = await supabase
+          .from('event_files')
+          .select('*')
+          .eq('event_id', event.id);
           
-          // First check if this is a booking request ID directly
-          const { data: eventFiles, error: eventFilesError } = await supabase
+        if (eventFilesError) {
+          console.error("Error loading event files:", eventFilesError);
+        } else if (eventFiles && eventFiles.length > 0) {
+          console.log("Found files directly associated with event ID:", eventFiles.length);
+        }
+        
+        // Get any files associated with the booking request that created this event
+        let relatedBookingFiles: any[] = [];
+        if (event.booking_request_id) {
+          console.log("This event has a booking request ID, checking for booking files:", event.booking_request_id);
+          
+          const { data: relatedFiles, error: relatedFilesError } = await supabase
             .from('event_files')
             .select('*')
-            .eq('event_id', event.id);
+            .eq('event_id', event.booking_request_id);
             
-          if (eventFilesError) {
-            console.error("Error loading event files:", eventFilesError);
-          } else if (eventFiles && eventFiles.length > 0) {
-            console.log("Found files directly associated with event ID:", eventFiles.length);
+          if (!relatedFilesError && relatedFiles) {
+            console.log("Found files from the original booking request:", relatedFiles.length);
+            relatedBookingFiles = relatedFiles;
           }
-          
-          // Get any files associated with the booking request that created this event
-          let relatedBookingFiles: any[] = [];
-          if (event.booking_request_id) {
-            console.log("This event has a booking request ID, checking for booking files:", event.booking_request_id);
-            
-            const { data: relatedFiles, error: relatedFilesError } = await supabase
-              .from('event_files')
-              .select('*')
-              .eq('event_id', event.booking_request_id);
-              
-            if (!relatedFilesError && relatedFiles) {
-              console.log("Found files from the original booking request:", relatedFiles.length);
-              relatedBookingFiles = relatedFiles;
-            }
-          }
-          
-          // Use a Set to track unique file IDs to avoid duplicates
-          const uniqueFileIds = new Set<string>();
-          const uniqueFiles: any[] = [];
-          
-          const allFiles = [...(eventFiles || []), ...relatedBookingFiles];
-          
-          allFiles.forEach(file => {
-            if (!uniqueFileIds.has(file.id)) {
-              uniqueFileIds.add(file.id);
-              uniqueFiles.push({
-                ...file,
-                parentType: 'event'
-              });
-            }
-          });
-          
-          if (uniqueFiles.length > 0) {
-            console.log("Loaded unique event files:", uniqueFiles.length);
-            setDisplayedFiles(uniqueFiles);
-          } else {
-            console.log("No files found for event or booking ID:", event.id);
-            setDisplayedFiles([]);
-          }
-          
-        } catch (err) {
-          console.error("Exception loading event files:", err);
         }
+        
+        // Use a Set to track unique file IDs to avoid duplicates
+        const uniqueFileIds = new Set<string>();
+        const uniqueFiles: any[] = [];
+        
+        const allFiles = [...(eventFiles || []), ...relatedBookingFiles];
+        
+        allFiles.forEach(file => {
+          if (!uniqueFileIds.has(file.id)) {
+            uniqueFileIds.add(file.id);
+            uniqueFiles.push({
+              ...file,
+              parentType: 'event'
+            });
+          }
+        });
+        
+        if (uniqueFiles.length > 0) {
+          console.log("Loaded unique event files:", uniqueFiles.length);
+          setDisplayedFiles(uniqueFiles);
+        } else {
+          console.log("No files found for event or booking ID:", event.id);
+          setDisplayedFiles([]);
+        }
+        
+      } catch (err) {
+        console.error("Exception loading event files:", err);
       }
     };
     
@@ -310,6 +313,7 @@ export const EventDialog = ({
     else if (normalizedPaymentStatus === 'not_paid') normalizedPaymentStatus = 'not_paid';
     
     console.log("Submitting with payment status:", normalizedPaymentStatus);
+    console.log("Submitting with payment amount:", paymentAmount);
     
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
@@ -341,7 +345,9 @@ export const EventDialog = ({
       console.log("Converting booking request to event:", { 
         wasBookingRequest, 
         isApprovingBookingRequest,
-        bookingRequestId: eventData.booking_request_id 
+        bookingRequestId: eventData.booking_request_id,
+        paymentStatus: eventData.payment_status,
+        paymentAmount: eventData.payment_amount
       });
     } else if (event?.type) {
       eventData.type = event.type;

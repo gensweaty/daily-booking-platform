@@ -52,7 +52,7 @@ export const BookingRequestForm = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
-  const { user } = useAuth(); // Add the user from auth context
+  const { user } = useAuth(); // Get the current user
   const isGeorgian = language === 'ka';
   
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
@@ -268,6 +268,7 @@ export const BookingRequestForm = ({
     
     let hasErrors = false;
     
+    // Validate required fields
     if (!fullName) {
       toast({
         title: t("common.error"),
@@ -297,6 +298,7 @@ export const BookingRequestForm = ({
     console.log("🔍 Starting booking submission process");
     
     try {
+      // Check rate limiting
       const lastRequestTime = localStorage.getItem(`booking_last_request_${businessId}`);
       if (lastRequestTime) {
         const now = new Date();
@@ -329,6 +331,7 @@ export const BookingRequestForm = ({
       console.log(`🔍 Creating booking request for business: ${businessId}`);
       console.log(`🔍 Start date: ${startDateTime.toISOString()}, End date: ${endDateTime.toISOString()}`);
       
+      // Parse payment amount if provided
       let parsedPaymentAmount = null;
       if (showPaymentAmount && paymentAmount) {
         parsedPaymentAmount = parseFloat(paymentAmount);
@@ -343,6 +346,7 @@ export const BookingRequestForm = ({
         amount: parsedPaymentAmount
       });
 
+      // Create booking request with payment information
       const { data, error } = await supabase
         .from('booking_requests')
         .insert({
@@ -370,6 +374,7 @@ export const BookingRequestForm = ({
 
       localStorage.setItem(`booking_last_request_${businessId}`, Date.now().toString());
       
+      // Handle email notification
       let emailSent = false;
       let emailError = null;
       
@@ -401,6 +406,7 @@ export const BookingRequestForm = ({
         emailError = emailErr.message || "Unknown email error";
       }
       
+      // Handle file upload
       if (selectedFile && data) {
         try {
           console.log("🔍 Processing file upload for booking request ID:", data.id);
@@ -417,6 +423,7 @@ export const BookingRequestForm = ({
             console.error('❌ Error uploading file:', uploadError);
           } else {
             console.log("✅ File uploaded successfully:", filePath);
+            
             const { error: fileError } = await supabase
               .from('event_files')
               .insert({
@@ -425,8 +432,7 @@ export const BookingRequestForm = ({
                 file_path: filePath,
                 content_type: selectedFile.type,
                 size: selectedFile.size,
-                // Use the authenticated user ID if available, otherwise leave as null
-                user_id: user?.id || null
+                user_id: user?.id || null // Use the authenticated user ID if available
               });
               
             if (fileError) {
@@ -440,8 +446,10 @@ export const BookingRequestForm = ({
         }
       }
       
+      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['business-bookings'] });
       
+      // Show success message
       if (emailSent) {
         toast({
           title: t("common.success"),
@@ -457,6 +465,7 @@ export const BookingRequestForm = ({
         console.warn(`⚠️ Booking created but email failed: ${emailError}`);
       }
       
+      // Reset form
       setFullName("");
       setEmail("");
       setPhone("");
@@ -465,10 +474,12 @@ export const BookingRequestForm = ({
       setPaymentStatus("not_paid");
       setPaymentAmount("");
       
+      // Call success callback if provided
       if (onSuccess) {
         onSuccess();
       }
       
+      // Enable rate limiting
       setRateLimitExceeded(true);
       setTimeRemaining(120);
       

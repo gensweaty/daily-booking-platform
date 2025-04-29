@@ -30,6 +30,9 @@ export const FileDisplay = ({
   const [viewImageUrl, setViewImageUrl] = useState<string | null>(null);
   const { t } = useLanguage();
   
+  console.log("FileDisplay rendered with files:", files);
+  console.log("File count:", files?.length || 0);
+  
   const handleDownload = async (file: FileRecord) => {
     try {
       setLoading(prev => ({ ...prev, [file.id]: true }));
@@ -131,6 +134,7 @@ export const FileDisplay = ({
   };
 
   if (!files || files.length === 0) {
+    console.log("No files to display");
     return null;
   }
 

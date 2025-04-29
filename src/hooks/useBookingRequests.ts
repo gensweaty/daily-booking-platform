@@ -75,7 +75,30 @@ export const useBookingRequests = () => {
     mutationFn: async (id: string) => {
       console.log("Starting booking approval process for ID:", id);
       
-      // Update booking request status first
+      // Get the full booking request data with all fields first
+      const { data: bookingData, error: fetchError } = await supabase
+        .from('booking_requests')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) {
+        console.error("Error fetching complete booking data:", fetchError);
+        throw fetchError;
+      }
+
+      console.log("Full booking data retrieved for approval:", bookingData);
+      
+      // Capture payment data before updating request status
+      const paymentStatus = bookingData.payment_status || 'not_paid';
+      const paymentAmount = bookingData.payment_amount;
+      
+      console.log("Payment data captured for transfer:", {
+        status: paymentStatus,
+        amount: paymentAmount
+      });
+
+      // Update booking request status
       const { data, error } = await supabase
         .from('booking_requests')
         .update({ status: 'approved' })
@@ -90,25 +113,7 @@ export const useBookingRequests = () => {
 
       console.log("Successfully updated booking request status to approved:", data);
 
-      // Get the full booking request data with all fields
-      const { data: bookingData, error: fetchError } = await supabase
-        .from('booking_requests')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (fetchError) {
-        console.error("Error fetching complete booking data:", fetchError);
-        throw fetchError;
-      }
-
-      console.log("Full booking data retrieved:", bookingData);
-      console.log("Creating event with payment data:", {
-        paymentStatus: bookingData.payment_status,
-        paymentAmount: bookingData.payment_amount
-      });
-
-      // Create an event based on the booking details
+      // Create an event based on the booking details with the payment information
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .insert({
@@ -119,8 +124,8 @@ export const useBookingRequests = () => {
           event_notes: bookingData.description,
           start_date: bookingData.start_date,
           end_date: bookingData.end_date,
-          payment_status: bookingData.payment_status || 'not_paid',
-          payment_amount: bookingData.payment_amount,
+          payment_status: paymentStatus, // Use the captured payment status
+          payment_amount: paymentAmount, // Use the captured payment amount
           user_id: user?.id,
           type: 'event',
           booking_request_id: id // Store reference to the original booking request
@@ -133,9 +138,9 @@ export const useBookingRequests = () => {
         throw eventError;
       }
 
-      console.log("Successfully created event from booking:", eventData);
+      console.log("Successfully created event from booking with payment data:", eventData);
 
-      // Also try to find any files associated with this booking request
+      // Find any files associated with this booking request
       const { data: files, error: filesError } = await supabase
         .from('event_files')
         .select('*')
