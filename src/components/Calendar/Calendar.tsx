@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, Dispatch, SetStateAction } from "react";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { format, addHours } from "date-fns";
 import { DayPicker } from "react-day-picker";
@@ -13,18 +14,38 @@ import { useToast } from "@/components/ui/use-toast";
 import { BookingRequestForm } from "@/components/business/BookingRequestForm";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { CalendarEventType } from "@/lib/types/calendar";
+import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 
 interface Props {
   className?: string;
+  defaultView?: CalendarViewType;
+  currentView?: CalendarViewType;
+  onViewChange?: Dispatch<SetStateAction<CalendarViewType>>;
+  isExternalCalendar?: boolean;
+  businessId?: string;
+  businessUserId?: string | null;
+  showAllEvents?: boolean;
+  allowBookingRequests?: boolean;
+  directEvents?: CalendarEventType[];
 }
 
 // Renamed to DatePickerWithEvents to avoid name conflict with Calendar export
-function DatePickerWithEvents({ className }: Props) {
+function DatePickerWithEvents({ 
+  className,
+  defaultView,
+  currentView,
+  onViewChange,
+  isExternalCalendar,
+  businessId,
+  businessUserId,
+  showAllEvents,
+  allowBookingRequests,
+  directEvents
+}: Props) {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [showEventDialog, setShowEventDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(businessId || null);
   const [showBookingForm, setShowBookingForm] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -35,6 +56,12 @@ function DatePickerWithEvents({ className }: Props) {
       setSelectedDate(date);
     }
   }, [date]);
+
+  useEffect(() => {
+    if (businessId) {
+      setSelectedBusinessId(businessId);
+    }
+  }, [businessId]);
 
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date || null);
