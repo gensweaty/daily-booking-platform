@@ -29,9 +29,6 @@ export const BookingRequestsList = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
 
-  // Filter out any soft-deleted requests that might have slipped through
-  const filteredRequests = requests.filter(request => !request.deleted_at);
-
   const handleDeleteClick = (id: string) => {
     setRequestToDelete(id);
     setDeleteDialogOpen(true);
@@ -45,7 +42,7 @@ export const BookingRequestsList = ({
     }
   };
 
-  if (filteredRequests.length === 0) {
+  if (requests.length === 0) {
     return (
       <div className="text-center p-10 border border-dashed rounded-lg">
         <div className="flex justify-center mb-4">
@@ -93,7 +90,7 @@ export const BookingRequestsList = ({
           <div className="text-right"><LanguageText>{t("business.actions")}</LanguageText></div>
         </div>
         <div className="divide-y">
-          {filteredRequests.map((request) => (
+          {requests.map((request) => (
             <div key={request.id} className="p-4 grid grid-cols-4 items-center">
               <div className="overflow-hidden">
                 <div className="font-medium truncate">{request.requester_name}</div>

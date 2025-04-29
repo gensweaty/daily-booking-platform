@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -32,18 +33,19 @@ export const EventDialog = ({
   event,
   isBookingRequest = false
 }: EventDialogProps) => {
-  // Always use user_surname as the primary name field to ensure consistency
-  const [title, setTitle] = useState("");
-  const [userSurname, setUserSurname] = useState("");
-  const [userNumber, setUserNumber] = useState("");
-  const [socialNetworkLink, setSocialNetworkLink] = useState("");
-  const [eventNotes, setEventNotes] = useState("");
+  // Always initialize with user_surname as the primary name field
+  // This ensures we're using the correct field for full name
+  const [title, setTitle] = useState(event?.user_surname || event?.title || "");
+  const [userSurname, setUserSurname] = useState(event?.user_surname || event?.title || "");
+  const [userNumber, setUserNumber] = useState(event?.user_number || "");
+  const [socialNetworkLink, setSocialNetworkLink] = useState(event?.social_network_link || "");
+  const [eventNotes, setEventNotes] = useState(event?.event_notes || "");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [originalStartDate, setOriginalStartDate] = useState("");
   const [originalEndDate, setOriginalEndDate] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("not_paid");
-  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState(event?.payment_status || "not_paid");
+  const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
@@ -63,6 +65,7 @@ export const EventDialog = ({
       console.log("Loading event data:", event);
       
       // Set both title and userSurname to the user_surname value for consistency
+      // If user_surname is missing, fall back to title
       const fullName = event.user_surname || event.title || "";
       setTitle(fullName);
       setUserSurname(fullName);
@@ -108,15 +111,12 @@ export const EventDialog = ({
       setOriginalEndDate(formattedEnd);
       setPaymentStatus("not_paid");
       
-      // Clear all other fields when creating a new event
       setTitle("");
       setUserSurname("");
       setUserNumber("");
       setSocialNetworkLink("");
       setEventNotes("");
       setPaymentAmount("");
-      setSelectedFile(null);
-      setFileError("");
     }
   }, [selectedDate, event, open]);
 
@@ -127,7 +127,7 @@ export const EventDialog = ({
         try {
           console.log("Loading files for event:", event.id);
           
-          // Get event files directly
+          // First get event files directly
           const { data: eventFiles, error: eventFilesError } = await supabase
             .from('event_files')
             .select('*')

@@ -43,7 +43,6 @@ export const useBookingRequests = () => {
         .from('booking_requests')
         .select('*')
         .eq('business_id', businessId)
-        .is('deleted_at', null) // Only get non-deleted booking requests
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -157,14 +156,14 @@ export const useBookingRequests = () => {
       
       console.log('Fetched booking request:', booking);
       
-      // Check for conflicts - make sure to exclude soft-deleted records in all conflict checks
+      // Check for conflicts
       const { data: conflictingEvents } = await supabase
         .from('events')
         .select('id, title')
         .eq('user_id', user.id)
         .filter('start_date', 'lt', booking.end_date)
         .filter('end_date', 'gt', booking.start_date)
-        .is('deleted_at', null); // Only check non-deleted events
+        .is('deleted_at', null);
       
       const { data: conflictingBookings } = await supabase
         .from('booking_requests')
@@ -173,8 +172,7 @@ export const useBookingRequests = () => {
         .eq('status', 'approved')
         .not('id', 'eq', bookingId)
         .filter('start_date', 'lt', booking.end_date)
-        .filter('end_date', 'gt', booking.start_date)
-        .is('deleted_at', null); // Only check non-deleted bookings
+        .filter('end_date', 'gt', booking.start_date);
       
       console.log('Conflicting events for current user:', conflictingEvents);
       console.log('Conflicting approved bookings:', conflictingBookings);
@@ -415,19 +413,15 @@ export const useBookingRequests = () => {
   
   const deleteMutation = useMutation({
     mutationFn: async (bookingId: string) => {
-      // Use soft delete instead of hard delete
       const { error } = await supabase
         .from('booking_requests')
-        .update({
-          deleted_at: new Date().toISOString()
-        })
+        .delete()
         .eq('id', bookingId);
       
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
       toast({
         title: "Success",
         description: "Booking request deleted"
