@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -126,7 +127,7 @@ export const EventDialog = ({
         try {
           console.log("Loading files for event:", event.id);
           
-          // First get event files directly
+          // Always fetch files directly from event_files table by event ID first
           const { data: eventFilesData, error: eventFilesError } = await supabase
             .from('event_files')
             .select('*')
@@ -134,55 +135,84 @@ export const EventDialog = ({
             
           if (eventFilesError) {
             console.error("Error loading event files:", eventFilesError);
-            return;
+          } else if (eventFilesData && eventFilesData.length > 0) {
+            console.log("Found event files in event_files table:", eventFilesData.length);
+            
+            const formattedFiles = eventFilesData.map(file => ({
+              ...file,
+              parentType: 'event'
+            }));
+            
+            setDisplayedFiles(formattedFiles);
+            return; // We've found files, no need to continue
+          } else {
+            console.log("No files found in event_files for event ID:", event.id);
           }
           
-          // Define a mutable variable for files
-          let allEventFiles = eventFilesData || [];
-          
-          // If this is a booking request, also check if there are files attached to it
-          if (event.type === 'booking_request') {
-            console.log("This is a booking request, checking for booking files");
+          // If this event has a booking_request_id, also check for files associated with that ID
+          if (event.booking_request_id) {
+            console.log("This event was created from booking_request_id:", event.booking_request_id);
             
-            // Check if we can find booking request files
-            const { data: bookingFiles } = await supabase
-              .rpc('get_booking_request_files', { booking_id_param: event.id });
+            const { data: bookingEventFiles, error: bookingFilesError } = await supabase
+              .from('event_files')
+              .select('*')
+              .eq('event_id', event.booking_request_id);
               
-            if (bookingFiles && bookingFiles.length > 0) {
-              console.log("Found booking request files:", bookingFiles.length);
+            if (bookingFilesError) {
+              console.error("Error loading files from original booking:", bookingFilesError);
+            } else if (bookingEventFiles && bookingEventFiles.length > 0) {
+              console.log("Found files from original booking:", bookingEventFiles.length);
               
-              // Combine the files
-              allEventFiles = [...allEventFiles, ...bookingFiles];
+              const formattedBookingFiles = bookingEventFiles.map(file => ({
+                ...file,
+                parentType: 'event',
+                source: 'booking_request'
+              }));
+              
+              setDisplayedFiles(formattedBookingFiles);
+              return; // Files found, no need to continue
+            } else {
+              console.log("No files found linked to the original booking request");
             }
           }
           
-          // Use a Set to track unique file IDs to avoid duplicates
-          const uniqueFileIds = new Set<string>();
-          const uniqueFiles: any[] = [];
-          
-          if (allEventFiles && allEventFiles.length > 0) {
-            allEventFiles.forEach(file => {
-              if (!uniqueFileIds.has(file.id)) {
-                uniqueFileIds.add(file.id);
-                uniqueFiles.push({
-                  ...file,
-                  parentType: 'event'
-                });
-              }
-            });
-          }
-          
-          if (uniqueFiles.length > 0) {
-            console.log("Loaded unique event files:", uniqueFiles);
-            setDisplayedFiles(uniqueFiles);
+          // As a fallback, try looking for files with the same name/title
+          if (event.title) {
+            console.log("Looking for files by event title:", event.title);
+            
+            const { data: relatedFiles, error: relatedError } = await supabase
+              .rpc('get_all_related_files', {
+                event_id_param: event.id,
+                customer_id_param: null,
+                entity_name_param: event.title
+              });
+              
+            if (relatedError) {
+              console.error("Error loading related files by name:", relatedError);
+            } else if (relatedFiles && relatedFiles.length > 0) {
+              console.log("Found related files by name:", relatedFiles.length);
+              
+              const formattedRelatedFiles = relatedFiles.map(file => ({
+                ...file,
+                parentType: 'event',
+                source: 'related_by_name'
+              }));
+              
+              setDisplayedFiles(formattedRelatedFiles);
+            } else {
+              console.log("No related files found by name");
+              setDisplayedFiles([]);
+            }
           } else {
-            console.log("No files found for event:", event.id);
+            console.log("No event title to search for related files");
             setDisplayedFiles([]);
           }
-          
         } catch (err) {
           console.error("Exception loading event files:", err);
+          setDisplayedFiles([]);
         }
+      } else {
+        setDisplayedFiles([]);
       }
     };
     
