@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { FileRecord } from '@/types/files';
@@ -30,7 +29,6 @@ export const FileDisplay = ({
   const [viewImageUrl, setViewImageUrl] = useState<string | null>(null);
   const { t } = useLanguage();
   
-  // Map content types to icons
   const getIconForFileType = (contentType: string | null) => {
     if (!contentType) return <File className="h-6 w-6 text-blue-500" />;
     

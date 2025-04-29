@@ -17,6 +17,11 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+// Helper function to format date display
+const formatDateDisplay = (date: Date): string => {
+  return format(date, "PPP HH:mm");
+};
+
 interface CustomerDialogFieldsProps {
   title: string;
   setTitle: (value: string) => void;
