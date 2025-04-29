@@ -1,4 +1,3 @@
-
 export interface Task {
   id: string;
   title: string;
@@ -26,7 +25,7 @@ export interface Reminder {
   description?: string;
   remind_at: string;
   created_at: string;
-  user_id?: string;
+  user_id: string;  // Making sure user_id is required, not optional
 }
 
 // Export BookingRequest from database.ts

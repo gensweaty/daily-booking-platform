@@ -490,9 +490,10 @@ export const getReminders = async (): Promise<Reminder[]> => {
 
 export const createReminder = async (reminder: Omit<Reminder, "id" | "created_at">): Promise<Reminder> => {
   try {
+    // Fix: Ensure we're passing a single object, not an array
     const { data, error } = await supabase
       .from("reminders")
-      .insert([reminder])
+      .insert(reminder)  // Remove the square brackets
       .select()
       .single();
       
