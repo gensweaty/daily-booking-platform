@@ -33,12 +33,13 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
   // Format the income value to have 2 decimal places and add currency symbol
   const formattedIncome = `${isSpanish ? '€' : '$'}${eventStats.totalIncome.toFixed(2)}`;
   
-  // Create descriptive payment information
-  const paymentDescription = (
-    <>
-      <LanguageText>{eventStats.partlyPaid} {t("dashboard.partlyPaid")}, {eventStats.fullyPaid} {t("dashboard.fullyPaid")}</LanguageText>
-    </>
-  );
+  // For debugging
+  console.log("StatsCards - Rendering with event stats:", {
+    total: eventStats.total,
+    partlyPaid: eventStats.partlyPaid,
+    fullyPaid: eventStats.fullyPaid,
+    totalIncome: eventStats.totalIncome
+  });
 
   return (
     <div className="grid gap-4 md:grid-cols-4">

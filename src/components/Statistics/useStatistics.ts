@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format, parseISO, eachDayOfInterval, endOfDay, startOfMonth, endOfMonth, differenceInMonths, addMonths, eachMonthOfInterval } from 'date-fns';
@@ -40,7 +39,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Optimize events stats query with more efficient date handling
+  // Optimize events stats query with more efficient date handling and include CRM events
   const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
     queryKey: eventStatsQueryKey,
     queryFn: async () => {
@@ -58,7 +57,8 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = endOfDay(dateRange.end).toISOString();
       
-      const { data: events, error } = await supabase
+      // Get all calendar events
+      const { data: calendarEvents, error: calendarError } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
@@ -66,19 +66,81 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         .lte('start_date', endDateStr)
         .is('deleted_at', null);
 
-      if (error) {
-        console.error('Error fetching event stats:', error);
-        throw error;
+      if (calendarError) {
+        console.error('Error fetching calendar event stats:', calendarError);
+        throw calendarError;
       }
+      
+      // Get all customers with create_event=true (events created from CRM)
+      const { data: crmEvents, error: crmError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('create_event', true)
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
+        .is('deleted_at', null);
+        
+      if (crmError) {
+        console.error('Error fetching CRM event stats:', crmError);
+        throw crmError;
+      }
+      
+      console.log(`Statistics - Found ${calendarEvents?.length || 0} calendar events and ${crmEvents?.length || 0} CRM events`);
+      
+      // Normalize payment status values
+      const normalizePaymentStatus = (status: string | null | undefined) => {
+        if (!status) return 'not_paid';
+        if (status.includes('partly')) return 'partly_paid';
+        if (status.includes('fully')) return 'fully_paid';
+        if (status.includes('not')) return 'not_paid';
+        return status;
+      };
+      
+      // Combine all events, ensuring CRM events aren't duplicated
+      // Use a Map to prevent duplications by start_date and end_date
+      const eventsMap = new Map();
+      
+      // First add calendar events
+      calendarEvents?.forEach(event => {
+        const key = `${event.start_date}-${event.end_date}-${event.title}`;
+        eventsMap.set(key, {
+          ...event,
+          payment_status: normalizePaymentStatus(event.payment_status)
+        });
+      });
+      
+      // Then add CRM events if they don't already exist
+      crmEvents?.forEach(event => {
+        const key = `${event.start_date}-${event.end_date}-${event.title}`;
+        if (!eventsMap.has(key)) {
+          eventsMap.set(key, {
+            id: event.id,
+            title: event.title,
+            user_surname: event.user_surname || event.title,
+            start_date: event.start_date,
+            end_date: event.end_date,
+            payment_status: normalizePaymentStatus(event.payment_status),
+            payment_amount: event.payment_amount,
+            type: event.type || 'event',
+            created_at: event.created_at,
+            user_id: event.user_id,
+            // Other fields can be null or defaults
+          });
+        }
+      });
+      
+      // Convert Map back to array
+      const allEvents = Array.from(eventsMap.values());
+      console.log(`Statistics - Combined into ${allEvents.length} total unique events`);
 
-      // Get payment status counts - Fix: use 'partly_paid' and 'fully_paid' as database values
-      // Also handle 'partly' and 'fully' formats for compatibility
-      const partlyPaid = events?.filter(e => 
-        e.payment_status === 'partly_paid' || e.payment_status === 'partly'
+      // Get payment status counts using normalized values
+      const partlyPaid = allEvents.filter(e => 
+        normalizePaymentStatus(e.payment_status) === 'partly_paid'
       ).length || 0;
       
-      const fullyPaid = events?.filter(e => 
-        e.payment_status === 'fully_paid' || e.payment_status === 'fully'
+      const fullyPaid = allEvents.filter(e => 
+        normalizePaymentStatus(e.payment_status) === 'fully_paid'
       ).length || 0;
 
       // Get all days in the selected range for daily bookings
@@ -88,7 +150,8 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       });
 
       const dailyBookings = daysInRange.map(day => {
-        const dayEvents = events?.filter(event => {
+        const dayEvents = allEvents.filter(event => {
+          if (!event.start_date) return false;
           const eventDate = parseISO(event.start_date);
           return format(eventDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
         });
@@ -123,65 +186,54 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         });
       }
 
-      // Fetch monthly data in a more efficient way
-      const monthlyIncome = await Promise.all(monthsToCompare.map(async (month) => {
+      // Fetch monthly data directly from all events we've already collected
+      const monthlyIncome = monthsToCompare.map(month => {
         const monthStart = startOfMonth(month);
-        const monthEnd = endOfMonth(month);
+        const monthEnd = endOfDay(endOfMonth(month));
         
-        const { data: monthEvents, error: monthError } = await supabase
-          .from('events')
-          .select('payment_status,payment_amount')  // Only select needed fields
-          .eq('user_id', userId)
-          .gte('start_date', monthStart.toISOString())
-          .lte('start_date', endOfDay(monthEnd).toISOString())
-          .is('deleted_at', null);
-
-        if (monthError) {
-          console.error('Error fetching monthly income:', monthError);
-          return {
-            month: format(month, 'MMM yyyy'),
-            income: 0,
-          };
-        }
-
-        // Fix: calculate income from events with partly_paid/fully_paid or partly/fully
+        // Filter events within this month
+        const monthEvents = allEvents.filter(event => {
+          if (!event.start_date) return false;
+          const eventDate = parseISO(event.start_date);
+          return eventDate >= monthStart && eventDate <= monthEnd;
+        });
+        
+        // Calculate income from events with valid payment status
+        const income = monthEvents.reduce((acc, event) => {
+          const status = normalizePaymentStatus(event.payment_status);
+          const isPaid = status === 'fully_paid' || status === 'partly_paid';
+                           
+          if (isPaid && event.payment_amount) {
+            return acc + Number(event.payment_amount);
+          }
+          return acc;
+        }, 0);
+        
         return {
           month: format(month, 'MMM yyyy'),
-          income: monthEvents?.reduce((acc, event) => {
-            const isPaid = event.payment_status === 'fully_paid' || 
-                           event.payment_status === 'partly_paid' ||
-                           event.payment_status === 'fully' ||
-                           event.payment_status === 'partly';
-                           
-            if (isPaid && event.payment_amount) {
-              return acc + Number(event.payment_amount);
-            }
-            return acc;
-          }, 0) || 0,
+          income: income || 0,
         };
-      }));
+      });
 
-      // Fix: calculate total income correctly considering both payment status formats
-      const totalIncome = events?.reduce((acc, event) => {
-        const isPaid = event.payment_status === 'fully_paid' || 
-                       event.payment_status === 'partly_paid' ||
-                       event.payment_status === 'fully' ||
-                       event.payment_status === 'partly';
+      // Calculate total income correctly using normalized payment statuses
+      const totalIncome = allEvents.reduce((acc, event) => {
+        const status = normalizePaymentStatus(event.payment_status);
+        const isPaid = status === 'fully_paid' || status === 'partly_paid';
                        
         if (isPaid && event.payment_amount) {
           return acc + Number(event.payment_amount);
         }
         return acc;
-      }, 0) || 0;
+      }, 0);
 
       return {
-        total: events?.length || 0,
+        total: allEvents.length || 0,
         partlyPaid,
         fullyPaid,
         dailyStats: dailyBookings,
         monthlyIncome,
         totalIncome,
-        events: events || [],
+        events: allEvents || [],
       };
     },
     enabled: !!userId,

@@ -56,6 +56,18 @@ export const Statistics = () => {
   const chartData = useMemo(() => eventStats?.dailyStats || [], [eventStats?.dailyStats]);
   const incomeData = useMemo(() => eventStats?.monthlyIncome || [], [eventStats?.monthlyIncome]);
 
+  // Additional debugging to verify data
+  useMemo(() => {
+    if (eventStats) {
+      console.log("Statistics component - Displaying stats:", { 
+        total: eventStats.total,
+        partlyPaid: eventStats.partlyPaid,
+        fullyPaid: eventStats.fullyPaid,
+        totalIncome: eventStats.totalIncome
+      });
+    }
+  }, [eventStats]);
+
   return (
     <div className="space-y-6">
       <StatsHeader 
