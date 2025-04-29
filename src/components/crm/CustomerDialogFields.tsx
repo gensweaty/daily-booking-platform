@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -16,11 +17,6 @@ import { CalendarIcon, Clock, ChevronUp, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-// Helper function to format date display
-const formatDateDisplay = (date: Date): string => {
-  return format(date, "PPP HH:mm");
-};
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -151,6 +147,10 @@ export const CustomerDialogFields = ({
         </div>
       </div>
     );
+  };
+
+  const formatDateDisplay = (date: Date) => {
+    return format(date, 'MM/dd/yyyy HH:mm');
   };
 
   // Generate time options for hours selection grid - full 24 hours
@@ -489,7 +489,7 @@ export const CustomerDialogFields = ({
           <FileDisplay 
             files={displayedFiles} 
             bucketName="customer_attachments"
-            allowDelete={true}
+            allowDelete
             onFileDeleted={onFileDeleted}
             parentType="customer"
           />

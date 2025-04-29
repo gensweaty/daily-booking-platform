@@ -37,7 +37,6 @@ interface EventDialogFieldsProps {
   displayedFiles: FileRecord[];
   onFileDeleted: (fileId: string) => void;
   isBookingRequest?: boolean;
-  isLoading?: boolean; // Added isLoading prop
 }
 
 export const EventDialogFields = ({
@@ -67,21 +66,15 @@ export const EventDialogFields = ({
   displayedFiles,
   onFileDeleted,
   isBookingRequest = false,
-  isLoading = false, // Added default value for isLoading
 }: EventDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
   
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
   
-  // Show payment amount if status is partly_paid/partly or fully_paid/fully
+  // Only show payment amount if status is partly_paid or fully_paid
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid" || 
                            paymentStatus === "partly" || paymentStatus === "fully";
-  
-  // Log payment status for debugging
-  console.log("EventDialogFields - Current payment status:", paymentStatus);
-  console.log("EventDialogFields - Show payment amount field:", showPaymentAmount);
-  console.log("EventDialogFields - Current payment amount:", paymentAmount);
   
   return (
     <>
@@ -207,39 +200,34 @@ export const EventDialogFields = ({
           id="eventNotes"
           value={eventNotes}
           onChange={(e) => setEventNotes(e.target.value)}
-          className="min-h-[100px]"
-          placeholder={isBookingRequest ? t("events.addBookingNotes") : t("events.addEventNotes")}
+          placeholder={t("events.addEventNotes")}
+          className="min-h-[100px] resize-none"
         />
       </div>
       
-      {displayedFiles && displayedFiles.length > 0 && (
-        <div>
-          <Label className={labelClass}>
-            <LanguageText>{t("events.attachments")}</LanguageText>
-          </Label>
-          <FileDisplay 
-            files={displayedFiles} 
-            bucketName="event_attachments"
-            allowDelete={true}
-            onFileDeleted={onFileDeleted}
-            parentType="event" 
-            parentId={eventId}
-            isLoading={isLoading} // Pass isLoading to FileDisplay component
-          />
-        </div>
-      )}
-
       <div>
-        <Label className={labelClass}>
-          <LanguageText>{t("events.uploadFile")}</LanguageText>
+        <Label htmlFor="file" className={labelClass}>
+          <LanguageText>{t("common.attachments")}</LanguageText>
         </Label>
-        <FileUploadField 
+        <FileUploadField
           onChange={setSelectedFile}
           fileError={fileError}
           setFileError={setFileError}
-          bookingRequestId={isBookingRequest ? eventId : undefined}
+          acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
         />
       </div>
+      
+      {displayedFiles.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <FileDisplay
+            files={displayedFiles}
+            bucketName="event_attachments"
+            allowDelete={true}
+            onFileDeleted={onFileDeleted}
+            parentType="event"
+          />
+        </div>
+      )}
     </>
   );
 };

@@ -54,7 +54,7 @@ export interface BookingRequest {
   description?: string;
   start_date: string; // ISO format date string
   end_date: string;   // ISO format date string
-  status: 'pending' | 'approved' | 'rejected' | 'deleted';
+  status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
   deleted_at?: string; // Added this field for soft deletion
@@ -63,8 +63,6 @@ export interface BookingRequest {
   user_number?: string;
   social_network_link?: string;
   event_notes?: string;
-  payment_status?: 'not_paid' | 'partly_paid' | 'fully_paid' | 'partly' | 'fully';
+  payment_status?: string;
   payment_amount?: number | null;
-  files?: any[]; // Added to track associated files
-  file_count?: number; // Track the number of files
 }
