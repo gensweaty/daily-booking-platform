@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -22,6 +23,7 @@ export interface CustomerType {
   user_id?: string;
   start_date?: string;
   end_date?: string;
+  deleted_at?: string; // Added to maintain consistency with CalendarEventType
 }
 
 interface CustomerDialogProps {

@@ -72,7 +72,9 @@ export const EventDialogFields = ({
   
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
   
-  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
+  // Only show payment amount if status is partly_paid or fully_paid
+  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid" || 
+                           paymentStatus === "partly" || paymentStatus === "fully";
   
   return (
     <>
