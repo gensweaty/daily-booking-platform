@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Calendar } from "./Calendar"; // This will now work because we're exporting it
+import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";

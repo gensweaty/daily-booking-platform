@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -128,7 +127,7 @@ export const EventDialog = ({
         try {
           console.log("Loading files for event:", event.id);
           
-          // Get event files directly 
+          // Get event files directly
           const { data: eventFiles, error: eventFilesError } = await supabase
             .from('event_files')
             .select('*')
@@ -139,36 +138,32 @@ export const EventDialog = ({
             return;
           }
           
-          // For booking requests, check booking_files table and event_files
-          let allFiles = [...(eventFiles || [])];
+          // If this is from a booking request that was approved, also check for files with the booking request ID
+          const allFiles = [...(eventFiles || [])];
           
-          if (isBookingRequest || event.type === 'booking_request') {
-            console.log("This is a booking request, checking for booking files:", event.id);
-            
-            // Check event_files with the booking request ID first
-            const { data: bookingFiles, error: bookingFilesError } = await supabase
-              .from('event_files')
-              .select('*')
-              .eq('event_id', event.id);
-              
-            if (!bookingFilesError && bookingFiles && bookingFiles.length > 0) {
-              console.log("Found files associated with booking request in event_files:", bookingFiles.length);
-              // Files are already in the event_files table with event_id = booking_id
-              allFiles = [...allFiles, ...bookingFiles];
-            }
-          }
-          
-          // If this event was created from a booking request, also check for files with the original booking request ID
           if (event.booking_request_id) {
             console.log("This event has a booking request ID, checking for booking files:", event.booking_request_id);
             
-            const { data: bookingRequestFiles, error: bookingRequestFilesError } = await supabase
+            const { data: bookingFiles, error: bookingFilesError } = await supabase
               .from('event_files')
               .select('*')
               .eq('event_id', event.booking_request_id);
               
-            if (!bookingRequestFilesError && bookingRequestFiles && bookingRequestFiles.length > 0) {
-              console.log("Found files from the original booking request:", bookingRequestFiles.length);
+            if (!bookingFilesError && bookingFiles && bookingFiles.length > 0) {
+              console.log("Found files from the original booking request:", bookingFiles);
+              allFiles.push(...bookingFiles);
+            }
+          }
+          
+          if (isBookingRequest && event.type === 'booking_request') {
+            // For booking requests, we want to show files associated with this booking request
+            const { data: bookingRequestFiles, error: bookingRequestFilesError } = await supabase
+              .from('event_files')
+              .select('*')
+              .eq('event_id', event.id);
+              
+            if (!bookingRequestFilesError && bookingRequestFiles) {
+              console.log("Found files for booking request:", bookingRequestFiles.length);
               allFiles.push(...bookingRequestFiles);
             }
           }
@@ -188,7 +183,7 @@ export const EventDialog = ({
           });
           
           if (uniqueFiles.length > 0) {
-            console.log("Loaded unique event/booking files:", uniqueFiles.length);
+            console.log("Loaded unique event files:", uniqueFiles.length);
             setDisplayedFiles(uniqueFiles);
           } else {
             console.log("No files found for event or booking ID:", event.id);
