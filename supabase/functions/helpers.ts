@@ -2,59 +2,71 @@
 // This function will be used by our edge functions to get booking request files
 export const getBookingRequestFiles = async (supabase: any, bookingId: string) => {
   try {
-    // Get files from the event_files table first (files are stored here)
-    const { data, error } = await supabase
+    console.log(`Getting files for booking ID: ${bookingId}`);
+    const allFiles = [];
+    
+    // STEP 1: Check event_files table first (this is where approved booking files end up)
+    const { data: eventFilesData, error: eventFilesError } = await supabase
       .from('event_files')
       .select('*')
       .eq('event_id', bookingId);
       
-    if (error) throw error;
-    
-    // If files found in event_files, return them
-    if (data && data.length > 0) {
-      return data;
+    if (eventFilesError) {
+      console.error("Error fetching from event_files:", eventFilesError);
+    } else if (eventFilesData && eventFilesData.length > 0) {
+      console.log(`Found ${eventFilesData.length} files in event_files`);
+      allFiles.push(...eventFilesData.map(file => ({
+        ...file,
+        source: 'event_files'
+      })));
     }
     
-    // Try booking_files table next (this should be the main source for pending bookings)
+    // STEP 2: Check booking_files table next (this is for pending booking files)
     const { data: bookingFileData, error: bookingFileError } = await supabase
       .from('booking_files')
       .select('*')
       .eq('booking_request_id', bookingId);
       
-    if (bookingFileError) throw bookingFileError;
-    
-    // If files found in booking_files, return them
-    if (bookingFileData && bookingFileData.length > 0) {
-      return bookingFileData;
+    if (bookingFileError) {
+      console.error("Error fetching from booking_files:", bookingFileError);
+    } else if (bookingFileData && bookingFileData.length > 0) {
+      console.log(`Found ${bookingFileData.length} files in booking_files`);
+      allFiles.push(...bookingFileData.map(file => ({
+        ...file,
+        source: 'booking_files'
+      })));
     }
     
-    // Fallback: check if the booking request has file metadata directly
-    const { data: bookingData, error: bookingError } = await supabase
-      .from('booking_requests')
-      .select('*')  // Select all columns to avoid type errors
-      .eq('id', bookingId)
-      .maybeSingle();
-      
-    if (bookingError) throw bookingError;
-    
-    // If booking has file metadata, return it as a file entry
-    if (bookingData && bookingData.file_path) {
-      return [{
-        id: `fallback_${bookingId}`,
-        booking_request_id: bookingId,
-        filename: bookingData.filename || 'attachment',
-        file_path: bookingData.file_path,
-        content_type: bookingData.content_type || 'application/octet-stream',
-        size: bookingData.file_size || 0,
-        created_at: new Date().toISOString(),
-        source: 'booking_request_direct'
-      }];
+    // STEP 3: Fallback - check if the booking request has file metadata directly
+    if (allFiles.length === 0) {
+      console.log("No files found in dedicated tables, checking booking_requests for file metadata");
+      const { data: bookingData, error: bookingError } = await supabase
+        .from('booking_requests')
+        .select('*')
+        .eq('id', bookingId)
+        .maybeSingle();
+        
+      if (bookingError) {
+        console.error("Error fetching from booking_requests:", bookingError);
+      } else if (bookingData && bookingData.file_path) {
+        console.log("Found file metadata directly in booking_requests");
+        allFiles.push({
+          id: `fallback_${bookingId}`,
+          booking_request_id: bookingId,
+          filename: bookingData.filename || 'attachment',
+          file_path: bookingData.file_path,
+          content_type: bookingData.content_type || 'application/octet-stream',
+          size: bookingData.file_size || bookingData.size || 0,
+          created_at: new Date().toISOString(),
+          source: 'booking_request_direct'
+        });
+      }
     }
     
-    // No files found in either location
-    return [];
+    console.log(`Total files found for booking ID ${bookingId}: ${allFiles.length}`);
+    return allFiles;
   } catch (err) {
-    console.error("Error getting booking request files:", err);
+    console.error("Error in getBookingRequestFiles:", err);
     return [];
   }
 };

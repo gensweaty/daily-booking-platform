@@ -144,6 +144,7 @@ export const useBookingRequests = () => {
         throw new Error('User not authenticated');
       }
       
+      // Fetch the booking request first to get all details
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
         .select('*')
@@ -181,6 +182,7 @@ export const useBookingRequests = () => {
         throw new Error('Time slot is no longer available');
       }
       
+      // Update the booking status to approved
       const { error: updateError } = await supabase
         .from('booking_requests')
         .update({ status: 'approved' })
@@ -190,6 +192,7 @@ export const useBookingRequests = () => {
       
       console.log('Booking request approved, creating event entry');
       
+      // Create an event from the booking
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .insert({
@@ -204,7 +207,12 @@ export const useBookingRequests = () => {
           type: 'booking_request',
           booking_request_id: booking.id,
           payment_status: booking.payment_status || 'not_paid',
-          payment_amount: booking.payment_amount
+          payment_amount: booking.payment_amount,
+          // Include file metadata if present
+          file_path: booking.file_path || null,
+          filename: booking.filename || null,
+          content_type: booking.content_type || null,
+          file_size: booking.file_size || booking.size || null
         })
         .select()
         .single();
@@ -216,11 +224,12 @@ export const useBookingRequests = () => {
       
       console.log('Created event:', eventData);
       
+      // Create customer record
       const { data: customerData, error: customerError } = await supabase
         .from('customers')
         .insert({
           title: booking.requester_name,
-          user_surname: booking.user_surname || null,
+          user_surname: booking.user_surname || booking.requester_name || null,
           user_number: booking.requester_phone || booking.user_number || null,
           social_network_link: booking.requester_email || booking.social_network_link || null,
           event_notes: booking.description || booking.event_notes || null,
@@ -241,44 +250,57 @@ export const useBookingRequests = () => {
         console.log('Created customer:', customerData);
       }
       
-      // Use the get_booking_request_files function to fetch files associated with the booking
-      // This looks for files in the booking_files table
-      console.log('Fetching booking files using get_booking_request_files for booking ID:', bookingId);
-      let { data: bookingFiles, error: filesError } = await supabase
-        .rpc('get_booking_request_files', { booking_id_param: bookingId });
+      // IMPROVED FILE HANDLING: First get all files using our helper
+      console.log('Fetching all booking files for booking ID:', bookingId);
+      let allBookingFiles = [];
       
-      if (filesError) {
-        console.error('Error fetching booking files:', filesError);
-      }
-      
-      console.log('Found booking files:', bookingFiles);
-      
-      // FALLBACK: Check booking_requests.file_path if no files found in booking_files
-      if (!bookingFiles || bookingFiles.length === 0) {
-        console.log('No files found in booking_files, checking booking_requests for file_path');
-        if (booking.file_path) {
-          console.log('Fallback: Found file in booking_requests:', booking.file_path);
-          bookingFiles = [{
+      try {
+        // First check booking_files table directly 
+        const { data: bookingFiles, error: filesError } = await supabase
+          .from('booking_files')
+          .select('*')
+          .eq('booking_request_id', bookingId);
+        
+        if (filesError) {
+          console.error('Error fetching booking files:', filesError);
+        } else {
+          console.log('Found booking files in booking_files table:', bookingFiles?.length);
+          allBookingFiles = bookingFiles || [];
+        }
+        
+        // FALLBACK: Try using the RPC function if nothing found in booking_files
+        if (!allBookingFiles.length) {
+          console.log('No files found in booking_files, trying get_booking_request_files RPC');
+          const { data: rpcFiles, error: rpcError } = await supabase
+            .rpc('get_booking_request_files', { booking_id_param: bookingId });
+            
+          if (rpcError) {
+            console.error('Error using get_booking_request_files RPC:', rpcError);
+          } else {
+            console.log('Files found via RPC:', rpcFiles?.length);
+            allBookingFiles = rpcFiles || [];
+          }
+        }
+
+        // FINAL FALLBACK: Check booking_requests.file_path if still no files found
+        if (!allBookingFiles.length && booking.file_path) {
+          console.log('Fallback: Using file metadata from booking_requests:', booking.file_path);
+          allBookingFiles = [{
             filename: booking.filename || 'attachment',
             file_path: booking.file_path,
             content_type: booking.content_type || 'application/octet-stream',
             size: booking.file_size || booking.size || 0
           }];
         }
-      }
+          
+        console.log(`Processing ${allBookingFiles.length} files for the booking`);
         
-      if (bookingFiles && bookingFiles.length > 0) {
-        console.log(`Processing ${bookingFiles.length} files for the booking`);
-        
-        for (const file of bookingFiles) {
+        for (const file of allBookingFiles) {
           try {
             console.log(`Processing file: ${file.filename}, path: ${file.file_path}`);
             
-            // IMPROVED APPROACH: Insert references to the original files instead of copying
-            console.log('Creating event_files record with original file path');
-            
             // Create the event_files record pointing to the original file
-            const { error: eventFileError } = await supabase
+            const { data: eventFileData, error: eventFileError } = await supabase
               .from('event_files')
               .insert({
                 filename: file.filename,
@@ -288,18 +310,20 @@ export const useBookingRequests = () => {
                 user_id: user?.id,
                 event_id: eventData.id,
                 source: 'booking_request'
-              });
+              })
+              .select()
+              .single();
             
             if (eventFileError) {
               console.error('Error creating event file record:', eventFileError);
             } else {
-              console.log('Successfully created event_files record with original path');
+              console.log('Successfully created event_files record:', eventFileData);
             }
             
             // If we have a customer, also create a customer file record
             if (customerData) {
               console.log('Creating customer_files_new record with original file path');
-              const { error: customerFileError } = await supabase
+              const { data: customerFileData, error: customerFileError } = await supabase
                 .from('customer_files_new')
                 .insert({
                   filename: file.filename,
@@ -309,18 +333,22 @@ export const useBookingRequests = () => {
                   user_id: user?.id,
                   customer_id: customerData.id,
                   source: 'booking_request'
-                });
+                })
+                .select()
+                .single();
               
               if (customerFileError) {
                 console.error('Error creating customer file record:', customerFileError);
               } else {
-                console.log('Successfully created customer_files_new record with original path');
+                console.log('Successfully created customer_files_new record:', customerFileData);
               }
             }
           } catch (error) {
             console.error('Error processing file:', error);
           }
         }
+      } catch (fileError) {
+        console.error("Error handling files during booking approval:", fileError);
       }
     
       if (booking && booking.requester_email) {
