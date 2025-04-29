@@ -256,6 +256,7 @@ export const CustomerDialog = ({
       }
 
       let emailResult: EmailResult = { success: false };
+      let eventId: string | undefined;
 
       if (createEvent) {
         const eventData = {
@@ -270,7 +271,7 @@ export const CustomerDialog = ({
           payment_amount: paymentStatus && paymentStatus !== 'not_paid' ? parseFloat(paymentAmount) : null,
           user_id: user?.id,
           customer_id: customerId,
-          type: 'event'  // Add the type field to ensure it appears in the calendar
+          type: 'event'  // Explicitly set the type field to ensure it appears in the calendar
         };
 
         console.log("Creating event with data:", eventData);
@@ -285,6 +286,7 @@ export const CustomerDialog = ({
           console.error("Error creating event:", eventError);
         } else {
           console.log("Created event:", eventData2);
+          eventId = eventData2.id;
           
           if (socialNetworkLink && socialNetworkLink.includes('@')) {
             try {
@@ -327,33 +329,67 @@ export const CustomerDialog = ({
         }
       }
 
-      if (selectedFile && customerId) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${customerId}_${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('event_attachments')
-          .upload(filePath, selectedFile);
-
-        if (uploadError) {
-          console.error('Error uploading file:', uploadError);
-          throw uploadError;
-        }
-
-        const { error: fileError } = await supabase
-          .from('customer_files_new')
-          .insert({
+      if (selectedFile) {
+        try {
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `${Date.now()}_${customerId}.${fileExt}`;
+          
+          // Upload file to storage
+          const { error: uploadError } = await supabase.storage
+            .from('event_attachments')
+            .upload(filePath, selectedFile);
+  
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            throw uploadError;
+          }
+  
+          // Create customer file record
+          const customerFileData = {
             customer_id: customerId,
             filename: selectedFile.name,
             file_path: filePath,
             content_type: selectedFile.type,
             size: selectedFile.size,
             user_id: user?.id
+          };
+          
+          const { error: customerFileError } = await supabase
+            .from('customer_files_new')
+            .insert(customerFileData);
+  
+          if (customerFileError) {
+            console.error('Error creating customer file record:', customerFileError);
+            throw customerFileError;
+          }
+          
+          // If event was created, also create event file record
+          if (createEvent && eventId) {
+            const eventFileData = {
+              event_id: eventId,
+              filename: selectedFile.name,
+              file_path: filePath,
+              content_type: selectedFile.type,
+              size: selectedFile.size,
+              user_id: user?.id
+            };
+            
+            const { error: eventFileError } = await supabase
+              .from('event_files')
+              .insert(eventFileData);
+  
+            if (eventFileError) {
+              console.error('Error creating event file record:', eventFileError);
+              // Don't throw here, continue with customer file at least
+            }
+          }
+        } catch (fileError) {
+          console.error('Error handling file upload:', fileError);
+          toast({
+            title: t("common.warning"),
+            description: t("Customer created but file upload failed"),
+            variant: "destructive",
           });
-
-        if (fileError) {
-          console.error('Error creating file record:', fileError);
-          throw fileError;
         }
       }
 
@@ -377,6 +413,7 @@ export const CustomerDialog = ({
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
     } catch (error: any) {
       console.error('Error submitting customer:', error);
       toast({
