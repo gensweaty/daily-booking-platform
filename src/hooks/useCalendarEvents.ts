@@ -212,9 +212,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         requester_email: booking.requester_email || '',
         requester_phone: booking.requester_phone || '',
         description: booking.description || '',
-        deleted_at: booking.deleted_at, // Add deleted_at to the mapped object
-        payment_status: booking.payment_status || 'not_paid',
-        payment_amount: booking.payment_amount
+        deleted_at: booking.deleted_at // Add deleted_at to the mapped object
       }));
       
       return bookingEvents;
@@ -244,14 +242,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       event.type = 'event';
     }
     
-    // Check if this is created from a booking request
-    const isFromBookingRequest = !!event.booking_request_id;
-    
-    console.log("Creating event with data:", { 
-      ...event, 
-      user_id: user.id,
-      from_booking: isFromBookingRequest 
-    });
+    console.log("Creating event with data:", { ...event, user_id: user.id });
     
     const { data, error } = await supabase
       .from('events')
@@ -265,24 +256,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
     
     console.log("Successfully created event:", data);
-    
-    // If this event was created from a booking request, update the booking request status
-    if (isFromBookingRequest && event.booking_request_id) {
-      try {
-        const { error: updateError } = await supabase
-          .from('booking_requests')
-          .update({ status: 'approved' })
-          .eq('id', event.booking_request_id);
-          
-        if (updateError) {
-          console.error("Error updating booking request status:", updateError);
-        } else {
-          console.log(`Updated booking request ${event.booking_request_id} status to approved`);
-        }
-      } catch (bookingError) {
-        console.error("Error updating booking request:", bookingError);
-      }
-    }
     
     toast({
       title: "Event created",
@@ -363,7 +336,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
-    // Handle updating a booking request (booking_requests table)
     if (data.type === 'booking_request' || (id && typeof id === 'string' && id.includes('-'))) {
       try {
         console.log("Checking for booking request with ID:", id);
@@ -385,8 +357,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               description: data.event_notes,
               start_date: data.start_date,
               end_date: data.end_date,
-              payment_status: data.payment_status,
-              payment_amount: data.payment_amount,
               updated_at: new Date().toISOString()
             })
             .eq('id', id)
@@ -415,8 +385,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             requester_name: updatedBooking.requester_name,
             requester_email: updatedBooking.requester_email,
             requester_phone: updatedBooking.requester_phone || '',
-            payment_status: updatedBooking.payment_status,
-            payment_amount: updatedBooking.payment_amount
           } as CalendarEventType;
         } else {
           console.log("No booking request found with ID:", id);
@@ -426,54 +394,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
-    // For converting a booking request to an event
-    if (data.booking_request_id) {
-      console.log("Converting booking request to event with data:", data);
-      
-      // Create a new event record
-      const { data: newEvent, error: createError } = await supabase
-        .from('events')
-        .insert({
-          title: data.title,
-          user_surname: data.user_surname,
-          user_number: data.user_number,
-          social_network_link: data.social_network_link,
-          event_notes: data.event_notes,
-          start_date: data.start_date,
-          end_date: data.end_date,
-          payment_status: data.payment_status,
-          payment_amount: data.payment_amount,
-          type: 'event',
-          booking_request_id: data.booking_request_id,
-          user_id: user.id
-        })
-        .select()
-        .single();
-        
-      if (createError) throw createError;
-      
-      // Update the booking request status to approved
-      const { error: updateError } = await supabase
-        .from('booking_requests')
-        .update({ 
-          status: 'approved',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', data.booking_request_id);
-        
-      if (updateError) {
-        console.error("Error updating booking request status:", updateError);
-      }
-      
-      toast({
-        title: "Booking approved",
-        description: "The booking request has been approved and converted to an event."
-      });
-      
-      return newEvent;
-    }
-    
-    // Update a regular event
     console.log("Updating standard event:", id);
     const { data: updatedEvent, error } = await supabase
       .from('events')
@@ -760,15 +680,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
 
     try {
-      // Handle associated files - no action needed as we're using soft delete 
-      // and files will remain in the database but just won't be displayed
+      // Handle associated files
       const { data: files } = await supabase
         .from('event_files')
         .select('*')
         .eq('event_id', id);
 
       if (files && files.length > 0) {
-        console.log(`Found ${files.length} associated files - they will remain in storage`);
+        // We're not deleting the actual files, just updating the relationship
+        console.log(`Found ${files.length} associated files`);
       }
     } catch (error) {
       console.error('Error handling file associations:', error);
