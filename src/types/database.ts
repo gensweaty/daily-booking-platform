@@ -57,6 +57,7 @@ export interface BookingRequest {
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
+  deleted_at?: string; // Added this field for soft deletion
   // Additional fields to match EventDialog
   user_surname?: string;
   user_number?: string;
