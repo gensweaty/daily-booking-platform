@@ -33,8 +33,10 @@ export const EventDialog = ({
   event,
   isBookingRequest = false
 }: EventDialogProps) => {
-  const [title, setTitle] = useState(event?.title || "");
-  const [userSurname, setUserSurname] = useState(event?.user_surname || "");
+  // Always initialize with user_surname as the primary name field
+  // This ensures we're using the correct field for full name
+  const [title, setTitle] = useState(event?.user_surname || event?.title || "");
+  const [userSurname, setUserSurname] = useState(event?.user_surname || event?.title || "");
   const [userNumber, setUserNumber] = useState(event?.user_number || "");
   const [socialNetworkLink, setSocialNetworkLink] = useState(event?.social_network_link || "");
   const [eventNotes, setEventNotes] = useState(event?.event_notes || "");
@@ -62,16 +64,23 @@ export const EventDialog = ({
       
       console.log("Loading event data:", event);
       
-      // Always use user_surname for the full name field and ensure title is synchronized
-      setTitle(event.user_surname || event.title || "");
-      setUserSurname(event.user_surname || event.title || "");
+      // Set both title and userSurname to the user_surname value for consistency
+      // If user_surname is missing, fall back to title
+      const fullName = event.user_surname || event.title || "";
+      setTitle(fullName);
+      setUserSurname(fullName);
       
       setUserNumber(event.user_number || event.requester_phone || "");
       setSocialNetworkLink(event.social_network_link || event.requester_email || "");
       setEventNotes(event.event_notes || event.description || "");
       
-      // Ensure payment status is properly set
-      setPaymentStatus(event.payment_status || "not_paid");
+      // Normalize payment status to handle different formats
+      let normalizedStatus = event.payment_status || "not_paid";
+      if (normalizedStatus.includes('partly')) normalizedStatus = 'partly';
+      else if (normalizedStatus.includes('fully')) normalizedStatus = 'fully';
+      else if (normalizedStatus.includes('not')) normalizedStatus = 'not_paid';
+      
+      setPaymentStatus(normalizedStatus);
       setPaymentAmount(event.payment_amount?.toString() || "");
       
       const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
@@ -85,6 +94,7 @@ export const EventDialog = ({
       setIsBookingEvent(event.type === 'booking_request');
       
       console.log("EventDialog - Loaded event with type:", event.type);
+      console.log("EventDialog - Loaded payment status:", normalizedStatus);
     } else if (selectedDate) {
       const start = new Date(selectedDate.getTime());
       const end = new Date(selectedDate.getTime());
@@ -105,6 +115,7 @@ export const EventDialog = ({
       setUserNumber("");
       setSocialNetworkLink("");
       setEventNotes("");
+      setPaymentAmount("");
     }
   }, [selectedDate, event, open]);
 

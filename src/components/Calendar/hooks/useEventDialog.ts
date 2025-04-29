@@ -28,8 +28,8 @@ export const useEventDialog = ({
         // Make sure title and user_surname match for consistency
         title: data.user_surname || data.title,
         user_surname: data.user_surname || data.title,
-        // Ensure payment_status is properly set
-        payment_status: data.payment_status || 'not_paid'
+        // Ensure payment_status is properly set and normalized
+        payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid'
       };
       
       if (!createEvent) throw new Error("Create event function not provided");
@@ -62,10 +62,10 @@ export const useEventDialog = ({
       const eventData = {
         ...data,
         type: selectedEvent.type || 'event',
-        title: data.user_surname || data.title,
-        user_surname: data.user_surname || data.title,
-        // Ensure payment_status is properly passed
-        payment_status: data.payment_status || selectedEvent.payment_status || 'not_paid'
+        title: data.user_surname || data.title || selectedEvent.title,
+        user_surname: data.user_surname || data.title || selectedEvent.user_surname,
+        // Ensure payment_status is properly passed and normalized
+        payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid'
       };
       
       console.log("Updating event with data:", eventData);
@@ -103,6 +103,22 @@ export const useEventDialog = ({
       });
       throw error;
     }
+  };
+
+  // Helper function to normalize payment status values
+  const normalizePaymentStatus = (status: string | undefined): string | undefined => {
+    if (!status) return undefined;
+    
+    // Normalize partly paid variants
+    if (status.includes('partly')) return 'partly';
+    
+    // Normalize fully paid variants
+    if (status.includes('fully')) return 'fully';
+    
+    // Normalize not paid variants
+    if (status.includes('not_paid') || status === 'not paid') return 'not_paid';
+    
+    return status;
   };
 
   return {

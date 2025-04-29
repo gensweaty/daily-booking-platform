@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -87,12 +86,22 @@ export const CustomerDialog = ({
 
   useEffect(() => {
     if (initialData) {
-      setTitle(initialData.title || "");
-      setUserSurname(initialData.user_surname || "");
+      // Use the same value for both title and userSurname to maintain consistency
+      const fullName = initialData.title || "";
+      setTitle(fullName);
+      setUserSurname(fullName);
+      
       setUserNumber(initialData.user_number || "");
       setSocialNetworkLink(initialData.social_network_link || "");
       setCreateEvent(initialData.create_event || false);
-      setPaymentStatus(initialData.payment_status || "not_paid");
+      
+      // Normalize payment status
+      let normalizedStatus = initialData.payment_status || "not_paid";
+      if (normalizedStatus.includes('partly')) normalizedStatus = 'partly';
+      else if (normalizedStatus.includes('fully')) normalizedStatus = 'fully';
+      else if (normalizedStatus.includes('not')) normalizedStatus = 'not_paid';
+      
+      setPaymentStatus(normalizedStatus);
       setPaymentAmount(initialData.payment_amount?.toString() || "");
       setCustomerNotes(initialData.event_notes || "");
       
@@ -205,9 +214,13 @@ export const CustomerDialog = ({
     setIsSubmitting(true);
 
     try {
+      // Always synchronize title and user_surname to be the same value
+      // This ensures the full name is consistently displayed across the application
+      const fullName = title;
+      
       const customerData: CustomerType = {
-        title,
-        user_surname: userSurname,
+        title: fullName,
+        user_surname: fullName, // Use the same value for consistent naming
         user_number: userNumber,
         social_network_link: socialNetworkLink,
         event_notes: customerNotes,
@@ -262,10 +275,10 @@ export const CustomerDialog = ({
       // If createEvent is checked, create a corresponding event
       if (createEvent) {
         // This is the critical part - make sure all fields are properly carried over
-        // Ensure user_surname and title are consistent
+        // Ensure user_surname and title are consistent by using the same value
         const eventData = {
-          title: userSurname, // Set title to match user_surname
-          user_surname: userSurname, // Make sure this is explicitly set
+          title: fullName,
+          user_surname: fullName, 
           user_number: userNumber,
           social_network_link: socialNetworkLink,
           event_notes: customerNotes,
@@ -306,7 +319,7 @@ export const CustomerDialog = ({
               
               emailResult = await sendApprovalEmail(
                 socialNetworkLink,
-                userSurname || title,
+                fullName,
                 businessName,
                 eventStartDate,
                 eventEndDate
@@ -450,9 +463,17 @@ export const CustomerDialog = ({
         <form onSubmit={handleSubmit}>
           <CustomerDialogFields
             title={title}
-            setTitle={setTitle}
+            setTitle={(value) => {
+              // Keep title and userSurname in sync
+              setTitle(value);
+              setUserSurname(value);
+            }}
             userSurname={userSurname}
-            setUserSurname={setUserSurname}
+            setUserSurname={(value) => {
+              // Keep title and userSurname in sync
+              setUserSurname(value);
+              setTitle(value);
+            }}
             userNumber={userNumber}
             setUserNumber={setUserNumber}
             socialNetworkLink={socialNetworkLink}
