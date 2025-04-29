@@ -33,7 +33,7 @@ export async function uploadEventFile(
     const fileData = {
       event_id: eventId,
       filename: file.name,
-      file_path: filePath,
+      file_path: filePath, // Store path without bucket prefix
       content_type: file.type,
       size: file.size,
       user_id: userId
@@ -212,8 +212,17 @@ export async function getAllEventFiles(eventId: string): Promise<FileRecord[]> {
       throw error;
     }
     
-    console.log(`Found ${data?.length || 0} files for event in event_files`);
-    return data || [];
+    // Process files to ensure consistent path format
+    const processedFiles = (data || []).map(file => {
+      // Make sure the file path doesn't have the bucket prefix
+      if (file.file_path && !file.file_path.startsWith('/')) {
+        file.file_path = file.file_path.replace(/^event_attachments\//, '');
+      }
+      return file;
+    });
+    
+    console.log(`Found ${processedFiles.length} files for event in event_files`);
+    return processedFiles;
   } catch (error) {
     console.error('Exception in getAllEventFiles:', error);
     return [];

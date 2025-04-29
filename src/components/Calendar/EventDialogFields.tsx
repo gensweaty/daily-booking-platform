@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Paperclip, File, X, Download, Trash2, Loader2 } from "lucide-react";
+import { Paperclip, File, X, Download, Trash2, Loader2, ExternalLink } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
@@ -78,7 +77,8 @@ export const EventDialogFields = ({
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [deleteInProgress, setDeleteInProgress] = useState<string | null>(null);
   const [fileUrls, setFileUrls] = useState<Record<string, string>>({});
-
+  const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
+  
   // Load files for this event/booking
   useEffect(() => {
     const loadFiles = async () => {
@@ -97,7 +97,11 @@ export const EventDialogFields = ({
         // Generate public URLs for all files
         const urls: Record<string, string> = {};
         eventFiles.forEach(file => {
-          urls[file.id] = getFileUrl(file.file_path);
+          if (file.file_path) {
+            // Make sure we get a clean file path without bucket prefix
+            const cleanPath = file.file_path.replace(/^event_attachments\//, '');
+            urls[file.id] = getFileUrl(cleanPath);
+          }
         });
         setFileUrls(urls);
       } catch (error) {
@@ -153,8 +157,87 @@ export const EventDialogFields = ({
     }
   };
 
-  const openFile = (url: string, filename: string) => {
-    window.open(url, '_blank');
+  // Function to check if file is an image
+  const isImage = (file: FileRecord): boolean => {
+    const contentType = file.content_type?.toLowerCase() || '';
+    return contentType.startsWith('image/');
+  };
+
+  const handleImageLoad = (fileId: string) => {
+    setLoadedImages(prev => ({
+      ...prev,
+      [fileId]: true
+    }));
+  };
+
+  const handleImageError = (fileId: string) => {
+    console.error(`Failed to load image for file ID: ${fileId}`);
+    setLoadedImages(prev => ({
+      ...prev,
+      [fileId]: false
+    }));
+  };
+
+  // Function to open file in a new tab
+  const openFile = (file: FileRecord) => {
+    let url = fileUrls[file.id];
+    
+    if (!url && file.file_path) {
+      // Generate URL if not already in cache
+      const cleanPath = file.file_path.replace(/^event_attachments\//, '');
+      url = getFileUrl(cleanPath);
+      
+      // Cache the URL
+      setFileUrls(prev => ({
+        ...prev,
+        [file.id]: url
+      }));
+    }
+    
+    if (url) {
+      window.open(url, '_blank');
+    }
+  };
+
+  // Function to get fixed URL for file
+  const getFixedFileUrl = (file: FileRecord): string => {
+    if (fileUrls[file.id]) return fileUrls[file.id];
+    
+    if (file.file_path) {
+      // Clean the path if needed
+      const cleanPath = file.file_path.replace(/^event_attachments\//, '');
+      return getFileUrl(cleanPath);
+    }
+    
+    return '';
+  };
+
+  // Render file thumbnail
+  const renderThumbnail = (file: FileRecord) => {
+    if (isImage(file)) {
+      const url = getFixedFileUrl(file);
+      
+      return (
+        <div className="h-8 w-8 rounded overflow-hidden mr-2 flex-shrink-0 bg-muted flex items-center justify-center">
+          <img 
+            src={url} 
+            alt={file.filename}
+            className="h-full w-full object-cover cursor-pointer"
+            onClick={() => openFile(file)}
+            onLoad={() => handleImageLoad(file.id)}
+            onError={() => handleImageError(file.id)}
+            style={{ display: loadedImages[file.id] === false ? 'none' : 'block' }}
+          />
+          {loadedImages[file.id] === false && <File className="h-4 w-4" />}
+        </div>
+      );
+    }
+    
+    return (
+      <div className="h-8 w-8 rounded overflow-hidden mr-2 flex-shrink-0 bg-muted flex items-center justify-center">
+        <File className="h-4 w-4" />
+      </div>
+    );
   };
 
   const getAllFiles = () => {
@@ -170,12 +253,6 @@ export const EventDialogFields = ({
     });
     
     return Array.from(fileMap.values());
-  };
-
-  const getFileUrl = (filePath: string) => {
-    return supabase.storage
-      .from('event_attachments')
-      .getPublicUrl(filePath).data.publicUrl;
   };
 
   return (
@@ -357,7 +434,7 @@ export const EventDialogFields = ({
                   className="flex items-center justify-between p-2 border rounded-md bg-gray-50 dark:bg-gray-800"
                 >
                   <div className="flex items-center">
-                    <File className="h-4 w-4 mr-2 flex-shrink-0" />
+                    {renderThumbnail(file)}
                     <span className="text-sm truncate max-w-[200px]">
                       {file.filename}
                     </span>
@@ -367,9 +444,27 @@ export const EventDialogFields = ({
                       type="button"
                       variant="ghost"
                       size="icon"
+                      onClick={() => openFile(file)}
+                      title={t("common.open")}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
                       onClick={() => {
-                        const url = fileUrls[file.id] || getFileUrl(file.file_path);
-                        openFile(url, file.filename);
+                        const url = getFixedFileUrl(file);
+                        if (url) {
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = file.filename || 'download';
+                          document.body.appendChild(a);
+                          a.click();
+                          setTimeout(() => {
+                            document.body.removeChild(a);
+                          }, 100);
+                        }
                       }}
                     >
                       <Download className="h-4 w-4" />

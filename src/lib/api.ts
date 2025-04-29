@@ -33,9 +33,14 @@ export async function getEventFiles(eventId: string): Promise<FileRecord[]> {
  * Get the download URL for a file
  */
 export function getFileUrl(filePath: string, bucket: string = 'event_attachments'): string {
+  // Clean up path to ensure consistent handling
+  const cleanPath = filePath.replace(/^event_attachments\//, '');
+  
+  console.log(`Getting URL for file path: ${cleanPath} in bucket: ${bucket}`);
+  
   return supabase.storage
     .from(bucket)
-    .getPublicUrl(filePath).data.publicUrl;
+    .getPublicUrl(cleanPath).data.publicUrl;
 }
 
 /**
@@ -46,10 +51,14 @@ export async function deleteFile(
   bucket: string = 'event_attachments'
 ): Promise<boolean> {
   try {
+    // Clean up path to ensure consistent handling
+    const cleanPath = file.file_path.replace(/^event_attachments\//, '');
+    console.log(`Attempting to delete file from storage: ${cleanPath}`);
+    
     // First remove from storage
     const { error: storageError } = await supabase.storage
       .from(bucket)
-      .remove([file.file_path]);
+      .remove([cleanPath]);
       
     if (storageError) {
       console.error('Error removing file from storage:', storageError);
