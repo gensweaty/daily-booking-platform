@@ -1,99 +1,124 @@
 
 import { QueryClient } from '@tanstack/react-query';
 
-// Function to safely invalidate and refetch queries by key pattern
-export const invalidateAndRefetch = async (
+// Helper function to get all keys for a query that match a pattern
+export const getAllMatchingQueryKeys = (queryClient: QueryClient, pattern: RegExp): string[][] => {
+  return queryClient
+    .getQueryCache()
+    .getAll()
+    .map(query => query.queryKey as string[])
+    .filter(key => pattern.test(JSON.stringify(key)));
+};
+
+// Helper function to invalidate all queries that match a pattern
+export const invalidateMatchingQueries = async (
   queryClient: QueryClient, 
-  queryKeys: string[], 
-  options = { 
+  pattern: RegExp, 
+  options?: { exact?: boolean; refetchType?: 'active' | 'inactive' | 'all'; delay?: number }
+): Promise<void> => {
+  const defaultOptions = {
     exact: false, 
-    refetchType: 'active' as 'active' | 'all' | 'inactive', 
-    delay: 0 
+    refetchType: 'all' as const,
+    delay: 0
+  };
+  
+  const mergedOptions = { ...defaultOptions, ...options };
+  
+  // Get all matching query keys
+  const allKeys = getAllMatchingQueryKeys(queryClient, pattern);
+  
+  if (allKeys.length === 0) {
+    console.log('No matching queries found for invalidation');
+    return;
   }
-) => {
-  try {
-    // First invalidate all matching queries
-    const invalidatePromises = queryKeys.map(key => 
-      queryClient.invalidateQueries({
-        queryKey: [key],
-        exact: options.exact,
-        refetchType: options.refetchType
-      })
-    );
-    
-    await Promise.all(invalidatePromises);
-    
-    // Then optionally apply a delay
-    if (options.delay > 0) {
-      await new Promise(resolve => setTimeout(resolve, options.delay));
-    }
-    
-    // Finally explicitly refetch the queries
-    const refetchPromises = queryKeys.map(key => 
-      queryClient.refetchQueries({
-        queryKey: [key],
-        exact: options.exact,
-        type: options.refetchType
-      })
-    );
-    
-    await Promise.all(refetchPromises);
-    
-    return true;
-  } catch (error) {
-    console.error('Error invalidating and refetching queries:', error);
-    return false;
+  
+  console.log(`Found ${allKeys.length} matching queries to invalidate`);
+  
+  // Process with delay if needed
+  if (mergedOptions.delay > 0) {
+    await new Promise(resolve => setTimeout(resolve, mergedOptions.delay));
   }
-};
-
-// Function to clear the local storage cache for a specific key
-export const clearLocalStorageCache = (key: string) => {
-  try {
-    // Look for any keys that start with the provided key
-    const keysToRemove: string[] = [];
-    
-    for (let i = 0; i < localStorage.length; i++) {
-      const storageKey = localStorage.key(i);
-      if (storageKey?.startsWith(key)) {
-        keysToRemove.push(storageKey);
-      }
-    }
-    
-    // Remove all matching keys
-    keysToRemove.forEach(k => localStorage.removeItem(k));
-    
-    return keysToRemove.length;
-  } catch (error) {
-    console.error('Error clearing localStorage cache:', error);
-    return 0;
-  }
-};
-
-// Function to forcibly refresh the calendar data
-export const forceCalendarRefresh = async (queryClient: QueryClient) => {
-  try {
-    // Force a hard refresh of all calendar-related data
-    const keys = [
-      'events', 
-      'business-events', 
-      'approved-bookings', 
-      'eventFiles',
-      'customerFiles'
-    ];
-    
-    // First clear any local storage cache that might be causing issues
-    keys.forEach(key => clearLocalStorageCache(key));
-    
-    // Then invalidate all queries
-    await invalidateAndRefetch(queryClient, keys, {
-      exact: false,
-      refetchType: 'all',
-      delay: 100
+  
+  // Invalidate all matching queries
+  for (const key of allKeys) {
+    await queryClient.invalidateQueries({
+      queryKey: key,
+      refetchType: mergedOptions.refetchType,
+      exact: mergedOptions.exact
     });
-    
-    return true;
-  } catch (error) {
-    console.error('Error forcing calendar refresh:', error);
-    return false;
+    console.log(`Invalidated query with key: ${JSON.stringify(key)}`);
   }
+};
+
+// Helper function to refetch all queries that match a pattern
+export const refetchMatchingQueries = async (
+  queryClient: QueryClient, 
+  pattern: RegExp, 
+  options?: { exact?: boolean; refetchType?: 'active' | 'inactive' | 'all'; delay?: number }
+): Promise<void> => {
+  const defaultOptions = {
+    exact: false,
+    refetchType: 'active' as const, 
+    delay: 0
+  };
+  
+  const mergedOptions = { ...defaultOptions, ...options };
+  
+  // Get all matching query keys
+  const allKeys = getAllMatchingQueryKeys(queryClient, pattern);
+  
+  if (allKeys.length === 0) {
+    console.log('No matching queries found for refetch');
+    return;
+  }
+  
+  console.log(`Found ${allKeys.length} matching queries to refetch`);
+  
+  // Process with delay if needed
+  if (mergedOptions.delay > 0) {
+    await new Promise(resolve => setTimeout(resolve, mergedOptions.delay));
+  }
+  
+  // Refetch all matching queries
+  for (const key of allKeys) {
+    await queryClient.refetchQueries({
+      queryKey: key,
+      exact: mergedOptions.exact,
+      type: mergedOptions.refetchType
+    });
+    console.log(`Refetched query with key: ${JSON.stringify(key)}`);
+  }
+};
+
+// Helper function to prefetch a query based on an existing query's data
+export const prefetchRelatedQuery = async (
+  queryClient: QueryClient,
+  sourceKey: unknown[],
+  targetKey: unknown[],
+  queryFn: () => Promise<unknown>,
+  options?: { 
+    staleTime?: number;
+    delay?: number;
+  }
+): Promise<void> => {
+  const defaultOptions = {
+    staleTime: 1000 * 60 * 5, // 5 minutes by default
+    delay: 0
+  };
+  
+  const mergedOptions = { ...defaultOptions, ...options };
+  
+  // Process with delay if needed
+  if (mergedOptions.delay > 0) {
+    await new Promise(resolve => setTimeout(resolve, mergedOptions.delay));
+  }
+  
+  // Prefetch the related query
+  await queryClient.prefetchQuery({
+    queryKey: targetKey,
+    queryFn,
+    staleTime: mergedOptions.staleTime
+  });
+  
+  console.log(`Prefetched related query: ${JSON.stringify(targetKey)} from ${JSON.stringify(sourceKey)}`);
 };

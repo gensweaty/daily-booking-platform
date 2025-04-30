@@ -71,5 +71,6 @@ export const associateBookingFilesWithEvent = async (
   userId: string
 ): Promise<EventFile[]> => {
   // Use the centralized file association function
-  return associateFilesWithEntity(bookingId, eventId, userId, 'booking', 'event') as Promise<EventFile[]>;
+  const files = await associateFilesWithEntity(bookingId, eventId, userId, 'booking', 'event');
+  return files as EventFile[];
 };

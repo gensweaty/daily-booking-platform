@@ -107,7 +107,7 @@ export const deleteFile = async (filePath: string, fileId: string, parentType: s
     
     // Use the generic syntax to avoid TypeScript errors with table name variables
     const { error: dbError } = await supabase
-      .from(tableName as any)
+      .from(tableName)
       .delete()
       .eq('id', fileId);
       
@@ -164,9 +164,9 @@ export const createFileRecord = async (
       [parentIdField]: parentId
     };
     
-    // Create the database record using type assertion for dynamic table names
+    // Create the database record
     const { data, error } = await supabase
-      .from(tableName as any)
+      .from(tableName)
       .insert(insertData)
       .select()
       .single();
@@ -176,6 +176,7 @@ export const createFileRecord = async (
       throw error;
     }
     
+    // Cast to FileRecord type or return null if data is not available
     return data as FileRecord;
   } catch (error) {
     console.error('Error in createFileRecord:', error);
@@ -208,9 +209,9 @@ export const associateFilesWithEntity = async (
       return [];
     }
     
-    // Get files from the source entity using type assertion for safety
+    // Get files from the source entity
     const { data: existingFiles, error: existingFilesError } = await supabase
-      .from(fileTable as any)
+      .from(fileTable)
       .select('*')
       .eq(sourceType === 'booking' || sourceType === 'event' ? 'event_id' : 'customer_id', sourceId);
       
@@ -255,6 +256,11 @@ export const associateFilesWithEntity = async (
             continue;
           }
 
+          if (!fileData) {
+            console.error(`No file data returned for ${filePath}`);
+            continue;
+          }
+
           // Create a new file path for the target entity
           const fileExtension = filename.includes('.') ? 
             filename.split('.').pop() || 'bin' : 'bin';
@@ -296,7 +302,7 @@ export const associateFilesWithEntity = async (
           };
           
           const { data: newFileRecord, error: newFileError } = await supabase
-            .from(targetTable as any)
+            .from(targetTable)
             .insert(insertData)
             .select()
             .single();
@@ -318,7 +324,7 @@ export const associateFilesWithEntity = async (
     // Also check for direct file fields in the source entity (for booking requests)
     if (sourceType === 'booking') {
       const { data: sourceData, error: sourceError } = await supabase
-        .from(sourceTable as any)
+        .from(sourceTable)
         .select('*')
         .eq('id', sourceId)
         .maybeSingle();
@@ -336,16 +342,19 @@ export const associateFilesWithEntity = async (
             
             // Download the file from the source bucket
             const sourceBucket = sourceType === 'booking' ? STORAGE_BUCKETS.BOOKING : STORAGE_BUCKETS.EVENT;
+            const filePath = sourceData.file_path as string;
+            const filename = sourceData.filename as string;
+            
             const { data: fileData, error: downloadError } = await supabase.storage
               .from(sourceBucket)
-              .download(normalizeFilePath(sourceData.file_path as string));
+              .download(normalizeFilePath(filePath));
               
             if (downloadError) {
               console.error(`Error downloading file from ${sourceBucket}:`, downloadError);
             } else if (fileData) {
               // Generate a new unique file path for the target entity
-              const fileExtension = (sourceData.filename as string).includes('.') ? 
-                (sourceData.filename as string).split('.').pop() || 'bin' : 'bin';
+              const fileExtension = filename.includes('.') ? 
+                filename.split('.').pop() || 'bin' : 'bin';
               
               const newFilePath = `${targetId}/${crypto.randomUUID()}.${fileExtension}`;
               
@@ -372,7 +381,7 @@ export const associateFilesWithEntity = async (
                 const size = ('size' in sourceData) ? (sourceData.size as number) || 0 : 0;
                 
                 const insertData = {
-                  filename: sourceData.filename,
+                  filename,
                   file_path: newFilePath,
                   content_type: contentType,
                   size,
@@ -382,7 +391,7 @@ export const associateFilesWithEntity = async (
                 };
                 
                 const { data: fileRecord, error: fileRecordError } = await supabase
-                  .from(targetTable as any)
+                  .from(targetTable)
                   .insert(insertData)
                   .select()
                   .single();
