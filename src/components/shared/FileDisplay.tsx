@@ -1,9 +1,11 @@
+
 import { useState } from "react";
 import { File, FileText, FileSpreadsheet, Image, Music, Video, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
+import { getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { LanguageText } from "@/components/shared/LanguageText";
