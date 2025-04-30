@@ -1,132 +1,80 @@
 
 import { supabase } from './client';
 
-/**
- * Checks if a storage bucket exists and creates it if needed with public access
- */
-export async function ensureBucketExists(bucketName: string, isPublic: boolean = true) {
+// List of all storage buckets used in the application
+export const REQUIRED_BUCKETS = [
+  'event_attachments',
+  'customer_attachments',
+  'note_attachments',
+  'task_attachments'
+];
+
+// Check if a bucket exists, if not create it
+const checkOrCreateBucket = async (bucketName: string): Promise<boolean> => {
   try {
-    console.log(`Checking if ${bucketName} bucket exists...`);
-    
-    // Check if the bucket exists
+    console.log(`Checking if bucket ${bucketName} exists...`);
     const { data: buckets, error } = await supabase.storage.listBuckets();
     
     if (error) {
-      console.error(`Failed to list storage buckets:`, error);
+      console.error(`Error checking bucket ${bucketName}:`, error);
       return false;
     }
     
     const bucketExists = buckets.some(bucket => bucket.name === bucketName);
     
     if (!bucketExists) {
-      console.log(`${bucketName} bucket not found, creating it...`);
-      
-      // Try to create the bucket
-      const { data, error: createError } = await supabase.storage
-        .createBucket(
-          bucketName,
-          { 
-            public: isPublic,
-            fileSizeLimit: 50 * 1024 * 1024 // 50MB file size limit
-          }
-        );
+      console.log(`Bucket ${bucketName} not found, creating...`);
+      const { error: createError } = await supabase.storage.createBucket(bucketName, {
+        public: true // Make the bucket publicly accessible
+      });
       
       if (createError) {
-        console.error(`Failed to create ${bucketName} bucket:`, createError);
+        console.error(`Error creating bucket ${bucketName}:`, createError);
         return false;
       }
       
-      console.log(`Successfully created ${bucketName} bucket with public access:`, isPublic);
+      console.log(`Bucket ${bucketName} created successfully`);
       
-      // Set public bucket policy since the createBucket sometimes doesn't apply this correctly
-      if (isPublic) {
-        try {
-          // Corrected method call - use updateBucket instead of setPublic
-          const { error: policyError } = await supabase.storage.updateBucket(
-            bucketName,
-            { public: true }
-          );
-          
-          if (policyError) {
-            console.error(`Failed to set public policy for ${bucketName}:`, policyError);
-          } else {
-            console.log(`Successfully set public policy for ${bucketName}`);
-          }
-        } catch (policyErr) {
-          console.error(`Error setting public policy for ${bucketName}:`, policyErr);
-        }
-      }
+      // Create a default public policy for the bucket
+      const { error: policyError } = await supabase.rpc('create_public_bucket_policy', { 
+        bucket_name: bucketName 
+      }).single();
       
-      return true;
-    }
-    
-    console.log(`${bucketName} bucket already exists`);
-    
-    // For existing buckets, check if they need to be public and update if necessary
-    if (isPublic) {
-      try {
-        // Corrected method call - use updateBucket instead of setPublic
-        const { error: policyError } = await supabase.storage.updateBucket(
-          bucketName,
-          { public: true }
-        );
-        
-        if (policyError) {
-          console.error(`Failed to set public policy for existing ${bucketName}:`, policyError);
-        } else {
-          console.log(`Verified public policy for existing ${bucketName}`);
-        }
-      } catch (policyErr) {
-        console.error(`Error setting public policy for existing ${bucketName}:`, policyErr);
+      if (policyError) {
+        console.warn(`Warning: Failed to set public policy for bucket ${bucketName}:`, policyError);
+        // Continue even if policy creation fails, as we can still use the bucket
       }
+    } else {
+      console.log(`Bucket ${bucketName} already exists`);
     }
     
     return true;
-  } catch (error) {
-    console.error(`Error checking/creating storage bucket ${bucketName}:`, error);
+  } catch (err) {
+    console.error(`Error checking/creating bucket ${bucketName}:`, err);
     return false;
   }
-}
+};
 
-/**
- * Checks if the event_attachments storage bucket exists and creates it if needed
- */
-export async function ensureEventAttachmentsBucket() {
-  return ensureBucketExists('event_attachments', true);
-}
-
-/**
- * Checks if the booking_attachments storage bucket exists and creates it if needed
- */
-export async function ensureBookingAttachmentsBucket() {
-  return ensureBucketExists('booking_attachments', true);
-}
-
-/**
- * Ensure all required buckets exist
- */
-export async function ensureAllRequiredBuckets() {
-  console.log("Checking and ensuring all required storage buckets exist...");
-  
-  const bucketsToCheck = [
-    {name: 'event_attachments', public: true},
-    {name: 'booking_attachments', public: true},
-    {name: 'customer_attachments', public: true},
-    {name: 'task_attachments', public: true},
-    {name: 'note_attachments', public: true}
-  ];
-  
-  const results = await Promise.all(
-    bucketsToCheck.map(bucket => ensureBucketExists(bucket.name, bucket.public))
-  );
-  
-  const allSucceeded = results.every(result => result === true);
-  
-  if (allSucceeded) {
-    console.log("All required buckets checked and exist");
-  } else {
-    console.error("Failed to create or verify one or more required buckets");
+// Ensure all required buckets exist
+export const ensureAllRequiredBuckets = async (): Promise<boolean> => {
+  try {
+    let allSuccess = true;
+    
+    for (const bucket of REQUIRED_BUCKETS) {
+      const success = await checkOrCreateBucket(bucket);
+      if (!success) {
+        allSuccess = false;
+      }
+    }
+    
+    return allSuccess;
+  } catch (error) {
+    console.error("Error ensuring all required buckets exist:", error);
+    return false;
   }
-  
-  return allSucceeded;
-}
+};
+
+// Helper function to ensure just the event_attachments bucket exists
+export const ensureEventAttachmentsBucket = async (): Promise<boolean> => {
+  return await checkOrCreateBucket('event_attachments');
+};

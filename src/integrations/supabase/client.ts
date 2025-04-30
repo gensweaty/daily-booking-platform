@@ -16,3 +16,33 @@ export const normalizeFilePath = (path: string): string => {
 export const getStorageUrl = (): string => {
   return `${supabaseUrl}/storage/v1`;
 };
+
+// Helper for checking if a file exists in storage
+export const checkIfFileExists = async (bucket: string, filePath: string): Promise<boolean> => {
+  try {
+    const normalizedPath = normalizeFilePath(filePath);
+    const folderPath = normalizedPath.split('/').slice(0, -1).join('/');
+    const fileName = normalizedPath.split('/').pop() || '';
+    
+    console.log(`Checking if file exists in storage: ${bucket}/${folderPath} - filename: ${fileName}`);
+    
+    // List files in the directory to see if our file is there
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .list(folderPath, {
+        limit: 100,
+        offset: 0,
+        search: fileName
+      });
+      
+    if (error) {
+      console.error('Error checking if file exists:', error);
+      return false;
+    }
+    
+    return data?.some(item => item.name === fileName) || false;
+  } catch (error) {
+    console.error('Error in checkIfFileExists:', error);
+    return false;
+  }
+};
