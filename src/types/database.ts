@@ -1,3 +1,4 @@
+
 export interface Task {
   id: string;
   title: string;
@@ -56,7 +57,6 @@ export interface BookingRequest {
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
-  deleted_at?: string | null; // Added deleted_at field
   // Additional fields to match EventDialog
   user_surname?: string;
   user_number?: string;
@@ -64,4 +64,11 @@ export interface BookingRequest {
   event_notes?: string;
   payment_status?: string;
   payment_amount?: number | null;
+  // File metadata fields - explicitly defined
+  file_path?: string;
+  filename?: string;
+  content_type?: string;
+  file_size?: number;
+  size?: number;
+  deleted_at?: string;
 }

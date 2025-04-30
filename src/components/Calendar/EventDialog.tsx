@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
+import { ensureEventAttachmentsBucket } from "@/integrations/supabase/checkStorage";
 
 interface EventDialogProps {
   open: boolean;
@@ -49,12 +50,22 @@ export const EventDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
   const [isBookingEvent, setIsBookingEvent] = useState(false);
   const isGeorgian = language === 'ka';
+
+  // When dialog opens, ensure storage buckets exist
+  useEffect(() => {
+    if (open) {
+      ensureEventAttachmentsBucket().catch(err => {
+        console.error("Error ensuring event attachments bucket:", err);
+      });
+    }
+  }, [open]);
 
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
@@ -117,80 +128,232 @@ export const EventDialog = ({
       setSocialNetworkLink("");
       setEventNotes("");
       setPaymentAmount("");
+      
+      // Reset file state
+      setSelectedFile(null);
+      setFileError("");
     }
   }, [selectedDate, event, open]);
 
   // Load files for this event
   useEffect(() => {
     const loadFiles = async () => {
-      if (event?.id) {
-        try {
-          console.log("Loading files for event:", event.id);
+      if (!event?.id) {
+        setDisplayedFiles([]);
+        return;
+      }
+      
+      try {
+        setIsLoading(true);
+        console.log("Loading files for event:", event.id, "Type:", event.type, "Booking Request ID:", event.booking_request_id);
+        
+        // Create an array to store all found files from various sources
+        const combinedFiles: any[] = [];
+        const processedPaths = new Set(); // To avoid duplicate files
+        
+        // STEP 1: First check event_files table by event ID
+        const { data: eventFilesData, error: eventFilesError } = await supabase
+          .from('event_files')
+          .select('*')
+          .eq('event_id', event.id);
           
-          // First get event files directly
-          const { data: eventFiles, error: eventFilesError } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', event.id);
-            
-          if (eventFilesError) {
-            console.error("Error loading event files:", eventFilesError);
-            return;
-          }
+        if (eventFilesError) {
+          console.error("Error loading event files:", eventFilesError);
+        } else if (eventFilesData && eventFilesData.length > 0) {
+          console.log("Found files in event_files table:", eventFilesData.length);
           
-          // If this is an event created from a booking request, also check for files from the original booking
-          let originalBookingFiles: any[] = [];
-          if (event.original_booking_id) {
-            console.log("This event was created from booking. Also checking original booking ID:", event.original_booking_id);
-            const { data: bookingFiles, error: bookingFilesError } = await supabase
-              .from('event_files')
-              .select('*')
-              .eq('event_id', event.original_booking_id);
-              
-            if (!bookingFilesError && bookingFiles && bookingFiles.length > 0) {
-              console.log("Found files from original booking:", bookingFiles.length);
-              originalBookingFiles = bookingFiles;
-            }
-          }
-          
-          // Use a Set to track unique file IDs to avoid duplicates
-          const uniqueFileIds = new Set<string>();
-          const uniqueFiles: any[] = [];
-          
-          if (eventFiles && eventFiles.length > 0) {
-            eventFiles.forEach(file => {
-              if (!uniqueFileIds.has(file.id)) {
-                uniqueFileIds.add(file.id);
-                uniqueFiles.push({
-                  ...file,
-                  parentType: 'event'
-                });
-              }
-            });
-          }
-          
-          // Add any files from the original booking that aren't already included
-          originalBookingFiles.forEach(file => {
-            if (!uniqueFileIds.has(file.id)) {
-              uniqueFileIds.add(file.id);
-              uniqueFiles.push({
+          for (const file of eventFilesData) {
+            if (file.file_path && !processedPaths.has(file.file_path)) {
+              combinedFiles.push({
                 ...file,
-                parentType: 'booking'
+                parentType: 'event',
+                source: 'event_files'
               });
+              processedPaths.add(file.file_path);
             }
-          });
+          }
+        } else {
+          console.log("No files found in event_files for event ID:", event.id);
+        }
+        
+        // STEP 2: If this event has a booking_request_id, check for files there
+        const bookingId = event.booking_request_id || event.id;
+        if (event.type === 'booking_request' || event.booking_request_id) {
+          console.log("This is a booking event with ID:", bookingId);
           
-          if (uniqueFiles.length > 0) {
-            console.log("Loaded unique event files:", uniqueFiles);
-            setDisplayedFiles(uniqueFiles);
-          } else {
-            console.log("No files found for event:", event.id);
-            setDisplayedFiles([]);
+          // Use the RPC function to get booking files
+          try {
+            const { data: bookingFiles, error: bookingFilesError } = await supabase
+              .rpc('get_booking_request_files', { booking_id_param: bookingId });
+              
+            if (bookingFilesError) {
+              console.error("Error loading booking files via RPC:", bookingFilesError);
+            } else if (bookingFiles && bookingFiles.length > 0) {
+              console.log("Found files using get_booking_request_files RPC:", bookingFiles.length);
+              
+              for (const file of bookingFiles) {
+                if (file.file_path && !processedPaths.has(file.file_path)) {
+                  combinedFiles.push({
+                    ...file,
+                    parentType: 'event',
+                    source: 'booking_request'
+                  });
+                  processedPaths.add(file.file_path);
+                }
+              }
+            } else {
+              console.log("No files found via get_booking_request_files for booking request ID:", bookingId);
+            }
+          } catch (rpcError) {
+            console.error("Error with get_booking_request_files RPC:", rpcError);
           }
           
-        } catch (err) {
-          console.error("Exception loading event files:", err);
+          // STEP 3: Check booking_requests table directly for file metadata
+          console.log("Checking booking_requests table for file metadata...");
+          const { data: booking, error: bookingError } = await supabase
+            .from('booking_requests')
+            .select('*')
+            .eq('id', bookingId)
+            .maybeSingle();
+            
+          if (bookingError) {
+            console.error("Error checking booking_requests table:", bookingError);
+          } else if (booking) {
+            console.log("Found booking request:", booking);
+            
+            // Safely check if booking has file_path property and it's a string
+            if (booking && typeof booking === 'object' && 'file_path' in booking && 
+                typeof booking.file_path === 'string' && booking.file_path) {
+              console.log("Found file metadata directly in booking_requests:", booking.file_path);
+              
+              // Safe type checking for all properties
+              const filename = 'filename' in booking && typeof booking.filename === 'string' 
+                ? booking.filename 
+                : 'attachment';
+                
+              const contentType = 'content_type' in booking && typeof booking.content_type === 'string'
+                ? booking.content_type
+                : 'application/octet-stream';
+                
+              // Handle size with multiple fallbacks and type checking
+              let fileSize = 0;
+              if ('file_size' in booking && typeof booking.file_size === 'number') {
+                fileSize = booking.file_size;
+              } else if ('size' in booking && typeof booking.size === 'number') {
+                fileSize = booking.size;
+              }
+              
+              if (!processedPaths.has(booking.file_path)) {
+                combinedFiles.push({
+                  id: `fallback_${bookingId}`,
+                  file_path: booking.file_path,
+                  filename: filename || 'attachment',
+                  content_type: contentType,
+                  size: fileSize,
+                  created_at: booking.created_at || new Date().toISOString(),
+                  parentType: 'event',
+                  source: 'booking_request_direct'
+                });
+                processedPaths.add(booking.file_path);
+              }
+            }
+          }
+          
+          // STEP 3.5: Check storage bucket directly
+          try {
+            console.log("Checking storage bucket directly for files with booking ID");
+            // Try to check direct folder match first
+            const { data: bucketFiles, error: bucketError } = await supabase.storage
+              .from('event_attachments')
+              .list(bookingId);
+              
+            if (!bucketError && bucketFiles && bucketFiles.length > 0) {
+              console.log(`Found ${bucketFiles.length} files in storage bucket folder ${bookingId}`);
+              
+              for (const file of bucketFiles) {
+                if (!file.name || file.name === '.emptyFolderPlaceholder') continue;
+                
+                const filePath = `${bookingId}/${file.name}`;
+                if (!processedPaths.has(filePath)) {
+                  combinedFiles.push({
+                    id: `storage_${bookingId}_${file.name}`,
+                    file_path: filePath,
+                    filename: file.name,
+                    content_type: guessContentType(file.name),
+                    size: file.metadata?.size || 0,
+                    created_at: new Date().toISOString(),
+                    parentType: 'event',
+                    source: 'storage_bucket'
+                  });
+                  processedPaths.add(filePath);
+                }
+              }
+            }
+          } catch (storageErr) {
+            console.log("Error checking storage bucket:", storageErr);
+          }
         }
+        
+        // STEP 3.5: Check if event itself has file metadata
+        if (event.file_path && typeof event.file_path === 'string') {
+          console.log("Event itself has file metadata:", event.file_path);
+          
+          // Only add if we don't already have a file with the same path
+          if (!processedPaths.has(event.file_path)) {
+            combinedFiles.push({
+              id: `event_file_${event.id}`,
+              file_path: event.file_path,
+              filename: event.filename || 'attachment',
+              content_type: event.content_type || 'application/octet-stream',
+              size: event.file_size || event.size || 0,
+              created_at: event.created_at,
+              parentType: 'event',
+              source: 'event_metadata'
+            });
+            processedPaths.add(event.file_path);
+          }
+        }
+        
+        // STEP 4: If we still don't have files, try looking for files with the same name/title
+        if (combinedFiles.length === 0 && event.title) {
+          console.log("Looking for files by event title:", event.title);
+          
+          const { data: relatedFiles, error: relatedError } = await supabase
+            .rpc('get_all_related_files', {
+              event_id_param: event.id,
+              customer_id_param: null,
+              entity_name_param: event.title
+            });
+            
+          if (relatedError) {
+            console.error("Error loading related files by name:", relatedError);
+          } else if (relatedFiles && relatedFiles.length > 0) {
+            console.log("Found related files by name:", relatedFiles.length);
+            
+            for (const file of relatedFiles) {
+              if (file.file_path && !processedPaths.has(file.file_path)) {
+                combinedFiles.push({
+                  ...file,
+                  parentType: 'event',
+                  source: 'related_by_name'
+                });
+                processedPaths.add(file.file_path);
+              }
+            }
+          }
+        }
+        
+        // Log the final list of files found
+        console.log("Final combined files to display:", combinedFiles.length, combinedFiles);
+        
+        // Set all found files to state
+        setDisplayedFiles(combinedFiles);
+        
+      } catch (err) {
+        console.error("Exception loading event files:", err);
+        setDisplayedFiles([]);
+      } finally {
+        setIsLoading(false);
       }
     };
     
@@ -198,6 +361,33 @@ export const EventDialog = ({
       loadFiles();
     }
   }, [event, open]);
+
+  // Helper function to guess content type from filename
+  function guessContentType(filename: string): string {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    if (!ext) return 'application/octet-stream';
+    
+    const mimeTypes: Record<string, string> = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'svg': 'image/svg+xml',
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xls': 'application/vnd.ms-excel',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'txt': 'text/plain',
+      'csv': 'text/csv',
+      'json': 'application/json',
+      'mp4': 'video/mp4',
+      'mp3': 'audio/mpeg'
+    };
+    
+    return mimeTypes[ext] || 'application/octet-stream';
+  }
 
   const sendApprovalEmail = async (
     startDateTime: Date,
@@ -329,21 +519,11 @@ export const EventDialog = ({
 
     if (event?.id) {
       eventData.id = event.id;
-      
-      // Preserve original booking ID if present
-      if (event.original_booking_id) {
-        eventData.original_booking_id = event.original_booking_id;
-      }
     }
 
     if (wasBookingRequest) {
       eventData.type = 'event';
-      eventData.original_booking_id = event.id; // Store original booking ID
-      console.log("Converting booking request to event:", { 
-        wasBookingRequest, 
-        isApprovingBookingRequest,
-        original_booking_id: eventData.original_booking_id 
-      });
+      console.log("Converting booking request to event:", { wasBookingRequest, isApprovingBookingRequest });
     } else if (event?.type) {
       eventData.type = event.type;
     } else {
@@ -383,43 +563,86 @@ export const EventDialog = ({
         }
       }
 
+      // File upload handling - ensure this runs for both new and existing events
       if (selectedFile && createdEvent?.id && user) {
         try {
+          console.log('Uploading file for event:', createdEvent.id, selectedFile);
+          
           const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${crypto.randomUUID()}.${fileExt}`;
+          // Use more unique ID for file path to prevent conflicts
+          const filePath = `${Date.now()}_${crypto.randomUUID()}.${fileExt}`;
           
-          console.log('Uploading file:', filePath);
+          console.log('Uploading file to path:', filePath);
           
-          const { error: uploadError } = await supabase.storage
-            .from('event_attachments')
-            .upload(filePath, selectedFile);
-
-          if (uploadError) {
-            console.error('Error uploading file:', uploadError);
-            throw uploadError;
-          }
-
-          const fileData = {
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            user_id: user.id,
-            event_id: createdEvent.id
-          };
-
-          const { error: fileRecordError } = await supabase
-            .from('event_files')
-            .insert(fileData);
+          // Check if we already have a storage bucket, if not, the upload will fail
+          const { data: bucketData } = await supabase.storage.listBuckets();
+          const eventAttachmentsBucket = bucketData?.find(bucket => bucket.name === 'event_attachments');
+          
+          if (!eventAttachmentsBucket) {
+            console.error('Missing event_attachments bucket, attempting to create');
+            // Handle gracefully if bucket doesn't exist
+            toast({
+              title: t("common.warning"),
+              description: "Storage bucket not found. Please contact the administrator.",
+              variant: "destructive",
+            });
+            // Continue with other operations, don't throw error here
+          } else {
+            // Upload file to storage
+            const { error: uploadError, data: uploadData } = await supabase.storage
+              .from('event_attachments')
+              .upload(filePath, selectedFile);
+    
+            if (uploadError) {
+              console.error('Error uploading file:', uploadError);
+              throw uploadError;
+            }
             
-          if (fileRecordError) {
-            console.error('Error creating file record:', fileRecordError);
-            throw fileRecordError;
+            console.log('File uploaded successfully:', uploadData);
+    
+            // Create file record in database
+            const fileData = {
+              filename: selectedFile.name,
+              file_path: filePath,
+              content_type: selectedFile.type,
+              size: selectedFile.size,
+              user_id: user.id,
+              event_id: createdEvent.id
+            };
+            
+            console.log('Creating file record with data:', fileData);
+    
+            const { error: fileRecordError, data: fileRecord } = await supabase
+              .from('event_files')
+              .insert(fileData)
+              .select()
+              .single();
+                
+            if (fileRecordError) {
+              console.error('Error creating file record:', fileRecordError);
+              throw fileRecordError;
+            }
+    
+            console.log('File record created successfully:', fileRecord);
+            
+            // Add the new file to the displayed files list for immediate feedback
+            setDisplayedFiles(prev => [
+              ...prev,
+              {
+                ...fileRecord,
+                parentType: 'event',
+                source: 'event_files'
+              }
+            ]);
           }
-
-          console.log('File record created successfully');
         } catch (fileError) {
           console.error("Error handling file upload:", fileError);
+          toast({
+            title: t("common.warning"),
+            description: t("Event created but file upload failed") + ": " + 
+              (fileError instanceof Error ? fileError.message : "Unknown error"),
+            variant: "destructive",
+          });
         }
       }
 
@@ -487,6 +710,12 @@ export const EventDialog = ({
 
   const handleFileDeleted = (fileId: string) => {
     setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
+    
+    // Refresh files after a short delay
+    setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['booking-files'] });
+    }, 300);
   };
 
   return (
@@ -523,6 +752,7 @@ export const EventDialog = ({
             onFileDeleted={handleFileDeleted}
             displayedFiles={displayedFiles}
             isBookingRequest={isBookingRequest}
+            isLoading={isLoading}
           />
           
           <div className="flex justify-between gap-4">

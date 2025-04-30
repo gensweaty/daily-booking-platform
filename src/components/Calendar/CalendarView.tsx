@@ -1,7 +1,10 @@
 
-import { Fragment } from "react";
-import { format } from "date-fns";
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
+import { useState, useEffect } from "react";
+import { CalendarGrid } from "./CalendarGrid";
+import { formatDate, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "next-themes";
 
 interface CalendarViewProps {
   days: Date[];
@@ -13,7 +16,7 @@ interface CalendarViewProps {
   isExternalCalendar?: boolean;
 }
 
-export const CalendarView = ({
+export function CalendarView({
   days,
   events,
   selectedDate,
@@ -21,172 +24,100 @@ export const CalendarView = ({
   onDayClick,
   onEventClick,
   isExternalCalendar = false,
-}: CalendarViewProps) => {
-  const getEvents = (day: Date): CalendarEventType[] => {
-    return events.filter((event) => {
-      const startDate = new Date(event.start_date);
-      const eventDay = startDate.getDate();
-      const eventMonth = startDate.getMonth();
-      const eventYear = startDate.getFullYear();
-
-      return (
-        eventDay === day.getDate() &&
-        eventMonth === day.getMonth() &&
-        eventYear === day.getFullYear()
-      );
-    });
-  };
-
-  const getDayClassName = (day: Date): string => {
-    const isToday =
-      day.getDate() === new Date().getDate() &&
-      day.getMonth() === new Date().getMonth() &&
-      day.getFullYear() === new Date().getFullYear();
-
-    const isSelected =
-      day.getDate() === selectedDate.getDate() &&
-      day.getMonth() === selectedDate.getMonth() &&
-      day.getFullYear() === selectedDate.getFullYear();
-
-    return `day-cell ${isToday ? "today" : ""} ${isSelected ? "selected" : ""}`;
-  };
-
-  const getEventClassName = (event: CalendarEventType): string => {
-    const baseClass = "cursor-pointer p-1 rounded mb-1 text-xs overflow-hidden";
-    
-    // Restore original color scheme
-    if (event.type === 'booking_request') {
-      // Use green for booking requests both in external and personal calendar
-      return `${baseClass} bg-green-500 text-white`;
-    } else if (event.type === 'birthday') {
-      return `${baseClass} bg-pink-500 text-white`;
-    } else if (event.type === 'private_party') {
-      return `${baseClass} bg-purple-500 text-white`;
-    } else {
-      // Default color for regular events (blue)
-      return `${baseClass} bg-blue-500 text-white`;
-    }
-  };
-
-  const formatTime = (dateString: string): string => {
-    try {
-      const date = new Date(dateString);
-      return format(date, "h:mm a");
-    } catch (error) {
-      console.error("Error formatting time:", error);
-      return "";
-    }
-  };
-
-  const handleEventClick = (event: CalendarEventType) => {
-    if (onEventClick) {
-      onEventClick(event);
-    }
-  };
-
-  if (view === "month") {
-    return (
-      <div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200">
-        {days.map((day, i) => (
-          <div
-            key={i}
-            className={`min-h-[100px] bg-white p-1 ${getDayClassName(day)}`}
-            onClick={() => onDayClick && onDayClick(day)}
-          >
-            <div className="font-semibold mb-1">{format(day, "d")}</div>
-            <div className="space-y-1 max-h-[80px] overflow-y-auto">
-              {getEvents(day).map((event) => (
-                <div
-                  key={event.id}
-                  className={getEventClassName(event)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEventClick(event);
-                  }}
-                >
-                  {isExternalCalendar ? "Booked" : event.title}
-                  <div className="text-xs opacity-90">
-                    {formatTime(event.start_date)} - {formatTime(event.end_date)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Week or Day view
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+}: CalendarViewProps) {
+  const { t } = useLanguage();
+  const { theme, resolvedTheme } = useTheme();
+  const [currentTheme, setCurrentTheme] = useState<string | undefined>(
+    // Initialize with resolvedTheme first, fallback to theme, then check document class
+    resolvedTheme || theme || (typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light')
+  );
   
-  return (
-    <div className="grid grid-cols-[auto_1fr] h-full overflow-y-auto">
-      <div className="border-r border-gray-200 pr-2 text-right space-y-[17px] pt-6">
-        {hours.map((hour) => (
-          <div key={hour} className="h-14 text-sm text-gray-500">
-            {hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
-          </div>
-        ))}
-      </div>
+  // Listen for theme changes
+  useEffect(() => {
+    // Update state when theme changes from context
+    const newTheme = resolvedTheme || theme;
+    if (newTheme) {
+      setCurrentTheme(newTheme);
+    }
+    
+    const handleThemeChange = (event: CustomEvent) => {
+      setCurrentTheme(event.detail.theme);
+    };
+    
+    const handleThemeInit = (event: CustomEvent) => {
+      setCurrentTheme(event.detail.theme);
+    };
+    
+    // Initial theme check from HTML class
+    const checkInitialTheme = () => {
+      if (typeof document !== 'undefined') {
+        if (document.documentElement.classList.contains('dark')) {
+          setCurrentTheme('dark');
+        }
+      }
+    };
+    
+    // Check on mount
+    checkInitialTheme();
+    
+    // Add event listeners
+    document.addEventListener('themeChanged', handleThemeChange as EventListener);
+    document.addEventListener('themeInit', handleThemeInit as EventListener);
+    
+    return () => {
+      // Remove event listeners
+      document.removeEventListener('themeChanged', handleThemeChange as EventListener);
+      document.removeEventListener('themeInit', handleThemeInit as EventListener);
+    };
+  }, [theme, resolvedTheme]);
+  
+  // For month view, ensure we have days from both previous and next months to fill the grid
+  const getDaysWithSurroundingMonths = () => {
+    if (view === 'month') {
+      const monthStart = startOfMonth(selectedDate);
+      const monthEnd = endOfMonth(selectedDate);
+      const calendarStart = startOfWeek(monthStart);
+      const calendarEnd = endOfWeek(monthEnd);
       
-      <div className="grid" style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
-        {days.map((day, dayIndex) => (
-          <Fragment key={dayIndex}>
-            <div className="border-b border-gray-200 py-1 px-2 text-center sticky top-0 bg-white z-10">
-              <div>{format(day, "EEE")}</div>
-              <div className="font-semibold">{format(day, "d")}</div>
-            </div>
-            
-            <div className="col-start-[inherit] col-end-[inherit] relative border-r border-gray-200">
-              {hours.map((hour) => (
-                <div 
-                  key={hour}
-                  className="h-14 border-b border-gray-200 relative"
-                  onClick={() => onDayClick && onDayClick(day, hour)}
-                >
-                  {getEvents(day)
-                    .filter(event => {
-                      const startHour = new Date(event.start_date).getHours();
-                      return startHour === hour;
-                    })
-                    .map((event) => {
-                      const startDate = new Date(event.start_date);
-                      const endDate = new Date(event.end_date);
-                      const startHour = startDate.getHours();
-                      const endHour = endDate.getHours();
-                      const height = Math.max((endHour - startHour) * 56, 30); // Minimum height of 25px
-                      
-                      return (
-                        <div
-                          key={event.id}
-                          className={`${getEventClassName(event)} absolute w-full left-0 overflow-hidden`}
-                          style={{ 
-                            top: `${(startDate.getMinutes() / 60) * 56}px`,
-                            height: `${height}px`,
-                            maxHeight: `${height}px`,
-                            zIndex: 5
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEventClick(event);
-                          }}
-                        >
-                          <div className="font-medium truncate">
-                            {isExternalCalendar ? "Booked" : event.title}
-                          </div>
-                          <div className="text-xs">
-                            {formatTime(event.start_date)} - {formatTime(event.end_date)}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              ))}
-            </div>
-          </Fragment>
-        ))}
-      </div>
+      return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    }
+    
+    return days;
+  };
+  
+  const daysToRender = view === 'month' ? getDaysWithSurroundingMonths() : days;
+  
+  // Add debug log for events in CalendarView
+  useEffect(() => {
+    if (isExternalCalendar) {
+      console.log(`[CalendarView] Rendering external calendar with ${events.length} events`);
+      if (events.length > 0) {
+        console.log("[CalendarView] First event sample:", events[0]);
+      }
+    }
+    // Debug theme state
+    console.log("[CalendarView] Current theme state:", { 
+      theme, 
+      resolvedTheme, 
+      currentTheme,
+      isDarkClass: typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+    });
+  }, [events, isExternalCalendar, theme, resolvedTheme, currentTheme]);
+
+  const formattedSelectedDate = formatDate(selectedDate, "yyyy-MM-dd");
+
+  return (
+    <div className="h-full">
+      <CalendarGrid
+        days={daysToRender}
+        events={events}
+        formattedSelectedDate={formattedSelectedDate}
+        view={view}
+        onDayClick={onDayClick}
+        onEventClick={onEventClick}
+        isExternalCalendar={isExternalCalendar}
+        theme={currentTheme}
+      />
     </div>
   );
 };

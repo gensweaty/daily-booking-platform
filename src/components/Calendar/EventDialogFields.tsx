@@ -1,43 +1,44 @@
+
+import { FileDisplay } from "@/components/shared/FileDisplay";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileUploadField } from "@/components/shared/FileUploadField";
+import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { FileDisplay } from "@/components/shared/FileDisplay";
 import { cn } from "@/lib/utils";
-import { FileRecord } from "@/types/files";
+import { CalendarEventType } from "@/lib/types/calendar";
+import { Spinner } from "@/components/ui/spinner";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { useQuery } from "@tanstack/react-query";
-import { getAllEventFiles } from "@/lib/fileUtils";
+import { useEffect } from "react";
 
 interface EventDialogFieldsProps {
   title: string;
-  setTitle: (value: string) => void;
+  setTitle: (title: string) => void;
   userSurname: string;
-  setUserSurname: (value: string) => void;
+  setUserSurname: (surname: string) => void;
   userNumber: string;
-  setUserNumber: (value: string) => void;
+  setUserNumber: (number: string) => void;
   socialNetworkLink: string;
-  setSocialNetworkLink: (value: string) => void;
+  setSocialNetworkLink: (link: string) => void;
   eventNotes: string;
-  setEventNotes: (value: string) => void;
+  setEventNotes: (notes: string) => void;
   startDate: string;
-  setStartDate: (value: string) => void;
+  setStartDate: (date: string) => void;
   endDate: string;
-  setEndDate: (value: string) => void;
+  setEndDate: (date: string) => void;
   paymentStatus: string;
-  setPaymentStatus: (value: string) => void;
+  setPaymentStatus: (status: string) => void;
   paymentAmount: string;
-  setPaymentAmount: (value: string) => void;
+  setPaymentAmount: (amount: string) => void;
   selectedFile: File | null;
   setSelectedFile: (file: File | null) => void;
   fileError: string;
   setFileError: (error: string) => void;
   eventId?: string;
-  displayedFiles: FileRecord[];
-  onFileDeleted: (fileId: string) => void;
+  onFileDeleted?: (fileId: string) => void;
+  displayedFiles?: any[];
   isBookingRequest?: boolean;
+  isLoading?: boolean;
 }
 
 export const EventDialogFields = ({
@@ -64,182 +65,210 @@ export const EventDialogFields = ({
   fileError,
   setFileError,
   eventId,
-  displayedFiles,
   onFileDeleted,
+  displayedFiles = [],
   isBookingRequest = false,
+  isLoading = false
 }: EventDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
+  const paymentStatusOptions = [
+    { value: 'not_paid', label: t("events.notPaid") },
+    { value: 'partly_paid', label: t("events.partlyPaid") },
+    { value: 'fully_paid', label: t("events.fullyPaid") },
+  ];
   
-  const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
-  
-  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
-  
-  // Automatically fetch event files if needed
-  const { data: eventFiles } = useQuery({
-    queryKey: ['eventFiles', eventId],
-    queryFn: async () => {
-      if (!eventId) return [];
-      return await getAllEventFiles(eventId);
-    },
-    enabled: !!eventId && displayedFiles.length === 0, // Only fetch if we don't already have files
-  });
+  // Debug logs for file display troubleshooting
+  useEffect(() => {
+    if (eventId) {
+      console.log("EventDialogFields - eventId:", eventId);
+      console.log("EventDialogFields - displayedFiles:", displayedFiles);
+    }
+  }, [eventId, displayedFiles]);
 
-  // Combined files - use provided displayedFiles or fetched eventFiles
-  const filesToDisplay = displayedFiles.length > 0 ? displayedFiles : (eventFiles || []);
-  
+  // Handle file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const file = files[0];
+    const maxSize = 50 * 1024 * 1024; // 50MB limit
+    
+    if (file.size > maxSize) {
+      setFileError(t("events.fileTooLarge"));
+      return;
+    }
+    
+    setSelectedFile(file);
+    setFileError("");
+    console.log("File selected:", file.name, file.type, file.size);
+  };
+
+  // Handle sync between title and userSurname
+  const handleFullNameChange = (value: string) => {
+    setTitle(value);
+    setUserSurname(value);
+  };
+
   return (
-    <>
-      <div>
-        <Label htmlFor="userSurname" className={labelClass}>
-          <LanguageText>{t("events.fullName")}</LanguageText>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="full-name" className={cn(isGeorgian ? "font-georgian" : "")}>
+          {t("events.fullName")}
         </Label>
         <Input
-          id="userSurname"
+          id="full-name"
           value={userSurname}
-          onChange={(e) => {
-            setUserSurname(e.target.value);
-            setTitle(e.target.value); // Set title to same as userSurname
-          }}
-          placeholder={t("events.fullName")}
-          required
+          onChange={(e) => handleFullNameChange(e.target.value)}
+          className={cn(isGeorgian ? "font-georgian" : "")}
         />
       </div>
-      <div>
-        <Label htmlFor="userNumber" className={labelClass}>
-          <LanguageText>{t("events.phoneNumber")}</LanguageText>
+
+      <div className="space-y-2">
+        <Label htmlFor="user-number" className={cn(isGeorgian ? "font-georgian" : "")}>
+          {t("events.phoneNumber")}
         </Label>
         <Input
-          id="userNumber"
+          id="user-number"
           value={userNumber}
           onChange={(e) => setUserNumber(e.target.value)}
-          placeholder={t("events.phoneNumber")}
+          className={cn(isGeorgian ? "font-georgian" : "")}
         />
       </div>
-      <div>
-        <Label htmlFor="socialNetworkLink" className={labelClass}>
-          <LanguageText>{t("events.socialLinkEmail")}</LanguageText>
+
+      <div className="space-y-2">
+        <Label htmlFor="social-link" className={cn(isGeorgian ? "font-georgian" : "")}>
+          {t("events.emailSocialLink")}
         </Label>
         <Input
-          id="socialNetworkLink"
+          id="social-link"
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
-          placeholder="email@example.com"
-          type="email"
+          className={cn(isGeorgian ? "font-georgian" : "")}
         />
       </div>
-      <div>
-        <Label htmlFor="dateTime" className={labelClass}>
-          <LanguageText>{t("events.dateAndTime")}</LanguageText>
-        </Label>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
-              <LanguageText>{t("events.start")}</LanguageText>
-            </Label>
-            <Input
-              id="startDate"
-              type="datetime-local"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
-              <LanguageText>{t("events.end")}</LanguageText>
-            </Label>
-            <Input
-              id="endDate"
-              type="datetime-local"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required
-            />
-          </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="start-date" className={cn(isGeorgian ? "font-georgian" : "")}>
+            {t("events.start")}
+          </Label>
+          <Input
+            id="start-date"
+            type="datetime-local"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="end-date" className={cn(isGeorgian ? "font-georgian" : "")}>
+            {t("events.end")}
+          </Label>
+          <Input
+            id="end-date"
+            type="datetime-local"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
         </div>
       </div>
-      
-      {!isBookingRequest && (
-        <>
-          <div>
-            <Label htmlFor="paymentStatus" className={labelClass}>
-              <LanguageText>{t("events.paymentStatus")}</LanguageText>
-            </Label>
-            <Select
-              value={paymentStatus}
-              onValueChange={setPaymentStatus}
-            >
-              <SelectTrigger id="paymentStatus" className={isGeorgian ? "font-georgian" : ""}>
-                <SelectValue placeholder={t("events.selectPaymentStatus")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.notPaid")}</LanguageText></SelectItem>
-                <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.paidPartly")}</LanguageText></SelectItem>
-                <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.paidFully")}</LanguageText></SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {showPaymentAmount && (
-            <div>
-              <Label htmlFor="paymentAmount" className={labelClass}>
-                <LanguageText>{t("events.paymentAmount")}</LanguageText>
-              </Label>
-              <Input
-                id="paymentAmount"
-                value={paymentAmount}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                    setPaymentAmount(value);
-                  }
-                }}
-                placeholder="0.00"
-                type="text"
-                inputMode="decimal"
-              />
-            </div>
-          )}
-        </>
-      )}
-      
-      <div>
-        <Label htmlFor="eventNotes" className={labelClass}>
-          <LanguageText>{t("events.eventNotes")}</LanguageText>
+
+      <div className="space-y-2">
+        <Label htmlFor="payment-status" className={cn(isGeorgian ? "font-georgian" : "")}>
+          {t("events.paymentStatus")}
         </Label>
-        <Textarea
-          id="eventNotes"
-          value={eventNotes}
-          onChange={(e) => setEventNotes(e.target.value)}
-          placeholder={t("events.addEventNotes")}
-          className="min-h-[100px] resize-none"
-        />
+        <Select 
+          value={paymentStatus} 
+          onValueChange={setPaymentStatus}
+        >
+          <SelectTrigger id="payment-status" className={cn(isGeorgian ? "font-georgian" : "")}>
+            <SelectValue placeholder={t("events.selectPaymentStatus")} />
+          </SelectTrigger>
+          <SelectContent>
+            {paymentStatusOptions.map((option) => (
+              <SelectItem 
+                key={option.value} 
+                value={option.value}
+                className={cn(isGeorgian ? "font-georgian" : "")}
+              >
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
-      
-      <div>
-        <Label htmlFor="file" className={labelClass}>
-          <LanguageText>{t("common.attachments")}</LanguageText>
-        </Label>
-        <FileUploadField
-          onChange={setSelectedFile}
-          fileError={fileError}
-          setFileError={setFileError}
-          acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-        />
-      </div>
-      
-      {filesToDisplay.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <FileDisplay
-            files={filesToDisplay}
-            bucketName="event_attachments"
-            allowDelete={true}
-            onFileDeleted={onFileDeleted}
-            parentType="event"
+
+      {paymentStatus !== 'not_paid' && (
+        <div className="space-y-2">
+          <Label htmlFor="payment-amount" className={cn(isGeorgian ? "font-georgian" : "")}>
+            {t("events.paymentAmount")}
+          </Label>
+          <Input
+            id="payment-amount"
+            type="number"
+            value={paymentAmount}
+            onChange={(e) => setPaymentAmount(e.target.value)}
+            className={cn(isGeorgian ? "font-georgian" : "")}
           />
         </div>
       )}
-    </>
+
+      <div className="space-y-2">
+        <Label htmlFor="event-notes" className={cn(isGeorgian ? "font-georgian" : "")}>
+          {t("events.notes")}
+        </Label>
+        <Textarea
+          id="event-notes"
+          value={eventNotes}
+          onChange={(e) => setEventNotes(e.target.value)}
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          rows={4}
+          placeholder={t("events.addNotes")}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label className={cn(isGeorgian ? "font-georgian" : "")}>
+          <LanguageText>{t("events.attachments")}</LanguageText>
+        </Label>
+        
+        {isLoading ? (
+          <div className="flex items-center justify-center p-4 bg-muted/50 rounded-md">
+            <Spinner size="sm" className="mr-2" /> 
+            <span className="text-sm"><LanguageText>{t("common.loadingFiles")}</LanguageText></span>
+          </div>
+        ) : (
+          <>
+            {displayedFiles && displayedFiles.length > 0 ? (
+              <FileDisplay 
+                files={displayedFiles}
+                onFileDeleted={onFileDeleted}
+                showDelete={true}
+                parentType="event"
+              />
+            ) : (
+              eventId && <div className="text-sm text-muted-foreground"><LanguageText>{t("common.noFiles")}</LanguageText></div>
+            )}
+          </>
+        )}
+
+        {/* File upload input */}
+        <div className="mt-2">
+          <Label htmlFor="attachment" className={cn("text-sm", isGeorgian ? "font-georgian" : "")}>
+            <LanguageText>{t("events.attachment")}</LanguageText>
+          </Label>
+          <Input
+            id="attachment"
+            type="file"
+            onChange={handleFileChange}
+            className="mt-1"
+          />
+          {fileError && <p className="text-sm text-red-500 mt-1">{fileError}</p>}
+        </div>
+        <p className="text-xs text-muted-foreground mt-1" id="supportedFormats">
+          <LanguageText>{t("events.supportedFormats")}</LanguageText>
+        </p>
+      </div>
+    </div>
   );
 };

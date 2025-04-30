@@ -97,24 +97,19 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       
       try {
         // Get events from the API function which includes approved bookings and user events
+        // This now uses our security definer function to bypass RLS
         const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
         
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
         
-        // Filter out deleted events before combining
-        const filteredApiEvents = (apiEvents || []).filter(event => !event.deleted_at);
-        const filteredBookings = (approvedBookings || []).filter(booking => !booking.deleted_at);
-        
-        console.log(`[External Calendar] After filtering: ${filteredApiEvents.length} API events, ${filteredBookings.length} bookings`);
-        
         // Combine all event sources
         const allEvents: CalendarEventType[] = [
-          ...filteredApiEvents.map(event => ({
+          ...(apiEvents || []).map(event => ({
             ...event,
             type: event.type || 'event'
           })),
-          ...filteredBookings.map(booking => ({
+          ...(approvedBookings || []).map(booking => ({
             id: booking.id,
             title: booking.title || 'Booking',
             start_date: booking.start_date,
@@ -141,7 +136,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             const startValid = !!new Date(event.start_date).getTime();
             const endValid = !!new Date(event.end_date).getTime();
             
-            // Make absolutely sure no deleted events get through
+            // Skip events that are soft deleted
             if (event.deleted_at) {
               console.log(`Filtering out deleted event with id ${event.id}`);
               return false;
