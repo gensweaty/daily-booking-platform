@@ -1,3 +1,4 @@
+
 import { useState, useRef } from 'react';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -11,6 +12,10 @@ import { supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { FileUploadField } from '@/components/shared/FileUploadField';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import { CalendarIcon } from 'lucide-react';
 
 export interface BookingRequestFormProps {
   businessId: string;
@@ -23,14 +28,6 @@ export interface BookingRequestFormProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-const bookingRequestSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  phone: z.string().optional(),
-  email: z.string().email({ message: "Invalid email address." }),
-  notes: z.string().optional(),
-  file: z.instanceof(File).optional()
-});
-
 export const BookingRequestForm = ({
   businessId,
   selectedDate,
@@ -41,28 +38,37 @@ export const BookingRequestForm = ({
   open,
   onOpenChange
 }: BookingRequestFormProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Add new state variables to match EventDialog structure
+  const [userSurname, setUserSurname] = useState('');
+  const [userNumber, setUserNumber] = useState('');
+  const [socialNetworkLink, setSocialNetworkLink] = useState('');
+  const [eventNotes, setEventNotes] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('not_paid');
+  const [paymentAmount, setPaymentAmount] = useState('');
 
-  const form = useForm<z.infer<typeof bookingRequestSchema>>({
-    resolver: zodResolver(bookingRequestSchema),
-    defaultValues: {
-      name: '',
-      phone: '',
-      email: '',
-      notes: '',
-    },
+  // Initialize dates
+  useState(() => {
+    const start = combineDateAndTime(selectedDate, startTime);
+    const end = combineDateAndTime(selectedDate, endTime);
+    
+    setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+    setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
   });
 
-  const formatTimeForDisplay = (time: string) => {
-    if (!time) return '';
-    return time;
-  };
+  const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
+  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
 
   const combineDateAndTime = (date: Date, timeString: string) => {
+    if (!timeString) return new Date(date);
     const [hours, minutes] = timeString.split(':').map(Number);
     const newDate = new Date(date);
     newDate.setHours(hours, minutes, 0, 0);
@@ -74,21 +80,67 @@ export const BookingRequestForm = ({
     setFileError('');
   };
 
-  const onSubmit = async (values: z.infer<typeof bookingRequestSchema>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
       setIsSubmitting(true);
-      const startDateTime = combineDateAndTime(selectedDate, startTime);
-      const endDateTime = combineDateAndTime(selectedDate, endTime);
+      console.log("Starting form submission...");
+
+      // Validate required fields
+      if (!userSurname) {
+        toast({
+          title: t('common.error'),
+          description: t('Name is required'),
+          variant: 'destructive'
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!socialNetworkLink || !socialNetworkLink.includes('@')) {
+        toast({
+          title: t('common.error'),
+          description: t('Valid email address is required'),
+          variant: 'destructive'
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      const startDateTime = new Date(startDate);
+      const endDateTime = new Date(endDate);
+
+      // Additional validation for dates
+      if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+        toast({
+          title: t('common.error'),
+          description: t('Valid start and end dates are required'),
+          variant: 'destructive'
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Process payment amount
+      let finalPaymentAmount = null;
+      if (showPaymentAmount && paymentAmount) {
+        const amount = parseFloat(paymentAmount);
+        if (!isNaN(amount)) {
+          finalPaymentAmount = amount;
+        }
+      }
 
       const bookingData = {
         business_id: businessId,
-        requester_name: values.name,
-        requester_email: values.email,
-        requester_phone: values.phone || null,
-        title: `Booking Request - ${values.name}`,
-        description: values.notes || null,
+        requester_name: userSurname,
+        requester_email: socialNetworkLink,
+        requester_phone: userNumber || null,
+        title: `Booking Request - ${userSurname}`,
+        description: eventNotes || null,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
+        payment_status: paymentStatus,
+        payment_amount: finalPaymentAmount,
         status: 'pending',
       };
 
@@ -106,12 +158,14 @@ export const BookingRequestForm = ({
       }
 
       const bookingId = data.id;
+      console.log('Booking request created with ID:', bookingId);
 
       if (selectedFile && bookingId) {
         try {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${bookingId}/${Date.now()}.${fileExt}`;
 
+          console.log('Uploading file to path:', filePath);
           const { error: uploadError } = await supabase.storage
             .from('booking_attachments')
             .upload(filePath, selectedFile);
@@ -147,7 +201,14 @@ export const BookingRequestForm = ({
 
       console.log('Booking request submitted successfully!');
       setIsSubmitting(false);
-      form.reset();
+      
+      // Reset form
+      setUserSurname('');
+      setUserNumber('');
+      setSocialNetworkLink('');
+      setEventNotes('');
+      setPaymentStatus('not_paid');
+      setPaymentAmount('');
       setSelectedFile(null);
       
       if (fileInputRef.current) {
@@ -168,6 +229,7 @@ export const BookingRequestForm = ({
       }
 
       try {
+        console.log('Sending notification email...');
         await fetch(
           "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
           {
@@ -175,13 +237,15 @@ export const BookingRequestForm = ({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               businessId: businessId,
-              requesterName: values.name,
-              requesterEmail: values.email,
-              requesterPhone: values.phone || "Not provided",
-              notes: values.notes || "No additional notes",
+              requesterName: userSurname,
+              requesterEmail: socialNetworkLink,
+              requesterPhone: userNumber || "Not provided",
+              notes: eventNotes || "No additional notes",
               startDate: startDateTime.toISOString(),
               endDate: endDateTime.toISOString(),
-              hasAttachment: !!selectedFile
+              hasAttachment: !!selectedFile,
+              paymentStatus: paymentStatus,
+              paymentAmount: finalPaymentAmount
             }),
           }
         );
@@ -207,101 +271,168 @@ export const BookingRequestForm = ({
         {t('Book appointment')}
       </h3>
       
-      <p className="text-sm text-muted-foreground">
-        {format(selectedDate, 'EEEE, MMMM d, yyyy')} <br />
-        {formatTimeForDisplay(startTime)} - {formatTimeForDisplay(endTime)}
-      </p>
-      
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Name')}</FormLabel>
-                <FormControl>
-                  <Input placeholder={t('Enter your name')} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        {/* Full Name Field */}
+        <div>
+          <Label htmlFor="userSurname" className={labelClass}>
+            {t("events.fullName")}
+          </Label>
+          <Input
+            id="userSurname"
+            value={userSurname}
+            onChange={(e) => setUserSurname(e.target.value)}
+            placeholder={t("events.fullName")}
+            required
           />
-          
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Email')}</FormLabel>
-                <FormControl>
-                  <Input type="email" placeholder={t('Enter your email')} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="phone"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Phone')} ({t('optional')})</FormLabel>
-                <FormControl>
-                  <Input placeholder={t('Enter your phone number')} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="notes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Notes')} ({t('optional')})</FormLabel>
-                <FormControl>
-                  <Textarea 
-                    placeholder={t('Add any additional information')} 
-                    className="resize-none" 
-                    {...field} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        </div>
 
-          <FormField
-            control={form.control}
-            name="file"
-            render={() => (
-              <FormItem>
-                <FormLabel>{t('Attach file')} ({t('optional')})</FormLabel>
-                <FormControl>
-                  <FileUploadField
-                    onFileChange={handleFileChange}
-                    fileError={fileError}
-                    setFileError={setFileError}
-                    ref={fileInputRef}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+        {/* Phone Number Field */}
+        <div>
+          <Label htmlFor="userNumber" className={labelClass}>
+            {t("events.phoneNumber")}
+          </Label>
+          <Input
+            id="userNumber"
+            value={userNumber}
+            onChange={(e) => setUserNumber(e.target.value)}
+            placeholder={t("events.phoneNumber")}
           />
-          
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isSubmitting}
+        </div>
+
+        {/* Email Field */}
+        <div>
+          <Label htmlFor="socialNetworkLink" className={labelClass}>
+            {t("events.socialLinkEmail")}
+          </Label>
+          <Input
+            id="socialNetworkLink"
+            value={socialNetworkLink}
+            onChange={(e) => setSocialNetworkLink(e.target.value)}
+            placeholder="email@example.com"
+            type="email"
+            required
+          />
+        </div>
+
+        {/* Date and Time Fields */}
+        <div>
+          <Label htmlFor="dateTime" className={labelClass}>
+            {t("events.dateAndTime")}
+          </Label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
+                {t("events.start")}
+              </Label>
+              <div className="relative">
+                <Input
+                  id="startDate"
+                  type="datetime-local"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  required
+                  className="pr-8"
+                />
+                <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
+                {t("events.end")}
+              </Label>
+              <div className="relative">
+                <Input
+                  id="endDate"
+                  type="datetime-local"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  required
+                  className="pr-8"
+                />
+                <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Payment Status Dropdown */}
+        <div>
+          <Label htmlFor="paymentStatus" className={labelClass}>
+            {t("events.paymentStatus")}
+          </Label>
+          <Select
+            value={paymentStatus}
+            onValueChange={setPaymentStatus}
           >
-            {isSubmitting ? t('Submitting...') : t('Submit Request')}
-          </Button>
-        </form>
-      </Form>
+            <SelectTrigger id="paymentStatus" className={isGeorgian ? "font-georgian" : ""}>
+              <SelectValue placeholder={t("events.selectPaymentStatus")} />
+            </SelectTrigger>
+            <SelectContent className="bg-background">
+              <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.notPaid")}</SelectItem>
+              <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidPartly")}</SelectItem>
+              <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidFully")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {/* Payment Amount Field - conditionally visible */}
+        {showPaymentAmount && (
+          <div>
+            <Label htmlFor="paymentAmount" className={labelClass}>
+              {t("events.paymentAmount")}
+            </Label>
+            <Input
+              id="paymentAmount"
+              value={paymentAmount}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                  setPaymentAmount(value);
+                }
+              }}
+              placeholder="0.00"
+              type="text"
+              inputMode="decimal"
+            />
+          </div>
+        )}
+        
+        {/* Notes Field */}
+        <div>
+          <Label htmlFor="eventNotes" className={labelClass}>
+            {t("events.eventNotes")}
+          </Label>
+          <Textarea
+            id="eventNotes"
+            value={eventNotes}
+            onChange={(e) => setEventNotes(e.target.value)}
+            placeholder={t("events.addEventNotes")}
+            className="min-h-[100px] resize-none"
+          />
+        </div>
+        
+        {/* File Upload Field - preserving existing file upload functionality */}
+        <div>
+          <Label htmlFor="file" className={labelClass}>
+            {t("common.attachments")}
+          </Label>
+          <FileUploadField
+            onChange={handleFileChange}
+            fileError={fileError}
+            setFileError={setFileError}
+            selectedFile={selectedFile}
+            ref={fileInputRef}
+          />
+        </div>
+        
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? t('Submitting...') : t('Submit Request')}
+        </Button>
+      </form>
     </div>
   );
 };
