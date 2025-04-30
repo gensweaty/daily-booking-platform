@@ -276,8 +276,8 @@ export const FileDisplay = ({
             <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">
               <div className="p-3 flex items-center justify-between">
                 <div className="flex items-center space-x-2 overflow-hidden">
-                  {isImage(file.filename) ? (
-                    <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+                  <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+                    {isImage(file.filename) ? (
                       <img 
                         src={imageUrl}
                         alt={file.filename}
@@ -287,12 +287,10 @@ export const FileDisplay = ({
                           e.currentTarget.src = '/placeholder.svg';
                         }}
                       />
-                    </div>
-                  ) : (
-                    <div className="h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
-                      {getFileIcon(file.filename)}
-                    </div>
-                  )}
+                    ) : (
+                      getFileIcon(file.filename)
+                    )}
+                  </div>
                   <span className="truncate text-sm">{fileNameDisplay}</span>
                 </div>
                 <div className="flex space-x-1">
