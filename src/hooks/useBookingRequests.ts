@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,7 +47,7 @@ export const useBookingRequests = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data || [];
+      return data as BookingRequest[]; // Explicitly cast to BookingRequest[]
     },
     enabled: !!businessId,
   });
@@ -154,15 +155,17 @@ export const useBookingRequests = () => {
       if (fetchError) throw fetchError;
       if (!booking) throw new Error('Booking request not found');
       
-      console.log('Fetched booking request:', booking);
+      const typedBooking = booking as BookingRequest;
+      
+      console.log('Fetched booking request:', typedBooking);
       
       // Check for conflicts
       const { data: conflictingEvents } = await supabase
         .from('events')
         .select('id, title')
         .eq('user_id', user.id)
-        .filter('start_date', 'lt', booking.end_date)
-        .filter('end_date', 'gt', booking.start_date)
+        .filter('start_date', 'lt', typedBooking.end_date)
+        .filter('end_date', 'gt', typedBooking.start_date)
         .is('deleted_at', null);
       
       const { data: conflictingBookings } = await supabase
@@ -171,8 +174,8 @@ export const useBookingRequests = () => {
         .eq('business_id', businessId)
         .eq('status', 'approved')
         .not('id', 'eq', bookingId)
-        .filter('start_date', 'lt', booking.end_date)
-        .filter('end_date', 'gt', booking.start_date);
+        .filter('start_date', 'lt', typedBooking.end_date)
+        .filter('end_date', 'gt', typedBooking.start_date);
       
       console.log('Conflicting events for current user:', conflictingEvents);
       console.log('Conflicting approved bookings:', conflictingBookings);
@@ -194,18 +197,18 @@ export const useBookingRequests = () => {
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .insert({
-          title: booking.title,
-          start_date: booking.start_date,
-          end_date: booking.end_date,
+          title: typedBooking.title,
+          start_date: typedBooking.start_date,
+          end_date: typedBooking.end_date,
           user_id: user.id,
-          user_surname: booking.requester_name,
-          user_number: booking.requester_phone || booking.user_number || null,
-          social_network_link: booking.requester_email || booking.social_network_link || null,
-          event_notes: booking.description || booking.event_notes || null,
+          user_surname: typedBooking.requester_name,
+          user_number: typedBooking.requester_phone || typedBooking.user_number || null,
+          social_network_link: typedBooking.requester_email || typedBooking.social_network_link || null,
+          event_notes: typedBooking.description || typedBooking.event_notes || null,
           type: 'booking_request',
-          booking_request_id: booking.id,
-          payment_status: booking.payment_status || 'not_paid',
-          payment_amount: booking.payment_amount
+          booking_request_id: typedBooking.id,
+          payment_status: typedBooking.payment_status || 'not_paid',
+          payment_amount: typedBooking.payment_amount
         })
         .select()
         .single();
@@ -220,17 +223,17 @@ export const useBookingRequests = () => {
       const { data: customerData, error: customerError } = await supabase
         .from('customers')
         .insert({
-          title: booking.requester_name,
-          user_surname: booking.user_surname || null,
-          user_number: booking.requester_phone || booking.user_number || null,
-          social_network_link: booking.requester_email || booking.social_network_link || null,
-          event_notes: booking.description || booking.event_notes || null,
-          start_date: booking.start_date,
-          end_date: booking.end_date,
+          title: typedBooking.requester_name,
+          user_surname: typedBooking.user_surname || null,
+          user_number: typedBooking.requester_phone || typedBooking.user_number || null,
+          social_network_link: typedBooking.requester_email || typedBooking.social_network_link || null,
+          event_notes: typedBooking.description || typedBooking.event_notes || null,
+          start_date: typedBooking.start_date,
+          end_date: typedBooking.end_date,
           user_id: user.id,
           type: 'booking_request',
-          payment_status: booking.payment_status,
-          payment_amount: booking.payment_amount
+          payment_status: typedBooking.payment_status,
+          payment_amount: typedBooking.payment_amount
         })
         .select()
         .single();
@@ -248,13 +251,13 @@ export const useBookingRequests = () => {
         console.log('Successfully associated booking file with event:', createdFileRecord);
       }
       
-      if (booking && booking.requester_email) {
+      if (typedBooking && typedBooking.requester_email) {
         let businessName = "Our Business";
         try {
           const { data: businessProfile } = await supabase
             .from('business_profiles')
             .select('business_name')
-            .eq('id', booking.business_id)
+            .eq('id', typedBooking.business_id)
             .maybeSingle();
           if (businessProfile && businessProfile.business_name) {
             businessName = businessProfile.business_name;
@@ -263,21 +266,21 @@ export const useBookingRequests = () => {
           console.warn("Could not load business profile for email:", err);
         }
         
-        console.log(`Preparing to send email to ${booking.requester_email} for business ${businessName}`);
+        console.log(`Preparing to send email to ${typedBooking.requester_email} for business ${businessName}`);
         console.log("Email data:", {
-          email: booking.requester_email,
-          fullName: booking.requester_name || booking.user_surname || "",
+          email: typedBooking.requester_email,
+          fullName: typedBooking.requester_name || typedBooking.user_surname || "",
           businessName,
-          startDate: booking.start_date,
-          endDate: booking.end_date,
+          startDate: typedBooking.start_date,
+          endDate: typedBooking.end_date,
         });
         
         const emailResult = await sendApprovalEmail({
-          email: booking.requester_email,
-          fullName: booking.requester_name || booking.user_surname || "",
+          email: typedBooking.requester_email,
+          fullName: typedBooking.requester_name || typedBooking.user_surname || "",
           businessName,
-          startDate: booking.start_date,
-          endDate: booking.end_date,
+          startDate: typedBooking.start_date,
+          endDate: typedBooking.end_date,
         });
         
         if (emailResult.success) {
@@ -291,7 +294,7 @@ export const useBookingRequests = () => {
       }
 
       console.log('Booking approval process completed successfully');
-      return booking;
+      return typedBooking;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
