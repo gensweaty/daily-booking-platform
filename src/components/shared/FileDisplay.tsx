@@ -1,564 +1,303 @@
-
-import { FileRecord } from "@/types/files";
+import { useState } from "react";
+import { File, FileText, FileSpreadsheet, Image, Music, Video, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Trash2, FileText, Download, ExternalLink, Image as ImageIcon, FileIcon } from "lucide-react";
-import { useState, useEffect } from "react";
-import { supabase, getStorageUrl } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { LanguageText } from "./LanguageText";
-import { ensureAllRequiredBuckets } from "@/integrations/supabase/checkStorage";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
+import { LanguageText } from "@/components/shared/LanguageText";
 
 interface FileDisplayProps {
-  file?: FileRecord;
-  files?: FileRecord[];
-  onDelete?: (id: string) => void;
-  onFileDeleted?: (fileId: string) => void;
-  showDelete?: boolean;
-  allowDelete?: boolean;
-  parentType?: string;
-  // For backward compatibility with other components
+  files?: any[];
   bucketName?: string;
+  onFileDeleted?: (fileId: string) => void;
+  allowDelete?: boolean;
+  parentType?: "event" | "customer" | "note" | "task" | "booking_request";
   parentId?: string;
+  showDelete?: boolean;
 }
 
-export const FileDisplay = ({
-  file,
-  files,
-  onDelete,
-  onFileDeleted,
-  showDelete = true,
-  allowDelete = false,
-  parentType = 'event',
-  bucketName,
-  parentId
+export const FileDisplay = ({ 
+  files, 
+  bucketName, 
+  onFileDeleted, 
+  allowDelete = true, 
+  parentType = "event", 
+  parentId,
+  showDelete = true 
 }: FileDisplayProps) => {
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
-  const [fileUrls, setFileUrls] = useState<Record<string, string | null>>({});
-  const [error, setError] = useState<string | null>(null);
+  const { t, language } = useLanguage();
   const { toast } = useToast();
-  const { t } = useLanguage();
-  
-  // Ensure storage buckets exist when component mounts
-  useEffect(() => {
-    ensureAllRequiredBuckets().catch(err => {
-      console.error("Error ensuring storage buckets:", err);
-    });
-  }, []);
-  
-  // Add debug logging on mount
-  useEffect(() => {
-    console.log("FileDisplay - Mounted with files:", files);
-    console.log("FileDisplay - Mounted with file:", file);
-    console.log("FileDisplay - Parent type:", parentType);
-    console.log("FileDisplay - Bucket name:", bucketName);
-  }, [files, file, parentType, bucketName]);
-  
-  // Support both legacy and new properties
-  const effectiveShowDelete = showDelete || allowDelete;
-  const effectiveOnDelete = onDelete || onFileDeleted;
-  
-  // Get the appropriate bucket name based on the file source or parent type
-  const getBucketName = (fileItem?: FileRecord) => {
-    // If bucketName is provided directly, use that
-    if (bucketName) return bucketName;
-    
-    // If file has source info, use that to determine bucket
-    if (fileItem?.source) {
-      if (fileItem.source.includes('booking') || fileItem.source.includes('event')) {
+  const isGeorgian = language === 'ka';
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Default bucket name if not provided based on parent type
+  const determineBucketName = (parentType: string): string => {
+    switch (parentType.toLowerCase()) {
+      case 'event':
         return 'event_attachments';
-      } else if (fileItem.source.includes('customer')) {
-        return 'customer_attachments';
-      } else if (fileItem.source.includes('note')) {
-        return 'note_attachments';
-      } else if (fileItem.source.includes('task')) {
-        return 'task_attachments';
-      }
-    }
-    
-    // Otherwise determine from parentType
-    switch (parentType) {
-      case 'task':
-        return 'task_attachments';
-      case 'note':
-        return 'note_attachments';
       case 'customer':
         return 'customer_attachments';
-      case 'event':
+      case 'note':
+        return 'note_attachments';
+      case 'task':
+        return 'task_attachments';
       case 'booking_request':
+        return 'event_attachments'; // Booking requests use event_attachments bucket
       default:
         return 'event_attachments';
     }
   };
-  
-  // Check if the file is an image that can be previewed
-  const isImage = (fileItem: FileRecord) => {
-    const contentType = fileItem.content_type?.toLowerCase() || '';
-    return contentType.startsWith('image/');
+
+  const effectiveBucketName = bucketName || determineBucketName(parentType);
+
+  // Helper to get storage URL for direct links
+  const getStorageUrl = (): string => {
+    return `${supabase.supabaseUrl}/storage/v1`;
   };
-  
-  // Normalize file path to handle different formats
-  const normalizeFilePath = (path: string): string => {
-    // Remove any starting slashes
-    return path.startsWith('/') ? path.substring(1) : path;
+
+  // Generate public URL for file
+  const getPublicUrl = (filePath: string): string => {
+    if (!filePath) return '';
+
+    // Normalize the file path (remove any leading slashes)
+    const normalizedPath = filePath.startsWith('/') 
+      ? filePath.substring(1) 
+      : filePath;
+
+    // Construct a direct storage URL
+    return `${getStorageUrl()}/object/public/${effectiveBucketName}/${normalizedPath}`;
   };
-  
-  // Preload all file URLs on component mount
-  useEffect(() => {
-    const allFiles = files || (file ? [file] : []);
-    const loadUrls = async () => {
-      const urls: Record<string, string | null> = {};
+
+  const handleDelete = async (fileId: string, filePath: string) => {
+    try {
+      setDeletingId(fileId);
       
-      for (const fileItem of allFiles) {
-        if (!fileItem?.file_path) continue;
-        
-        try {
-          const bucket = getBucketName(fileItem);
-          console.log(`Getting URL for ${fileItem.filename} from bucket ${bucket}, path: ${fileItem.file_path}`);
+      // Determine if we're deleting from a specific table based on parent type
+      let deleteSuccess = false;
+      const normalizedPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+      
+      // First try to delete the file record from the database
+      if (parentType === 'event' || parentType === 'booking_request') {
+        const { error: deleteRecordError } = await supabase
+          .from('event_files')
+          .delete()
+          .eq('id', fileId);
           
-          const normalizedPath = normalizeFilePath(fileItem.file_path);
+        if (deleteRecordError) {
+          console.error("Error deleting event file record:", deleteRecordError);
+        } else {
+          deleteSuccess = true;
+        }
+      } else if (parentType === 'customer') {
+        const { error: deleteRecordError } = await supabase
+          .from('customer_files_new')
+          .delete()
+          .eq('id', fileId);
           
-          // First check if the object exists in storage
-          const { data: objectExists, error: objectError } = await supabase.storage
-            .from(bucket)
-            .list(normalizedPath.split('/').slice(0, -1).join('/'), {
-              limit: 100,
-              offset: 0,
-              search: normalizedPath.split('/').pop() || ''
-            });
-            
-          if (objectError) {
-            console.error(`Error checking if object exists: ${normalizedPath}`, objectError);
-          }
+        if (deleteRecordError) {
+          console.error("Error deleting customer file record:", deleteRecordError);
+        } else {
+          deleteSuccess = true;
+        }
+      } else if (parentType === 'note') {
+        const { error: deleteRecordError } = await supabase
+          .from('note_files')
+          .delete()
+          .eq('id', fileId);
           
-          console.log(`File check result for ${normalizedPath}:`, objectExists);
+        if (deleteRecordError) {
+          console.error("Error deleting note file record:", deleteRecordError);
+        } else {
+          deleteSuccess = true;
+        }
+      } else if (parentType === 'task') {
+        const { error: deleteRecordError } = await supabase
+          .from('files')
+          .delete()
+          .eq('id', fileId);
           
-          // Get the public URL
-          const { data } = supabase.storage
-            .from(bucket)
-            .getPublicUrl(normalizedPath);
-            
-          const fileId = fileItem.id || `file-${Math.random().toString(36).substring(7)}`;
-          urls[fileId] = data.publicUrl;
-          
-          console.log(`File URL for ${fileItem.filename} (${fileId}):`, data.publicUrl);
-        } catch (error) {
-          console.error(`Error getting URL for file ${fileItem.filename}:`, error);
+        if (deleteRecordError) {
+          console.error("Error deleting task file record:", deleteRecordError);
+        } else {
+          deleteSuccess = true;
         }
       }
       
-      setFileUrls(urls);
-    };
-    
-    loadUrls();
-  }, [files, file]);
-  
-  // Get public URL for a file
-  const getFileUrl = (fileItem: FileRecord) => {
-    if (!fileItem?.file_path) return null;
-    
-    const fileId = fileItem.id || `file-${Math.random().toString(36).substring(7)}`;
-    
-    // If we already loaded the URL, use the cached version
-    if (fileUrls[fileId]) return fileUrls[fileId];
-    
-    // Otherwise get it from storage
-    try {
-      const bucket = getBucketName(fileItem);
-      const normalizedPath = normalizeFilePath(fileItem.file_path);
-      
-      const { data } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(normalizedPath);
-      
-      // Cache the URL
-      setFileUrls(prev => ({
-        ...prev,
-        [fileId]: data.publicUrl
-      }));
-      
-      return data.publicUrl;
-    } catch (error) {
-      console.error(`Error getting URL for file ${fileItem.filename}:`, error);
-      return null;
-    }
-  };
-  
-  const handleImageLoad = (fileId: string) => {
-    setLoadedImages(prev => ({
-      ...prev,
-      [fileId]: true
-    }));
-    console.log(`Image loaded successfully for ${fileId}`);
-  };
-  
-  const handleImageError = (fileId: string) => {
-    console.error(`Failed to load image for file ID: ${fileId}`);
-    setLoadedImages(prev => ({
-      ...prev,
-      [fileId]: false
-    }));
-  };
-  
-  const handleDelete = async (fileToDelete: FileRecord) => {
-    if (!fileToDelete.id) return;
-    
-    try {
-      setIsDeleting(true);
-      console.log("Deleting file:", fileToDelete);
-      
-      // Step 1: Delete the file from storage if it has a path
-      if (fileToDelete.file_path) {
-        const bucket = getBucketName(fileToDelete);
-        const normalizedPath = normalizeFilePath(fileToDelete.file_path);
-        
-        console.log(`Attempting to delete file from ${bucket}/${normalizedPath}`);
-        
+      // Try to delete the actual file from storage
+      // Note: This may fail if the file is already gone, and that's OK
+      try {
         const { error: storageError } = await supabase.storage
-          .from(bucket)
+          .from(effectiveBucketName)
           .remove([normalizedPath]);
           
         if (storageError) {
-          console.error('Error deleting file from storage:', storageError);
-          // Continue even if storage delete fails - we still want to remove the record
+          console.warn("Warning: Could not delete file from storage:", storageError);
+          // This is just a warning, not a failure, as the record is more important
         }
+      } catch (storageErr) {
+        console.warn("Exception trying to delete from storage:", storageErr);
+        // Continue despite storage error - the database record is more important
       }
       
-      // Step 2: Delete the file record from the database
-      let error;
-      
-      // Determine which table to delete from based on parentType or file source
-      console.log("Deleting from table based on parentType:", parentType);
-      console.log("File source:", fileToDelete.source);
-      
-      if (fileToDelete.source === 'event_files' || parentType === 'event') {
-        console.log("Deleting from event_files table");
-        const { error: dbError } = await supabase
-          .from('event_files')
-          .delete()
-          .eq('id', fileToDelete.id);
-          
-        error = dbError;
-      } else if (fileToDelete.source?.includes('booking_request') || fileToDelete.booking_request_id || parentType === 'booking_request') {
-        console.log("Deleting from booking_files table");
-        const { error: dbError } = await supabase
-          .from('booking_files')
-          .delete()
-          .eq('id', fileToDelete.id);
-          
-        error = dbError;
-      } else if (parentType === 'customer' || fileToDelete.customer_id) {
-        console.log("Deleting from customer_files_new table");
-        const { error: dbError } = await supabase
-          .from('customer_files_new')
-          .delete()
-          .eq('id', fileToDelete.id);
-          
-        error = dbError;
-      } else if (parentType === 'note') {
-        console.log("Deleting from note_files table");
-        const { error: dbError } = await supabase
-          .from('note_files')
-          .delete()
-          .eq('id', fileToDelete.id);
-          
-        error = dbError;
-      } else if (parentType === 'task') {
-        console.log("Deleting from files table");
-        const { error: dbError } = await supabase
-          .from('files')
-          .delete()
-          .eq('id', fileToDelete.id);
-          
-        error = dbError;
+      // If we deleted the record successfully, trigger the callback
+      if (deleteSuccess && onFileDeleted) {
+        onFileDeleted(fileId);
+        toast({
+          title: t('common.success'),
+          description: t('common.fileDeleted'),
+        });
+      } else if (!deleteSuccess) {
+        toast({
+          title: t('common.warning'),
+          description: t('common.fileDeleteFailed'),
+          variant: "destructive",
+        });
       }
-      
-      if (error) {
-        console.error('Error deleting file record:', error);
-        throw error;
-      }
-      
-      // Call the parent's onDelete function if provided
-      if (effectiveOnDelete) {
-        console.log("Calling onFileDeleted callback");
-        effectiveOnDelete(fileToDelete.id);
-      }
-      
-      toast({
-        title: t("common.success"),
-        description: t("common.fileDeleted"),
-      });
-      
     } catch (error) {
-      console.error('Error handling file deletion:', error);
+      console.error("Error in handleDelete:", error);
       toast({
-        title: t("common.error"),
-        description: error instanceof Error ? error.message : t("common.errorDeletingFile"),
+        title: t('common.error'),
+        description: t('common.fileDeleteFailed'),
         variant: "destructive",
       });
     } finally {
-      setIsDeleting(false);
+      setDeletingId(null);
     }
   };
-  
-  const handleDownload = async (fileToDownload: FileRecord) => {
-    if (!fileToDownload.file_path) {
-      toast({
-        title: t("common.error"),
-        description: t("common.fileMissing"),
-        variant: "destructive",
-      });
-      return;
+
+  // Determine file icon based on mimetype or extension
+  const getFileIcon = (file: any) => {
+    const contentType = file.content_type || '';
+    const filename = file.filename || '';
+    
+    // Check content type first (more reliable)
+    if (contentType.includes('image/')) {
+      return <Image className="h-5 w-5" />;
+    } else if (contentType.includes('application/pdf')) {
+      return <FileText className="h-5 w-5" />;
+    } else if (contentType.includes('text/')) {
+      return <FileText className="h-5 w-5" />;
+    } else if (contentType.includes('audio/')) {
+      return <Music className="h-5 w-5" />;
+    } else if (contentType.includes('video/')) {
+      return <Video className="h-5 w-5" />;
     }
     
-    try {
-      console.log("Downloading file:", fileToDownload);
-      const bucket = getBucketName(fileToDownload);
-      const normalizedPath = normalizeFilePath(fileToDownload.file_path);
-      
-      console.log(`Downloading from bucket: ${bucket}, path: ${normalizedPath}`);
-      
-      // First ensure the bucket exists
-      await ensureAllRequiredBuckets();
-      
-      // First try using the Supabase storage API
-      const { data, error } = await supabase.storage
-        .from(bucket)
-        .download(normalizedPath);
-        
-      if (error) {
-        console.error("Download error:", error);
-        
-        // Fallback to direct URL download if the API fails
-        const fileUrl = getFileUrl(fileToDownload);
-        if (fileUrl) {
-          const a = document.createElement("a");
-          a.href = fileUrl;
-          a.download = fileToDownload.filename || "download";
-          document.body.appendChild(a);
-          a.click();
-          
-          setTimeout(() => {
-            document.body.removeChild(a);
-          }, 100);
-          
-          toast({
-            title: t("common.success"),
-            description: t("common.fileDownloadStarted"),
-          });
-          
-          return;
-        }
-        
-        throw error;
-      }
-      
-      if (!data) {
-        console.error("No file data returned");
-        throw new Error("File not found");
-      }
-      
-      // Create a download link
-      const url = URL.createObjectURL(data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileToDownload.filename || "download";
-      document.body.appendChild(a);
-      a.click();
-      
-      // Clean up
-      setTimeout(() => {
-        URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }, 100);
-      
-      toast({
-        title: t("common.success"),
-        description: t("common.fileDownloaded"),
-      });
-      
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      toast({
-        title: t("common.error"),
-        description: error instanceof Error ? error.message : t("common.errorDownloadingFile"),
-        variant: "destructive",
-      });
-      
-      // Last resort fallback - try opening the file directly
-      try {
-        const fileUrl = getFileUrl(fileToDownload);
-        if (fileUrl) {
-          window.open(fileUrl, '_blank');
-        }
-      } catch (e) {
-        console.error('Even fallback failed:', e);
-      }
-    }
-  };
-  
-  // Function to open file in a new tab
-  const handleOpenFile = (fileToOpen: FileRecord) => {
-    const fileUrl = getFileUrl(fileToOpen);
-    console.log("Opening file with URL:", fileUrl);
+    // Fall back to checking file extension
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
     
-    if (fileUrl) {
-      window.open(fileUrl, '_blank', 'noopener,noreferrer');
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+      return <Image className="h-5 w-5" />;
+    } else if (ext === 'pdf') {
+      return <FileText className="h-5 w-5" />;
+    } else if (['doc', 'docx', 'txt', 'rtf'].includes(ext)) {
+      return <FileText className="h-5 w-5" />;
+    } else if (['xls', 'xlsx', 'csv'].includes(ext)) {
+      return <FileSpreadsheet className="h-5 w-5" />;
     } else {
+      return <File className="h-5 w-5" />;
+    }
+  };
+
+  // Format file size for display
+  const formatFileSize = (bytes: number | null | undefined) => {
+    if (bytes == null) return 'Unknown size';
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Handle file download
+  const downloadFile = async (file: any) => {
+    try {
+      const filePath = file.file_path;
+      if (!filePath) {
+        console.error("No file path provided for download");
+        return;
+      }
+
+      const publicUrl = getPublicUrl(filePath);
+      console.log("Downloading file from URL:", publicUrl);
+      
+      // Create a temporary anchor and trigger download
+      const link = document.createElement('a');
+      link.href = publicUrl;
+      link.setAttribute('download', file.filename || 'download');
+      link.setAttribute('target', '_blank');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Error downloading file:", error);
       toast({
-        title: t("common.error"),
-        description: t("common.unableToOpenFile"),
+        title: t('common.error'),
+        description: t('common.downloadFailed'),
         variant: "destructive",
       });
     }
   };
-  
-  // Function to get file type icon based on content type
-  const getFileIcon = (fileItem: FileRecord) => {
-    const contentType = fileItem.content_type?.toLowerCase() || '';
-    
-    if (contentType.startsWith('image/')) {
-      return <ImageIcon className="mr-2 h-4 w-4" />;
-    }
-    
-    return <FileIcon className="mr-2 h-4 w-4" />;
-  };
 
-  // Render file thumbnail for images
-  const renderThumbnail = (fileItem: FileRecord) => {
-    if (isImage(fileItem)) {
-      const fileUrl = getFileUrl(fileItem);
-      const fileId = fileItem.id || `file-${Math.random().toString(36).substring(7)}`;
-      
-      if (fileUrl) {
-        return (
-          <div className="h-8 w-8 rounded overflow-hidden mr-2 flex-shrink-0 bg-muted flex items-center justify-center">
-            <img 
-              src={fileUrl} 
-              alt={fileItem.filename} 
-              className="h-full w-full object-cover cursor-pointer"
-              onClick={() => handleOpenFile(fileItem)}
-              onLoad={() => handleImageLoad(fileId)}
-              onError={() => handleImageError(fileId)}
-              style={{ display: loadedImages[fileId] === false ? 'none' : 'block' }}
-            />
-            {loadedImages[fileId] === false && getFileIcon(fileItem)}
-          </div>
-        );
-      }
-    }
-    
+  // Render an empty state if no files
+  if (!files || files.length === 0) {
     return (
-      <div className="h-8 w-8 rounded overflow-hidden mr-2 flex-shrink-0 bg-muted flex items-center justify-center">
-        {getFileIcon(fileItem)}
-      </div>
-    );
-  };
-
-  // If there was an error accessing files, display an error message
-  if (error) {
-    return (
-      <div className="p-3 bg-red-50 text-red-700 rounded-md">
-        <p className="text-sm font-medium">{error}</p>
+      <div className="text-sm text-muted-foreground py-2">
+        <LanguageText>{t('common.noFiles')}</LanguageText>
       </div>
     );
   }
 
-  // If we have a files array, render multiple files
-  if (files && files.length > 0) {
-    return (
-      <div className="space-y-1">
-        {files.map((fileItem) => (
-          <div key={fileItem.id || `file-${Math.random().toString(36).substring(7)}`} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
-            <div className="flex items-center overflow-hidden cursor-pointer" onClick={() => handleOpenFile(fileItem)}>
-              {renderThumbnail(fileItem)}
-              <span className="text-sm truncate hover:underline" title={fileItem.filename}>
-                {fileItem.filename || "Unnamed file"}
-              </span>
+  return (
+    <div className="space-y-2">
+      <div className="text-sm font-medium">
+        <LanguageText>{t('common.files')}</LanguageText> ({files.length})
+      </div>
+      <div className="grid gap-2">
+        {files.map((file) => (
+          <div 
+            key={file.id} 
+            className="flex items-center justify-between p-2 bg-muted/50 rounded-md group"
+          >
+            <div className="flex items-center gap-2 flex-1 min-w-0" onClick={() => downloadFile(file)}>
+              <div className="flex-shrink-0">
+                {getFileIcon(file)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium truncate" title={file.filename || 'Unnamed file'}>
+                  {file.filename || 'Unnamed file'}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {formatFileSize(file.size)}
+                </div>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button 
-                size="icon" 
-                variant="ghost" 
-                onClick={() => handleOpenFile(fileItem)}
-                title={t("common.open")}
+            
+            {showDelete && allowDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(file.id, file.file_path);
+                }}
+                disabled={deletingId === file.id}
               >
-                <ExternalLink className="h-4 w-4" />
+                {deletingId === file.id ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                )}
               </Button>
-              
-              <Button 
-                size="icon" 
-                variant="ghost" 
-                onClick={() => handleDownload(fileItem)}
-                title={t("common.download")}
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-              
-              {effectiveShowDelete && (
-                <Button 
-                  size="icon" 
-                  variant="ghost" 
-                  onClick={() => handleDelete(fileItem)}
-                  disabled={isDeleting}
-                  title={t("common.delete")}
-                >
-                  <Trash2 className="h-4 w-4 text-red-500" />
-                </Button>
-              )}
-            </div>
+            )}
           </div>
         ))}
       </div>
-    );
-  }
-  
-  // Fall back to single file display if files array isn't provided but a single file is
-  if (file) {
-    return (
-      <div className="flex items-center justify-between p-2 bg-muted/50 rounded-md my-1">
-        <div className="flex items-center overflow-hidden cursor-pointer" onClick={() => handleOpenFile(file)}>
-          {renderThumbnail(file)}
-          <span className="text-sm truncate hover:underline" title={file.filename}>
-            {file.filename || "Unnamed file"}
-          </span>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            size="icon" 
-            variant="ghost" 
-            onClick={() => handleOpenFile(file)}
-            title={t("common.open")}
-          >
-            <ExternalLink className="h-4 w-4" />
-          </Button>
-        
-          <Button 
-            size="icon" 
-            variant="ghost" 
-            onClick={() => handleDownload(file)}
-            title={t("common.download")}
-          >
-            <Download className="h-4 w-4" />
-          </Button>
-          
-          {effectiveShowDelete && (
-            <Button 
-              size="icon" 
-              variant="ghost" 
-              onClick={() => handleDelete(file)}
-              disabled={isDeleting}
-              title={t("common.delete")}
-            >
-              <Trash2 className="h-4 w-4 text-red-500" />
-            </Button>
-          )}
-        </div>
-      </div>
-    );
-  }
-  
-  // If no files, return a message
-  return <div className="text-sm text-muted-foreground"><LanguageText>{t("common.noFiles")}</LanguageText></div>;
+    </div>
+  );
 };
