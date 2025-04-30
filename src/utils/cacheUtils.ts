@@ -123,7 +123,7 @@ export const prefetchRelatedQuery = async (
   console.log(`Prefetched related query: ${JSON.stringify(targetKey)} from ${JSON.stringify(sourceKey)}`);
 };
 
-// Export the forceCalendarRefresh function that was referenced in the EventDialog component
+// Export the forceCalendarRefresh function
 export const forceCalendarRefresh = async (queryClient: QueryClient): Promise<void> => {
   console.log("Forcing calendar data refresh...");
   
