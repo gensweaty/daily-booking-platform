@@ -1,4 +1,3 @@
-
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,11 +61,9 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     // Fetch files for each event
     const eventsWithFiles = await Promise.all(events.map(async (event) => {
       const { data: files } = await supabase
-        .rpc('get_all_related_files', {
-          event_id_param: event.id,
-          customer_id_param: null,
-          entity_name_param: event.title
-        });
+        .from('event_files')
+        .select('*')
+        .eq('event_id', event.id);
       
       return {
         ...event,
