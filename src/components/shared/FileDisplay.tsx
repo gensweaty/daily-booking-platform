@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
-import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, FilePresentationIcon } from "lucide-react";
+import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, PresentationIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -70,7 +70,7 @@ export const FileDisplay = ({
     } else if (['xls', 'xlsx', 'csv'].includes(ext)) {
       return <FileSpreadsheet className="h-5 w-5" />;
     } else if (['ppt', 'pptx'].includes(ext)) {
-      return <FilePresentationIcon className="h-5 w-5" />;
+      return <PresentationIcon className="h-5 w-5" />;
     }
     
     return <FileIcon className="h-5 w-5" />;
