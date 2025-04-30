@@ -66,8 +66,12 @@ export const FileDisplay = ({
   };
 
   const determineEffectiveBucket = (filePath: string, parentType?: string, source?: string): string => {
-    // Always default to event_attachments bucket for all files from this app
-    // This ensures consistency since all files are now uploaded to event_attachments
+    // Check if this is a file from booking_files table
+    if (source === 'booking') {
+      return "booking_attachments";
+    }
+    
+    // All other files use event_attachments bucket
     return "event_attachments";
   };
 
@@ -134,8 +138,7 @@ export const FileDisplay = ({
     }
     
     const normalizedPath = normalizeFilePath(filePath);
-    // Always use event_attachments bucket
-    const effectiveBucket = "event_attachments";
+    const effectiveBucket = determineEffectiveBucket(filePath, parentType);
     console.log(`Open: Using bucket ${effectiveBucket} for path ${filePath}`);
     
     return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
@@ -166,23 +169,27 @@ export const FileDisplay = ({
     try {
       setDeletingFileId(fileId);
       
-      // Always use event_attachments bucket
-      const effectiveBucket = "event_attachments";
+      // Determine which bucket to delete from
+      const file = uniqueFiles.find(f => f.id === fileId);
+      const effectiveBucket = determineEffectiveBucket(filePath, parentType, file?.source);
       console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}`);
       
+      // Delete file from storage
       const { error: storageError } = await supabase.storage
         .from(effectiveBucket)
         .remove([normalizeFilePath(filePath)]);
 
       if (storageError) {
-        console.error('Error deleting file from storage:', storageError);
+        console.error(`Error deleting file from ${effectiveBucket} storage:`, storageError);
         throw storageError;
       }
       
-      // Determine the appropriate table name based on the parent type
-      let tableName: "files" | "customer_files_new" | "note_files" | "event_files";
+      // Determine the appropriate table name based on the parent type or source
+      let tableName: "booking_files" | "files" | "customer_files_new" | "note_files" | "event_files";
       
-      if (parentType === 'event') {
+      if (file?.source === 'booking') {
+        tableName = "booking_files";
+      } else if (parentType === 'event') {
         tableName = "event_files";
       } else if (parentType === 'customer') {
         tableName = "customer_files_new";
@@ -191,8 +198,8 @@ export const FileDisplay = ({
       } else if (parentType === 'task') {
         tableName = "files";  // Task files are stored in the "files" table
       } else {
-        // Default to customer_files_new if we can't determine
-        tableName = "customer_files_new";
+        // Default to event_files if we can't determine
+        tableName = "event_files";
       }
       
       console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);
@@ -210,6 +217,7 @@ export const FileDisplay = ({
         onFileDeleted(fileId);
       }
       
+      // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ['files'] });
       queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
       queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
@@ -217,6 +225,7 @@ export const FileDisplay = ({
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['bookingFiles'] });
       
       toast({
         title: t("common.success"),

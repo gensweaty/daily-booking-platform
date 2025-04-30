@@ -64,11 +64,22 @@ export interface BookingRequest {
   event_notes?: string;
   payment_status?: string;
   payment_amount?: number | null;
-  // File fields explicitly defined
+  // Legacy file fields
   file_path?: string;
   filename?: string;
   content_type?: string;
   size?: number;
+}
+
+// Add BookingFile interface to match booking_files table
+export interface BookingFile {
+  id: string;
+  booking_request_id: string;
+  filename: string;
+  file_path: string;
+  content_type?: string;
+  size?: number;
+  created_at: string;
 }
 
 // Add EventFile interface to match event_files table

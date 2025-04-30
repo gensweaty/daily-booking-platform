@@ -129,7 +129,37 @@ export const EventDialog = ({
       try {
         console.log("Loading files for event:", event.id);
         
-        // SIMPLIFIED: Only check event_files for the current event ID
+        // First, check if this is a booking request and load files from booking_files table
+        if (event.type === 'booking_request' && event.booking_request_id) {
+          console.log("This is a booking request, checking booking_files table for:", event.booking_request_id);
+          
+          const { data: bookingFiles, error: bookingFilesError } = await supabase
+            .from('booking_files')
+            .select('*')
+            .eq('booking_request_id', event.booking_request_id);
+            
+          if (bookingFilesError) {
+            console.error("Error loading booking files:", bookingFilesError);
+          } else if (bookingFiles && bookingFiles.length > 0) {
+            console.log("Found files in booking_files table:", bookingFiles.length);
+            
+            // Format booking files to match the expected structure
+            const formattedBookingFiles = bookingFiles.map(file => ({
+              ...file,
+              event_id: event.id,
+              user_id: user?.id || null,
+              parentType: 'event',
+              source: 'booking'
+            }));
+            
+            setDisplayedFiles(formattedBookingFiles);
+            return;
+          } else {
+            console.log("No booking_files found for booking request:", event.booking_request_id);
+          }
+        }
+        
+        // Next, check event_files for the current event ID
         const { data: eventFiles, error: eventFilesError } = await supabase
           .from('event_files')
           .select('*')
@@ -153,7 +183,27 @@ export const EventDialog = ({
           setDisplayedFiles(filesWithSource);
         } else {
           console.log("No files found for event:", event.id);
-          setDisplayedFiles([]);
+          
+          // If this is a booking-originated event but no files found in event_files,
+          // check for legacy file data on the event itself
+          if (event.type === 'booking_request' && event.file_path && event.filename) {
+            console.log("Found legacy file data on event object, using that");
+            
+            setDisplayedFiles([{
+              id: `legacy-${event.id}`,
+              filename: event.filename,
+              file_path: event.file_path,
+              content_type: event.content_type || null,
+              size: event.size || null,
+              created_at: event.created_at,
+              user_id: event.user_id,
+              event_id: event.id,
+              parentType: 'event',
+              source: 'legacy'
+            }]);
+          } else {
+            setDisplayedFiles([]);
+          }
         }
       } catch (err) {
         console.error("Exception loading event files:", err);
@@ -167,7 +217,7 @@ export const EventDialog = ({
       setFileError("");
       loadFiles();
     }
-  }, [event, open]);
+  }, [event, open, user?.id]);
 
   const sendApprovalEmail = async (
     startDateTime: Date,

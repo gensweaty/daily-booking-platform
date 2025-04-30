@@ -16,6 +16,7 @@ export const normalizeFilePath = (filePath: string) => {
   return filePath.replace(/^\/+/, '');
 };
 
+// Function to associate booking files with events (for backward compatibility)
 export async function associateBookingFilesWithEvent(
   bookingId: string, 
   eventId: string, 
@@ -36,8 +37,76 @@ export async function associateBookingFilesWithEvent(
     }
     
     if (!bookingFiles || bookingFiles.length === 0) {
-      console.log('No files found for this booking request');
-      return null;
+      console.log('No files found in booking_files table, checking for legacy file data');
+      
+      // Check for legacy file data in booking_requests table
+      const { data: bookingRequest, error: bookingError } = await supabase
+        .from('booking_requests')
+        .select('file_path, filename, content_type, size')
+        .eq('id', bookingId)
+        .single();
+        
+      if (bookingError || !bookingRequest || !bookingRequest.file_path) {
+        console.log('No files found for this booking request');
+        return null;
+      }
+      
+      // Handle legacy file data
+      try {
+        // Download the original file from storage
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from('event_attachments') // Legacy files were stored in event_attachments
+          .download(bookingRequest.file_path);
+          
+        if (downloadError) {
+          console.error('Error downloading legacy file:', downloadError);
+          return null;
+        }
+        
+        if (!fileData) {
+          console.error('No data returned when downloading legacy file');
+          return null;
+        }
+        
+        // Generate a new path for the file in the event_attachments bucket
+        const fileExt = bookingRequest.filename.split('.').pop();
+        const newFilePath = `event_${eventId}_${Date.now()}.${fileExt}`;
+        
+        // Upload the file to the event_attachments bucket
+        const { error: uploadError } = await supabase.storage
+          .from('event_attachments')
+          .upload(newFilePath, fileData);
+          
+        if (uploadError) {
+          console.error('Error uploading file to event_attachments:', uploadError);
+          return null;
+        }
+        
+        // Create event_files record
+        const { data: eventFile, error: eventFileError } = await supabase
+          .from('event_files')
+          .insert({
+            filename: bookingRequest.filename,
+            file_path: newFilePath,
+            content_type: bookingRequest.content_type || null,
+            size: bookingRequest.size || null,
+            user_id: userId,
+            event_id: eventId
+          })
+          .select()
+          .single();
+          
+        if (eventFileError) {
+          console.error('Error creating event file record:', eventFileError);
+          return null;
+        }
+        
+        console.log('Successfully created event file from legacy booking file data:', eventFile);
+        return eventFile;
+      } catch (error) {
+        console.error('Error processing legacy file:', error);
+        return null;
+      }
     }
     
     console.log(`Found ${bookingFiles.length} files to transfer from booking to event`);
@@ -49,12 +118,43 @@ export async function associateBookingFilesWithEvent(
       try {
         console.log(`Processing file: ${file.filename}, path: ${file.file_path}`);
         
-        // Create an event file record pointing to the same storage location
+        // Download the file from booking_attachments bucket
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from('booking_attachments')
+          .download(file.file_path);
+          
+        if (downloadError) {
+          console.error('Error downloading file from booking_attachments:', downloadError);
+          continue;
+        }
+        
+        if (!fileData) {
+          console.error('No data returned when downloading file');
+          continue;
+        }
+        
+        // Generate a new path for the file in event_attachments bucket
+        const fileExt = file.filename.split('.').pop();
+        const newFilePath = `event_${eventId}_${Date.now()}.${fileExt}`;
+        
+        // Upload to event_attachments bucket
+        const { error: uploadError } = await supabase.storage
+          .from('event_attachments')
+          .upload(newFilePath, fileData);
+          
+        if (uploadError) {
+          console.error('Error uploading file to event_attachments:', uploadError);
+          continue;
+        }
+        
+        console.log('File successfully copied from booking_attachments to event_attachments:', newFilePath);
+        
+        // Create an event file record pointing to the new storage location
         const { data: eventFile, error: eventFileError } = await supabase
           .from('event_files')
           .insert({
             filename: file.filename,
-            file_path: file.file_path,
+            file_path: newFilePath,
             content_type: file.content_type,
             size: file.size,
             user_id: userId,
@@ -67,6 +167,7 @@ export async function associateBookingFilesWithEvent(
           console.error('Error creating event file record:', eventFileError);
         } else {
           eventFiles.push(eventFile);
+          console.log('Created event file record successfully:', eventFile);
         }
       } catch (error) {
         console.error('Error processing file:', error);

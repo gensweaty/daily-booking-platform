@@ -43,7 +43,7 @@ export const FileUploadField = ({
   hideDescription = false,
   disabled = false,
   imageUrl,
-  bucket,
+  bucket = "event_attachments", // Default to event_attachments, but can be overridden
   uploadText,
   chooseFileText,
   noFileText,

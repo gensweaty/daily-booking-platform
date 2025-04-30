@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -336,7 +335,7 @@ export const BookingRequestForm = ({
         }
       }
 
-      const { data, error } = await supabase
+      const { data: bookingData, error: bookingError } = await supabase
         .from('booking_requests')
         .insert({
           business_id: businessId,
@@ -354,14 +353,61 @@ export const BookingRequestForm = ({
         .select()
         .single();
         
-      if (error) {
-        console.error("❌ Error creating booking request:", error);
-        throw error;
+      if (bookingError) {
+        console.error("❌ Error creating booking request:", bookingError);
+        throw bookingError;
       }
       
-      console.log("✅ Successfully created booking request:", data);
+      console.log("✅ Successfully created booking request:", bookingData);
 
       localStorage.setItem(`booking_last_request_${businessId}`, Date.now().toString());
+      
+      // Handle file upload if there's a selected file
+      if (selectedFile && bookingData?.id) {
+        try {
+          console.log("🔍 Processing file upload for booking request:", selectedFile.name);
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `booking_${bookingData.id}_${Date.now()}.${fileExt}`;
+          
+          // Upload to booking_attachments bucket
+          const { error: uploadError } = await supabase.storage
+            .from('booking_attachments')
+            .upload(filePath, selectedFile);
+            
+          if (uploadError) {
+            console.error('❌ Error uploading file to booking_attachments:', uploadError);
+            throw uploadError;
+          } else {
+            console.log("✅ File uploaded successfully to booking_attachments:", filePath);
+            
+            // Create booking_files record with file metadata
+            const { error: fileError } = await supabase
+              .from('booking_files')
+              .insert({
+                booking_request_id: bookingData.id,
+                filename: selectedFile.name,
+                file_path: filePath,
+                content_type: selectedFile.type,
+                size: selectedFile.size
+              });
+              
+            if (fileError) {
+              console.error('❌ Error saving booking file metadata:', fileError);
+              throw fileError;
+            } else {
+              console.log("✅ Booking file metadata saved successfully");
+            }
+          }
+        } catch (fileError) {
+          console.error("❌ Error processing file upload:", fileError);
+          // Continue with the process even if file upload fails
+          toast({
+            title: t("common.warning"),
+            description: t("common.fileUploadError"),
+            variant: "destructive",
+          });
+        }
+      }
       
       let emailSent = false;
       let emailError = null;
@@ -392,44 +438,6 @@ export const BookingRequestForm = ({
       } catch (emailErr: any) {
         console.error("❌ Error handling notification:", emailErr);
         emailError = emailErr.message || "Unknown email error";
-      }
-      
-      if (selectedFile && data) {
-        try {
-          console.log("🔍 Processing file upload for booking request:", selectedFile.name);
-          const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `booking_${data.id}_${Date.now()}.${fileExt}`;
-          
-          // Upload to booking_attachments bucket
-          const { error: uploadError } = await supabase.storage
-            .from('booking_attachments')
-            .upload(filePath, selectedFile);
-            
-          if (uploadError) {
-            console.error('❌ Error uploading file:', uploadError);
-          } else {
-            console.log("✅ File uploaded successfully to booking_attachments:", filePath);
-            
-            // Create booking_files record with file metadata
-            const { error: fileError } = await supabase
-              .from('booking_files')
-              .insert({
-                booking_request_id: data.id,
-                filename: selectedFile.name,
-                file_path: filePath,
-                content_type: selectedFile.type,
-                size: selectedFile.size
-              });
-              
-            if (fileError) {
-              console.error('❌ Error saving booking file metadata:', fileError);
-            } else {
-              console.log("✅ Booking file metadata saved successfully");
-            }
-          }
-        } catch (fileError) {
-          console.error("❌ Error processing file upload:", fileError);
-        }
       }
       
       queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
