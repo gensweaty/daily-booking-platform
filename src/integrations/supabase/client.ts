@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { BookingRequest, EventFile } from '@/types/database';
@@ -10,12 +9,57 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
 // Helper function to normalize file paths by removing any potential starting slash
 export const normalizeFilePath = (path: string): string => {
+  if (!path) return '';
   return path.startsWith('/') ? path.substring(1) : path;
 };
 
 // Helper function to get the storage URL
-export const getStorageUrl = (): string => {
-  return `${supabaseUrl}/storage/v1`;
+export const getStorageUrl = () => {
+  return `https://${process.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/storage/v1`;
+};
+
+// Function to associate uploaded files with events/bookings
+export const associateFileWithEvent = async (file: File, eventId: string, userId: string) => {
+  try {
+    // Generate a unique file path
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${crypto.randomUUID()}.${fileExt}`;
+    
+    // Upload to event_attachments bucket
+    const { error: uploadError } = await supabase.storage
+      .from('event_attachments')
+      .upload(filePath, file);
+      
+    if (uploadError) {
+      console.error('Error uploading file:', uploadError);
+      throw uploadError;
+    }
+    
+    // Create record in event_files table
+    const { data, error } = await supabase
+      .from('event_files')
+      .insert({
+        event_id: eventId,
+        filename: file.name,
+        file_path: filePath,
+        content_type: file.type,
+        size: file.size,
+        user_id: userId,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error creating file record:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in associateFileWithEvent:', error);
+    throw error;
+  }
 };
 
 // Helper function to associate booking files with event (enhanced)

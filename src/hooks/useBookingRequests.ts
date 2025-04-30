@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -234,13 +235,25 @@ export const useBookingRequests = () => {
         console.log('Created customer:', customerData);
       }
       
+      // IMPROVED: Use a direct query to get booking-related files
       const { data: bookingFiles, error: filesError } = await supabase
-        .from('booking_files')
-        .select('*')
-        .eq('booking_id', booking.id);
+        .rpc('get_booking_request_files', { booking_id_param: booking.id });
         
       if (filesError) {
-        console.error('Error fetching booking files:', filesError);
+        console.error('Error fetching booking files using RPC:', filesError);
+        // Fallback to direct query if RPC fails
+        const { data: fallbackFiles, error: fallbackError } = await supabase
+          .from('event_files')
+          .select('*')
+          .eq('event_id', booking.id);
+          
+        if (fallbackError) {
+          console.error('Error fetching booking files with direct query:', fallbackError);
+        } else if (fallbackFiles && fallbackFiles.length > 0) {
+          console.log('Found booking files via direct query:', fallbackFiles.length);
+          // Use the fallback files instead
+          bookingFiles = fallbackFiles;
+        }
       }
       
       console.log('Found booking files:', bookingFiles);
@@ -252,16 +265,8 @@ export const useBookingRequests = () => {
           try {
             console.log(`Processing file: ${file.filename}, path: ${file.file_path}`);
             
-            const { data: fileData, error: fileError } = await supabase.storage
-              .from('booking_attachments')
-              .download(file.file_path);
-              
-            if (fileError) {
-              console.error('Error downloading file from booking_attachments:', fileError);
-              continue;
-            }
-            
-            const { error: eventFileError } = await supabase
+            // Insert file reference to event_files table 
+            const { data: fileData, error: eventFileError } = await supabase
               .from('event_files')
               .insert({
                 event_id: eventData.id,
@@ -271,13 +276,44 @@ export const useBookingRequests = () => {
                 size: file.size || 0,
                 user_id: user.id,
                 created_at: new Date().toISOString()
-              });
+              })
+              .select()
+              .single();
               
             if (eventFileError) {
               console.error('Error creating event file record:', eventFileError);
+            } else {
+              console.log('Successfully created event file record:', fileData);
             }
           } catch (error) {
             console.error('Error processing file:', error);
+          }
+        }
+      } else {
+        // Direct check for file information on the booking request itself
+        if (booking.file_path && booking.filename) {
+          console.log('Using file information directly from booking request:', booking.filename);
+          
+          try {
+            const { error: eventFileError } = await supabase
+              .from('event_files')
+              .insert({
+                event_id: eventData.id,
+                filename: booking.filename,
+                file_path: booking.file_path,
+                content_type: booking.content_type || 'application/octet-stream',
+                size: booking.size || 0,
+                user_id: user.id,
+                created_at: new Date().toISOString()
+              });
+              
+            if (eventFileError) {
+              console.error('Error creating event file record from booking data:', eventFileError);
+            } else {
+              console.log('Successfully created event file record from booking data');
+            }
+          } catch (error) {
+            console.error('Error processing direct booking file:', error);
           }
         }
       }

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -129,7 +130,7 @@ export const EventDialog = ({
       try {
         console.log("Loading files for event:", event.id);
         
-        // Only check event_files table using event ID
+        // Only check event_files table using event ID - SIMPLIFIED to use only one table
         const { data: eventFiles, error: eventFilesError } = await supabase
           .from('event_files')
           .select('*')
