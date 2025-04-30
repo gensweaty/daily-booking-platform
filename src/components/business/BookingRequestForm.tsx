@@ -78,7 +78,10 @@ export const BookingRequestForm = ({
 
   const formatTimeForDisplay = (time: string) => {
     if (!time) return '';
-    return time;
+    const [hours, minutes] = time.split(':').map(Number);
+    const h = hours % 12 || 12;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    return `${h.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${ampm}`;
   };
 
   const combineDateAndTime = (date: Date, timeString: string) => {
@@ -293,7 +296,7 @@ export const BookingRequestForm = ({
                               !field.value && "text-muted-foreground"
                             )}
                           >
-                            {field.value || "Select time"}
+                            {formatTimeForDisplay(field.value) || "Select time"}
                             <Clock className="h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
@@ -328,7 +331,7 @@ export const BookingRequestForm = ({
                               !field.value && "text-muted-foreground"
                             )}
                           >
-                            {field.value || "Select time"}
+                            {formatTimeForDisplay(field.value) || "Select time"}
                             <Clock className="h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
@@ -360,9 +363,9 @@ export const BookingRequestForm = ({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="pending">{t('Pending')}</SelectItem>
-                    <SelectItem value="paid">{t('Paid')}</SelectItem>
-                    <SelectItem value="partial">{t('Partially Paid')}</SelectItem>
+                    <SelectItem value="pending">{t('Not Paid')}</SelectItem>
+                    <SelectItem value="partial">{t('Partly Paid')}</SelectItem>
+                    <SelectItem value="paid">{t('Fully Paid')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />

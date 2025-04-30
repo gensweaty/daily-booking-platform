@@ -20,6 +20,9 @@ export const TimePicker = ({
   to = "23:59",
 }: TimePickerProps) => {
   const [times, setTimes] = useState<string[]>([]);
+  const [selectedTimePeriod, setSelectedTimePeriod] = useState<"AM" | "PM">("AM");
+  const [selectedHour, setSelectedHour] = useState<string>("09");
+  const [selectedMinute, setSelectedMinute] = useState<string>("00");
 
   useEffect(() => {
     // Generate time slots based on interval
@@ -43,27 +46,107 @@ export const TimePicker = ({
     };
     
     setTimes(generateTimeSlots());
-  }, [interval, from, to]);
 
-  const handleTimeSelect = (time: string) => {
-    setTime(time);
+    // Parse current time if provided
+    if (current) {
+      const [hours, minutes] = current.split(':').map(Number);
+      const hour = hours % 12 || 12;
+      const period = hours >= 12 ? "PM" : "AM";
+      
+      setSelectedHour(hour.toString().padStart(2, '0'));
+      setSelectedMinute(minutes.toString().padStart(2, '0'));
+      setSelectedTimePeriod(period as "AM" | "PM");
+    }
+  }, [interval, from, to, current]);
+
+  const handleTimeChange = () => {
+    let hour = parseInt(selectedHour);
+    if (selectedTimePeriod === "PM" && hour !== 12) {
+      hour += 12;
+    } else if (selectedTimePeriod === "AM" && hour === 12) {
+      hour = 0;
+    }
+    
+    const formattedHour = hour.toString().padStart(2, '0');
+    const timeString = `${formattedHour}:${selectedMinute}`;
+    setTime(timeString);
   };
 
+  useEffect(() => {
+    handleTimeChange();
+  }, [selectedHour, selectedMinute, selectedTimePeriod]);
+
+  const hours = Array.from({ length: 12 }, (_, i) => {
+    const hour = (i + 1).toString().padStart(2, '0');
+    return hour;
+  });
+
+  const minutes = ["00", "15", "30", "45"];
+
   return (
-    <ScrollArea className="h-72 w-48 rounded-md border">
-      <div className="p-2">
-        {times.map((time) => (
-          <Button
-            key={time}
-            variant="ghost"
-            className="flex w-full justify-between items-center px-4 py-2"
-            onClick={() => handleTimeSelect(time)}
-          >
-            <span>{time}</span>
-            {current === time && <Check className="h-4 w-4" />}
-          </Button>
-        ))}
+    <div className="bg-background border rounded-md shadow-md p-1 w-auto">
+      <div className="flex">
+        <div className="flex-1 border-r min-w-16">
+          <ScrollArea className="h-48 w-full">
+            <div className="flex flex-col items-center">
+              {hours.map((hour) => (
+                <Button
+                  key={hour}
+                  variant={selectedHour === hour ? "default" : "ghost"}
+                  className={`py-1 w-full rounded-sm ${
+                    selectedHour === hour ? "bg-primary text-primary-foreground" : ""
+                  }`}
+                  onClick={() => setSelectedHour(hour)}
+                >
+                  {hour}
+                </Button>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+        
+        <div className="flex-1 border-r min-w-16">
+          <ScrollArea className="h-48 w-full">
+            <div className="flex flex-col items-center">
+              {minutes.map((minute) => (
+                <Button
+                  key={minute}
+                  variant={selectedMinute === minute ? "default" : "ghost"}
+                  className={`py-1 w-full rounded-sm ${
+                    selectedMinute === minute ? "bg-primary text-primary-foreground" : ""
+                  }`}
+                  onClick={() => setSelectedMinute(minute)}
+                >
+                  {minute}
+                </Button>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+        
+        <div className="flex-1 min-w-16">
+          <div className="flex flex-col h-full">
+            <Button
+              variant={selectedTimePeriod === "AM" ? "default" : "ghost"}
+              className={`py-1 flex-1 rounded-sm ${
+                selectedTimePeriod === "AM" ? "bg-primary text-primary-foreground" : ""
+              }`}
+              onClick={() => setSelectedTimePeriod("AM")}
+            >
+              AM
+            </Button>
+            <Button
+              variant={selectedTimePeriod === "PM" ? "default" : "ghost"}
+              className={`py-1 flex-1 rounded-sm ${
+                selectedTimePeriod === "PM" ? "bg-primary text-primary-foreground" : ""
+              }`}
+              onClick={() => setSelectedTimePeriod("PM")}
+            >
+              PM
+            </Button>
+          </div>
+        </div>
       </div>
-    </ScrollArea>
+    </div>
   );
 };
