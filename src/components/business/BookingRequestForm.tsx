@@ -42,6 +42,7 @@ const bookingRequestSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
   notes: z.string().optional(),
   paymentStatus: z.string().optional(),
+  paymentAmount: z.string().optional(),
   file: z.instanceof(File).optional(),
   startTime: z.string(),
   endTime: z.string()
@@ -62,6 +63,7 @@ export const BookingRequestForm = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showPaymentAmount, setShowPaymentAmount] = useState(false);
 
   const form = useForm<z.infer<typeof bookingRequestSchema>>({
     resolver: zodResolver(bookingRequestSchema),
@@ -71,6 +73,7 @@ export const BookingRequestForm = ({
       email: '',
       notes: '',
       paymentStatus: 'pending',
+      paymentAmount: '',
       startTime: startTime,
       endTime: endTime
     },
@@ -95,6 +98,14 @@ export const BookingRequestForm = ({
     setSelectedFile(file);
     setFileError('');
   };
+  
+  const handlePaymentStatusChange = (value: string) => {
+    form.setValue('paymentStatus', value);
+    setShowPaymentAmount(value === 'partial' || value === 'paid');
+    if (value === 'pending') {
+      form.setValue('paymentAmount', '');
+    }
+  };
 
   const onSubmit = async (values: z.infer<typeof bookingRequestSchema>) => {
     try {
@@ -112,7 +123,8 @@ export const BookingRequestForm = ({
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
         status: 'pending',
-        payment_status: values.paymentStatus || 'pending'
+        payment_status: values.paymentStatus || 'pending',
+        payment_amount: values.paymentAmount ? parseFloat(values.paymentAmount) : null
       };
 
       console.log('Submitting booking request:', bookingData);
@@ -356,7 +368,7 @@ export const BookingRequestForm = ({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>{t('Payment Status')}</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={handlePaymentStatusChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder={t('Select payment status')} />
@@ -372,6 +384,26 @@ export const BookingRequestForm = ({
               </FormItem>
             )}
           />
+          
+          {showPaymentAmount && (
+            <FormField
+              control={form.control}
+              name="paymentAmount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Payment Amount')}</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      placeholder={t('Enter payment amount')} 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
           
           <FormField
             control={form.control}
