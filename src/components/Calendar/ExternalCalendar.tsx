@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -101,13 +102,19 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
         
+        // Filter out deleted events before combining
+        const filteredApiEvents = (apiEvents || []).filter(event => !event.deleted_at);
+        const filteredBookings = (approvedBookings || []).filter(booking => !booking.deleted_at);
+        
+        console.log(`[External Calendar] After filtering: ${filteredApiEvents.length} API events, ${filteredBookings.length} bookings`);
+        
         // Combine all event sources
         const allEvents: CalendarEventType[] = [
-          ...(apiEvents || []).map(event => ({
+          ...filteredApiEvents.map(event => ({
             ...event,
             type: event.type || 'event'
           })),
-          ...(approvedBookings || []).map(booking => ({
+          ...filteredBookings.map(booking => ({
             id: booking.id,
             title: booking.title || 'Booking',
             start_date: booking.start_date,
@@ -134,7 +141,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             const startValid = !!new Date(event.start_date).getTime();
             const endValid = !!new Date(event.end_date).getTime();
             
-            // Skip events that are soft deleted - this is the critical fix
+            // Make absolutely sure no deleted events get through
             if (event.deleted_at) {
               console.log(`Filtering out deleted event with id ${event.id}`);
               return false;

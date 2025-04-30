@@ -54,16 +54,16 @@ export const CalendarView = ({
   const getEventClassName = (event: CalendarEventType): string => {
     const baseClass = "cursor-pointer p-1 rounded mb-1 text-xs overflow-hidden";
     
-    // Determine the event color based on its type
+    // Restore original color scheme
     if (event.type === 'booking_request') {
-      // If this is an external calendar or the event is from a booking request, use green
+      // Use green for booking requests both in external and personal calendar
       return `${baseClass} bg-green-500 text-white`;
     } else if (event.type === 'birthday') {
       return `${baseClass} bg-pink-500 text-white`;
     } else if (event.type === 'private_party') {
       return `${baseClass} bg-purple-500 text-white`;
     } else {
-      // Default color for regular events
+      // Default color for regular events (blue)
       return `${baseClass} bg-blue-500 text-white`;
     }
   };
