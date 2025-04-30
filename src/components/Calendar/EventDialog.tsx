@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -120,7 +119,7 @@ export const EventDialog = ({
     }
   }, [selectedDate, event, open]);
 
-  // Load files for this event - simplified to only use event_files table
+  // Load files for this event
   useEffect(() => {
     const loadFiles = async () => {
       if (!event?.id) {
@@ -344,11 +343,10 @@ export const EventDialog = ({
         }
       }
 
-      // Handle file upload to event_files for the current event
       if (selectedFile && createdEvent?.id && user) {
         try {
           const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${createdEvent.id}/${crypto.randomUUID()}.${fileExt}`;
+          const filePath = `${crypto.randomUUID()}.${fileExt}`;
           
           console.log('Uploading file:', filePath);
           
@@ -361,7 +359,6 @@ export const EventDialog = ({
             throw uploadError;
           }
 
-          // Create record in event_files table
           const fileData = {
             filename: selectedFile.name,
             file_path: filePath,
@@ -380,7 +377,7 @@ export const EventDialog = ({
             throw fileRecordError;
           }
 
-          console.log('File record created successfully in event_files');
+          console.log('File record created successfully');
         } catch (fileError) {
           console.error("Error handling file upload:", fileError);
         }
