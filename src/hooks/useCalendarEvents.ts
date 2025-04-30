@@ -257,6 +257,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     
     console.log("Successfully created event:", data);
     
+    // If this event was created from a booking request, associate any files
+    if (event.original_booking_id) {
+      console.log("Event created from booking request. Associating files...", {
+        original_booking_id: event.original_booking_id,
+        new_event_id: data.id
+      });
+      await associateBookingFilesWithEvent(event.original_booking_id, data.id);
+    }
+    
     toast({
       title: "Event created",
       description: "Your event has been added to the calendar."

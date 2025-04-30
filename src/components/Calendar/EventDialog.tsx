@@ -138,6 +138,21 @@ export const EventDialog = ({
             return;
           }
           
+          // If this is an event created from a booking request, also check for files from the original booking
+          let originalBookingFiles: any[] = [];
+          if (event.original_booking_id) {
+            console.log("This event was created from booking. Also checking original booking ID:", event.original_booking_id);
+            const { data: bookingFiles, error: bookingFilesError } = await supabase
+              .from('event_files')
+              .select('*')
+              .eq('event_id', event.original_booking_id);
+              
+            if (!bookingFilesError && bookingFiles && bookingFiles.length > 0) {
+              console.log("Found files from original booking:", bookingFiles.length);
+              originalBookingFiles = bookingFiles;
+            }
+          }
+          
           // Use a Set to track unique file IDs to avoid duplicates
           const uniqueFileIds = new Set<string>();
           const uniqueFiles: any[] = [];
@@ -153,6 +168,17 @@ export const EventDialog = ({
               }
             });
           }
+          
+          // Add any files from the original booking that aren't already included
+          originalBookingFiles.forEach(file => {
+            if (!uniqueFileIds.has(file.id)) {
+              uniqueFileIds.add(file.id);
+              uniqueFiles.push({
+                ...file,
+                parentType: 'booking'
+              });
+            }
+          });
           
           if (uniqueFiles.length > 0) {
             console.log("Loaded unique event files:", uniqueFiles);
@@ -303,11 +329,21 @@ export const EventDialog = ({
 
     if (event?.id) {
       eventData.id = event.id;
+      
+      // Preserve original booking ID if present
+      if (event.original_booking_id) {
+        eventData.original_booking_id = event.original_booking_id;
+      }
     }
 
     if (wasBookingRequest) {
       eventData.type = 'event';
-      console.log("Converting booking request to event:", { wasBookingRequest, isApprovingBookingRequest });
+      eventData.original_booking_id = event.id; // Store original booking ID
+      console.log("Converting booking request to event:", { 
+        wasBookingRequest, 
+        isApprovingBookingRequest,
+        original_booking_id: eventData.original_booking_id 
+      });
     } else if (event?.type) {
       eventData.type = event.type;
     } else {
