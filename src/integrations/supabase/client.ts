@@ -32,7 +32,7 @@ export const associateBookingFilesWithEvent = async (bookingId: string, eventId:
     if (bookingError) {
       console.error('Error fetching booking request data:', bookingError);
       // Continue with event_files check as a fallback
-    } else if (bookingData?.file_path) {
+    } else if (bookingData && bookingData.file_path) {
       console.log(`Found file directly on booking request: ${bookingData.filename || 'attachment'}`);
       
       // Process file from booking_requests

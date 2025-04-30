@@ -58,14 +58,13 @@ export interface BookingRequest {
   created_at: string;
   updated_at: string;
   deleted_at?: string; // Add deleted_at field
-  // Additional fields to match EventDialog
   user_surname?: string;
   user_number?: string;
   social_network_link?: string;
   event_notes?: string;
   payment_status?: string;
   payment_amount?: number | null;
-  // Add file fields that might exist on booking_requests
+  // Add file fields that are now in the database
   file_path?: string;
   filename?: string;
   content_type?: string;
