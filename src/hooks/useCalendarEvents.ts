@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -431,18 +432,72 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       // Associate booking files with the new event
       let associatedFiles = null;
       try {
-        const associatedFile = await associateBookingFilesWithEvent(
-          bookingRequestId, 
-          newEvent.id, 
-          user.id
-        );
+        // First check for files in booking_files table
+        const { data: bookingFiles, error: bookingFilesError } = await supabase
+          .from('booking_files')
+          .select('*')
+          .eq('booking_request_id', bookingRequestId);
         
-        // Create an array with the file if it exists
-        associatedFiles = associatedFile ? [associatedFile] : [];
-        
-        console.log("Associated files with new event:", associatedFiles);
+        if (bookingFilesError) {
+          console.error("Error fetching booking files:", bookingFilesError);
+        } else if (bookingFiles && bookingFiles.length > 0) {
+          console.log("Found booking files to associate:", bookingFiles.length);
+          
+          // Process each file from booking_files
+          for (const file of bookingFiles) {
+            const { data: fileData, error: fileDataError } = await supabase.storage
+              .from('booking_attachments')
+              .getPublicUrl(file.file_path);
+            
+            if (fileDataError) {
+              console.error("Error getting file URL:", fileDataError);
+              continue;
+            }
+            
+            // Create event_files record
+            const { data: eventFile, error: eventFileError } = await supabase
+              .from('event_files')
+              .insert({
+                event_id: newEvent.id,
+                filename: file.filename,
+                file_path: file.file_path, 
+                content_type: file.content_type,
+                size: file.size,
+                user_id: user.id
+              })
+              .select()
+              .single();
+              
+            if (eventFileError) {
+              console.error("Error creating event file record:", eventFileError);
+            } else {
+              console.log("Created event file record:", eventFile.id);
+              
+              // Add to associatedFiles if it's the first
+              if (!associatedFiles) {
+                associatedFiles = [eventFile];
+              } else {
+                associatedFiles.push(eventFile);
+              }
+            }
+          }
+        } else {
+          console.log("No booking files found to associate");
+          
+          // Try the original associateBookingFilesWithEvent function as fallback
+          const associatedFile = await associateBookingFilesWithEvent(
+            bookingRequestId, 
+            newEvent.id, 
+            user.id
+          );
+          
+          // Create an array with the file if it exists
+          associatedFiles = associatedFile ? [associatedFile] : [];
+          
+          console.log("Associated files with new event using fallback:", associatedFiles);
+        }
       } catch (fileError) {
-        console.error("Error copying booking files:", fileError);
+        console.error("Error handling booking files:", fileError);
         associatedFiles = [];
       }
       
@@ -472,7 +527,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             
           if (customerError) {
             console.error("Error creating customer from booking:", customerError);
-          } else if (newCustomer && associatedFiles.length > 0) {
+          } else if (newCustomer && associatedFiles && associatedFiles.length > 0) {
             console.log("Created customer from booking, now linking files");
             
             // Create file links for the customer using the new file paths
