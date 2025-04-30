@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
@@ -31,6 +30,24 @@ export const FileDisplay = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
+  // Better debugging for files data to identify issues
+  useEffect(() => {
+    if (files && files.length > 0) {
+      console.log("Files data in FileDisplay:", files);
+      
+      // Log paths and buckets for each file for debugging
+      files.forEach(file => {
+        if (file.file_path) {
+          console.log(`File ${file.filename}: Path=${file.file_path}`);
+        } else {
+          console.error(`File ${file.filename || 'unknown'} has no file_path`);
+        }
+      });
+    } else {
+      console.log("No files provided to FileDisplay component");
+    }
+  }, [files]);
+
   // Remove duplicate files based on file_path to prevent showing the same file twice
   const uniqueFiles = files.reduce((acc: FileRecord[], current) => {
     const isDuplicate = acc.some(item => item.file_path === current.file_path);
@@ -45,7 +62,7 @@ export const FileDisplay = ({
     uniqueFiles.forEach(file => {
       if (file.file_path) {
         const normalizedPath = normalizeFilePath(file.file_path);
-        // Always use event_attachments bucket for consistent access
+        // Always use event_attachments bucket for consistent access regardless of input bucketName
         const effectiveBucket = "event_attachments";
         console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path}`);
         newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
@@ -71,7 +88,7 @@ export const FileDisplay = ({
     try {
       console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
       
-      // Always use event_attachments bucket
+      // Always use event_attachments bucket regardless of input bucketName
       const effectiveBucket = "event_attachments";
       console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath}`);
       
@@ -231,7 +248,10 @@ export const FileDisplay = ({
       {/* We already have the heading in some places, so let's not duplicate it */}
       <div className="space-y-2">
         {uniqueFiles.map((file) => {
-          if (!file.file_path) return null;
+          if (!file.file_path) {
+            console.warn(`File ${file.id} has no file_path, skipping render`);
+            return null;
+          }
           
           const fileNameDisplay = file.filename && file.filename.length > 20 
             ? file.filename.substring(0, 20) + '...' 
@@ -271,7 +291,7 @@ export const FileDisplay = ({
                     variant="ghost"
                     size="icon"
                     onClick={() => handleDownload(file.file_path, file.filename, file.id)}
-                    title={t("common.download")}
+                    title={t("common.download") || "Download"}
                   >
                     <Download className="h-4 w-4" />
                   </Button>
@@ -282,7 +302,7 @@ export const FileDisplay = ({
                       size="icon"
                       onClick={() => handleDelete(file.id, file.file_path)}
                       disabled={deletingFileId === file.id}
-                      title={t("common.delete")}
+                      title={t("common.delete") || "Delete"}
                     >
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
@@ -297,7 +317,7 @@ export const FileDisplay = ({
                 onClick={() => handleOpenFile(file.file_path, file.id)}
               >
                 <ExternalLink className="h-4 w-4" />
-                {t("crm.open")}
+                {t("crm.open") || "Open"}
               </Button>
             </div>
           );
