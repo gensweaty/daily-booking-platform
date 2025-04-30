@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -242,6 +241,7 @@ export const useBookingRequests = () => {
         console.log('Created customer:', customerData);
       }
       
+      // Improved file handling: Fetch all files from event_files linked to the booking request
       const { data: bookingFiles, error: filesError } = await supabase
         .from('event_files')
         .select('*')
@@ -281,6 +281,7 @@ export const useBookingRequests = () => {
             
             console.log(`Successfully copied file to event_attachments/${newFilePath}`);
             
+            // Create file record in event_files for the newly created event
             const { error: eventFileError } = await supabase
               .from('event_files')
               .insert({
@@ -294,6 +295,8 @@ export const useBookingRequests = () => {
               
             if (eventFileError) {
               console.error('Error creating event file record:', eventFileError);
+            } else {
+              console.log('Successfully created event file record');
             }
             
             if (customerData) {
@@ -318,6 +321,70 @@ export const useBookingRequests = () => {
         }
       }
       
+      // Also check for direct file information in the booking_requests table
+      if (booking && booking.file_path) {
+        try {
+          console.log(`Processing direct file from booking request: ${booking.filename || 'unnamed'}, path: ${booking.file_path}`);
+          
+          const { data: fileData, error: fileError } = await supabase.storage
+            .from('booking_attachments')
+            .download(booking.file_path);
+            
+          if (fileError) {
+            console.error('Error downloading direct file from booking_attachments:', fileError);
+          } else if (fileData) {
+            const newFilePath = `${Date.now()}_${(booking.filename || 'attachment').replace(/\s+/g, '_')}`;
+            const { error: uploadError } = await supabase.storage
+              .from('event_attachments')
+              .upload(newFilePath, fileData);
+              
+            if (uploadError) {
+              console.error('Error uploading direct file to event_attachments:', uploadError);
+            } else {
+              console.log(`Successfully copied direct file to event_attachments/${newFilePath}`);
+              
+              // Create file record in event_files for the newly created event
+              const { error: eventFileError } = await supabase
+                .from('event_files')
+                .insert({
+                  filename: booking.filename || 'attachment',
+                  file_path: newFilePath,
+                  content_type: booking.content_type || 'application/octet-stream',
+                  size: booking.size || 0,
+                  user_id: user?.id,
+                  event_id: eventData.id
+                });
+                
+              if (eventFileError) {
+                console.error('Error creating event file record for direct file:', eventFileError);
+              } else {
+                console.log('Successfully created event file record for direct file');
+              }
+              
+              if (customerData) {
+                const { error: customerFileError } = await supabase
+                  .from('customer_files_new')
+                  .insert({
+                    filename: booking.filename || 'attachment',
+                    file_path: newFilePath,
+                    content_type: booking.content_type || 'application/octet-stream',
+                    size: booking.size || 0,
+                    user_id: user?.id,
+                    customer_id: customerData.id
+                  });
+                  
+                if (customerFileError) {
+                  console.error('Error creating customer file record for direct file:', customerFileError);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error processing direct file:', error);
+        }
+      }
+      
+      // Email notification processing
       if (booking && booking.requester_email) {
         let businessName = "Our Business";
         try {

@@ -23,9 +23,12 @@ export const associateBookingFilesWithEvent = async (
   bookingId: string, 
   eventId: string, 
   userId: string
-): Promise<EventFile | null> => {
+): Promise<EventFile[]> => {
   try {
     console.log(`Associating files from booking ${bookingId} with event ${eventId}`);
+    
+    // Track all created file records to return
+    const createdFileRecords: EventFile[] = [];
     
     // 1. First check if there are booking file fields in booking_requests
     const { data: bookingData, error: bookingError } = await supabase
@@ -36,18 +39,15 @@ export const associateBookingFilesWithEvent = async (
       
     if (bookingError) {
       console.error('Error fetching booking request data:', bookingError);
-      return null;
+      return createdFileRecords;
     }
     
     // Cast data to BookingRequest type for better TypeScript support
     const booking = bookingData as BookingRequest | null;
     if (!booking) {
       console.error('No booking data found');
-      return null;
+      return createdFileRecords;
     }
-    
-    // Track all created file records to return
-    let createdFileRecord: EventFile | null = null;
     
     // 2. Process file from booking_requests table if available
     if (booking && typeof booking.file_path === 'string' && booking.file_path.trim()) {
@@ -113,7 +113,9 @@ export const associateBookingFilesWithEvent = async (
         }
         
         console.log('Created event file record:', eventFile);
-        createdFileRecord = eventFile as EventFile;
+        if (eventFile) {
+          createdFileRecords.push(eventFile as EventFile);
+        }
       } catch (error) {
         console.error('Error processing direct booking file:', error);
       }
@@ -121,10 +123,76 @@ export const associateBookingFilesWithEvent = async (
       console.log('No direct file found on booking request row');
     }
     
-    // Return the created file record or null
-    return createdFileRecord;
+    // 3. Check for existing file records in event_files linked to the booking
+    const { data: existingFiles, error: existingFilesError } = await supabase
+      .from('event_files')
+      .select('*')
+      .eq('event_id', bookingId);
+      
+    if (existingFilesError) {
+      console.error('Error fetching existing booking files:', existingFilesError);
+    } else if (existingFiles && existingFiles.length > 0) {
+      console.log(`Found ${existingFiles.length} existing files for booking ${bookingId}`);
+      
+      for (const file of existingFiles) {
+        try {
+          // Download the file from booking_attachments
+          const { data: fileData, error: downloadError } = await supabase.storage
+            .from('booking_attachments')
+            .download(normalizeFilePath(file.file_path));
+            
+          if (downloadError) {
+            console.error('Error downloading file from booking_attachments:', downloadError);
+            continue;
+          }
+          
+          if (!fileData) {
+            console.error('No file data returned when downloading from booking_attachments');
+            continue;
+          }
+          
+          // Upload to event_attachments with a new path
+          const newFilePath = `${eventId}/${Date.now()}_${file.filename.replace(/\s+/g, '_')}`;
+          const { error: uploadError } = await supabase.storage
+            .from('event_attachments')
+            .upload(newFilePath, fileData, { contentType: file.content_type || 'application/octet-stream' });
+            
+          if (uploadError) {
+            console.error('Error uploading file to event_attachments:', uploadError);
+            continue;
+          }
+          
+          // Create new event_files entry pointing to the new event
+          const { data: newEventFile, error: eventFileError } = await supabase
+            .from('event_files')
+            .insert({
+              filename: file.filename,
+              file_path: newFilePath,
+              content_type: file.content_type,
+              size: file.size,
+              user_id: userId,
+              event_id: eventId,
+              source: 'booking_request'
+            })
+            .select()
+            .single();
+            
+          if (eventFileError) {
+            console.error('Error creating event file record:', eventFileError);
+          } else if (newEventFile) {
+            console.log(`Created new event file record for ${file.filename}`);
+            createdFileRecords.push(newEventFile as EventFile);
+          }
+        } catch (error) {
+          console.error(`Error processing existing file ${file.filename}:`, error);
+        }
+      }
+    }
+    
+    // Return all created file records
+    return createdFileRecords;
   } catch (error) {
     console.error('Error in associateBookingFilesWithEvent:', error);
-    return null;
+    return [];
   }
 };
