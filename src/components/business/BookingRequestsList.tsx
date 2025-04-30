@@ -1,252 +1,167 @@
 
-import { useState } from "react";
-import { BookingRequest } from "@/types/database";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
-import { Check, X, Trash2, CalendarIcon, Info } from "lucide-react";
-import { cn } from "@/lib/utils";
+// If you have this file, update it to use LanguageText components
+import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { FileDisplay } from "../shared/FileDisplay";
-import { supabase, associateBookingFilesWithEvent } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
-import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-
-type RequestType = "pending" | "approved" | "rejected";
+import { BookingRequest } from '@/types/database';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { formatDate } from 'date-fns';
+import { Check, X, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
-  type: RequestType;
+  type: 'pending' | 'approved' | 'rejected';
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
-  onDelete?: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
-export const BookingRequestsList = ({
-  requests,
+export const BookingRequestsList = ({ 
+  requests, 
   type,
-  onApprove,
+  onApprove, 
   onReject,
-  onDelete,
+  onDelete 
 }: BookingRequestsListProps) => {
-  const { t, language } = useLanguage();
-  const isGeorgian = language === "ka";
-  const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
+  const { t } = useLanguage();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
 
-  // Fetch files for each booking request
-  const { data: bookingFiles } = useQuery({
-    queryKey: ["booking-files", requests.map(r => r.id).join('-')],
-    queryFn: async () => {
-      const results: Record<string, any[]> = {};
-      
-      for (const request of requests) {
-        try {
-          const { data, error } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', request.id);
-            
-          if (error) {
-            console.error(`Error fetching files for booking ${request.id}:`, error);
-            results[request.id] = [];
-          } else {
-            results[request.id] = data || [];
-            console.log(`Fetched ${data?.length || 0} files for booking ${request.id}`, data);
-          }
-        } catch (err) {
-          console.error(`Exception fetching files for booking ${request.id}:`, err);
-          results[request.id] = [];
-        }
-      }
-      
-      return results;
-    },
-    enabled: requests.length > 0,
-  });
-
-  const toggleDetails = (id: string) => {
-    setExpandedDetails(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
+  const handleDeleteClick = (id: string) => {
+    setRequestToDelete(id);
+    setDeleteDialogOpen(true);
   };
 
-  // Event handler that ensures files are associated during approval
-  const handleApprove = async (id: string) => {
-    if (onApprove) {
-      try {
-        // Call the original handler
-        await onApprove(id);
-        console.log("Request approved, files will be associated automatically");
-      } catch (error) {
-        console.error("Error during booking approval:", error);
-      }
-    }
-  };
-
-  const getStatusStyle = (requestType: RequestType) => {
-    switch (requestType) {
-      case "approved":
-        return "bg-green-100 text-green-800";
-      case "rejected":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-yellow-100 text-yellow-800";
+  const handleDeleteConfirm = () => {
+    if (requestToDelete) {
+      onDelete(requestToDelete);
+      setDeleteDialogOpen(false);
+      setRequestToDelete(null);
     }
   };
 
   if (requests.length === 0) {
     return (
-      <Alert className="bg-muted">
-        <Info className="h-4 w-4" />
-        <AlertTitle className={cn(isGeorgian ? "font-georgian" : "")}>
-          <LanguageText>{t("business.noRequests")}</LanguageText>
-        </AlertTitle>
-        <AlertDescription className={cn(isGeorgian ? "font-georgian" : "")}>
+      <div className="text-center p-10 border border-dashed rounded-lg">
+        <div className="flex justify-center mb-4">
+          {type === 'pending' && (
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full border-2 border-muted-foreground border-dashed"></div>
+            </div>
+          )}
+          {type === 'approved' && (
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <Check className="w-8 h-8 text-muted-foreground" />
+            </div>
+          )}
+          {type === 'rejected' && (
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <X className="w-8 h-8 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+        <h3 className="text-lg font-medium">
           <LanguageText>
-            {type === "pending"
-              ? t("business.noPendingRequests")
-              : type === "approved"
-              ? t("business.noApprovedRequests")
-              : t("business.noRejectedRequests")}
+            {type === 'pending' ? t("business.noPendingRequests") : 
+             type === 'approved' ? t("business.noApprovedRequests") : 
+             t("business.noRejectedRequests")}
           </LanguageText>
-        </AlertDescription>
-      </Alert>
+        </h3>
+        <p className="text-muted-foreground mt-2">
+          <LanguageText>
+            {type === 'pending' ? t("business.pendingRequestsDescription") : 
+             type === 'approved' ? t("business.approvedRequestsDescription") : 
+             t("business.rejectedRequestsDescription")}
+          </LanguageText>
+        </p>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {requests.map((request) => {
-        const hasAttachments = bookingFiles && bookingFiles[request.id] && bookingFiles[request.id].length > 0;
-        
-        return (
-          <Card
-            key={request.id}
-            className="p-4 transition-all"
-          >
-            <div className="flex flex-col gap-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex gap-2 items-center mb-1">
-                    <h3 className="font-medium">{request.requester_name}</h3>
-                    <span
-                      className={cn(
-                        "px-2 py-0.5 text-xs rounded-full",
-                        getStatusStyle(type)
-                      )}
-                    >
-                      <LanguageText>
-                        {type === "pending"
-                          ? t("common.pending")
-                          : type === "approved"
-                          ? t("common.approved")
-                          : t("common.rejected")}
-                      </LanguageText>
-                    </span>
-                    {hasAttachments && (
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                        <LanguageText>{t("common.hasAttachments")}</LanguageText>
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-1">
-                    {request.requester_email}
-                    {request.requester_phone && ` • ${request.requester_phone}`}
-                  </p>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <CalendarIcon className="w-3 h-3" />
-                    <span>
-                      {format(new Date(request.start_date), "MMM dd, yyyy • HH:mm")} - 
-                      {format(new Date(request.end_date), " HH:mm")}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  {type === "pending" && onApprove && onReject && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="gap-1"
-                        onClick={() => handleApprove(request.id)}
-                      >
-                        <Check className="w-4 h-4" />
-                        <LanguageText>{t("common.approve")}</LanguageText>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="gap-1"
-                        onClick={() => onReject(request.id)}
-                      >
-                        <X className="w-4 h-4" />
-                        <LanguageText>{t("common.reject")}</LanguageText>
-                      </Button>
-                    </>
-                  )}
-                  {onDelete && (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => onDelete(request.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
+    <>
+      <div className="rounded-md border">
+        <div className="bg-muted/50 p-4 grid grid-cols-4 font-medium">
+          <div><LanguageText>{t("business.customer")}</LanguageText></div>
+          <div><LanguageText>{t("business.title")}</LanguageText></div>
+          <div><LanguageText>{t("business.dateTime")}</LanguageText></div>
+          <div className="text-right"><LanguageText>{t("business.actions")}</LanguageText></div>
+        </div>
+        <div className="divide-y">
+          {requests.map((request) => (
+            <div key={request.id} className="p-4 grid grid-cols-4 items-center">
+              <div className="overflow-hidden">
+                <div className="font-medium truncate">{request.requester_name}</div>
+                <div className="text-sm text-muted-foreground truncate">{request.requester_email || request.requester_phone}</div>
               </div>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                className="justify-start p-0 hover:bg-transparent hover:underline"
-                onClick={() => toggleDetails(request.id)}
-              >
-                <LanguageText>
-                  {expandedDetails[request.id] ? t("common.hideDetails") : t("common.showDetails")}
-                </LanguageText>
-              </Button>
-
-              {expandedDetails[request.id] && (
-                <div className="text-sm">
-                  <h4 className="font-medium mb-2">
-                    <LanguageText>{t("business.bookingDetails")}</LanguageText>
-                  </h4>
-                  {request.description && (
-                    <div className="mb-4 border p-3 rounded-md bg-muted/50">
-                      <p>
-                        {request.description.split("\n").map((line, i) => (
-                          <span key={i}>
-                            {line}
-                            <br />
-                          </span>
-                        ))}
-                      </p>
-                    </div>
-                  )}
-                  
-                  {hasAttachments && (
-                    <div className="mt-4">
-                      <h4 className="font-medium mb-2">
-                        <LanguageText>{t("common.attachments")}</LanguageText>
-                      </h4>
-                      <FileDisplay
-                        files={bookingFiles[request.id]}
-                        bucketName="event_attachments"
-                        allowDelete={false}
-                        parentType="booking"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="truncate pr-4">{request.title}</div>
+              <div className="text-sm">
+                {request.start_date && (
+                  <>
+                    {formatDate(new Date(request.start_date), 'MMM d, yyyy')}
+                    <br />
+                    {formatDate(new Date(request.start_date), 'h:mm a')} - {request.end_date ? formatDate(new Date(request.end_date), 'h:mm a') : ''}
+                  </>
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                {type === 'pending' && onApprove && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex gap-1 items-center" 
+                    onClick={() => onApprove(request.id)}
+                  >
+                    <Check className="h-4 w-4" />
+                    <span><LanguageText>{t("business.approve")}</LanguageText></span>
+                  </Button>
+                )}
+                {type === 'pending' && onReject && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex gap-1 items-center" 
+                    onClick={() => onReject(request.id)}
+                  >
+                    <X className="h-4 w-4" />
+                    <span><LanguageText>{t("business.reject")}</LanguageText></span>
+                  </Button>
+                )}
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-destructive flex gap-1 items-center hover:bg-destructive/10" 
+                  onClick={() => handleDeleteClick(request.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span><LanguageText>{t("business.delete")}</LanguageText></span>
+                </Button>
+              </div>
             </div>
-          </Card>
-        );
-      })}
-    </div>
+          ))}
+        </div>
+      </div>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle><LanguageText>{t("business.deleteBookingRequest")}</LanguageText></DialogTitle>
+            <DialogDescription>
+              <LanguageText>{t("business.deleteConfirmation")}</LanguageText>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              <LanguageText>{t("common.cancel")}</LanguageText>
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm}>
+              <LanguageText>{t("business.delete")}</LanguageText>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };

@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,8 +9,6 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import { cn } from "@/lib/utils";
 import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { useQuery } from "@tanstack/react-query";
-import { getAllEventFiles } from "@/lib/fileUtils";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -74,19 +73,6 @@ export const EventDialogFields = ({
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
   
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
-  
-  // Automatically fetch event files if needed
-  const { data: eventFiles } = useQuery({
-    queryKey: ['eventFiles', eventId],
-    queryFn: async () => {
-      if (!eventId) return [];
-      return await getAllEventFiles(eventId);
-    },
-    enabled: !!eventId && displayedFiles.length === 0, // Only fetch if we don't already have files
-  });
-
-  // Combined files - use provided displayedFiles or fetched eventFiles
-  const filesToDisplay = displayedFiles.length > 0 ? displayedFiles : (eventFiles || []);
   
   return (
     <>
@@ -229,10 +215,10 @@ export const EventDialogFields = ({
         />
       </div>
       
-      {filesToDisplay.length > 0 && (
+      {displayedFiles.length > 0 && (
         <div className="flex flex-col gap-2">
           <FileDisplay
-            files={filesToDisplay}
+            files={displayedFiles}
             bucketName="event_attachments"
             allowDelete={true}
             onFileDeleted={onFileDeleted}

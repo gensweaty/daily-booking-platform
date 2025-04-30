@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { associateBookingFilesWithEvent } from "@/integrations/supabase/client";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -257,15 +256,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
     
     console.log("Successfully created event:", data);
-    
-    // If this event was created from a booking request, associate any files
-    if (event.original_booking_id) {
-      console.log("Event created from booking request. Associating files...", {
-        original_booking_id: event.original_booking_id,
-        new_event_id: data.id
-      });
-      await associateBookingFilesWithEvent(event.original_booking_id, data.id);
-    }
     
     toast({
       title: "Event created",
