@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -72,18 +71,16 @@ export const useBookingRequests = () => {
       console.log(`Raw start date: ${startDate}`);
       console.log(`Raw end date: ${endDate}`);
       
-      // Prepare the request with all required data - passing the original ISO strings directly
       const requestBody = JSON.stringify({
         recipientEmail: email.trim(),
         fullName: fullName || "",
         businessName: businessName || "Our Business",
-        startDate: startDate, // Pass the ISO string directly
-        endDate: endDate,     // Pass the ISO string directly
+        startDate: startDate,
+        endDate: endDate,
       });
       
       console.log("Request body for email function:", requestBody);
       
-      // Get access token for authenticated request
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
       
@@ -92,8 +89,6 @@ export const useBookingRequests = () => {
         return { success: false, error: "Authentication error" };
       }
       
-      // Call the Edge Function with full URL
-      console.log("Making request to send-booking-approval-email function");
       const response = await fetch(
         "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
         {
@@ -108,7 +103,6 @@ export const useBookingRequests = () => {
 
       console.log("Email function response status:", response.status);
       
-      // Read the response as text first
       const responseText = await response.text();
       console.log("Email function response body:", responseText);
       
@@ -156,7 +150,6 @@ export const useBookingRequests = () => {
       
       console.log('Fetched booking request:', booking);
       
-      // Check for conflicts
       const { data: conflictingEvents } = await supabase
         .from('events')
         .select('id, title')
@@ -237,15 +230,14 @@ export const useBookingRequests = () => {
       
       if (customerError) {
         console.error('Error creating customer from booking:', customerError);
-        // Continue with the approval even if customer creation fails
       } else {
         console.log('Created customer:', customerData);
       }
       
       const { data: bookingFiles, error: filesError } = await supabase
-        .from('event_files')
+        .from('booking_files')
         .select('*')
-        .eq('event_id', bookingId);
+        .eq('booking_id', booking.id);
         
       if (filesError) {
         console.error('Error fetching booking files:', filesError);
@@ -269,48 +261,20 @@ export const useBookingRequests = () => {
               continue;
             }
             
-            const newFilePath = `${Date.now()}_${file.filename.replace(/\s+/g, '_')}`;
-            const { error: uploadError } = await supabase.storage
-              .from('event_attachments')
-              .upload(newFilePath, fileData);
-              
-            if (uploadError) {
-              console.error('Error uploading file to event_attachments:', uploadError);
-              continue;
-            }
-            
-            console.log(`Successfully copied file to event_attachments/${newFilePath}`);
-            
             const { error: eventFileError } = await supabase
               .from('event_files')
               .insert({
+                event_id: eventData.id,
                 filename: file.filename,
-                file_path: newFilePath,
-                content_type: file.content_type,
-                size: file.size,
-                user_id: user?.id,
-                event_id: eventData.id
+                file_path: file.file_path,
+                content_type: file.content_type || 'application/octet-stream',
+                size: file.size || 0,
+                user_id: user.id,
+                created_at: new Date().toISOString()
               });
               
             if (eventFileError) {
               console.error('Error creating event file record:', eventFileError);
-            }
-            
-            if (customerData) {
-              const { error: customerFileError } = await supabase
-                .from('customer_files_new')
-                .insert({
-                  filename: file.filename,
-                  file_path: newFilePath,
-                  content_type: file.content_type,
-                  size: file.size,
-                  user_id: user?.id,
-                  customer_id: customerData.id
-                });
-                
-              if (customerFileError) {
-                console.error('Error creating customer file record:', customerFileError);
-              }
             }
           } catch (error) {
             console.error('Error processing file:', error);
@@ -354,7 +318,6 @@ export const useBookingRequests = () => {
           console.log("Email notification processed during booking approval");
         } else {
           console.error("Failed to process email during booking approval:", emailResult.error);
-          // We continue even if email fails to ensure the booking is still approved
         }
       } else {
         console.warn("No email address found for booking request, can't send notification");

@@ -44,13 +44,14 @@ export const FileDisplay = ({
     uniqueFiles.forEach(file => {
       if (file.file_path) {
         const normalizedPath = normalizeFilePath(file.file_path);
-        const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
+        // Always use event_attachments bucket for consistent access
+        const effectiveBucket = "event_attachments";
         console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path}`);
         newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
       }
     });
     setFileURLs(newURLs);
-  }, [uniqueFiles, parentType]);
+  }, [uniqueFiles]);
 
   const getFileExtension = (filename: string): string => {
     return filename.split('.').pop()?.toLowerCase() || '';
@@ -65,17 +66,11 @@ export const FileDisplay = ({
     return <FileIcon className="h-5 w-5" />;
   };
 
-  const determineEffectiveBucket = (filePath: string, parentType?: string, source?: string): string => {
-    // Always default to event_attachments bucket for all files from this app
-    // This ensures consistency since all files are now uploaded to event_attachments
-    return "event_attachments";
-  };
-
   const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
     try {
       console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
       
-      // Always use event_attachments bucket for all files
+      // Always use event_attachments bucket
       const effectiveBucket = "event_attachments";
       console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath}`);
       
@@ -180,19 +175,14 @@ export const FileDisplay = ({
       }
       
       // Determine the appropriate table name based on the parent type
-      let tableName: "files" | "customer_files_new" | "note_files" | "event_files";
+      let tableName = "event_files";
       
-      if (parentType === 'event') {
-        tableName = "event_files";
-      } else if (parentType === 'customer') {
+      if (parentType === 'customer') {
         tableName = "customer_files_new";
       } else if (parentType === 'note') {
         tableName = "note_files";
       } else if (parentType === 'task') {
         tableName = "files";  // Task files are stored in the "files" table
-      } else {
-        // Default to customer_files_new if we can't determine
-        tableName = "customer_files_new";
       }
       
       console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);
@@ -210,12 +200,9 @@ export const FileDisplay = ({
         onFileDeleted(fileId);
       }
       
-      queryClient.invalidateQueries({ queryKey: ['files'] });
-      queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
+      // Make sure to invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
       
       toast({

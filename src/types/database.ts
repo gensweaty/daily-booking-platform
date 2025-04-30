@@ -71,7 +71,7 @@ export interface BookingRequest {
   size?: number;
 }
 
-// Add EventFile interface to match event_files table
+// Define EventFile interface to match event_files table
 export interface EventFile {
   id: string;
   event_id: string;
@@ -84,7 +84,7 @@ export interface EventFile {
   source?: string;
 }
 
-// Add CustomerFile interface to match customer_files_new table
+// Define CustomerFile interface to match customer_files_new table
 export interface CustomerFile {
   id: string;
   customer_id: string;

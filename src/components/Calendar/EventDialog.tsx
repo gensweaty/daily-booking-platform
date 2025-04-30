@@ -119,7 +119,7 @@ export const EventDialog = ({
     }
   }, [selectedDate, event, open]);
 
-  // Load files for this event
+  // Load files for this event - simplified to only use event_files
   useEffect(() => {
     const loadFiles = async () => {
       if (!event?.id) {
@@ -129,7 +129,7 @@ export const EventDialog = ({
       try {
         console.log("Loading files for event:", event.id);
         
-        // SIMPLIFIED: Only check event_files for the current event ID
+        // Only check event_files table using event ID
         const { data: eventFiles, error: eventFilesError } = await supabase
           .from('event_files')
           .select('*')
@@ -144,7 +144,7 @@ export const EventDialog = ({
         if (eventFiles && eventFiles.length > 0) {
           console.log("Loaded files from event_files:", eventFiles.length);
           
-          // Add a parentType property for compatibility with existing code
+          // Add a parentType property for compatibility with FileDisplay component
           const filesWithSource = eventFiles.map(file => ({
             ...file,
             parentType: 'event'
@@ -320,15 +320,6 @@ export const EventDialog = ({
       if ((isApprovingBookingRequest || !event?.id || event.type === 'booking_request') && 
           socialNetworkLink && 
           socialNetworkLink.includes("@")) {
-            
-        console.log(">>> APPROVAL EMAIL CONDITION MET", {
-          wasBookingRequest,
-          isApprovingBookingRequest,
-          eventId: event?.id,
-          newType: eventData.type,
-          email: socialNetworkLink
-        });
-        
         try {
           await sendApprovalEmail(
             startDateTime,
@@ -359,6 +350,7 @@ export const EventDialog = ({
             throw uploadError;
           }
 
+          // Store file record ONLY in event_files table
           const fileData = {
             filename: selectedFile.name,
             file_path: filePath,
@@ -377,7 +369,7 @@ export const EventDialog = ({
             throw fileRecordError;
           }
 
-          console.log('File record created successfully');
+          console.log('File record created successfully in event_files');
         } catch (fileError) {
           console.error("Error handling file upload:", fileError);
         }
@@ -433,7 +425,6 @@ export const EventDialog = ({
       queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       
     } catch (error: any) {
       console.error('Error handling event submission:', error);
