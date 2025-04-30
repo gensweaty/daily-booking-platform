@@ -37,7 +37,7 @@ export const associateBookingFilesWithEvent = async (bookingId: string, eventId:
               bookingData.file_path) {
       // Now we safely check if file_path exists in the object
       // Use optional chaining and default values to avoid property access errors
-      const filename = 'filename' in bookingData && bookingData.filename ? bookingData.filename : 'attachment';
+      const filename = 'filename' in bookingData && bookingData.filename ? bookingData.filename as string : 'attachment';
       console.log(`Found file directly on booking request: ${filename}`);
       
       // Process file from booking_requests (safely accessing properties)
@@ -60,7 +60,10 @@ export const associateBookingFilesWithEvent = async (bookingId: string, eventId:
         }
         
         // Generate a new unique file path for event_attachments
-        const fileExt = originalFileName.split('.').pop() || 'bin';
+        // Ensure we're working with strings before calling split
+        const fileExt = originalFileName && typeof originalFileName === 'string' ? 
+          originalFileName.split('.').pop() || 'bin' : 'bin';
+        
         const newFilePath = `${eventId}/${crypto.randomUUID()}.${fileExt}`;
         
         // Upload to event_attachments
