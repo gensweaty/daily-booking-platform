@@ -15,8 +15,9 @@ import { useBusinessProfile } from "@/hooks/useBusinessProfile"
 import { useBookingRequests } from "@/hooks/useBookingRequests"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { LanguageText } from "@/components/shared/LanguageText"
+import { CalendarViewType } from "@/lib/types/calendar"
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
@@ -55,6 +56,7 @@ export const DashboardContent = ({
   const { toast } = useToast()
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
+  const [calendarView, setCalendarView] = useState<CalendarViewType>("month")
 
   useEffect(() => {
     if (pendingCount > 0) {
@@ -173,7 +175,11 @@ export const DashboardContent = ({
                     initial="hidden"
                     animate="visible"
                   >
-                    <Calendar defaultView="month" />
+                    <Calendar 
+                      defaultView="month" 
+                      currentView={calendarView}
+                      onViewChange={(view) => setCalendarView(view)}
+                    />
                   </motion.div>
                 </div>
               </CardContent>
