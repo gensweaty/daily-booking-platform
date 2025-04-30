@@ -25,5 +25,5 @@ export interface CalendarEventType {
   filename?: string;
   content_type?: string;
   size?: number;
-  booking_request_id?: string;
+  booking_request_id?: string;  // Add this field to track originating booking
 }
