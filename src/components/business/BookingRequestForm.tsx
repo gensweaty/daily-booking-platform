@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { useForm, Controller } from "react-hook-form";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, addHours } from "date-fns";
+import { format, addHours, parse } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
@@ -20,6 +20,13 @@ interface BookingRequestFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   className?: string;
+  // Add the missing props
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  selectedDate?: Date;
+  startTime?: string;
+  endTime?: string;
+  isExternalBooking?: boolean;
 }
 
 interface BookingFormData {
@@ -37,6 +44,10 @@ export const BookingRequestForm: React.FC<BookingRequestFormProps> = ({
   onSuccess,
   onCancel,
   className,
+  selectedDate,
+  startTime,
+  endTime,
+  isExternalBooking,
 }) => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
@@ -50,7 +61,8 @@ export const BookingRequestForm: React.FC<BookingRequestFormProps> = ({
     handleSubmit, 
     control, 
     setValue, 
-    formState: { errors } 
+    formState: { errors },
+    reset
   } = useForm<BookingFormData>({
     defaultValues: {
       name: "",
@@ -58,10 +70,33 @@ export const BookingRequestForm: React.FC<BookingRequestFormProps> = ({
       phone: "",
       title: "",
       description: "",
-      startDate: new Date(),
-      endDate: addHours(new Date(), 1),
+      startDate: selectedDate || new Date(),
+      endDate: selectedDate ? addHours(selectedDate, 1) : addHours(new Date(), 1),
     },
   });
+
+  // Update form values when selectedDate, startTime or endTime change
+  useEffect(() => {
+    if (selectedDate) {
+      let startDate = new Date(selectedDate);
+      let endDate = new Date(selectedDate);
+
+      if (startTime) {
+        const [hours, minutes] = startTime.split(':');
+        startDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      }
+
+      if (endTime) {
+        const [hours, minutes] = endTime.split(':');
+        endDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      } else {
+        endDate = addHours(startDate, 1);
+      }
+
+      setValue('startDate', startDate);
+      setValue('endDate', endDate);
+    }
+  }, [selectedDate, startTime, endTime, setValue]);
 
   const handleFileChange = (file: File | null) => {
     setSelectedFile(file);
@@ -166,6 +201,9 @@ export const BookingRequestForm: React.FC<BookingRequestFormProps> = ({
       });
 
       // Reset form
+      reset();
+      setSelectedFile(null);
+      
       if (onSuccess) {
         onSuccess();
       }
