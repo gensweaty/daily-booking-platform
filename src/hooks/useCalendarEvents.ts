@@ -399,15 +399,27 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       // Always preserve original booking ID
       const bookingRequestId = event.id;
       
-      // Create a new event and then soft-delete the booking
+      // Create a new event without direct file fields
+      const eventPayload = {
+        // Use event payload data without file fields
+        title: event.title,
+        user_surname: event.user_surname,
+        user_number: event.user_number,
+        social_network_link: event.social_network_link,
+        event_notes: event.event_notes,
+        start_date: event.start_date,
+        end_date: event.end_date,
+        payment_status: event.payment_status || 'not_paid',
+        payment_amount: event.payment_amount,
+        user_id: user.id,
+        booking_request_id: bookingRequestId,
+        type: event.type || 'event'
+      };
+      
+      // Create a new event first
       const { data: newEvent, error: createError } = await supabase
         .from('events')
-        .insert({
-          ...event,
-          user_id: user.id,
-          booking_request_id: bookingRequestId,
-          type: event.type || 'event'
-        })
+        .insert(eventPayload)
         .select()
         .single();
         
@@ -416,7 +428,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         throw createError;
       }
       
-      // Copy booking files to the new event and capture the returned files
+      // Copy booking files to the new event
       let associatedFiles = [];
       try {
         associatedFiles = await associateBookingFilesWithEvent(
@@ -429,14 +441,14 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.error("Error copying booking files:", fileError);
       }
       
-      // ADDED: Create a customer record if we have customer data in the booking
+      // Create a customer record if we have customer data in the booking
       try {
         if (event.user_surname || event.requester_name) {
           console.log("Creating customer record from booking request");
           
           const customerData = {
-            title: event.user_surname || event.requester_name || event.title,
-            user_surname: event.user_surname || event.requester_name || event.title,
+            title: event.user_surname || event.requester_name || event.title || '',
+            user_surname: event.user_surname || event.requester_name || event.title || '',
             user_number: event.user_number || event.requester_phone || '',
             social_network_link: event.social_network_link || event.requester_email || '',
             event_notes: event.event_notes || event.description || '',
@@ -458,7 +470,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           } else if (newCustomer && associatedFiles.length > 0) {
             console.log("Created customer from booking, now linking files");
             
-            // FIXED: Use the new file paths from associatedFiles
+            // Create file links for the customer using the new file paths
             for (const fileRecord of associatedFiles) {
               // Create customer file link using the NEW file path
               const { error: customerFileError } = await supabase
@@ -482,7 +494,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       } catch (customerError) {
         console.error("Error handling customer creation:", customerError);
-        // Continue with event update even if customer creation fails
       }
       
       // Soft-delete or update the original booking request

@@ -87,8 +87,16 @@ export function CalendarView({
   
   const daysToRender = view === 'month' ? getDaysWithSurroundingMonths() : days;
   
-  // Filter events to make sure deleted events don't show up
-  const filteredEvents = events.filter(event => !event.deleted_at);
+  // Strictly filter events to make sure deleted events don't show up
+  const filteredEvents = events.filter(event => {
+    // First check if deleted_at is undefined or null (important check)
+    if (event.deleted_at === undefined || event.deleted_at === null) {
+      return true; // Keep events that don't have deleted_at field or it's null
+    }
+    
+    // If deleted_at has a value (a timestamp), this is a deleted event
+    return false;
+  });
   
   // Add debug log for events in CalendarView
   useEffect(() => {

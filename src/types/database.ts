@@ -71,3 +71,29 @@ export interface BookingRequest {
   content_type?: string;
   size?: number;
 }
+
+// Add EventFile interface to match event_files table
+export interface EventFile {
+  id: string;
+  event_id: string;
+  filename: string;
+  file_path: string;
+  content_type?: string;
+  size?: number;
+  user_id?: string;
+  created_at: string;
+  source?: string;
+}
+
+// Add CustomerFile interface to match customer_files_new table
+export interface CustomerFile {
+  id: string;
+  customer_id: string;
+  filename: string;
+  file_path: string;
+  content_type?: string;
+  size?: number;
+  user_id?: string;
+  created_at: string;
+  source?: string;
+}
