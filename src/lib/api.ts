@@ -11,8 +11,8 @@ export const getFileUrl = (bucketName: string, filePath: string) => {
   const baseUrl = import.meta.env.VITE_SUPABASE_URL;
   const normalizedPath = normalizeFilePath(filePath);
   
-  // Use the specified bucket name
-  return `${baseUrl}/storage/v1/object/public/${bucketName}/${normalizedPath}`;
+  // Always use event_attachments bucket for consistent file access
+  return `${baseUrl}/storage/v1/object/public/event_attachments/${normalizedPath}`;
 };
 
 // Check if user is rate limited for booking requests
@@ -421,20 +421,19 @@ export const getPublicCalendarEvents = async (businessId: string) => {
 // Enhanced file handling functions with consistent bucket handling
 export const downloadFile = async (bucketName: string, filePath: string, fileName: string) => {
   try {
-    console.log(`Attempting to download file: ${fileName}, path: ${filePath}, from bucket: ${bucketName}`);
+    console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
     
-    // Use the provided bucket name
-    const directUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${bucketName}/${normalizeFilePath(filePath)}`;
+    // Always use event_attachments bucket for consistent file access
+    const effectiveBucket = "event_attachments";
+    console.log(`Using effective bucket: ${effectiveBucket}`);
+    
+    // Direct URL for download
+    const directUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
     console.log('Using direct URL for download:', directUrl);
     
     try {
       // Fetch the file as a blob
       const response = await fetch(directUrl);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
       const blob = await response.blob();
       
       // Create blob URL
@@ -478,8 +477,10 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
 
 export const openFile = async (bucketName: string, filePath: string) => {
   try {
-    // Use the provided bucket name
-    const directUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${bucketName}/${normalizeFilePath(filePath)}`;
+    // Always use event_attachments bucket
+    const effectiveBucket = "event_attachments";
+    
+    const directUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
     
     console.log('Opening file with direct URL:', directUrl);
     

@@ -20,11 +20,5 @@ export interface CalendarEventType {
   requester_phone?: string;
   description?: string;
   file?: File;
-  deleted_at?: string;
-  // Add missing properties that were causing errors
-  booking_request_id?: string;
-  file_path?: string;
-  filename?: string;
-  content_type?: string;
-  size?: number;
+  deleted_at?: string; // Added deleted_at property
 }
