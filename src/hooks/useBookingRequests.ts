@@ -1,5 +1,6 @@
+
 import { useState, useCallback } from "react";
-import { supabase, associateBookingFilesWithEvent } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { BookingRequest } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";
@@ -43,7 +44,7 @@ export const useBookingRequests = () => {
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return data as BookingRequest[];
   };
 
   const { data: bookingRequests = [], isLoading } = useQuery({
@@ -62,6 +63,53 @@ export const useBookingRequests = () => {
   const rejectedRequests = bookingRequests.filter(
     (request) => request.status === "rejected"
   );
+
+  // Helper function to associate booking files with an event
+  const associateBookingFilesWithEvent = async (bookingId: string, eventId: string): Promise<void> => {
+    try {
+      console.log(`Associating files from booking ${bookingId} with event ${eventId}`);
+      
+      // First, find all files associated with the booking request
+      const { data: bookingFiles, error: fetchError } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', bookingId);
+        
+      if (fetchError) {
+        console.error('Error fetching booking files:', fetchError);
+        return;
+      }
+      
+      if (!bookingFiles || bookingFiles.length === 0) {
+        console.log('No files found for booking request:', bookingId);
+        return;
+      }
+      
+      console.log(`Found ${bookingFiles.length} files to associate with event ${eventId}`);
+      
+      // Create new file entries that point to the same storage objects but are associated with the event
+      for (const file of bookingFiles) {
+        const { error: insertError } = await supabase
+          .from('event_files')
+          .insert({
+            filename: file.filename,
+            file_path: file.file_path,
+            content_type: file.content_type,
+            size: file.size,
+            user_id: file.user_id,
+            event_id: eventId
+          });
+          
+        if (insertError) {
+          console.error('Error creating file association:', insertError);
+        }
+      }
+      
+      console.log('Successfully associated booking files with event');
+    } catch (error) {
+      console.error('Exception in associateBookingFilesWithEvent:', error);
+    }
+  };
 
   // Approve booking request mutation
   const approveMutation = useMutation({
@@ -199,60 +247,16 @@ export const useBookingRequests = () => {
 
   const rejectRequest = useCallback(
     (id: string) => {
-      setLoading(true);
-      supabase
-        .from("booking_requests")
-        .update({ status: "rejected" })
-        .eq("id", id)
-        .then(() => {
-          toast({
-            title: t("bookings.rejectSuccess"),
-            description: t("bookings.requestRejected"),
-          });
-          queryClient.invalidateQueries({ queryKey: ["bookingRequests"] });
-        })
-        .catch((error) => {
-          console.error("Error rejecting booking request:", error);
-          toast({
-            title: t("common.error"),
-            description: t("bookings.rejectError"),
-            variant: "destructive",
-          });
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+      return rejectMutation.mutateAsync(id);
     },
-    [toast, queryClient, t]
+    [rejectMutation, toast, queryClient, t]
   );
 
   const deleteBookingRequest = useCallback(
     (id: string) => {
-      setLoading(true);
-      supabase
-        .from("booking_requests")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", id)
-        .then(() => {
-          toast({
-            title: t("bookings.deleteSuccess"),
-            description: t("bookings.requestDeleted"),
-          });
-          queryClient.invalidateQueries({ queryKey: ["bookingRequests"] });
-        })
-        .catch((error) => {
-          console.error("Error deleting booking request:", error);
-          toast({
-            title: t("common.error"),
-            description: t("bookings.deleteError"),
-            variant: "destructive",
-          });
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+      return deleteMutation.mutateAsync(id);
     },
-    [toast, queryClient, t]
+    [deleteMutation, toast, queryClient, t]
   );
 
   return {

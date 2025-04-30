@@ -13,6 +13,7 @@ export type Database = {
         Row: {
           business_id: string
           created_at: string | null
+          deleted_at: string | null
           description: string | null
           end_date: string
           id: string
@@ -30,6 +31,7 @@ export type Database = {
         Insert: {
           business_id: string
           created_at?: string | null
+          deleted_at?: string | null
           description?: string | null
           end_date: string
           id?: string
@@ -47,6 +49,7 @@ export type Database = {
         Update: {
           business_id?: string
           created_at?: string | null
+          deleted_at?: string | null
           description?: string | null
           end_date?: string
           id?: string
@@ -404,6 +407,7 @@ export type Database = {
           file_size: number | null
           filename: string | null
           id: string
+          original_booking_id: string | null
           payment_amount: number | null
           payment_status: string | null
           size: number | null
@@ -426,6 +430,7 @@ export type Database = {
           file_size?: number | null
           filename?: string | null
           id?: string
+          original_booking_id?: string | null
           payment_amount?: number | null
           payment_status?: string | null
           size?: number | null
@@ -448,6 +453,7 @@ export type Database = {
           file_size?: number | null
           filename?: string | null
           id?: string
+          original_booking_id?: string | null
           payment_amount?: number | null
           payment_status?: string | null
           size?: number | null
@@ -830,6 +836,7 @@ export type Database = {
           file_size: number | null
           filename: string | null
           id: string
+          original_booking_id: string | null
           payment_amount: number | null
           payment_status: string | null
           size: number | null

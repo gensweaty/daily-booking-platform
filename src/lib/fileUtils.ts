@@ -32,6 +32,7 @@ export const getAllEventFiles = async (eventId: string): Promise<FileRecord[]> =
       
     if (eventError) {
       console.error("Error fetching event details:", eventError);
+      return [];
     }
     
     // Get files attached directly to this event

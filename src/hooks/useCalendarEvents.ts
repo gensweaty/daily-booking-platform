@@ -4,6 +4,7 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { associateBookingFilesWithEvent } from "@/integrations/supabase/client";
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string | null) => {
   const queryClient = useQueryClient();
