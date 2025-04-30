@@ -1,4 +1,3 @@
-
 import { QueryClient } from '@tanstack/react-query';
 
 // Helper function to get all keys for a query that match a pattern
@@ -123,7 +122,7 @@ export const prefetchRelatedQuery = async (
   console.log(`Prefetched related query: ${JSON.stringify(targetKey)} from ${JSON.stringify(sourceKey)}`);
 };
 
-// Add the missing forceCalendarRefresh function
+// Export the forceCalendarRefresh function that was referenced in the EventDialog component
 export const forceCalendarRefresh = async (queryClient: QueryClient): Promise<void> => {
   console.log("Forcing calendar data refresh...");
   
