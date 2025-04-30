@@ -6,7 +6,8 @@ export const REQUIRED_BUCKETS = [
   'event_attachments',
   'customer_attachments',
   'note_attachments',
-  'task_attachments'
+  'task_attachments',
+  'booking_attachments'  // Added booking_attachments to the required buckets
 ];
 
 // Check if a bucket exists, if not create it
@@ -36,13 +37,18 @@ const checkOrCreateBucket = async (bucketName: string): Promise<boolean> => {
       console.log(`Bucket ${bucketName} created successfully`);
       
       // Create a default public policy for the bucket
-      const { error: policyError } = await supabase.rpc('create_public_bucket_policy', { 
-        bucket_name: bucketName 
-      }).single();
-      
-      if (policyError) {
-        console.warn(`Warning: Failed to set public policy for bucket ${bucketName}:`, policyError);
-        // Continue even if policy creation fails, as we can still use the bucket
+      try {
+        const { error: policyError } = await supabase.rpc('create_public_bucket_policy', { 
+          bucket_name: bucketName 
+        });
+        
+        if (policyError) {
+          console.warn(`Warning: Failed to set public policy for bucket ${bucketName}:`, policyError);
+          // Continue even if policy creation fails, as we can still use the bucket
+        }
+      } catch (rpcError) {
+        console.warn(`RPC error for bucket ${bucketName}:`, rpcError);
+        // Continue despite RPC error - the bucket still exists and is usable
       }
     } else {
       console.log(`Bucket ${bucketName} already exists`);
@@ -77,4 +83,22 @@ export const ensureAllRequiredBuckets = async (): Promise<boolean> => {
 // Helper function to ensure just the event_attachments bucket exists
 export const ensureEventAttachmentsBucket = async (): Promise<boolean> => {
   return await checkOrCreateBucket('event_attachments');
+};
+
+// Helper function to ensure just the booking_attachments bucket exists
+export const ensureBookingAttachmentsBucket = async (): Promise<boolean> => {
+  return await checkOrCreateBucket('booking_attachments');
+};
+
+// Helper functions for other specific buckets
+export const ensureCustomerAttachmentsBucket = async (): Promise<boolean> => {
+  return await checkOrCreateBucket('customer_attachments');
+};
+
+export const ensureNoteAttachmentsBucket = async (): Promise<boolean> => {
+  return await checkOrCreateBucket('note_attachments');
+};
+
+export const ensureTaskAttachmentsBucket = async (): Promise<boolean> => {
+  return await checkOrCreateBucket('task_attachments');
 };
