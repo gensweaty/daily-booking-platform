@@ -30,12 +30,13 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
 
 interface CalendarProps {
-  defaultView?: CalendarViewType;
-  currentView?: CalendarViewType;
-  onViewChange?: (view: CalendarViewType) => void;
+  defaultView: 'month' | 'week' | 'day';
+  currentView: CalendarViewType;
+  onViewChange: (view: CalendarViewType) => void;
   isExternalCalendar?: boolean;
   businessId?: string;
   businessUserId?: string | null;
+  businessEmail?: string | null;
   showAllEvents?: boolean;
   allowBookingRequests?: boolean;
   directEvents?: CalendarEventType[];
@@ -48,6 +49,7 @@ export const Calendar = ({
   isExternalCalendar = false,
   businessId,
   businessUserId,
+  businessEmail,
   showAllEvents = false,
   allowBookingRequests = false,
   directEvents

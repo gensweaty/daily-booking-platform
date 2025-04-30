@@ -101,11 +101,34 @@ export const BookingRequestForm = ({
   }, [paymentStatus]);
 
   const onSubmit = async (values: z.infer<typeof bookingRequestSchema>) => {
+    if (userSurname.length < 2) {
+      toast({
+        title: t('common.error'),
+        description: t('Name must be at least 2 characters.'),
+        variant: 'destructive'
+      });
+      return;
+    }
+    
     try {
       setIsSubmitting(true);
+      console.log("Starting form submission...");
+
       // Use the datetime-local input values directly
       const startDateTime = new Date(startDate);
       const endDateTime = new Date(endDate);
+
+      // Log the data we're about to submit
+      console.log("Form values being submitted:", {
+        userSurname,
+        email: values.email,
+        phone: values.phone,
+        startDate: startDateTime,
+        endDate: endDateTime,
+        paymentStatus,
+        paymentAmount,
+        notes: values.notes
+      });
 
       const bookingData = {
         business_id: businessId,
@@ -136,9 +159,11 @@ export const BookingRequestForm = ({
       }
 
       const bookingId = data.id;
+      console.log('Booking created with ID:', bookingId);
 
       if (selectedFile && bookingId) {
         try {
+          console.log('Uploading file for booking:', selectedFile.name);
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${bookingId}/${Date.now()}.${fileExt}`;
 
@@ -176,6 +201,8 @@ export const BookingRequestForm = ({
       }
 
       console.log('Booking request submitted successfully!');
+
+      // Reset form and state
       setIsSubmitting(false);
       form.reset();
       setSelectedFile(null);
@@ -201,6 +228,7 @@ export const BookingRequestForm = ({
       }
 
       try {
+        console.log('Sending booking notification email');
         await fetch(
           "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
           {
@@ -258,7 +286,9 @@ export const BookingRequestForm = ({
               required
               className="w-full"
             />
-            <FormMessage className="text-destructive text-xs" />
+            {userSurname.length > 0 && userSurname.length < 2 && (
+              <p className="text-destructive text-xs">Name must be at least 2 characters.</p>
+            )}
           </div>
           
           <FormField

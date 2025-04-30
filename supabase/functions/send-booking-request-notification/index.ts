@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -8,14 +9,19 @@ const corsHeaders = {
 };
 
 interface BookingNotificationRequest {
-  businessEmail: string;
+  businessId?: string;
   requesterName: string;
-  requestDate: string;
+  startDate: string;
   endDate: string;
-  phoneNumber?: string;
+  requesterPhone?: string;
   notes?: string;
   businessName?: string;
   requesterEmail?: string;
+  hasAttachment?: boolean;
+  paymentStatus?: string;
+  paymentAmount?: number;
+  businessEmail?: string;
+  requestDate?: string; // For backward compatibility 
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -83,15 +89,33 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Validate required fields
-    const { businessEmail, requesterName, requestDate, endDate, phoneNumber = "", notes = "", businessName = "Your Business", requesterEmail = "" } = requestData;
+    // Extract all possible fields from the request
+    const { 
+      businessId, 
+      requesterName, 
+      startDate, 
+      endDate, 
+      requesterPhone = "", 
+      notes = "", 
+      businessName = "Your Business", 
+      requesterEmail = "",
+      hasAttachment = false,
+      paymentStatus = "not_paid",
+      paymentAmount,
+      businessEmail, // This could be directly provided or we need to query it
+      requestDate // For backward compatibility
+    } = requestData;
     
-    if (!businessEmail || !requesterName || !requestDate || !endDate) {
+    // Use either startDate or requestDate for backward compatibility
+    const effectiveStartDate = startDate || requestDate;
+    const effectiveEndDate = endDate || requestDate;
+    
+    // Validate required fields
+    if (!requesterName || !effectiveStartDate || !effectiveEndDate) {
       const missingFields = [];
-      if (!businessEmail) missingFields.push("businessEmail");
       if (!requesterName) missingFields.push("requesterName");
-      if (!requestDate) missingFields.push("requestDate");
-      if (!endDate) missingFields.push("endDate");
+      if (!effectiveStartDate) missingFields.push("startDate/requestDate");
+      if (!effectiveEndDate) missingFields.push("endDate/requestDate");
       
       console.error("❌ Missing required fields:", missingFields.join(", "));
       return new Response(
@@ -109,9 +133,48 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // We need to have businessId or businessEmail
+    if (!businessId && !businessEmail) {
+      console.error("❌ Missing required field: businessId or businessEmail");
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Missing required field: businessId or businessEmail" 
+        }),
+        { 
+          status: 400, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders 
+          } 
+        }
+      );
+    }
+
+    // If we have businessId but not businessEmail, we need to fetch the email
+    let recipientEmail = businessEmail;
+    
+    if (businessId && !recipientEmail) {
+      // This indicates we need to query for the business email
+      console.log("⚠️ Business email not provided in request, will need to query");
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Business email is required. Please provide businessEmail in the request." 
+        }),
+        { 
+          status: 400, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        }
+      );
+    }
+
     // Validate email format
-    if (!businessEmail.includes('@')) {
-      console.error("❌ Invalid email format:", businessEmail);
+    if (!recipientEmail || !recipientEmail.includes('@')) {
+      console.error("❌ Invalid email format:", recipientEmail);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -125,6 +188,14 @@ const handler = async (req: Request): Promise<Response> => {
           } 
         }
       );
+    }
+
+    // Format payment details for email
+    let paymentDetails = "Not Paid";
+    if (paymentStatus === "partly_paid") {
+      paymentDetails = `Partially Paid (Amount: ${paymentAmount || 'not specified'})`;
+    } else if (paymentStatus === "fully_paid") {
+      paymentDetails = `Fully Paid (Amount: ${paymentAmount || 'not specified'})`;
     }
 
     // Create email content - improve formatting for better deliverability
@@ -153,11 +224,13 @@ const handler = async (req: Request): Promise<Response> => {
           <p>Hello,</p>
           <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
           <div class="details">
-            <p class="detail"><strong>Start Date:</strong> ${requestDate}</p>
-            <p class="detail"><strong>End Date:</strong> ${endDate}</p>
-            ${phoneNumber ? `<p class="detail"><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
+            <p class="detail"><strong>Start Date:</strong> ${effectiveStartDate}</p>
+            <p class="detail"><strong>End Date:</strong> ${effectiveEndDate}</p>
+            <p class="detail"><strong>Payment:</strong> ${paymentDetails}</p>
+            ${requesterPhone ? `<p class="detail"><strong>Phone:</strong> ${requesterPhone}</p>` : ''}
             ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
             ${requesterEmail ? `<p class="detail"><strong>Email:</strong> ${requesterEmail}</p>` : ''}
+            ${hasAttachment ? `<p class="detail"><strong>Attachment:</strong> Yes (check the booking in your dashboard)</p>` : ''}
           </div>
           <p>Please log in to your dashboard to view and respond to this request:</p>
           <div class="button">
@@ -179,11 +252,13 @@ Hello,
 
 You have received a new booking request from ${requesterName}.
 
-Start Date: ${requestDate}
-End Date: ${endDate}
-${phoneNumber ? `Phone: ${phoneNumber}` : ''}
+Start Date: ${effectiveStartDate}
+End Date: ${effectiveEndDate}
+Payment: ${paymentDetails}
+${requesterPhone ? `Phone: ${requesterPhone}` : ''}
 ${notes ? `Notes: ${notes}` : ''}
 ${requesterEmail ? `Email: ${requesterEmail}` : ''}
+${hasAttachment ? `Attachment: Yes (check the booking in your dashboard)` : ''}
 
 Please log in to your dashboard to view and respond to this request:
 https://smartbookly.com/dashboard
@@ -193,12 +268,12 @@ This is an automated message from SmartBookly
 If you did not sign up for SmartBookly, please disregard this email.
     `;
     
-    console.log("📧 Sending email to:", businessEmail);
+    console.log("📧 Sending email to:", recipientEmail);
     
     // Use your verified domain for the from address
     const fromEmail = "SmartBookly <info@smartbookly.com>";
     
-    console.log("📧 Final recipient:", businessEmail);
+    console.log("📧 Final recipient:", recipientEmail);
     console.log("📧 Sending from:", fromEmail);
     console.log("📧 Subject: New Booking Request - Action Required");
     
@@ -209,7 +284,7 @@ If you did not sign up for SmartBookly, please disregard this email.
       // Make sure we fully await the email sending before returning
       emailResult = await resend.emails.send({
         from: fromEmail,
-        to: [businessEmail],
+        to: [recipientEmail],
         subject: "New Booking Request - Action Required",
         html: emailHtml,
         text: plainText,
@@ -223,7 +298,7 @@ If you did not sign up for SmartBookly, please disregard this email.
       }
       
       console.log("✅ Email sent successfully with ID:", emailResult.data?.id);
-      console.log("✅ Recipient:", businessEmail);
+      console.log("✅ Recipient:", recipientEmail);
       
       // Wait a moment to ensure the email is processed
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -263,7 +338,7 @@ If you did not sign up for SmartBookly, please disregard this email.
         success: true, 
         message: "Email notification sent successfully",
         id: emailResult.data?.id,
-        email: businessEmail
+        email: recipientEmail
       }),
       { 
         status: 200, 
