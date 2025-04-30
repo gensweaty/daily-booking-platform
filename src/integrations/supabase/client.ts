@@ -13,9 +13,9 @@ export const normalizeFilePath = (path: string): string => {
   return path.startsWith('/') ? path.substring(1) : path;
 };
 
-// Helper function to get the storage URL
+// Helper function to get the storage URL - Fixed to use hardcoded URL instead of process.env
 export const getStorageUrl = () => {
-  return `https://${process.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/storage/v1`;
+  return `${supabaseUrl}/storage/v1`;
 };
 
 // Function to associate uploaded files with events/bookings
