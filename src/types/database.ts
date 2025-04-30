@@ -57,14 +57,15 @@ export interface BookingRequest {
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
-  deleted_at?: string; // Add deleted_at field
+  deleted_at?: string;
   user_surname?: string;
   user_number?: string;
   social_network_link?: string;
   event_notes?: string;
   payment_status?: string;
   payment_amount?: number | null;
-  // Add file fields that are now in the database
+  // These file fields may or may not exist in the database
+  // We're marking them all as optional
   file_path?: string;
   filename?: string;
   content_type?: string;

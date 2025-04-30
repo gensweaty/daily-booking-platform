@@ -22,22 +22,26 @@ export const associateBookingFilesWithEvent = async (bookingId: string, eventId:
   try {
     console.log(`Associating files from booking ${bookingId} with event ${eventId}`);
     
-    // FIXED: First, check if there are files in the booking_requests table
+    // Check if there are booking file fields (this will safely handle the case where columns don't exist)
     const { data: bookingData, error: bookingError } = await supabase
       .from('booking_requests')
-      .select('file_path, filename, content_type, size')
+      .select('*')  // Use * instead of specific fields that might not exist
       .eq('id', bookingId)
       .maybeSingle();
       
     if (bookingError) {
       console.error('Error fetching booking request data:', bookingError);
       // Continue with event_files check as a fallback
-    } else if (bookingData && bookingData.file_path) {
-      console.log(`Found file directly on booking request: ${bookingData.filename || 'attachment'}`);
+    } else if (bookingData && 
+              'file_path' in bookingData && 
+              bookingData.file_path) {
+      // Now we safely check if file_path exists in the object
+      const filename = bookingData.filename || 'attachment';
+      console.log(`Found file directly on booking request: ${filename}`);
       
-      // Process file from booking_requests
+      // Process file from booking_requests (safely accessing properties)
       const originalFilePath = bookingData.file_path;
-      const originalFileName = bookingData.filename || 'attachment';
+      const originalFileName = filename;
       const originalContentType = bookingData.content_type || 'application/octet-stream';
       const originalSize = bookingData.size || 0;
       
