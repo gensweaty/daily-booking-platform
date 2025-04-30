@@ -6,6 +6,14 @@ import { BookingRequest, EventFile } from '@/types/database';
 const supabaseUrl = "https://mrueqpffzauvdxmuwhfa.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ydWVxcGZmemF1dmR4bXV3aGZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM0OTU5MTgsImV4cCI6MjA0OTA3MTkxOH0.tntt0C1AgzJN-x3XrmIKb4j9iow8m4DZq3imEhJt9-0";
 
+// Define standard storage bucket names to ensure consistency
+export const STORAGE_BUCKETS = {
+  EVENT: 'event_attachments',
+  BOOKING: 'booking_attachments',
+  NOTE: 'note_attachments',
+  TASK: 'task_attachments'
+};
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
 // Helper function to normalize file paths by removing any potential starting slash
@@ -14,9 +22,20 @@ export const normalizeFilePath = (path: string): string => {
   return path.startsWith('/') ? path.substring(1) : path;
 };
 
-// Helper function to get the storage URL - Fixed to use hardcoded URL instead of process.env
+// Helper function to get the storage URL - Using hardcoded URL for consistency
 export const getStorageUrl = () => {
   return `${supabaseUrl}/storage/v1`;
+};
+
+// Get a consistent file URL regardless of input bucket - always uses the actual bucket where file is stored
+export const getFileUrl = (filePath: string, providedBucket?: string): string => {
+  if (!filePath) return '';
+  
+  // We'll always use the EVENT bucket for now since that's where files are actually stored
+  const effectiveBucket = STORAGE_BUCKETS.EVENT;
+  
+  const normalizedPath = normalizeFilePath(filePath);
+  return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
 };
 
 // Function to associate uploaded files with events/bookings
@@ -26,11 +45,11 @@ export const associateFileWithEvent = async (file: File, eventId: string, userId
     const fileExt = file.name.split('.').pop();
     const filePath = `${eventId}/${crypto.randomUUID()}.${fileExt}`;
     
-    console.log(`Uploading file ${file.name} to event_attachments/${filePath}`);
+    console.log(`Uploading file ${file.name} to ${STORAGE_BUCKETS.EVENT}/${filePath}`);
     
     // Upload to event_attachments bucket
     const { error: uploadError } = await supabase.storage
-      .from('event_attachments')
+      .from(STORAGE_BUCKETS.EVENT)
       .upload(filePath, file);
       
     if (uploadError) {
@@ -92,7 +111,7 @@ export const associateBookingFilesWithEvent = async (
         try {
           // Get the actual file data from storage
           const { data: fileData, error: downloadError } = await supabase.storage
-            .from('event_attachments')
+            .from(STORAGE_BUCKETS.EVENT)
             .download(normalizeFilePath(file.file_path));
 
           if (downloadError) {
@@ -108,7 +127,7 @@ export const associateBookingFilesWithEvent = async (
           
           // Upload to event_attachments with the new path
           const { error: uploadError } = await supabase.storage
-            .from('event_attachments')
+            .from(STORAGE_BUCKETS.EVENT)
             .upload(newFilePath, fileData, { 
               contentType: file.content_type || 'application/octet-stream' 
             });
@@ -163,7 +182,7 @@ export const associateBookingFilesWithEvent = async (
           
           // Download the file from booking_attachments
           const { data: fileData, error: downloadError } = await supabase.storage
-            .from('booking_attachments')
+            .from(STORAGE_BUCKETS.BOOKING)
             .download(normalizeFilePath(booking.file_path));
             
           if (downloadError) {
@@ -177,7 +196,7 @@ export const associateBookingFilesWithEvent = async (
             
             // Upload to event_attachments
             const { error: uploadError } = await supabase.storage
-              .from('event_attachments')
+              .from(STORAGE_BUCKETS.EVENT)
               .upload(newFilePath, fileData, { 
                 contentType: booking.content_type || 'application/octet-stream' 
               });
@@ -185,7 +204,7 @@ export const associateBookingFilesWithEvent = async (
             if (uploadError) {
               console.error('Error uploading file to event_attachments:', uploadError);
             } else {
-              console.log(`Successfully copied file to event_attachments/${newFilePath}`);
+              console.log(`Successfully copied file to ${STORAGE_BUCKETS.EVENT}/${newFilePath}`);
               
               // Create event_files record
               const { data: eventFile, error: eventFileError } = await supabase

@@ -1,5 +1,12 @@
+
 import { Button } from "@/components/ui/button";
-import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
+import { 
+  supabase, 
+  getStorageUrl, 
+  normalizeFilePath, 
+  STORAGE_BUCKETS, 
+  getFileUrl 
+} from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
@@ -9,7 +16,7 @@ import type { FileRecord } from "@/types/files";
 
 interface FileDisplayProps {
   files: FileRecord[];
-  bucketName: string;
+  bucketName?: string;  // This is now optional and only used as fallback
   allowDelete?: boolean;
   onFileDeleted?: (fileId: string) => void;
   parentId?: string;
@@ -35,7 +42,7 @@ export const FileDisplay = ({
     if (files && files.length > 0) {
       console.log("Files data in FileDisplay:", files);
       
-      // Log paths and buckets for each file for debugging
+      // Log paths for each file for debugging
       files.forEach(file => {
         if (file.file_path) {
           console.log(`File ${file.filename}: Path=${file.file_path}`);
@@ -61,11 +68,8 @@ export const FileDisplay = ({
     const newURLs: {[key: string]: string} = {};
     uniqueFiles.forEach(file => {
       if (file.file_path) {
-        const normalizedPath = normalizeFilePath(file.file_path);
-        // Always use event_attachments bucket for consistent access regardless of input bucketName
-        const effectiveBucket = "event_attachments";
-        console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path}`);
-        newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
+        // Use the getFileUrl helper to ensure consistent URL generation
+        newURLs[file.id] = getFileUrl(file.file_path);
       }
     });
     setFileURLs(newURLs);
@@ -88,12 +92,8 @@ export const FileDisplay = ({
     try {
       console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
       
-      // Always use event_attachments bucket regardless of input bucketName
-      const effectiveBucket = "event_attachments";
-      console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath}`);
-      
-      const directUrl = fileURLs[fileId] || 
-        `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
+      // Always use consistent file URL approach
+      const directUrl = fileURLs[fileId] || getFileUrl(filePath);
       
       console.log('Using direct URL for download:', directUrl);
       
@@ -139,28 +139,13 @@ export const FileDisplay = ({
     }
   };
 
-  const getDirectFileUrl = (filePath: string, fileId: string): string => {
-    if (!filePath) return '';
-    
-    if (fileURLs[fileId]) {
-      return fileURLs[fileId];
-    }
-    
-    const normalizedPath = normalizeFilePath(filePath);
-    // Always use event_attachments bucket
-    const effectiveBucket = "event_attachments";
-    console.log(`Open: Using bucket ${effectiveBucket} for path ${filePath}`);
-    
-    return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
-  };
-
   const handleOpenFile = async (filePath: string, fileId: string) => {
     try {
       if (!filePath) {
         throw new Error('File path is missing');
       }
       
-      const directUrl = getDirectFileUrl(filePath, fileId);
+      const directUrl = fileURLs[fileId] || getFileUrl(filePath);
       console.log('Opening file with direct URL:', directUrl);
       
       // Open in a new tab
@@ -179,12 +164,11 @@ export const FileDisplay = ({
     try {
       setDeletingFileId(fileId);
       
-      // Always use event_attachments bucket
-      const effectiveBucket = "event_attachments";
-      console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}`);
+      // Always use EVENT_ATTACHMENTS bucket for storage operations
+      console.log(`Deleting file from bucket ${STORAGE_BUCKETS.EVENT}, path: ${filePath}`);
       
       const { error: storageError } = await supabase.storage
-        .from(effectiveBucket)
+        .from(STORAGE_BUCKETS.EVENT)
         .remove([normalizeFilePath(filePath)]);
 
       if (storageError) {
@@ -257,10 +241,8 @@ export const FileDisplay = ({
             ? file.filename.substring(0, 20) + '...' 
             : file.filename;
           
-          // Always use event_attachments bucket
-          const effectiveBucket = "event_attachments";
-          const imageUrl = fileURLs[file.id] || 
-            `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(file.file_path)}`;
+          // Get consistent image URL
+          const imageUrl = fileURLs[file.id] || getFileUrl(file.file_path);
             
           return (
             <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">

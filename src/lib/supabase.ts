@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { BookingRequest, EventFile } from '@/types/database';
 
@@ -7,6 +8,14 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
+
+// Define standard storage bucket names to ensure consistency
+export const STORAGE_BUCKETS = {
+  EVENT: 'event_attachments',
+  BOOKING: 'booking_attachments',
+  NOTE: 'note_attachments',
+  TASK: 'task_attachments'
+};
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -84,6 +93,27 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+// Helper to normalize file paths for storage URLs (handle double slashes)
+export const normalizeFilePath = (filePath: string) => {
+  if (!filePath) return "";
+  // Remove any leading slashes
+  return filePath.replace(/^\/+/, '');
+};
+
+// Export the storage URL as a standalone function instead of attaching to supabase
+export const getStorageUrl = () => `${supabaseUrl}/storage/v1`;
+
+// Get a consistent file URL regardless of input bucket - always uses the actual bucket where file is stored
+export const getFileUrl = (filePath: string, providedBucket?: string): string => {
+  if (!filePath) return '';
+  
+  // We'll always use the EVENT bucket for now since that's where files are actually stored
+  const effectiveBucket = STORAGE_BUCKETS.EVENT;
+  
+  const normalizedPath = normalizeFilePath(filePath);
+  return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
+};
+
 // Improved bucket verification - only checks if it exists and logs the settings
 const ensureStorageBuckets = async () => {
   try {
@@ -117,16 +147,6 @@ ensureStorageBuckets();
 export const forceBucketCreation = async () => {
   console.log("Verifying storage bucket settings...");
   return ensureStorageBuckets();
-};
-
-// Export the storage URL as a standalone function instead of attaching to supabase
-export const getStorageUrl = () => `${supabaseUrl}/storage/v1`;
-
-// Helper to normalize file paths for storage URLs (handle double slashes)
-export const normalizeFilePath = (filePath: string) => {
-  if (!filePath) return "";
-  // Remove any leading slashes
-  return filePath.replace(/^\/+/, '');
 };
 
 // Enhanced debug listener for auth events with more detailed information
@@ -212,28 +232,94 @@ export const associateBookingFilesWithEvent = async (
     } else if (existingFiles && existingFiles.length > 0) {
       console.log(`Found ${existingFiles.length} files in event_files with booking ID ${bookingId}`);
       
-      // Create new event_files records linking to the event
+      // Process each file by copying it to the new event
       for (const file of existingFiles) {
-        // Create new event_files record
-        const { data: newEventFile, error: newEventFileError } = await supabase
-          .from('event_files')
-          .insert({
-            filename: file.filename,
-            file_path: file.file_path,
-            content_type: file.content_type,
-            size: file.size,
-            user_id: userId,
-            event_id: eventId,
-            source: 'booking_request'
-          })
-          .select()
-          .single();
+        try {
+          // Get the actual file data from storage
+          const { data: fileData, error: downloadError } = await supabase.storage
+            .from(STORAGE_BUCKETS.EVENT)
+            .download(normalizeFilePath(file.file_path));
+
+          if (downloadError) {
+            console.error(`Error downloading existing file ${file.filename}:`, downloadError);
+            continue;
+          }
+
+          // Create a new file path for the event
+          const fileExtension = file.filename.includes('.') ? 
+            file.filename.split('.').pop() || 'bin' : 'bin';
           
-        if (newEventFileError) {
-          console.error('Error creating event file record:', newEventFileError);
-        } else if (newEventFile) {
-          console.log(`Created new event file record for ${file.filename}`);
-          createdFileRecords.push(newEventFile as EventFile);
+          const newFilePath = `${eventId}/${crypto.randomUUID()}.${fileExtension}`;
+          
+          // Upload to event_attachments with the new path
+          const { error: uploadError } = await supabase.storage
+            .from(STORAGE_BUCKETS.EVENT)
+            .upload(newFilePath, fileData, { 
+              contentType: file.content_type || 'application/octet-stream' 
+            });
+            
+          if (uploadError) {
+            console.error('Error uploading file to event_attachments:', uploadError);
+            continue;
+          }
+
+          // Create new event_files record
+          const { data: newEventFile, error: newEventFileError } = await supabase
+            .from('event_files')
+            .insert({
+              filename: file.filename,
+              file_path: newFilePath, // Use the NEW path
+              content_type: file.content_type,
+              size: file.size,
+              user_id: userId,
+              event_id: eventId,
+              source: 'booking_request'
+            })
+            .select()
+            .single();
+            
+          if (newEventFileError) {
+            console.error('Error creating event file record:', newEventFileError);
+          } else if (newEventFile) {
+            console.log(`Created new event file record for ${file.filename}`);
+            createdFileRecords.push(newEventFile as EventFile);
+            
+            // Also create a customer file record
+            try {
+              const { data: customers } = await supabase
+                .from('customers')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('title', file.user_surname || 'Unknown')
+                .limit(1);
+              
+              if (customers && customers.length > 0) {
+                const customerId = customers[0].id;
+                
+                const { error: customerFileError } = await supabase
+                  .from('customer_files_new')
+                  .insert({
+                    customer_id: customerId,
+                    filename: file.filename,
+                    file_path: newFilePath,
+                    content_type: file.content_type || 'application/octet-stream',
+                    size: file.size || 0,
+                    user_id: userId,
+                    source: 'booking_request'
+                  });
+                  
+                if (customerFileError) {
+                  console.error('Error creating customer file record:', customerFileError);
+                } else {
+                  console.log('Created customer file record for the same file');
+                }
+              }
+            } catch (error) {
+              console.error('Error handling customer file creation:', error);
+            }
+          }
+        } catch (error) {
+          console.error(`Error processing file ${file.filename}:`, error);
         }
       }
     }
@@ -256,7 +342,7 @@ export const associateBookingFilesWithEvent = async (
           
           // Download the file from booking_attachments
           const { data: fileData, error: downloadError } = await supabase.storage
-            .from('booking_attachments')
+            .from(STORAGE_BUCKETS.BOOKING)
             .download(normalizeFilePath(booking.file_path));
             
           if (downloadError) {
@@ -270,7 +356,7 @@ export const associateBookingFilesWithEvent = async (
             
             // Upload to event_attachments
             const { error: uploadError } = await supabase.storage
-              .from('event_attachments')
+              .from(STORAGE_BUCKETS.EVENT)
               .upload(newFilePath, fileData, { 
                 contentType: booking.content_type || 'application/octet-stream' 
               });
@@ -278,7 +364,7 @@ export const associateBookingFilesWithEvent = async (
             if (uploadError) {
               console.error('Error uploading file to event_attachments:', uploadError);
             } else {
-              console.log(`Successfully copied file to event_attachments/${newFilePath}`);
+              console.log(`Successfully copied file to ${STORAGE_BUCKETS.EVENT}/${newFilePath}`);
               
               // Create event_files record
               const { data: eventFile, error: eventFileError } = await supabase
@@ -300,6 +386,40 @@ export const associateBookingFilesWithEvent = async (
               } else if (eventFile) {
                 console.log('Created event file record:', eventFile);
                 createdFileRecords.push(eventFile as EventFile);
+                
+                // Also create customer file record
+                try {
+                  const { data: customers } = await supabase
+                    .from('customers')
+                    .select('id')
+                    .eq('user_id', userId)
+                    .filter('title', 'eq', booking.requester_name)
+                    .limit(1);
+                  
+                  if (customers && customers.length > 0) {
+                    const customerId = customers[0].id;
+                    
+                    const { error: customerFileError } = await supabase
+                      .from('customer_files_new')
+                      .insert({
+                        customer_id: customerId,
+                        filename: booking.filename,
+                        file_path: newFilePath,
+                        content_type: booking.content_type || 'application/octet-stream',
+                        size: booking.size || 0,
+                        user_id: userId,
+                        source: 'booking_request'
+                      });
+                      
+                    if (customerFileError) {
+                      console.error('Error creating customer file record:', customerFileError);
+                    } else {
+                      console.log('Created customer file record for the same file');
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error creating customer file record:', error);
+                }
               }
             }
           }
