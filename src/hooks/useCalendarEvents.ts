@@ -1,9 +1,11 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { associateBookingFilesWithEvent } from "@/integrations/supabase/client";
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string | null) => {
   const queryClient = useQueryClient();
@@ -222,6 +224,96 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
   };
 
+  // Function to check if a time slot is available
+  const checkTimeSlotAvailability = async (startDate: Date, endDate: Date, eventId?: string) => {
+    if (!user) {
+      return { available: false, conflictDetails: "User not authenticated" };
+    }
+    
+    try {
+      // Check for conflicts with existing events
+      const { data: existingEvents, error: eventsError } = await supabase
+        .from('events')
+        .select('id, title, start_date, end_date')
+        .eq('user_id', user.id)
+        .filter('start_date', 'lt', endDate.toISOString())
+        .filter('end_date', 'gt', startDate.toISOString())
+        .is('deleted_at', null);
+      
+      if (eventsError) {
+        console.error("Error checking event conflicts:", eventsError);
+        return { available: false, conflictDetails: "Error checking schedule" };
+      }
+      
+      // If we're editing an existing event, filter out the current event from conflicts
+      const conflicts = eventId 
+        ? existingEvents?.filter(e => e.id !== eventId)
+        : existingEvents;
+      
+      if (conflicts && conflicts.length > 0) {
+        console.log("Found conflicting events:", conflicts);
+        
+        const firstConflict = conflicts[0];
+        return {
+          available: false,
+          conflictDetails: `Conflicts with "${firstConflict.title}" from ${
+            new Date(firstConflict.start_date).toLocaleTimeString()} to ${
+            new Date(firstConflict.end_date).toLocaleTimeString()}`
+        };
+      }
+      
+      // Check for conflicts with approved booking requests
+      const businessProfileQuery = await supabase
+        .from('business_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+        
+      if (businessProfileQuery.error) {
+        console.error("Error fetching business profile:", businessProfileQuery.error);
+        // Continue checking availability even if we can't check bookings
+      } else if (businessProfileQuery.data?.id) {
+        const businessId = businessProfileQuery.data.id;
+        
+        const { data: approvedBookings, error: bookingsError } = await supabase
+          .from('booking_requests')
+          .select('id, title, start_date, end_date')
+          .eq('business_id', businessId)
+          .eq('status', 'approved')
+          .filter('start_date', 'lt', endDate.toISOString())
+          .filter('end_date', 'gt', startDate.toISOString())
+          .is('deleted_at', null);
+          
+        if (bookingsError) {
+          console.error("Error checking booking conflicts:", bookingsError);
+          // Continue checking availability even if this fails
+        } else if (approvedBookings && approvedBookings.length > 0) {
+          // If editing, don't count the booking that corresponds to this event
+          const bookingConflicts = eventId
+            ? approvedBookings.filter(b => b.id !== eventId)
+            : approvedBookings;
+            
+          if (bookingConflicts.length > 0) {
+            console.log("Found conflicting bookings:", bookingConflicts);
+            
+            const firstConflict = bookingConflicts[0];
+            return {
+              available: false,
+              conflictDetails: `Conflicts with approved booking "${firstConflict.title}" from ${
+                new Date(firstConflict.start_date).toLocaleTimeString()} to ${
+                new Date(firstConflict.end_date).toLocaleTimeString()}`
+            };
+          }
+        }
+      }
+      
+      return { available: true, conflictDetails: "" };
+    } catch (error) {
+      console.error("Error checking time slot availability:", error);
+      return { available: false, conflictDetails: "Error checking availability" };
+    }
+  };
+
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to create events");
     
@@ -242,560 +334,244 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       event.type = 'event';
     }
     
-    console.log("Creating event with data:", { ...event, user_id: user.id });
-    
     const { data, error } = await supabase
       .from('events')
-      .insert([{ ...event, user_id: user.id }])
+      .insert({
+        ...event,
+        user_id: user.id
+      })
       .select()
       .single();
-
+      
     if (error) {
-      console.error("Error creating event:", error);
+      console.error('Error creating event:', error);
       throw error;
     }
-    
-    console.log("Successfully created event:", data);
-    
-    toast({
-      title: "Event created",
-      description: "Your event has been added to the calendar."
-    });
     
     return data;
   };
 
-  const updateEvent = async (data: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+  const updateEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
+    if (!event.id) throw new Error("Event ID is required for updates");
     
-    const id = data.id;
-    if (!id) throw new Error("Event ID is required for updates");
-    
-    console.log("Updating event with ID:", id);
-    console.log("Update data:", data);
-    console.log("Event type:", data.type);
-    
-    // For existing events, first check if we need to validate time conflicts
-    if (data.start_date && data.end_date) {
-      // First get the original event to check if times changed
-      let skipTimeCheck = false;
-      let originalEvent: any = null;
-      
-      if (data.type === 'booking_request' || (id && typeof id === 'string' && id.includes('-'))) {
-        // Check for booking request with this ID
-        const { data: bookingData } = await supabase
-          .from('booking_requests')
-          .select('*')
-          .eq('id', id)
-          .maybeSingle();
-          
-        if (bookingData) {
-          originalEvent = bookingData;
-        }
-      }
-      
-      if (!originalEvent) {
-        // Check for regular event
-        const { data: eventData } = await supabase
-          .from('events')
-          .select('*')
-          .eq('id', id)
-          .maybeSingle();
-          
-        if (eventData) {
-          originalEvent = eventData;
-        }
-      }
-      
-      // If we found the original event, check if times changed
-      if (originalEvent) {
-        skipTimeCheck = !haveTimesChanged(
-          originalEvent.start_date,
-          originalEvent.end_date,
-          data.start_date,
-          data.end_date
-        );
-        
-        console.log("Should skip time conflict check?", skipTimeCheck);
-      }
-      
-      // Only perform conflict check if times have changed
-      if (!skipTimeCheck) {
-        const startDateTime = new Date(data.start_date);
-        const endDateTime = new Date(data.end_date);
-        
-        const { available, conflictDetails } = await checkTimeSlotAvailability(
-          startDateTime,
-          endDateTime,
-          id
-        );
-        
-        if (!available) {
-          throw new Error(`Time slot already booked: ${conflictDetails}`);
-        }
-      }
-    }
-    
-    if (data.type === 'booking_request' || (id && typeof id === 'string' && id.includes('-'))) {
-      try {
-        console.log("Checking for booking request with ID:", id);
-        const { data: bookingData, error: bookingError } = await supabase
-          .from('booking_requests')
-          .select('*')
-          .eq('id', id)
-          .maybeSingle();
-          
-        if (!bookingError && bookingData) {
-          console.log("Found booking request, updating:", id);
-          const { data: updatedBooking, error: updateError } = await supabase
-            .from('booking_requests')
-            .update({
-              title: data.title,
-              requester_name: data.user_surname,
-              requester_phone: data.user_number,
-              requester_email: data.social_network_link,
-              description: data.event_notes,
-              start_date: data.start_date,
-              end_date: data.end_date,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-            .select()
-            .single();
-              
-          if (updateError) throw updateError;
-          
-          toast({
-            title: "Booking updated",
-            description: "The booking request has been updated successfully."
-          });
-          
-          return {
-            id: updatedBooking.id,
-            title: updatedBooking.title,
-            start_date: updatedBooking.start_date,
-            end_date: updatedBooking.end_date,
-            user_id: updatedBooking.user_id || '',
-            user_surname: updatedBooking.requester_name,
-            user_number: updatedBooking.requester_phone || '',
-            social_network_link: updatedBooking.requester_email,
-            event_notes: updatedBooking.description || '',
-            type: 'booking_request',
-            created_at: updatedBooking.created_at,
-            requester_name: updatedBooking.requester_name,
-            requester_email: updatedBooking.requester_email,
-            requester_phone: updatedBooking.requester_phone || '',
-          } as CalendarEventType;
-        } else {
-          console.log("No booking request found with ID:", id);
-        }
-      } catch (error) {
-        console.error("Error checking for booking request:", error);
-      }
-    }
-    
-    console.log("Updating standard event:", id);
-    const { data: updatedEvent, error } = await supabase
+    const { data: existingEvent, error: fetchError } = await supabase
       .from('events')
-      .update({
-        title: data.title,
-        user_surname: data.user_surname,
-        user_number: data.user_number,
-        social_network_link: data.social_network_link,
-        event_notes: data.event_notes,
-        start_date: data.start_date,
-        end_date: data.end_date,
-        payment_status: data.payment_status,
-        payment_amount: data.payment_amount
-      })
-      .eq('id', id)
-      .select()
+      .select('id, start_date, end_date, type')
+      .eq('id', event.id)
       .single();
-
-    if (error) throw error;
+      
+    if (fetchError) {
+      console.error('Error fetching existing event:', fetchError);
+      throw fetchError;
+    }
     
-    toast({
-      title: "Event updated",
-      description: "Your event has been updated successfully."
-    });
+    const startDateTime = new Date(event.start_date as string);
+    const endDateTime = new Date(event.end_date as string);
     
-    return updatedEvent;
-  };
-
-  const checkTimeSlotAvailability = async (
-    startDate: Date,
-    endDate: Date,
-    excludeEventId?: string
-  ): Promise<{ available: boolean; conflictDetails: string }> => {
-    try {
-      console.log("Checking availability for:", {
-        start: startDate,
-        end: endDate,
-        excludeEventId,
-        userId: user?.id,
-        businessId
-      });
-      
-      if (!user) {
-        return { available: true, conflictDetails: "" };
-      }
-      
-      const userId = businessId || businessUserId ? businessUserId : user.id;
-      
-      if (!userId) {
-        return { available: true, conflictDetails: "" };
-      }
-      
-      const { data: conflictingEvents, error: eventsError } = await supabase
-        .from('events')
-        .select('id, title, start_date, end_date, deleted_at, type')
-        .eq('user_id', userId)
-        .filter('start_date', 'lt', endDate.toISOString())
-        .filter('end_date', 'gt', startDate.toISOString())
-        .is('deleted_at', null);
-      
-      if (eventsError) throw eventsError;
-      
-      // Helper function to identify if this is the event being edited
-      const isSameEvent = (item: any) => {
-        return item.id === excludeEventId;
-      };
-      
-      const eventsConflict = conflictingEvents?.filter(event => 
-        !isSameEvent(event) &&
-        !(startDate.getTime() >= new Date(event.end_date).getTime() || 
-          endDate.getTime() <= new Date(event.start_date).getTime())
+    // Only check availability if times have changed
+    const timesChanged = haveTimesChanged(
+      existingEvent.start_date,
+      existingEvent.end_date,
+      event.start_date as string,
+      event.end_date as string
+    );
+    
+    if (timesChanged) {
+      const { available, conflictDetails } = await checkTimeSlotAvailability(
+        startDateTime,
+        endDateTime,
+        event.id
       );
       
-      console.log("Conflicting events (excluding current):", eventsConflict);
-      
-      if (eventsConflict && eventsConflict.length > 0) {
-        const conflictEvent = eventsConflict[0];
-        return { 
-          available: false, 
-          conflictDetails: `Conflicts with "${conflictEvent.title}" at ${new Date(conflictEvent.start_date).toLocaleTimeString()}`
-        };
+      if (!available) {
+        throw new Error(`Time slot is no longer available: ${conflictDetails}`);
       }
-      
-      // Check for booking conflicts
-      if (businessId || businessUserId) {
-        const targetBusinessId = businessId;
-        
-        if (targetBusinessId) {
-          console.log("Booking conflict check for excludeEventId:", excludeEventId);
-          
-          const { data: conflictingBookings, error: bookingsError } = await supabase
-            .from('booking_requests')
-            .select('id, title, start_date, end_date, type')
-            .eq('business_id', targetBusinessId)
-            .eq('status', 'approved')
-            .filter('start_date', 'lt', endDate.toISOString())
-            .filter('end_date', 'gt', startDate.toISOString());
-          
-          if (bookingsError) throw bookingsError;
-          
-          console.log("Booking conflict check against:", {
-            excludeId: excludeEventId,
-            conflictingBookings: conflictingBookings?.map(b => b.id)
-          });
-          
-          // Helper function to identify if this is the booking being edited
-          const isSameBooking = (booking: any) => {
-            return booking.id === excludeEventId;
-          };
-          
-          const bookingsConflict = conflictingBookings?.filter(booking => 
-            !isSameBooking(booking) &&
-            !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
-              endDate.getTime() <= new Date(booking.start_date).getTime())
-          );
-          
-          console.log("Filtered conflicting bookings:", bookingsConflict);
-          
-          if (bookingsConflict && bookingsConflict.length > 0) {
-            const conflictBooking = bookingsConflict[0];
-            return { 
-              available: false, 
-              conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`
-            };
-          }
-        }
-      } else if (!businessId && !businessUserId && user) {
-        // Check for user's own business bookings
-        const { data: userBusinessProfile } = await supabase
-          .from("business_profiles")
-          .select("id")
-          .eq("user_id", user.id)
-          .maybeSingle();
-          
-        if (userBusinessProfile?.id) {
-          const { data: conflictingBookings, error: bookingsError } = await supabase
-            .from('booking_requests')
-            .select('id, title, start_date, end_date')
-            .eq('business_id', userBusinessProfile.id)
-            .eq('status', 'approved')
-            .filter('start_date', 'lt', endDate.toISOString())
-            .filter('end_date', 'gt', startDate.toISOString());
-            
-          if (bookingsError) throw bookingsError;
-          
-          console.log("Booking conflict check against:", {
-            excludeId: excludeEventId,
-            conflictingBookings: conflictingBookings?.map(b => b.id)
-          });
-          
-          // Helper function to identify if this is the booking being edited
-          const isSameBooking = (booking: any) => {
-            return booking.id === excludeEventId;
-          };
-          
-          const bookingsConflict = conflictingBookings?.filter(booking => 
-            !isSameBooking(booking) &&
-            !(startDate.getTime() >= new Date(booking.end_date).getTime() || 
-              endDate.getTime() <= new Date(booking.start_date).getTime())
-          );
-          
-          if (bookingsConflict && bookingsConflict.length > 0) {
-            const conflictBooking = bookingsConflict[0];
-            return { 
-              available: false, 
-              conflictDetails: `Conflicts with approved booking "${conflictBooking.title}" at ${new Date(conflictBooking.start_date).toLocaleTimeString()}`
-            };
-          }
-        }
-      }
-      
-      return { available: true, conflictDetails: "" };
-    } catch (error) {
-      console.error("Error checking time slot availability:", error);
-      return { available: false, conflictDetails: "Error checking availability" };
-    }
-  };
-
-  const deleteEvent = async (id: string): Promise<void> => {
-    if (!user) throw new Error("User must be authenticated to delete events");
-    
-    try {
-      // First check if this is a booking event with an associated booking request
-      const { data: eventData, error: eventError } = await supabase
-        .from('events')
-        .select('booking_request_id, type')
-        .eq('id', id)
-        .maybeSingle();
-        
-      if (eventError) {
-        console.error("Error checking for booking association:", eventError);
-      } else if (eventData?.booking_request_id) {
-        console.log("This is a booking event. Will also update booking request status.");
-        const { error: bookingError } = await supabase
-          .from('booking_requests')
-          .update({ 
-            status: 'rejected',
-            deleted_at: new Date().toISOString() // Add soft delete for booking requests
-          })
-          .eq('id', eventData.booking_request_id);
-          
-        if (bookingError) {
-          console.error("Error updating associated booking:", bookingError);
-        } else {
-          console.log("Successfully soft-deleted associated booking request");
-        }
-      }
-      
-      // Check if this is a direct booking request (from booking_requests table)
-      const { data: bookingData, error: bookingError } = await supabase
-        .from('booking_requests')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
-      
-      if (!bookingError && bookingData) {
-        console.log("Soft deleting booking request:", id);
-        const { error } = await supabase
-          .from('booking_requests')
-          .update({
-            deleted_at: new Date().toISOString(), // Use soft delete instead of actual delete
-            status: 'rejected'
-          })
-          .eq('id', id);
-          
-        if (error) {
-          console.error("Error soft-deleting booking request:", error);
-          throw error;
-        }
-        
-        toast({
-          title: "Booking deleted",
-          description: "The booking request has been deleted successfully."
-        });
-        return;
-      }
-    } catch (error) {
-      console.error("Error checking for booking request:", error);
     }
     
-    try {
-      // Handle any customer relations
-      const { data: eventData, error: eventError } = await supabase
-        .from('events')
-        .select('title, start_date, end_date')
-        .eq('id', id)
-        .maybeSingle();
+    // If an event's type is booking_request but update sets it to something else,
+    // this indicates approving a booking request
+    const wasBookingRequest = existingEvent.type === 'booking_request';
+    const isChangingType = event.type && event.type !== 'booking_request';
+    
+    if (wasBookingRequest && isChangingType) {
+      console.log("Converting booking request to regular event:", event.id);
       
-      if (eventError) {
-        console.error('Error finding event:', eventError);
-      } else if (eventData) {
-        // Check for related customer data
-        const { data: customer, error: customerError } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('title', eventData.title)
-          .eq('start_date', eventData.start_date)
-          .eq('end_date', eventData.end_date)
-          .maybeSingle();
-
-        if (customerError && customerError.code !== 'PGRST116') {
-          console.error('Error finding associated customer:', customerError);
-        }
-
-        if (customer) {
-          // Update the customer record instead of deleting it
-          const { error: updateError } = await supabase
-            .from('customers')
-            .update({
-              start_date: null,
-              end_date: null
-            })
-            .eq('id', customer.id);
-
-          if (updateError) {
-            console.error('Error updating customer:', updateError);
-          } else {
-            console.log('Successfully updated customer record on event deletion');
-          }
-        }
+      // Always preserve original booking ID
+      const bookingRequestId = event.id;
+      
+      // Create a new event and then soft-delete the booking
+      const { data: newEvent, error: createError } = await supabase
+        .from('events')
+        .insert({
+          ...event,
+          user_id: user.id,
+          booking_request_id: bookingRequestId,
+          type: event.type || 'event'
+        })
+        .select()
+        .single();
+        
+      if (createError) {
+        console.error("Error creating new event from booking:", createError);
+        throw createError;
       }
-    } catch (error) {
-      console.error('Error handling customer association:', error);
-    }
-
-    try {
-      // Handle associated files
-      const { data: files } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', id);
-
-      if (files && files.length > 0) {
-        // We're not deleting the actual files, just updating the relationship
-        console.log(`Found ${files.length} associated files`);
+      
+      // Copy booking files to the new event
+      try {
+        await associateBookingFilesWithEvent(
+          bookingRequestId, 
+          newEvent.id, 
+          user.id
+        );
+      } catch (fileError) {
+        console.error("Error copying booking files:", fileError);
       }
-    } catch (error) {
-      console.error('Error handling file associations:', error);
+      
+      return newEvent;
     }
-
-    // Use soft delete for events instead of hard delete
-    const { error } = await supabase
+    
+    // Regular update for non-booking events or when not changing type
+    const { data, error } = await supabase
       .from('events')
-      .update({
-        deleted_at: new Date().toISOString()
-      })
-      .eq('id', id);
-
+      .update(event)
+      .eq('id', event.id)
+      .select()
+      .single();
+      
     if (error) {
-      console.error('Error soft-deleting event:', error);
+      console.error('Error updating event:', error);
       throw error;
     }
     
-    console.log('Successfully soft-deleted event:', id);
-    
-    toast({
-      title: "Success",
-      description: "Event deleted successfully",
-    });
+    return data;
   };
 
-  const { data: events = [], isLoading: isLoadingUserEvents, error: userEventsError } = useQuery({
+  const deleteEvent = async (eventId: string): Promise<void> => {
+    if (!user) throw new Error("User must be authenticated to delete events");
+    
+    // First check if this is an event created from a booking request
+    const { data: event, error: fetchError } = await supabase
+      .from('events')
+      .select('booking_request_id')
+      .eq('id', eventId)
+      .maybeSingle();
+      
+    if (fetchError) {
+      console.error("Error fetching event:", fetchError);
+    }
+    
+    // If this was created from a booking request, also update the request status
+    if (event?.booking_request_id) {
+      console.log("Event was created from booking request, updating request status");
+      
+      // Update the booking request status to rejected
+      const { error: bookingError } = await supabase
+        .from('booking_requests')
+        .update({ status: 'rejected', deleted_at: new Date().toISOString() })
+        .eq('id', event.booking_request_id);
+        
+      if (bookingError) {
+        console.error("Error updating booking request:", bookingError);
+      }
+    }
+    
+    // Soft delete the event
+    const { error } = await supabase
+      .from('events')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', eventId);
+      
+    if (error) {
+      console.error('Error deleting event:', error);
+      throw error;
+    }
+  };
+
+  const eventsQuery = useQuery({
     queryKey: ['events', user?.id],
     queryFn: getEvents,
-    enabled: !!user && !businessId && !businessUserId,
-    staleTime: 1000 * 30, 
-    refetchInterval: 2000, // Refresh every 2 seconds to ensure up-to-date data
+    enabled: !!user?.id,
+    refetchOnWindowFocus: true,
+    refetchInterval: 60000,
   });
 
-  const { data: businessEvents = [], isLoading: isLoadingBusinessEvents, error: businessEventsError } = useQuery({
+  const businessEventsQuery = useQuery({
     queryKey: ['business-events', businessId, businessUserId],
     queryFn: getBusinessEvents,
     enabled: !!(businessId || businessUserId),
-    staleTime: 1000 * 30,
-    refetchInterval: 2000,
   });
 
-  const { data: approvedBookings = [], isLoading: isLoadingBookings } = useQuery({
-    queryKey: ['approved-bookings', businessId, businessUserId],
+  const approvedBookingsQuery = useQuery({
+    queryKey: ['approved-bookings', businessId, businessUserId, user?.id],
     queryFn: getApprovedBookings,
-    enabled: !!(businessId || businessUserId || (user && !businessId && !businessUserId)),
-    staleTime: 1000 * 30,
-    refetchInterval: 2000,
+    enabled: !!(businessId || businessUserId || user?.id),
   });
 
-  const createEventMutation = useMutation({
+  const createMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t("common.error"),
+        description: error.message,
+        variant: "destructive"
+      });
     },
   });
 
-  const updateEventMutation = useMutation({
+  const updateMutation = useMutation({
     mutationFn: updateEvent,
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
+      toast({
+        title: t("common.success"),
+        description: t("events.eventUpdated"),
+      });
+      return data;
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t("common.error"),
+        description: error.message,
+        variant: "destructive"
+      });
     },
   });
 
-  const deleteEventMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: deleteEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
+      toast({
+        title: t("common.success"),
+        description: t("events.eventDeleted"),
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t("common.error"),
+        description: error.message,
+        variant: "destructive"
+      });
     },
   });
 
-  let allEvents: CalendarEventType[] = [];
-  
-  if (businessId || businessUserId) {
-    // Make sure we filter out deleted events
-    const filteredBusinessEvents = businessEvents.filter(event => !event.deleted_at);
-    const filteredApprovedBookings = approvedBookings.filter(booking => !booking.deleted_at);
-    allEvents = [...filteredBusinessEvents, ...filteredApprovedBookings];
-  } else if (user) {
-    const isUserBusiness = approvedBookings.length > 0 && approvedBookings[0].user_id === user.id;
-    // Filter out deleted events in both arrays
-    const filteredEvents = events.filter(event => !event.deleted_at);
-    const filteredBookings = isUserBusiness ? approvedBookings.filter(booking => !booking.deleted_at) : [];
-    allEvents = [...filteredEvents, ...filteredBookings];
-  }
-
-  console.log("useCalendarEvents combined data:", {
-    userEvents: events?.length || 0,
-    businessEvents: businessEvents?.length || 0,
-    approvedBookings: approvedBookings?.length || 0,
-    combined: allEvents.length,
-    isExternalCalendar: !!(businessId || businessUserId),
-  });
-
   return {
-    events: allEvents,
-    isLoading: (businessId || businessUserId) ? (isLoadingBusinessEvents || isLoadingBookings) : (isLoadingUserEvents || isLoadingBookings),
-    error: (businessId || businessUserId) ? businessEventsError : userEventsError,
-    createEvent,
-    updateEvent,
-    deleteEvent,
-    checkTimeSlotAvailability,
+    events: eventsQuery.data || [],
+    businessEvents: businessEventsQuery.data || [],
+    approvedBookings: approvedBookingsQuery.data || [],
+    isLoading: eventsQuery.isLoading || businessEventsQuery.isLoading || approvedBookingsQuery.isLoading,
+    error: eventsQuery.error || businessEventsQuery.error || approvedBookingsQuery.error,
+    createEvent: createMutation.mutateAsync,
+    updateEvent: updateMutation.mutateAsync,
+    deleteEvent: deleteMutation.mutateAsync,
   };
 };
