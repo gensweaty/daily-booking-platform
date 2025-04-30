@@ -244,10 +244,49 @@ export const useBookingRequests = () => {
         console.log('Created customer:', customerData);
       }
       
-      // UPDATED FILE HANDLING - use the helper function to handle booking files
-      const createdFileRecord = await associateBookingFilesWithEvent(bookingId, eventData.id, user.id);
-      if (createdFileRecord) {
-        console.log('Successfully associated booking file with event:', createdFileRecord);
+      // First check for booking files specifically
+      const { data: bookingFiles } = await supabase
+        .from('booking_files')
+        .select('*')
+        .eq('booking_request_id', bookingId);
+        
+      console.log(`Found ${bookingFiles?.length || 0} booking files for booking ID ${bookingId}`, bookingFiles);
+      
+      if (bookingFiles && bookingFiles.length > 0) {
+        // For each booking file, create an event file record
+        for (const bookingFile of bookingFiles) {
+          try {
+            console.log(`Processing booking file: ${bookingFile.filename}`, bookingFile);
+            
+            const { data: eventFile, error: eventFileError } = await supabase
+              .from('event_files')
+              .insert({
+                filename: bookingFile.filename,
+                file_path: bookingFile.file_path,
+                content_type: bookingFile.content_type,
+                size: bookingFile.size,
+                user_id: user.id,
+                event_id: eventData.id
+              })
+              .select()
+              .single();
+              
+            if (eventFileError) {
+              console.error('Error creating event file from booking file:', eventFileError);
+            } else {
+              console.log('Successfully created event file from booking file:', eventFile);
+            }
+          } catch (fileError) {
+            console.error('Error processing booking file:', fileError);
+          }
+        }
+      } else {
+        // As a fallback, use the associateBookingFilesWithEvent function
+        console.log('No booking_files found, trying legacy event_files association...');
+        const createdFileRecord = await associateBookingFilesWithEvent(bookingId, eventData.id, user.id);
+        if (createdFileRecord) {
+          console.log('Successfully associated booking file with event:', createdFileRecord);
+        }
       }
       
       if (typedBooking && typedBooking.requester_email) {

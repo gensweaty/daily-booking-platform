@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -395,10 +396,11 @@ export const BookingRequestForm = ({
       
       if (selectedFile && data) {
         try {
-          console.log("🔍 Processing file upload:", selectedFile.name);
+          console.log("🔍 Processing file upload for booking request:", selectedFile.name);
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `booking_${data.id}_${Date.now()}.${fileExt}`;
           
+          // Upload to booking_attachments bucket
           const { error: uploadError } = await supabase.storage
             .from('booking_attachments')
             .upload(filePath, selectedFile);
@@ -406,7 +408,9 @@ export const BookingRequestForm = ({
           if (uploadError) {
             console.error('❌ Error uploading file:', uploadError);
           } else {
-            console.log("✅ File uploaded successfully:", filePath);
+            console.log("✅ File uploaded successfully to booking_attachments:", filePath);
+            
+            // Create booking_files record with file metadata
             const { error: fileError } = await supabase
               .from('booking_files')
               .insert({
@@ -418,9 +422,9 @@ export const BookingRequestForm = ({
               });
               
             if (fileError) {
-              console.error('❌ Error saving file metadata:', fileError);
+              console.error('❌ Error saving booking file metadata:', fileError);
             } else {
-              console.log("✅ File metadata saved successfully");
+              console.log("✅ Booking file metadata saved successfully");
             }
           }
         } catch (fileError) {
@@ -428,6 +432,7 @@ export const BookingRequestForm = ({
         }
       }
       
+      queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
       queryClient.invalidateQueries({ queryKey: ['business-bookings'] });
       
       if (emailSent) {

@@ -26,9 +26,9 @@ export async function associateBookingFilesWithEvent(
     
     // Check for existing files attached to the booking request
     const { data: bookingFiles, error: filesError } = await supabase
-      .from('event_files')
+      .from('booking_files')
       .select('*')
-      .eq('event_id', bookingId);
+      .eq('booking_request_id', bookingId);
     
     if (filesError) {
       console.error('Error fetching booking files:', filesError);
@@ -42,36 +42,38 @@ export async function associateBookingFilesWithEvent(
     
     console.log(`Found ${bookingFiles.length} files to transfer from booking to event`);
     
-    // Process the first file (most booking requests will have only one file)
-    const file = bookingFiles[0];
+    // Process all files from the booking request
+    const eventFiles = [];
     
-    try {
-      console.log(`Processing file: ${file.filename}, path: ${file.file_path}`);
-      
-      // Create an event file record pointing to the same storage location
-      const { data: eventFile, error: eventFileError } = await supabase
-        .from('event_files')
-        .insert({
-          filename: file.filename,
-          file_path: file.file_path,
-          content_type: file.content_type,
-          size: file.size,
-          user_id: userId,
-          event_id: eventId
-        })
-        .select()
-        .single();
-      
-      if (eventFileError) {
-        console.error('Error creating event file record:', eventFileError);
-        return null;
+    for (const file of bookingFiles) {
+      try {
+        console.log(`Processing file: ${file.filename}, path: ${file.file_path}`);
+        
+        // Create an event file record pointing to the same storage location
+        const { data: eventFile, error: eventFileError } = await supabase
+          .from('event_files')
+          .insert({
+            filename: file.filename,
+            file_path: file.file_path,
+            content_type: file.content_type,
+            size: file.size,
+            user_id: userId,
+            event_id: eventId
+          })
+          .select()
+          .single();
+        
+        if (eventFileError) {
+          console.error('Error creating event file record:', eventFileError);
+        } else {
+          eventFiles.push(eventFile);
+        }
+      } catch (error) {
+        console.error('Error processing file:', error);
       }
-      
-      return eventFile;
-    } catch (error) {
-      console.error('Error processing file:', error);
-      return null;
     }
+    
+    return eventFiles.length > 0 ? eventFiles[0] : null;
   } catch (error) {
     console.error('Error in associateBookingFilesWithEvent:', error);
     return null;
@@ -97,6 +99,25 @@ export async function ensureStorageBuckets() {
         console.error('Error creating event_attachments bucket:', error);
       } else {
         console.log('Successfully created event_attachments bucket');
+      }
+    }
+    
+    // Check if booking_attachments bucket exists
+    const { data: bookingBucketData, error: bookingBucketError } = await supabase
+      .storage
+      .getBucket('booking_attachments');
+    
+    // If bucket doesn't exist, create it
+    if (bookingBucketError && bookingBucketError.message.includes('does not exist')) {
+      console.log('Creating booking_attachments storage bucket');
+      const { data, error } = await supabase
+        .storage
+        .createBucket('booking_attachments', { public: true });
+      
+      if (error) {
+        console.error('Error creating booking_attachments bucket:', error);
+      } else {
+        console.log('Successfully created booking_attachments bucket');
       }
     }
   } catch (error) {
