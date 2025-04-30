@@ -3,7 +3,7 @@ import { File, FileText, FileSpreadsheet, Image, Music, Video, Trash2 } from "lu
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -52,21 +52,14 @@ export const FileDisplay = ({
 
   const effectiveBucketName = bucketName || determineBucketName(parentType);
 
-  // Helper to get storage URL for direct links
-  const getStorageUrl = (): string => {
-    return `${supabase.supabaseUrl}/storage/v1`;
-  };
-
-  // Generate public URL for file
+  // Generate public URL for file using our helper functions
   const getPublicUrl = (filePath: string): string => {
     if (!filePath) return '';
 
-    // Normalize the file path (remove any leading slashes)
-    const normalizedPath = filePath.startsWith('/') 
-      ? filePath.substring(1) 
-      : filePath;
-
-    // Construct a direct storage URL
+    // Normalize the file path (remove any leading slashes) using our helper
+    const normalizedPath = normalizeFilePath(filePath);
+    
+    // Construct a direct storage URL using the helper function
     return `${getStorageUrl()}/object/public/${effectiveBucketName}/${normalizedPath}`;
   };
 
@@ -213,7 +206,6 @@ export const FileDisplay = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Handle file download
   const downloadFile = async (file: any) => {
     try {
       const filePath = file.file_path;
