@@ -286,8 +286,8 @@ export const associateFilesWithEntity = async (
           const newFilePath = `${targetId}/${crypto.randomUUID()}.${fileExtension}`;
           
           // Safely access content_type with fallback
-          const contentType = file && ('content_type' in file) ? 
-            (file.content_type as string) || 'application/octet-stream' : 
+          const contentType = file && typeof file === 'object' && 'content_type' in file ? 
+            (file.content_type as string || 'application/octet-stream') : 
             'application/octet-stream';
           
           // Upload to event_attachments with the new path
@@ -307,7 +307,8 @@ export const associateFilesWithEntity = async (
           const targetField = targetType === 'event' ? 'event_id' : 'customer_id';
           
           // Safely access size with fallback
-          const size = file && ('size' in file) ? (file.size as number) || 0 : 0;
+          const size = file && typeof file === 'object' && 'size' in file ? 
+            (file.size as number || 0) : 0;
           
           // Create insertion data with required fields
           const insertData = {
@@ -355,8 +356,8 @@ export const associateFilesWithEntity = async (
         } else if (sourceData) {
           // Make sure sourceData exists and has the required fields
           if (
-            sourceData && 
             typeof sourceData === 'object' && 
+            sourceData !== null &&
             'file_path' in sourceData && 
             'filename' in sourceData &&
             sourceData.file_path && 
@@ -387,8 +388,11 @@ export const associateFilesWithEntity = async (
                 
                 // Safely access content_type with fallback
                 let contentType = 'application/octet-stream';
-                if (sourceData && typeof sourceData === 'object' && 'content_type' in sourceData) {
-                  contentType = (sourceData.content_type as string) || contentType;
+                if (sourceData !== null && 
+                    typeof sourceData === 'object' && 
+                    'content_type' in sourceData && 
+                    sourceData.content_type) {
+                  contentType = sourceData.content_type as string;
                 }
                 
                 // Upload to event_attachments
@@ -407,8 +411,11 @@ export const associateFilesWithEntity = async (
                   
                   // Safely access size with fallback
                   let size = 0;
-                  if (sourceData && typeof sourceData === 'object' && 'size' in sourceData) {
-                    size = (sourceData.size as number) || 0;
+                  if (sourceData !== null && 
+                      typeof sourceData === 'object' && 
+                      'size' in sourceData && 
+                      sourceData.size) {
+                    size = sourceData.size as number;
                   }
                   
                   const insertData = {
