@@ -1,5 +1,5 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { useForm } from 'react-hook-form';
@@ -45,6 +45,9 @@ export const BookingRequestForm = ({
   const [fileError, setFileError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Replace useState with fullName state
+  const [fullName, setFullName] = useState('');
+  
   // Add new state variables to match EventDialog structure
   const [userSurname, setUserSurname] = useState('');
   const [userNumber, setUserNumber] = useState('');
@@ -55,14 +58,25 @@ export const BookingRequestForm = ({
   const [paymentStatus, setPaymentStatus] = useState('not_paid');
   const [paymentAmount, setPaymentAmount] = useState('');
 
-  // Initialize dates
-  useState(() => {
-    const start = combineDateAndTime(selectedDate, startTime);
-    const end = combineDateAndTime(selectedDate, endTime);
-    
-    setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-    setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-  });
+  // Move date initialization to useEffect
+  useEffect(() => {
+    try {
+      const start = combineDateAndTime(selectedDate, startTime);
+      const end = combineDateAndTime(selectedDate, endTime);
+      
+      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
+    } catch (error) {
+      console.error('Error initializing dates:', error);
+      // Set fallback dates in case of error
+      const now = new Date();
+      const oneHourLater = new Date(now);
+      oneHourLater.setHours(oneHourLater.getHours() + 1);
+      
+      setStartDate(format(now, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(oneHourLater, "yyyy-MM-dd'T'HH:mm"));
+    }
+  }, [selectedDate, startTime, endTime]);
 
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
@@ -73,6 +87,13 @@ export const BookingRequestForm = ({
     const newDate = new Date(date);
     newDate.setHours(hours, minutes, 0, 0);
     return newDate;
+  };
+
+  // Handle name change to update both fullName and userSurname
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFullName(value);
+    setUserSurname(value);
   };
 
   const handleFileChange = (file: File | null) => {
@@ -87,7 +108,7 @@ export const BookingRequestForm = ({
       console.log("Starting form submission...");
 
       // Validate required fields
-      if (!userSurname) {
+      if (!fullName) {
         toast({
           title: t('common.error'),
           description: t('Name is required'),
@@ -132,10 +153,10 @@ export const BookingRequestForm = ({
 
       const bookingData = {
         business_id: businessId,
-        requester_name: userSurname,
+        requester_name: fullName,
         requester_email: socialNetworkLink,
         requester_phone: userNumber || null,
-        title: `Booking Request - ${userSurname}`,
+        title: `Booking Request - ${fullName}`,
         description: eventNotes || null,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
@@ -203,6 +224,7 @@ export const BookingRequestForm = ({
       setIsSubmitting(false);
       
       // Reset form
+      setFullName('');
       setUserSurname('');
       setUserNumber('');
       setSocialNetworkLink('');
@@ -237,7 +259,7 @@ export const BookingRequestForm = ({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               businessId: businessId,
-              requesterName: userSurname,
+              requesterName: fullName,
               requesterEmail: socialNetworkLink,
               requesterPhone: userNumber || "Not provided",
               notes: eventNotes || "No additional notes",
@@ -274,13 +296,13 @@ export const BookingRequestForm = ({
       <form onSubmit={handleSubmit} className="space-y-4 mt-4">
         {/* Full Name Field */}
         <div>
-          <Label htmlFor="userSurname" className={labelClass}>
+          <Label htmlFor="fullName" className={labelClass}>
             {t("events.fullName")}
           </Label>
           <Input
-            id="userSurname"
-            value={userSurname}
-            onChange={(e) => setUserSurname(e.target.value)}
+            id="fullName"
+            value={fullName}
+            onChange={handleNameChange}
             placeholder={t("events.fullName")}
             required
           />
