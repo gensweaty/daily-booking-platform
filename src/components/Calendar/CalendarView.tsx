@@ -87,12 +87,18 @@ export function CalendarView({
   
   const daysToRender = view === 'month' ? getDaysWithSurroundingMonths() : days;
   
+  // Filter events to make sure deleted events don't show up
+  const filteredEvents = events.filter(event => !event.deleted_at);
+  
   // Add debug log for events in CalendarView
   useEffect(() => {
     if (isExternalCalendar) {
-      console.log(`[CalendarView] Rendering external calendar with ${events.length} events`);
-      if (events.length > 0) {
-        console.log("[CalendarView] First event sample:", events[0]);
+      console.log(`[CalendarView] Rendering external calendar with ${events.length} events, ${filteredEvents.length} after filtering deleted`);
+      if (events.length > filteredEvents.length) {
+        console.log("[CalendarView] Filtered out deleted events:", events.filter(e => e.deleted_at));
+      }
+      if (filteredEvents.length > 0) {
+        console.log("[CalendarView] First event sample:", filteredEvents[0]);
       }
     }
     // Debug theme state
@@ -102,7 +108,7 @@ export function CalendarView({
       currentTheme,
       isDarkClass: typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
     });
-  }, [events, isExternalCalendar, theme, resolvedTheme, currentTheme]);
+  }, [events, filteredEvents, isExternalCalendar, theme, resolvedTheme, currentTheme]);
 
   const formattedSelectedDate = formatDate(selectedDate, "yyyy-MM-dd");
 
@@ -110,7 +116,7 @@ export function CalendarView({
     <div className="h-full">
       <CalendarGrid
         days={daysToRender}
-        events={events}
+        events={filteredEvents} // Use the filtered events
         formattedSelectedDate={formattedSelectedDate}
         view={view}
         onDayClick={onDayClick}

@@ -59,6 +59,11 @@ export const associateBookingFilesWithEvent = async (bookingId: string, eventId:
           throw downloadError;
         }
         
+        if (!fileData) {
+          console.error('No file data returned when downloading from booking_attachments');
+          throw new Error('No file data returned from storage');
+        }
+        
         // Generate a new unique file path for event_attachments
         // Ensure we're working with strings before calling split
         const fileExt = originalFileName && typeof originalFileName === 'string' ? 
@@ -131,6 +136,12 @@ export const associateBookingFilesWithEvent = async (bookingId: string, eventId:
       try {
         console.log(`Processing file from event_files: ${file.filename}, path: ${file.file_path}`);
         
+        // Make sure file path exists
+        if (!file.file_path) {
+          console.error('File has no file_path, skipping:', file);
+          continue;
+        }
+        
         // Download the file from booking_attachments
         const { data: fileData, error: downloadError } = await supabase.storage
           .from('booking_attachments')
@@ -141,14 +152,22 @@ export const associateBookingFilesWithEvent = async (bookingId: string, eventId:
           continue;
         }
         
+        if (!fileData) {
+          console.error('No file data returned when downloading from booking_attachments');
+          continue;
+        }
+        
         // Generate a new unique file path for event_attachments
-        const fileExt = file.filename.split('.').pop() || 'bin';
+        const fileExt = file.filename && typeof file.filename === 'string' ? 
+          file.filename.split('.').pop() || 'bin' : 'bin';
         const newFilePath = `${eventId}/${Date.now()}_${file.filename.replace(/\s+/g, '_')}`;
         
         // Upload to event_attachments
         const { error: uploadError } = await supabase.storage
           .from('event_attachments')
-          .upload(newFilePath, fileData, { contentType: file.content_type });
+          .upload(newFilePath, fileData, { 
+            contentType: file.content_type || 'application/octet-stream' 
+          });
           
         if (uploadError) {
           console.error('Error uploading file to event_attachments:', uploadError);
