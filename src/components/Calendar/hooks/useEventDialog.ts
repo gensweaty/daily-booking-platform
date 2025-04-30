@@ -1,9 +1,7 @@
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
-import { invalidateFileQueries } from "@/services/fileService";
 
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -20,40 +18,8 @@ export const useEventDialog = ({
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
-  // Function to properly invalidate all relevant caches
-  const invalidateAllCaches = useCallback(() => {
-    // Invalidate all event-related queries with shorter stale time
-    queryClient.invalidateQueries({ 
-      queryKey: ['events'],
-      refetchType: 'all'
-    });
-    
-    queryClient.invalidateQueries({ 
-      queryKey: ['business-events'],
-      refetchType: 'all'
-    });
-    
-    queryClient.invalidateQueries({ 
-      queryKey: ['approved-bookings'],
-      refetchType: 'all'
-    });
-    
-    // Also invalidate file-related queries
-    invalidateFileQueries(queryClient);
-    
-    // Force a hard refresh after a short delay
-    setTimeout(() => {
-      queryClient.refetchQueries({ 
-        queryKey: ['events'],
-        type: 'all',
-        exact: false
-      });
-    }, 300);
-  }, [queryClient]);
-
-  const handleCreateEvent = useCallback(async (data: Partial<CalendarEventType>) => {
+  const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
       // Ensure type is set to 'event'
       const eventData = {
@@ -73,9 +39,6 @@ export const useEventDialog = ({
       
       setIsNewEventDialogOpen(false);
       console.log("Event created successfully:", createdEvent);
-
-      // Force refresh calendar data after creation
-      invalidateAllCaches();
       
       return createdEvent;
     } catch (error: any) {
@@ -87,9 +50,9 @@ export const useEventDialog = ({
       });
       throw error;
     }
-  }, [createEvent, toast, invalidateAllCaches]);
+  };
 
-  const handleUpdateEvent = useCallback(async (data: Partial<CalendarEventType>) => {
+  const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
     try {
       if (!updateEvent || !selectedEvent) {
         throw new Error("Update event function not provided or no event selected");
@@ -111,9 +74,6 @@ export const useEventDialog = ({
       setSelectedEvent(null);
       console.log("Event updated successfully:", updatedEvent);
       
-      // Force refresh calendar data after update
-      invalidateAllCaches();
-      
       return updatedEvent;
     } catch (error: any) {
       console.error("Failed to update event:", error);
@@ -124,9 +84,9 @@ export const useEventDialog = ({
       });
       throw error;
     }
-  }, [updateEvent, selectedEvent, toast, invalidateAllCaches]);
+  };
 
-  const handleDeleteEvent = useCallback(async () => {
+  const handleDeleteEvent = async () => {
     try {
       if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
       
@@ -134,10 +94,6 @@ export const useEventDialog = ({
       
       setSelectedEvent(null);
       console.log("Event deleted successfully:", selectedEvent.id);
-      
-      // Force refresh calendar data after deletion
-      invalidateAllCaches();
-      
     } catch (error: any) {
       console.error("Failed to delete event:", error);
       toast({
@@ -147,11 +103,14 @@ export const useEventDialog = ({
       });
       throw error;
     }
-  }, [deleteEvent, selectedEvent, toast, invalidateAllCaches]);
+  };
 
   // Helper function to normalize payment status values
   const normalizePaymentStatus = (status: string | undefined): string | undefined => {
     if (!status) return undefined;
+    
+    // Log the incoming status for debugging
+    console.log("Normalizing payment status:", status);
     
     // Normalize partly paid variants
     if (status.includes('partly')) return 'partly_paid';

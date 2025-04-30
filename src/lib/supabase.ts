@@ -1,12 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { 
-  STORAGE_BUCKETS,
-  normalizeFilePath,
-  getStorageUrl,
-  getFileUrl,
-  associateFilesWithEntity
-} from '@/services/fileService';
-import { BookingRequest, EventFile } from '@/types/database';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -14,9 +6,6 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
-
-// Re-export from fileService for backward compatibility
-export { STORAGE_BUCKETS, normalizeFilePath, getStorageUrl, getFileUrl };
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -129,6 +118,16 @@ export const forceBucketCreation = async () => {
   return ensureStorageBuckets();
 };
 
+// Export the storage URL as a standalone function instead of attaching to supabase
+export const getStorageUrl = () => `${supabaseUrl}/storage/v1`;
+
+// Helper to normalize file paths for storage URLs (handle double slashes)
+export const normalizeFilePath = (filePath: string) => {
+  if (!filePath) return "";
+  // Remove any leading slashes
+  return filePath.replace(/^\/+/, '');
+};
+
 // Enhanced debug listener for auth events with more detailed information
 supabase.auth.onAuthStateChange((event, session) => {
   console.log(`Auth state changed: ${event}`, {
@@ -190,16 +189,6 @@ supabase.auth.onAuthStateChange((event, session) => {
     }
   }
 });
-
-// Helper function to associate booking files with event
-export const associateBookingFilesWithEvent = async (
-  bookingId: string, 
-  eventId: string, 
-  userId: string
-): Promise<EventFile[]> => {
-  // Use the centralized function from fileService
-  return associateFilesWithEntity(bookingId, eventId, userId, 'booking', 'event') as Promise<EventFile[]>;
-};
 
 // Specific handling for production environment - needed for smartbookly.com
 const isProdEnv = window.location.host === 'smartbookly.com';

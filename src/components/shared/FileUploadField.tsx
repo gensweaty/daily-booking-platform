@@ -24,12 +24,12 @@ interface FileUploadFieldProps {
   hideLabel?: boolean;
   hideDescription?: boolean;
   disabled?: boolean;
-  imageUrl?: string;
-  bucket?: string;
-  uploadText?: string;
-  chooseFileText?: string;
-  noFileText?: string;
-  maxSizeMB?: number;
+  imageUrl?: string; // Added this prop to support BusinessProfileForm
+  bucket?: string; // Added to support BusinessProfileForm
+  uploadText?: string; // Added to support BusinessProfileForm
+  chooseFileText?: string; // Added to support BusinessProfileForm
+  noFileText?: string; // Added to support BusinessProfileForm
+  maxSizeMB?: number; // Added to support BusinessProfileForm
 }
 
 export const FileUploadField = ({ 

@@ -1,4 +1,3 @@
-
 export interface Task {
   id: string;
   title: string;
@@ -57,42 +56,12 @@ export interface BookingRequest {
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
-  deleted_at?: string;
+  deleted_at?: string | null; // Added deleted_at field
+  // Additional fields to match EventDialog
   user_surname?: string;
   user_number?: string;
   social_network_link?: string;
   event_notes?: string;
   payment_status?: string;
   payment_amount?: number | null;
-  // File fields explicitly defined
-  file_path?: string;
-  filename?: string;
-  content_type?: string;
-  size?: number;
-}
-
-// Define EventFile interface to match event_files table
-export interface EventFile {
-  id: string;
-  event_id: string;
-  filename: string;
-  file_path: string;
-  content_type?: string;
-  size?: number;
-  user_id?: string;
-  created_at: string;
-  source?: string;
-}
-
-// Define CustomerFile interface to match customer_files_new table
-export interface CustomerFile {
-  id: string;
-  customer_id: string;
-  filename: string;
-  file_path: string;
-  content_type?: string;
-  size?: number;
-  user_id?: string;
-  created_at: string;
-  source?: string;
 }

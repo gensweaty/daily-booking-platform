@@ -12,8 +12,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
-import { forceCalendarRefresh } from "@/utils/cacheUtils";
-import { useFileOperations } from "@/hooks/useFileOperations";
 
 interface EventDialogProps {
   open: boolean;
@@ -36,6 +34,7 @@ export const EventDialog = ({
   isBookingRequest = false
 }: EventDialogProps) => {
   // Always initialize with user_surname as the primary name field
+  // This ensures we're using the correct field for full name
   const [title, setTitle] = useState(event?.user_surname || event?.title || "");
   const [userSurname, setUserSurname] = useState(event?.user_surname || event?.title || "");
   const [userNumber, setUserNumber] = useState(event?.user_number || "");
@@ -56,7 +55,6 @@ export const EventDialog = ({
   const { t, language } = useLanguage();
   const [isBookingEvent, setIsBookingEvent] = useState(false);
   const isGeorgian = language === 'ka';
-  const { fetchFiles } = useFileOperations('event');
 
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
@@ -64,7 +62,10 @@ export const EventDialog = ({
       const start = new Date(event.start_date);
       const end = new Date(event.end_date);
       
+      console.log("Loading event data:", event);
+      
       // Set both title and userSurname to the user_surname value for consistency
+      // If user_surname is missing, fall back to title
       const fullName = event.user_surname || event.title || "";
       setTitle(fullName);
       setUserSurname(fullName);
@@ -79,6 +80,7 @@ export const EventDialog = ({
       else if (normalizedStatus.includes('fully')) normalizedStatus = 'fully_paid';
       else if (normalizedStatus.includes('not')) normalizedStatus = 'not_paid';
       
+      console.log("Setting normalized payment status:", normalizedStatus);
       setPaymentStatus(normalizedStatus);
       setPaymentAmount(event.payment_amount?.toString() || "");
       
@@ -91,6 +93,9 @@ export const EventDialog = ({
       setOriginalEndDate(formattedEnd);
       
       setIsBookingEvent(event.type === 'booking_request');
+      
+      console.log("EventDialog - Loaded event with type:", event.type);
+      console.log("EventDialog - Loaded payment status:", normalizedStatus);
     } else if (selectedDate) {
       const start = new Date(selectedDate.getTime());
       const end = new Date(selectedDate.getTime());
@@ -115,37 +120,84 @@ export const EventDialog = ({
     }
   }, [selectedDate, event, open]);
 
-  // Load files for this event using the custom hook
+  // Load files for this event
   useEffect(() => {
     const loadFiles = async () => {
-      if (!open || !event?.id) {
-        setDisplayedFiles([]);
-        return;
-      }
-
-      try {
-        const files = await fetchFiles(event.id);
-        
-        // Add a parentType property for compatibility with FileDisplay component
-        const filesWithSource = files.map(file => ({
-          ...file,
-          parentType: 'event'
-        }));
-        
-        setDisplayedFiles(filesWithSource);
-      } catch (err) {
-        console.error("Error loading event files:", err);
-        setDisplayedFiles([]);
+      if (event?.id) {
+        try {
+          console.log("Loading files for event:", event.id);
+          
+          // First get event files directly
+          const { data: eventFiles, error: eventFilesError } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', event.id);
+            
+          if (eventFilesError) {
+            console.error("Error loading event files:", eventFilesError);
+            return;
+          }
+          
+          // If this is an event created from a booking request, also check for files from the original booking
+          let originalBookingFiles: any[] = [];
+          if (event.original_booking_id) {
+            console.log("This event was created from booking. Also checking original booking ID:", event.original_booking_id);
+            const { data: bookingFiles, error: bookingFilesError } = await supabase
+              .from('event_files')
+              .select('*')
+              .eq('event_id', event.original_booking_id);
+              
+            if (!bookingFilesError && bookingFiles && bookingFiles.length > 0) {
+              console.log("Found files from original booking:", bookingFiles.length);
+              originalBookingFiles = bookingFiles;
+            }
+          }
+          
+          // Use a Set to track unique file IDs to avoid duplicates
+          const uniqueFileIds = new Set<string>();
+          const uniqueFiles: any[] = [];
+          
+          if (eventFiles && eventFiles.length > 0) {
+            eventFiles.forEach(file => {
+              if (!uniqueFileIds.has(file.id)) {
+                uniqueFileIds.add(file.id);
+                uniqueFiles.push({
+                  ...file,
+                  parentType: 'event'
+                });
+              }
+            });
+          }
+          
+          // Add any files from the original booking that aren't already included
+          originalBookingFiles.forEach(file => {
+            if (!uniqueFileIds.has(file.id)) {
+              uniqueFileIds.add(file.id);
+              uniqueFiles.push({
+                ...file,
+                parentType: 'booking'
+              });
+            }
+          });
+          
+          if (uniqueFiles.length > 0) {
+            console.log("Loaded unique event files:", uniqueFiles);
+            setDisplayedFiles(uniqueFiles);
+          } else {
+            console.log("No files found for event:", event.id);
+            setDisplayedFiles([]);
+          }
+          
+        } catch (err) {
+          console.error("Exception loading event files:", err);
+        }
       }
     };
     
     if (open) {
-      // Reset file state when dialog opens
-      setSelectedFile(null);
-      setFileError("");
       loadFiles();
     }
-  }, [event, open, fetchFiles]);
+  }, [event, open]);
 
   const sendApprovalEmail = async (
     startDateTime: Date,
@@ -164,6 +216,14 @@ export const EventDialog = ({
         .maybeSingle();
         
       const businessName = businessProfile?.business_name || "Our Business";
+      
+      console.log("Email data:", {
+        recipientEmail: socialNetworkLink,
+        fullName: userSurname || title,
+        businessName,
+        startDate: startDateTime.toISOString(),
+        endDate: endDateTime.toISOString(),
+      });
       
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
@@ -194,10 +254,12 @@ export const EventDialog = ({
       console.log("Email API response status:", response.status);
       
       const responseText = await response.text();
+      console.log("Email API response text:", responseText);
       
       let responseData;
       try {
         responseData = responseText ? JSON.parse(responseText) : {};
+        console.log("Email API parsed response:", responseData);
       } catch (jsonError) {
         console.error("Failed to parse email API response as JSON:", jsonError);
         responseData = { textResponse: responseText };
@@ -213,7 +275,6 @@ export const EventDialog = ({
         description: t("Email notification sent successfully to ") + socialNetworkLink,
       });
       
-      return true;
     } catch (emailError) {
       console.error("Error sending email notification:", emailError);
       toast({
@@ -236,6 +297,12 @@ export const EventDialog = ({
     const endDateTime = new Date(endDate);
     
     const timesChanged = startDate !== originalStartDate || endDate !== originalEndDate;
+    console.log("Time changed during edit?", timesChanged, {
+      originalStart: originalStartDate,
+      currentStart: startDate,
+      originalEnd: originalEndDate,
+      currentEnd: endDate
+    });
 
     const wasBookingRequest = event?.type === 'booking_request';
     const isApprovingBookingRequest = wasBookingRequest && !isBookingEvent;
@@ -245,6 +312,8 @@ export const EventDialog = ({
     if (normalizedPaymentStatus.includes('partly')) normalizedPaymentStatus = 'partly_paid';
     else if (normalizedPaymentStatus.includes('fully')) normalizedPaymentStatus = 'fully_paid';
     else if (normalizedPaymentStatus.includes('not')) normalizedPaymentStatus = 'not_paid';
+    
+    console.log("Submitting with payment status:", normalizedPaymentStatus);
     
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
@@ -260,10 +329,21 @@ export const EventDialog = ({
 
     if (event?.id) {
       eventData.id = event.id;
+      
+      // Preserve original booking ID if present
+      if (event.original_booking_id) {
+        eventData.original_booking_id = event.original_booking_id;
+      }
     }
 
     if (wasBookingRequest) {
       eventData.type = 'event';
+      eventData.original_booking_id = event.id; // Store original booking ID
+      console.log("Converting booking request to event:", { 
+        wasBookingRequest, 
+        isApprovingBookingRequest,
+        original_booking_id: eventData.original_booking_id 
+      });
     } else if (event?.type) {
       eventData.type = event.type;
     } else {
@@ -271,13 +351,24 @@ export const EventDialog = ({
     }
 
     try {
+      console.log("EventDialog - Submitting event data:", eventData);
       const createdEvent = await onSubmit(eventData);
+      console.log('Created/Updated event:', createdEvent);
 
       let emailSent = false;
 
       if ((isApprovingBookingRequest || !event?.id || event.type === 'booking_request') && 
           socialNetworkLink && 
           socialNetworkLink.includes("@")) {
+            
+        console.log(">>> APPROVAL EMAIL CONDITION MET", {
+          wasBookingRequest,
+          isApprovingBookingRequest,
+          eventId: event?.id,
+          newType: eventData.type,
+          email: socialNetworkLink
+        });
+        
         try {
           await sendApprovalEmail(
             startDateTime,
@@ -295,7 +386,9 @@ export const EventDialog = ({
       if (selectedFile && createdEvent?.id && user) {
         try {
           const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${createdEvent.id}/${crypto.randomUUID()}.${fileExt}`;
+          const filePath = `${crypto.randomUUID()}.${fileExt}`;
+          
+          console.log('Uploading file:', filePath);
           
           const { error: uploadError } = await supabase.storage
             .from('event_attachments')
@@ -306,7 +399,6 @@ export const EventDialog = ({
             throw uploadError;
           }
 
-          // Store file record ONLY in event_files table
           const fileData = {
             filename: selectedFile.name,
             file_path: filePath,
@@ -324,6 +416,8 @@ export const EventDialog = ({
             console.error('Error creating file record:', fileRecordError);
             throw fileRecordError;
           }
+
+          console.log('File record created successfully');
         } catch (fileError) {
           console.error("Error handling file upload:", fileError);
         }
@@ -361,6 +455,8 @@ export const EventDialog = ({
                 
               if (updateError) {
                 console.error('Error updating booking request:', updateError);
+              } else {
+                console.log('Updated booking request successfully');
               }
             }
           } catch (bookingError) {
@@ -371,8 +467,13 @@ export const EventDialog = ({
 
       onOpenChange(false);
       
-      // Force a complete refresh of all calendar-related data
-      await forceCalendarRefresh(queryClient);
+      // Invalidate all queries to ensure data is refreshed
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       
     } catch (error: any) {
       console.error('Error handling event submission:', error);
