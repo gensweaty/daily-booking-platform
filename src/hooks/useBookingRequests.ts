@@ -1,6 +1,7 @@
 
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { associateBookingFilesWithEvent } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { BookingRequest } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";
@@ -141,17 +142,17 @@ export const useBookingRequests = () => {
       // Ensure all required fields are explicitly set
       const eventData = {
         title: request.title || request.requester_name || "Booking",
+        start_date: request.start_date,
+        end_date: request.end_date,
         user_surname: request.requester_name,
         user_number: request.requester_phone,
         social_network_link: request.requester_email,
         event_notes: request.description,
-        start_date: request.start_date,
-        end_date: request.end_date,
-        type: "event", // Required field with definite value
+        type: "booking_request", // Explicitly set as booking_request to ensure proper coloring
         payment_status: request.payment_status || "not_paid",
         payment_amount: request.payment_amount,
-        user_id: user.id, // Required field
-        original_booking_id: id  // Store original booking id for file association
+        user_id: user.id,
+        original_booking_id: id
       };
       
       console.log("Creating event with data:", eventData);

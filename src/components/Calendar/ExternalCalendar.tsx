@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -97,7 +96,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       
       try {
         // Get events from the API function which includes approved bookings and user events
-        // This now uses our security definer function to bypass RLS
         const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
         
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
@@ -136,7 +134,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             const startValid = !!new Date(event.start_date).getTime();
             const endValid = !!new Date(event.end_date).getTime();
             
-            // Skip events that are soft deleted
+            // Skip events that are soft deleted - this is the critical fix
             if (event.deleted_at) {
               console.log(`Filtering out deleted event with id ${event.id}`);
               return false;
