@@ -195,7 +195,7 @@ export const createFileRecord = async (
     }
     
     // Return data as FileRecord with type assertion
-    return data as FileRecord;
+    return data as unknown as FileRecord;
   } catch (error) {
     console.error('Error in createFileRecord:', error);
     return null;
@@ -286,7 +286,7 @@ export const associateFilesWithEntity = async (
           const newFilePath = `${targetId}/${crypto.randomUUID()}.${fileExtension}`;
           
           // Safely access content_type with fallback
-          const contentType = ('content_type' in file) ? 
+          const contentType = file && ('content_type' in file) ? 
             (file.content_type as string) || 'application/octet-stream' : 
             'application/octet-stream';
           
@@ -307,7 +307,7 @@ export const associateFilesWithEntity = async (
           const targetField = targetType === 'event' ? 'event_id' : 'customer_id';
           
           // Safely access size with fallback
-          const size = ('size' in file) ? (file.size as number) || 0 : 0;
+          const size = file && ('size' in file) ? (file.size as number) || 0 : 0;
           
           // Create insertion data with required fields
           const insertData = {
@@ -386,13 +386,10 @@ export const associateFilesWithEntity = async (
                 const newFilePath = `${targetId}/${crypto.randomUUID()}.${fileExtension}`;
                 
                 // Safely access content_type with fallback
-                const contentType = (
-                  sourceData && 
-                  typeof sourceData === 'object' && 
-                  'content_type' in sourceData
-                ) ? 
-                  (sourceData.content_type as string) || 'application/octet-stream' : 
-                  'application/octet-stream';
+                let contentType = 'application/octet-stream';
+                if (sourceData && typeof sourceData === 'object' && 'content_type' in sourceData) {
+                  contentType = (sourceData.content_type as string) || contentType;
+                }
                 
                 // Upload to event_attachments
                 const { error: uploadError } = await supabase.storage
@@ -409,12 +406,10 @@ export const associateFilesWithEntity = async (
                   const targetField = targetType === 'event' ? 'event_id' : 'customer_id';
                   
                   // Safely access size with fallback
-                  const size = (
-                    sourceData && 
-                    typeof sourceData === 'object' && 
-                    'size' in sourceData
-                  ) ? 
-                    (sourceData.size as number) || 0 : 0;
+                  let size = 0;
+                  if (sourceData && typeof sourceData === 'object' && 'size' in sourceData) {
+                    size = (sourceData.size as number) || 0;
+                  }
                   
                   const insertData = {
                     filename: filenameValue,
