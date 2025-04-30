@@ -1,3 +1,4 @@
+
 import { QueryClient } from '@tanstack/react-query';
 
 // Helper function to get all keys for a query that match a pattern
