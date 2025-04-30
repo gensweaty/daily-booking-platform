@@ -30,6 +30,7 @@ interface FileUploadFieldProps {
   chooseFileText?: string; // Added to support BusinessProfileForm
   noFileText?: string; // Added to support BusinessProfileForm
   maxSizeMB?: number; // Added to support BusinessProfileForm
+  isPublicUpload?: boolean; // Added to handle public uploads differently
 }
 
 export const FileUploadField = ({ 
@@ -47,7 +48,8 @@ export const FileUploadField = ({
   uploadText,
   chooseFileText,
   noFileText,
-  maxSizeMB
+  maxSizeMB,
+  isPublicUpload = false
 }: FileUploadFieldProps) => {
   const { t } = useLanguage();
   const [localFileError, setLocalFileError] = useState("");
@@ -56,14 +58,37 @@ export const FileUploadField = ({
   const actualFileError = fileError || localFileError;
   const actualSetFileError = setFileError || setLocalFileError;
 
+  // Clear errors on mount/unmount
+  useEffect(() => {
+    return () => {
+      actualSetFileError("");
+    };
+  }, []);
+
   const validateFile = (file: File) => {
-    const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
-    const isDoc = ALLOWED_DOC_TYPES.includes(file.type);
-    
-    if (!isImage && !isDoc) {
-      return "Invalid file type. Please upload an image (jpg, jpeg, png, webp) or document (pdf, docx, xlsx, pptx)";
+    // If acceptedFileTypes is provided, do custom validation
+    if (acceptedFileTypes) {
+      // Simple extension check based on filename
+      const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
+      const validExtensions = acceptedFileTypes.split(',').map(ext => ext.trim().replace('.', '').toLowerCase());
+      
+      // Check if extension is valid
+      if (!validExtensions.some(ext => fileExt === ext)) {
+        return `File type not allowed. Accepted types: ${acceptedFileTypes}`;
+      }
+    } else {
+      // Default validation
+      const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
+      const isDoc = ALLOWED_DOC_TYPES.includes(file.type);
+      
+      if (!isImage && !isDoc) {
+        return "Invalid file type. Please upload an image (jpg, jpeg, png, webp) or document (pdf, docx, xlsx, pptx)";
+      }
     }
 
+    // Size validation
+    const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
+    
     // If maxSizeMB is provided, use it, otherwise use default values
     const sizeLimit = maxSizeMB ? maxSizeMB * 1024 * 1024 : 
       isImage ? MAX_FILE_SIZE_IMAGES : MAX_FILE_SIZE_DOCS;
@@ -83,6 +108,8 @@ export const FileUploadField = ({
 
     if (selectedFile) {
       console.log(`Selected file: ${selectedFile.name}, Size: ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB, Type: ${selectedFile.type}`);
+      console.log(`Using bucket: ${bucket}, isPublicUpload: ${isPublicUpload}`);
+      
       const error = validateFile(selectedFile);
       if (error) {
         actualSetFileError(error);
@@ -90,6 +117,7 @@ export const FileUploadField = ({
         if (onFileChange) onFileChange(null);
         return;
       }
+      
       if (onChange) onChange(selectedFile);
       if (onFileChange) onFileChange(selectedFile);
     }
@@ -125,6 +153,8 @@ export const FileUploadField = ({
         onClick={(e) => {
           // Reset value before opening to ensure onChange triggers even if same file is selected
           (e.target as HTMLInputElement).value = '';
+          // Also clear any existing errors when opening file picker
+          actualSetFileError("");
         }}
         disabled={disabled}
       />

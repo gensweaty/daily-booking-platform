@@ -369,16 +369,22 @@ export const BookingRequestForm = ({
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `booking_${bookingData.id}_${Date.now()}.${fileExt}`;
           
+          console.log("Using booking_attachments bucket for public upload");
+          
           // Upload to booking_attachments bucket
-          const { error: uploadError } = await supabase.storage
+          const { error: uploadError, data: uploadData } = await supabase.storage
             .from('booking_attachments')
-            .upload(filePath, selectedFile);
+            .upload(filePath, selectedFile, {
+              cacheControl: '3600',
+              upsert: false
+            });
             
           if (uploadError) {
             console.error('❌ Error uploading file to booking_attachments:', uploadError);
             throw uploadError;
           } else {
             console.log("✅ File uploaded successfully to booking_attachments:", filePath);
+            console.log("Upload response:", uploadData);
             
             // Create booking_files record with file metadata
             const { error: fileError } = await supabase
@@ -628,6 +634,8 @@ export const BookingRequestForm = ({
         onChange={setSelectedFile}
         fileError={fileError}
         setFileError={setFileError}
+        bucket="booking_attachments"
+        isPublicUpload={true}
         disabled={isSubmitting || rateLimitExceeded}
       />
       

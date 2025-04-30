@@ -1,297 +1,205 @@
-import { Button } from "@/components/ui/button";
-import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
-import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
+// File display component handling both public and authenticated file access
 import { useState, useEffect } from "react";
-import { useToast } from "@/components/ui/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Trash2, Download, ExternalLink, FileText } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import type { FileRecord } from "@/types/files";
+import { supabase, normalizeFilePath } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
+import { FileRecord } from "@/types/files";
+import { downloadFile, openFile } from "@/lib/api";
 
 interface FileDisplayProps {
   files: FileRecord[];
-  bucketName: string;
+  bucketName?: string;
+  parentType?: string;
+  parentId?: string;
   allowDelete?: boolean;
   onFileDeleted?: (fileId: string) => void;
-  parentId?: string;
-  parentType?: string;
 }
 
-export const FileDisplay = ({ 
-  files, 
-  bucketName, 
-  allowDelete = false, 
-  onFileDeleted,
+export const FileDisplay = ({
+  files,
+  bucketName = "event_attachments",
+  parentType = "event",
   parentId,
-  parentType
+  allowDelete = false,
+  onFileDeleted,
 }: FileDisplayProps) => {
-  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
-  const [fileURLs, setFileURLs] = useState<{[key: string]: string}>({});
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const { t } = useLanguage();
-
-  // Remove duplicate files based on file_path to prevent showing the same file twice
-  const uniqueFiles = files.reduce((acc: FileRecord[], current) => {
-    const isDuplicate = acc.some(item => item.file_path === current.file_path);
-    if (!isDuplicate) {
-      acc.push(current);
-    }
-    return acc;
-  }, []);
-
-  useEffect(() => {
-    const newURLs: {[key: string]: string} = {};
-    uniqueFiles.forEach(file => {
-      if (file.file_path) {
-        const normalizedPath = normalizeFilePath(file.file_path);
-        const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
-        console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path}`);
-        newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
-      }
-    });
-    setFileURLs(newURLs);
-  }, [uniqueFiles, parentType]);
-
-  const getFileExtension = (filename: string): string => {
-    return filename.split('.').pop()?.toLowerCase() || '';
-  };
+  const { toast } = useToast();
+  const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
   
-  const isImage = (filename: string): boolean => {
-    const ext = getFileExtension(filename);
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
-  };
-
-  const getFileIcon = (filename: string) => {
-    return <FileIcon className="h-5 w-5" />;
-  };
-
-  const determineEffectiveBucket = (filePath: string, parentType?: string, source?: string): string => {
-    // Check if this is a file from booking_files table
-    if (source === 'booking') {
-      return "booking_attachments";
+  // Helper function to determine the correct bucket name for each file
+  const getFileBucket = (file: FileRecord): string => {
+    // If the file has a source property and it's 'booking', use booking_attachments
+    if (file.source === 'booking') {
+      return 'booking_attachments';
     }
     
-    // All other files use event_attachments bucket
-    return "event_attachments";
+    // If the path starts with 'booking_', use booking_attachments
+    if (file.file_path && file.file_path.startsWith('booking_')) {
+      return 'booking_attachments';
+    }
+    
+    // Otherwise use the provided bucket name or default to event_attachments
+    return bucketName || 'event_attachments';
   };
 
-  const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
+  const handleDelete = async (fileId: string, filePath: string, effectiveBucket: string) => {
     try {
-      console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
+      setIsDeleting(prev => ({ ...prev, [fileId]: true }));
+      console.log(`Attempting to delete file: ${fileId}, path: ${filePath}, from bucket: ${effectiveBucket}`);
       
-      // Always use event_attachments bucket for all files
-      const effectiveBucket = "event_attachments";
-      console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath}`);
-      
-      const directUrl = fileURLs[fileId] || 
-        `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
-      
-      console.log('Using direct URL for download:', directUrl);
-      
-      // Force download using fetch to get the blob
-      const response = await fetch(directUrl);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
-      }
-      
-      const blob = await response.blob();
-      
-      // Create blob URL and handle download
-      const blobUrl = window.URL.createObjectURL(blob);
-      
-      // Create a hidden anchor element for download
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = fileName; // Set download attribute
-      a.style.display = 'none'; // Hide the element
-      
-      // Add to DOM, trigger click, and clean up
-      document.body.appendChild(a);
-      a.click();
-      
-      // Remove element and revoke blob URL after a delay
-      setTimeout(() => {
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(blobUrl); // Important: free up memory
-      }, 100);
-      
-      toast({
-        title: t("common.success"),
-        description: t("common.downloadStarted"),
-      });
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      toast({
-        title: t("common.error"),
-        description: t("common.downloadError"),
-        variant: "destructive",
-      });
-    }
-  };
-
-  const getDirectFileUrl = (filePath: string, fileId: string): string => {
-    if (!filePath) return '';
-    
-    if (fileURLs[fileId]) {
-      return fileURLs[fileId];
-    }
-    
-    const normalizedPath = normalizeFilePath(filePath);
-    const effectiveBucket = determineEffectiveBucket(filePath, parentType);
-    console.log(`Open: Using bucket ${effectiveBucket} for path ${filePath}`);
-    
-    return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
-  };
-
-  const handleOpenFile = async (filePath: string, fileId: string) => {
-    try {
-      if (!filePath) {
-        throw new Error('File path is missing');
-      }
-      
-      const directUrl = getDirectFileUrl(filePath, fileId);
-      console.log('Opening file with direct URL:', directUrl);
-      
-      // Open in a new tab
-      window.open(directUrl, '_blank', 'noopener,noreferrer');
-    } catch (error) {
-      console.error('Error opening file:', error);
-      toast({
-        title: t("common.error"),
-        description: t("common.fileAccessError"),
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDelete = async (fileId: string, filePath: string) => {
-    try {
-      setDeletingFileId(fileId);
-      
-      // Determine which bucket to delete from
-      const file = uniqueFiles.find(f => f.id === fileId);
-      const effectiveBucket = determineEffectiveBucket(filePath, parentType, file?.source);
-      console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}`);
-      
-      // Delete file from storage
+      // Delete the file from storage
       const { error: storageError } = await supabase.storage
         .from(effectiveBucket)
         .remove([normalizeFilePath(filePath)]);
-
+      
       if (storageError) {
-        console.error(`Error deleting file from ${effectiveBucket} storage:`, storageError);
+        console.error("Error deleting file from storage:", storageError);
         throw storageError;
       }
       
-      // Determine the appropriate table name based on the parent type or source
-      let tableName: "booking_files" | "files" | "customer_files_new" | "note_files" | "event_files";
+      let deleteError = null;
       
-      if (file?.source === 'booking') {
-        tableName = "booking_files";
-      } else if (parentType === 'event') {
-        tableName = "event_files";
+      // Delete the database record based on parent type
+      if (parentType === 'event') {
+        const { error } = await supabase
+          .from('event_files')
+          .delete()
+          .eq('id', fileId);
+        deleteError = error;
       } else if (parentType === 'customer') {
-        tableName = "customer_files_new";
-      } else if (parentType === 'note') {
-        tableName = "note_files";
-      } else if (parentType === 'task') {
-        tableName = "files";  // Task files are stored in the "files" table
-      } else {
-        // Default to event_files if we can't determine
-        tableName = "event_files";
+        const { error } = await supabase
+          .from('customer_files_new')
+          .delete()
+          .eq('id', fileId);
+        deleteError = error;
+      } else if (parentType === 'booking') {
+        const { error } = await supabase
+          .from('booking_files')
+          .delete()
+          .eq('id', fileId);
+        deleteError = error;
       }
       
-      console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);
-      const { error: dbError } = await supabase
-        .from(tableName)
-        .delete()
-        .eq('id', fileId);
-        
-      if (dbError) {
-        console.error(`Error deleting file from ${tableName}:`, dbError);
-        throw dbError;
+      if (deleteError) {
+        console.error(`Error deleting ${parentType} file record:`, deleteError);
+        throw deleteError;
       }
       
+      // Notify parent component
       if (onFileDeleted) {
         onFileDeleted(fileId);
       }
-      
-      // Invalidate all relevant queries
-      queryClient.invalidateQueries({ queryKey: ['files'] });
-      queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['bookingFiles'] });
       
       toast({
         title: t("common.success"),
         description: t("common.fileDeleted"),
       });
+      
     } catch (error) {
-      console.error('Error deleting file:', error);
+      console.error("Error in handleDelete:", error);
       toast({
         title: t("common.error"),
-        description: t("common.deleteError"),
+        description: t("common.fileDeleteError"),
         variant: "destructive",
       });
     } finally {
-      setDeletingFileId(null);
+      setIsDeleting(prev => ({ ...prev, [fileId]: false }));
     }
   };
 
-  if (!uniqueFiles || uniqueFiles.length === 0) {
-    return null;
-  }
+  const handleDownload = async (file: FileRecord) => {
+    const effectiveBucket = getFileBucket(file);
+    console.log(`Downloading file from bucket: ${effectiveBucket}, path: ${file.file_path}`);
+    
+    try {
+      await downloadFile(effectiveBucket, file.file_path, file.filename);
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      toast({
+        title: t("common.error"),
+        description: t("common.fileDownloadError"),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOpenFile = async (file: FileRecord) => {
+    const effectiveBucket = getFileBucket(file);
+    console.log(`Opening file from bucket: ${effectiveBucket}, path: ${file.file_path}`);
+    
+    try {
+      await openFile(effectiveBucket, file.file_path);
+    } catch (error) {
+      console.error("Error opening file:", error);
+      toast({
+        title: t("common.error"),
+        description: t("common.fileOpenError"),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getFileExt = (filename: string) => {
+    return filename.split('.').pop()?.toLowerCase() || '';
+  };
+  
+  const getFileIcon = (filename: string) => {
+    const ext = getFileExt(filename);
+    
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+      return <FileText className="h-4 w-4" />;
+    }
+    
+    if (['pdf'].includes(ext)) {
+      return <FileText className="h-4 w-4" />;
+    }
+    
+    if (['doc', 'docx'].includes(ext)) {
+      return <FileText className="h-4 w-4" />;
+    }
+    
+    if (['xls', 'xlsx'].includes(ext)) {
+      return <FileText className="h-4 w-4" />;
+    }
+    
+    return <FileText className="h-4 w-4" />;
+  };
 
   return (
-    <div className="space-y-2">
-      {/* We already have the heading in some places, so let's not duplicate it */}
-      <div className="space-y-2">
-        {uniqueFiles.map((file) => {
-          if (!file.file_path) return null;
-          
-          const fileNameDisplay = file.filename && file.filename.length > 20 
-            ? file.filename.substring(0, 20) + '...' 
-            : file.filename;
-          
-          const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
-          const imageUrl = fileURLs[file.id] || 
-            `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(file.file_path)}`;
+    <div className="mt-2 space-y-2">
+      <div className="text-sm font-medium text-gray-700">{t("common.attachedFiles")}:</div>
+      {files.length === 0 ? (
+        <div className="text-sm text-muted-foreground">{t("common.noFiles")}</div>
+      ) : (
+        <div className="space-y-2">
+          {files.map(file => {
+            const effectiveBucket = getFileBucket(file);
             
-          return (
-            <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">
-              <div className="p-3 flex items-center justify-between">
+            return (
+              <div key={file.id} className="flex items-center justify-between border rounded-md p-2 bg-background">
                 <div className="flex items-center space-x-2 overflow-hidden">
-                  {isImage(file.filename) ? (
-                    <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
-                      <img 
-                        src={imageUrl}
-                        alt={file.filename}
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          console.error('Image failed to load', e, 'URL:', imageUrl);
-                          e.currentTarget.src = '/placeholder.svg';
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
-                      {getFileIcon(file.filename)}
-                    </div>
-                  )}
-                  <span className="truncate text-sm">{fileNameDisplay}</span>
+                  {getFileIcon(file.filename)}
+                  <span className="text-sm truncate">{file.filename}</span>
                 </div>
                 <div className="flex space-x-1">
                   <Button
                     type="button"
                     variant="ghost"
-                    size="icon"
-                    onClick={() => handleDownload(file.file_path, file.filename, file.id)}
-                    title={t("common.download")}
+                    size="sm"
+                    onClick={() => handleOpenFile(file)}
+                    title={t("common.openFile")}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDownload(file)}
+                    title={t("common.downloadFile")}
                   >
                     <Download className="h-4 w-4" />
                   </Button>
@@ -299,30 +207,20 @@ export const FileDisplay = ({
                     <Button
                       type="button"
                       variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(file.id, file.file_path)}
-                      disabled={deletingFileId === file.id}
-                      title={t("common.delete")}
+                      size="sm"
+                      onClick={() => handleDelete(file.id, file.file_path, effectiveBucket)}
+                      disabled={isDeleting[file.id]}
+                      title={t("common.deleteFile")}
                     >
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
                   )}
                 </div>
               </div>
-              
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full rounded-none border-t flex items-center justify-center gap-2 py-1.5"
-                onClick={() => handleOpenFile(file.file_path, file.id)}
-              >
-                <ExternalLink className="h-4 w-4" />
-                {t("crm.open")}
-              </Button>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
