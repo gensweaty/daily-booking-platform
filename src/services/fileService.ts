@@ -42,6 +42,11 @@ export const uploadFile = async (
   userId: string
 ): Promise<FileRecord | null> => {
   try {
+    if (!file) {
+      console.error('No file provided to uploadFile');
+      return null;
+    }
+
     // Generate a unique file path with parent ID prefix for better organization
     const fileExt = file.name.split('.').pop();
     const filePath = `${parentId}/${crypto.randomUUID()}.${fileExt}`;
@@ -389,7 +394,7 @@ export const associateFilesWithEntity = async (
                 
                 const newFilePath = `${targetId}/${crypto.randomUUID()}.${fileExtension}`;
                 
-                // Safely access content_type with fallback using proper null checks
+                // Safely access content_type with fallback using proper null checks and type handling
                 let contentType = 'application/octet-stream';
                 
                 if (sourceData !== null && 
@@ -413,7 +418,7 @@ export const associateFilesWithEntity = async (
                   const targetTable = targetType === 'event' ? 'event_files' : 'customer_files_new';
                   const targetField = targetType === 'event' ? 'event_id' : 'customer_id';
                   
-                  // Safely access size with fallback using proper null checks
+                  // Safely access size with fallback using proper null checks and type handling
                   let size = 0;
                   
                   if (sourceData !== null && 
@@ -479,3 +484,4 @@ export const invalidateFileQueries = (queryClient: QueryClient) => {
   queryClient.invalidateQueries({ queryKey: ['notes'] });
   queryClient.invalidateQueries({ queryKey: ['tasks'] });
 };
+
