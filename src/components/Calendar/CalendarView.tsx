@@ -89,12 +89,12 @@ export function CalendarView({
   
   // Strictly filter events to make sure deleted events don't show up
   const filteredEvents = events.filter(event => {
-    // First check if deleted_at is undefined or null (important check)
+    // First check if deleted_at is undefined or null
     if (event.deleted_at === undefined || event.deleted_at === null) {
       return true; // Keep events that don't have deleted_at field or it's null
     }
     
-    // If deleted_at has a value (a timestamp), this is a deleted event
+    // If deleted_at has a value (a timestamp), filter out this deleted event
     return false;
   });
   

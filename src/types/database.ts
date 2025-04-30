@@ -64,8 +64,7 @@ export interface BookingRequest {
   event_notes?: string;
   payment_status?: string;
   payment_amount?: number | null;
-  // These file fields may or may not exist in the database
-  // We're marking them all as optional
+  // File fields explicitly defined
   file_path?: string;
   filename?: string;
   content_type?: string;
