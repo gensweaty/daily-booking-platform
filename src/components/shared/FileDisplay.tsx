@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
@@ -175,7 +176,7 @@ export const FileDisplay = ({
       }
       
       // Determine the appropriate table name based on the parent type
-      let tableName = "event_files";
+      let tableName: "event_files" | "customer_files_new" | "note_files" | "files" = "event_files";
       
       if (parentType === 'customer') {
         tableName = "customer_files_new";
@@ -236,7 +237,8 @@ export const FileDisplay = ({
             ? file.filename.substring(0, 20) + '...' 
             : file.filename;
           
-          const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
+          // Always use event_attachments bucket
+          const effectiveBucket = "event_attachments";
           const imageUrl = fileURLs[file.id] || 
             `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(file.file_path)}`;
             
