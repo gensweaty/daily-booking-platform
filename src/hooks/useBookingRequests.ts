@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { BookingRequest } from "@/types/database";
 import { ensureEventAttachmentsBucket, ensureAllRequiredBuckets } from "@/integrations/supabase/checkStorage";
+import { copyFileBetweenBuckets } from "@/integrations/supabase/copyFileBetweenBuckets";
 
 export const useBookingRequests = () => {
   const { user } = useAuth();

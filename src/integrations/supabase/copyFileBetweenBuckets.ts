@@ -8,18 +8,21 @@ import { FileRecord } from "@/types/files";
  * @param destinationBucket - The name of the destination bucket (e.g., "event_attachments")
  * @param sourcePath - The path of the file in the source bucket
  * @param newFilename - Optional new filename (default keeps the original filename)
+ * @param targetFolder - Optional folder path to store the file in (e.g., event ID)
  * @returns The new path in the destination bucket, or throws error
  */
 export async function copyFileBetweenBuckets({
   sourceBucket,
   destinationBucket,
   sourcePath,
-  newFilename
+  newFilename,
+  targetFolder
 }: {
   sourceBucket: string;
   destinationBucket: string;
   sourcePath: string;
   newFilename?: string;
+  targetFolder?: string;
 }): Promise<string> {
   // Step 1: Download file from source bucket
   const { data: fileBlob, error: downloadError } = await supabase.storage
@@ -33,17 +36,18 @@ export async function copyFileBetweenBuckets({
   // Step 2: Generate destination path
   const originalFilename = sourcePath.split("/").pop() || "file";
   const finalFilename = newFilename || `${Date.now()}_${originalFilename.replace(/\s+/g, "_")}`;
+  const finalPath = targetFolder ? `${targetFolder}/${finalFilename}` : finalFilename;
 
   // Step 3: Upload to destination bucket
   const { error: uploadError } = await supabase.storage
     .from(destinationBucket)
-    .upload(finalFilename, fileBlob);
+    .upload(finalPath, fileBlob);
 
   if (uploadError) {
     throw new Error(`Failed to upload file to ${destinationBucket}: ${uploadError.message}`);
   }
 
-  return finalFilename;
+  return finalPath;
 }
 
 /**
@@ -52,14 +56,14 @@ export async function copyFileBetweenBuckets({
  * @param sourceBucket Source bucket name
  * @param destinationBucket Target bucket name
  * @param filePaths Array of file paths to copy
- * @param targetPrefix Optional prefix to prepend to target paths
+ * @param targetFolder Optional folder to store files in (e.g., event ID)
  * @returns Results for each file copy operation
  */
 export async function copyFilesBetweenBuckets(
   sourceBucket: string,
   destinationBucket: string,
   filePaths: string[],
-  targetPrefix?: string
+  targetFolder?: string
 ): Promise<{
   success: boolean;
   results: Array<{
@@ -76,15 +80,14 @@ export async function copyFilesBetweenBuckets(
     try {
       // Generate new filename with optional prefix
       const originalFilename = path.split('/').pop() || 'file';
-      const finalFilename = targetPrefix 
-        ? `${targetPrefix}/${originalFilename}`
-        : `${Date.now()}_${originalFilename.replace(/\s+/g, "_")}`;
+      const finalFilename = `${Date.now()}_${originalFilename.replace(/\s+/g, "_")}`;
       
       const newPath = await copyFileBetweenBuckets({
         sourceBucket,
         destinationBucket,
         sourcePath: path,
-        newFilename: finalFilename
+        newFilename: finalFilename,
+        targetFolder
       });
       
       results.push({
