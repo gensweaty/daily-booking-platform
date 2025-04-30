@@ -122,3 +122,54 @@ export const prefetchRelatedQuery = async (
   
   console.log(`Prefetched related query: ${JSON.stringify(targetKey)} from ${JSON.stringify(sourceKey)}`);
 };
+
+// Add the missing forceCalendarRefresh function
+export const forceCalendarRefresh = async (queryClient: QueryClient): Promise<void> => {
+  console.log("Forcing calendar data refresh...");
+  
+  // Invalidate all calendar-related queries
+  await queryClient.invalidateQueries({ 
+    queryKey: ['events'],
+    refetchType: 'all'
+  });
+  
+  await queryClient.invalidateQueries({ 
+    queryKey: ['business-events'],
+    refetchType: 'all'
+  });
+  
+  await queryClient.invalidateQueries({ 
+    queryKey: ['approved-bookings'],
+    refetchType: 'all'
+  });
+  
+  // Also invalidate file-related queries
+  await queryClient.invalidateQueries({ 
+    queryKey: ['eventFiles'],
+    refetchType: 'all'
+  });
+  
+  // Force a hard refresh after a short delay
+  setTimeout(() => {
+    console.log("Executing forced refresh of calendar data");
+    queryClient.refetchQueries({ 
+      queryKey: ['events'],
+      type: 'all',
+      exact: false
+    });
+    
+    queryClient.refetchQueries({ 
+      queryKey: ['business-events'],
+      type: 'all',
+      exact: false
+    });
+    
+    queryClient.refetchQueries({ 
+      queryKey: ['approved-bookings'],
+      type: 'all',
+      exact: false
+    });
+  }, 300);
+  
+  console.log("Calendar refresh scheduled");
+};
