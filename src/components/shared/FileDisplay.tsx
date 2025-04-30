@@ -64,11 +64,12 @@ export const FileDisplay = ({
     return acc;
   }, []);
 
+  // Generate consistent file URLs using the standardized helper
   useEffect(() => {
     const newURLs: {[key: string]: string} = {};
     uniqueFiles.forEach(file => {
       if (file.file_path) {
-        // Use the getFileUrl helper to ensure consistent URL generation
+        // Always use getFileUrl helper for consistent URL generation
         newURLs[file.id] = getFileUrl(file.file_path);
       }
     });
@@ -206,6 +207,7 @@ export const FileDisplay = ({
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       
       toast({
         title: t("common.success"),

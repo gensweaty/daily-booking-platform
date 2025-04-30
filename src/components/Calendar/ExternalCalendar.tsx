@@ -1,12 +1,12 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { getPublicCalendarEvents } from "@/lib/api";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -14,10 +14,12 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [view, setView] = useState<CalendarViewType>("month");
   const [events, setEvents] = useState<CalendarEventType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
   const [businessUserId, setBusinessUserId] = useState<string | null>(null);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const { t } = useLanguage();
 
   // Diagnostic logging for businessId
@@ -87,150 +89,190 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     getBusinessUserId();
   }, [businessId, retryCount]);
 
-  // Step 2: Fetch all events using the getPublicCalendarEvents API which uses our new RPC function
-  useEffect(() => {
-    const fetchAllEvents = async () => {
-      if (!businessId) return;
+  // Step 2: Fetch all events using a memoized function to prevent unnecessary re-renders
+  const fetchAllEvents = useCallback(async (forceRefresh = false) => {
+    if (!businessId) return;
+    
+    // If this is not a force refresh and we fetched recently, skip
+    const now = Date.now();
+    if (!forceRefresh && (now - lastFetchTime < 30000)) { // 30 seconds
+      console.log("[External Calendar] Skipping fetch, too recent", {
+        lastFetch: new Date(lastFetchTime),
+        now: new Date(now),
+        diff: (now - lastFetchTime) / 1000
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    console.log("[External Calendar] Starting to fetch events for business ID:", businessId);
+    
+    try {
+      // Get events from the API function which includes approved bookings and user events
+      // This now uses our security definer function to bypass RLS
+      const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
       
-      setIsLoading(true);
-      console.log("[External Calendar] Starting to fetch events for business ID:", businessId);
+      console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
+      console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
       
-      try {
-        // Get events from the API function which includes approved bookings and user events
-        // This now uses our security definer function to bypass RLS
-        const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
-        
-        console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
-        console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
-        
-        // Ensure we're working with arrays
-        const safeApiEvents = Array.isArray(apiEvents) ? apiEvents : [];
-        const safeBookings = Array.isArray(approvedBookings) ? approvedBookings : [];
-        
-        // Filter out any events with deleted_at timestamp before mapping
-        const filteredApiEvents = safeApiEvents.filter(event => !event.deleted_at);
-        const filteredBookings = safeBookings.filter(booking => !booking.deleted_at);
-        
-        console.log(`[External Calendar] After filtering deleted events: ${filteredApiEvents.length} events, ${filteredBookings.length} bookings`);
-        
-        // Combine all event sources
-        const allEvents: CalendarEventType[] = [
-          ...filteredApiEvents.map(event => ({
-            ...event,
-            type: event.type || 'event'
-          })),
-          ...filteredBookings.map(booking => ({
-            id: booking.id,
-            title: booking.title || 'Booking',
-            start_date: booking.start_date,
-            end_date: booking.end_date,
-            type: 'booking_request',
-            created_at: booking.created_at || new Date().toISOString(),
-            user_id: booking.user_id || '',
-            user_surname: booking.requester_name || '',
-            user_number: booking.requester_phone || '',
-            social_network_link: booking.requester_email || '',
-            event_notes: booking.description || '',
-            requester_name: booking.requester_name || '',
-            requester_email: booking.requester_email || '',
-            deleted_at: booking.deleted_at
-          }))
-        ];
-        
-        console.log(`[External Calendar] Combined ${allEvents.length} total events`);
-        
-        // Validate all events have proper dates
-        const validEvents = allEvents.filter(event => {
-          try {
-            // Check if start_date and end_date are valid
-            const startValid = !!new Date(event.start_date).getTime();
-            const endValid = !!new Date(event.end_date).getTime();
-            
-            // Make an explicit check for deleted_at being null/undefined
-            const isNotDeleted = !event.deleted_at;
-            
-            if (!isNotDeleted) {
-              console.log(`Filtering out deleted event with id ${event.id}, deleted_at: ${event.deleted_at}`);
-            }
-            
-            return startValid && endValid && isNotDeleted;
-          } catch (err) {
-            console.error("Invalid date in event:", event);
-            return false;
-          }
-        });
-        
-        if (validEvents.length !== allEvents.length) {
-          console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates or deleted status`);
-        }
-        
-        // Remove duplicate events (same time slot)
-        const eventMap = new Map();
-        validEvents.forEach(event => {
-          const key = `${event.start_date}-${event.end_date}`;
-          // Prioritize booking_request type events
-          if (!eventMap.has(key) || event.type === 'booking_request') {
-            eventMap.set(key, event);
-          }
-        });
-        
-        const uniqueEvents = Array.from(eventMap.values());
-        console.log(`[External Calendar] Final unique events: ${uniqueEvents.length}`);
-        
-        // Final confirmation that no deleted events remain
-        const actuallyValid = uniqueEvents.filter(event => !event.deleted_at);
-        if (actuallyValid.length !== uniqueEvents.length) {
-          console.error("Found deleted events after filtering! This should not happen.", 
-            uniqueEvents.filter(e => e.deleted_at));
-        }
-        
-        // Store events in session storage for recovery
+      // Ensure we're working with arrays
+      const safeApiEvents = Array.isArray(apiEvents) ? apiEvents : [];
+      const safeBookings = Array.isArray(approvedBookings) ? approvedBookings : [];
+      
+      // Filter out any events with deleted_at timestamp before mapping
+      const filteredApiEvents = safeApiEvents.filter(event => !event.deleted_at);
+      const filteredBookings = safeBookings.filter(booking => !booking.deleted_at);
+      
+      console.log(`[External Calendar] After filtering deleted events: ${filteredApiEvents.length} events, ${filteredBookings.length} bookings`);
+      
+      // Combine all event sources
+      const allEvents: CalendarEventType[] = [
+        ...filteredApiEvents.map(event => ({
+          ...event,
+          type: event.type || 'event'
+        })),
+        ...filteredBookings.map(booking => ({
+          id: booking.id,
+          title: booking.title || 'Booking',
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          type: 'booking_request',
+          created_at: booking.created_at || new Date().toISOString(),
+          user_id: booking.user_id || '',
+          user_surname: booking.requester_name || '',
+          user_number: booking.requester_phone || '',
+          social_network_link: booking.requester_email || '',
+          event_notes: booking.description || '',
+          requester_name: booking.requester_name || '',
+          requester_email: booking.requester_email || '',
+          deleted_at: booking.deleted_at
+        }))
+      ];
+      
+      console.log(`[External Calendar] Combined ${allEvents.length} total events`);
+      
+      // Validate all events have proper dates
+      const validEvents = allEvents.filter(event => {
         try {
-          sessionStorage.setItem(`calendar_events_${businessId}`, JSON.stringify(actuallyValid));
-        } catch (e) {
-          console.warn("Failed to store events in session storage:", e);
-        }
-        
-        // Update state with fetched events
-        setEvents(actuallyValid);
-        setLoadingError(null);
-      } catch (error) {
-        console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
-        setLoadingError("Failed to load calendar events");
-        
-        // Try to recover events from session storage
-        try {
-          const cachedEvents = sessionStorage.getItem(`calendar_events_${businessId}`);
-          if (cachedEvents) {
-            console.log("[External Calendar] Recovering events from session storage");
-            setEvents(JSON.parse(cachedEvents));
+          // Check if start_date and end_date are valid
+          const startValid = !!new Date(event.start_date).getTime();
+          const endValid = !!new Date(event.end_date).getTime();
+          
+          // Make an explicit check for deleted_at being null/undefined
+          const isNotDeleted = !event.deleted_at;
+          
+          if (!isNotDeleted) {
+            console.log(`Filtering out deleted event with id ${event.id}, deleted_at: ${event.deleted_at}`);
           }
-        } catch (e) {
-          console.error("Failed to recover events from session storage:", e);
+          
+          return startValid && endValid && isNotDeleted;
+        } catch (err) {
+          console.error("Invalid date in event:", event);
+          return false;
         }
-        
-        toast({
-          title: t("common.error"),
-          description: t("common.error"),
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
+      });
+      
+      if (validEvents.length !== allEvents.length) {
+        console.warn(`Filtered out ${allEvents.length - validEvents.length} events with invalid dates or deleted status`);
       }
-    };
+      
+      // Remove duplicate events (same time slot)
+      const eventMap = new Map();
+      validEvents.forEach(event => {
+        const key = `${event.start_date}-${event.end_date}`;
+        // Prioritize booking_request type events
+        if (!eventMap.has(key) || event.type === 'booking_request') {
+          eventMap.set(key, event);
+        }
+      });
+      
+      const uniqueEvents = Array.from(eventMap.values());
+      console.log(`[External Calendar] Final unique events: ${uniqueEvents.length}`);
+      
+      // Final confirmation that no deleted events remain
+      const actuallyValid = uniqueEvents.filter(event => !event.deleted_at);
+      if (actuallyValid.length !== uniqueEvents.length) {
+        console.error("Found deleted events after filtering! This should not happen.", 
+          uniqueEvents.filter(e => e.deleted_at));
+      }
+      
+      // Add timestamp to event cache
+      const eventCache = {
+        timestamp: Date.now(),
+        events: actuallyValid
+      };
+      
+      // Store events in session storage for recovery
+      try {
+        sessionStorage.setItem(`calendar_events_${businessId}`, JSON.stringify(eventCache));
+      } catch (e) {
+        console.warn("Failed to store events in session storage:", e);
+      }
+      
+      // Update state with fetched events
+      setEvents(actuallyValid);
+      setLastFetchTime(Date.now());
+      setLoadingError(null);
+    } catch (error) {
+      console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
+      setLoadingError("Failed to load calendar events");
+      
+      // Try to recover events from session storage
+      try {
+        const cachedEventsData = sessionStorage.getItem(`calendar_events_${businessId}`);
+        if (cachedEventsData) {
+          console.log("[External Calendar] Recovering events from session storage");
+          const eventCache = JSON.parse(cachedEventsData);
+          if (eventCache && eventCache.events) {
+            setEvents(eventCache.events);
+            setLastFetchTime(eventCache.timestamp || Date.now());
+          }
+        }
+      } catch (e) {
+        console.error("Failed to recover events from session storage:", e);
+      }
+      
+      toast({
+        title: t("common.error"),
+        description: t("common.error"),
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [businessId, lastFetchTime, toast, t]);
 
+  // Effect to fetch events initially and on dependency changes
+  useEffect(() => {
     // Only fetch if we have the business ID
     if (businessId) {
       console.log("[External Calendar] Have business ID, fetching events");
       fetchAllEvents();
       
-      // Set up polling to refresh data every 30 seconds
-      const intervalId = setInterval(fetchAllEvents, 30000);
-      return () => {
-        clearInterval(intervalId);
-      };
+      // Set up polling to refresh data every 60 seconds
+      const intervalId = setInterval(() => fetchAllEvents(), 60000);
+      return () => clearInterval(intervalId);
     }
-  }, [businessId, toast, t, retryCount]);
+  }, [businessId, fetchAllEvents, retryCount]);
+
+  // Manual refresh handler
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    // Clear the event cache from sessionStorage
+    try {
+      sessionStorage.removeItem(`calendar_events_${businessId}`);
+    } catch (e) {
+      console.warn("Failed to clear events from session storage:", e);
+    }
+    // Force fetch with fresh data
+    fetchAllEvents(true).then(() => {
+      toast({
+        title: t("common.success"),
+        description: t("Calendar has been refreshed"),
+      });
+    });
+  };
 
   if (!businessId) {
     return (
@@ -248,7 +290,19 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
       <CardContent className="p-0">
         <div className="px-6 pt-6 relative">
-          {isLoading && (
+          <div className="absolute top-6 right-6 z-10">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isLoading || isRefreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="ml-1 sm:inline hidden">Refresh</span>
+            </Button>
+          </div>
+          
+          {(isLoading || isRefreshing) && (
             <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
               <Loader2 className="h-8 w-8 text-primary animate-spin" />
               <span className="ml-2 text-primary">{t("common.loading")}</span>

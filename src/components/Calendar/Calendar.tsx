@@ -28,6 +28,8 @@ import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/components/ui/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -56,8 +58,17 @@ export const Calendar = ({
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
-  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
+  const { 
+    events: fetchedEvents, 
+    isLoading: isLoadingFromHook, 
+    error, 
+    createEvent, 
+    updateEvent, 
+    deleteEvent,
+    refetchAll
+  } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
     !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
   );
@@ -73,6 +84,17 @@ export const Calendar = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Force refresh all calendar data periodically
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (refetchAll) {
+        refetchAll();
+      }
+    }, 60000); // Refresh every minute
+    
+    return () => clearInterval(intervalId);
+  }, [refetchAll]);
 
   useEffect(() => {
     if (currentView) {
@@ -94,7 +116,6 @@ export const Calendar = ({
     
     if (events?.length > 0) {
       console.log("[Calendar] First event:", events[0]);
-      console.log("[Calendar] All events:", events); // Log all events to debug
     }
   }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
 
@@ -111,21 +132,38 @@ export const Calendar = ({
   } = useEventDialog({
     createEvent: async (data) => {
       const result = await createEvent?.(data);
+      // Force refresh after creating
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      }, 500);
       return result;
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
-      console.log("Calendar passing to updateEvent:", { data, id: selectedEvent.id, type: selectedEvent.type });
       
       const result = await updateEvent?.({
         ...data,
         id: selectedEvent.id,
-        type: selectedEvent.type  // Make sure to pass the type from the selected event
+        type: selectedEvent.type
       });
+      
+      // Force refresh after updating
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      }, 500);
+      
       return result;
     },
     deleteEvent: async (id) => {
       await deleteEvent?.(id);
+      
+      // Force refresh after deleting
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      }, 500);
     }
   });
 
@@ -255,6 +293,29 @@ export const Calendar = ({
     });
   };
 
+  // Manual refresh function
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    
+    // First clear the cache completely for these queries
+    queryClient.removeQueries({ queryKey: ['events'] });
+    queryClient.removeQueries({ queryKey: ['business-events'] });
+    queryClient.removeQueries({ queryKey: ['approved-bookings'] });
+    
+    // Then trigger a refresh
+    if (refetchAll) {
+      await refetchAll();
+    }
+    
+    setTimeout(() => {
+      setIsRefreshing(false);
+      toast({
+        title: "Calendar refreshed",
+        description: "Calendar data has been refreshed.",
+      });
+    }, 1000);
+  };
+
   if (error && !directEvents) {
     console.error("Calendar error:", error);
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
@@ -279,15 +340,30 @@ export const Calendar = ({
 
   return (
     <div className={`h-full flex flex-col ${isMobile ? 'gap-2 -mx-4' : 'gap-4'}`}>
-      <CalendarHeader
-        selectedDate={selectedDate}
-        view={view}
-        onViewChange={handleViewChange}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        onAddEvent={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleAddEventClick : undefined}
-        isExternalCalendar={isExternalCalendar}
-      />
+      <div className="flex items-center justify-between">
+        <CalendarHeader
+          selectedDate={selectedDate}
+          view={view}
+          onViewChange={handleViewChange}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onAddEvent={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleAddEventClick : undefined}
+          isExternalCalendar={isExternalCalendar}
+        />
+        
+        {!isExternalCalendar && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="ml-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="ml-1 sm:inline hidden">Refresh</span>
+          </Button>
+        )}
+      </div>
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
         {view !== 'month' && <TimeIndicator />}

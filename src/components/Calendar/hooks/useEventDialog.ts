@@ -1,7 +1,8 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -18,8 +19,9 @@ export const useEventDialog = ({
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
+  const handleCreateEvent = useCallback(async (data: Partial<CalendarEventType>) => {
     try {
       // Ensure type is set to 'event'
       const eventData = {
@@ -39,6 +41,13 @@ export const useEventDialog = ({
       
       setIsNewEventDialogOpen(false);
       console.log("Event created successfully:", createdEvent);
+
+      // Force refresh calendar data after creation
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['business-events'] });
+        queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      }, 500);
       
       return createdEvent;
     } catch (error: any) {
@@ -50,9 +59,9 @@ export const useEventDialog = ({
       });
       throw error;
     }
-  };
+  }, [createEvent, toast, queryClient]);
 
-  const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
+  const handleUpdateEvent = useCallback(async (data: Partial<CalendarEventType>) => {
     try {
       if (!updateEvent || !selectedEvent) {
         throw new Error("Update event function not provided or no event selected");
@@ -74,6 +83,13 @@ export const useEventDialog = ({
       setSelectedEvent(null);
       console.log("Event updated successfully:", updatedEvent);
       
+      // Force refresh calendar data after update
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['business-events'] });
+        queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      }, 500);
+      
       return updatedEvent;
     } catch (error: any) {
       console.error("Failed to update event:", error);
@@ -84,9 +100,9 @@ export const useEventDialog = ({
       });
       throw error;
     }
-  };
+  }, [updateEvent, selectedEvent, toast, queryClient]);
 
-  const handleDeleteEvent = async () => {
+  const handleDeleteEvent = useCallback(async () => {
     try {
       if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
       
@@ -94,6 +110,14 @@ export const useEventDialog = ({
       
       setSelectedEvent(null);
       console.log("Event deleted successfully:", selectedEvent.id);
+      
+      // Force refresh calendar data after deletion
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['business-events'] });
+        queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      }, 500);
+      
     } catch (error: any) {
       console.error("Failed to delete event:", error);
       toast({
@@ -103,7 +127,7 @@ export const useEventDialog = ({
       });
       throw error;
     }
-  };
+  }, [deleteEvent, selectedEvent, toast, queryClient]);
 
   // Helper function to normalize payment status values
   const normalizePaymentStatus = (status: string | undefined): string | undefined => {

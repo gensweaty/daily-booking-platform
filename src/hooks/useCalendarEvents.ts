@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -578,31 +579,47 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
   };
 
+  // Improve caching with more aggressive refetch strategies and stale time controls
   const eventsQuery = useQuery({
     queryKey: ['events', user?.id],
     queryFn: getEvents,
     enabled: !!user?.id,
     refetchOnWindowFocus: true,
-    refetchInterval: 60000,
+    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchOnMount: true,
+    staleTime: 15000, // Consider data stale after 15 seconds
   });
 
   const businessEventsQuery = useQuery({
     queryKey: ['business-events', businessId, businessUserId],
     queryFn: getBusinessEvents,
     enabled: !!(businessId || businessUserId),
+    refetchOnWindowFocus: true,
+    refetchInterval: 30000,
+    refetchOnMount: true,
+    staleTime: 15000,
   });
 
   const approvedBookingsQuery = useQuery({
     queryKey: ['approved-bookings', businessId, businessUserId, user?.id],
     queryFn: getApprovedBookings,
     enabled: !!(businessId || businessUserId || user?.id),
+    refetchOnWindowFocus: true,
+    refetchInterval: 30000,
+    refetchOnMount: true,
+    staleTime: 15000,
   });
 
+  // Improved mutation handlers with more thorough cache invalidation
   const createMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
+      // Invalidate all related queries
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
     },
     onError: (error: Error) => {
       toast({
@@ -616,13 +633,18 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const updateMutation = useMutation({
     mutationFn: updateEvent,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
+      // Invalidate all related queries
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      
       toast({
         title: t("common.success"),
         description: t("events.eventUpdated"),
       });
+      
       return data;
     },
     onError: (error: Error) => {
@@ -637,9 +659,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const deleteMutation = useMutation({
     mutationFn: deleteEvent,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
+      // Invalidate all related queries
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      
       toast({
         title: t("common.success"),
         description: t("events.eventDeleted"),
@@ -663,5 +689,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     createEvent: createMutation.mutateAsync,
     updateEvent: updateMutation.mutateAsync,
     deleteEvent: deleteMutation.mutateAsync,
+    // Add a refetch function to force refresh data
+    refetchAll: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+    }
   };
 };
