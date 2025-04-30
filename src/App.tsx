@@ -13,7 +13,6 @@ import { PublicBusinessPage } from "@/components/business/PublicBusinessPage";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ForgotPassword } from "@/components/ForgotPassword";
 import { useEffect } from "react";
-import { Spinner } from "@/components/ui/spinner";
 
 // Create a client for React Query with improved retry logic
 const queryClient = new QueryClient({
@@ -25,13 +24,6 @@ const queryClient = new QueryClient({
     }
   }
 });
-
-// Create a Loading component for Suspense fallbacks
-const Loading = () => (
-  <div className="flex items-center justify-center h-screen w-full">
-    <Spinner size="lg" />
-  </div>
-);
 
 // Helper for session recovery
 const SessionRecoveryWrapper = ({ children }: { children: React.ReactNode }) => {
@@ -106,17 +98,6 @@ const RouteAwareThemeProvider = ({ children }: { children: React.ReactNode }) =>
 };
 
 function App() {
-  // Ensure storage buckets exist when app starts
-  useEffect(() => {
-    import('@/integrations/supabase/checkStorage')
-      .then(module => {
-        module.ensureAllRequiredBuckets().catch(error => 
-          console.error("Failed to ensure all storage buckets exist:", error)
-        );
-      })
-      .catch(error => console.error("Failed to load checkStorage module:", error));
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -149,3 +130,4 @@ function App() {
 }
 
 export default App;
+

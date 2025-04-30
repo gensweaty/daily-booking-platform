@@ -57,29 +57,42 @@ export interface BookingRequest {
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
-  // Additional fields to match EventDialog
+  deleted_at?: string;
   user_surname?: string;
   user_number?: string;
   social_network_link?: string;
   event_notes?: string;
   payment_status?: string;
   payment_amount?: number | null;
-  // File metadata fields - explicitly defined
+  // File fields explicitly defined
   file_path?: string;
   filename?: string;
   content_type?: string;
-  file_size?: number;
   size?: number;
-  deleted_at?: string;
 }
 
-export interface BookingFile {
+// Add EventFile interface to match event_files table
+export interface EventFile {
   id: string;
-  booking_request_id: string;
+  event_id: string;
   filename: string;
   file_path: string;
-  content_type?: string | null;
-  size?: number | null;
+  content_type?: string;
+  size?: number;
+  user_id?: string;
   created_at: string;
-  user_id?: string | null;
+  source?: string;
+}
+
+// Add CustomerFile interface to match customer_files_new table
+export interface CustomerFile {
+  id: string;
+  customer_id: string;
+  filename: string;
+  file_path: string;
+  content_type?: string;
+  size?: number;
+  user_id?: string;
+  created_at: string;
+  source?: string;
 }

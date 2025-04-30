@@ -103,13 +103,23 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
         
+        // Ensure we're working with arrays
+        const safeApiEvents = Array.isArray(apiEvents) ? apiEvents : [];
+        const safeBookings = Array.isArray(approvedBookings) ? approvedBookings : [];
+        
+        // Filter out any events with deleted_at timestamp before mapping
+        const filteredApiEvents = safeApiEvents.filter(event => !event.deleted_at);
+        const filteredBookings = safeBookings.filter(booking => !booking.deleted_at);
+        
+        console.log(`[External Calendar] After filtering deleted events: ${filteredApiEvents.length} events, ${filteredBookings.length} bookings`);
+        
         // Combine all event sources
         const allEvents: CalendarEventType[] = [
-          ...(apiEvents || []).map(event => ({
+          ...filteredApiEvents.map(event => ({
             ...event,
             type: event.type || 'event'
           })),
-          ...(approvedBookings || []).map(booking => ({
+          ...filteredBookings.map(booking => ({
             id: booking.id,
             title: booking.title || 'Booking',
             start_date: booking.start_date,
@@ -129,20 +139,21 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         
         console.log(`[External Calendar] Combined ${allEvents.length} total events`);
         
-        // Validate all events have proper dates and filter out deleted events
+        // Validate all events have proper dates
         const validEvents = allEvents.filter(event => {
           try {
             // Check if start_date and end_date are valid
             const startValid = !!new Date(event.start_date).getTime();
             const endValid = !!new Date(event.end_date).getTime();
             
-            // Skip events that are soft deleted
-            if (event.deleted_at) {
-              console.log(`Filtering out deleted event with id ${event.id}`);
-              return false;
+            // Make an explicit check for deleted_at being null/undefined
+            const isNotDeleted = !event.deleted_at;
+            
+            if (!isNotDeleted) {
+              console.log(`Filtering out deleted event with id ${event.id}, deleted_at: ${event.deleted_at}`);
             }
             
-            return startValid && endValid;
+            return startValid && endValid && isNotDeleted;
           } catch (err) {
             console.error("Invalid date in event:", event);
             return false;
@@ -166,15 +177,22 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         const uniqueEvents = Array.from(eventMap.values());
         console.log(`[External Calendar] Final unique events: ${uniqueEvents.length}`);
         
+        // Final confirmation that no deleted events remain
+        const actuallyValid = uniqueEvents.filter(event => !event.deleted_at);
+        if (actuallyValid.length !== uniqueEvents.length) {
+          console.error("Found deleted events after filtering! This should not happen.", 
+            uniqueEvents.filter(e => e.deleted_at));
+        }
+        
         // Store events in session storage for recovery
         try {
-          sessionStorage.setItem(`calendar_events_${businessId}`, JSON.stringify(uniqueEvents));
+          sessionStorage.setItem(`calendar_events_${businessId}`, JSON.stringify(actuallyValid));
         } catch (e) {
           console.warn("Failed to store events in session storage:", e);
         }
         
         // Update state with fetched events
-        setEvents(uniqueEvents);
+        setEvents(actuallyValid);
         setLoadingError(null);
       } catch (error) {
         console.error("Exception in ExternalCalendar.fetchAllEvents:", error);

@@ -1,18 +1,6 @@
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
-import { ensureAllRequiredBuckets } from "@/integrations/supabase/checkStorage";
-
-// Ensure all required buckets exist when this file is imported
-ensureAllRequiredBuckets().then(success => {
-  if (success) {
-    console.log("Storage buckets verification completed successfully");
-  } else {
-    console.warn("Storage buckets verification failed, some features might not work properly");
-  }
-}).catch(error => {
-  console.error("Error during storage bucket verification:", error);
-});
 
 // Rate limiting storage in localStorage
 const RATE_LIMIT_KEY = 'booking_request_last_time';
@@ -20,11 +8,11 @@ const RATE_LIMIT_COOLDOWN = 120; // 2 minutes in seconds
 
 // Helper function to get file URL with consistent bucket handling
 export const getFileUrl = (bucketName: string, filePath: string) => {
-  const baseUrl = import.meta.env.VITE_SUPABASE_URL || "https://mrueqpffzauvdxmuwhfa.supabase.co";
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL;
   const normalizedPath = normalizeFilePath(filePath);
   
-  // Return the URL with the specified bucket
-  return `${baseUrl}/storage/v1/object/public/${bucketName}/${normalizedPath}`;
+  // Always use event_attachments bucket for consistent file access
+  return `${baseUrl}/storage/v1/object/public/event_attachments/${normalizedPath}`;
 };
 
 // Check if user is rate limited for booking requests
@@ -54,9 +42,6 @@ export const checkRateLimitStatus = async (): Promise<{ isLimited: boolean, rema
 };
 
 export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">) => {
-  // Ensure buckets exist before attempting to use them
-  await ensureAllRequiredBuckets();
-
   // Get current user if available
   const { data: userData } = await supabase.auth.getUser();
   
@@ -433,291 +418,22 @@ export const getPublicCalendarEvents = async (businessId: string) => {
   }
 };
 
-// Enhanced function to get booking request files
-export const getBookingRequestFiles = async (bookingRequestId: string) => {
-  try {
-    console.log(`Fetching files for booking request ID: ${bookingRequestId}`);
-    
-    // First, try directly from booking_files table
-    const { data: bookingFiles, error: bookingFilesError } = await supabase
-      .from('booking_files')
-      .select('*')
-      .eq('booking_request_id', bookingRequestId);
-      
-    if (bookingFilesError) {
-      console.error('Error fetching booking files:', bookingFilesError);
-      // Continue to try other methods even if this fails
-    } else if (bookingFiles && bookingFiles.length > 0) {
-      console.log(`Found ${bookingFiles.length} files in booking_files table`);
-      return bookingFiles.map(file => ({
-        ...file,
-        source: 'booking_files'
-      }));
-    }
-    
-    // If no files found in booking_files, check if the booking request itself has file data
-    const { data: bookingRequest, error: bookingRequestError } = await supabase
-      .from('booking_requests')
-      .select('*')
-      .eq('id', bookingRequestId)
-      .maybeSingle();
-      
-    if (bookingRequestError) {
-      console.error('Error fetching booking request:', bookingRequestError);
-    } else if (bookingRequest?.file_path) {
-      console.log('Found file data in the booking request itself');
-      
-      // Check if the file actually exists in storage
-      const fileExists = await checkIfFileExists('event_attachments', bookingRequest.file_path);
-      console.log(`File existence check for ${bookingRequest.file_path}: ${fileExists}`);
-      
-      if (fileExists) {
-        return [{
-          id: `booking_request_file_${bookingRequestId}`,
-          booking_request_id: bookingRequestId,
-          filename: bookingRequest.filename || 'attachment',
-          file_path: bookingRequest.file_path,
-          content_type: bookingRequest.content_type,
-          size: bookingRequest.file_size || bookingRequest.size,
-          created_at: bookingRequest.created_at,
-          user_id: bookingRequest.user_id,
-          source: 'booking_request'
-        }];
-      }
-    }
-    
-    // Try event_files table as fallback (in case files were saved there)
-    const { data: eventFiles, error: eventFilesError } = await supabase
-      .from('event_files')
-      .select('*')
-      .eq('event_id', bookingRequestId);
-      
-    if (eventFilesError) {
-      console.error('Error fetching event files:', eventFilesError);
-    } else if (eventFiles && eventFiles.length > 0) {
-      console.log(`Found ${eventFiles.length} files in event_files table`);
-      return eventFiles.map(file => ({
-        ...file,
-        booking_request_id: bookingRequestId,
-        source: 'event_files'
-      }));
-    }
-    
-    // Check storage bucket directly - this is a more thorough approach
-    try {
-      console.log("Checking storage bucket directly for files with booking ID pattern");
-      // Try to check direct folder match first
-      const { data: bucketFiles, error: bucketError } = await supabase.storage
-        .from('event_attachments')
-        .list(`${bookingRequestId}`, { 
-          limit: 100,
-          sortBy: { column: 'name', order: 'asc' }
-        });
-        
-      if (!bucketError && bucketFiles && bucketFiles.length > 0) {
-        console.log(`Found ${bucketFiles.length} files in storage bucket folder ${bookingRequestId}`);
-        
-        // Filter out placeholder files and folders
-        const realFiles = bucketFiles.filter(file => 
-          !file.name.startsWith('.') && file.name !== '.emptyFolderPlaceholder' && !file.metadata.isDir);
-        
-        if (realFiles.length > 0) {
-          return realFiles.map(file => ({
-            id: `storage_${bookingRequestId}_${file.name}`,
-            booking_request_id: bookingRequestId,
-            filename: file.name,
-            file_path: `${bookingRequestId}/${file.name}`,
-            content_type: file.metadata?.mimetype || guessContentType(file.name),
-            size: file.metadata?.size || 0,
-            created_at: new Date().toISOString(),
-            source: 'storage_bucket'
-          }));
-        }
-      }
-      
-      // Also check for files that contain the booking ID in their path
-      const { data: allFiles, error: allFilesError } = await supabase.storage
-        .from('event_attachments')
-        .list('', { 
-          limit: 1000,
-          sortBy: { column: 'name', order: 'asc' }
-        });
-        
-      if (!allFilesError && allFiles) {
-        // Look for any folder that might contain the booking ID
-        const relevantFolders = allFiles.filter(item => 
-          item.metadata.isDir && item.name.includes(bookingRequestId));
-          
-        if (relevantFolders.length > 0) {
-          console.log(`Found ${relevantFolders.length} potentially relevant folders`);
-          
-          // Check each relevant folder
-          const foundFiles = [];
-          for (const folder of relevantFolders) {
-            const { data: folderFiles, error: folderError } = await supabase.storage
-              .from('event_attachments')
-              .list(folder.name, { 
-                limit: 100,
-                sortBy: { column: 'name', order: 'asc' }
-              });
-              
-            if (!folderError && folderFiles && folderFiles.length > 0) {
-              const realFiles = folderFiles.filter(file => 
-                !file.name.startsWith('.') && file.name !== '.emptyFolderPlaceholder' && !file.metadata.isDir);
-              
-              if (realFiles.length > 0) {
-                console.log(`Found ${realFiles.length} files in folder ${folder.name}`);
-                
-                foundFiles.push(
-                  ...realFiles.map(file => ({
-                    id: `storage_${folder.name}_${file.name}`,
-                    booking_request_id: bookingRequestId,
-                    filename: file.name,
-                    file_path: `${folder.name}/${file.name}`,
-                    content_type: file.metadata?.mimetype || guessContentType(file.name),
-                    size: file.metadata?.size || 0,
-                    created_at: new Date().toISOString(),
-                    source: 'storage_bucket'
-                  }))
-                );
-              }
-            }
-          }
-          
-          if (foundFiles.length > 0) {
-            return foundFiles;
-          }
-        }
-      }
-    } catch (storageErr) {
-      console.log("Error checking storage bucket:", storageErr);
-    }
-    
-    console.log('No files found for this booking request');
-    return [];
-  } catch (error) {
-    console.error('Error in getBookingRequestFiles:', error);
-    return [];
-  }
-};
-
-// Helper function to guess content type from filename
-function guessContentType(filename: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  if (!ext) return 'application/octet-stream';
-  
-  const mimeTypes: Record<string, string> = {
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'png': 'image/png',
-    'gif': 'image/gif',
-    'webp': 'image/webp',
-    'svg': 'image/svg+xml',
-    'pdf': 'application/pdf',
-    'doc': 'application/msword',
-    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'xls': 'application/vnd.ms-excel',
-    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'txt': 'text/plain',
-    'csv': 'text/csv',
-    'json': 'application/json',
-    'mp4': 'video/mp4',
-    'mp3': 'audio/mpeg'
-  };
-  
-  return mimeTypes[ext] || 'application/octet-stream';
-}
-
-// Upload a file for a booking request
-export const uploadBookingRequestFile = async (
-  bookingRequestId: string,
-  file: File,
-  userId: string
-) => {
-  try {
-    // Ensure buckets exist before attempting to use them
-    await ensureAllRequiredBuckets();
-    
-    // Generate a unique path for the file
-    const timestamp = new Date().getTime();
-    const randomId = Math.random().toString(36).substring(2, 8);
-    const filePath = `${bookingRequestId}/${timestamp}_${randomId}_${file.name}`;
-    
-    console.log(`Uploading booking request file to path: ${filePath}`);
-    
-    // Upload file to storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('event_attachments')  // Use event_attachments bucket for all booking files too
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
-      
-    if (uploadError) {
-      console.error('Error uploading file:', uploadError);
-      throw uploadError;
-    }
-    
-    // Save file metadata to booking_files table
-    const { data: fileRecord, error: fileError } = await supabase
-      .from('booking_files')
-      .insert([{
-        booking_request_id: bookingRequestId,
-        filename: file.name,
-        file_path: filePath,
-        content_type: file.type,
-        size: file.size,
-        user_id: userId
-      }])
-      .select()
-      .single();
-      
-    if (fileError) {
-      console.error('Error saving file metadata:', fileError);
-      throw fileError;
-    }
-    
-    return fileRecord;
-  } catch (error: any) {
-    console.error('Error in uploadBookingRequestFile:', error);
-    throw new Error(error.message || 'Failed to upload file');
-  }
-};
-
 // Enhanced file handling functions with consistent bucket handling
 export const downloadFile = async (bucketName: string, filePath: string, fileName: string) => {
   try {
     console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
     
-    // Ensure bucket exists before attempting download
-    ensureAllRequiredBuckets();
-    
-    // Always use specified bucket for consistent file access
-    const effectiveBucket = bucketName || "event_attachments";
+    // Always use event_attachments bucket for consistent file access
+    const effectiveBucket = "event_attachments";
     console.log(`Using effective bucket: ${effectiveBucket}`);
     
-    // Check if file exists in the bucket
-    const fileExists = await checkIfFileExists(effectiveBucket, filePath);
-    console.log(`File existence check: ${fileExists}`);
-    
-    if (!fileExists) {
-      console.log('File not found in storage, trying direct URL download as fallback');
-    }
-    
     // Direct URL for download
-    const baseUrl = import.meta.env.VITE_SUPABASE_URL || "https://mrueqpffzauvdxmuwhfa.supabase.co";
-    const normalizedPath = normalizeFilePath(filePath);
-    const directUrl = `${baseUrl}/storage/v1/object/public/${effectiveBucket}/${normalizedPath}`;
+    const directUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
     console.log('Using direct URL for download:', directUrl);
     
     try {
       // Fetch the file as a blob
       const response = await fetch(directUrl);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      
       const blob = await response.blob();
       
       // Create blob URL
@@ -761,19 +477,10 @@ export const downloadFile = async (bucketName: string, filePath: string, fileNam
 
 export const openFile = async (bucketName: string, filePath: string) => {
   try {
-    // Ensure bucket exists before attempting to open
-    await ensureAllRequiredBuckets();
+    // Always use event_attachments bucket
+    const effectiveBucket = "event_attachments";
     
-    // Use specified bucket or default to event_attachments
-    const effectiveBucket = bucketName || "event_attachments";
-    const normalizedPath = normalizeFilePath(filePath);
-    
-    // Check if file exists in the bucket
-    const fileExists = await checkIfFileExists(effectiveBucket, normalizedPath);
-    console.log(`File existence check before open: ${fileExists}`);
-    
-    const baseUrl = import.meta.env.VITE_SUPABASE_URL || "https://mrueqpffzauvdxmuwhfa.supabase.co";
-    const directUrl = `${baseUrl}/storage/v1/object/public/${effectiveBucket}/${normalizedPath}`;
+    const directUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
     
     console.log('Opening file with direct URL:', directUrl);
     
@@ -786,24 +493,3 @@ export const openFile = async (bucketName: string, filePath: string) => {
     return { success: false, message: 'Failed to open file' };
   }
 };
-
-async function checkIfFileExists(bucketName: string, filePath: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase.storage
-      .from(bucketName)
-      .list(filePath, { 
-        limit: 1,
-        sortBy: { column: 'name', order: 'asc' }
-      });
-      
-    if (error) {
-      console.error('Error checking file existence:', error);
-      return false;
-    }
-    
-    return data && data.length > 0;
-  } catch (error) {
-    console.error('Error checking file existence:', error);
-    return false;
-  }
-}
