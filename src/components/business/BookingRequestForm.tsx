@@ -16,25 +16,48 @@ import { cn } from "@/lib/utils";
 
 interface BookingRequestFormProps {
   businessId: string;
-  selectedSlot: {
+  selectedDate?: Date;
+  startTime?: string;
+  endTime?: string;
+  isOpen?: boolean;
+  onClose?: () => void;
+  onBookingCreated?: () => void;
+  // New props to match Calendar.tsx usage
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onSuccess?: () => void;
+  isExternalBooking?: boolean;
+  selectedSlot?: {
     start: Date;
     end: Date;
   } | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onBookingCreated: () => void;
 }
 
 export const BookingRequestForm = ({
   businessId,
-  selectedSlot,
+  selectedDate,
+  startTime,
+  endTime,
   isOpen,
   onClose,
   onBookingCreated,
+  // Handle new props
+  open,
+  onOpenChange,
+  onSuccess,
+  isExternalBooking,
+  selectedSlot,
 }: BookingRequestFormProps) => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const isGeorgian = language === 'ka';
+
+  // Use either the old or new props for dialog open state
+  const dialogIsOpen = isOpen || open || false;
+  const handleClose = () => {
+    if (onClose) onClose();
+    if (onOpenChange) onOpenChange(false);
+  };
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -53,8 +76,24 @@ export const BookingRequestForm = ({
       const formattedEnd = format(selectedSlot.end, "yyyy-MM-dd'T'HH:mm");
       setStartDate(formattedStart);
       setEndDate(formattedEnd);
+    } else if (selectedDate) {
+      // Use selected date with start and end times if provided
+      const date = format(selectedDate, "yyyy-MM-dd");
+      if (startTime && endTime) {
+        setStartDate(`${date}T${startTime}`);
+        setEndDate(`${date}T${endTime}`);
+      } else {
+        // Default to current time + 1 hour if no times specified
+        const startHour = format(selectedDate, "HH:mm");
+        const endHourDate = new Date(selectedDate);
+        endHourDate.setHours(endHourDate.getHours() + 1);
+        const endHour = format(endHourDate, "HH:mm");
+        
+        setStartDate(`${date}T${startHour}`);
+        setEndDate(`${date}T${endHour}`);
+      }
     }
-  }, [selectedSlot]);
+  }, [selectedSlot, selectedDate, startTime, endTime]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,8 +191,10 @@ export const BookingRequestForm = ({
       setNotes("");
       setSelectedFile(null);
       
-      onClose();
-      onBookingCreated();
+      // Call the appropriate success callbacks
+      handleClose();
+      if (onBookingCreated) onBookingCreated();
+      if (onSuccess) onSuccess();
       
     } catch (error: any) {
       console.error('Booking request error:', error);
@@ -168,12 +209,20 @@ export const BookingRequestForm = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={dialogIsOpen} onOpenChange={handleClose}>
       <DialogContent className="max-h-[90vh] overflow-y-auto max-w-lg w-full">
         <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")}>
           {t("business.bookAppointment")}
         </DialogTitle>
         
+        {selectedDate && (
+          <div className="text-muted-foreground mb-4">
+            {format(selectedDate, "EEEE, MMMM d, yyyy")}
+            <br />
+            {startTime && endTime ? `${startTime} - ${endTime}` : format(selectedDate, "HH:mm")}
+          </div>
+        )}
+
         {selectedSlot && (
           <div className="text-muted-foreground mb-4">
             {format(selectedSlot.start, "EEEE, MMMM d, yyyy")}
