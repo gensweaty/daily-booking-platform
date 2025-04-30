@@ -428,17 +428,22 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         throw createError;
       }
       
-      // Copy booking files to the new event
-      let associatedFiles = [];
+      // Associate booking files with the new event
+      let associatedFiles = null;
       try {
-        associatedFiles = await associateBookingFilesWithEvent(
+        const associatedFile = await associateBookingFilesWithEvent(
           bookingRequestId, 
           newEvent.id, 
           user.id
         );
+        
+        // Create an array with the file if it exists
+        associatedFiles = associatedFile ? [associatedFile] : [];
+        
         console.log("Associated files with new event:", associatedFiles);
       } catch (fileError) {
         console.error("Error copying booking files:", fileError);
+        associatedFiles = [];
       }
       
       // Create a customer record if we have customer data in the booking
