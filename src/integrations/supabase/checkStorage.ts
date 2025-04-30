@@ -38,8 +38,9 @@ const checkOrCreateBucket = async (bucketName: string): Promise<boolean> => {
       
       // Create a default public policy for the bucket
       try {
-        const { error: policyError } = await supabase.rpc('create_public_bucket_policy', { 
-          bucket_name: bucketName 
+        // Use the generic function call to avoid TypeScript type errors
+        const { error: policyError } = await supabase.functions.invoke('create-storage-policy', {
+          body: { bucketName }
         });
         
         if (policyError) {

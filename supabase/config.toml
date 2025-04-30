@@ -1,23 +1,29 @@
 
 project_id = "mrueqpffzauvdxmuwhfa"
 
-[functions.send-booking-request-notification]
-verify_jwt = false
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
 
-[functions.send-booking-approval-email]
-verify_jwt = false
+[db]
+port = 54322
 
-[functions.send-contact-email]
-verify_jwt = false
+[studio]
+port = 54323
 
-[functions.handle-paypal-webhook]
-verify_jwt = false
+[inbucket]
+port = 54324
 
-[functions.handle-subscription-redirect]
-verify_jwt = false
+[storage]
+enabled = true
 
-[functions.process-renewals]
-verify_jwt = false
+[auth]
+enabled = true
 
-[functions.verify-paypal-payment]
-verify_jwt = false
+[realtime]
+enabled = true
+
+[functions]
+[functions.create-storage-policy]
+verify_jwt = true
