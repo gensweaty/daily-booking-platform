@@ -30,6 +30,7 @@ interface FileUploadFieldProps {
   chooseFileText?: string; // Added to support BusinessProfileForm
   noFileText?: string; // Added to support BusinessProfileForm
   maxSizeMB?: number; // Added to support BusinessProfileForm
+  selectedFile?: File | null; // Added to support explicit passing of selected file
 }
 
 export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps>(({
@@ -47,14 +48,25 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   uploadText,
   chooseFileText,
   noFileText,
-  maxSizeMB
+  maxSizeMB,
+  selectedFile
 }, ref) => {
   const { t } = useLanguage();
   const [localFileError, setLocalFileError] = useState("");
+  const [fileSelected, setFileSelected] = useState<string>("");
   
   // Use either provided error state or local state if not provided
   const actualFileError = fileError || localFileError;
   const actualSetFileError = setFileError || setLocalFileError;
+
+  // Update fileSelected state when selectedFile prop changes
+  useEffect(() => {
+    if (selectedFile) {
+      setFileSelected(selectedFile.name);
+    } else {
+      setFileSelected("");
+    }
+  }, [selectedFile]);
 
   const validateFile = (file: File) => {
     const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
@@ -86,12 +98,16 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
       const error = validateFile(selectedFile);
       if (error) {
         actualSetFileError(error);
+        setFileSelected("");
         if (onChange) onChange(null);
         if (onFileChange) onFileChange(null);
         return;
       }
+      setFileSelected(selectedFile.name);
       if (onChange) onChange(selectedFile);
       if (onFileChange) onFileChange(selectedFile);
+    } else {
+      setFileSelected("");
     }
   };
 
@@ -129,6 +145,10 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
         disabled={disabled}
         ref={ref}
       />
+      
+      {fileSelected && (
+        <p className="text-xs text-gray-500 mt-1">Selected: {fileSelected}</p>
+      )}
       
       {actualFileError && (
         <p className="text-sm text-red-500 mt-1">{actualFileError}</p>
