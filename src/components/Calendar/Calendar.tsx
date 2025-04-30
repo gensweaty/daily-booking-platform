@@ -333,13 +333,13 @@ export const Calendar = ({
           <DialogContent className="sm:max-w-md">
             {bookingDate && (
               <BookingRequestForm
-                isOpen={isBookingFormOpen}
-                onClose={() => setIsBookingFormOpen(false)}
+                open={isBookingFormOpen}
+                onOpenChange={setIsBookingFormOpen}
                 businessId={businessId}
                 selectedDate={bookingDate}
                 startTime={bookingStartTime}
                 endTime={bookingEndTime}
-                onBookingCreated={handleBookingSuccess}
+                onSuccess={handleBookingSuccess}
                 isExternalBooking={true}
               />
             )}

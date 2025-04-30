@@ -30,7 +30,6 @@ interface FileUploadFieldProps {
   chooseFileText?: string; // Added to support BusinessProfileForm
   noFileText?: string; // Added to support BusinessProfileForm
   maxSizeMB?: number; // Added to support BusinessProfileForm
-  selectedFile?: File | null; // Added to support explicit passing of selected file
 }
 
 export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps>(({
@@ -48,25 +47,14 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   uploadText,
   chooseFileText,
   noFileText,
-  maxSizeMB,
-  selectedFile
+  maxSizeMB
 }, ref) => {
   const { t } = useLanguage();
   const [localFileError, setLocalFileError] = useState("");
-  const [fileSelected, setFileSelected] = useState<string>("");
   
   // Use either provided error state or local state if not provided
   const actualFileError = fileError || localFileError;
   const actualSetFileError = setFileError || setLocalFileError;
-
-  // Update fileSelected state when selectedFile prop changes
-  useEffect(() => {
-    if (selectedFile) {
-      setFileSelected(selectedFile.name);
-    } else {
-      setFileSelected("");
-    }
-  }, [selectedFile]);
 
   const validateFile = (file: File) => {
     const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
@@ -98,16 +86,12 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
       const error = validateFile(selectedFile);
       if (error) {
         actualSetFileError(error);
-        setFileSelected("");
         if (onChange) onChange(null);
         if (onFileChange) onFileChange(null);
         return;
       }
-      setFileSelected(selectedFile.name);
       if (onChange) onChange(selectedFile);
       if (onFileChange) onFileChange(selectedFile);
-    } else {
-      setFileSelected("");
     }
   };
 
@@ -132,27 +116,12 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
         </div>
       )}
       
-      <div className="flex items-center gap-2">
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={() => document.getElementById('file')?.click()}
-          className="cursor-pointer"
-          disabled={disabled}
-        >
-          {chooseFileText || t("common.chooseFile")}
-        </Button>
-        <span className="text-sm text-muted-foreground">
-          {fileSelected ? fileSelected : (noFileText || t("common.noFileChosen"))}
-        </span>
-      </div>
-      
       <Input
         id="file"
         type="file"
         onChange={handleFileChange}
         accept={acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")}
-        className="sr-only"
+        className="cursor-pointer bg-background border-gray-300"
         onClick={(e) => {
           // Reset value before opening to ensure onChange triggers even if same file is selected
           (e.target as HTMLInputElement).value = '';
@@ -177,6 +146,3 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
 });
 
 FileUploadField.displayName = "FileUploadField";
-
-// Add missing Button import
-import { Button } from "@/components/ui/button";
