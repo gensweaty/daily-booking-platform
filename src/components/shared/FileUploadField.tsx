@@ -30,6 +30,8 @@ interface FileUploadFieldProps {
   chooseFileText?: string; // Added to support BusinessProfileForm
   noFileText?: string; // Added to support BusinessProfileForm
   maxSizeMB?: number; // Added to support BusinessProfileForm
+  selectedFile?: File | null; // Add this prop to support BookingRequestForm
+  setSelectedFile?: React.Dispatch<React.SetStateAction<File | null>>; // Add this prop to support BookingRequestForm
 }
 
 export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps>(({
@@ -47,7 +49,9 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   uploadText,
   chooseFileText,
   noFileText,
-  maxSizeMB
+  maxSizeMB,
+  selectedFile,
+  setSelectedFile
 }, ref) => {
   const { t } = useLanguage();
   const [localFileError, setLocalFileError] = useState("");
@@ -78,20 +82,22 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault(); // Prevent default behavior
-    const selectedFile = e.target.files?.[0];
+    const selectedFileFromInput = e.target.files?.[0];
     actualSetFileError("");
 
-    if (selectedFile) {
-      console.log(`Selected file: ${selectedFile.name}, Size: ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB, Type: ${selectedFile.type}`);
-      const error = validateFile(selectedFile);
+    if (selectedFileFromInput) {
+      console.log(`Selected file: ${selectedFileFromInput.name}, Size: ${(selectedFileFromInput.size / 1024 / 1024).toFixed(2)}MB, Type: ${selectedFileFromInput.type}`);
+      const error = validateFile(selectedFileFromInput);
       if (error) {
         actualSetFileError(error);
         if (onChange) onChange(null);
         if (onFileChange) onFileChange(null);
+        if (setSelectedFile) setSelectedFile(null);
         return;
       }
-      if (onChange) onChange(selectedFile);
-      if (onFileChange) onFileChange(selectedFile);
+      if (onChange) onChange(selectedFileFromInput);
+      if (onFileChange) onFileChange(selectedFileFromInput);
+      if (setSelectedFile) setSelectedFile(selectedFileFromInput);
     }
   };
 
