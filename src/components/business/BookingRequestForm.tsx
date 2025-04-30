@@ -1,11 +1,6 @@
-
 import { useState, useRef, useEffect } from 'react';
-import { z } from 'zod';
 import { format } from 'date-fns';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
@@ -156,7 +151,8 @@ export const BookingRequestForm = ({
         requester_name: fullName,
         requester_email: socialNetworkLink,
         requester_phone: userNumber || null,
-        title: `Booking Request - ${fullName}`,
+        // Use fullName for both title and requester_name to ensure consistency
+        title: `${fullName}`,
         description: eventNotes || null,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
@@ -444,6 +440,7 @@ export const BookingRequestForm = ({
             setFileError={setFileError}
             selectedFile={selectedFile}
             ref={fileInputRef}
+            acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
           />
         </div>
         

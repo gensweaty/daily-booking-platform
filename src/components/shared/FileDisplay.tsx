@@ -1,6 +1,7 @@
+
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
-import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
+import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, FilePresentationIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -62,6 +63,16 @@ export const FileDisplay = ({
   };
 
   const getFileIcon = (filename: string) => {
+    const ext = getFileExtension(filename);
+    
+    if (['pdf', 'doc', 'docx'].includes(ext)) {
+      return <FileText className="h-5 w-5" />;
+    } else if (['xls', 'xlsx', 'csv'].includes(ext)) {
+      return <FileSpreadsheet className="h-5 w-5" />;
+    } else if (['ppt', 'pptx'].includes(ext)) {
+      return <FilePresentationIcon className="h-5 w-5" />;
+    }
+    
     return <FileIcon className="h-5 w-5" />;
   };
 
