@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -63,7 +62,6 @@ export const BookingRequestForm = ({
     return time;
   };
 
-  // Function to combine date and time
   const combineDateAndTime = (date: Date, timeString: string) => {
     const [hours, minutes] = timeString.split(':').map(Number);
     const newDate = new Date(date);
@@ -96,7 +94,6 @@ export const BookingRequestForm = ({
 
       console.log('Submitting booking request:', bookingData);
 
-      // Insert booking request
       const { data, error } = await supabase
         .from('booking_requests')
         .insert(bookingData)
@@ -110,13 +107,11 @@ export const BookingRequestForm = ({
 
       const bookingId = data.id;
 
-      // Handle file upload if provided
       if (selectedFile && bookingId) {
         try {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${bookingId}/${Date.now()}.${fileExt}`;
 
-          // Upload file to booking_attachments bucket
           const { error: uploadError } = await supabase.storage
             .from('booking_attachments')
             .upload(filePath, selectedFile);
@@ -128,13 +123,12 @@ export const BookingRequestForm = ({
 
           console.log('File uploaded successfully to path:', filePath);
 
-          // Create file record in event_files table
           const fileRecord = {
             filename: selectedFile.name,
             file_path: filePath,
             content_type: selectedFile.type,
             size: selectedFile.size,
-            event_id: bookingId // Using bookingId as event_id for later reference
+            event_id: bookingId
           };
 
           const { error: fileRecordError } = await supabase
@@ -148,7 +142,6 @@ export const BookingRequestForm = ({
           }
         } catch (fileError) {
           console.error('Error handling file upload:', fileError);
-          // Continue with form submission even if file upload fails
         }
       }
 
@@ -174,7 +167,6 @@ export const BookingRequestForm = ({
         onOpenChange(false);
       }
 
-      // Try to send email notification to business owner
       try {
         await fetch(
           "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
@@ -290,10 +282,9 @@ export const BookingRequestForm = ({
                 <FormLabel>{t('Attach file')} ({t('optional')})</FormLabel>
                 <FormControl>
                   <FileUploadField
-                    selectedFile={selectedFile}
-                    setSelectedFile={handleFileChange}
-                    error={fileError}
-                    setError={setFileError}
+                    onFileChange={handleFileChange}
+                    fileError={fileError}
+                    setFileError={setFileError}
                     ref={fileInputRef}
                   />
                 </FormControl>

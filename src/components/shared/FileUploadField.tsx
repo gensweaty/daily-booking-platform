@@ -1,7 +1,7 @@
 
 import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { LanguageText } from "./LanguageText";
 
 const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
@@ -32,13 +32,13 @@ interface FileUploadFieldProps {
   maxSizeMB?: number; // Added to support BusinessProfileForm
 }
 
-export const FileUploadField = ({ 
+export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps>(({
   onChange,
   onUpload,
-  onFileChange, 
+  onFileChange,
   fileError = "",
   setFileError = () => {},
-  acceptedFileTypes, 
+  acceptedFileTypes,
   hideLabel = false,
   hideDescription = false,
   disabled = false,
@@ -48,7 +48,7 @@ export const FileUploadField = ({
   chooseFileText,
   noFileText,
   maxSizeMB
-}: FileUploadFieldProps) => {
+}, ref) => {
   const { t } = useLanguage();
   const [localFileError, setLocalFileError] = useState("");
   
@@ -127,6 +127,7 @@ export const FileUploadField = ({
           (e.target as HTMLInputElement).value = '';
         }}
         disabled={disabled}
+        ref={ref}
       />
       
       {actualFileError && (
@@ -142,4 +143,6 @@ export const FileUploadField = ({
       )}
     </div>
   );
-};
+});
+
+FileUploadField.displayName = "FileUploadField";
