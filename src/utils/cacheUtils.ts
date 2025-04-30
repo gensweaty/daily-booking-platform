@@ -86,6 +86,7 @@ export const forceCalendarRefresh = async (queryClient: QueryClient) => {
     
     // Then invalidate all queries
     await invalidateAndRefetch(queryClient, keys, {
+      exact: false,
       refetchType: 'all',
       delay: 100
     });

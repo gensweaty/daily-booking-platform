@@ -1,7 +1,8 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { FileRecord } from "@/types/files";
-import { useQueryClient } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
+import { PostgrestResponse } from "@supabase/supabase-js";
 
 // Standardized storage bucket names
 export const STORAGE_BUCKETS = {
@@ -182,7 +183,7 @@ export const associateFilesWithEntity = async (
     const createdFileRecords: FileRecord[] = [];
     
     // Source table name based on source type
-    let sourceTable = sourceType === 'booking' ? 'booking_requests' : 
+    const sourceTable = sourceType === 'booking' ? 'booking_requests' : 
                       sourceType === 'event' ? 'events' : 'customers';
     
     // First, check if there are any files in the corresponding files table with the source ID
@@ -196,7 +197,7 @@ export const associateFilesWithEntity = async (
     
     // Get files from the source entity
     const { data: existingFiles, error: existingFilesError } = await supabase
-      .from(fileTable)
+      .from(fileTable as any)
       .select('*')
       .eq(sourceType === 'booking' || sourceType === 'event' ? 'event_id' : 'customer_id', sourceId);
       
@@ -211,6 +212,12 @@ export const associateFilesWithEntity = async (
       
       for (const file of existingFiles) {
         try {
+          // Check if file has the required properties
+          if (!file.file_path || !file.filename) {
+            console.error('File record is missing required properties:', file);
+            continue;
+          }
+
           // Get the actual file data from storage
           const { data: fileData, error: downloadError } = await supabase.storage
             .from(STORAGE_BUCKETS.EVENT)
@@ -248,8 +255,8 @@ export const associateFilesWithEntity = async (
             .insert({
               filename: file.filename,
               file_path: newFilePath,
-              content_type: file.content_type,
-              size: file.size,
+              content_type: file.content_type || 'application/octet-stream',
+              size: file.size || 0,
               user_id: userId,
               [targetField]: targetId,
               source: `${sourceType}_association`
@@ -264,7 +271,7 @@ export const associateFilesWithEntity = async (
             createdFileRecords.push(newFileRecord as FileRecord);
           }
         } catch (error) {
-          console.error(`Error processing file ${file.filename}:`, error);
+          console.error(`Error processing file ${file.filename || 'unknown'}:`, error);
         }
       }
     } else {
@@ -281,65 +288,72 @@ export const associateFilesWithEntity = async (
         
       if (sourceError) {
         console.error(`Error fetching ${sourceType} data:`, sourceError);
-      } else if (sourceData && sourceData.file_path && sourceData.filename) {
-        try {
-          console.log(`Processing direct file from ${sourceTable}: ${sourceData.filename}`);
-          
-          // Download the file from the source bucket
-          const sourceBucket = sourceType === 'booking' ? STORAGE_BUCKETS.BOOKING : STORAGE_BUCKETS.EVENT;
-          const { data: fileData, error: downloadError } = await supabase.storage
-            .from(sourceBucket)
-            .download(normalizeFilePath(sourceData.file_path));
+      } else if (sourceData) {
+        // Check if the booking has file fields
+        const hasFileFields = sourceData.file_path && sourceData.filename;
+        
+        if (hasFileFields) {
+          try {
+            console.log(`Processing direct file from ${sourceTable}: ${sourceData.filename}`);
             
-          if (downloadError) {
-            console.error(`Error downloading file from ${sourceBucket}:`, downloadError);
-          } else if (fileData) {
-            // Generate a new unique file path for the target entity
-            const fileExtension = sourceData.filename.includes('.') ? 
-              sourceData.filename.split('.').pop() || 'bin' : 'bin';
-            
-            const newFilePath = `${targetId}/${crypto.randomUUID()}.${fileExtension}`;
-            
-            // Upload to event_attachments
-            const { error: uploadError } = await supabase.storage
-              .from(STORAGE_BUCKETS.EVENT)
-              .upload(newFilePath, fileData, { 
-                contentType: sourceData.content_type || 'application/octet-stream' 
-              });
+            // Download the file from the source bucket
+            const sourceBucket = sourceType === 'booking' ? STORAGE_BUCKETS.BOOKING : STORAGE_BUCKETS.EVENT;
+            const { data: fileData, error: downloadError } = await supabase.storage
+              .from(sourceBucket)
+              .download(normalizeFilePath(sourceData.file_path));
               
-            if (uploadError) {
-              console.error(`Error uploading file to ${STORAGE_BUCKETS.EVENT}:`, uploadError);
-            } else {
-              console.log(`Successfully copied file to ${STORAGE_BUCKETS.EVENT}/${newFilePath}`);
+            if (downloadError) {
+              console.error(`Error downloading file from ${sourceBucket}:`, downloadError);
+            } else if (fileData) {
+              // Generate a new unique file path for the target entity
+              const fileExtension = sourceData.filename.includes('.') ? 
+                sourceData.filename.split('.').pop() || 'bin' : 'bin';
               
-              // Create record in the target files table
-              const targetTable = targetType === 'event' ? 'event_files' : 'customer_files_new';
-              const targetField = targetType === 'event' ? 'event_id' : 'customer_id';
+              const newFilePath = `${targetId}/${crypto.randomUUID()}.${fileExtension}`;
               
-              const { data: fileRecord, error: fileRecordError } = await supabase
-                .from(targetTable)
-                .insert({
-                  filename: sourceData.filename,
-                  file_path: newFilePath,
-                  content_type: sourceData.content_type || 'application/octet-stream',
-                  size: sourceData.size || 0,
-                  user_id: userId,
-                  [targetField]: targetId,
-                  source: `${sourceType}_direct`
-                })
-                .select()
-                .single();
+              // Upload to event_attachments
+              const { error: uploadError } = await supabase.storage
+                .from(STORAGE_BUCKETS.EVENT)
+                .upload(newFilePath, fileData, { 
+                  contentType: sourceData.content_type || 'application/octet-stream' 
+                });
                 
-              if (fileRecordError) {
-                console.error(`Error creating file record in ${targetTable}:`, fileRecordError);
-              } else if (fileRecord) {
-                console.log(`Created file record in ${targetTable}:`, fileRecord);
-                createdFileRecords.push(fileRecord as FileRecord);
+              if (uploadError) {
+                console.error(`Error uploading file to ${STORAGE_BUCKETS.EVENT}:`, uploadError);
+              } else {
+                console.log(`Successfully copied file to ${STORAGE_BUCKETS.EVENT}/${newFilePath}`);
+                
+                // Create record in the target files table
+                const targetTable = targetType === 'event' ? 'event_files' : 'customer_files_new';
+                const targetField = targetType === 'event' ? 'event_id' : 'customer_id';
+                
+                const { data: fileRecord, error: fileRecordError } = await supabase
+                  .from(targetTable)
+                  .insert({
+                    filename: sourceData.filename,
+                    file_path: newFilePath,
+                    content_type: sourceData.content_type || 'application/octet-stream',
+                    size: sourceData.size || 0,
+                    user_id: userId,
+                    [targetField]: targetId,
+                    source: `${sourceType}_direct`
+                  })
+                  .select()
+                  .single();
+                  
+                if (fileRecordError) {
+                  console.error(`Error creating file record in ${targetTable}:`, fileRecordError);
+                } else if (fileRecord) {
+                  console.log(`Created file record in ${targetTable}:`, fileRecord);
+                  createdFileRecords.push(fileRecord as FileRecord);
+                }
               }
             }
+          } catch (error) {
+            console.error(`Error processing direct file from ${sourceType}:`, error);
           }
-        } catch (error) {
-          console.error(`Error processing direct file from ${sourceType}:`, error);
+        } else {
+          console.log(`No direct file fields found in ${sourceType} ${sourceId}`);
         }
       }
     }
@@ -352,7 +366,7 @@ export const associateFilesWithEntity = async (
 };
 
 // Helper function to invalidate all file-related query caches
-export const invalidateFileQueries = (queryClient: any) => {
+export const invalidateFileQueries = (queryClient: QueryClient) => {
   queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
   queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
   queryClient.invalidateQueries({ queryKey: ['noteFiles'] });
