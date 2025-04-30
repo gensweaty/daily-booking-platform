@@ -36,14 +36,17 @@ export const associateBookingFilesWithEvent = async (bookingId: string, eventId:
               'file_path' in bookingData && 
               bookingData.file_path) {
       // Now we safely check if file_path exists in the object
-      const filename = bookingData.filename || 'attachment';
+      // Use optional chaining and default values to avoid property access errors
+      const filename = 'filename' in bookingData && bookingData.filename ? bookingData.filename : 'attachment';
       console.log(`Found file directly on booking request: ${filename}`);
       
       // Process file from booking_requests (safely accessing properties)
-      const originalFilePath = bookingData.file_path;
+      const originalFilePath = bookingData.file_path as string;
       const originalFileName = filename;
-      const originalContentType = bookingData.content_type || 'application/octet-stream';
-      const originalSize = bookingData.size || 0;
+      const originalContentType = 'content_type' in bookingData && bookingData.content_type ? 
+        bookingData.content_type as string : 'application/octet-stream';
+      const originalSize = 'size' in bookingData && bookingData.size ? 
+        Number(bookingData.size) : 0;
       
       try {
         // Download the file from booking_attachments
