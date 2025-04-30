@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
@@ -17,7 +16,7 @@ export const getStorageUrl = (): string => {
   return `${supabaseUrl}/storage/v1`;
 };
 
-// Helper function to associate booking request files with an approved event
+// Helper function to associate files from booking requests with new calendar events
 export const associateBookingFilesWithEvent = async (bookingId: string, eventId: string): Promise<void> => {
   try {
     console.log(`Associating files from booking ${bookingId} with event ${eventId}`);

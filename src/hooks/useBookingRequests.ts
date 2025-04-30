@@ -138,23 +138,27 @@ export const useBookingRequests = () => {
       // Create event in calendar based on booking request
       console.log("Creating calendar event from booking request:", request);
       
-      // Map booking request to calendar event
-      const eventData: Partial<CalendarEventType> = {
-        title: request.requester_name,
+      // Ensure all required fields are explicitly set
+      const eventData = {
+        title: request.title || request.requester_name || "Booking",
         user_surname: request.requester_name,
         user_number: request.requester_phone,
         social_network_link: request.requester_email,
         event_notes: request.description,
         start_date: request.start_date,
         end_date: request.end_date,
-        type: "event",
-        payment_status: "not_paid",
+        type: "event", // Required field with definite value
+        payment_status: request.payment_status || "not_paid",
+        payment_amount: request.payment_amount,
+        user_id: user.id, // Required field
         original_booking_id: id  // Store original booking id for file association
       };
       
+      console.log("Creating event with data:", eventData);
+      
       const { data: newEvent, error: eventError } = await supabase
         .from("events")
-        .insert([{ ...eventData, user_id: user.id }])
+        .insert([eventData])
         .select()
         .single();
         
@@ -249,14 +253,14 @@ export const useBookingRequests = () => {
     (id: string) => {
       return rejectMutation.mutateAsync(id);
     },
-    [rejectMutation, toast, queryClient, t]
+    [rejectMutation]
   );
 
   const deleteBookingRequest = useCallback(
     (id: string) => {
       return deleteMutation.mutateAsync(id);
     },
-    [deleteMutation, toast, queryClient, t]
+    [deleteMutation]
   );
 
   return {
