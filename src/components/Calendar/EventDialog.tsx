@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
-import { ensureEventAttachmentsBucket } from "@/integrations/supabase/checkStorage";
-import { uploadEventFile, copyBookingFilesToEvent } from "@/lib/fileUtils";
 
 interface EventDialogProps {
   open: boolean;
@@ -50,22 +49,12 @@ export const EventDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
   const [isBookingEvent, setIsBookingEvent] = useState(false);
   const isGeorgian = language === 'ka';
-
-  // When dialog opens, ensure storage buckets exist
-  useEffect(() => {
-    if (open) {
-      ensureEventAttachmentsBucket().catch(err => {
-        console.error("Error ensuring event attachments bucket:", err);
-      });
-    }
-  }, [open]);
 
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
@@ -128,43 +117,54 @@ export const EventDialog = ({
       setSocialNetworkLink("");
       setEventNotes("");
       setPaymentAmount("");
-      
-      // Reset file state
-      setSelectedFile(null);
-      setFileError("");
     }
   }, [selectedDate, event, open]);
 
-  // Simplified approach to load files for this event
+  // Load files for this event
   useEffect(() => {
     const loadFiles = async () => {
-      if (!event?.id) {
-        setDisplayedFiles([]);
-        return;
-      }
-      
-      try {
-        setIsLoading(true);
-        console.log("Loading files for event:", event.id);
-        
-        // Direct query to event_files by event_id - simplified approach
-        const { data, error } = await supabase
-          .from('event_files')
-          .select('*')
-          .eq('event_id', event.id);
+      if (event?.id) {
+        try {
+          console.log("Loading files for event:", event.id);
           
-        if (error) {
-          console.error("Error loading event files:", error);
-          setDisplayedFiles([]);
-        } else {
-          console.log("Found files for event:", data?.length || 0);
-          setDisplayedFiles(data || []);
+          // First get event files directly
+          const { data: eventFiles, error: eventFilesError } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', event.id);
+            
+          if (eventFilesError) {
+            console.error("Error loading event files:", eventFilesError);
+            return;
+          }
+          
+          // Use a Set to track unique file IDs to avoid duplicates
+          const uniqueFileIds = new Set<string>();
+          const uniqueFiles: any[] = [];
+          
+          if (eventFiles && eventFiles.length > 0) {
+            eventFiles.forEach(file => {
+              if (!uniqueFileIds.has(file.id)) {
+                uniqueFileIds.add(file.id);
+                uniqueFiles.push({
+                  ...file,
+                  parentType: 'event'
+                });
+              }
+            });
+          }
+          
+          if (uniqueFiles.length > 0) {
+            console.log("Loaded unique event files:", uniqueFiles);
+            setDisplayedFiles(uniqueFiles);
+          } else {
+            console.log("No files found for event:", event.id);
+            setDisplayedFiles([]);
+          }
+          
+        } catch (err) {
+          console.error("Exception loading event files:", err);
         }
-      } catch (err) {
-        console.error("Exception loading event files:", err);
-        setDisplayedFiles([]);
-      } finally {
-        setIsLoading(false);
       }
     };
     
@@ -172,33 +172,6 @@ export const EventDialog = ({
       loadFiles();
     }
   }, [event, open]);
-
-  // Helper function to guess content type from filename
-  function guessContentType(filename: string): string {
-    const ext = filename.split('.').pop()?.toLowerCase();
-    if (!ext) return 'application/octet-stream';
-    
-    const mimeTypes: Record<string, string> = {
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'png': 'image/png',
-      'gif': 'image/gif',
-      'webp': 'image/webp',
-      'svg': 'image/svg+xml',
-      'pdf': 'application/pdf',
-      'doc': 'application/msword',
-      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'xls': 'application/vnd.ms-excel',
-      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'txt': 'text/plain',
-      'csv': 'text/csv',
-      'json': 'application/json',
-      'mp4': 'video/mp4',
-      'mp3': 'audio/mpeg'
-    };
-    
-    return mimeTypes[ext] || 'application/octet-stream';
-  }
 
   const sendApprovalEmail = async (
     startDateTime: Date,
@@ -374,47 +347,43 @@ export const EventDialog = ({
         }
       }
 
-      // Handle file upload using our new unified approach
       if (selectedFile && createdEvent?.id && user) {
         try {
-          console.log('Uploading file for event:', createdEvent.id, selectedFile);
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `${crypto.randomUUID()}.${fileExt}`;
           
-          const { success, file, error: fileError } = await uploadEventFile(
-            createdEvent.id,
-            selectedFile,
-            user.id
-          );
+          console.log('Uploading file:', filePath);
           
-          if (!success) {
-            console.error("File upload failed:", fileError);
-            toast({
-              title: t("common.warning"),
-              description: t("Event created but file upload failed") + ": " + fileError,
-              variant: "destructive",
-            });
-          } else if (file) {
-            // Add the new file to the displayed files list for immediate feedback
-            setDisplayedFiles(prev => [...prev, file]);
-            console.log("File uploaded successfully:", file);
+          const { error: uploadError } = await supabase.storage
+            .from('event_attachments')
+            .upload(filePath, selectedFile);
+
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            throw uploadError;
           }
+
+          const fileData = {
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user.id,
+            event_id: createdEvent.id
+          };
+
+          const { error: fileRecordError } = await supabase
+            .from('event_files')
+            .insert(fileData);
+            
+          if (fileRecordError) {
+            console.error('Error creating file record:', fileRecordError);
+            throw fileRecordError;
+          }
+
+          console.log('File record created successfully');
         } catch (fileError) {
           console.error("Error handling file upload:", fileError);
-          toast({
-            title: t("common.warning"),
-            description: t("Event created but file upload failed"),
-            variant: "destructive",
-          });
-        }
-      }
-      
-      // For booking requests being approved, copy files from booking to event
-      if (isBookingRequest && event?.id && createdEvent?.id && event.id !== createdEvent.id) {
-        // This is a booking request being converted to an event
-        const copyResult = await copyBookingFilesToEvent(event.id, createdEvent.id);
-        if (!copyResult) {
-          console.warn("Failed to copy files from booking request to event");
-        } else {
-          console.log("Successfully copied files from booking request to event");
         }
       }
 
@@ -482,12 +451,6 @@ export const EventDialog = ({
 
   const handleFileDeleted = (fileId: string) => {
     setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
-    
-    // Refresh files after a short delay
-    setTimeout(() => {
-      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['booking-files'] });
-    }, 300);
   };
 
   return (
@@ -524,7 +487,6 @@ export const EventDialog = ({
             onFileDeleted={handleFileDeleted}
             displayedFiles={displayedFiles}
             isBookingRequest={isBookingRequest}
-            isLoading={isLoading}
           />
           
           <div className="flex justify-between gap-4">

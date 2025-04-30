@@ -1,471 +1,495 @@
+import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
+import { supabase, normalizeFilePath } from "@/lib/supabase";
+import { BookingRequest } from "@/types/database";
 
-// File handling functions
-import { supabase } from "./supabase";
-import type { FileRecord } from "@/types/files";
-import { Task, Note, Reminder } from "@/lib/types";
-import { v4 as uuidv4 } from 'uuid';
+// Rate limiting storage in localStorage
+const RATE_LIMIT_KEY = 'booking_request_last_time';
+const RATE_LIMIT_COOLDOWN = 120; // 2 minutes in seconds
 
-/**
- * Get all files for an event by event ID
- */
-export async function getEventFiles(eventId: string): Promise<FileRecord[]> {
+// Helper function to get file URL with consistent bucket handling
+export const getFileUrl = (bucketName: string, filePath: string) => {
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const normalizedPath = normalizeFilePath(filePath);
+  
+  // Always use event_attachments bucket for consistent file access
+  return `${baseUrl}/storage/v1/object/public/event_attachments/${normalizedPath}`;
+};
+
+// Check if user is rate limited for booking requests
+export const checkRateLimitStatus = async (): Promise<{ isLimited: boolean, remainingTime: number }> => {
   try {
-    console.log(`Fetching files for event ID: ${eventId}`);
+    // Get last request timestamp from localStorage
+    const lastRequestTime = localStorage.getItem(RATE_LIMIT_KEY);
+    
+    if (!lastRequestTime) {
+      return { isLimited: false, remainingTime: 0 };
+    }
+    
+    const now = Math.floor(Date.now() / 1000); // Current time in seconds
+    const timeSinceLastRequest = now - parseInt(lastRequestTime, 10);
+    
+    if (timeSinceLastRequest < RATE_LIMIT_COOLDOWN) {
+      // User is rate limited
+      const remainingTime = RATE_LIMIT_COOLDOWN - timeSinceLastRequest;
+      return { isLimited: true, remainingTime };
+    }
+    
+    return { isLimited: false, remainingTime: 0 };
+  } catch (error) {
+    console.error("Error checking rate limit:", error);
+    return { isLimited: false, remainingTime: 0 }; // Default to not limited in case of error
+  }
+};
+
+export const createBookingRequest = async (request: Omit<BookingRequest, "id" | "created_at" | "updated_at" | "status" | "user_id">) => {
+  // Get current user if available
+  const { data: userData } = await supabase.auth.getUser();
+  
+  console.log("Creating booking request:", request);
+  
+  try {
+    // Check rate limit before creating booking
+    const { isLimited } = await checkRateLimitStatus();
+    
+    if (isLimited) {
+      throw new Error("Rate limit reached. Please wait before submitting another booking request.");
+    }
+    
+    // Ensure payment_amount is properly handled when saving to the database
+    const bookingData = {
+      ...request,
+      status: 'pending',
+      user_id: userData?.user?.id || null // Allow null for public bookings
+    };
+    
+    // Make sure payment_amount is correctly formatted as a number or null
+    if (request.payment_amount !== undefined && request.payment_amount !== null) {
+      // Convert to number regardless of input type
+      const parsedAmount = Number(request.payment_amount);
+      bookingData.payment_amount = isNaN(parsedAmount) ? null : parsedAmount;
+    } else {
+      // Explicitly set to null to avoid database errors
+      bookingData.payment_amount = null;
+    }
+    
     const { data, error } = await supabase
-      .from('event_files')
-      .select('*')
-      .eq('event_id', eventId);
-      
+      .from("booking_requests")
+      .insert([bookingData])
+      .select()
+      .single();
+
     if (error) {
-      console.error('Error fetching event files:', error);
+      console.error("Error creating booking request:", error);
       throw error;
     }
     
-    console.log(`Found ${data?.length || 0} files for event`);
-    return data || [];
-  } catch (error) {
-    console.error('Exception in getEventFiles:', error);
-    return [];
-  }
-}
-
-/**
- * Get the download URL for a file
- */
-export function getFileUrl(filePath: string, bucket: string = 'event_attachments'): string {
-  // Clean up path to ensure consistent handling
-  const cleanPath = filePath.replace(/^event_attachments\//, '');
-  
-  console.log(`Getting URL for file path: ${cleanPath} in bucket: ${bucket}`);
-  
-  return supabase.storage
-    .from(bucket)
-    .getPublicUrl(cleanPath).data.publicUrl;
-}
-
-/**
- * Delete a file from both storage and database
- */
-export async function deleteFile(
-  file: FileRecord, 
-  bucket: string = 'event_attachments'
-): Promise<boolean> {
-  try {
-    // Clean up path to ensure consistent handling
-    const cleanPath = file.file_path.replace(/^event_attachments\//, '');
-    console.log(`Attempting to delete file from storage: ${cleanPath}`);
+    // Store current timestamp in localStorage for rate limiting
+    localStorage.setItem(RATE_LIMIT_KEY, Math.floor(Date.now() / 1000).toString());
     
-    // First remove from storage
-    const { error: storageError } = await supabase.storage
-      .from(bucket)
-      .remove([cleanPath]);
-      
-    if (storageError) {
-      console.error('Error removing file from storage:', storageError);
-      // Continue anyway to try removing the database record
+    console.log("Created booking request:", data);
+    return data;
+  } catch (error: any) {
+    console.error("Error in createBookingRequest:", error);
+    throw new Error(error.message || "Failed to create booking request");
+  }
+};
+
+// Test function to verify email sending functionality
+export const testEmailSending = async (recipientEmail: string): Promise<any> => {
+  try {
+    console.log("Testing email sending to:", recipientEmail);
+    
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    
+    if (!accessToken) {
+      console.error("No access token available for authenticated request");
+      throw new Error("Authentication error");
     }
     
-    // Then remove database record
-    const { error: dbError } = await supabase
-      .from('event_files')
-      .delete()
-      .eq('id', file.id);
-      
-    if (dbError) {
-      console.error('Error removing file record from database:', dbError);
-      return false;
+    const testData = {
+      recipientEmail: recipientEmail.trim(),
+      fullName: "Test User",
+      businessName: "Test Business",
+      startDate: new Date().toISOString(),
+      endDate: new Date(Date.now() + 3600000).toISOString(), // 1 hour later
+    };
+    
+    console.log("Sending test email with data:", testData);
+    
+    const response = await fetch(
+      "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+      {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(testData),
+      }
+    );
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Error sending test email:", errorText);
+      try {
+        return JSON.parse(errorText);
+      } catch (e) {
+        return { error: errorText };
+      }
     }
     
-    return true;
-  } catch (error) {
-    console.error('Exception in deleteFile:', error);
-    return false;
+    const result = await response.json();
+    console.log("Test email result:", result);
+    return result;
+  } catch (error: any) {
+    console.error("Exception in testEmailSending:", error);
+    return { 
+      error: true, 
+      message: error.message || "Unknown error",
+      stack: error.stack
+    };
   }
-}
+};
 
-// Task-related functions
-
-/**
- * Get all tasks for the current user
- */
-export async function getTasks(): Promise<Task[]> {
+// Task related functions
+export const getTasks = async (): Promise<Task[]> => {
   try {
+    const { data: userData } = await supabase.auth.getUser();
+    
+    if (!userData?.user) {
+      throw new Error("User not authenticated");
+    }
+    
     const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .order('position', { ascending: true });
+      .from("tasks")
+      .select("*")
+      .eq("user_id", userData.user.id)
+      .order("position", { ascending: true });
       
     if (error) throw error;
-    
     return data || [];
-  } catch (error) {
-    console.error('Error fetching tasks:', error);
-    return [];
+  } catch (error: any) {
+    console.error("Error fetching tasks:", error);
+    throw new Error(error.message || "Failed to fetch tasks");
   }
-}
+};
 
-/**
- * Create a new task
- */
-export async function createTask(taskData: Omit<Task, 'id' | 'created_at'>): Promise<Task | null> {
+export const createTask = async (task: Omit<Task, "id" | "created_at">): Promise<Task> => {
   try {
     const { data, error } = await supabase
-      .from('tasks')
-      .insert(taskData)
+      .from("tasks")
+      .insert([task])
       .select()
       .single();
       
     if (error) throw error;
-    
     return data;
-  } catch (error) {
-    console.error('Error creating task:', error);
-    return null;
+  } catch (error: any) {
+    console.error("Error creating task:", error);
+    throw new Error(error.message || "Failed to create task");
   }
-}
+};
 
-/**
- * Update an existing task
- */
-export async function updateTask(id: string, updates: Partial<Task>): Promise<Task | null> {
+export const updateTask = async (id: string, updates: Partial<Task>): Promise<Task> => {
   try {
     const { data, error } = await supabase
-      .from('tasks')
+      .from("tasks")
       .update(updates)
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
       
     if (error) throw error;
-    
     return data;
-  } catch (error) {
-    console.error('Error updating task:', error);
-    return null;
+  } catch (error: any) {
+    console.error("Error updating task:", error);
+    throw new Error(error.message || "Failed to update task");
   }
-}
+};
 
-/**
- * Delete a task
- */
-export async function deleteTask(id: string): Promise<boolean> {
+export const deleteTask = async (id: string): Promise<void> => {
   try {
     const { error } = await supabase
-      .from('tasks')
+      .from("tasks")
       .delete()
-      .eq('id', id);
+      .eq("id", id);
       
     if (error) throw error;
-    
-    return true;
-  } catch (error) {
-    console.error('Error deleting task:', error);
-    return false;
+  } catch (error: any) {
+    console.error("Error deleting task:", error);
+    throw new Error(error.message || "Failed to delete task");
   }
-}
+};
 
-// Note-related functions
-
-/**
- * Get all notes for the current user
- */
-export async function getNotes(): Promise<Note[]> {
+// Note related functions
+export const getNotes = async (): Promise<Note[]> => {
   try {
-    const { data, error } = await supabase
-      .from('notes')
-      .select('*')
-      .order('created_at', { ascending: false });
-      
-    if (error) throw error;
+    const { data: userData } = await supabase.auth.getUser();
     
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching notes:', error);
-    return [];
-  }
-}
-
-/**
- * Create a new note
- */
-export async function createNote(noteData: Omit<Note, 'id' | 'created_at'>): Promise<Note | null> {
-  try {
-    const { data, error } = await supabase
-      .from('notes')
-      .insert(noteData)
-      .select()
-      .single();
-      
-    if (error) throw error;
-    
-    return data;
-  } catch (error) {
-    console.error('Error creating note:', error);
-    return null;
-  }
-}
-
-/**
- * Update an existing note
- */
-export async function updateNote(id: string, updates: Partial<Note>): Promise<Note | null> {
-  try {
-    const { data, error } = await supabase
-      .from('notes')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-      
-    if (error) throw error;
-    
-    return data;
-  } catch (error) {
-    console.error('Error updating note:', error);
-    return null;
-  }
-}
-
-/**
- * Delete a note
- */
-export async function deleteNote(id: string): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('notes')
-      .delete()
-      .eq('id', id);
-      
-    if (error) throw error;
-    
-    return true;
-  } catch (error) {
-    console.error('Error deleting note:', error);
-    return false;
-  }
-}
-
-// Reminder-related functions
-
-/**
- * Get all reminders for the current user
- */
-export async function getReminders(): Promise<Reminder[]> {
-  try {
-    const { data, error } = await supabase
-      .from('reminders')
-      .select('*')
-      .order('remind_at', { ascending: true });
-      
-    if (error) throw error;
-    
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching reminders:', error);
-    return [];
-  }
-}
-
-/**
- * Create a new reminder
- */
-export async function createReminder(reminderData: Omit<Reminder, 'id' | 'created_at'>): Promise<Reminder | null> {
-  try {
-    const { data, error } = await supabase
-      .from('reminders')
-      .insert(reminderData)
-      .select()
-      .single();
-      
-    if (error) throw error;
-    
-    return data;
-  } catch (error) {
-    console.error('Error creating reminder:', error);
-    return null;
-  }
-}
-
-/**
- * Update an existing reminder
- */
-export async function updateReminder(id: string, updates: Partial<Reminder>): Promise<Reminder | null> {
-  try {
-    const { data, error } = await supabase
-      .from('reminders')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-      
-    if (error) throw error;
-    
-    return data;
-  } catch (error) {
-    console.error('Error updating reminder:', error);
-    return null;
-  }
-}
-
-/**
- * Delete a reminder
- */
-export async function deleteReminder(id: string): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('reminders')
-      .delete()
-      .eq('id', id);
-      
-    if (error) throw error;
-    
-    return true;
-  } catch (error) {
-    console.error('Error deleting reminder:', error);
-    return false;
-  }
-}
-
-/**
- * Get public calendar events
- */
-export async function getPublicCalendarEvents(businessId: string, startDate?: string, endDate?: string) {
-  try {
-    console.log('Fetching public calendar events for business:', businessId);
-    
-    // First, get the events directly from events table
-    let eventsQuery = supabase
-      .from('events')
-      .select('*')
-      .eq('user_id', businessId)
-      .is('deleted_at', null);
-    
-    if (startDate) {
-      eventsQuery = eventsQuery.gte('start_date', startDate);
+    if (!userData?.user) {
+      throw new Error("User not authenticated");
     }
     
-    if (endDate) {
-      eventsQuery = eventsQuery.lte('end_time', endDate);
+    const { data, error } = await supabase
+      .from("notes")
+      .select("*")
+      .eq("user_id", userData.user.id)
+      .order("created_at", { ascending: false });
+      
+    if (error) throw error;
+    return data || [];
+  } catch (error: any) {
+    console.error("Error fetching notes:", error);
+    throw new Error(error.message || "Failed to fetch notes");
+  }
+};
+
+export const createNote = async (note: Omit<Note, "id" | "created_at">): Promise<Note> => {
+  try {
+    const { data, error } = await supabase
+      .from("notes")
+      .insert([note])
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
+  } catch (error: any) {
+    console.error("Error creating note:", error);
+    throw new Error(error.message || "Failed to create note");
+  }
+};
+
+export const updateNote = async (id: string, updates: Partial<Note>): Promise<Note> => {
+  try {
+    const { data, error } = await supabase
+      .from("notes")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
+  } catch (error: any) {
+    console.error("Error updating note:", error);
+    throw new Error(error.message || "Failed to update note");
+  }
+};
+
+export const deleteNote = async (id: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from("notes")
+      .delete()
+      .eq("id", id);
+      
+    if (error) throw error;
+  } catch (error: any) {
+    console.error("Error deleting note:", error);
+    throw new Error(error.message || "Failed to delete note");
+  }
+};
+
+// Reminder related functions
+export const getReminders = async (): Promise<Reminder[]> => {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    
+    if (!userData?.user) {
+      throw new Error("User not authenticated");
     }
     
-    const { data: userEvents, error: eventsError } = await eventsQuery;
+    const { data, error } = await supabase
+      .from("reminders")
+      .select("*")
+      .eq("user_id", userData.user.id)
+      .order("remind_at", { ascending: true });
+      
+    if (error) throw error;
+    return data || [];
+  } catch (error: any) {
+    console.error("Error fetching reminders:", error);
+    throw new Error(error.message || "Failed to fetch reminders");
+  }
+};
+
+export const createReminder = async (reminder: Omit<Reminder, "id" | "created_at">): Promise<Reminder> => {
+  try {
+    const { data, error } = await supabase
+      .from("reminders")
+      .insert([reminder])
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
+  } catch (error: any) {
+    console.error("Error creating reminder:", error);
+    throw new Error(error.message || "Failed to create reminder");
+  }
+};
+
+export const updateReminder = async (id: string, updates: Partial<Reminder>): Promise<Reminder> => {
+  try {
+    const { data, error } = await supabase
+      .from("reminders")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
+  } catch (error: any) {
+    console.error("Error updating reminder:", error);
+    throw new Error(error.message || "Failed to update reminder");
+  }
+};
+
+export const deleteReminder = async (id: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from("reminders")
+      .delete()
+      .eq("id", id);
+      
+    if (error) throw error;
+  } catch (error: any) {
+    console.error("Error deleting reminder:", error);
+    throw new Error(error.message || "Failed to delete reminder");
+  }
+};
+
+// Calendar events for public display
+export const getPublicCalendarEvents = async (businessId: string) => {
+  try {
+    let userId = null;
+    
+    // Get the business user ID first
+    const { data: businessData, error: businessError } = await supabase
+      .from('business_profiles')
+      .select('user_id')
+      .eq('id', businessId)
+      .single();
+    
+    if (businessError) {
+      console.error('Error fetching business user ID:', businessError);
+      return { events: [], bookings: [] };
+    }
+    
+    userId = businessData?.user_id;
+    
+    if (!userId) {
+      console.error('No user ID found for business:', businessId);
+      return { events: [], bookings: [] };
+    }
+    
+    // Get events using the RPC function that bypasses RLS
+    const { data: events, error: eventsError } = await supabase
+      .rpc('get_public_events_by_user_id', { user_id_param: userId });
     
     if (eventsError) {
-      console.error('Error fetching user events:', eventsError);
+      console.error('Error fetching events:', eventsError);
+      return { events: [], bookings: [] };
     }
     
-    // Then get the approved booking requests for this business
+    // Get all approved booking requests for this business
     const { data: bookings, error: bookingsError } = await supabase
       .from('booking_requests')
       .select('*')
       .eq('business_id', businessId)
-      .eq('status', 'approved');
-    
+      .eq('status', 'approved')
+      .is('deleted_at', null); // Add check for soft-deleted bookings
+      
     if (bookingsError) {
       console.error('Error fetching approved bookings:', bookingsError);
+      return { events: events || [], bookings: [] };
     }
     
-    console.log(`Public calendar: found ${userEvents?.length || 0} direct events`);
-    console.log(`Public calendar: found ${bookings?.length || 0} booking events`);
-    
-    // Return the combined result
     return {
-      events: userEvents || [],
-      bookings: bookings || []
+      events: events || [],
+      bookings: bookings || [],
     };
   } catch (error) {
-    console.error('Error fetching public calendar events:', error);
+    console.error('Error in getPublicCalendarEvents:', error);
     return { events: [], bookings: [] };
   }
-}
+};
 
-/**
- * Upload a file for a task and create the database record
- */
-export async function uploadTaskFile(
-  taskId: string,
-  file: File,
-  userId: string
-): Promise<{ success: boolean; file?: any; error?: string }> {
+// Enhanced file handling functions with consistent bucket handling
+export const downloadFile = async (bucketName: string, filePath: string, fileName: string) => {
   try {
-    // Generate a unique filename
-    const fileExt = file.name.split('.').pop();
-    const uniqueId = uuidv4();
-    const filePath = `${taskId}/${uniqueId}.${fileExt}`;
+    console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
     
-    // Upload to storage
-    const { error: uploadError } = await supabase.storage
-      .from('task_attachments')
-      .upload(filePath, file);
-
-    if (uploadError) {
-      console.error('Error uploading file:', uploadError);
-      return { success: false, error: uploadError.message };
+    // Always use event_attachments bucket for consistent file access
+    const effectiveBucket = "event_attachments";
+    console.log(`Using effective bucket: ${effectiveBucket}`);
+    
+    // Direct URL for download
+    const directUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
+    console.log('Using direct URL for download:', directUrl);
+    
+    try {
+      // Fetch the file as a blob
+      const response = await fetch(directUrl);
+      const blob = await response.blob();
+      
+      // Create blob URL
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Create and setup anchor element
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName; // Force download behavior
+      a.style.display = 'none'; // Hide the element
+      
+      // Add to DOM, click, and clean up
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup resources
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl); // Free up memory
+      }, 100);
+      
+      return { success: true, message: 'Download started' };
+    } catch (fetchError) {
+      console.error('Fetch error:', fetchError);
+      // Fallback method as last resort
+      const a = document.createElement('a');
+      a.href = directUrl;
+      a.download = fileName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => document.body.removeChild(a), 100);
+      
+      return { success: true, message: 'Download started (fallback method)' };
     }
-    
-    // Create file record in database
-    const fileData = {
-      task_id: taskId,
-      filename: file.name,
-      file_path: filePath,
-      content_type: file.type,
-      size: file.size,
-      user_id: userId
-    };
-    
-    const { data: fileRecord, error: dbError } = await supabase
-      .from('files')
-      .insert(fileData)
-      .select()
-      .single();
-
-    if (dbError) {
-      console.error('Error creating file record:', dbError);
-      return { success: false, error: dbError.message };
-    }
-    
-    return { success: true, file: fileRecord };
   } catch (error) {
-    console.error('Exception in uploadTaskFile:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    };
+    console.error('Error downloading file:', error);
+    return { success: false, message: 'Failed to download file' };
   }
-}
+};
 
-/**
- * Delete a task file 
- */
-export async function deleteTaskFile(
-  fileId: string,
-  filePath: string
-): Promise<boolean> {
+export const openFile = async (bucketName: string, filePath: string) => {
   try {
-    // First remove from storage
-    const { error: storageError } = await supabase.storage
-      .from('task_attachments')
-      .remove([filePath]);
-      
-    if (storageError) {
-      console.error('Error removing file from storage:', storageError);
-      // Continue anyway to try removing the database record
-    }
+    // Always use event_attachments bucket
+    const effectiveBucket = "event_attachments";
     
-    // Then remove database record
-    const { error: dbError } = await supabase
-      .from('files')
-      .delete()
-      .eq('id', fileId);
-      
-    if (dbError) {
-      console.error('Error removing file record from database:', dbError);
-      return false;
-    }
+    const directUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
     
-    return true;
+    console.log('Opening file with direct URL:', directUrl);
+    
+    // Open in a new tab to prevent navigation away from the current page
+    window.open(directUrl, '_blank', 'noopener,noreferrer');
+    
+    return { success: true };
   } catch (error) {
-    console.error('Exception in deleteTaskFile:', error);
-    return false;
+    console.error('Error opening file:', error);
+    return { success: false, message: 'Failed to open file' };
   }
-}
+};
