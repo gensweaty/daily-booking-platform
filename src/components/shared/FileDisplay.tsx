@@ -1,22 +1,21 @@
 
 import { Button } from "@/components/ui/button";
-import { 
-  supabase, 
-  getStorageUrl, 
-  normalizeFilePath, 
-  STORAGE_BUCKETS, 
-  getFileUrl 
-} from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { 
+  getFileUrl, 
+  deleteFile, 
+  invalidateFileQueries,
+  STORAGE_BUCKETS 
+} from "@/services/fileService";
 import type { FileRecord } from "@/types/files";
 
 interface FileDisplayProps {
   files: FileRecord[];
-  bucketName?: string;  // This is now optional and only used as fallback
+  bucketName?: string;  // Only kept for backward compatibility
   allowDelete?: boolean;
   onFileDeleted?: (fileId: string) => void;
   parentId?: string;
@@ -25,11 +24,10 @@ interface FileDisplayProps {
 
 export const FileDisplay = ({ 
   files, 
-  bucketName, 
   allowDelete = false, 
   onFileDeleted,
   parentId,
-  parentType
+  parentType = 'event'
 }: FileDisplayProps) => {
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [fileURLs, setFileURLs] = useState<{[key: string]: string}>({});
@@ -37,19 +35,10 @@ export const FileDisplay = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  // Better debugging for files data to identify issues
+  // Verify input data for debugging
   useEffect(() => {
     if (files && files.length > 0) {
-      console.log("Files data in FileDisplay:", files);
-      
-      // Log paths for each file for debugging
-      files.forEach(file => {
-        if (file.file_path) {
-          console.log(`File ${file.filename}: Path=${file.file_path}`);
-        } else {
-          console.error(`File ${file.filename || 'unknown'} has no file_path`);
-        }
-      });
+      console.log("Files data in FileDisplay:", files.length);
     } else {
       console.log("No files provided to FileDisplay component");
     }
@@ -69,7 +58,6 @@ export const FileDisplay = ({
     const newURLs: {[key: string]: string} = {};
     uniqueFiles.forEach(file => {
       if (file.file_path) {
-        // Always use getFileUrl helper for consistent URL generation
         newURLs[file.id] = getFileUrl(file.file_path);
       }
     });
@@ -91,12 +79,9 @@ export const FileDisplay = ({
 
   const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
     try {
-      console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
+      console.log(`Downloading file: ${fileName}`);
       
-      // Always use consistent file URL approach
       const directUrl = fileURLs[fileId] || getFileUrl(filePath);
-      
-      console.log('Using direct URL for download:', directUrl);
       
       // Force download using fetch to get the blob
       const response = await fetch(directUrl);
@@ -113,17 +98,16 @@ export const FileDisplay = ({
       // Create a hidden anchor element for download
       const a = document.createElement('a');
       a.href = blobUrl;
-      a.download = fileName; // Set download attribute
-      a.style.display = 'none'; // Hide the element
+      a.download = fileName;
+      a.style.display = 'none';
       
-      // Add to DOM, trigger click, and clean up
       document.body.appendChild(a);
       a.click();
       
-      // Remove element and revoke blob URL after a delay
+      // Clean up
       setTimeout(() => {
         document.body.removeChild(a);
-        window.URL.revokeObjectURL(blobUrl); // Important: free up memory
+        window.URL.revokeObjectURL(blobUrl);
       }, 100);
       
       toast({
@@ -147,7 +131,6 @@ export const FileDisplay = ({
       }
       
       const directUrl = fileURLs[fileId] || getFileUrl(filePath);
-      console.log('Opening file with direct URL:', directUrl);
       
       // Open in a new tab
       window.open(directUrl, '_blank', 'noopener,noreferrer');
@@ -165,49 +148,19 @@ export const FileDisplay = ({
     try {
       setDeletingFileId(fileId);
       
-      // Always use EVENT_ATTACHMENTS bucket for storage operations
-      console.log(`Deleting file from bucket ${STORAGE_BUCKETS.EVENT}, path: ${filePath}`);
-      
-      const { error: storageError } = await supabase.storage
-        .from(STORAGE_BUCKETS.EVENT)
-        .remove([normalizeFilePath(filePath)]);
+      // Use the centralized deleteFile function
+      const success = await deleteFile(filePath, fileId, parentType || 'event');
 
-      if (storageError) {
-        console.error('Error deleting file from storage:', storageError);
-        throw storageError;
-      }
-      
-      // Determine the appropriate table name based on the parent type
-      let tableName: "event_files" | "customer_files_new" | "note_files" | "files" = "event_files";
-      
-      if (parentType === 'customer') {
-        tableName = "customer_files_new";
-      } else if (parentType === 'note') {
-        tableName = "note_files";
-      } else if (parentType === 'task') {
-        tableName = "files";  // Task files are stored in the "files" table
-      }
-      
-      console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);
-      const { error: dbError } = await supabase
-        .from(tableName)
-        .delete()
-        .eq('id', fileId);
-        
-      if (dbError) {
-        console.error(`Error deleting file from ${tableName}:`, dbError);
-        throw dbError;
+      if (!success) {
+        throw new Error('Failed to delete file');
       }
       
       if (onFileDeleted) {
         onFileDeleted(fileId);
       }
       
-      // Make sure to invalidate all relevant queries
-      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      // Invalidate all related queries
+      invalidateFileQueries(queryClient);
       
       toast({
         title: t("common.success"),
@@ -231,7 +184,6 @@ export const FileDisplay = ({
 
   return (
     <div className="space-y-2">
-      {/* We already have the heading in some places, so let's not duplicate it */}
       <div className="space-y-2">
         {uniqueFiles.map((file) => {
           if (!file.file_path) {
@@ -257,7 +209,7 @@ export const FileDisplay = ({
                         alt={file.filename}
                         className="h-full w-full object-cover"
                         onError={(e) => {
-                          console.error('Image failed to load', e, 'URL:', imageUrl);
+                          console.error('Image failed to load', e);
                           e.currentTarget.src = '/placeholder.svg';
                         }}
                       />

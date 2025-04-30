@@ -3,6 +3,7 @@ import { useState, useCallback } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { invalidateFileQueries } from "@/services/fileService";
 
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -20,6 +21,37 @@ export const useEventDialog = ({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Function to properly invalidate all relevant caches
+  const invalidateAllCaches = useCallback(() => {
+    // Invalidate all event-related queries with shorter stale time
+    queryClient.invalidateQueries({ 
+      queryKey: ['events'],
+      refetchType: 'all'
+    });
+    
+    queryClient.invalidateQueries({ 
+      queryKey: ['business-events'],
+      refetchType: 'all'
+    });
+    
+    queryClient.invalidateQueries({ 
+      queryKey: ['approved-bookings'],
+      refetchType: 'all'
+    });
+    
+    // Also invalidate file-related queries
+    invalidateFileQueries(queryClient);
+    
+    // Force a hard refresh after a short delay
+    setTimeout(() => {
+      queryClient.refetchQueries({ 
+        queryKey: ['events'],
+        type: 'all',
+        exact: false
+      });
+    }, 300);
+  }, [queryClient]);
 
   const handleCreateEvent = useCallback(async (data: Partial<CalendarEventType>) => {
     try {
@@ -43,11 +75,7 @@ export const useEventDialog = ({
       console.log("Event created successfully:", createdEvent);
 
       // Force refresh calendar data after creation
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['events'] });
-        queryClient.invalidateQueries({ queryKey: ['business-events'] });
-        queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-      }, 500);
+      invalidateAllCaches();
       
       return createdEvent;
     } catch (error: any) {
@@ -59,7 +87,7 @@ export const useEventDialog = ({
       });
       throw error;
     }
-  }, [createEvent, toast, queryClient]);
+  }, [createEvent, toast, invalidateAllCaches]);
 
   const handleUpdateEvent = useCallback(async (data: Partial<CalendarEventType>) => {
     try {
@@ -84,11 +112,7 @@ export const useEventDialog = ({
       console.log("Event updated successfully:", updatedEvent);
       
       // Force refresh calendar data after update
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['events'] });
-        queryClient.invalidateQueries({ queryKey: ['business-events'] });
-        queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-      }, 500);
+      invalidateAllCaches();
       
       return updatedEvent;
     } catch (error: any) {
@@ -100,7 +124,7 @@ export const useEventDialog = ({
       });
       throw error;
     }
-  }, [updateEvent, selectedEvent, toast, queryClient]);
+  }, [updateEvent, selectedEvent, toast, invalidateAllCaches]);
 
   const handleDeleteEvent = useCallback(async () => {
     try {
@@ -112,11 +136,7 @@ export const useEventDialog = ({
       console.log("Event deleted successfully:", selectedEvent.id);
       
       // Force refresh calendar data after deletion
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['events'] });
-        queryClient.invalidateQueries({ queryKey: ['business-events'] });
-        queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-      }, 500);
+      invalidateAllCaches();
       
     } catch (error: any) {
       console.error("Failed to delete event:", error);
@@ -127,14 +147,11 @@ export const useEventDialog = ({
       });
       throw error;
     }
-  }, [deleteEvent, selectedEvent, toast, queryClient]);
+  }, [deleteEvent, selectedEvent, toast, invalidateAllCaches]);
 
   // Helper function to normalize payment status values
   const normalizePaymentStatus = (status: string | undefined): string | undefined => {
     if (!status) return undefined;
-    
-    // Log the incoming status for debugging
-    console.log("Normalizing payment status:", status);
     
     // Normalize partly paid variants
     if (status.includes('partly')) return 'partly_paid';
