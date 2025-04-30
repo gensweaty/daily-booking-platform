@@ -16,7 +16,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const [businessUserId, setBusinessUserId] = useState<string | null>(null);
-  const [businessEmail, setBusinessEmail] = useState<string | null>(null);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const { t } = useLanguage();
@@ -53,7 +52,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         console.log("[External Calendar] Fetching business user ID for business:", businessId);
         const { data, error } = await supabase
           .from("business_profiles")
-          .select("user_id, business_email")
+          .select("user_id")
           .eq("id", businessId)
           .single();
         
@@ -66,33 +65,17 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         if (data?.user_id) {
           console.log("[External Calendar] Found business user ID:", data.user_id);
           setBusinessUserId(data.user_id);
-          
-          if (data.business_email) {
-            console.log("[External Calendar] Found business email:", data.business_email);
-            setBusinessEmail(data.business_email);
-          }
-          
           // Store business user ID in session storage for recovery
           sessionStorage.setItem(`business_user_id_${businessId}`, data.user_id);
-          if (data.business_email) {
-            sessionStorage.setItem(`business_email_${businessId}`, data.business_email);
-          }
         } else {
           console.error("No user ID found for business:", businessId);
           setLoadingError("Invalid business profile");
           
           // Try to recover from session storage
           const cachedUserId = sessionStorage.getItem(`business_user_id_${businessId}`);
-          const cachedEmail = sessionStorage.getItem(`business_email_${businessId}`);
-          
           if (cachedUserId) {
             console.log("[External Calendar] Recovered business user ID from session storage:", cachedUserId);
             setBusinessUserId(cachedUserId);
-          }
-          
-          if (cachedEmail) {
-            console.log("[External Calendar] Recovered business email from session storage:", cachedEmail);
-            setBusinessEmail(cachedEmail);
           }
         }
       } catch (error) {
@@ -115,14 +98,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       try {
         // Get events from the API function which includes approved bookings and user events
         // This now uses our security definer function to bypass RLS
-        const { events: apiEvents, bookings: approvedBookings, businessEmail: fetchedEmail } = await getPublicCalendarEvents(businessId);
-        
-        // Update business email if we got it from the API call
-        if (fetchedEmail && !businessEmail) {
-          console.log("[External Calendar] Setting business email from API call:", fetchedEmail);
-          setBusinessEmail(fetchedEmail);
-          sessionStorage.setItem(`business_email_${businessId}`, fetchedEmail);
-        }
+        const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
         
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
@@ -254,7 +230,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         clearInterval(intervalId);
       };
     }
-  }, [businessId, toast, t, retryCount, businessEmail]);
+  }, [businessId, toast, t, retryCount]);
 
   if (!businessId) {
     return (
@@ -295,7 +271,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             isExternalCalendar={true}
             businessId={businessId}
             businessUserId={businessUserId}
-            businessEmail={businessEmail}
             showAllEvents={true}
             allowBookingRequests={true}
             directEvents={events}

@@ -370,21 +370,20 @@ export const getPublicCalendarEvents = async (businessId: string) => {
     // Get the business user ID first
     const { data: businessData, error: businessError } = await supabase
       .from('business_profiles')
-      .select('user_id, business_email')
+      .select('user_id')
       .eq('id', businessId)
       .single();
     
     if (businessError) {
       console.error('Error fetching business user ID:', businessError);
-      return { events: [], bookings: [], businessEmail: null };
+      return { events: [], bookings: [] };
     }
     
     userId = businessData?.user_id;
-    const businessEmail = businessData?.business_email;
     
     if (!userId) {
       console.error('No user ID found for business:', businessId);
-      return { events: [], bookings: [], businessEmail };
+      return { events: [], bookings: [] };
     }
     
     // Get events using the RPC function that bypasses RLS
@@ -393,7 +392,7 @@ export const getPublicCalendarEvents = async (businessId: string) => {
     
     if (eventsError) {
       console.error('Error fetching events:', eventsError);
-      return { events: [], bookings: [], businessEmail };
+      return { events: [], bookings: [] };
     }
     
     // Get all approved booking requests for this business
@@ -406,17 +405,16 @@ export const getPublicCalendarEvents = async (businessId: string) => {
       
     if (bookingsError) {
       console.error('Error fetching approved bookings:', bookingsError);
-      return { events: events || [], bookings: [], businessEmail };
+      return { events: events || [], bookings: [] };
     }
     
     return {
       events: events || [],
       bookings: bookings || [],
-      businessEmail
     };
   } catch (error) {
     console.error('Error in getPublicCalendarEvents:', error);
-    return { events: [], bookings: [], businessEmail: null };
+    return { events: [], bookings: [] };
   }
 };
 

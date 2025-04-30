@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ interface EventDialogProps {
   isBookingRequest?: boolean;
 }
 
-export const EventDialog: React.FC<EventDialogProps> = ({
+export const EventDialog = ({
   open,
   onOpenChange,
   selectedDate,
@@ -449,24 +450,6 @@ export const EventDialog: React.FC<EventDialogProps> = ({
 
   const handleFileDeleted = (fileId: string) => {
     setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
-  };
-
-  // Function to format time from Date object
-  const formattedTime = (date?: Date) => {
-    if (!date) return "09:00";
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
-  };
-
-  // Function to calculate end time (1 hour after start)
-  const formattedEndTime = (date?: Date) => {
-    if (!date) return "10:00";
-    const endDate = new Date(date);
-    endDate.setHours(endDate.getHours() + 1);
-    const hours = endDate.getHours().toString().padStart(2, "0");
-    const minutes = endDate.getMinutes().toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
   };
 
   return (

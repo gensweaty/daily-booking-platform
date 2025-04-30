@@ -30,8 +30,7 @@ interface FileUploadFieldProps {
   chooseFileText?: string; // Added to support BusinessProfileForm
   noFileText?: string; // Added to support BusinessProfileForm
   maxSizeMB?: number; // Added to support BusinessProfileForm
-  selectedFile?: File | null; // Add this prop to support BookingRequestForm
-  setSelectedFile?: React.Dispatch<React.SetStateAction<File | null>>; // Add this prop to support BookingRequestForm
+  selectedFile?: File | null; // Added to support explicit passing of selected file
 }
 
 export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps>(({
@@ -50,15 +49,24 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   chooseFileText,
   noFileText,
   maxSizeMB,
-  selectedFile,
-  setSelectedFile
+  selectedFile
 }, ref) => {
   const { t } = useLanguage();
   const [localFileError, setLocalFileError] = useState("");
+  const [fileSelected, setFileSelected] = useState<string>("");
   
   // Use either provided error state or local state if not provided
   const actualFileError = fileError || localFileError;
   const actualSetFileError = setFileError || setLocalFileError;
+
+  // Update fileSelected state when selectedFile prop changes
+  useEffect(() => {
+    if (selectedFile) {
+      setFileSelected(selectedFile.name);
+    } else {
+      setFileSelected("");
+    }
+  }, [selectedFile]);
 
   const validateFile = (file: File) => {
     const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
@@ -82,22 +90,24 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault(); // Prevent default behavior
-    const selectedFileFromInput = e.target.files?.[0];
+    const selectedFile = e.target.files?.[0];
     actualSetFileError("");
 
-    if (selectedFileFromInput) {
-      console.log(`Selected file: ${selectedFileFromInput.name}, Size: ${(selectedFileFromInput.size / 1024 / 1024).toFixed(2)}MB, Type: ${selectedFileFromInput.type}`);
-      const error = validateFile(selectedFileFromInput);
+    if (selectedFile) {
+      console.log(`Selected file: ${selectedFile.name}, Size: ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB, Type: ${selectedFile.type}`);
+      const error = validateFile(selectedFile);
       if (error) {
         actualSetFileError(error);
+        setFileSelected("");
         if (onChange) onChange(null);
         if (onFileChange) onFileChange(null);
-        if (setSelectedFile) setSelectedFile(null);
         return;
       }
-      if (onChange) onChange(selectedFileFromInput);
-      if (onFileChange) onFileChange(selectedFileFromInput);
-      if (setSelectedFile) setSelectedFile(selectedFileFromInput);
+      setFileSelected(selectedFile.name);
+      if (onChange) onChange(selectedFile);
+      if (onFileChange) onFileChange(selectedFile);
+    } else {
+      setFileSelected("");
     }
   };
 
@@ -135,6 +145,10 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
         disabled={disabled}
         ref={ref}
       />
+      
+      {fileSelected && (
+        <p className="text-xs text-gray-500 mt-1">Selected: {fileSelected}</p>
+      )}
       
       {actualFileError && (
         <p className="text-sm text-red-500 mt-1">{actualFileError}</p>

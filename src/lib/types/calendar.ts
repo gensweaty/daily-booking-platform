@@ -20,5 +20,9 @@ export interface CalendarEventType {
   requester_phone?: string;
   description?: string;
   file?: File;
-  deleted_at?: string;
+  deleted_at?: string; // Added deleted_at property
+  file_path?: string;
+  filename?: string;
+  content_type?: string;
+  size?: number;
 }
