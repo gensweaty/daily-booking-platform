@@ -244,7 +244,7 @@ export const associateFilesWithEntity = async (
       
       for (const file of existingFiles) {
         try {
-          // Explicitly type check the file object
+          // Add null check before accessing file
           if (!file || typeof file !== 'object') {
             console.error('Invalid file record:', file);
             continue;
@@ -286,16 +286,16 @@ export const associateFilesWithEntity = async (
           const newFilePath = `${targetId}/${crypto.randomUUID()}.${fileExtension}`;
           
           // Safely access content_type with fallback
-          const contentType = file && typeof file === 'object' && 'content_type' in file ? 
-            (file.content_type as string || 'application/octet-stream') : 
-            'application/octet-stream';
+          let contentType = 'application/octet-stream';
+          
+          if (file && typeof file === 'object' && 'content_type' in file) {
+            contentType = (file.content_type as string) || contentType;
+          }
           
           // Upload to event_attachments with the new path
           const { error: uploadError } = await supabase.storage
             .from(STORAGE_BUCKETS.EVENT)
-            .upload(newFilePath, fileData, { 
-              contentType 
-            });
+            .upload(newFilePath, fileData, { contentType });
             
           if (uploadError) {
             console.error(`Error uploading file to ${STORAGE_BUCKETS.EVENT}:`, uploadError);
@@ -307,8 +307,11 @@ export const associateFilesWithEntity = async (
           const targetField = targetType === 'event' ? 'event_id' : 'customer_id';
           
           // Safely access size with fallback
-          const size = file && typeof file === 'object' && 'size' in file ? 
-            (file.size as number || 0) : 0;
+          let size = 0;
+          
+          if (file && typeof file === 'object' && 'size' in file) {
+            size = (file.size as number) || 0;
+          }
           
           // Create insertion data with required fields
           const insertData = {
@@ -388,10 +391,11 @@ export const associateFilesWithEntity = async (
                 
                 // Safely access content_type with fallback
                 let contentType = 'application/octet-stream';
+                
                 if (sourceData !== null && 
                     typeof sourceData === 'object' && 
                     'content_type' in sourceData && 
-                    sourceData.content_type) {
+                    sourceData.content_type !== null) {
                   contentType = sourceData.content_type as string;
                 }
                 
@@ -411,10 +415,11 @@ export const associateFilesWithEntity = async (
                   
                   // Safely access size with fallback
                   let size = 0;
+                  
                   if (sourceData !== null && 
                       typeof sourceData === 'object' && 
                       'size' in sourceData && 
-                      sourceData.size) {
+                      sourceData.size !== null) {
                     size = sourceData.size as number;
                   }
                   
