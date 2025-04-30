@@ -77,3 +77,32 @@ export async function associateBookingFilesWithEvent(
     return null;
   }
 }
+
+// Function to create storage buckets if they don't exist
+export async function ensureStorageBuckets() {
+  try {
+    // Check if event_attachments bucket exists
+    const { data: bucketData, error: bucketError } = await supabase
+      .storage
+      .getBucket('event_attachments');
+    
+    // If bucket doesn't exist, create it
+    if (bucketError && bucketError.message.includes('does not exist')) {
+      console.log('Creating event_attachments storage bucket');
+      const { data, error } = await supabase
+        .storage
+        .createBucket('event_attachments', { public: true });
+      
+      if (error) {
+        console.error('Error creating event_attachments bucket:', error);
+      } else {
+        console.log('Successfully created event_attachments bucket');
+      }
+    }
+  } catch (error) {
+    console.error('Error ensuring storage buckets exist:', error);
+  }
+}
+
+// Call this function when the app initializes
+ensureStorageBuckets();
