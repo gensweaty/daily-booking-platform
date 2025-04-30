@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";

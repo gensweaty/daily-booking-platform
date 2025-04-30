@@ -156,7 +156,7 @@ export const BookingRequestForm = ({
         requester_name: fullName,
         requester_email: socialNetworkLink,
         requester_phone: userNumber || null,
-        title: fullName, // Use just the full name as the title instead of "Booking Request - fullName"
+        title: `Booking Request - ${fullName}`,
         description: eventNotes || null,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
@@ -203,18 +203,17 @@ export const BookingRequestForm = ({
             file_path: filePath,
             content_type: selectedFile.type,
             size: selectedFile.size,
-            booking_request_id: bookingId,
-            user_id: null  // Add user_id field to match the schema even if null for public submissions
+            event_id: bookingId
           };
 
           const { error: fileRecordError } = await supabase
-            .from('booking_files')
+            .from('event_files')
             .insert(fileRecord);
 
           if (fileRecordError) {
             console.error('Error creating file record:', fileRecordError);
           } else {
-            console.log('File record created successfully in booking_files');
+            console.log('File record created successfully in event_files');
           }
         } catch (fileError) {
           console.error('Error handling file upload:', fileError);
