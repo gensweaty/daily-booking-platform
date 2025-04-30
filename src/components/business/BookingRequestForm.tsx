@@ -1,3 +1,4 @@
+
 import { useState, useRef } from 'react';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -11,6 +12,18 @@ import { supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { FileUploadField } from '@/components/shared/FileUploadField';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { CalendarIcon, Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { TimePicker } from '@/components/ui/time-picker';
 
 export interface BookingRequestFormProps {
   businessId: string;
@@ -24,11 +37,14 @@ export interface BookingRequestFormProps {
 }
 
 const bookingRequestSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
   phone: z.string().optional(),
   email: z.string().email({ message: "Invalid email address." }),
   notes: z.string().optional(),
-  file: z.instanceof(File).optional()
+  paymentStatus: z.string().optional(),
+  file: z.instanceof(File).optional(),
+  startTime: z.string(),
+  endTime: z.string()
 });
 
 export const BookingRequestForm = ({
@@ -50,10 +66,13 @@ export const BookingRequestForm = ({
   const form = useForm<z.infer<typeof bookingRequestSchema>>({
     resolver: zodResolver(bookingRequestSchema),
     defaultValues: {
-      name: '',
+      fullName: '',
       phone: '',
       email: '',
       notes: '',
+      paymentStatus: 'pending',
+      startTime: startTime,
+      endTime: endTime
     },
   });
 
@@ -77,19 +96,20 @@ export const BookingRequestForm = ({
   const onSubmit = async (values: z.infer<typeof bookingRequestSchema>) => {
     try {
       setIsSubmitting(true);
-      const startDateTime = combineDateAndTime(selectedDate, startTime);
-      const endDateTime = combineDateAndTime(selectedDate, endTime);
+      const startDateTime = combineDateAndTime(selectedDate, values.startTime);
+      const endDateTime = combineDateAndTime(selectedDate, values.endTime);
 
       const bookingData = {
         business_id: businessId,
-        requester_name: values.name,
+        requester_name: values.fullName,
         requester_email: values.email,
         requester_phone: values.phone || null,
-        title: `Booking Request - ${values.name}`,
+        title: `Booking Request - ${values.fullName}`,
         description: values.notes || null,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
         status: 'pending',
+        payment_status: values.paymentStatus || 'pending'
       };
 
       console.log('Submitting booking request:', bookingData);
@@ -175,7 +195,7 @@ export const BookingRequestForm = ({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               businessId: businessId,
-              requesterName: values.name,
+              requesterName: values.fullName,
               requesterEmail: values.email,
               requesterPhone: values.phone || "Not provided",
               notes: values.notes || "No additional notes",
@@ -208,20 +228,19 @@ export const BookingRequestForm = ({
       </h3>
       
       <p className="text-sm text-muted-foreground">
-        {format(selectedDate, 'EEEE, MMMM d, yyyy')} <br />
-        {formatTimeForDisplay(startTime)} - {formatTimeForDisplay(endTime)}
+        {format(selectedDate, 'EEEE, MMMM d, yyyy')}
       </p>
       
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
             control={form.control}
-            name="name"
+            name="fullName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('Name')}</FormLabel>
+                <FormLabel>{t('Full Name')}</FormLabel>
                 <FormControl>
-                  <Input placeholder={t('Enter your name')} {...field} />
+                  <Input placeholder={t('Enter your full name')} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -251,6 +270,101 @@ export const BookingRequestForm = ({
                 <FormControl>
                   <Input placeholder={t('Enter your phone number')} {...field} />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="startTime"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Start Time')}</FormLabel>
+                  <div className="flex">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full pl-3 text-left font-normal flex justify-between items-center",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value || "Select time"}
+                            <Clock className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <TimePicker 
+                          setTime={(time) => field.onChange(time)}
+                          current={field.value}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="endTime"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('End Time')}</FormLabel>
+                  <div className="flex">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full pl-3 text-left font-normal flex justify-between items-center",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value || "Select time"}
+                            <Clock className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <TimePicker 
+                          setTime={(time) => field.onChange(time)}
+                          current={field.value}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          <FormField
+            control={form.control}
+            name="paymentStatus"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Payment Status')}</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('Select payment status')} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="pending">{t('Pending')}</SelectItem>
+                    <SelectItem value="paid">{t('Paid')}</SelectItem>
+                    <SelectItem value="partial">{t('Partially Paid')}</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
