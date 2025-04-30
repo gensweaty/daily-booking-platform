@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { FileRecord } from "@/types/files";
 import { QueryClient } from "@tanstack/react-query";
-import { PostgrestResponse } from "@supabase/supabase-js";
+import { BookingRequest, EventFile } from "@/types/database";
 
 // Standardized storage bucket names
 export const STORAGE_BUCKETS = {
@@ -93,7 +93,7 @@ export const deleteFile = async (filePath: string, fileId: string, parentType: s
     }
     
     // Determine the appropriate table name based on the parent type
-    let tableName: "event_files" | "customer_files_new" | "note_files" | "files" = "event_files";
+    let tableName = "event_files";
     
     if (parentType === 'customer') {
       tableName = "customer_files_new";
@@ -104,8 +104,10 @@ export const deleteFile = async (filePath: string, fileId: string, parentType: s
     }
     
     console.log(`Deleting file record from table ${tableName}, id: ${fileId}`);
+    
+    // Use the generic syntax to avoid TypeScript errors with table name variables
     const { error: dbError } = await supabase
-      .from(tableName)
+      .from(tableName as any)
       .delete()
       .eq('id', fileId);
       
@@ -128,8 +130,8 @@ export const createFileRecord = async (
 ): Promise<FileRecord | null> => {
   try {
     // Determine the table based on parent type
-    let tableName: "event_files" | "customer_files_new" | "note_files" | "files" = "event_files";
-    let parentIdField: string = 'event_id';
+    let tableName = "event_files";
+    let parentIdField = 'event_id';
     
     if (parentType === 'customer') {
       tableName = "customer_files_new";
@@ -142,19 +144,30 @@ export const createFileRecord = async (
       parentIdField = 'task_id';
     }
     
-    // Create the database record
+    // Type safety for dynamic parent ID
+    const parentId = fileData[parentType === 'event' ? 'event_id' : 
+                            parentType === 'customer' ? 'customer_id' :
+                            parentType === 'note' ? 'note_id' : 'task_id'] as string | undefined;
+    
+    if (!parentId) {
+      console.error(`Missing ${parentType}_id in file data`);
+      return null;
+    }
+    
+    // Create insertion data with the appropriate parent ID field
+    const insertData: Record<string, any> = {
+      filename: fileData.filename,
+      file_path: fileData.file_path,
+      content_type: fileData.content_type,
+      size: fileData.size,
+      user_id: fileData.user_id,
+      [parentIdField]: parentId
+    };
+    
+    // Create the database record using type assertion for dynamic table names
     const { data, error } = await supabase
-      .from(tableName)
-      .insert({
-        filename: fileData.filename,
-        file_path: fileData.file_path,
-        content_type: fileData.content_type,
-        size: fileData.size,
-        user_id: fileData.user_id,
-        [parentIdField]: fileData[parentType === 'event' ? 'event_id' : 
-                                 parentType === 'customer' ? 'customer_id' :
-                                 parentType === 'note' ? 'note_id' : 'task_id']
-      })
+      .from(tableName as any)
+      .insert(insertData)
       .select()
       .single();
       
@@ -195,7 +208,7 @@ export const associateFilesWithEntity = async (
       return [];
     }
     
-    // Get files from the source entity
+    // Get files from the source entity using type assertion for safety
     const { data: existingFiles, error: existingFilesError } = await supabase
       .from(fileTable as any)
       .select('*')
@@ -212,33 +225,52 @@ export const associateFilesWithEntity = async (
       
       for (const file of existingFiles) {
         try {
-          // Check if file has the required properties
-          if (!file.file_path || !file.filename) {
+          // Explicitly type check the file object to ensure it has required properties
+          if (!file || typeof file !== 'object') {
+            console.error('Invalid file record:', file);
+            continue;
+          }
+          
+          // Type guard for file properties
+          if (!('file_path' in file) || !('filename' in file)) {
             console.error('File record is missing required properties:', file);
+            continue;
+          }
+          
+          const filePath = file.file_path as string;
+          const filename = file.filename as string;
+          
+          if (!filePath || !filename) {
+            console.error('File record has empty required properties:', file);
             continue;
           }
 
           // Get the actual file data from storage
           const { data: fileData, error: downloadError } = await supabase.storage
             .from(STORAGE_BUCKETS.EVENT)
-            .download(normalizeFilePath(file.file_path));
+            .download(normalizeFilePath(filePath));
 
           if (downloadError) {
-            console.error(`Error downloading existing file ${file.filename}:`, downloadError);
+            console.error(`Error downloading existing file ${filename}:`, downloadError);
             continue;
           }
 
           // Create a new file path for the target entity
-          const fileExtension = file.filename.includes('.') ? 
-            file.filename.split('.').pop() || 'bin' : 'bin';
+          const fileExtension = filename.includes('.') ? 
+            filename.split('.').pop() || 'bin' : 'bin';
           
           const newFilePath = `${targetId}/${crypto.randomUUID()}.${fileExtension}`;
+          
+          // Safely access content_type with fallback
+          const contentType = ('content_type' in file) ? 
+            (file.content_type as string) || 'application/octet-stream' : 
+            'application/octet-stream';
           
           // Upload to event_attachments with the new path
           const { error: uploadError } = await supabase.storage
             .from(STORAGE_BUCKETS.EVENT)
             .upload(newFilePath, fileData, { 
-              contentType: file.content_type || 'application/octet-stream' 
+              contentType 
             });
             
           if (uploadError) {
@@ -250,28 +282,33 @@ export const associateFilesWithEntity = async (
           const targetTable = targetType === 'event' ? 'event_files' : 'customer_files_new';
           const targetField = targetType === 'event' ? 'event_id' : 'customer_id';
           
+          // Safely access size with fallback
+          const size = ('size' in file) ? (file.size as number) || 0 : 0;
+          
+          const insertData = {
+            filename,
+            file_path: newFilePath,
+            content_type: contentType,
+            size,
+            user_id: userId,
+            [targetField]: targetId,
+            source: `${sourceType}_association`
+          };
+          
           const { data: newFileRecord, error: newFileError } = await supabase
-            .from(targetTable)
-            .insert({
-              filename: file.filename,
-              file_path: newFilePath,
-              content_type: file.content_type || 'application/octet-stream',
-              size: file.size || 0,
-              user_id: userId,
-              [targetField]: targetId,
-              source: `${sourceType}_association`
-            })
+            .from(targetTable as any)
+            .insert(insertData)
             .select()
             .single();
             
           if (newFileError) {
             console.error(`Error creating file record in ${targetTable}:`, newFileError);
           } else if (newFileRecord) {
-            console.log(`Created new file record in ${targetTable} for ${file.filename}`);
+            console.log(`Created new file record in ${targetTable} for ${filename}`);
             createdFileRecords.push(newFileRecord as FileRecord);
           }
         } catch (error) {
-          console.error(`Error processing file ${file.filename || 'unknown'}:`, error);
+          console.error(`Error processing file:`, error);
         }
       }
     } else {
@@ -281,7 +318,7 @@ export const associateFilesWithEntity = async (
     // Also check for direct file fields in the source entity (for booking requests)
     if (sourceType === 'booking') {
       const { data: sourceData, error: sourceError } = await supabase
-        .from(sourceTable)
+        .from(sourceTable as any)
         .select('*')
         .eq('id', sourceId)
         .maybeSingle();
@@ -289,10 +326,11 @@ export const associateFilesWithEntity = async (
       if (sourceError) {
         console.error(`Error fetching ${sourceType} data:`, sourceError);
       } else if (sourceData) {
-        // Check if the booking has file fields
-        const hasFileFields = sourceData.file_path && sourceData.filename;
+        // Check if the booking has file fields by explicit existence check
+        const hasFilePathField = sourceData && typeof sourceData === 'object' && 'file_path' in sourceData;
+        const hasFilenameField = sourceData && typeof sourceData === 'object' && 'filename' in sourceData;
         
-        if (hasFileFields) {
+        if (hasFilePathField && hasFilenameField && sourceData.file_path && sourceData.filename) {
           try {
             console.log(`Processing direct file from ${sourceTable}: ${sourceData.filename}`);
             
@@ -300,23 +338,26 @@ export const associateFilesWithEntity = async (
             const sourceBucket = sourceType === 'booking' ? STORAGE_BUCKETS.BOOKING : STORAGE_BUCKETS.EVENT;
             const { data: fileData, error: downloadError } = await supabase.storage
               .from(sourceBucket)
-              .download(normalizeFilePath(sourceData.file_path));
+              .download(normalizeFilePath(sourceData.file_path as string));
               
             if (downloadError) {
               console.error(`Error downloading file from ${sourceBucket}:`, downloadError);
             } else if (fileData) {
               // Generate a new unique file path for the target entity
-              const fileExtension = sourceData.filename.includes('.') ? 
-                sourceData.filename.split('.').pop() || 'bin' : 'bin';
+              const fileExtension = (sourceData.filename as string).includes('.') ? 
+                (sourceData.filename as string).split('.').pop() || 'bin' : 'bin';
               
               const newFilePath = `${targetId}/${crypto.randomUUID()}.${fileExtension}`;
+              
+              // Safely access content_type with fallback
+              const contentType = ('content_type' in sourceData) ? 
+                (sourceData.content_type as string) || 'application/octet-stream' : 
+                'application/octet-stream';
               
               // Upload to event_attachments
               const { error: uploadError } = await supabase.storage
                 .from(STORAGE_BUCKETS.EVENT)
-                .upload(newFilePath, fileData, { 
-                  contentType: sourceData.content_type || 'application/octet-stream' 
-                });
+                .upload(newFilePath, fileData, { contentType });
                 
               if (uploadError) {
                 console.error(`Error uploading file to ${STORAGE_BUCKETS.EVENT}:`, uploadError);
@@ -327,17 +368,22 @@ export const associateFilesWithEntity = async (
                 const targetTable = targetType === 'event' ? 'event_files' : 'customer_files_new';
                 const targetField = targetType === 'event' ? 'event_id' : 'customer_id';
                 
+                // Safely access size with fallback
+                const size = ('size' in sourceData) ? (sourceData.size as number) || 0 : 0;
+                
+                const insertData = {
+                  filename: sourceData.filename,
+                  file_path: newFilePath,
+                  content_type: contentType,
+                  size,
+                  user_id: userId,
+                  [targetField]: targetId,
+                  source: `${sourceType}_direct`
+                };
+                
                 const { data: fileRecord, error: fileRecordError } = await supabase
-                  .from(targetTable)
-                  .insert({
-                    filename: sourceData.filename,
-                    file_path: newFilePath,
-                    content_type: sourceData.content_type || 'application/octet-stream',
-                    size: sourceData.size || 0,
-                    user_id: userId,
-                    [targetField]: targetId,
-                    source: `${sourceType}_direct`
-                  })
+                  .from(targetTable as any)
+                  .insert(insertData)
                   .select()
                   .single();
                   
