@@ -1,110 +1,63 @@
 
 import { supabase } from "@/lib/supabase";
-import { getStorageUrl, normalizeFilePath } from "./client";
 import { FileRecord } from "@/types/files";
 
 /**
- * Copies a file from one Supabase storage bucket to another
- * 
- * @param sourceBucket The bucket to copy from
- * @param targetBucket The bucket to copy to
- * @param filePath The path of the file within the source bucket
- * @param targetPath Optional custom path for the destination file (defaults to source path)
- * @returns Promise resolving to an object with success status and file information
+ * Copy a file from one Supabase storage bucket to another.
+ * @param sourceBucket - The name of the source bucket (e.g., "booking_attachments")
+ * @param destinationBucket - The name of the destination bucket (e.g., "event_attachments")
+ * @param sourcePath - The path of the file in the source bucket
+ * @param newFilename - Optional new filename (default keeps the original filename)
+ * @returns The new path in the destination bucket, or throws error
  */
-export async function copyFileBetweenBuckets(
-  sourceBucket: string,
-  targetBucket: string,
-  filePath: string,
-  targetPath?: string
-): Promise<{ 
-  success: boolean;
-  error?: string; 
-  file?: FileRecord;
-}> {
-  try {
-    console.log(`Copying file from ${sourceBucket}/${filePath} to ${targetBucket}/${targetPath || filePath}`);
-    
-    // Normalize the paths
-    const normalizedSourcePath = normalizeFilePath(filePath);
-    const normalizedTargetPath = normalizeFilePath(targetPath || filePath);
-    
-    // 1. Download the file from source bucket
-    const { data: fileData, error: downloadError } = await supabase.storage
-      .from(sourceBucket)
-      .download(normalizedSourcePath);
-      
-    if (downloadError) {
-      console.error("Error downloading file:", downloadError);
-      return { 
-        success: false, 
-        error: `Error downloading file: ${downloadError.message}` 
-      };
-    }
-    
-    if (!fileData) {
-      return { 
-        success: false, 
-        error: 'File data is empty or undefined' 
-      };
-    }
-    
-    // 2. Upload the file to target bucket
-    const filename = normalizedSourcePath.split('/').pop() || 'file';
-    const { error: uploadError, data: uploadData } = await supabase.storage
-      .from(targetBucket)
-      .upload(normalizedTargetPath, fileData, {
-        contentType: fileData.type, // Preserve content type
-        upsert: true // Overwrite if exists
-      });
-      
-    if (uploadError) {
-      console.error("Error uploading file:", uploadError);
-      return { 
-        success: false, 
-        error: `Error uploading file: ${uploadError.message}` 
-      };
-    }
-    
-    // 3. Construct file record for the copied file
-    const fileRecord: FileRecord = {
-      id: crypto.randomUUID(), // Generate a new ID for the file record
-      filename: filename,
-      file_path: normalizedTargetPath,
-      content_type: fileData.type,
-      size: fileData.size || null,
-      created_at: new Date().toISOString(),
-      user_id: null, // This would typically be set when storing in DB
-    };
-    
-    console.log("File copied successfully:", fileRecord);
-    
-    return {
-      success: true,
-      file: fileRecord
-    };
-    
-  } catch (error) {
-    console.error("Error in copyFileBetweenBuckets:", error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error occurred' 
-    };
+export async function copyFileBetweenBuckets({
+  sourceBucket,
+  destinationBucket,
+  sourcePath,
+  newFilename
+}: {
+  sourceBucket: string;
+  destinationBucket: string;
+  sourcePath: string;
+  newFilename?: string;
+}): Promise<string> {
+  // Step 1: Download file from source bucket
+  const { data: fileBlob, error: downloadError } = await supabase.storage
+    .from(sourceBucket)
+    .download(sourcePath);
+
+  if (downloadError || !fileBlob) {
+    throw new Error(`Failed to download file from ${sourceBucket}: ${downloadError?.message}`);
   }
+
+  // Step 2: Generate destination path
+  const originalFilename = sourcePath.split("/").pop() || "file";
+  const finalFilename = newFilename || `${Date.now()}_${originalFilename.replace(/\s+/g, "_")}`;
+
+  // Step 3: Upload to destination bucket
+  const { error: uploadError } = await supabase.storage
+    .from(destinationBucket)
+    .upload(finalFilename, fileBlob);
+
+  if (uploadError) {
+    throw new Error(`Failed to upload file to ${destinationBucket}: ${uploadError.message}`);
+  }
+
+  return finalFilename;
 }
 
 /**
  * Copies multiple files between buckets
  * 
  * @param sourceBucket Source bucket name
- * @param targetBucket Target bucket name
+ * @param destinationBucket Target bucket name
  * @param filePaths Array of file paths to copy
  * @param targetPrefix Optional prefix to prepend to target paths
  * @returns Results for each file copy operation
  */
 export async function copyFilesBetweenBuckets(
   sourceBucket: string,
-  targetBucket: string,
+  destinationBucket: string,
   filePaths: string[],
   targetPrefix?: string
 ): Promise<{
@@ -120,25 +73,35 @@ export async function copyFilesBetweenBuckets(
   let allSucceeded = true;
   
   for (const path of filePaths) {
-    const targetPath = targetPrefix 
-      ? `${normalizeFilePath(targetPrefix)}/${path.split('/').pop()}`
-      : path;
+    try {
+      // Generate new filename with optional prefix
+      const originalFilename = path.split('/').pop() || 'file';
+      const finalFilename = targetPrefix 
+        ? `${targetPrefix}/${originalFilename}`
+        : `${Date.now()}_${originalFilename.replace(/\s+/g, "_")}`;
       
-    const result = await copyFileBetweenBuckets(
-      sourceBucket,
-      targetBucket,
-      path,
-      targetPath
-    );
-    
-    results.push({
-      sourcePath: path,
-      targetPath: targetPath,
-      success: result.success,
-      error: result.error
-    });
-    
-    if (!result.success) allSucceeded = false;
+      const newPath = await copyFileBetweenBuckets({
+        sourceBucket,
+        destinationBucket,
+        sourcePath: path,
+        newFilename: finalFilename
+      });
+      
+      results.push({
+        sourcePath: path,
+        targetPath: newPath,
+        success: true
+      });
+    } catch (error) {
+      results.push({
+        sourcePath: path,
+        targetPath: '',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
+      
+      allSucceeded = false;
+    }
   }
   
   return {
