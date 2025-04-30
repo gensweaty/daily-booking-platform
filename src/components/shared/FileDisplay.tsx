@@ -77,6 +77,7 @@ export const FileDisplay = ({
       case 'customer':
         return 'customer_attachments';
       case 'event':
+      case 'booking_request':
       default:
         return 'event_attachments';
     }
@@ -202,7 +203,7 @@ export const FileDisplay = ({
           .eq('id', fileToDelete.id);
           
         error = dbError;
-      } else if (fileToDelete.source?.includes('booking_request') || fileToDelete.booking_request_id) {
+      } else if (fileToDelete.source?.includes('booking_request') || fileToDelete.booking_request_id || parentType === 'booking_request') {
         console.log("Deleting from booking_files table");
         const { error: dbError } = await supabase
           .from('booking_files')

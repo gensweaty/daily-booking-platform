@@ -72,3 +72,14 @@ export interface BookingRequest {
   size?: number;
   deleted_at?: string;
 }
+
+export interface BookingFile {
+  id: string;
+  booking_request_id: string;
+  filename: string;
+  file_path: string;
+  content_type?: string | null;
+  size?: number | null;
+  created_at: string;
+  user_id?: string | null;
+}

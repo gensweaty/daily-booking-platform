@@ -244,7 +244,7 @@ export const EventDialogFields = ({
                 files={displayedFiles}
                 onFileDeleted={onFileDeleted}
                 showDelete={true}
-                parentType="event"
+                parentType={isBookingRequest ? "booking_request" : "event"}
               />
             ) : (
               eventId && <div className="text-sm text-muted-foreground"><LanguageText>{t("common.noFiles")}</LanguageText></div>

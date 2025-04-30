@@ -433,6 +433,132 @@ export const getPublicCalendarEvents = async (businessId: string) => {
   }
 };
 
+// Enhanced function to get booking request files
+export const getBookingRequestFiles = async (bookingRequestId: string) => {
+  try {
+    console.log(`Fetching files for booking request ID: ${bookingRequestId}`);
+    
+    // First, try directly from booking_files table
+    const { data: bookingFiles, error: bookingFilesError } = await supabase
+      .from('booking_files')
+      .select('*')
+      .eq('booking_request_id', bookingRequestId);
+      
+    if (bookingFilesError) {
+      console.error('Error fetching booking files:', bookingFilesError);
+      // Continue to try other methods even if this fails
+    } else if (bookingFiles && bookingFiles.length > 0) {
+      console.log(`Found ${bookingFiles.length} files in booking_files table`);
+      return bookingFiles.map(file => ({
+        ...file,
+        source: 'booking_files'
+      }));
+    }
+    
+    // If no files found in booking_files, check if the booking request itself has file data
+    const { data: bookingRequest, error: bookingRequestError } = await supabase
+      .from('booking_requests')
+      .select('*')
+      .eq('id', bookingRequestId)
+      .maybeSingle();
+      
+    if (bookingRequestError) {
+      console.error('Error fetching booking request:', bookingRequestError);
+    } else if (bookingRequest?.file_path) {
+      console.log('Found file data in the booking request itself');
+      return [{
+        id: `booking_request_file_${bookingRequestId}`,
+        booking_request_id: bookingRequestId,
+        filename: bookingRequest.filename || 'attachment',
+        file_path: bookingRequest.file_path,
+        content_type: bookingRequest.content_type,
+        size: bookingRequest.file_size || bookingRequest.size,
+        created_at: bookingRequest.created_at,
+        user_id: bookingRequest.user_id,
+        source: 'booking_request'
+      }];
+    }
+    
+    // Try event_files table as fallback (in case files were saved there)
+    const { data: eventFiles, error: eventFilesError } = await supabase
+      .from('event_files')
+      .select('*')
+      .eq('event_id', bookingRequestId);
+      
+    if (eventFilesError) {
+      console.error('Error fetching event files:', eventFilesError);
+    } else if (eventFiles && eventFiles.length > 0) {
+      console.log(`Found ${eventFiles.length} files in event_files table`);
+      return eventFiles.map(file => ({
+        ...file,
+        booking_request_id: bookingRequestId,
+        source: 'event_files'
+      }));
+    }
+    
+    console.log('No files found for this booking request');
+    return [];
+  } catch (error) {
+    console.error('Error in getBookingRequestFiles:', error);
+    return [];
+  }
+};
+
+// Upload a file for a booking request
+export const uploadBookingRequestFile = async (
+  bookingRequestId: string,
+  file: File,
+  userId: string
+) => {
+  try {
+    // Ensure buckets exist before attempting to use them
+    await ensureAllRequiredBuckets();
+    
+    // Generate a unique path for the file
+    const timestamp = new Date().getTime();
+    const filePath = `${userId}/${bookingRequestId}/${timestamp}_${file.name}`;
+    
+    console.log(`Uploading booking request file to path: ${filePath}`);
+    
+    // Upload file to storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('event_attachments')  // Use event_attachments bucket for all booking files too
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+      
+    if (uploadError) {
+      console.error('Error uploading file:', uploadError);
+      throw uploadError;
+    }
+    
+    // Save file metadata to booking_files table
+    const { data: fileRecord, error: fileError } = await supabase
+      .from('booking_files')
+      .insert([{
+        booking_request_id: bookingRequestId,
+        filename: file.name,
+        file_path: filePath,
+        content_type: file.type,
+        size: file.size,
+        user_id: userId
+      }])
+      .select()
+      .single();
+      
+    if (fileError) {
+      console.error('Error saving file metadata:', fileError);
+      throw fileError;
+    }
+    
+    return fileRecord;
+  } catch (error: any) {
+    console.error('Error in uploadBookingRequestFile:', error);
+    throw new Error(error.message || 'Failed to upload file');
+  }
+};
+
 // Enhanced file handling functions with consistent bucket handling
 export const downloadFile = async (bucketName: string, filePath: string, fileName: string) => {
   try {
