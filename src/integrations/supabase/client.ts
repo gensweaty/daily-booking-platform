@@ -1,9 +1,20 @@
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Export the storage URL as a standalone function
+export const getStorageUrl = () => `${supabaseUrl}/storage/v1`;
+
+// Helper to normalize file paths for storage URLs (handle double slashes)
+export const normalizeFilePath = (filePath: string) => {
+  if (!filePath) return "";
+  // Remove any leading slashes
+  return filePath.replace(/^\/+/, '');
+};
 
 export async function associateBookingFilesWithEvent(
   bookingId: string, 
