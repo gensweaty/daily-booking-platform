@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, associateBookingFilesWithEvent } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { BookingRequest } from "@/types/database";
@@ -235,10 +234,12 @@ export const useBookingRequests = () => {
         console.log('Created customer:', customerData);
       }
       
-      // IMPROVED: Use a direct query to get booking-related files
-      const { data: bookingFiles, error: filesError } = await supabase
+      // FIXED: Don't try to reassign bookingFiles - use a different variable name
+      const { data: filesFromRpc, error: filesError } = await supabase
         .rpc('get_booking_request_files', { booking_id_param: booking.id });
         
+      let bookingFilesData = filesFromRpc;
+      
       if (filesError) {
         console.error('Error fetching booking files using RPC:', filesError);
         // Fallback to direct query if RPC fails
@@ -252,16 +253,16 @@ export const useBookingRequests = () => {
         } else if (fallbackFiles && fallbackFiles.length > 0) {
           console.log('Found booking files via direct query:', fallbackFiles.length);
           // Use the fallback files instead
-          bookingFiles = fallbackFiles;
+          bookingFilesData = fallbackFiles;
         }
       }
       
-      console.log('Found booking files:', bookingFiles);
+      console.log('Found booking files:', bookingFilesData);
         
-      if (bookingFiles && bookingFiles.length > 0) {
-        console.log(`Processing ${bookingFiles.length} files for the booking`);
+      if (bookingFilesData && bookingFilesData.length > 0) {
+        console.log(`Processing ${bookingFilesData.length} files for the booking`);
         
-        for (const file of bookingFiles) {
+        for (const file of bookingFilesData) {
           try {
             console.log(`Processing file: ${file.filename}, path: ${file.file_path}`);
             
@@ -314,6 +315,21 @@ export const useBookingRequests = () => {
             }
           } catch (error) {
             console.error('Error processing direct booking file:', error);
+          }
+        } else {
+          console.log('No files found for booking');
+          
+          // Additional attempt to associate files using the helper function
+          try {
+            const associatedFiles = await associateBookingFilesWithEvent(
+              booking.id,
+              eventData.id,
+              user.id
+            );
+            
+            console.log('Associated files using helper function:', associatedFiles);
+          } catch (error) {
+            console.error('Error associating files with event:', error);
           }
         }
       }
