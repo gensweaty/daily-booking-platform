@@ -132,12 +132,27 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
         </div>
       )}
       
+      <div className="flex items-center gap-2">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={() => document.getElementById('file')?.click()}
+          className="cursor-pointer"
+          disabled={disabled}
+        >
+          {chooseFileText || t("common.chooseFile")}
+        </Button>
+        <span className="text-sm text-muted-foreground">
+          {fileSelected ? fileSelected : (noFileText || t("common.noFileChosen"))}
+        </span>
+      </div>
+      
       <Input
         id="file"
         type="file"
         onChange={handleFileChange}
         accept={acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")}
-        className="cursor-pointer bg-background border-gray-300"
+        className="sr-only"
         onClick={(e) => {
           // Reset value before opening to ensure onChange triggers even if same file is selected
           (e.target as HTMLInputElement).value = '';
@@ -145,10 +160,6 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
         disabled={disabled}
         ref={ref}
       />
-      
-      {fileSelected && (
-        <p className="text-xs text-gray-500 mt-1">Selected: {fileSelected}</p>
-      )}
       
       {actualFileError && (
         <p className="text-sm text-red-500 mt-1">{actualFileError}</p>
@@ -166,3 +177,6 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
 });
 
 FileUploadField.displayName = "FileUploadField";
+
+// Add missing Button import
+import { Button } from "@/components/ui/button";
