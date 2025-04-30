@@ -1,5 +1,5 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { useForm } from 'react-hook-form';
@@ -32,6 +32,7 @@ const bookingRequestSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
   notes: z.string().optional(),
   paymentStatus: z.string().optional(),
+  paymentAmount: z.number().optional(),
   file: z.instanceof(File).optional()
 });
 
@@ -53,6 +54,9 @@ export const BookingRequestForm = ({
   
   // Add state for payment status
   const [paymentStatus, setPaymentStatus] = useState('not_paid');
+  
+  // Add state for payment amount
+  const [paymentAmount, setPaymentAmount] = useState<number | undefined>(undefined);
   
   // Convert date+time strings to actual dates for datetime-local input format
   const combineDateAndTime = (date: Date, timeString: string) => {
@@ -80,6 +84,7 @@ export const BookingRequestForm = ({
       email: '',
       notes: '',
       paymentStatus: 'not_paid',
+      paymentAmount: undefined,
     },
   });
 
@@ -87,6 +92,13 @@ export const BookingRequestForm = ({
     setSelectedFile(file);
     setFileError('');
   };
+
+  // Reset payment amount when payment status changes to not_paid
+  useEffect(() => {
+    if (paymentStatus === 'not_paid') {
+      setPaymentAmount(undefined);
+    }
+  }, [paymentStatus]);
 
   const onSubmit = async (values: z.infer<typeof bookingRequestSchema>) => {
     try {
@@ -106,6 +118,7 @@ export const BookingRequestForm = ({
         end_date: endDateTime.toISOString(),
         status: 'pending',
         payment_status: paymentStatus, // Include payment status
+        payment_amount: paymentAmount, // Include payment amount
         user_surname: userSurname // Add user_surname field
       };
 
@@ -168,6 +181,7 @@ export const BookingRequestForm = ({
       setSelectedFile(null);
       setUserSurname('');
       setPaymentStatus('not_paid');
+      setPaymentAmount(undefined);
       
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -201,7 +215,8 @@ export const BookingRequestForm = ({
               startDate: startDateTime.toISOString(),
               endDate: endDateTime.toISOString(),
               hasAttachment: !!selectedFile,
-              paymentStatus: paymentStatus
+              paymentStatus: paymentStatus,
+              paymentAmount: paymentAmount
             }),
           }
         );
@@ -321,6 +336,22 @@ export const BookingRequestForm = ({
             </Select>
           </div>
           
+          {/* Payment amount field - only shown when payment status is partly_paid or fully_paid */}
+          {(paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') && (
+            <div className="space-y-2">
+              <Label htmlFor="paymentAmount">{t("events.paymentAmount")}</Label>
+              <Input
+                id="paymentAmount"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={paymentAmount || ''}
+                onChange={(e) => setPaymentAmount(e.target.value ? Number(e.target.value) : undefined)}
+              />
+            </div>
+          )}
+          
           <FormField
             control={form.control}
             name="notes"
@@ -346,6 +377,8 @@ export const BookingRequestForm = ({
               fileError={fileError}
               setFileError={setFileError}
               ref={fileInputRef}
+              selectedFile={selectedFile}
+              setSelectedFile={setSelectedFile}
             />
           </div>
           
