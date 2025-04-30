@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink } from "lucide-react";
@@ -62,6 +63,24 @@ export const FileDisplay = ({
   };
 
   const getFileIcon = (filename: string) => {
+    const ext = getFileExtension(filename);
+    
+    // Enhanced file icon mapping for document types
+    if (['pdf'].includes(ext)) {
+      // For PDF files
+      return <FileIcon className="h-5 w-5 text-red-500" />;
+    } else if (['doc', 'docx'].includes(ext)) {
+      // For Word documents
+      return <FileIcon className="h-5 w-5 text-blue-500" />;
+    } else if (['xls', 'xlsx'].includes(ext)) {
+      // For Excel spreadsheets
+      return <FileIcon className="h-5 w-5 text-green-500" />;
+    } else if (['ppt', 'pptx'].includes(ext)) {
+      // For PowerPoint presentations
+      return <FileIcon className="h-5 w-5 text-orange-500" />;
+    }
+    
+    // Default file icon
     return <FileIcon className="h-5 w-5" />;
   };
 
