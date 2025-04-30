@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -445,12 +444,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           
           // Process each file from booking_files
           for (const file of bookingFiles) {
-            const { data: fileData, error: fileDataError } = await supabase.storage
+            // Fix here: getPublicUrl doesn't return an error property
+            const { data: fileData } = await supabase.storage
               .from('booking_attachments')
               .getPublicUrl(file.file_path);
             
-            if (fileDataError) {
-              console.error("Error getting file URL:", fileDataError);
+            if (!fileData) {
+              console.error("Error getting file URL for path:", file.file_path);
               continue;
             }
             
