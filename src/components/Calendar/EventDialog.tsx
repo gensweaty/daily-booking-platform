@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -123,52 +122,49 @@ export const EventDialog = ({
   // Load files for this event
   useEffect(() => {
     const loadFiles = async () => {
-      if (event?.id) {
-        try {
-          console.log("Loading files for event:", event.id);
-          
-          // First get event files directly
-          const { data: eventFiles, error: eventFilesError } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', event.id);
+      if (!event?.id) {
+        setDisplayedFiles([]);
+        return;
+      }
+      try {
+        console.log("Loading files for event:", event.id);
+        
+        // SIMPLIFIED: Only check event_files for the current event ID
+        const { data: eventFiles, error: eventFilesError } = await supabase
+          .from('event_files')
+          .select('*')
+          .eq('event_id', event.id);
             
-          if (eventFilesError) {
-            console.error("Error loading event files:", eventFilesError);
-            return;
-          }
-          
-          // Use a Set to track unique file IDs to avoid duplicates
-          const uniqueFileIds = new Set<string>();
-          const uniqueFiles: any[] = [];
-          
-          if (eventFiles && eventFiles.length > 0) {
-            eventFiles.forEach(file => {
-              if (!uniqueFileIds.has(file.id)) {
-                uniqueFileIds.add(file.id);
-                uniqueFiles.push({
-                  ...file,
-                  parentType: 'event'
-                });
-              }
-            });
-          }
-          
-          if (uniqueFiles.length > 0) {
-            console.log("Loaded unique event files:", uniqueFiles);
-            setDisplayedFiles(uniqueFiles);
-          } else {
-            console.log("No files found for event:", event.id);
-            setDisplayedFiles([]);
-          }
-          
-        } catch (err) {
-          console.error("Exception loading event files:", err);
+        if (eventFilesError) {
+          console.error("Error loading event files:", eventFilesError);
+          setDisplayedFiles([]);
+          return;
         }
+        
+        if (eventFiles && eventFiles.length > 0) {
+          console.log("Loaded files from event_files:", eventFiles.length);
+          
+          // Add a parentType property for compatibility with existing code
+          const filesWithSource = eventFiles.map(file => ({
+            ...file,
+            parentType: 'event'
+          }));
+          
+          setDisplayedFiles(filesWithSource);
+        } else {
+          console.log("No files found for event:", event.id);
+          setDisplayedFiles([]);
+        }
+      } catch (err) {
+        console.error("Exception loading event files:", err);
+        setDisplayedFiles([]);
       }
     };
     
     if (open) {
+      // Reset file state when dialog opens
+      setSelectedFile(null);
+      setFileError("");
       loadFiles();
     }
   }, [event, open]);

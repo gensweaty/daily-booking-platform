@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -417,15 +416,90 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         throw createError;
       }
       
-      // Copy booking files to the new event
+      // Copy booking files to the new event and capture the returned files
+      let associatedFiles = [];
       try {
-        await associateBookingFilesWithEvent(
+        associatedFiles = await associateBookingFilesWithEvent(
           bookingRequestId, 
           newEvent.id, 
           user.id
         );
+        console.log("Associated files with new event:", associatedFiles);
       } catch (fileError) {
         console.error("Error copying booking files:", fileError);
+      }
+      
+      // ADDED: Create a customer record if we have customer data in the booking
+      try {
+        if (event.user_surname || event.requester_name) {
+          console.log("Creating customer record from booking request");
+          
+          const customerData = {
+            title: event.user_surname || event.requester_name || event.title,
+            user_surname: event.user_surname || event.requester_name || event.title,
+            user_number: event.user_number || event.requester_phone || '',
+            social_network_link: event.social_network_link || event.requester_email || '',
+            event_notes: event.event_notes || event.description || '',
+            user_id: user.id,
+            type: 'customer',
+            // Optional: link to event dates
+            start_date: event.start_date,
+            end_date: event.end_date
+          };
+          
+          const { data: newCustomer, error: customerError } = await supabase
+            .from('customers')
+            .insert(customerData)
+            .select()
+            .single();
+            
+          if (customerError) {
+            console.error("Error creating customer from booking:", customerError);
+          } else if (newCustomer && associatedFiles.length > 0) {
+            console.log("Created customer from booking, now linking files");
+            
+            // FIXED: Use the new file paths from associatedFiles
+            for (const fileRecord of associatedFiles) {
+              // Create customer file link using the NEW file path
+              const { error: customerFileError } = await supabase
+                .from('customer_files_new')
+                .insert({
+                  customer_id: newCustomer.id,
+                  filename: fileRecord.filename,
+                  file_path: fileRecord.file_path, // Use the NEW path in event_attachments
+                  content_type: fileRecord.content_type,
+                  size: fileRecord.size,
+                  user_id: user.id
+                });
+                
+              if (customerFileError) {
+                console.error("Error creating customer file link:", customerFileError);
+              } else {
+                console.log("Successfully created file record for customer");
+              }
+            }
+          }
+        }
+      } catch (customerError) {
+        console.error("Error handling customer creation:", customerError);
+        // Continue with event update even if customer creation fails
+      }
+      
+      // Soft-delete or update the original booking request
+      try {
+        const { error: updateBookingError } = await supabase
+          .from('booking_requests')
+          .update({ 
+            status: 'approved',
+            deleted_at: new Date().toISOString()  // Soft-delete the booking
+          })
+          .eq('id', bookingRequestId);
+          
+        if (updateBookingError) {
+          console.error("Error updating original booking:", updateBookingError);
+        }
+      } catch (bookingUpdateError) {
+        console.error("Error updating booking status:", bookingUpdateError);
       }
       
       return newEvent;

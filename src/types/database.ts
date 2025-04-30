@@ -65,4 +65,9 @@ export interface BookingRequest {
   event_notes?: string;
   payment_status?: string;
   payment_amount?: number | null;
+  // Add file fields that might exist on booking_requests
+  file_path?: string;
+  filename?: string;
+  content_type?: string;
+  size?: number;
 }
