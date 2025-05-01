@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -268,7 +269,9 @@ export const es: TranslationType = {
     start: "Inicio",
     end: "Fin",
     eventDetails: "Detalles del Evento",
-    title: "Título del Evento"
+    title: "Título del Evento",
+    bookAppointment: "Reservar Cita",
+    submitRequest: "Enviar Solicitud"
   },
   contact: {
     email: "Correo electrónico",
