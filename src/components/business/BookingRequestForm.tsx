@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
-import { supabase } from '@/lib/supabase';  // Fixed supabase import path
+import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/components/ui/use-toast';
 import { FileUploadField } from '@/components/shared/FileUploadField';
@@ -126,7 +126,7 @@ export const BookingRequestForm = ({
     const fetchServices = async () => {
       if (businessId) {
         try {
-          // Fix: Don't use "services" as a direct parameter for from()
+          // Fix: We need to use the correct types for Supabase query
           const { data, error } = await supabase
             .from('services')
             .select('*')
@@ -409,7 +409,7 @@ export const BookingRequestForm = ({
           </div>
           <div>
             <Label htmlFor="file" className={cn("block font-medium", isGeorgian ? "font-georgian" : "")}>
-              <LanguageText>{t("bookings.attachments")}</LanguageText>
+              {t("bookings.attachments")}
             </Label>
             <FileUploadField
               onChange={setSelectedFile}
@@ -420,9 +420,7 @@ export const BookingRequestForm = ({
               hideLabel={true}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              {language === 'en' && "Supported formats: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
-              {language === 'es' && "Formatos admitidos: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
-              {language === 'ka' && "მხარდაჭერილი ფორმატები: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
+              Supported formats: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT
             </p>
           </div>
           <Button

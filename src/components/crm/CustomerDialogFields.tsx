@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -289,9 +290,7 @@ export const CustomerDialogFields = ({
           hideLabel={true}
         />
         <p className="text-xs text-muted-foreground mt-1">
-          {language === 'en' && "Supported formats: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
-          {language === 'es' && "Formatos admitidos: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
-          {language === 'ka' && "მხარდაჭერილი ფორმატები: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
+          Supported formats: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT
         </p>
       </div>
       
