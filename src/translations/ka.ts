@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const ka: TranslationType = {
@@ -41,7 +42,7 @@ export const ka: TranslationType = {
     title: "ყოვლისმომცველი ანალიტიკა",
     description: "თვალყური ადევნეთ თქვენი ბიზნესის სტატისტიკას და ზრდას",
     feature1: "ჯავშნების და შემოსავლების ანალიტიკა",
-    feature2: "თარიღ����ბის დიაპაზონის მოქნილი განსაზღვრა",
+    feature2: "თარიღების დიაპაზონის მოქნილი განსაზღვრა",
     feature3: "შემოსავლების შედარება თვეების მიხედვით",
     feature4: "ინტერაქტიული ვიზუალური მეტრიკა და გრაფიკები",
     feature5: "სტატისტიკის Excel-ად ჩამოტვირთვა ერთი კლიკით"
@@ -85,7 +86,7 @@ export const ka: TranslationType = {
     yes: "დიახ",
     no: "არა",
     copiedToClipboard: "დაკოპირებულია ბუფერში",
-    copyError: "ტექ����ტის კოპირების შეცდომა",
+    copyError: "ტექსტის კოპირების შეცდომა",
     deleteSuccess: "წარმატებით წაიშალა",
     deleteError: "წაშლის შეცდომა",
     missingUserInfo: "მომხმარებლის ინფორმაცია აკლია",
@@ -181,7 +182,7 @@ export const ka: TranslationType = {
     businessName: "Ბიზნესის სახელი",
     urlSlug: "URL სლოგი",
     description: "აღწერა",
-    coverPhoto: "Ხელმისაწვდომი ფოტო",
+    coverPhoto: "ყდის ფოტო",
     phone: "ტელეფონი",
     email: "ელფოსტა",
     website: "ვებსაიტი",
@@ -232,7 +233,7 @@ export const ka: TranslationType = {
     profile: " პროფილი",
     category: "კატეგორია",
     details: "დეტალები",
-    additionalInfo: "Დამატებითი ინფ���რმაცია",
+    additionalInfo: "დამატებითი ინფორმაცია",
     taskStatistics: "დავალების სტატისტიკა",
     eventStatistics: "ღონისძიების სტატისტიკა",
     financialSummary: "Ფინანსური შეჯამება",
@@ -258,6 +259,9 @@ export const ka: TranslationType = {
     deleteEvent: "ღონისძიების წაშლა",
     eventDeleted: "ღონისძიება წარმატებით წაიშალა",
     eventUpdated: "ღონისძიება წარმატებით განახლდა",
+    timeSlotUnavailable: "დრო არ არის ხელმისაწვდომი",
+    timeSlotConflict: "განრიგის კონფლიქტი",
+    timeSlotNotAvailable: "ეს დროის შუალედი არ არის ხელმისაწვდომი",
     socialLinkEmail: "ელფოსტა / სოციალური ქსელის ბმული",
     dateAndTime: "თარიღი და დრო",
     date: "თარიღი",
@@ -265,10 +269,7 @@ export const ka: TranslationType = {
     start: "Დაწყება",
     end: "Დასრულება",
     eventDetails: "ღონისძიების დეტალები",
-    title: "ღონისძიების სათაური",
-    timeSlotUnavailable: "დრო არ არის ხელმისაწვდომი",
-    timeSlotConflict: "განრიგის კონფლიქტი",
-    timeSlotNotAvailable: "ეს დროის შუალედი არ არის ხელმისაწვდომი"
+    title: "ღონისძიების სათაური"
   },
   contact: {
     email: "ელფოსტა",
@@ -292,7 +293,7 @@ export const ka: TranslationType = {
     messageSent: "შეტყობინება გაგზავნილია",
     messageSentDesc: "გმადლობთ, თქვენი შეტყობინება მიღებულია",
     error: "შეცდომა",
-    errorDesc: "თქვე��ი შეტყობინების გაგზავნისას მოხდა შეცდომა. გთხოვთ, სცადოთ ხელახლა."
+    errorDesc: "თქვენი შეტყობინების გაგზავნისას მოხდა შეცდომა. გთხოვთ, სცადოთ ხელახლა."
   },
   calendar: {
     attachment: "დანართი",
@@ -307,7 +308,11 @@ export const ka: TranslationType = {
     cancel: "გაუქმება",
     success: "Წარმატება",
     error: "შეცდომა",
+    warning: "გაფრთხილება",
     submitting: "გაგზავნა...",
+    create: "შექმნა",
+    update: "განახლება",
+    delete: "წაშლა",
     loading: "იტვირთება...",
     rateLimitReached: "მიღწეულია შეზღუდვა",
     waitBeforeBooking: "გთხოვთ, დაელოდოთ {{time}} სანამ სხვა დაჯავშნის მთხოვნას გაგზავნით",
@@ -325,7 +330,8 @@ export const ka: TranslationType = {
     new: "ახალი",
     request: "მოთხოვნა",
     requests: "მოთხოვნები",
-    backToHome: "Სახლში დაბრუნება"
+    backToHome: "Სახლში დაბრუნება",
+    and: "და"
   },
   auth: {
     welcome: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში",
@@ -393,7 +399,7 @@ export const ka: TranslationType = {
       title: "3. Ანგარიშის რეგისტრაცია და უსაფრთხოება",
       requirements: [
         "თქვენ უნდა მიაწოდოთ ზუსტი და სრული ინფორმაცია ანგარიშის შექმნისას.",
-        "თქვენ ხართ პასუხისმგებელი თქვენი ანგარიშის��� და პაროლის კონფიდენციალურობის შენარჩუნებაზე.",
+        "თქვენ ხართ პასუხისმგებელი თქვენი ანგარიშის და პაროლის კონფიდენციალურობის შენარჩუნებაზე.",
         "აუყოვნებლივ შეგვატყობინეთ თქვენს ანგარიშზე ნებისმიერი არაავტორიზებული წვდომის შესახებ."
       ]
     }

@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -260,6 +261,9 @@ export interface TranslationType {
     addNewEvent: string;
     updateEvent: string;
     createEvent: string;
+    deleteEvent: string;
+    eventDeleted: string;
+    eventUpdated: string;
     socialLinkEmail: string;
     dateAndTime: string;
     date: string;
@@ -268,6 +272,9 @@ export interface TranslationType {
     end: string;
     eventDetails: string;
     title: string;
+    timeSlotUnavailable: string;
+    timeSlotConflict: string;
+    timeSlotNotAvailable: string;
   };
   contact: {
     email: string;
@@ -325,6 +332,11 @@ export interface TranslationType {
     request: string;
     requests: string;
     backToHome: string;
+    warning: string;
+    and: string;
+    create: string;
+    update: string;
+    delete: string;
   };
   auth: {
     welcome: string;
@@ -393,6 +405,9 @@ export interface TranslationType {
       title: string;
       requirements: string[];
     };
+  };
+  bookings: {
+    approvedBooking: string;
   };
 }
 

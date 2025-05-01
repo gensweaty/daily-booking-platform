@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -258,6 +259,9 @@ export const es: TranslationType = {
     deleteEvent: "Eliminar Evento",
     eventDeleted: "Evento eliminado con éxito",
     eventUpdated: "Evento actualizado con éxito",
+    timeSlotUnavailable: "Horario No Disponible",
+    timeSlotConflict: "Conflicto de Horario",
+    timeSlotNotAvailable: "Este horario no está disponible",
     socialLinkEmail: "Correo / Enlace Social",
     dateAndTime: "Fecha y Hora",
     date: "Fecha",
@@ -265,13 +269,31 @@ export const es: TranslationType = {
     start: "Inicio",
     end: "Fin",
     eventDetails: "Detalles del Evento",
-    title: "Título del Evento",
-    timeSlotUnavailable: "Horario No Disponible",
-    timeSlotConflict: "Conflicto de Horario",
-    timeSlotNotAvailable: "Este horario no está disponible"
+    title: "Título del Evento"
   },
   contact: {
     email: "Correo electrónico",
+    getInTouch: "Contáctanos",
+    contactInfo: "Información de Contacto",
+    phone: "Teléfono",
+    address: "Dirección",
+    addressLine1: "123 Calle del Negocio",
+    addressLine2: "Ciudad, País",
+    businessHours: "Horario de Atención",
+    workingHours: "Lunes-Viernes: 9:00-17:00",
+    weekendHours: "Sábado-Domingo: Cerrado",
+    sendMessage: "Envíanos un mensaje",
+    name: "Nombre",
+    namePlaceholder: "Ingresa tu nombre",
+    emailPlaceholder: "Ingresa tu correo electrónico",
+    message: "Mensaje",
+    messagePlaceholder: "Escribe tu mensaje aquí",
+    send: "Enviar",
+    sending: "Enviando...",
+    messageSent: "Mensaje Enviado",
+    messageSentDesc: "Gracias, tu mensaje ha sido recibido",
+    error: "Error",
+    errorDesc: "Ocurrió un error al enviar tu mensaje. Por favor, intenta de nuevo."
   },
   calendar: {
     attachment: "Archivo adjunto",
@@ -286,6 +308,7 @@ export const es: TranslationType = {
     cancel: "Cancelar",
     success: "Éxito",
     error: "Error",
+    warning: "Advertencia",
     submitting: "Enviando...",
     loading: "Cargando...",
     rateLimitReached: "Límite de Frecuencia Alcanzado",
@@ -304,7 +327,11 @@ export const es: TranslationType = {
     new: "nueva",
     request: "solicitud",
     requests: "solicitudes",
-    backToHome: "Volver a la página de inicio"
+    backToHome: "Volver a la página de inicio",
+    create: "Crear",
+    update: "Actualizar",
+    delete: "Eliminar",
+    and: "y"
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",
