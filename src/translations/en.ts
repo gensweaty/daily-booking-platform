@@ -1,3 +1,4 @@
+
 const en = {
   nav: {
     signin: "Sign In",
@@ -266,7 +267,9 @@ const en = {
     start: "Start",
     end: "End",
     eventDetails: "Event Details",
-    title: "Event Title"
+    title: "Event Title",
+    bookAppointment: "Book Appointment",
+    submitRequest: "Submit Request"
   },
   contact: {
     email: "Email",
