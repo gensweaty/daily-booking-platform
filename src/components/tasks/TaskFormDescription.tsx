@@ -10,7 +10,8 @@ interface TaskFormDescriptionProps {
 }
 
 export const TaskFormDescription = ({ description, setDescription }: TaskFormDescriptionProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
 
   return (
     <div className="space-y-2">
@@ -20,6 +21,7 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
       <RichTextEditor
         content={description}
         onChange={setDescription}
+        className={isGeorgian ? "is-editor-empty:before:font-georgian" : ""}
       />
     </div>
   );

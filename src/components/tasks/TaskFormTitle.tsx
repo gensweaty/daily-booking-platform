@@ -10,7 +10,8 @@ interface TaskFormTitleProps {
 }
 
 export const TaskFormTitle = ({ title, setTitle }: TaskFormTitleProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
 
   return (
     <div className="space-y-2">
@@ -23,7 +24,7 @@ export const TaskFormTitle = ({ title, setTitle }: TaskFormTitleProps) => {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
-        className="bg-background border-input"
+        className={`bg-background border-input ${isGeorgian ? "placeholder:font-georgian" : ""}`}
       />
     </div>
   );

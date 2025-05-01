@@ -33,7 +33,8 @@ export const TaskFormFields = ({
   editingTask,
 }: TaskFormFieldsProps) => {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
   
   const { data: existingFiles = [], refetch } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
@@ -49,10 +50,6 @@ export const TaskFormFields = ({
     },
     enabled: !!editingTask?.id,
   });
-
-  console.log("TaskFormFields - Current description:", description);
-  console.log("TaskFormFields - Editing task:", editingTask);
-  console.log("TaskFormFields - Existing files:", existingFiles);
 
   const handleFileDeleted = () => {
     refetch();

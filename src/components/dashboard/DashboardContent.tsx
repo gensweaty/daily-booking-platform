@@ -79,8 +79,8 @@ export const DashboardContent = ({
           >
             <CalendarIcon className="w-4 h-4" />
           </motion.div>
-          <span className={isGeorgian ? "hidden sm:inline font-georgian" : "hidden sm:inline"}>
-            {t("dashboard.bookingCalendar")}
+          <span className="hidden sm:inline">
+            <LanguageText>{t("dashboard.bookingCalendar")}</LanguageText>
           </span>
         </TabsTrigger>
         <TabsTrigger 
@@ -190,7 +190,9 @@ export const DashboardContent = ({
           >
             <Card className="min-h-[calc(100vh-12rem)]">
               <CardHeader>
-                <CardTitle className="text-foreground">{t("dashboard.statistics")}</CardTitle>
+                <CardTitle>
+                  <LanguageText>{t("dashboard.statistics")}</LanguageText>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <motion.div
@@ -214,7 +216,9 @@ export const DashboardContent = ({
           >
             <Card className="min-h-[calc(100vh-12rem)]">
               <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-                <CardTitle className="text-foreground">{t("dashboard.tasks")}</CardTitle>
+                <CardTitle>
+                  <LanguageText>{t("dashboard.tasks")}</LanguageText>
+                </CardTitle>
                 <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
                   <DialogTrigger asChild>
                     <Button 
@@ -226,7 +230,7 @@ export const DashboardContent = ({
                       >
                         <PlusCircle className="w-4 h-4" />
                       </motion.div>
-                      {t("tasks.addTask")}
+                      <LanguageText>{t("tasks.addTask")}</LanguageText>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px]">

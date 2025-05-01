@@ -5,7 +5,7 @@ import { DateRangeSelect } from "./DateRangeSelect";
 import { memo, useCallback } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
-import { LanguageText } from "@/components/shared/LanguageText";
+import { LanguageText } from "../shared/LanguageText";
 
 interface StatsHeaderProps {
   dateRange: { start: Date; end: Date };
@@ -21,13 +21,9 @@ export const StatsHeader = memo(({ dateRange, onDateChange, onExport, isLoading 
   }, [onDateChange]);
 
   const { language } = useLanguage();
-  const isGeorgian = language === 'ka';
 
   return (
-    <div className={cn(
-      "flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4", 
-      isGeorgian ? "font-georgian" : ""
-    )}>
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
       <DateRangeSelect 
         selectedDate={dateRange}
         onDateChange={handleDateChange}

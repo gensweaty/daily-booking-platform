@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const ka: TranslationType = {
@@ -233,7 +232,7 @@ export const ka: TranslationType = {
     profile: " პროფილი",
     category: "კატეგორია",
     details: "დეტალები",
-    additionalInfo: "დამატებითი ინფორმაცია",
+    additionalInfo: "დამატებითი ინფ���რმაცია",
     taskStatistics: "დავალების სტატისტიკა",
     eventStatistics: "ღონისძიების სტატისტიკა",
     financialSummary: "Ფინანსური შეჯამება",
@@ -241,15 +240,15 @@ export const ka: TranslationType = {
     eventsData: "მოვლენების მონაცემები",
   },
   events: {
-    submitBookingRequest: "დაჯავშნის მოთხოვნის გაგზავნა",
-    fullNameRequired: "Სრული სახელ",
-    fullName: "Სრული სახელი",
-    phoneNumber: "Ტელეფონის ნომერი",
-    paymentStatus: "Გადახდის სტატუსი",
+    submitBookingRequest: "მოთხოვნის შემნა",
+    fullNameRequired: "სრული სახელ",
+    fullName: "სრული სახელი",
+    phoneNumber: "ტელეფონის ნომერი",
+    paymentStatus: "გადახდის სტატუსი",
     selectPaymentStatus: "აირჩიეთ გადახდის სტატუსი",
     paymentAmount: "გადახდის თანხა",
-    startDateTime: "Დაწყების თარიღი და დრო",
-    endDateTime: "Დასრულების თარიღი და დრო",
+    startDateTime: "დაწყების თარიღი და დრო",
+    endDateTime: "დასრულების თარიღი და დრო",
     eventNotes: "შენიშვნები",
     addEventNotes: "დაამატეთ შენიშვნები თქვენი დაჯავშნის მოთხოვნის შესახებ",
     editEvent: "ღონისძიების რედაქტირება",
@@ -266,15 +265,17 @@ export const ka: TranslationType = {
     dateAndTime: "თარიღი და დრო",
     date: "თარიღი",
     time: "დრო",
-    start: "Დაწყება",
-    end: "Დასრულება",
+    start: "დაწყება",
+    end: "დასრულება",
     eventDetails: "ღონისძიების დეტალები",
-    title: "ღონისძიების სათაური"
+    title: "ღონისძიების სათაური",
+    bookAppointment: "ჯავშნის მოთხოვნა",
+    submitRequest: "მოთხოვნის გაგზავნა"
   },
   contact: {
     email: "ელფოსტა",
     getInTouch: "Დაგვიკავშირდით",
-    contactInfo: "საკონტაქტო ინფორმაცია",
+    contactInfo: "საკონტ���ქტო ინფორმაცია",
     phone: "ტელეფონი",
     address: "მისამართი",
     addressLine1: "123 ბიზნესის ქუჩა",
@@ -349,7 +350,7 @@ export const ka: TranslationType = {
     signUpCta: "Რეგისტრაცია",
     agreeToTerms: "ვეთანხმები წესებსა და პირობებს",
     requiredField: "ეს ველი სავალდებულოა",
-    invalidEmail: "გთხოვთ, შეიყვანოთ სწორი ელფოსტა",
+    invalidEmail: "გთხოვთ, შეიყვანოთ ს���ორი ელფოსტა",
     passwordMinLength: "პაროლი უნდა შედგებოდეს მინიმუმ 6 სიმბოლოსგან",
     passwordMatch: "პაროლები არ ემთხვევა",
     confirmPassword: "პაროლის დადასტურება",
@@ -390,7 +391,7 @@ export const ka: TranslationType = {
       title: "1. Ზოგადი ინფორმაცია",
       companyName: "კომპანიის სახელი: SmartBookly",
       registered: "რეგისტრირებულია: საქართველო",
-      contact: "საკონტაქტო ელფოსტა: info@smartbookly.com"
+      contact: "საკონტ���ქტო ელფოსტა: info@smartbookly.com"
     },
     eligibility: {
       title: "2. Უნარი",
