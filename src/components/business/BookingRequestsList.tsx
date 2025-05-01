@@ -1,5 +1,4 @@
 
-// If you have this file, update it to use LanguageText components
 import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -7,7 +6,7 @@ import { BookingRequest } from '@/types/database';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatDate } from 'date-fns';
-import { Check, X, Trash2 } from "lucide-react";
+import { AlertCircle, Check, X, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -146,17 +145,20 @@ export const BookingRequestsList = ({
       </div>
 
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle><LanguageText>{t("business.deleteBookingRequest")}</LanguageText></AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              <LanguageText>{t("business.deleteBookingRequest")}</LanguageText>
+            </AlertDialogTitle>
             <AlertDialogDescription>
               <LanguageText>{t("common.deleteConfirmMessage")}</LanguageText>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel><LanguageText>{t("common.no")}</LanguageText></AlertDialogCancel>
+            <AlertDialogCancel><LanguageText>{t("common.cancel")}</LanguageText></AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              <LanguageText>{t("common.yes")}</LanguageText>
+              <LanguageText>{t("common.delete")}</LanguageText>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

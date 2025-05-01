@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getTasks, updateTask, deleteTask } from "@/lib/api";
 import { Task } from "@/lib/types";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { Pencil, Trash2, Maximize2, Paperclip } from "lucide-react";
+import { Pencil, Trash2, Maximize2, Paperclip, AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import { Dialog, DialogContent } from "./ui/dialog";
@@ -13,20 +13,25 @@ import { TaskFullView } from "./tasks/TaskFullView";
 import { supabase } from "@/lib/supabase";
 import { TaskColumn } from "./tasks/TaskColumn";
 import { TaskCard } from "./tasks/TaskCard";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export const TaskList = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
   const deleteTaskMutation = useMutation({
     mutationFn: (id: string) => deleteTask(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast({
-        title: "Success",
-        description: "Task deleted successfully",
+        title: t("common.success"),
+        description: t("common.deleteSuccess"),
       });
     },
   });
@@ -37,8 +42,8 @@ export const TaskList = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast({
-        title: "Success",
-        description: "Task updated successfully",
+        title: t("common.success"),
+        description: t("tasks.taskUpdated"),
       });
     },
   });
@@ -53,6 +58,19 @@ export const TaskList = () => {
       id: taskId,
       updates: { status: newStatus },
     });
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setTaskToDelete(id);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (taskToDelete) {
+      deleteTaskMutation.mutate(taskToDelete);
+      setIsDeleteConfirmOpen(false);
+      setTaskToDelete(null);
+    }
   };
 
   const { data: tasks = [], isLoading } = useQuery({
@@ -84,7 +102,7 @@ export const TaskList = () => {
               tasks={statusTasks}
               onEdit={setEditingTask}
               onView={setViewingTask}
-              onDelete={(id) => deleteTaskMutation.mutate(id)}
+              onDelete={handleDeleteClick}
             />
           ))}
         </div>
@@ -104,9 +122,29 @@ export const TaskList = () => {
           task={viewingTask}
           isOpen={!!viewingTask}
           onClose={() => setViewingTask(null)}
-          onDelete={(id) => deleteTaskMutation.mutate(id)}
+          onDelete={handleDeleteClick}
         />
       )}
+
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              {t("tasks.deleteTaskConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("common.deleteConfirmMessage")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

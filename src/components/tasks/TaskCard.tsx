@@ -1,7 +1,7 @@
 
 import { Task } from "@/lib/types";
 import { Draggable } from "@hello-pangea/dnd";
-import { Pencil, Trash2, Paperclip } from "lucide-react";
+import { Pencil, Trash2, Paperclip, AlertCircle } from "lucide-react";
 import { Button } from "../ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -105,17 +105,20 @@ export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
       </Draggable>
 
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("tasks.deleteTaskConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              {t("tasks.deleteTaskConfirmTitle")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {t("common.deleteConfirmMessage")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.no")}</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {t("common.yes")}
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

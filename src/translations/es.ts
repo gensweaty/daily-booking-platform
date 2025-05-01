@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -110,7 +109,10 @@ export const es: TranslationType = {
     descriptionLabel: "Descripción",
     todo: "Por Hacer",
     inProgress: "En Progreso",
-    done: "Completada"
+    done: "Completada",
+    deleteTaskConfirmTitle: "¿Eliminar Tarea?",
+    taskUpdated: "Tarea actualizada con éxito",
+    taskDeleted: "Tarea eliminada con éxito"
   },
   website: {
     title: "Sitio Web Gratuito para tu negocio",
@@ -178,7 +180,7 @@ export const es: TranslationType = {
     approve: "Aprobar",
     reject: "Rechazar",
     delete: "Eliminar",
-    deleteBookingRequest: "Eliminar Solicitud de Reserva",
+    deleteBookingRequest: "¿Eliminar Solicitud de Reserva?",
     deleteConfirmation: "¿Estás seguro de que quieres eliminar esta solicitud de reserva? Esta acción no se puede deshacer.",
     businessName: "Nombre del Negocio",
     urlSlug: "URL Amigable",
@@ -335,7 +337,9 @@ export const es: TranslationType = {
     update: "Actualizar",
     delete: "Eliminar",
     and: "y",
-    supportedFormats: "Formatos admitidos: .jpg, .jpeg, .png, .pdf, .docx, .xls"
+    supportedFormats: "Formatos admitidos: .jpg, .jpeg, .png, .pdf, .docx, .xls",
+    deleteConfirmMessage: "Esta acción no se puede deshacer. ¿Está seguro de que desea eliminar este elemento?",
+    noDescription: "No se proporcionó descripción"
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",

@@ -107,7 +107,10 @@ const en = {
     descriptionLabel: "Description",
     todo: "To Do",
     inProgress: "In Progress",
-    done: "Done"
+    done: "Done",
+    deleteTaskConfirmTitle: "Delete Task?",
+    taskUpdated: "Task updated successfully",
+    taskDeleted: "Task deleted successfully"
   },
   website: {
     title: "Free Website for Your Business",
@@ -175,7 +178,7 @@ const en = {
     approve: "Approve",
     reject: "Reject",
     delete: "Delete",
-    deleteBookingRequest: "Delete Booking Request",
+    deleteBookingRequest: "Delete Booking Request?",
     deleteConfirmation: "Are you sure you want to delete this booking request? This action cannot be undone.",
     businessName: "Business Name",
     urlSlug: "URL Slug",
@@ -332,7 +335,9 @@ const en = {
     request: "request",
     requests: "requests",
     backToHome: "Back to home page",
-    supportedFormats: ".jpg, .jpeg, .png, .pdf, .docx, .xls"
+    supportedFormats: ".jpg, .jpeg, .png, .pdf, .docx, .xls",
+    deleteConfirmMessage: "This action cannot be undone. Are you sure you want to delete this item?",
+    noDescription: "No description provided"
   },
   auth: {
     welcome: "Welcome to SmartBookly",
