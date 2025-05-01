@@ -71,6 +71,17 @@ export const CustomerDialog = ({
         startDate: initialData.startDate || "",
         endDate: initialData.endDate || "",
       });
+      
+      // Set the create_event checkbox state from initialData
+      setCreateEvent(initialData.create_event || false);
+      
+      // Set event dates if they exist in initialData
+      if (initialData.start_date) {
+        setEventStartDate(new Date(initialData.start_date));
+      }
+      if (initialData.end_date) {
+        setEventEndDate(new Date(initialData.end_date));
+      }
     } else {
       setFormData({
         title: "",
@@ -82,6 +93,7 @@ export const CustomerDialog = ({
         startDate: "",
         endDate: "",
       });
+      setCreateEvent(false);
     }
   }, [initialData]);
 
@@ -203,6 +215,9 @@ export const CustomerDialog = ({
           payment_status,
           payment_amount: payment_amount ? parseFloat(payment_amount) : null,
           user_id: user.id,
+          create_event: createEvent, // Make sure to update the create_event flag
+          start_date: createEvent ? eventStartDate.toISOString() : null,
+          end_date: createEvent ? eventEndDate.toISOString() : null
         };
 
         let tableToUpdate = 'customers';
@@ -223,6 +238,64 @@ export const CustomerDialog = ({
 
         if (error) throw error;
 
+        // If this is a customer and create_event is checked, create or update the corresponding event
+        if (tableToUpdate === 'customers' && createEvent) {
+          // Check if there's already an event with this title
+          const { data: existingEvents, error: eventCheckError } = await supabase
+            .from('events')
+            .select('id')
+            .eq('title', title)
+            .eq('user_id', user.id)
+            .is('deleted_at', null);
+            
+          if (eventCheckError) {
+            console.error("Error checking for existing events:", eventCheckError);
+          }
+          
+          const eventData = {
+            title: title,
+            user_number: user_number,
+            social_network_link: social_network_link,
+            event_notes: event_notes,
+            payment_status: payment_status,
+            payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+            user_id: user.id,
+            start_date: eventStartDate.toISOString(),
+            end_date: eventEndDate.toISOString(),
+          };
+
+          if (existingEvents && existingEvents.length > 0) {
+            // Update existing event
+            const { error: eventUpdateError } = await supabase
+              .from('events')
+              .update(eventData)
+              .eq('id', existingEvents[0].id);
+
+            if (eventUpdateError) {
+              console.error("Error updating event:", eventUpdateError);
+              toast({
+                title: t("common.warning"),
+                description: t("crm.eventUpdateFailed"),
+                variant: "destructive",
+              });
+            }
+          } else {
+            // Create new event
+            const { error: eventCreateError } = await supabase
+              .from('events')
+              .insert(eventData);
+
+            if (eventCreateError) {
+              console.error("Error creating event:", eventCreateError);
+              toast({
+                title: t("common.warning"),
+                description: t("crm.eventCreationFailed"),
+                variant: "destructive",
+              });
+            }
+          }
+        }
+
         if (selectedFile && customerId && !customerId.startsWith('event-')) {
           try {
             await uploadFile(customerId, selectedFile);
@@ -242,6 +315,8 @@ export const CustomerDialog = ({
           payment_amount: payment_amount ? parseFloat(payment_amount) : null,
           user_id: user.id,
           create_event: createEvent,
+          start_date: createEvent ? eventStartDate.toISOString() : null,
+          end_date: createEvent ? eventEndDate.toISOString() : null
         };
 
         console.log("Creating new customer:", newCustomer);
@@ -283,6 +358,8 @@ export const CustomerDialog = ({
             end_date: eventEndDate.toISOString(),
           };
 
+          console.log("Creating event from customer:", eventData);
+
           const { error: eventError } = await supabase
             .from('events')
             .insert(eventData);
@@ -298,6 +375,7 @@ export const CustomerDialog = ({
         }
       }
 
+      // Make sure to invalidate all the relevant queries
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
       await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });

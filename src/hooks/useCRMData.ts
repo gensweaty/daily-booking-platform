@@ -120,7 +120,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     
     // Create a map of customer titles to track which events are associated with existing customers
     // We'll use this to filter out events that were created from the "create_event" checkbox
-    const customerTitles = new Set(customers.map(c => c.title));
+    const customerTitles = new Set();
     
     // Add all customers to the combined array
     for (const customer of customers) {
@@ -128,6 +128,11 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
         ...customer,
         create_event: customer.create_event !== undefined ? customer.create_event : false
       });
+      // Only add customer titles to the set if the create_event flag is false
+      // This way we'll still show events that were created via create_event checkbox
+      if (!customer.create_event) {
+        customerTitles.add(customer.title);
+      }
     }
 
     // Only add events that aren't already represented by a customer with the same title
