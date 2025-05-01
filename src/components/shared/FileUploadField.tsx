@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useState, useEffect, forwardRef } from "react";
 import { LanguageText } from "./LanguageText";
+
 const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
 const MAX_FILE_SIZE_IMAGES = 50 * 1024 * 1024; // 50MB for images
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -11,6 +12,7 @@ const ALLOWED_DOC_TYPES = ["application/pdf", "application/vnd.openxmlformats-of
 // .xlsx
 "application/vnd.openxmlformats-officedocument.presentationml.presentation" // .pptx
 ];
+
 interface FileUploadFieldProps {
   onChange?: (file: File | null) => void;
   onUpload?: (url: string) => void; // Added for backward compatibility
@@ -29,6 +31,7 @@ interface FileUploadFieldProps {
   maxSizeMB?: number; // Added to support BusinessProfileForm
   selectedFile?: File | null; // Added to support explicit passing of selected file
 }
+
 export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps>(({
   onChange,
   onUpload,
@@ -47,9 +50,7 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   maxSizeMB,
   selectedFile
 }, ref) => {
-  const {
-    t
-  } = useLanguage();
+  const { t } = useLanguage();
   const [localFileError, setLocalFileError] = useState("");
   const [fileSelected, setFileSelected] = useState<string>("");
 
@@ -65,6 +66,7 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
       setFileSelected("");
     }
   }, [selectedFile]);
+  
   const validateFile = (file: File) => {
     const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
     const isDoc = ALLOWED_DOC_TYPES.includes(file.type);
@@ -80,6 +82,7 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
     }
     return null;
   };
+  
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault(); // Prevent default behavior
     const selectedFile = e.target.files?.[0];
@@ -104,6 +107,7 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
 
   // Display existing image if provided
   const hasImage = !!imageUrl;
+  
   return <div className={`${hideLabel && hideDescription ? '' : 'space-y-2'}`}>
       {!hideLabel && <label htmlFor="file" className="block text-gray-700">
           <LanguageText>{uploadText || t("calendar.attachment")}</LanguageText>
@@ -122,7 +126,12 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
       
       {actualFileError && <p className="text-sm text-red-500 mt-1">{actualFileError}</p>}
       
-      {!hideDescription && !actualFileError}
+      {!hideDescription && !actualFileError && (
+        <p className="text-xs text-muted-foreground mt-1">
+          <LanguageText>{t("common.supportedFormats")}</LanguageText>
+        </p>
+      )}
     </div>;
 });
+
 FileUploadField.displayName = "FileUploadField";
