@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { formatDate } from 'date-fns';
 import { Check, X, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
@@ -26,18 +27,18 @@ export const BookingRequestsList = ({
   onDelete 
 }: BookingRequestsListProps) => {
   const { t } = useLanguage();
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
 
   const handleDeleteClick = (id: string) => {
     setRequestToDelete(id);
-    setDeleteDialogOpen(true);
+    setIsDeleteConfirmOpen(true);
   };
 
   const handleDeleteConfirm = () => {
     if (requestToDelete) {
       onDelete(requestToDelete);
-      setDeleteDialogOpen(false);
+      setIsDeleteConfirmOpen(false);
       setRequestToDelete(null);
     }
   };
@@ -144,24 +145,22 @@ export const BookingRequestsList = ({
         </div>
       </div>
 
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle><LanguageText>{t("business.deleteBookingRequest")}</LanguageText></DialogTitle>
-            <DialogDescription>
-              <LanguageText>{t("business.deleteConfirmation")}</LanguageText>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-              <LanguageText>{t("common.cancel")}</LanguageText>
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm}>
-              <LanguageText>{t("business.delete")}</LanguageText>
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle><LanguageText>{t("business.deleteBookingRequest")}</LanguageText></AlertDialogTitle>
+            <AlertDialogDescription>
+              <LanguageText>{t("common.deleteConfirmMessage")}</LanguageText>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel><LanguageText>{t("common.no")}</LanguageText></AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              <LanguageText>{t("common.yes")}</LanguageText>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

@@ -104,6 +104,7 @@ export const TaskList = () => {
           task={viewingTask}
           isOpen={!!viewingTask}
           onClose={() => setViewingTask(null)}
+          onDelete={(id) => deleteTaskMutation.mutate(id)}
         />
       )}
     </>

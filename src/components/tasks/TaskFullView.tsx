@@ -4,19 +4,24 @@ import { Task } from "@/lib/types";
 import { FileDisplay } from "../shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
+import { Button } from "../ui/button";
+import { Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 
 interface TaskFullViewProps {
   task: Task;
   isOpen: boolean;
   onClose: () => void;
+  onDelete?: (id: string) => void;
 }
 
-export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
+export const TaskFullView = ({ task, isOpen, onClose, onDelete }: TaskFullViewProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   
   useEffect(() => {
     console.log("TaskFullView - task received:", task);
@@ -45,40 +50,87 @@ export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
     });
   };
 
+  const handleDeleteClick = () => {
+    if (onDelete) {
+      setIsDeleteConfirmOpen(true);
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    if (onDelete) {
+      onDelete(task.id);
+      setIsDeleteConfirmOpen(false);
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-background border-border text-foreground max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">{task.title}</DialogTitle>
-        </DialogHeader>
-        <div className="mt-6 space-y-6">
-          <div className="prose dark:prose-invert">
-            <div className="p-4 rounded-lg border border-input bg-muted/50">
-              <h3 className="text-sm font-medium mb-2">{t("common.description")}</h3>
-              {task.description ? (
-                <div 
-                  className="whitespace-pre-wrap text-foreground/80"
-                  dangerouslySetInnerHTML={{ __html: task.description }}
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="bg-background border-border text-foreground max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">{task.title}</DialogTitle>
+          </DialogHeader>
+          <div className="mt-6 space-y-6">
+            <div className="prose dark:prose-invert">
+              <div className="p-4 rounded-lg border border-input bg-muted/50">
+                <h3 className="text-sm font-medium mb-2">{t("common.description")}</h3>
+                {task.description ? (
+                  <div 
+                    className="whitespace-pre-wrap text-foreground/80"
+                    dangerouslySetInnerHTML={{ __html: task.description }}
+                  />
+                ) : (
+                  <p className="text-muted-foreground">{t("common.noDescription")}</p>
+                )}
+              </div>
+            </div>
+            {files && files.length > 0 && (
+              <div className="p-4 rounded-lg border border-input bg-muted/50">
+                <FileDisplay 
+                  files={files} 
+                  bucketName="event_attachments" 
+                  allowDelete 
+                  onFileDeleted={handleFileDeleted}
+                  parentId={task.id}
+                  parentType="task"
                 />
-              ) : (
-                <p className="text-muted-foreground">{t("common.noDescription")}</p>
-              )}
-            </div>
+              </div>
+            )}
+
+            {onDelete && (
+              <div className="flex justify-end">
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={handleDeleteClick}
+                  className="flex items-center gap-1"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>{t("common.delete")}</span>
+                </Button>
+              </div>
+            )}
           </div>
-          {files && files.length > 0 && (
-            <div className="p-4 rounded-lg border border-input bg-muted/50">
-              <FileDisplay 
-                files={files} 
-                bucketName="event_attachments" 
-                allowDelete 
-                onFileDeleted={handleFileDeleted}
-                parentId={task.id}
-                parentType="task"
-              />
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("tasks.deleteTaskConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("common.deleteConfirmMessage")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.no")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t("common.yes")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
