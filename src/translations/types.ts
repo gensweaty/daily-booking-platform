@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -320,6 +319,7 @@ export interface TranslationType {
     cancel: string;
     success: string;
     error: string;
+    warning: string;
     submitting: string;
     loading: string;
     rateLimitReached: string;
@@ -347,6 +347,7 @@ export interface TranslationType {
     supportedFormats: string;
     deleteConfirmMessage: string;
     noDescription: string;
+    deleteConfirmTitle: string;
   };
   auth: {
     welcome: string;

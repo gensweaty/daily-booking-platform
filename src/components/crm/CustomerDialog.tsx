@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -377,7 +376,7 @@ export const CustomerDialog = ({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
-              {t("common.delete")}
+              {t("common.deleteConfirmTitle")}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t("common.deleteConfirmMessage")}
