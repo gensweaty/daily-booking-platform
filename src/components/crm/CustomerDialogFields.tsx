@@ -133,7 +133,7 @@ export const CustomerDialogFields = ({
     <>
       <div>
         <Label htmlFor="fullName" className={labelClass}>
-          <LanguageText>{t("crm.fullName")}</LanguageText>
+          {t("crm.fullName")}
         </Label>
         <Input
           id="fullName"
@@ -145,7 +145,7 @@ export const CustomerDialogFields = ({
       
       <div>
         <Label htmlFor="phoneNumber" className={labelClass}>
-          <LanguageText>{t("crm.phoneNumber")}</LanguageText>
+          {t("crm.phoneNumber")}
         </Label>
         <Input
           id="phoneNumber"
@@ -157,7 +157,7 @@ export const CustomerDialogFields = ({
       
       <div>
         <Label htmlFor="socialNetworkLink" className={labelClass}>
-          <LanguageText>{t("crm.socialLinkEmail")}</LanguageText>
+          {t("crm.socialLinkEmail")}
         </Label>
         <Input
           id="socialNetworkLink"
@@ -177,7 +177,7 @@ export const CustomerDialogFields = ({
             onCheckedChange={setCreateEvent}
           />
           <Label htmlFor="createEvent" className={cn(labelClass, "cursor-pointer")}>
-            <LanguageText>{t("crm.createEvent")}</LanguageText>
+            {t("crm.createEvent")}
           </Label>
         </div>
       )}
@@ -186,7 +186,7 @@ export const CustomerDialogFields = ({
       {setPaymentStatus !== undefined && createEvent && (
         <div>
           <Label htmlFor="paymentStatus" className={labelClass}>
-            <LanguageText>{t("crm.paymentStatus")}</LanguageText>
+            {t("crm.paymentStatus")}
           </Label>
           <Select value={paymentStatus} onValueChange={setPaymentStatus}>
             <SelectTrigger id="paymentStatus">
@@ -205,7 +205,7 @@ export const CustomerDialogFields = ({
       {setPaymentAmount !== undefined && createEvent && paymentStatus && paymentStatus !== 'not_paid' && (
         <div>
           <Label htmlFor="paymentAmount" className={labelClass}>
-            <LanguageText>{t("crm.paymentAmount")}</LanguageText>
+            {t("crm.paymentAmount")}
           </Label>
           <Input
             id="paymentAmount"
@@ -223,7 +223,7 @@ export const CustomerDialogFields = ({
       {setEventStartDate && setEventEndDate && createEvent && (
         <div>
           <Label className={labelClass}>
-            <LanguageText>{t("events.dateAndTime")}</LanguageText>
+            {t("events.dateAndTime")}
           </Label>
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -266,7 +266,7 @@ export const CustomerDialogFields = ({
       
       <div>
         <Label htmlFor="customerNotes" className={labelClass}>
-          <LanguageText>{t("crm.customerNotes")}</LanguageText>
+          {t("crm.customerNotes")}
         </Label>
         <Textarea
           id="customerNotes"
@@ -279,7 +279,7 @@ export const CustomerDialogFields = ({
       
       <div>
         <Label htmlFor="file" className={labelClass}>
-          <LanguageText>{t("common.attachments")}</LanguageText>
+          {t("common.attachments")}
         </Label>
         <FileUploadField
           onChange={setSelectedFile}

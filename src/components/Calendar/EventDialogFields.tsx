@@ -81,7 +81,7 @@ export const EventDialogFields = ({
     <>
       <div>
         <Label htmlFor="userSurname" className={labelClass}>
-          <LanguageText>{t("events.fullName")}</LanguageText>
+          {t("events.fullName")}
         </Label>
         <Input
           id="userSurname"
@@ -96,7 +96,7 @@ export const EventDialogFields = ({
       </div>
       <div>
         <Label htmlFor="userNumber" className={labelClass}>
-          <LanguageText>{t("events.phoneNumber")}</LanguageText>
+          {t("events.phoneNumber")}
         </Label>
         <Input
           id="userNumber"
@@ -107,7 +107,7 @@ export const EventDialogFields = ({
       </div>
       <div>
         <Label htmlFor="socialNetworkLink" className={labelClass}>
-          <LanguageText>{t("events.socialLinkEmail")}</LanguageText>
+          {t("events.socialLinkEmail")}
         </Label>
         <Input
           id="socialNetworkLink"
@@ -119,12 +119,12 @@ export const EventDialogFields = ({
       </div>
       <div>
         <Label htmlFor="dateTime" className={labelClass}>
-          <LanguageText>{t("events.dateAndTime")}</LanguageText>
+          {t("events.dateAndTime")}
         </Label>
         <div className="grid grid-cols-2 gap-2">
           <div>
             <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
-              <LanguageText>{t("events.start")}</LanguageText>
+              {t("events.start")}
             </Label>
             <div className="relative">
               <Input
@@ -140,7 +140,7 @@ export const EventDialogFields = ({
           </div>
           <div>
             <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
-              <LanguageText>{t("events.end")}</LanguageText>
+              {t("events.end")}
             </Label>
             <div className="relative">
               <Input
@@ -161,7 +161,7 @@ export const EventDialogFields = ({
         <>
           <div>
             <Label htmlFor="paymentStatus" className={labelClass}>
-              <LanguageText>{t("events.paymentStatus")}</LanguageText>
+              {t("events.paymentStatus")}
             </Label>
             <Select
               value={paymentStatus}
@@ -171,9 +171,9 @@ export const EventDialogFields = ({
                 <SelectValue placeholder={t("events.selectPaymentStatus")} />
               </SelectTrigger>
               <SelectContent className="bg-background">
-                <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.notPaid")}</LanguageText></SelectItem>
-                <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.paidPartly")}</LanguageText></SelectItem>
-                <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}><LanguageText>{t("crm.paidFully")}</LanguageText></SelectItem>
+                <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.notPaid")}</SelectItem>
+                <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidPartly")}</SelectItem>
+                <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidFully")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -181,7 +181,7 @@ export const EventDialogFields = ({
           {showPaymentAmount && (
             <div>
               <Label htmlFor="paymentAmount" className={labelClass}>
-                <LanguageText>{t("events.paymentAmount")}</LanguageText>
+                {t("events.paymentAmount")}
               </Label>
               <Input
                 id="paymentAmount"
@@ -203,7 +203,7 @@ export const EventDialogFields = ({
       
       <div>
         <Label htmlFor="eventNotes" className={labelClass}>
-          <LanguageText>{t("events.eventNotes")}</LanguageText>
+          {t("events.eventNotes")}
         </Label>
         <Textarea
           id="eventNotes"
@@ -216,7 +216,7 @@ export const EventDialogFields = ({
       
       <div>
         <Label htmlFor="file" className={labelClass}>
-          <LanguageText>{t("common.attachments")}</LanguageText>
+          {t("common.attachments")}
         </Label>
         <FileUploadField
           onChange={setSelectedFile}
@@ -227,9 +227,7 @@ export const EventDialogFields = ({
           hideLabel={true}
         />
         <p className="text-xs text-muted-foreground mt-1">
-          {language === 'en' && "Supported formats: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
-          {language === 'es' && "Formatos admitidos: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
-          {language === 'ka' && "მხარდაჭერილი ფორმატები: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
+          Supported formats: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT
         </p>
       </div>
       
@@ -247,4 +245,3 @@ export const EventDialogFields = ({
     </>
   );
 };
-
