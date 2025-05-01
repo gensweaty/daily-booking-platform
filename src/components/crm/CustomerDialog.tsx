@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -192,39 +193,108 @@ export const CustomerDialog = ({
     try {
       const { title, user_number, social_network_link, event_notes, payment_status, payment_amount } = formData;
 
-      const updates = {
-        title,
-        user_number,
-        social_network_link,
-        event_notes,
-        payment_status,
-        payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-        user_id: user.id,
-      };
+      // For existing customers/events (update operation)
+      if (customerId) {
+        const updates = {
+          title,
+          user_number,
+          social_network_link,
+          event_notes,
+          payment_status,
+          payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+          user_id: user.id,
+        };
 
-      let tableToUpdate = 'customers';
-      let id = customerId;
+        let tableToUpdate = 'customers';
+        let id = customerId;
 
-      if (customerId?.startsWith('event-')) {
-        tableToUpdate = 'events';
-        id = customerId.replace('event-', '');
-      }
+        if (customerId.startsWith('event-')) {
+          tableToUpdate = 'events';
+          id = customerId.replace('event-', '');
+        }
 
-      const { data, error } = await supabase
-        .from(tableToUpdate)
-        .update(updates)
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .select()
-        .single();
+        const { data, error } = await supabase
+          .from(tableToUpdate)
+          .update(updates)
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (selectedFile && customerId && !customerId?.startsWith('event-')) {
-        try {
-          await uploadFile(customerId, selectedFile);
-        } catch (uploadError) {
-          console.error("File upload failed:", uploadError);
+        if (selectedFile && customerId && !customerId.startsWith('event-')) {
+          try {
+            await uploadFile(customerId, selectedFile);
+          } catch (uploadError) {
+            console.error("File upload failed:", uploadError);
+          }
+        }
+      } 
+      // For new customers (insert operation)
+      else {
+        const newCustomer = {
+          title,
+          user_number,
+          social_network_link,
+          event_notes,
+          payment_status,
+          payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+          user_id: user.id,
+          create_event: createEvent,
+        };
+
+        console.log("Creating new customer:", newCustomer);
+        
+        const { data: customerData, error: customerError } = await supabase
+          .from('customers')
+          .insert(newCustomer)
+          .select()
+          .single();
+
+        if (customerError) {
+          console.error("Error creating customer:", customerError);
+          throw customerError;
+        }
+
+        console.log("Customer created:", customerData);
+
+        // Handle file upload for the new customer if a file was selected
+        if (selectedFile && customerData) {
+          try {
+            await uploadFile(customerData.id, selectedFile);
+          } catch (uploadError) {
+            console.error("File upload failed:", uploadError);
+          }
+        }
+
+        // Create corresponding event if checkbox was checked
+        if (createEvent && customerData) {
+          const eventData = {
+            title: title,
+            user_surname: user_number, // Reuse fields for the event
+            user_number: user_number,
+            social_network_link: social_network_link,
+            event_notes: event_notes,
+            payment_status: payment_status,
+            payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+            user_id: user.id,
+            start_date: eventStartDate.toISOString(),
+            end_date: eventEndDate.toISOString(),
+          };
+
+          const { error: eventError } = await supabase
+            .from('events')
+            .insert(eventData);
+
+          if (eventError) {
+            console.error("Error creating event:", eventError);
+            toast({
+              title: t("common.warning"),
+              description: t("crm.eventCreationFailed"),
+              variant: "destructive",
+            });
+          }
         }
       }
 
@@ -235,7 +305,7 @@ export const CustomerDialog = ({
 
       toast({
         title: t("common.success"),
-        description: t("common.updateSuccess"),
+        description: customerId ? t("common.updateSuccess") : t("crm.customerAddSuccess"),
       });
       onOpenChange(false);
     } catch (error: any) {

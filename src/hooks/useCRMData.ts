@@ -59,13 +59,18 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       throw eventsError;
     }
 
-    // Fetch files for each event
+    // Fetch files for each event - with safety check for undefined event IDs
     const eventsWithFiles = await Promise.all(events.map(async (event) => {
+      if (!event.id) {
+        console.error("Event without ID detected:", event);
+        return { ...event, event_files: [] };
+      }
+      
       const { data: files } = await supabase
         .rpc('get_all_related_files', {
           event_id_param: event.id,
           customer_id_param: null,
-          entity_name_param: event.title
+          entity_name_param: event.title || '' // Ensure title is never undefined
         });
       
       return {

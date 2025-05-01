@@ -338,7 +338,7 @@ export const CustomerList = () => {
         [t("events.time")]: customer.start_date && customer.end_date ? 
           formatTimeRange(customer.start_date, customer.end_date) : '',
         [t("crm.comment")]: customer.event_notes || '',
-        [t("crm.dates")]: customer.id.startsWith('event-') || (customer.start_date && customer.end_date) ? t("crm.yes") : t("crm.no")
+        [t("crm.dates")]: customer.id?.startsWith('event-') || (customer.start_date && customer.end_date) ? t("crm.yes") : t("crm.no")
       };
     });
 
@@ -358,7 +358,9 @@ export const CustomerList = () => {
     ];
     ws['!cols'] = colWidths;
 
-    XLSX.utils.book_append_sheet(wb, ws, t("crm.title"));
+    // Fix Excel sheet name limitation (max 31 chars)
+    const sheetName = t("crm.title").substring(0, 31);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
     const currentDate = format(new Date(), 'dd-MM-yyyy');
     XLSX.writeFile(wb, `${t("crm.title").toLowerCase()}-${currentDate}.xlsx`);
