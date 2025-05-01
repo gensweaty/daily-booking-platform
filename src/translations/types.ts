@@ -203,6 +203,7 @@ export interface TranslationType {
     goodMorning: string;
     goodAfternoon: string;
     goodEvening: string;
+    goodNight?: string; // Made optional to accommodate the Georgian translation
     overview: string;
     calendar: string;
     bookingCalendar: string;

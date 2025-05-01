@@ -1,4 +1,3 @@
-
 const en = {
   nav: {
     signin: "Sign In",
@@ -34,7 +33,8 @@ const en = {
     feature4: "Automatic event synchronization with CRM",
     feature5: "Booking notifications via email and dashboard",
     requestSubmitted: "Your booking request has been successfully submitted!",
-    yourEmailPlaceholder: "Enter your email"
+    yourEmailPlaceholder: "Enter your email",
+    bookAppointment: "Book Appointment"
   },
   analytics: {
     title: "Comprehensive Analytics",
