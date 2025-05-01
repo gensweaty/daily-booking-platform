@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -174,8 +175,6 @@ export const AddNoteForm = () => {
             onChange={setSelectedFile}
             fileError={fileError}
             setFileError={setFileError}
-            acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-            selectedFile={selectedFile}
           />
 
           <div className="flex justify-end gap-2">

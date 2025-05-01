@@ -35,8 +35,6 @@ export const BusinessProfileForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [baseUrl, setBaseUrl] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState<string>("");
 
   useEffect(() => {
     setBaseUrl(`${window.location.protocol}//${window.location.host}/business`);
@@ -124,11 +122,6 @@ export const BusinessProfileForm = () => {
     }
   };
 
-  // Handle file change
-  const handleFileChange = (file: File | null) => {
-    setSelectedFile(file);
-  };
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -200,15 +193,11 @@ export const BusinessProfileForm = () => {
                 <FileUploadField
                   imageUrl={value}
                   onUpload={onChange}
-                  onChange={handleFileChange}
-                  selectedFile={selectedFile}
-                  fileError={fileError}
-                  setFileError={setFileError}
                   bucket="business_covers"
                   uploadText={t("business.uploadImageCover")}
                   chooseFileText={t("business.chooseFile")}
                   noFileText={t("business.noFileChosen")}
-                  maxSizeInMB={5}
+                  maxSizeMB={5}
                   acceptedFileTypes="image/*"
                   {...field}
                 />

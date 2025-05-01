@@ -1,92 +1,89 @@
 
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { FileUploadField } from "@/components/shared/FileUploadField";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { FileDisplay } from "@/components/shared/FileDisplay";
-import { cn } from "@/lib/utils";
-import { FileRecord } from "@/types/files";
-import { LanguageText } from "@/components/shared/LanguageText";
+import { FileUploadField } from "../shared/FileUploadField";
+import { FileDisplay } from "../shared/FileDisplay";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { Task } from "@/lib/types";
 import { TaskFormTitle } from "./TaskFormTitle";
 import { TaskFormDescription } from "./TaskFormDescription";
-import { Task } from "@/lib/types";
+import { useToast } from "@/components/ui/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TaskFormFieldsProps {
+  title: string;
+  setTitle: (title: string) => void;
+  description: string;
+  setDescription: (description: string) => void;
   selectedFile: File | null;
   setSelectedFile: (file: File | null) => void;
   fileError: string;
   setFileError: (error: string) => void;
-  taskId?: string;
-  displayedFiles?: FileRecord[];
-  onFileDeleted?: (fileId: string) => void;
-  editingTask?: Task | null;
-  // Add these props to match usage in AddTaskForm
-  title?: string;
-  setTitle?: (title: string) => void;
-  description?: string;
-  setDescription?: (description: string) => void;
+  editingTask: Task | null;
 }
 
 export const TaskFormFields = ({
+  title,
+  setTitle,
+  description,
+  setDescription,
   selectedFile,
   setSelectedFile,
   fileError,
   setFileError,
-  taskId,
-  displayedFiles = [],
-  onFileDeleted = () => {},
   editingTask,
-  // Use the new props
-  title,
-  setTitle,
-  description,
-  setDescription
 }: TaskFormFieldsProps) => {
-  const { t, language } = useLanguage();
-  const isGeorgian = language === 'ka';
+  const { toast } = useToast();
+  const { t } = useLanguage();
   
-  const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
-  
+  const { data: existingFiles = [], refetch } = useQuery({
+    queryKey: ['taskFiles', editingTask?.id],
+    queryFn: async () => {
+      if (!editingTask?.id) return [];
+      const { data, error } = await supabase
+        .from('files')  // Task files are stored in the 'files' table
+        .select('*')
+        .eq('task_id', editingTask.id);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!editingTask?.id,
+  });
+
+  console.log("TaskFormFields - Current description:", description);
+  console.log("TaskFormFields - Editing task:", editingTask);
+  console.log("TaskFormFields - Existing files:", existingFiles);
+
+  const handleFileDeleted = () => {
+    refetch();
+    toast({
+      title: t("common.success"),
+      description: t("common.fileDeleted"),
+    });
+  };
+
   return (
-    <>
-      {title !== undefined && setTitle !== undefined && (
-        <TaskFormTitle title={title} setTitle={setTitle} />
-      )}
+    <div className="space-y-4">
+      <TaskFormTitle title={title} setTitle={setTitle} />
+      <TaskFormDescription description={description} setDescription={setDescription} />
       
-      {description !== undefined && setDescription !== undefined && (
-        <TaskFormDescription description={description} setDescription={setDescription} />
-      )}
-      
-      <div>
-        <Label htmlFor="file" className={labelClass}>
-          <LanguageText>{t("common.attachments")}</LanguageText>
-        </Label>
-        <FileUploadField
-          onChange={setSelectedFile}
-          fileError={fileError}
-          setFileError={setFileError}
-          acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-          selectedFile={selectedFile}
-          hideLabel={true}
-        />
-        <p className="text-xs text-muted-foreground mt-1">
-          {language === 'en' && "Supported formats: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
-          {language === 'es' && "Formatos admitidos: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
-          {language === 'ka' && "მხარდაჭერილი ფორმატები: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
-        </p>
-      </div>
-      
-      {displayedFiles.length > 0 && (
-        <div className="flex flex-col gap-2 mt-2">
-          <FileDisplay
-            files={displayedFiles}
+      {editingTask?.id && existingFiles && existingFiles.length > 0 && (
+        <div className="space-y-2">
+          <FileDisplay 
+            files={existingFiles} 
             bucketName="task_attachments"
-            allowDelete={true}
-            onFileDeleted={onFileDeleted}
+            allowDelete
+            onFileDeleted={handleFileDeleted}
+            parentId={editingTask.id}
             parentType="task"
           />
         </div>
       )}
-    </>
+      <FileUploadField 
+        onChange={setSelectedFile}
+        fileError={fileError}
+        setFileError={setFileError}
+      />
+    </div>
   );
 };

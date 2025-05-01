@@ -1,52 +1,38 @@
 
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { useState, useRef, useEffect } from 'react';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import { toast } from '@/components/ui/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useToast } from '@/components/ui/use-toast';
 import { FileUploadField } from '@/components/shared/FileUploadField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useTheme } from "next-themes";
-import { LanguageText } from '@/components/shared/LanguageText';
+import { CalendarIcon } from "lucide-react";
 
 export interface BookingRequestFormProps {
   businessId: string;
-  businessName?: string;
-  businessOwnerUserId?: string;
-  date?: Date;
-  defaultDuration?: number;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
-  // Add these props to make it compatible with Calendar component usage
+  selectedDate: Date;
   startTime?: string;
   endTime?: string;
-  selectedDate?: Date;
+  onSuccess?: () => void;
   isExternalBooking?: boolean;
-}
-
-interface ServiceItem {
-  id: string;
-  name: string;
-  business_id: string;
-  created_at: string;
-  deleted_at: string | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export const BookingRequestForm = ({
   businessId,
-  businessName,
-  businessOwnerUserId,
-  date,
-  defaultDuration = 60,
-  open,
+  selectedDate,
+  startTime = '09:00',
+  endTime = '10:00',
   onSuccess,
+  isExternalBooking = false,
+  open,
   onOpenChange
 }: BookingRequestFormProps) => {
   const { t, language } = useLanguage();
@@ -54,384 +40,435 @@ export const BookingRequestForm = ({
   const isGeorgian = language === 'ka';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState("");
-  const { toast } = useToast();
-
-  // Form fields
-  const [title, setTitle] = useState('');
-  const [requesterName, setRequesterName] = useState('');
-  const [requesterPhone, setRequesterPhone] = useState('');
-  const [requesterEmail, setRequesterEmail] = useState('');
-  const [description, setDescription] = useState('');
-  const [service, setService] = useState('');
-  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [fileError, setFileError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Replace useState with fullName state
+  const [fullName, setFullName] = useState('');
+  
+  // Add new state variables to match EventDialog structure
+  const [userSurname, setUserSurname] = useState('');
+  const [userNumber, setUserNumber] = useState('');
+  const [socialNetworkLink, setSocialNetworkLink] = useState('');
+  const [eventNotes, setEventNotes] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('not_paid');
   const [paymentAmount, setPaymentAmount] = useState('');
 
+  // Determine icon color based on theme
+  const iconColor = theme === 'dark' ? "white" : "currentColor";
+
   // Move date initialization to useEffect
   useEffect(() => {
-    if (date) {
-      // Initialize with the provided date 
-      const newStartDate = new Date(date);
+    try {
+      const start = combineDateAndTime(selectedDate, startTime);
+      const end = combineDateAndTime(selectedDate, endTime);
       
-      // Round to nearest half hour for better UX
-      const minutes = newStartDate.getMinutes();
-      newStartDate.setMinutes(minutes < 30 ? 30 : 60);
-      newStartDate.setSeconds(0);
-      newStartDate.setMilliseconds(0);
-      
-      // Calculate end date based on defaultDuration
-      const newEndDate = new Date(newStartDate.getTime() + defaultDuration * 60000);
-      
-      // Format dates for input
-      setStartDate(format(newStartDate, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(newEndDate, "yyyy-MM-dd'T'HH:mm"));
-    } else {
-      // Initialize with current date and time if no date provided
+      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
+    } catch (error) {
+      console.error('Error initializing dates:', error);
+      // Set fallback dates in case of error
       const now = new Date();
+      const oneHourLater = new Date(now);
+      oneHourLater.setHours(oneHourLater.getHours() + 1);
       
-      // Round to nearest half hour
-      const minutes = now.getMinutes();
-      now.setMinutes(minutes < 30 ? 30 : 60);
-      now.setSeconds(0);
-      now.setMilliseconds(0);
-      
-      // Calculate end date based on defaultDuration
-      const endTime = new Date(now.getTime() + defaultDuration * 60000);
-      
-      // Format dates for input
       setStartDate(format(now, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(endTime, "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(oneHourLater, "yyyy-MM-dd'T'HH:mm"));
     }
-  }, [date, defaultDuration]);
+  }, [selectedDate, startTime, endTime]);
 
-  // Reset form on open/close
-  useEffect(() => {
-    if (open) {
-      setTitle('');
-      setRequesterName('');
-      setRequesterPhone('');
-      setRequesterEmail('');
-      setDescription('');
-      setService('');
-      setSelectedFile(null);
-      setFileError('');
-    }
-  }, [open]);
+  const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
+  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
 
-  // Fetch services for the business
-  useEffect(() => {
-    const fetchServices = async () => {
-      if (businessId) {
-        try {
-          // Fix: We need to use the correct types for Supabase query
-          const { data, error } = await supabase
-            .from('services')
-            .select('*')
-            .eq('business_id', businessId)
-            .is('deleted_at', null)
-            .order('created_at', { ascending: false });
+  const combineDateAndTime = (date: Date, timeString: string) => {
+    if (!timeString) return new Date(date);
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const newDate = new Date(date);
+    newDate.setHours(hours, minutes, 0, 0);
+    return newDate;
+  };
 
-          if (error) {
-            console.error('Error fetching services:', error);
-            return;
-          }
+  // Handle name change to update both fullName and userSurname
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFullName(value);
+    setUserSurname(value);
+  };
 
-          // Use type assertion to ensure correct type
-          setServices(data as ServiceItem[] || []);
-          
-          // If there are services, set the first one as default
-          if (data && data.length > 0) {
-            setService(data[0].id);
-          }
-        } catch (err) {
-          console.error('Exception fetching services:', err);
-        }
-      }
-    };
-
-    fetchServices();
-  }, [businessId]);
+  const handleFileChange = (file: File | null) => {
+    setSelectedFile(file);
+    setFileError('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-
     try {
-      // Validate form
-      if (!requesterName) {
+      setIsSubmitting(true);
+      console.log("Starting form submission...");
+
+      // Validate required fields
+      if (!fullName) {
         toast({
-          title: t("common.error"),
-          description: t("bookings.nameRequired"),
-          variant: "destructive",
+          title: t('common.error'),
+          description: t('Name is required'),
+          variant: 'destructive'
         });
         setIsSubmitting(false);
         return;
       }
-      
-      // Create the booking request
+
+      if (!socialNetworkLink || !socialNetworkLink.includes('@')) {
+        toast({
+          title: t('common.error'),
+          description: t('Valid email address is required'),
+          variant: 'destructive'
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      const startDateTime = new Date(startDate);
+      const endDateTime = new Date(endDate);
+
+      // Additional validation for dates
+      if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+        toast({
+          title: t('common.error'),
+          description: t('Valid start and end dates are required'),
+          variant: 'destructive'
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Process payment amount
+      let finalPaymentAmount = null;
+      if (showPaymentAmount && paymentAmount) {
+        const amount = parseFloat(paymentAmount);
+        if (!isNaN(amount)) {
+          finalPaymentAmount = amount;
+        }
+      }
+
       const bookingData = {
         business_id: businessId,
-        title: title || requesterName,
-        requester_name: requesterName,
-        requester_phone: requesterPhone,
-        requester_email: requesterEmail,
-        description,
-        service_id: service || null,
-        start_date: startDate,
-        end_date: endDate,
-        status: 'pending', // Initial status is always pending
+        requester_name: fullName,
+        requester_email: socialNetworkLink,
+        requester_phone: userNumber || null,
+        // Use fullName for both title and requester_name to ensure consistency
+        title: `${fullName}`,
+        description: eventNotes || null,
+        start_date: startDateTime.toISOString(),
+        end_date: endDateTime.toISOString(),
+        payment_status: paymentStatus,
+        payment_amount: finalPaymentAmount,
+        status: 'pending',
       };
 
-      const { data: bookingRequest, error: bookingError } = await supabase
+      console.log('Submitting booking request:', bookingData);
+
+      const { data, error } = await supabase
         .from('booking_requests')
         .insert(bookingData)
         .select()
         .single();
 
-      if (bookingError) {
-        console.error('Error creating booking request:', bookingError);
-        toast({
-          title: t("common.error"),
-          description: t("bookings.errorCreating"),
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
-        return;
+      if (error) {
+        console.error('Error submitting booking request:', error);
+        throw error;
       }
 
-      // Upload file if selected
-      if (selectedFile && bookingRequest.id) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${bookingRequest.id}/${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('booking_attachments')
-          .upload(filePath, selectedFile);
+      const bookingId = data.id;
+      console.log('Booking request created with ID:', bookingId);
 
-        if (uploadError) {
-          console.error('Error uploading file:', uploadError);
-          // Continue with the booking process even if file upload fails
-        } else {
-          // Create file record in booking_files table
+      if (selectedFile && bookingId) {
+        try {
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `${bookingId}/${Date.now()}.${fileExt}`;
+
+          console.log('Uploading file to path:', filePath);
+          const { error: uploadError } = await supabase.storage
+            .from('booking_attachments')
+            .upload(filePath, selectedFile);
+
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            throw uploadError;
+          }
+
+          console.log('File uploaded successfully to path:', filePath);
+
+          const fileRecord = {
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            event_id: bookingId
+          };
+
           const { error: fileRecordError } = await supabase
-            .from('booking_files')
-            .insert({
-              booking_id: bookingRequest.id,
-              filename: selectedFile.name,
-              file_path: filePath,
-              content_type: selectedFile.type,
-              size: selectedFile.size
-            });
+            .from('event_files')
+            .insert(fileRecord);
 
           if (fileRecordError) {
             console.error('Error creating file record:', fileRecordError);
+          } else {
+            console.log('File record created successfully in event_files');
           }
+        } catch (fileError) {
+          console.error('Error handling file upload:', fileError);
         }
       }
 
-      // Send notification to business owner if we have their user ID
-      try {
-        if (businessOwnerUserId) {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const accessToken = sessionData.session?.access_token;
-          
-          if (accessToken) {
-            const response = await fetch(
-              "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${accessToken}`
-                },
-                body: JSON.stringify({
-                  businessOwnerId: businessOwnerUserId,
-                  businessName: businessName || "Your business",
-                  requesterName: requesterName,
-                  startDate: startDate,
-                  bookingId: bookingRequest.id
-                }),
-              }
-            );
-            
-            if (!response.ok) {
-              console.error("Failed to send notification");
-            }
-          }
-        }
-      } catch (notificationError) {
-        console.error("Error sending notification:", notificationError);
-        // Continue with success flow even if notification fails
-      }
-
-      // Show success message and close dialog
-      toast({
-        title: t("common.success"),
-        description: t("bookings.requestSent"),
-      });
+      console.log('Booking request submitted successfully!');
+      setIsSubmitting(false);
       
+      // Reset form
+      setFullName('');
+      setUserSurname('');
+      setUserNumber('');
+      setSocialNetworkLink('');
+      setEventNotes('');
+      setPaymentStatus('not_paid');
+      setPaymentAmount('');
+      setSelectedFile(null);
+      
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+      toast({
+        title: t('common.success'),
+        description: t('Your booking request has been submitted successfully')
+      });
+
       if (onSuccess) {
         onSuccess();
       }
-      
-      onOpenChange(false);
-    } catch (err) {
-      console.error('Exception submitting booking request:', err);
-      toast({
-        title: t("common.error"),
-        description: t("bookings.errorSubmitting"),
-        variant: "destructive",
-      });
-    } finally {
+
+      if (onOpenChange) {
+        onOpenChange(false);
+      }
+
+      try {
+        console.log('Sending notification email...');
+        await fetch(
+          "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              businessId: businessId,
+              requesterName: fullName,
+              requesterEmail: socialNetworkLink,
+              requesterPhone: userNumber || "Not provided",
+              notes: eventNotes || "No additional notes",
+              startDate: startDateTime.toISOString(),
+              endDate: endDateTime.toISOString(),
+              hasAttachment: !!selectedFile,
+              paymentStatus: paymentStatus,
+              paymentAmount: finalPaymentAmount
+            }),
+          }
+        );
+        console.log("Email notification sent to business owner");
+      } catch (emailError) {
+        console.error("Failed to send email notification:", emailError);
+      }
+
+    } catch (error) {
+      console.error('Error submitting form:', error);
       setIsSubmitting(false);
+      toast({
+        title: t('common.error'),
+        description: t('There was a problem submitting your request. Please try again.'),
+        variant: 'destructive'
+      });
     }
   };
 
-  const serviceOptions = services.map(service => (
-    <SelectItem key={service.id} value={service.id}>
-      {service.name}
-    </SelectItem>
-  ));
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")}>
-          {t("bookings.requestBooking")} {businessName ? `- ${businessName}` : ''}
-        </DialogTitle>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div>
-            <Label htmlFor="requesterName" className={cn("block font-medium", isGeorgian ? "font-georgian" : "")}>
-              {t("bookings.fullName")}
-            </Label>
-            <Input
-              id="requesterName"
-              value={requesterName}
-              onChange={(e) => {
-                setRequesterName(e.target.value);
-                if (!title) setTitle(e.target.value); // Set title to name if title is empty
-              }}
-              placeholder={t("bookings.fullName")}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="requesterPhone" className={cn("block font-medium", isGeorgian ? "font-georgian" : "")}>
-              {t("bookings.phoneNumber")}
-            </Label>
-            <Input
-              id="requesterPhone"
-              value={requesterPhone}
-              onChange={(e) => setRequesterPhone(e.target.value)}
-              placeholder={t("bookings.phoneNumber")}
-            />
-          </div>
-          <div>
-            <Label htmlFor="requesterEmail" className={cn("block font-medium", isGeorgian ? "font-georgian" : "")}>
-              {t("bookings.email")}
-            </Label>
-            <Input
-              id="requesterEmail"
-              value={requesterEmail}
-              onChange={(e) => setRequesterEmail(e.target.value)}
-              type="email"
-              placeholder="email@example.com"
-            />
-          </div>
-          {services.length > 0 && (
+    <div className="space-y-4 p-1">
+      <h3 className="text-xl font-semibold">
+        {t('Book appointment')}
+      </h3>
+      
+      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        {/* Full Name Field */}
+        <div>
+          <Label htmlFor="fullName" className={labelClass}>
+            {t("events.fullName")}
+          </Label>
+          <Input
+            id="fullName"
+            value={fullName}
+            onChange={handleNameChange}
+            placeholder={t("events.fullName")}
+            required
+          />
+        </div>
+
+        {/* Phone Number Field */}
+        <div>
+          <Label htmlFor="userNumber" className={labelClass}>
+            {t("events.phoneNumber")}
+          </Label>
+          <Input
+            id="userNumber"
+            value={userNumber}
+            onChange={(e) => setUserNumber(e.target.value)}
+            placeholder={t("events.phoneNumber")}
+          />
+        </div>
+
+        {/* Email Field */}
+        <div>
+          <Label htmlFor="socialNetworkLink" className={labelClass}>
+            {t("events.socialLinkEmail")}
+          </Label>
+          <Input
+            id="socialNetworkLink"
+            value={socialNetworkLink}
+            onChange={(e) => setSocialNetworkLink(e.target.value)}
+            placeholder="email@example.com"
+            type="email"
+            required
+          />
+        </div>
+
+        {/* Date and Time Fields */}
+        <div>
+          <Label htmlFor="dateTime" className={labelClass}>
+            {t("events.dateAndTime")}
+          </Label>
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label htmlFor="service" className={cn("block font-medium", isGeorgian ? "font-georgian" : "")}>
-                {t("bookings.service")}
+              <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
+                {t("events.start")}
               </Label>
-              <Select value={service} onValueChange={setService}>
-                <SelectTrigger id="service" className={isGeorgian ? "font-georgian" : ""}>
-                  <SelectValue placeholder={t("bookings.selectService")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {serviceOptions}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          <div>
-            <Label htmlFor="dateTime" className={cn("block font-medium", isGeorgian ? "font-georgian" : "")}>
-              {t("bookings.dateAndTime")}
-            </Label>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
-                  {t("bookings.start")}
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="startDate"
-                    type="datetime-local"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    required
-                    className="w-full"
-                    style={{ colorScheme: theme === 'dark' ? 'dark' : 'light' }}
-                  />
-                </div>
+              <div className="relative">
+                <Input
+                  id="startDate"
+                  type="datetime-local"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  required
+                  className="w-full"
+                  style={{ colorScheme: 'auto' }}
+                />
+                <CalendarIcon 
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" 
+                  color={iconColor}
+                />
               </div>
-              <div>
-                <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
-                  {t("bookings.end")}
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="endDate"
-                    type="datetime-local"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    required
-                    className="w-full"
-                    style={{ colorScheme: theme === 'dark' ? 'dark' : 'light' }}
-                  />
-                </div>
+            </div>
+            <div>
+              <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
+                {t("events.end")}
+              </Label>
+              <div className="relative">
+                <Input
+                  id="endDate"
+                  type="datetime-local"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  required
+                  className="w-full"
+                  style={{ colorScheme: 'auto' }}
+                />
+                <CalendarIcon 
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" 
+                  color={iconColor}
+                />
               </div>
             </div>
           </div>
-          <div>
-            <Label htmlFor="description" className={cn("block font-medium", isGeorgian ? "font-georgian" : "")}>
-              {t("bookings.notes")}
-            </Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t("bookings.bookingNotes")}
-              className="min-h-[100px] resize-none"
-            />
-          </div>
-          <div>
-            <Label htmlFor="file" className={cn("block font-medium", isGeorgian ? "font-georgian" : "")}>
-              {t("bookings.attachments")}
-            </Label>
-            <FileUploadField
-              onChange={setSelectedFile}
-              fileError={fileError}
-              setFileError={setFileError}
-              acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-              selectedFile={selectedFile}
-              hideLabel={true}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Supported formats: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT
-            </p>
-          </div>
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isSubmitting}
+        </div>
+        
+        {/* Payment Status Dropdown */}
+        <div>
+          <Label htmlFor="paymentStatus" className={labelClass}>
+            {t("events.paymentStatus")}
+          </Label>
+          <Select
+            value={paymentStatus}
+            onValueChange={setPaymentStatus}
           >
-            {isSubmitting ? t("common.submitting") : t("bookings.sendRequest")}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <SelectTrigger id="paymentStatus" className={isGeorgian ? "font-georgian" : ""}>
+              <SelectValue placeholder={t("events.selectPaymentStatus")} />
+            </SelectTrigger>
+            <SelectContent className="bg-background">
+              <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.notPaid")}</SelectItem>
+              <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidPartly")}</SelectItem>
+              <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidFully")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {/* Payment Amount Field - conditionally visible */}
+        {showPaymentAmount && (
+          <div>
+            <Label htmlFor="paymentAmount" className={labelClass}>
+              {t("events.paymentAmount")}
+            </Label>
+            <Input
+              id="paymentAmount"
+              value={paymentAmount}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                  setPaymentAmount(value);
+                }
+              }}
+              placeholder="0.00"
+              type="text"
+              inputMode="decimal"
+            />
+          </div>
+        )}
+        
+        {/* Notes Field */}
+        <div>
+          <Label htmlFor="eventNotes" className={labelClass}>
+            {t("events.eventNotes")}
+          </Label>
+          <Textarea
+            id="eventNotes"
+            value={eventNotes}
+            onChange={(e) => setEventNotes(e.target.value)}
+            placeholder={t("events.addEventNotes")}
+            className="min-h-[100px] resize-none"
+          />
+        </div>
+        
+        {/* File Upload Field - Fix label duplication */}
+        <div>
+          <Label htmlFor="file" className={labelClass}>
+            {t("common.attachments")}
+          </Label>
+          <FileUploadField
+            onChange={handleFileChange}
+            fileError={fileError}
+            setFileError={setFileError}
+            selectedFile={selectedFile}
+            ref={fileInputRef}
+            acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+            hideLabel={true}
+          />
+        </div>
+        
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? t('Submitting...') : t('Submit Request')}
+        </Button>
+      </form>
+    </div>
   );
 };
+
+export default BookingRequestForm;

@@ -1,145 +1,168 @@
 
-import React, { useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { X } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { LanguageText } from './LanguageText';
+import { Input } from "@/components/ui/input";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useState, useEffect, forwardRef } from "react";
+import { LanguageText } from "./LanguageText";
 
-export interface FileUploadFieldProps {
-  // Required props
-  onChange: (file: File | null) => void;
-  fileError: string;
-  setFileError: (error: string) => void;
-  selectedFile: File | null;
-  
-  // Optional props
+const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
+const MAX_FILE_SIZE_IMAGES = 50 * 1024 * 1024; // 50MB for images
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const ALLOWED_DOC_TYPES = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
+];
+
+interface FileUploadFieldProps {
+  onChange?: (file: File | null) => void;
+  onUpload?: (url: string) => void; // Added for backward compatibility
+  onFileChange?: (file: File | null) => void; // For backward compatibility
+  fileError?: string;
+  setFileError?: (error: string) => void;
   acceptedFileTypes?: string;
-  maxSizeInMB?: number;
   hideLabel?: boolean;
-  
-  // Backward compatibility props for BusinessProfileForm
-  imageUrl?: string;
-  onUpload?: (...event: any[]) => void;
-  bucket?: string;
-  uploadText?: string;
-  chooseFileText?: string;
-  noFileText?: string;
+  hideDescription?: boolean;
+  disabled?: boolean;
+  imageUrl?: string; // Added this prop to support BusinessProfileForm
+  bucket?: string; // Added to support BusinessProfileForm
+  uploadText?: string; // Added to support BusinessProfileForm
+  chooseFileText?: string; // Added to support BusinessProfileForm
+  noFileText?: string; // Added to support BusinessProfileForm
+  maxSizeMB?: number; // Added to support BusinessProfileForm
+  selectedFile?: File | null; // Added to support explicit passing of selected file
 }
 
-export const FileUploadField: React.FC<FileUploadFieldProps> = ({
+export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps>(({
   onChange,
-  fileError,
-  setFileError,
-  acceptedFileTypes = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt", // Default value
-  selectedFile,
-  maxSizeInMB = 10, // Default to 10MB
-  hideLabel = false,
-  // Backward compatibility props for BusinessProfileForm
-  imageUrl,
   onUpload,
+  onFileChange,
+  fileError = "",
+  setFileError = () => {},
+  acceptedFileTypes,
+  hideLabel = false,
+  hideDescription = false,
+  disabled = false,
+  imageUrl,
   bucket,
   uploadText,
   chooseFileText,
-  noFileText
-}) => {
-  const { t, language } = useLanguage();
-  const isGeorgian = language === 'ka';
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  noFileText,
+  maxSizeMB,
+  selectedFile
+}, ref) => {
+  const { t } = useLanguage();
+  const [localFileError, setLocalFileError] = useState("");
+  const [fileSelected, setFileSelected] = useState<string>("");
+  
+  // Use either provided error state or local state if not provided
+  const actualFileError = fileError || localFileError;
+  const actualSetFileError = setFileError || setLocalFileError;
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      onChange(null);
-      return;
+  // Update fileSelected state when selectedFile prop changes
+  useEffect(() => {
+    if (selectedFile) {
+      setFileSelected(selectedFile.name);
+    } else {
+      setFileSelected("");
+    }
+  }, [selectedFile]);
+
+  const validateFile = (file: File) => {
+    const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
+    const isDoc = ALLOWED_DOC_TYPES.includes(file.type);
+    
+    if (!isImage && !isDoc) {
+      return "Invalid file type. Please upload an image (jpg, jpeg, png, webp) or document (pdf, docx, xlsx, pptx)";
     }
 
-    // Validate file type
-    const fileExtension = `.${file.name.split('.').pop()?.toLowerCase()}`;
-    const acceptedTypes = acceptedFileTypes.split(',');
-    if (!acceptedTypes.some(type => type.trim() === fileExtension || type.trim() === file.type)) {
-      setFileError(t('common.invalidFileType'));
-      onChange(null);
-      // Reset the file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+    // If maxSizeMB is provided, use it, otherwise use default values
+    const sizeLimit = maxSizeMB ? maxSizeMB * 1024 * 1024 : 
+      isImage ? MAX_FILE_SIZE_IMAGES : MAX_FILE_SIZE_DOCS;
+      
+    if (file.size > sizeLimit) {
+      const displaySize = maxSizeMB || (isImage ? MAX_FILE_SIZE_IMAGES / (1024 * 1024) : MAX_FILE_SIZE_DOCS / (1024 * 1024));
+      return `File size exceeds ${displaySize}MB limit${isImage ? ' for images' : ' for documents'}`;
+    }
+
+    return null;
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault(); // Prevent default behavior
+    const selectedFile = e.target.files?.[0];
+    actualSetFileError("");
+
+    if (selectedFile) {
+      console.log(`Selected file: ${selectedFile.name}, Size: ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB, Type: ${selectedFile.type}`);
+      const error = validateFile(selectedFile);
+      if (error) {
+        actualSetFileError(error);
+        setFileSelected("");
+        if (onChange) onChange(null);
+        if (onFileChange) onFileChange(null);
+        return;
       }
-      return;
-    }
-
-    // Validate file size
-    const maxSizeInBytes = maxSizeInMB * 1024 * 1024; // Convert MB to bytes
-    if (file.size > maxSizeInBytes) {
-      setFileError(t('common.fileTooLarge', { maxSize: maxSizeInMB }));
-      onChange(null);
-      // Reset the file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      return;
-    }
-
-    setFileError('');
-    onChange(file);
-    // If onUpload is provided (for BusinessProfileForm), call it as well
-    if (onUpload) {
-      onUpload(file);
+      setFileSelected(selectedFile.name);
+      if (onChange) onChange(selectedFile);
+      if (onFileChange) onFileChange(selectedFile);
+    } else {
+      setFileSelected("");
     }
   };
 
-  const handleRemoveFile = () => {
-    onChange(null);
-    setFileError('');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
+  // Display existing image if provided
+  const hasImage = !!imageUrl;
 
   return (
-    <div className="space-y-2">
+    <div className={`${hideLabel && hideDescription ? '' : 'space-y-2'}`}>
       {!hideLabel && (
-        <label htmlFor="file" className={cn("block text-sm font-medium", isGeorgian ? "font-georgian" : "")}>
-          <LanguageText>{t('common.attachFile')}</LanguageText>
+        <label htmlFor="file" className="block text-gray-700">
+          <LanguageText>{uploadText || t("calendar.attachment")}</LanguageText>
         </label>
       )}
       
-      <div className="flex flex-col gap-2">
-        {selectedFile ? (
-          <div className="flex items-center justify-between p-2 border rounded">
-            <span className="truncate max-w-[200px]">{selectedFile.name}</span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleRemoveFile}
-              className="h-6 w-6 p-0"
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Remove file</span>
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <input
-              ref={fileInputRef}
-              id="file"
-              type="file"
-              onChange={handleFileChange}
-              accept={acceptedFileTypes}
-              className="hidden"
-            />
-            <label
-              htmlFor="file"
-              className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-input bg-background hover:bg-accent hover:text-accent-foreground px-4 py-2 w-full"
-            >
-              <span className={isGeorgian ? "font-georgian" : ""}>
-                <LanguageText>{uploadText || t('common.chooseFile')}</LanguageText>
-              </span>
-            </label>
-            {fileError && <p className="text-sm text-destructive">{fileError}</p>}
-          </div>
-        )}
-      </div>
+      {hasImage && (
+        <div className="mb-3">
+          <img 
+            src={imageUrl} 
+            alt="Preview" 
+            className="max-h-40 rounded-md object-cover"
+          />
+        </div>
+      )}
+      
+      <Input
+        id="file"
+        type="file"
+        onChange={handleFileChange}
+        accept={acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")}
+        className="cursor-pointer bg-background border-gray-300"
+        onClick={(e) => {
+          // Reset value before opening to ensure onChange triggers even if same file is selected
+          (e.target as HTMLInputElement).value = '';
+        }}
+        disabled={disabled}
+        ref={ref}
+      />
+      
+      {fileSelected && (
+        <p className="text-xs text-gray-500 mt-1">Selected: {fileSelected}</p>
+      )}
+      
+      {actualFileError && (
+        <p className="text-sm text-red-500 mt-1">{actualFileError}</p>
+      )}
+      
+      {!hideDescription && !actualFileError && (
+        <p className="text-xs text-muted-foreground mt-1">
+          <LanguageText>
+            {t("common.supportedFormats")}
+          </LanguageText>
+        </p>
+      )}
     </div>
   );
-};
+});
+
+FileUploadField.displayName = "FileUploadField";
