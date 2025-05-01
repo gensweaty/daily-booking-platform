@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -17,6 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useEffect } from "react"
 import { LanguageText } from "@/components/shared/LanguageText"
+import { cn } from "@/lib/utils"
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
@@ -71,7 +73,10 @@ export const DashboardContent = ({
       <TabsList className="grid w-full grid-cols-5 mb-2">
         <TabsTrigger 
           value="calendar" 
-          className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95"
+          className={cn(
+            "flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95",
+            isGeorgian ? "font-georgian" : ""
+          )}
         >
           <motion.div
             whileHover={{ rotate: 15 }}
@@ -85,7 +90,10 @@ export const DashboardContent = ({
         </TabsTrigger>
         <TabsTrigger 
           value="statistics" 
-          className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95"
+          className={cn(
+            "flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95",
+            isGeorgian ? "font-georgian" : ""
+          )}
         >
           <motion.div
             whileHover={{ rotate: 15 }}
@@ -99,7 +107,10 @@ export const DashboardContent = ({
         </TabsTrigger>
         <TabsTrigger 
           value="tasks" 
-          className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95"
+          className={cn(
+            "flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95",
+            isGeorgian ? "font-georgian" : ""
+          )}
         >
           <motion.div
             whileHover={{ rotate: 15 }}
@@ -113,7 +124,10 @@ export const DashboardContent = ({
         </TabsTrigger>
         <TabsTrigger 
           value="crm" 
-          className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95"
+          className={cn(
+            "flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95",
+            isGeorgian ? "font-georgian" : ""
+          )}
         >
           <motion.div
             whileHover={{ rotate: 15 }}
@@ -127,7 +141,10 @@ export const DashboardContent = ({
         </TabsTrigger>
         <TabsTrigger 
           value="business" 
-          className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 relative"
+          className={cn(
+            "flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 relative",
+            isGeorgian ? "font-georgian" : ""
+          )}
         >
           <motion.div
             whileHover={{ rotate: 15 }}
@@ -190,7 +207,7 @@ export const DashboardContent = ({
           >
             <Card className="min-h-[calc(100vh-12rem)]">
               <CardHeader>
-                <CardTitle>
+                <CardTitle className={isGeorgian ? "font-georgian" : ""}>
                   <LanguageText>{t("dashboard.statistics")}</LanguageText>
                 </CardTitle>
               </CardHeader>
@@ -216,13 +233,16 @@ export const DashboardContent = ({
           >
             <Card className="min-h-[calc(100vh-12rem)]">
               <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-                <CardTitle>
+                <CardTitle className={isGeorgian ? "font-georgian" : ""}>
                   <LanguageText>{t("dashboard.tasks")}</LanguageText>
                 </CardTitle>
                 <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
                   <DialogTrigger asChild>
                     <Button 
-                      className="flex items-center gap-2 w-full sm:w-auto bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95"
+                      className={cn(
+                        "flex items-center gap-2 w-full sm:w-auto bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95",
+                        isGeorgian ? "font-georgian" : ""
+                      )}
                     >
                       <motion.div
                         whileHover={{ rotate: 180 }}

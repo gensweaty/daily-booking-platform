@@ -78,13 +78,14 @@
     /* cursor: none; */
   }
   
-  /* Improved Georgian font rendering */
+  /* Better Georgian font rendering */
   .font-georgian {
     font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
     font-display: swap;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.2px;
   }
   
   /* Fix calendar icon color in dark mode */
@@ -114,4 +115,13 @@
   color: #adb5bd;
   pointer-events: none;
   height: 0;
+}
+
+/* Better Georgian text styling for dialogs and inputs */
+[lang="ka"] .dialog-title,
+[lang="ka"] .form-label,
+[lang="ka"] .input-placeholder,
+[lang="ka"] .button-text {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px;
 }

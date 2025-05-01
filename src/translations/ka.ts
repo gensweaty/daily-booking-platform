@@ -167,7 +167,7 @@ export const ka: TranslationType = {
     uploadImageCover: "ატვირთეთ სურათი თქვენი ბიზესის ყდისთვის (JPEG, PNG, WebP)",
     publicPageUrl: "ეს გამოყენებული იქნება თქვენი საჯარო გვერდის URL-ისთვის:",
     notFound: "ბიზნესი ვერ მოიძებნა",
-    notFoundDescription: "უკაცრავად, ამ URL-ით ბიზნესი ვერ ვიპოვეთ. გთხოვთ, შეამოწმოთ URL და სცადოთ ხელახლა.",
+    notFoundDescription: "უკაცრავად, ამ URL-ით ბიზნესი ვერ ვიპოვეთ. გთხოვთ, შეამოწმოთ URL და სცადოთ ხელ��ხლა.",
     viewPublicPage: "საჯარო გვერდის ნახვა",
     customer: "მომხმარებელი",
     title: "სათაური",
@@ -294,7 +294,7 @@ export const ka: TranslationType = {
     messageSent: "შეტყობინება გაგზავნილია",
     messageSentDesc: "გმადლობთ, თქვენი შეტყობინება მიღებულია",
     error: "შეცდომა",
-    errorDesc: "თქვენი შეტყობინების გაგზავნისას მოხდა შეცდომა. გთხოვთ, სცადოთ ხელახლა."
+    errorDesc: "თქვენი შეტყობინების გაგზავნისას მოხდა შეცდომა. გთხოვთ, სცადოთ ხელ��ხლა."
   },
   calendar: {
     attachment: "დანართი",
@@ -349,7 +349,7 @@ export const ka: TranslationType = {
     signInCta: "Შესვლა",
     signUpCta: "Რეგისტრაცია",
     agreeToTerms: "ვეთანხმები წესებსა და პირობებს",
-    requiredField: "ეს ველი სავა��დებულოა",
+    requiredField: "ეს ვე���ი სავა��დებულოა",
     invalidEmail: "გთხოვთ, შეიყვანოთ ს���ორი ელფოსტა",
     passwordMinLength: "პაროლი უნდა შედგებოდეს მინიმუმ 6 სიმბოლოსგან",
     passwordMatch: "პაროლები არ ემთხვევა",
