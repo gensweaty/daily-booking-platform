@@ -83,6 +83,7 @@ export const TaskFormFields = ({
         onChange={setSelectedFile}
         fileError={fileError}
         setFileError={setFileError}
+        acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
       />
     </div>
   );

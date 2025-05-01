@@ -86,6 +86,12 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  
+  /* Fix calendar icon color in dark mode */
+  .dark input[type="datetime-local"] {
+    color-scheme: dark;
+    color: white;
+  }
 }
 
 /* TipTap placeholder styling */

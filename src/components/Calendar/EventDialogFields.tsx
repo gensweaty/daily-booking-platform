@@ -130,7 +130,7 @@ export const EventDialogFields = ({
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 required
-                className="w-full"
+                className="w-full dark:text-white dark:[color-scheme:dark]"
                 style={{ colorScheme: 'auto' }}
               />
             </div>
@@ -146,7 +146,7 @@ export const EventDialogFields = ({
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 required
-                className="w-full"
+                className="w-full dark:text-white dark:[color-scheme:dark]"
                 style={{ colorScheme: 'auto' }}
               />
             </div>
