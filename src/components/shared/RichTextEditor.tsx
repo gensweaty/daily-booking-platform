@@ -14,15 +14,23 @@ import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 import { memo, useEffect, useMemo, useRef } from 'react';
 import debounce from 'lodash/debounce';
+import { cn } from '@/lib/utils';
 
 interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
   onBlur?: () => void;
   placeholder?: string;
+  className?: string;
 }
 
-const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur, placeholder }: RichTextEditorProps) {
+const RichTextEditor = memo(function RichTextEditor({ 
+  content, 
+  onChange, 
+  onBlur, 
+  placeholder,
+  className 
+}: RichTextEditorProps) {
   const prevContentRef = useRef(content);
   const isUserEditingRef = useRef(false);
 
@@ -75,7 +83,7 @@ const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur,
     onBlur,
     editorProps: {
       attributes: {
-        class: 'prose dark:prose-invert max-w-none focus:outline-none min-h-[100px]',
+        class: cn('prose dark:prose-invert max-w-none focus:outline-none min-h-[100px]', className),
       },
     },
   });
@@ -114,7 +122,7 @@ const RichTextEditor = memo(function RichTextEditor({ content, onChange, onBlur,
   ];
 
   return (
-    <div className="border rounded-md">
+    <div className={cn("border rounded-md", className)}>
       <div className="border-b p-2 flex gap-2 flex-wrap">
         <Button
           type="button"

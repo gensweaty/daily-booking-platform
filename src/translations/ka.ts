@@ -142,7 +142,7 @@ export const ka: TranslationType = {
     beauty: "სილამაზე და სპა",
     personal: "პერსონალური სერვისები",
     education: "განათლება და ქოუჩინგი",
-    eventsDesc: "ღონისძიებების დამგეგმავები, შემსრულებლები, ადგილები და სხვა",
+    eventsDesc: "ღონისძიების დამგეგმავები, შემსრულებლები, ადგილები და სხვა",
     healthDesc: "ექიმები, თერაპევტები, ველნეს ქოუჩები",
     sportsDesc: "პერსონალური მწვრთნელები, სპორტული მწვრთნელები, ფიტნეს ცენტრები",
     beautyDesc: "სილამაზის სალონები, დალაქები, მანიკურის სალონები, სპა ცენტრები",
@@ -349,7 +349,7 @@ export const ka: TranslationType = {
     signInCta: "Შესვლა",
     signUpCta: "Რეგისტრაცია",
     agreeToTerms: "ვეთანხმები წესებსა და პირობებს",
-    requiredField: "ეს ველი სავალდებულოა",
+    requiredField: "ეს ველი სავა��დებულოა",
     invalidEmail: "გთხოვთ, შეიყვანოთ ს���ორი ელფოსტა",
     passwordMinLength: "პაროლი უნდა შედგებოდეს მინიმუმ 6 სიმბოლოსგან",
     passwordMatch: "პაროლები არ ემთხვევა",
@@ -390,7 +390,7 @@ export const ka: TranslationType = {
     generalInfo: {
       title: "1. Ზოგადი ინფორმაცია",
       companyName: "კომპანიის სახელი: SmartBookly",
-      registered: "რეგისტრირებულია: საქართველო",
+      registered: "რეგი���ტრირებულია: საქართველო",
       contact: "საკონტ���ქტო ელფოსტა: info@smartbookly.com"
     },
     eligibility: {

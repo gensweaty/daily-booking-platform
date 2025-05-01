@@ -18,11 +18,12 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
       <Label htmlFor="description">
         <LanguageText>{t("tasks.descriptionLabel")}</LanguageText>
       </Label>
-      <RichTextEditor
-        content={description}
-        onChange={setDescription}
-        className={isGeorgian ? "is-editor-empty:before:font-georgian" : ""}
-      />
+      <div className={isGeorgian ? "is-editor-empty:before:font-georgian" : ""}>
+        <RichTextEditor
+          content={description}
+          onChange={setDescription}
+        />
+      </div>
     </div>
   );
 };

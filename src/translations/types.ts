@@ -274,6 +274,8 @@ export interface TranslationType {
     timeSlotUnavailable: string;
     timeSlotConflict: string;
     timeSlotNotAvailable: string;
+    bookAppointment: string;
+    submitRequest: string;
   };
   contact: {
     email: string;
