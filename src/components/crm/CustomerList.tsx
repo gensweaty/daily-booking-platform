@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -11,7 +11,7 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import { SearchCommand } from "./SearchCommand";
 import { DateRangeSelect } from "@/components/Statistics/DateRangeSelect";
 import * as XLSX from 'xlsx';
-import { LanguageText } from "@/components/shared/LanguageText"; // Add this import
+import { LanguageText } from "@/components/shared/LanguageText";
 import {
   Table,
   TableBody,
@@ -27,6 +27,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCRMData } from "@/hooks/useCRMData";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -93,6 +103,8 @@ export const CustomerList = () => {
   });
   const [hoveredField, setHoveredField] = useState<{id: string, field: string} | null>(null);
   const searchValueRef = useRef("");
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<any>(null);
 
   const { combinedData, isLoading, isFetching } = useCRMData(user?.id, dateRange);
 
@@ -131,9 +143,16 @@ export const CustomerList = () => {
       return;
     }
 
+    setCustomerToDelete(customer);
+    setIsDeleteConfirmOpen(true);
+  }, [user?.id, t, toast]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!customerToDelete || !user?.id) return;
+
     try {
-      if (customer.id.startsWith('event-')) {
-        const eventId = customer.id.replace('event-', '');
+      if (customerToDelete.id.startsWith('event-')) {
+        const eventId = customerToDelete.id.replace('event-', '');
         const { error } = await supabase
           .from('events')
           .update({ deleted_at: new Date().toISOString() })
@@ -145,7 +164,7 @@ export const CustomerList = () => {
         const { error } = await supabase
           .from('customers')
           .update({ deleted_at: new Date().toISOString() })
-          .eq('id', customer.id)
+          .eq('id', customerToDelete.id)
           .eq('user_id', user.id);
 
         if (error) throw error;
@@ -161,6 +180,8 @@ export const CustomerList = () => {
       
       setIsDialogOpen(false);
       setSelectedCustomer(null);
+      setIsDeleteConfirmOpen(false);
+      setCustomerToDelete(null);
     } catch (error: any) {
       console.error('Error deleting:', error);
       toast({
@@ -169,7 +190,7 @@ export const CustomerList = () => {
         variant: "destructive",
       });
     }
-  }, [user?.id, queryClient, toast, t]);
+  }, [customerToDelete, user?.id, queryClient, toast, t]);
 
   const handleSearchSelect = useCallback((customer: any) => {
     openEditDialog(customer);
@@ -568,6 +589,26 @@ export const CustomerList = () => {
         customerId={selectedCustomer?.id}
         initialData={selectedCustomer}
       />
+
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              {t("common.deleteConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("common.deleteConfirmMessage")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

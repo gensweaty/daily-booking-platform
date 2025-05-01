@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
-import { Trash2 } from "lucide-react";
+import { Trash2, AlertCircle } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +11,16 @@ import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface EventDialogProps {
   open: boolean;
@@ -55,6 +64,8 @@ export const EventDialog = ({
   const { t, language } = useLanguage();
   const [isBookingEvent, setIsBookingEvent] = useState(false);
   const isGeorgian = language === 'ka';
+  // Add state for delete confirmation dialog
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
@@ -452,60 +463,97 @@ export const EventDialog = ({
     setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
   };
 
+  // Add function to handle delete button click
+  const handleDeleteClick = () => {
+    // Open confirmation dialog instead of deleting immediately
+    setIsDeleteConfirmOpen(true);
+  };
+
+  // Add function to handle confirmed deletion
+  const handleConfirmDelete = () => {
+    if (onDelete) {
+      onDelete();
+      setIsDeleteConfirmOpen(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")}>
-          {event ? t("events.editEvent") : t("events.addNewEvent")}
-        </DialogTitle>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <EventDialogFields
-            title={title}
-            setTitle={setTitle}
-            userSurname={userSurname}
-            setUserSurname={setUserSurname}
-            userNumber={userNumber}
-            setUserNumber={setUserNumber}
-            socialNetworkLink={socialNetworkLink}
-            setSocialNetworkLink={setSocialNetworkLink}
-            eventNotes={eventNotes}
-            setEventNotes={setEventNotes}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
-            paymentStatus={paymentStatus}
-            setPaymentStatus={setPaymentStatus}
-            paymentAmount={paymentAmount}
-            setPaymentAmount={setPaymentAmount}
-            selectedFile={selectedFile}
-            setSelectedFile={setSelectedFile}
-            fileError={fileError}
-            setFileError={setFileError}
-            eventId={event?.id}
-            onFileDeleted={handleFileDeleted}
-            displayedFiles={displayedFiles}
-            isBookingRequest={isBookingRequest}
-          />
-          
-          <div className="flex justify-between gap-4">
-            <Button type="submit" className="flex-1">
-              {event ? t("events.updateEvent") : t("events.createEvent")}
-            </Button>
-            {event && onDelete && (
-              <Button
-                type="button"
-                variant="destructive"
-                size="icon"
-                onClick={onDelete}
-              >
-                <Trash2 className="h-4 w-4" />
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")}>
+            {event ? t("events.editEvent") : t("events.addNewEvent")}
+          </DialogTitle>
+          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+            <EventDialogFields
+              title={title}
+              setTitle={setTitle}
+              userSurname={userSurname}
+              setUserSurname={setUserSurname}
+              userNumber={userNumber}
+              setUserNumber={setUserNumber}
+              socialNetworkLink={socialNetworkLink}
+              setSocialNetworkLink={setSocialNetworkLink}
+              eventNotes={eventNotes}
+              setEventNotes={setEventNotes}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              paymentStatus={paymentStatus}
+              setPaymentStatus={setPaymentStatus}
+              paymentAmount={paymentAmount}
+              setPaymentAmount={setPaymentAmount}
+              selectedFile={selectedFile}
+              setSelectedFile={setSelectedFile}
+              fileError={fileError}
+              setFileError={setFileError}
+              eventId={event?.id}
+              onFileDeleted={handleFileDeleted}
+              displayedFiles={displayedFiles}
+              isBookingRequest={isBookingRequest}
+            />
+            
+            <div className="flex justify-between gap-4">
+              <Button type="submit" className="flex-1">
+                {event ? t("events.updateEvent") : t("events.createEvent")}
               </Button>
-            )}
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+              {event && onDelete && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  onClick={handleDeleteClick}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add deletion confirmation dialog */}
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              {t("common.deleteConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("common.deleteConfirmMessage")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
