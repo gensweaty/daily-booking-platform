@@ -14,11 +14,18 @@ export const TaskFormHeader = ({ onAddTask, editingTask }: TaskFormHeaderProps) 
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
   
+  const georgianStyle = isGeorgian ? {
+    fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+    letterSpacing: '-0.2px',
+    WebkitFontSmoothing: 'antialiased',
+    MozOsxFontSmoothing: 'grayscale'
+  } : undefined;
+  
   return (
     <div className="flex items-center justify-between mb-6">
       <h2 
         className={`text-xl font-bold ${isGeorgian ? "font-georgian" : ""}`} 
-        style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+        style={georgianStyle}
       >
         <LanguageText>{editingTask ? t("tasks.editTask") : t("tasks.addTask")}</LanguageText>
       </h2>
@@ -26,7 +33,7 @@ export const TaskFormHeader = ({ onAddTask, editingTask }: TaskFormHeaderProps) 
         <Button 
           onClick={onAddTask} 
           className={`bg-primary hover:bg-primary/90 text-white flex items-center ${isGeorgian ? "font-georgian" : ""}`}
-          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+          style={georgianStyle}
         >
           <PlusCircle className="mr-1 h-4 w-4" />
           <LanguageText>{t("tasks.addTask")}</LanguageText>

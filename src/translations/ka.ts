@@ -36,7 +36,7 @@ export const ka: TranslationType = {
     feature5: "ჯავშნის შეტყობინებები ელფოსტით და დაფიდან",
     requestSubmitted: "თქვენი ჯავშნის მოთხოვნა წარმატებით გაიგზავნა!",
     yourEmailPlaceholder: "შეიყვანეთ თქვენი ელფოსტა",
-    bookAppointment: "ჯავშნის დაჯავშნა"
+    bookAppointment: "ვიზიტის დაჯავშნა"
   },
   analytics: {
     title: "ინტეგრირებული ანალიტიკა",

@@ -181,3 +181,25 @@
 [lang="ka"] .business-title {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
 }
+
+/* Add specific targeting for event popup components and their children */
+[lang="ka"] .dialog-content,
+[lang="ka"] .dialog-content *,
+[lang="ka"] [role="dialog"] .title,
+[lang="ka"] [role="dialog"] .label,
+[lang="ka"] [role="dialog"] .button,
+[lang="ka"] [role="dialog"] input::placeholder,
+[lang="ka"] [role="dialog"] textarea::placeholder {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}
+
+/* Fix for first letter styling issues in Georgian text */
+[lang="ka"] *::first-letter {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}
+
+/* Ensure placeholder text in inputs also uses the Georgian font */
+[lang="ka"] input::placeholder,
+[lang="ka"] textarea::placeholder {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}

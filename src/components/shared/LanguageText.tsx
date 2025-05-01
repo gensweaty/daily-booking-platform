@@ -27,7 +27,10 @@ export const LanguageText = ({
     )}
     style={isGeorgian ? {
       fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-      letterSpacing: fixLetterSpacing ? '-0.2px' : 'normal'
+      letterSpacing: fixLetterSpacing ? '-0.2px' : 'normal',
+      fontWeight: 'normal',
+      WebkitFontSmoothing: 'antialiased',
+      MozOsxFontSmoothing: 'grayscale'
     } : undefined}
     >
       {children}

@@ -27,10 +27,14 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
 
   useEffect(() => {
     localStorage.setItem('language', language);
+    
     // Update URL without reloading the page
     const url = new URL(window.location.href);
     url.searchParams.set('lang', language);
     window.history.replaceState({}, '', url);
+    
+    // Update the lang attribute on the HTML element
+    document.documentElement.setAttribute('lang', language);
   }, [language]);
 
   const t = (key: string, params?: Record<string, string | number>): string => {
