@@ -11,6 +11,7 @@ import { FileUploadField } from '@/components/shared/FileUploadField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { LanguageText } from '@/components/shared/LanguageText';
 
 export interface BookingRequestFormProps {
   businessId: string;
@@ -286,14 +287,16 @@ export const BookingRequestForm = ({
   return (
     <div className="space-y-4 p-1">
       <h3 className="text-xl font-semibold">
-        {t('Book appointment')}
+        <LanguageText withFont={true} fixLetterSpacing={true}>
+          {t('events.bookAppointment')}
+        </LanguageText>
       </h3>
       
       <form onSubmit={handleSubmit} className="space-y-4 mt-4">
         {/* Full Name Field */}
         <div>
           <Label htmlFor="fullName" className={labelClass}>
-            {t("events.fullName")}
+            <LanguageText>{t("events.fullName")}</LanguageText>
           </Label>
           <Input
             id="fullName"
@@ -307,7 +310,7 @@ export const BookingRequestForm = ({
         {/* Phone Number Field */}
         <div>
           <Label htmlFor="userNumber" className={labelClass}>
-            {t("events.phoneNumber")}
+            <LanguageText>{t("events.phoneNumber")}</LanguageText>
           </Label>
           <Input
             id="userNumber"
@@ -320,7 +323,7 @@ export const BookingRequestForm = ({
         {/* Email Field */}
         <div>
           <Label htmlFor="socialNetworkLink" className={labelClass}>
-            {t("events.socialLinkEmail")}
+            <LanguageText>{t("events.socialLinkEmail")}</LanguageText>
           </Label>
           <Input
             id="socialNetworkLink"
@@ -335,12 +338,12 @@ export const BookingRequestForm = ({
         {/* Date and Time Fields */}
         <div>
           <Label htmlFor="dateTime" className={labelClass}>
-            {t("events.dateAndTime")}
+            <LanguageText>{t("events.dateAndTime")}</LanguageText>
           </Label>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
-                {t("events.start")}
+                <LanguageText>{t("events.start")}</LanguageText>
               </Label>
               <div className="relative">
                 <Input
@@ -356,7 +359,7 @@ export const BookingRequestForm = ({
             </div>
             <div>
               <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
-                {t("events.end")}
+                <LanguageText>{t("events.end")}</LanguageText>
               </Label>
               <div className="relative">
                 <Input
@@ -376,7 +379,7 @@ export const BookingRequestForm = ({
         {/* Payment Status Dropdown */}
         <div>
           <Label htmlFor="paymentStatus" className={labelClass}>
-            {t("events.paymentStatus")}
+            <LanguageText>{t("events.paymentStatus")}</LanguageText>
           </Label>
           <Select
             value={paymentStatus}
@@ -397,7 +400,7 @@ export const BookingRequestForm = ({
         {showPaymentAmount && (
           <div>
             <Label htmlFor="paymentAmount" className={labelClass}>
-              {t("events.paymentAmount")}
+              <LanguageText>{t("events.paymentAmount")}</LanguageText>
             </Label>
             <Input
               id="paymentAmount"
@@ -418,7 +421,7 @@ export const BookingRequestForm = ({
         {/* Notes Field */}
         <div>
           <Label htmlFor="eventNotes" className={labelClass}>
-            {t("events.eventNotes")}
+            <LanguageText>{t("events.eventNotes")}</LanguageText>
           </Label>
           <Textarea
             id="eventNotes"
@@ -432,7 +435,7 @@ export const BookingRequestForm = ({
         {/* File Upload Field - Fix label duplication */}
         <div>
           <Label htmlFor="file" className={labelClass}>
-            {t("common.attachments")}
+            <LanguageText>{t("common.attachments")}</LanguageText>
           </Label>
           <FileUploadField
             onChange={handleFileChange}
@@ -450,7 +453,9 @@ export const BookingRequestForm = ({
           className="w-full"
           disabled={isSubmitting}
         >
-          {isSubmitting ? t('Submitting...') : t('Submit Request')}
+          <LanguageText withFont={true} fixLetterSpacing={true}>
+            {isSubmitting ? t('Submitting...') : t('events.submitRequest')}
+          </LanguageText>
         </Button>
       </form>
     </div>

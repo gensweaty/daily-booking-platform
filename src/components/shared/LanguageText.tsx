@@ -25,7 +25,10 @@ export const LanguageText = ({
       fixLetterSpacing && isGeorgian ? 'tracking-tight' : '',
       className
     )}
-    style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+    style={isGeorgian ? {
+      fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+      letterSpacing: fixLetterSpacing ? '-0.2px' : 'normal'
+    } : undefined}
     >
       {children}
     </span>

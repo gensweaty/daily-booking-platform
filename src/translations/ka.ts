@@ -35,7 +35,8 @@ export const ka: TranslationType = {
     feature4: "ავტომატური სინქრონიზაცია CRM-თან",
     feature5: "ჯავშნის მოთხოვნების მართვა და ემაილ შეტყობინებები",
     requestSubmitted: "თქვენი მოთხოვნა წარმატებით გაიგზავნა!",
-    yourEmailPlaceholder: "შეიყვანეთ თქვენი ელ-ფოსტა"
+    yourEmailPlaceholder: "შეიყვანეთ თქვენი ელ-ფოსტა",
+    bookAppointment: "დაჯავშნე ვიზიტი",
   },
   analytics: {
     title: "ყოვლისმომცველი ანალიტიკა",
@@ -232,7 +233,7 @@ export const ka: TranslationType = {
     profile: " პროფილი",
     category: "კატეგორია",
     details: "დეტალები",
-    additionalInfo: "დამატებითი ინფ���რმაცია",
+    additionalInfo: "დამატებითი ინფ�����რმაცია",
     taskStatistics: "დავალების სტატისტიკა",
     eventStatistics: "ღონისძიების სტატისტიკა",
     financialSummary: "Ფინანსური შეჯამება",
@@ -269,8 +270,8 @@ export const ka: TranslationType = {
     end: "დასრულება",
     eventDetails: "ღონისძიების დეტალები",
     title: "ღონისძიების სათაური",
-    bookAppointment: "ჯავშნის მოთხოვნა",
-    submitRequest: "მოთხოვნის გაგზავნა"
+    bookAppointment: "დაჯავშნე ვიზიტი",
+    submitRequest: "გააგზავნე მოთხოვნა"
   },
   contact: {
     email: "ელფოსტა",
@@ -288,7 +289,7 @@ export const ka: TranslationType = {
     namePlaceholder: "შეიყვანეთ თქვენი სახელი",
     emailPlaceholder: "შეიყვანეთ თქვენი ელფოსტა",
     message: "შეტყობინება",
-    messagePlaceholder: "დაწერეთ თქვენი შეტყობინება აქ",
+    messagePlaceholder: "დაწერეთ თქვენი შეტყობინ���ბა აქ",
     send: "გაგზავნა",
     sending: "გაგზავნა...",
     messageSent: "შეტყობინება გაგზავნილია",
