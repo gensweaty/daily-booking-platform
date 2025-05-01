@@ -42,6 +42,7 @@ export interface TranslationType {
     feature5: string;
     requestSubmitted: string;
     yourEmailPlaceholder: string;
+    bookAppointment: string;
   };
   analytics: {
     title: string;

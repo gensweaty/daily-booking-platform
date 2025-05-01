@@ -24,7 +24,7 @@ export const ka: TranslationType = {
     smartAppointment: "ჭკვიანი ივენთების ჯავშნები",
     automatedAnalytics: "ავტომატიზირებული ანალიტიკა",
     modernCRM: "თანამედროვე CRM გადაწყვეტა",
-    kanbanManagement: "Kanban ბორდი და დავალებები"
+    kanbanManagement: "Kanban ბორდი და დავა���ებები"
   },
   booking: {
     title: "ჭკვიანი დაჯავშნის სისტემა",
@@ -41,7 +41,7 @@ export const ka: TranslationType = {
   analytics: {
     title: "ყოვლისმომცველი ანალიტიკა",
     description: "თვალყური ადევნეთ თქვენი ბიზნესის სტატისტიკას და ზრდას",
-    feature1: "ჯავშნების და შ���მოსავლების ანალიტიკა",
+    feature1: "ჯავშნების და შემოსავლების ანალიტიკა",
     feature2: "თარიღების დიაპაზონის მოქნილი განსაზღვრა",
     feature3: "შემოსავლების შედარება თვეების მიხედვით",
     feature4: "ინტერაქტიული ვიზუალური მეტრიკა და გრაფიკები",
@@ -134,7 +134,7 @@ export const ka: TranslationType = {
     navigation: "ნავიგაცია",
     legal: "იურიდიული",
     termsAndPrivacy: "პირობები და კონფიდენციალურობა",
-    rights: "Ყველა უფლება დაცულია",
+    rights: "Ყველ��� უფლება დაცულია",
   },
   business: {
     events: "ღონისძიებები და გართობა",
@@ -190,7 +190,7 @@ export const ka: TranslationType = {
     updateProfile: "პროფილის განახლება",
     availableTimes: "ხელმისაწვდომი დრო",
     clickToRequest: "დააწკაპუნეთ ნებისმიერ დროს დაჯავშნის მოთხოვნის გასაგზავნად",
-    contactInformation: "საკონტაქტო ინფორმაცია"
+    contactInformation: "საკონტ���ქტო ინფორმაცია"
   },
   dashboard: {
     welcome: "კეთილი იყოს თქვენი მობრძანება",
@@ -289,7 +289,7 @@ export const ka: TranslationType = {
     namePlaceholder: "შეიყვანეთ თქვენი სახელი",
     emailPlaceholder: "შეიყვანეთ თქვენი ელფოსტა",
     message: "შეტყობინება",
-    messagePlaceholder: "დაწერეთ თქვენი შეტყობინ���ბა აქ",
+    messagePlaceholder: "დ��წერეთ თქვენი შეტყობინ���ბა აქ",
     send: "გაგზავნა",
     sending: "გაგზავნა...",
     messageSent: "შეტყობინება გაგზავნილია",
