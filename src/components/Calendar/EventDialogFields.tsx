@@ -77,8 +77,8 @@ export const EventDialogFields = ({
   
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
 
-  // Always use white for calendar icons in inputs to ensure visibility in dark mode
-  const iconColor = "white";
+  // Determine icon color based on theme
+  const iconColor = theme === 'dark' ? "white" : "currentColor";
   
   return (
     <>
@@ -237,9 +237,6 @@ export const EventDialogFields = ({
           selectedFile={selectedFile}
           hideLabel={true}
         />
-        <p className="text-xs text-muted-foreground mt-1">
-          Supported formats: .jpg, .jpeg, .png, .pdf, .doc, .docx, .xls, .xlsx, .txt
-        </p>
       </div>
       
       {displayedFiles.length > 0 && (
