@@ -2,17 +2,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getTasks, updateTask, deleteTask } from "@/lib/api";
 import { Task } from "@/lib/types";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { Pencil, Trash2, Maximize2, Paperclip, AlertCircle } from "lucide-react";
+import { DragDropContext, DropResult } from "@hello-pangea/dnd";
+import { AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { useToast } from "./ui/use-toast";
 import { AddTaskForm } from "./AddTaskForm";
 import { TaskFullView } from "./tasks/TaskFullView";
-import { supabase } from "@/lib/supabase";
 import { TaskColumn } from "./tasks/TaskColumn";
-import { TaskCard } from "./tasks/TaskCard";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -52,11 +50,22 @@ export const TaskList = () => {
     if (!result.destination) return;
 
     const taskId = result.draggableId;
-    const newStatus = result.destination.droppableId as 'todo' | 'inprogress' | 'done';
+    const newStatus = result.destination.droppableId;
+    
+    // Convert from UI status format to database status format
+    let dbStatus: 'todo' | 'inprogress' | 'done';
+    
+    if (newStatus === 'in-progress') {
+      dbStatus = 'inprogress';
+    } else {
+      dbStatus = newStatus as 'todo' | 'done';
+    }
 
+    console.log(`Moving task ${taskId} to status: ${dbStatus}`);
+    
     updateTaskMutation.mutate({
       id: taskId,
-      updates: { status: newStatus },
+      updates: { status: dbStatus },
     });
   };
 
@@ -85,6 +94,7 @@ export const TaskList = () => {
 
   if (isLoading) return <div className="text-foreground">Loading tasks...</div>;
 
+  // Map database status to UI status
   const columns = {
     todo: tasks.filter((task: Task) => task.status === 'todo'),
     'in-progress': tasks.filter((task: Task) => task.status === 'inprogress'),
