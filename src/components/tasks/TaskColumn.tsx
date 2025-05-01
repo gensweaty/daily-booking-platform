@@ -58,6 +58,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
                 task={task}
                 index={index}
                 onEdit={onEdit}
+                onView={onView}
                 onDelete={onDelete}
               />
             ))}

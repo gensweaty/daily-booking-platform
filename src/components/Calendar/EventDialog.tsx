@@ -1,512 +1,174 @@
-
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
-import { CalendarEventType } from "@/lib/types/calendar";
-import { Trash2 } from "lucide-react";
-import { EventDialogFields } from "./EventDialogFields";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/components/ui/use-toast";
+import { updateEvent, deleteEvent } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
+import { EventDialogFields } from "./EventDialogFields";
+import { AlertCircle, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { cn } from "@/lib/utils";
+import { LanguageText } from "../shared/LanguageText";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-interface EventDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  selectedDate: Date | null;
-  defaultEndDate?: Date | null;
-  onSubmit: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  onDelete?: () => void;
-  event?: CalendarEventType;
-  isBookingRequest?: boolean;
-}
-
-export const EventDialog = ({
-  open,
-  onOpenChange,
-  selectedDate,
-  onSubmit,
-  onDelete,
-  event,
-  isBookingRequest = false
-}: EventDialogProps) => {
-  // Always initialize with user_surname as the primary name field
-  // This ensures we're using the correct field for full name
-  const [title, setTitle] = useState(event?.user_surname || event?.title || "");
-  const [userSurname, setUserSurname] = useState(event?.user_surname || event?.title || "");
-  const [userNumber, setUserNumber] = useState(event?.user_number || "");
-  const [socialNetworkLink, setSocialNetworkLink] = useState(event?.social_network_link || "");
-  const [eventNotes, setEventNotes] = useState(event?.event_notes || "");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [originalStartDate, setOriginalStartDate] = useState("");
-  const [originalEndDate, setOriginalEndDate] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState(event?.payment_status || "not_paid");
-  const [paymentAmount, setPaymentAmount] = useState(event?.payment_amount?.toString() || "");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+export const EventDialog = ({ event, isOpen, onClose }) => {
+  const [eventData, setEventData] = useState(event || {});
+  const [selectedFile, setSelectedFile] = useState(null);
   const [fileError, setFileError] = useState("");
-  const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
-  const { user } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { t, language } = useLanguage();
-  const [isBookingEvent, setIsBookingEvent] = useState(false);
-  const isGeorgian = language === 'ka';
+  const { toast } = useToast();
+  const { t } = useLanguage();
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
-  // Synchronize fields when event data changes or when dialog opens
+  const isNewEvent = !event?.id;
+  
   useEffect(() => {
     if (event) {
-      const start = new Date(event.start_date);
-      const end = new Date(event.end_date);
-      
-      console.log("Loading event data:", event);
-      
-      // Set both title and userSurname to the user_surname value for consistency
-      // If user_surname is missing, fall back to title
-      const fullName = event.user_surname || event.title || "";
-      setTitle(fullName);
-      setUserSurname(fullName);
-      
-      setUserNumber(event.user_number || event.requester_phone || "");
-      setSocialNetworkLink(event.social_network_link || event.requester_email || "");
-      setEventNotes(event.event_notes || event.description || "");
-      
-      // Normalize payment status to handle different formats
-      let normalizedStatus = event.payment_status || "not_paid";
-      if (normalizedStatus.includes('partly')) normalizedStatus = 'partly_paid';
-      else if (normalizedStatus.includes('fully')) normalizedStatus = 'fully_paid';
-      else if (normalizedStatus.includes('not')) normalizedStatus = 'not_paid';
-      
-      console.log("Setting normalized payment status:", normalizedStatus);
-      setPaymentStatus(normalizedStatus);
-      setPaymentAmount(event.payment_amount?.toString() || "");
-      
-      const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
-      const formattedEnd = format(end, "yyyy-MM-dd'T'HH:mm");
-      
-      setStartDate(formattedStart);
-      setEndDate(formattedEnd);
-      setOriginalStartDate(formattedStart);
-      setOriginalEndDate(formattedEnd);
-      
-      setIsBookingEvent(event.type === 'booking_request');
-      
-      console.log("EventDialog - Loaded event with type:", event.type);
-      console.log("EventDialog - Loaded payment status:", normalizedStatus);
-    } else if (selectedDate) {
-      const start = new Date(selectedDate.getTime());
-      const end = new Date(selectedDate.getTime());
-      
-      end.setHours(end.getHours() + 1);
-      
-      const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
-      const formattedEnd = format(end, "yyyy-MM-dd'T'HH:mm");
-      
-      setStartDate(formattedStart);
-      setEndDate(formattedEnd);
-      setOriginalStartDate(formattedStart);
-      setOriginalEndDate(formattedEnd);
-      setPaymentStatus("not_paid");
-      
-      setTitle("");
-      setUserSurname("");
-      setUserNumber("");
-      setSocialNetworkLink("");
-      setEventNotes("");
-      setPaymentAmount("");
+      setEventData(event);
     }
-  }, [selectedDate, event, open]);
+  }, [event]);
 
-  // Load files for this event - simplified to only use event_files table
-  useEffect(() => {
-    const loadFiles = async () => {
-      if (!event?.id) {
-        setDisplayedFiles([]);
-        return;
-      }
-      try {
-        console.log("Loading files for event:", event.id);
-        
-        // SIMPLIFIED: Only check event_files for the current event ID
-        const { data: eventFiles, error: eventFilesError } = await supabase
-          .from('event_files')
-          .select('*')
-          .eq('event_id', event.id);
-            
-        if (eventFilesError) {
-          console.error("Error loading event files:", eventFilesError);
-          setDisplayedFiles([]);
-          return;
-        }
-        
-        if (eventFiles && eventFiles.length > 0) {
-          console.log("Loaded files from event_files:", eventFiles.length);
-          
-          // Add a parentType property for compatibility with existing code
-          const filesWithSource = eventFiles.map(file => ({
-            ...file,
-            parentType: 'event'
-          }));
-          
-          setDisplayedFiles(filesWithSource);
-        } else {
-          console.log("No files found for event:", event.id);
-          setDisplayedFiles([]);
-        }
-      } catch (err) {
-        console.error("Exception loading event files:", err);
-        setDisplayedFiles([]);
-      }
-    };
-    
-    if (open) {
-      // Reset file state when dialog opens
-      setSelectedFile(null);
-      setFileError("");
-      loadFiles();
-    }
-  }, [event, open]);
-
-  const sendApprovalEmail = async (
-    startDateTime: Date,
-    endDateTime: Date,
-    title: string,
-    userSurname: string,
-    socialNetworkLink: string
-  ) => {
+  const handleDeleteEvent = async () => {
     try {
-      console.log("Sending booking approval email to", socialNetworkLink);
-      
-      const { data: businessProfile } = await supabase
-        .from('business_profiles')
-        .select('business_name')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-        
-      const businessName = businessProfile?.business_name || "Our Business";
-      
-      console.log("Email data:", {
-        recipientEmail: socialNetworkLink,
-        fullName: userSurname || title,
-        businessName,
-        startDate: startDateTime.toISOString(),
-        endDate: endDateTime.toISOString(),
-      });
-      
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      
-      if (!accessToken) {
-        console.error("No access token available for authenticated request");
-        throw new Error("Authentication error");
-      }
-      
-      const response = await fetch(
-        "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
-        {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            recipientEmail: socialNetworkLink.trim(),
-            fullName: userSurname || title || "Customer",
-            businessName,
-            startDate: startDateTime.toISOString(),
-            endDate: endDateTime.toISOString(),
-          }),
-        }
-      );
-      
-      console.log("Email API response status:", response.status);
-      
-      const responseText = await response.text();
-      console.log("Email API response text:", responseText);
-      
-      let responseData;
-      try {
-        responseData = responseText ? JSON.parse(responseText) : {};
-        console.log("Email API parsed response:", responseData);
-      } catch (jsonError) {
-        console.error("Failed to parse email API response as JSON:", jsonError);
-        responseData = { textResponse: responseText };
-      }
-      
-      if (!response.ok) {
-        console.error("Failed to send email notification:", responseData?.error || response.statusText);
-        throw new Error(responseData?.error || responseData?.details || `Failed to send email notification (status ${response.status})`);
-      }
-      
+      await deleteEvent(event.id);
+      queryClient.invalidateQueries({ queryKey: ['events'] });
       toast({
         title: t("common.success"),
-        description: t("Email notification sent successfully to ") + socialNetworkLink,
+        description: t("events.eventDeleted"),
       });
-      
-    } catch (emailError) {
-      console.error("Error sending email notification:", emailError);
-      toast({
-        title: t("common.warning"),
-        description: t("Event created but email notification could not be sent: ") + 
-          (emailError instanceof Error ? emailError.message : "Unknown error"),
-        variant: "destructive",
-      });
-      throw emailError;
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Always use userSurname for consistent naming across the app
-    const finalTitle = userSurname;
-    
-    const startDateTime = new Date(startDate);
-    const endDateTime = new Date(endDate);
-    
-    const timesChanged = startDate !== originalStartDate || endDate !== originalEndDate;
-    console.log("Time changed during edit?", timesChanged, {
-      originalStart: originalStartDate,
-      currentStart: startDate,
-      originalEnd: originalEndDate,
-      currentEnd: endDate
-    });
-
-    const wasBookingRequest = event?.type === 'booking_request';
-    const isApprovingBookingRequest = wasBookingRequest && !isBookingEvent;
-    
-    // Ensure payment status is properly normalized before submission
-    let normalizedPaymentStatus = paymentStatus;
-    if (normalizedPaymentStatus.includes('partly')) normalizedPaymentStatus = 'partly_paid';
-    else if (normalizedPaymentStatus.includes('fully')) normalizedPaymentStatus = 'fully_paid';
-    else if (normalizedPaymentStatus.includes('not')) normalizedPaymentStatus = 'not_paid';
-    
-    console.log("Submitting with payment status:", normalizedPaymentStatus);
-    
-    const eventData: Partial<CalendarEventType> = {
-      title: finalTitle,
-      user_surname: userSurname, // Use userSurname for consistent naming
-      user_number: userNumber,
-      social_network_link: socialNetworkLink,
-      event_notes: eventNotes,
-      start_date: startDateTime.toISOString(),
-      end_date: endDateTime.toISOString(),
-      payment_status: normalizedPaymentStatus, // Use normalized payment status
-      payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-    };
-
-    if (event?.id) {
-      eventData.id = event.id;
-    }
-
-    if (wasBookingRequest) {
-      eventData.type = 'event';
-      console.log("Converting booking request to event:", { wasBookingRequest, isApprovingBookingRequest });
-    } else if (event?.type) {
-      eventData.type = event.type;
-    } else {
-      eventData.type = 'event'; // Default type if not set
-    }
-
-    try {
-      console.log("EventDialog - Submitting event data:", eventData);
-      const createdEvent = await onSubmit(eventData);
-      console.log('Created/Updated event:', createdEvent);
-
-      let emailSent = false;
-
-      if ((isApprovingBookingRequest || !event?.id || event.type === 'booking_request') && 
-          socialNetworkLink && 
-          socialNetworkLink.includes("@")) {
-            
-        console.log(">>> APPROVAL EMAIL CONDITION MET", {
-          wasBookingRequest,
-          isApprovingBookingRequest,
-          eventId: event?.id,
-          newType: eventData.type,
-          email: socialNetworkLink
-        });
-        
-        try {
-          await sendApprovalEmail(
-            startDateTime,
-            endDateTime,
-            title,
-            userSurname,
-            socialNetworkLink
-          );
-          emailSent = true;
-        } catch (emailError) {
-          console.error("Failed to send approval email:", emailError);
-        }
-      }
-
-      // Handle file upload to event_files for the current event
-      if (selectedFile && createdEvent?.id && user) {
-        try {
-          const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${createdEvent.id}/${crypto.randomUUID()}.${fileExt}`;
-          
-          console.log('Uploading file:', filePath);
-          
-          const { error: uploadError } = await supabase.storage
-            .from('event_attachments')
-            .upload(filePath, selectedFile);
-
-          if (uploadError) {
-            console.error('Error uploading file:', uploadError);
-            throw uploadError;
-          }
-
-          // Create record in event_files table
-          const fileData = {
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            user_id: user.id,
-            event_id: createdEvent.id
-          };
-
-          const { error: fileRecordError } = await supabase
-            .from('event_files')
-            .insert(fileData);
-            
-          if (fileRecordError) {
-            console.error('Error creating file record:', fileRecordError);
-            throw fileRecordError;
-          }
-
-          console.log('File record created successfully in event_files');
-        } catch (fileError) {
-          console.error("Error handling file upload:", fileError);
-        }
-      }
-
-      if (!isBookingEvent) {
-        toast({
-          title: t("common.success"),
-          description: `${event?.id ? t("Event updated successfully") : t("Event created successfully")}${
-            emailSent ? " " + t("and notification email sent") : ""
-          }`,
-        });
-      } else {
-        if (event?.id) {
-          try {
-            const { data: bookingRequest, error: findError } = await supabase
-              .from('booking_requests')
-              .select('*')
-              .eq('id', event.id)
-              .maybeSingle();
-              
-            if (!findError && bookingRequest) {
-              const { error: updateError } = await supabase
-                .from('booking_requests')
-                .update({
-                  title,
-                  requester_name: userSurname,
-                  requester_phone: userNumber,
-                  requester_email: socialNetworkLink,
-                  description: eventNotes,
-                  start_date: startDateTime.toISOString(),
-                  end_date: endDateTime.toISOString(),
-                })
-                .eq('id', event.id);
-                
-              if (updateError) {
-                console.error('Error updating booking request:', updateError);
-              } else {
-                console.log('Updated booking request successfully');
-              }
-            }
-          } catch (bookingError) {
-            console.error("Error updating booking request:", bookingError);
-          }
-        }
-      }
-
-      onOpenChange(false);
-      
-      // Invalidate all queries to ensure data is refreshed
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['business-events'] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      
-    } catch (error: any) {
-      console.error('Error handling event submission:', error);
+      onClose();
+      setIsDeleteConfirmOpen(false);
+    } catch (error) {
+      console.error("Error deleting event:", error);
       toast({
         title: t("common.error"),
-        description: error.message || t("common.error"),
+        description: error.message || t("common.errorOccurred"),
         variant: "destructive",
       });
     }
   };
 
-  const handleFileDeleted = (fileId: string) => {
-    setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (!eventData.title || !eventData.start || !eventData.end) {
+        toast({
+          title: t("common.error"),
+          description: t("common.missingUserInfo"),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const start = new Date(eventData.start);
+      const end = new Date(eventData.end);
+
+      if (start >= end) {
+        toast({
+          title: t("common.error"),
+          description: t("events.timeSlotConflict"),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (isNewEvent) {
+        // const newEvent = await createEvent(eventData);
+        // setEventData(newEvent);
+        toast({
+          title: t("common.warning"),
+          description: "Creating events is not yet implemented.",
+        });
+        onClose();
+      } else {
+        await updateEvent(event.id, eventData);
+        toast({
+          title: t("common.success"),
+          description: t("events.eventUpdated"),
+        });
+        onClose();
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+    } catch (error) {
+      console.error("Error creating/updating event:", error);
+      toast({
+        title: t("common.error"),
+        description: error.message || t("common.errorOccurred"),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteClick = () => {
+    setIsDeleteConfirmOpen(true);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")}>
-          {event ? t("events.editEvent") : t("events.addNewEvent")}
-        </DialogTitle>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <EventDialogFields
-            title={title}
-            setTitle={setTitle}
-            userSurname={userSurname}
-            setUserSurname={setUserSurname}
-            userNumber={userNumber}
-            setUserNumber={setUserNumber}
-            socialNetworkLink={socialNetworkLink}
-            setSocialNetworkLink={setSocialNetworkLink}
-            eventNotes={eventNotes}
-            setEventNotes={setEventNotes}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
-            paymentStatus={paymentStatus}
-            setPaymentStatus={setPaymentStatus}
-            paymentAmount={paymentAmount}
-            setPaymentAmount={setPaymentAmount}
-            selectedFile={selectedFile}
-            setSelectedFile={setSelectedFile}
-            fileError={fileError}
-            setFileError={setFileError}
-            eventId={event?.id}
-            onFileDeleted={handleFileDeleted}
-            displayedFiles={displayedFiles}
-            isBookingRequest={isBookingRequest}
-          />
-          
-          <div className="flex justify-between gap-4">
-            <Button type="submit" className="flex-1">
-              {event ? t("events.updateEvent") : t("events.createEvent")}
-            </Button>
-            {event && onDelete && (
-              <Button
-                type="button"
-                variant="destructive"
-                size="icon"
-                onClick={onDelete}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[425px] bg-background">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">
+                {isNewEvent ? (
+                  <LanguageText>{t("events.addNewEvent")}</LanguageText>
+                ) : (
+                  <LanguageText>{t("events.editEvent")}</LanguageText>
+                )}
+              </h2>
+              {!isNewEvent && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDeleteClick}
+                  className="flex items-center gap-1"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <form onSubmit={handleSubmit}>
+              <EventDialogFields
+                eventData={eventData}
+                setEventData={setEventData}
+                selectedFile={selectedFile}
+                setSelectedFile={setSelectedFile}
+                fileError={fileError}
+                setFileError={setFileError}
+              />
+              <div className="flex justify-end mt-4">
+                <Button type="submit" className="w-full">
+                  {isNewEvent ? (
+                    <LanguageText>{t("events.createEvent")}</LanguageText>
+                  ) : (
+                    <LanguageText>{t("events.updateEvent")}</LanguageText>
+                  )}
+                </Button>
+              </div>
+            </form>
           </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              {t("events.deleteEvent")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("common.deleteConfirmMessage")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteEvent} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
-
-export default EventDialog;
