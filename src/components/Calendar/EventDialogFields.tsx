@@ -77,7 +77,7 @@ export const EventDialogFields = ({
   
   return <>
       <div>
-        <Label htmlFor="userSurname" className={isGeorgian ? "font-georgian" : ""}>
+        <Label htmlFor="userSurname" className={cn(isGeorgian ? "font-georgian" : "")}>
           <LanguageText>{t("events.fullName")}</LanguageText>
         </Label>
         <Input 
@@ -89,11 +89,11 @@ export const EventDialogFields = ({
           }} 
           placeholder={t("events.fullName")} 
           required 
-          className={isGeorgian ? "placeholder:font-georgian" : ""} 
+          className={cn(isGeorgian ? "placeholder:font-georgian" : "")} 
         />
       </div>
       <div>
-        <Label htmlFor="userNumber" className={isGeorgian ? "font-georgian" : ""}>
+        <Label htmlFor="userNumber" className={cn(isGeorgian ? "font-georgian" : "")}>
           <LanguageText>{t("events.phoneNumber")}</LanguageText>
         </Label>
         <Input 
@@ -101,11 +101,11 @@ export const EventDialogFields = ({
           value={userNumber} 
           onChange={e => setUserNumber(e.target.value)} 
           placeholder={t("events.phoneNumber")} 
-          className={isGeorgian ? "placeholder:font-georgian" : ""}  
+          className={cn(isGeorgian ? "placeholder:font-georgian" : "")}  
         />
       </div>
       <div>
-        <Label htmlFor="socialNetworkLink" className={isGeorgian ? "font-georgian" : ""}>
+        <Label htmlFor="socialNetworkLink" className={cn(isGeorgian ? "font-georgian" : "")}>
           <LanguageText>{t("events.socialLinkEmail")}</LanguageText>
         </Label>
         <Input 
@@ -117,7 +117,7 @@ export const EventDialogFields = ({
         />
       </div>
       <div>
-        <Label htmlFor="dateTime" className={isGeorgian ? "font-georgian" : ""}>
+        <Label htmlFor="dateTime" className={cn(isGeorgian ? "font-georgian" : "")}>
           <LanguageText>{t("events.dateAndTime")}</LanguageText>
         </Label>
         <div className="grid grid-cols-2 gap-2">
@@ -158,23 +158,29 @@ export const EventDialogFields = ({
       
       {!isBookingRequest && <>
           <div>
-            <Label htmlFor="paymentStatus" className={isGeorgian ? "font-georgian" : ""}>
+            <Label htmlFor="paymentStatus" className={cn(isGeorgian ? "font-georgian" : "")}>
               <LanguageText>{t("events.paymentStatus")}</LanguageText>
             </Label>
             <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-              <SelectTrigger id="paymentStatus" className={isGeorgian ? "font-georgian" : ""}>
+              <SelectTrigger id="paymentStatus" className={cn(isGeorgian ? "font-georgian" : "")}>
                 <SelectValue placeholder={t("events.selectPaymentStatus")} />
               </SelectTrigger>
               <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
-                <SelectItem value="not_paid"><LanguageText>{t("crm.notPaid")}</LanguageText></SelectItem>
-                <SelectItem value="partly_paid"><LanguageText>{t("crm.paidPartly")}</LanguageText></SelectItem>
-                <SelectItem value="fully_paid"><LanguageText>{t("crm.paidFully")}</LanguageText></SelectItem>
+                <SelectItem value="not_paid" className={cn(isGeorgian ? "font-georgian" : "")}>
+                  <LanguageText>{t("crm.notPaid")}</LanguageText>
+                </SelectItem>
+                <SelectItem value="partly_paid" className={cn(isGeorgian ? "font-georgian" : "")}>
+                  <LanguageText>{t("crm.paidPartly")}</LanguageText>
+                </SelectItem>
+                <SelectItem value="fully_paid" className={cn(isGeorgian ? "font-georgian" : "")}>
+                  <LanguageText>{t("crm.paidFully")}</LanguageText>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
           
           {showPaymentAmount && <div>
-              <Label htmlFor="paymentAmount" className={isGeorgian ? "font-georgian" : ""}>
+              <Label htmlFor="paymentAmount" className={cn(isGeorgian ? "font-georgian" : "")}>
                 <LanguageText>{t("events.paymentAmount")}</LanguageText>
               </Label>
               <Input 
@@ -194,7 +200,7 @@ export const EventDialogFields = ({
         </>}
       
       <div>
-        <Label htmlFor="eventNotes" className={isGeorgian ? "font-georgian" : ""}>
+        <Label htmlFor="eventNotes" className={cn(isGeorgian ? "font-georgian" : "")}>
           <LanguageText>{t("events.eventNotes")}</LanguageText>
         </Label>
         <Textarea 
@@ -207,7 +213,7 @@ export const EventDialogFields = ({
       </div>
       
       <div>
-        <Label htmlFor="file" className={isGeorgian ? "font-georgian" : ""}>
+        <Label htmlFor="file" className={cn(isGeorgian ? "font-georgian" : "")}>
           <LanguageText>{t("common.attachments")}</LanguageText>
         </Label>
         <FileUploadField 

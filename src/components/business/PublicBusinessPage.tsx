@@ -9,11 +9,14 @@ import { LoaderCircle, Globe, Mail, Phone, MapPin } from "lucide-react";
 import { ExternalCalendar } from "../Calendar/ExternalCalendar";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "@/components/shared/LanguageText";
+import { cn } from "@/lib/utils";
 
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
   const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
   
   const getBusinessSlug = () => {
     if (slug) return slug;
@@ -189,18 +192,24 @@ export const PublicBusinessPage = () => {
         <div className="absolute inset-0 bg-black bg-opacity-50"></div>
         
         <div className="container mx-auto px-4 relative">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">{business.business_name}</h1>
-          {business.description && <p className="text-lg opacity-90 max-w-2xl">{business.description}</p>}
+          <h1 className={cn("text-4xl md:text-5xl font-bold mb-4", isGeorgian ? "font-georgian" : "")}>
+            {business.business_name}
+          </h1>
+          {business.description && (
+            <p className={cn("text-lg opacity-90 max-w-2xl", isGeorgian ? "font-georgian" : "")}>
+              {business.description}
+            </p>
+          )}
           
           <div className="flex gap-4 mt-6">
             <Button 
               size="lg" 
-              className="bg-white text-blue-700 hover:bg-blue-50"
+              className={cn("bg-white text-blue-700 hover:bg-blue-50", isGeorgian ? "font-georgian" : "")}
               onClick={() => {
                 document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
               }}
             >
-              {t("calendar.bookNow")}
+              <LanguageText>{t("calendar.bookNow")}</LanguageText>
             </Button>
           </div>
         </div>
@@ -219,9 +228,11 @@ export const PublicBusinessPage = () => {
       <div className="container mx-auto px-4 py-12">
         <div className="mb-8" id="calendar-section">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">{t("business.availableTimes")}</h2>
-            <div className="text-sm text-muted-foreground">
-              {t("business.clickToRequest")}
+            <h2 className={cn("text-2xl font-bold", isGeorgian ? "font-georgian" : "")}>
+              <LanguageText>{t("business.availableTimes")}</LanguageText>
+            </h2>
+            <div className={cn("text-sm text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
+              <LanguageText>{t("business.clickToRequest")}</LanguageText>
             </div>
           </div>
           
@@ -233,7 +244,9 @@ export const PublicBusinessPage = () => {
         <div className="mt-12">
           <Card>
             <CardContent className="p-6 space-y-4">
-              <h2 className="text-xl font-semibold">{t("business.contactInformation")}</h2>
+              <h2 className={cn("text-xl font-semibold", isGeorgian ? "font-georgian" : "")}>
+                <LanguageText>{t("business.contactInformation")}</LanguageText>
+              </h2>
               
               <div className="grid md:grid-cols-2 gap-6">
                 {business.contact_email && (

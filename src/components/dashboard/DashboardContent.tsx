@@ -84,7 +84,7 @@ export const DashboardContent = ({
           >
             <CalendarIcon className="w-4 h-4" />
           </motion.div>
-          <span className="hidden sm:inline">
+          <span className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}>
             <LanguageText>{t("dashboard.bookingCalendar")}</LanguageText>
           </span>
         </TabsTrigger>
@@ -101,7 +101,7 @@ export const DashboardContent = ({
           >
             <BarChart className="w-4 h-4" />
           </motion.div>
-          <span className="hidden sm:inline">
+          <span className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}>
             <LanguageText>{t("dashboard.statistics")}</LanguageText>
           </span>
         </TabsTrigger>
@@ -118,7 +118,7 @@ export const DashboardContent = ({
           >
             <ListTodo className="w-4 h-4" />
           </motion.div>
-          <span className="hidden sm:inline">
+          <span className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}>
             <LanguageText>{t("dashboard.tasks")}</LanguageText>
           </span>
         </TabsTrigger>
@@ -135,7 +135,7 @@ export const DashboardContent = ({
           >
             <Users className="w-4 h-4" />
           </motion.div>
-          <span className="hidden sm:inline">
+          <span className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}>
             <LanguageText>{t("dashboard.crm")}</LanguageText>
           </span>
         </TabsTrigger>
@@ -152,7 +152,7 @@ export const DashboardContent = ({
           >
             <Briefcase className="w-4 h-4" />
           </motion.div>
-          <span className="hidden sm:inline">
+          <span className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}>
             <LanguageText>{t("business.myBusiness")}</LanguageText>
           </span>
           {pendingCount > 0 && (

@@ -327,7 +327,7 @@ export const ka: TranslationType = {
     deleteSuccess: "წარმატებით წაიშალა",
     deleteError: "წაშლის შეცდომა",
     missingUserInfo: "მომხმარებლის ინფორმაცია აკლია",
-    errorOccurred: "მოხდა შეცდომა. გთხოვთ, სცადოთ ხელახლა.",
+    errorOccurred: "მოხდა შეცდომა. გთხოვთ, სცადოთ ხელ��ხლა.",
     new: "ახალი",
     request: "მოთხოვნა",
     requests: "მოთხოვნები",
@@ -349,7 +349,7 @@ export const ka: TranslationType = {
     signInCta: "Შესვლა",
     signUpCta: "Რეგისტრაცია",
     agreeToTerms: "ვეთანხმები წესებსა და პირობებს",
-    requiredField: "ეს ვე���ი სავა��დებულოა",
+    requiredField: "ეს ვე���ი სა��ა��დებულოა",
     invalidEmail: "გთხოვთ, შეიყვანოთ ს���ორი ელფოსტა",
     passwordMinLength: "პაროლი უნდა შედგებოდეს მინიმუმ 6 სიმბოლოსგან",
     passwordMatch: "პაროლები არ ემთხვევა",
@@ -390,7 +390,7 @@ export const ka: TranslationType = {
     generalInfo: {
       title: "1. Ზოგადი ინფორმაცია",
       companyName: "კომპანიის სახელი: SmartBookly",
-      registered: "რეგი���ტრირებულია: საქართველო",
+      registered: "რ���გი���ტრირებულია: საქართველო",
       contact: "საკონტ���ქტო ელფოსტა: info@smartbookly.com"
     },
     eligibility: {

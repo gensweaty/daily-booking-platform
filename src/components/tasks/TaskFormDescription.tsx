@@ -16,7 +16,7 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="description" className={isGeorgian ? "font-georgian" : ""}>
+      <Label htmlFor="description" className={cn(isGeorgian ? "font-georgian" : "")}>
         <LanguageText>{t("tasks.descriptionLabel")}</LanguageText>
       </Label>
       <div className={cn(isGeorgian ? "is-editor-empty:before:font-georgian" : "")}>

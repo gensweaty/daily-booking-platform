@@ -117,11 +117,30 @@
   height: 0;
 }
 
-/* Better Georgian text styling for dialogs and inputs */
+/* Better Georgian text styling for dialogs, inputs, buttons and other UI elements */
 [lang="ka"] .dialog-title,
 [lang="ka"] .form-label,
 [lang="ka"] .input-placeholder,
-[lang="ka"] .button-text {
+[lang="ka"] .button-text,
+[lang="ka"] h1,
+[lang="ka"] h2,
+[lang="ka"] h3,
+[lang="ka"] h4,
+[lang="ka"] h5,
+[lang="ka"] h6,
+[lang="ka"] button,
+[lang="ka"] .tabs-trigger,
+[lang="ka"] .label,
+[lang="ka"] .select-item,
+[lang="ka"] .select-trigger,
+[lang="ka"] th {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
   letter-spacing: -0.2px;
+}
+
+/* Ensure consistent Georgian font in dialog titles */
+[lang="ka"] .dialog-header h2,
+[lang="ka"] .dialog-content h2,
+[lang="ka"] .dialog-content h3 {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
 }
