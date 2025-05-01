@@ -197,7 +197,7 @@ export const BusinessProfileForm = () => {
                   uploadText={t("business.uploadImageCover")}
                   chooseFileText={t("business.chooseFile")}
                   noFileText={t("business.noFileChosen")}
-                  maxSizeMB={5}
+                  maxSizeInMB={5}
                   acceptedFileTypes="image/*"
                   {...field}
                 />

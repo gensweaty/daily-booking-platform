@@ -9,23 +9,25 @@ import { FileRecord } from "@/types/files";
 import { cn } from "@/lib/utils";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { useTheme } from "next-themes";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface CustomerDialogFieldsProps {
-  fullName: string;
-  setFullName: (value: string) => void;
-  phoneNumber: string;
-  setPhoneNumber: (value: string) => void;
+  fullName?: string;
+  setFullName?: (value: string) => void;
+  phoneNumber?: string;
+  setPhoneNumber?: (value: string) => void;
   socialNetworkLink: string;
   setSocialNetworkLink: (value: string) => void;
-  customerNotes: string;
-  setCustomerNotes: (value: string) => void;
+  customerNotes?: string;
+  setCustomerNotes?: (value: string) => void;
   selectedFile: File | null;
   setSelectedFile: (file: File | null) => void;
   fileError: string;
   setFileError: (error: string) => void;
   customerId?: string;
-  displayedFiles: FileRecord[];
-  onFileDeleted: (fileId: string) => void;
+  displayedFiles?: FileRecord[];
+  onFileDeleted?: (fileId: string) => void;
   // Added these properties to make it compatible with CustomerDialog
   title?: string;
   setTitle?: (value: any) => void;
@@ -35,6 +37,19 @@ interface CustomerDialogFieldsProps {
   setUserNumber?: (value: string) => void;
   eventNotes?: string; 
   setEventNotes?: (value: string) => void;
+  createEvent?: boolean;
+  setCreateEvent?: (value: boolean) => void;
+  paymentStatus?: string;
+  setPaymentStatus?: (value: string) => void;
+  paymentAmount?: string;
+  setPaymentAmount?: (value: string) => void;
+  isEventBased?: boolean;
+  startDate?: string;
+  endDate?: string;
+  eventStartDate?: Date;
+  setEventStartDate?: (date: Date) => void;
+  eventEndDate?: Date;
+  setEventEndDate?: (date: Date) => void;
 }
 
 export const CustomerDialogFields = ({
@@ -51,8 +66,8 @@ export const CustomerDialogFields = ({
   fileError,
   setFileError,
   customerId,
-  displayedFiles,
-  onFileDeleted,
+  displayedFiles = [],
+  onFileDeleted = () => {},
   // Use new props if provided, otherwise fall back to original ones
   title,
   setTitle,
@@ -61,7 +76,20 @@ export const CustomerDialogFields = ({
   userNumber,
   setUserNumber,
   eventNotes,
-  setEventNotes
+  setEventNotes,
+  createEvent,
+  setCreateEvent,
+  paymentStatus,
+  setPaymentStatus,
+  paymentAmount,
+  setPaymentAmount,
+  isEventBased,
+  startDate,
+  endDate,
+  eventStartDate,
+  setEventStartDate,
+  eventEndDate,
+  setEventEndDate
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const { theme } = useTheme();
@@ -75,7 +103,7 @@ export const CustomerDialogFields = ({
     if (setUserSurname) {
       setUserSurname(value);
       if (setTitle) setTitle(value);
-    } else {
+    } else if (setFullName) {
       setFullName(value);
     }
   };
@@ -85,7 +113,7 @@ export const CustomerDialogFields = ({
   const setEffectivePhoneNumber = (value: string) => {
     if (setUserNumber) {
       setUserNumber(value);
-    } else {
+    } else if (setPhoneNumber) {
       setPhoneNumber(value);
     }
   };
@@ -95,7 +123,7 @@ export const CustomerDialogFields = ({
   const setEffectiveNotes = (value: string) => {
     if (setEventNotes) {
       setEventNotes(value);
-    } else {
+    } else if (setCustomerNotes) {
       setCustomerNotes(value);
     }
   };
@@ -138,6 +166,102 @@ export const CustomerDialogFields = ({
           type="email"
         />
       </div>
+      
+      {/* Add createEvent field if props exist */}
+      {setCreateEvent !== undefined && (
+        <div className="flex items-center space-x-2 py-2">
+          <Checkbox 
+            id="createEvent" 
+            checked={createEvent} 
+            onCheckedChange={setCreateEvent}
+          />
+          <Label htmlFor="createEvent" className={cn(labelClass, "cursor-pointer")}>
+            <LanguageText>{t("crm.createEvent")}</LanguageText>
+          </Label>
+        </div>
+      )}
+      
+      {/* Add payment status field if props exist and createEvent is true */}
+      {setPaymentStatus !== undefined && createEvent && (
+        <div>
+          <Label htmlFor="paymentStatus" className={labelClass}>
+            <LanguageText>{t("crm.paymentStatus")}</LanguageText>
+          </Label>
+          <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+            <SelectTrigger id="paymentStatus">
+              <SelectValue placeholder={t("crm.selectPaymentStatus")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="not_paid">{t("crm.notPaid")}</SelectItem>
+              <SelectItem value="partly">{t("crm.partlyPaid")}</SelectItem>
+              <SelectItem value="fully">{t("crm.fullyPaid")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      
+      {/* Add payment amount field if props exist, createEvent is true, and payment status is not "not_paid" */}
+      {setPaymentAmount !== undefined && createEvent && paymentStatus && paymentStatus !== 'not_paid' && (
+        <div>
+          <Label htmlFor="paymentAmount" className={labelClass}>
+            <LanguageText>{t("crm.paymentAmount")}</LanguageText>
+          </Label>
+          <Input
+            id="paymentAmount"
+            type="number"
+            min="0"
+            step="0.01"
+            value={paymentAmount}
+            onChange={(e) => setPaymentAmount(e.target.value)}
+            placeholder="0.00"
+          />
+        </div>
+      )}
+      
+      {/* Add event date/time fields if props exist and createEvent is true */}
+      {setEventStartDate && setEventEndDate && createEvent && (
+        <div>
+          <Label className={labelClass}>
+            <LanguageText>{t("events.dateAndTime")}</LanguageText>
+          </Label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
+                {t("events.start")}
+              </Label>
+              <div className="relative">
+                <Input
+                  id="startDate"
+                  type="datetime-local"
+                  value={eventStartDate ? format(eventStartDate, "yyyy-MM-dd'T'HH:mm") : ''}
+                  onChange={(e) => {
+                    if (setEventStartDate) setEventStartDate(new Date(e.target.value));
+                  }}
+                  className="w-full"
+                  style={{ colorScheme: theme === 'dark' ? 'dark' : 'light' }}
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
+                {t("events.end")}
+              </Label>
+              <div className="relative">
+                <Input
+                  id="endDate"
+                  type="datetime-local"
+                  value={eventEndDate ? format(eventEndDate, "yyyy-MM-dd'T'HH:mm") : ''}
+                  onChange={(e) => {
+                    if (setEventEndDate) setEventEndDate(new Date(e.target.value));
+                  }}
+                  className="w-full"
+                  style={{ colorScheme: theme === 'dark' ? 'dark' : 'light' }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div>
         <Label htmlFor="customerNotes" className={labelClass}>
