@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -116,6 +117,9 @@ export interface TranslationType {
     todo: string;
     inProgress: string;
     done: string;
+    deleteTaskConfirmTitle: string;
+    taskUpdated: string;
+    taskDeleted: string;
   };
   website: {
     title: string;
@@ -341,6 +345,8 @@ export interface TranslationType {
     update: string;
     delete: string;
     supportedFormats: string;
+    deleteConfirmMessage: string;
+    noDescription: string;
   };
   auth: {
     welcome: string;
