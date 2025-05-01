@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -164,7 +163,7 @@ export const es: TranslationType = {
     editBusinessProfile: "Editar Perfil de Negocio",
     chooseFile: "Elegir Archivo",
     noFileChosen: "Ningún archivo seleccionado",
-    supportedFormats: "Formatos compatibles: Imágenes (jpg, png, webp) hasta 50MB, Documentos (pdf, docx, xlsx, pptx) hasta 1MB",
+    supportedFormats: "Formatos admitidos: .jpg, .jpeg, .png, .pdf, .docx, .xls",
     uploadImageCover: "Sube una imagen para la portada de tu negocio (JPEG, PNG, WebP)",
     publicPageUrl: "Esto será utilizado para la URL de tu página pública:",
     notFound: "Negocio no encontrado",
@@ -331,7 +330,8 @@ export const es: TranslationType = {
     create: "Crear",
     update: "Actualizar",
     delete: "Eliminar",
-    and: "y"
+    and: "y",
+    supportedFormats: "Formatos admitidos: .jpg, .jpeg, .png, .pdf, .docx, .xls"
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",

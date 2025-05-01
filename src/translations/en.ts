@@ -1,4 +1,3 @@
-
 const en = {
   nav: {
     signin: "Sign In",
@@ -329,7 +328,8 @@ const en = {
     new: "new",
     request: "request",
     requests: "requests",
-    backToHome: "Back to home page"
+    backToHome: "Back to home page",
+    supportedFormats: ".jpg, .jpeg, .png, .pdf, .docx, .xls"
   },
   auth: {
     welcome: "Welcome to SmartBookly",

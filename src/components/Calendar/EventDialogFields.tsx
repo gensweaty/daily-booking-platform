@@ -226,7 +226,7 @@ export const EventDialogFields = ({
           hideLabel={true}
         />
         <p className="text-xs text-muted-foreground mt-1">
-          {t("common.supportedFormats")}: JPG, PNG, PDF, DOC, XLS, TXT
+          <LanguageText>{t("common.supportedFormats")}</LanguageText>
         </p>
       </div>
       

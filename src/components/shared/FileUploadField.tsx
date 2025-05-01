@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useState, useEffect, forwardRef } from "react";
@@ -122,7 +123,11 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
       
       {actualFileError && <p className="text-sm text-red-500 mt-1">{actualFileError}</p>}
       
-      {!hideDescription && !actualFileError}
+      {!hideDescription && !actualFileError && (
+        <p className="text-xs text-muted-foreground mt-1">
+          <LanguageText>{t("common.supportedFormats")}</LanguageText>
+        </p>
+      )}
     </div>;
 });
 FileUploadField.displayName = "FileUploadField";

@@ -87,9 +87,6 @@ export const TaskFormFields = ({
         setFileError={setFileError}
         acceptedFileTypes={acceptedFormats}
       />
-      <p className="text-xs text-muted-foreground mt-1">
-        {t("common.supportedFormats", { defaultValue: "Supported formats" })}: JPG, PNG, PDF, DOC, XLS, TXT
-      </p>
     </div>
   );
 };
