@@ -33,7 +33,7 @@ export const TaskFormFields = ({
   editingTask,
 }: TaskFormFieldsProps) => {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   const { data: existingFiles = [], refetch } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
@@ -84,6 +84,13 @@ export const TaskFormFields = ({
         fileError={fileError}
         setFileError={setFileError}
       />
+      <p className="text-xs text-muted-foreground mt-1">
+        {language === 'ka' 
+          ? "მხარდაჭერილი ფორმატები: .jpg, .jpeg, .png, .pdf, .docx, .xls"
+          : language === 'es'
+            ? "Formatos admitidos: .jpg, .jpeg, .png, .pdf, .docx, .xls"
+            : "Supported formats: .jpg, .jpeg, .png, .pdf, .docx, .xls"}
+      </p>
     </div>
   );
 };

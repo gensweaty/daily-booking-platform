@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { useTheme } from "next-themes";
+import { CalendarIcon } from "lucide-react";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -76,6 +77,9 @@ export const EventDialogFields = ({
   
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
   
+  // Determine icon color based on theme
+  const iconColor = theme === 'dark' ? "white" : "currentColor";
+  
   return (
     <>
       <div>
@@ -135,6 +139,10 @@ export const EventDialogFields = ({
                 className="w-full"
                 style={{ colorScheme: 'auto' }}
               />
+              <CalendarIcon 
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" 
+                color={iconColor}
+              />
             </div>
           </div>
           <div>
@@ -150,6 +158,10 @@ export const EventDialogFields = ({
                 required
                 className="w-full"
                 style={{ colorScheme: 'auto' }}
+              />
+              <CalendarIcon 
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" 
+                color={iconColor}
               />
             </div>
           </div>
@@ -226,7 +238,11 @@ export const EventDialogFields = ({
           hideLabel={true}
         />
         <p className="text-xs text-muted-foreground mt-1">
-          Supported formats: .jpg, .jpeg, .png, .pdf, .doc, .docx, .xls, .xlsx, .txt
+          {language === 'ka' 
+            ? "მხარდაჭერილი ფორმატები: .jpg, .jpeg, .png, .pdf, .docx, .xls"
+            : language === 'es'
+              ? "Formatos admitidos: .jpg, .jpeg, .png, .pdf, .docx, .xls"
+              : "Supported formats: .jpg, .jpeg, .png, .pdf, .docx, .xls"}
         </p>
       </div>
       
