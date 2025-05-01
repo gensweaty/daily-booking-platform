@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,7 +8,6 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import { cn } from "@/lib/utils";
 import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
-
 interface EventDialogFieldsProps {
   title: string;
   setTitle: (value: string) => void;
@@ -38,7 +36,6 @@ interface EventDialogFieldsProps {
   onFileDeleted: (fileId: string) => void;
   isBookingRequest?: boolean;
 }
-
 export const EventDialogFields = ({
   title,
   setTitle,
@@ -65,56 +62,37 @@ export const EventDialogFields = ({
   eventId,
   displayedFiles,
   onFileDeleted,
-  isBookingRequest = false,
+  isBookingRequest = false
 }: EventDialogFieldsProps) => {
-  const { t, language } = useLanguage();
+  const {
+    t,
+    language
+  } = useLanguage();
   const isGeorgian = language === 'ka';
-  
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
-  
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
-  
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
-  
-  return (
-    <>
+  return <>
       <div>
         <Label htmlFor="userSurname" className={labelClass}>
           <LanguageText>{t("events.fullName")}</LanguageText>
         </Label>
-        <Input
-          id="userSurname"
-          value={userSurname}
-          onChange={(e) => {
-            setUserSurname(e.target.value);
-            setTitle(e.target.value); // Set title to same as userSurname
-          }}
-          placeholder={t("events.fullName")}
-          required
-        />
+        <Input id="userSurname" value={userSurname} onChange={e => {
+        setUserSurname(e.target.value);
+        setTitle(e.target.value); // Set title to same as userSurname
+      }} placeholder={t("events.fullName")} required />
       </div>
       <div>
         <Label htmlFor="userNumber" className={labelClass}>
           <LanguageText>{t("events.phoneNumber")}</LanguageText>
         </Label>
-        <Input
-          id="userNumber"
-          value={userNumber}
-          onChange={(e) => setUserNumber(e.target.value)}
-          placeholder={t("events.phoneNumber")}
-        />
+        <Input id="userNumber" value={userNumber} onChange={e => setUserNumber(e.target.value)} placeholder={t("events.phoneNumber")} />
       </div>
       <div>
         <Label htmlFor="socialNetworkLink" className={labelClass}>
           <LanguageText>{t("events.socialLinkEmail")}</LanguageText>
         </Label>
-        <Input
-          id="socialNetworkLink"
-          value={socialNetworkLink}
-          onChange={(e) => setSocialNetworkLink(e.target.value)}
-          placeholder="email@example.com"
-          type="email"
-        />
+        <Input id="socialNetworkLink" value={socialNetworkLink} onChange={e => setSocialNetworkLink(e.target.value)} placeholder="email@example.com" type="email" />
       </div>
       <div>
         <Label htmlFor="dateTime" className={labelClass}>
@@ -126,15 +104,9 @@ export const EventDialogFields = ({
               <LanguageText>{t("events.start")}</LanguageText>
             </Label>
             <div className="relative">
-              <Input
-                id="startDate"
-                type="datetime-local"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-                className="w-full dark:text-white dark:[color-scheme:dark]"
-                style={{ colorScheme: 'auto' }}
-              />
+              <Input id="startDate" type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} required className="w-full dark:text-white dark:[color-scheme:dark]" style={{
+              colorScheme: 'auto'
+            }} />
             </div>
           </div>
           <div>
@@ -142,30 +114,20 @@ export const EventDialogFields = ({
               <LanguageText>{t("events.end")}</LanguageText>
             </Label>
             <div className="relative">
-              <Input
-                id="endDate"
-                type="datetime-local"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
-                className="w-full dark:text-white dark:[color-scheme:dark]"
-                style={{ colorScheme: 'auto' }}
-              />
+              <Input id="endDate" type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} required className="w-full dark:text-white dark:[color-scheme:dark]" style={{
+              colorScheme: 'auto'
+            }} />
             </div>
           </div>
         </div>
       </div>
       
-      {!isBookingRequest && (
-        <>
+      {!isBookingRequest && <>
           <div>
             <Label htmlFor="paymentStatus" className={labelClass}>
               <LanguageText>{t("events.paymentStatus")}</LanguageText>
             </Label>
-            <Select
-              value={paymentStatus}
-              onValueChange={setPaymentStatus}
-            >
+            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
               <SelectTrigger id="paymentStatus" className={isGeorgian ? "font-georgian" : ""}>
                 <SelectValue placeholder={t("events.selectPaymentStatus")} />
               </SelectTrigger>
@@ -177,70 +139,36 @@ export const EventDialogFields = ({
             </Select>
           </div>
           
-          {showPaymentAmount && (
-            <div>
+          {showPaymentAmount && <div>
               <Label htmlFor="paymentAmount" className={labelClass}>
                 <LanguageText>{t("events.paymentAmount")}</LanguageText>
               </Label>
-              <Input
-                id="paymentAmount"
-                value={paymentAmount}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                    setPaymentAmount(value);
-                  }
-                }}
-                placeholder="0.00"
-                type="text"
-                inputMode="decimal"
-              />
-            </div>
-          )}
-        </>
-      )}
+              <Input id="paymentAmount" value={paymentAmount} onChange={e => {
+          const value = e.target.value;
+          if (value === "" || /^\d*\.?\d*$/.test(value)) {
+            setPaymentAmount(value);
+          }
+        }} placeholder="0.00" type="text" inputMode="decimal" />
+            </div>}
+        </>}
       
       <div>
         <Label htmlFor="eventNotes" className={labelClass}>
           <LanguageText>{t("events.eventNotes")}</LanguageText>
         </Label>
-        <Textarea
-          id="eventNotes"
-          value={eventNotes}
-          onChange={(e) => setEventNotes(e.target.value)}
-          placeholder={t("events.addEventNotes")}
-          className="min-h-[100px] resize-none"
-        />
+        <Textarea id="eventNotes" value={eventNotes} onChange={e => setEventNotes(e.target.value)} placeholder={t("events.addEventNotes")} className="min-h-[100px] resize-none" />
       </div>
       
       <div>
         <Label htmlFor="file" className={labelClass}>
           <LanguageText>{t("common.attachments")}</LanguageText>
         </Label>
-        <FileUploadField
-          onChange={setSelectedFile}
-          fileError={fileError}
-          setFileError={setFileError}
-          acceptedFileTypes={acceptedFormats}
-          selectedFile={selectedFile}
-          hideLabel={true}
-        />
-        <p className="text-xs text-muted-foreground mt-1">
-          <LanguageText>{t("common.supportedFormats")}</LanguageText>
-        </p>
+        <FileUploadField onChange={setSelectedFile} fileError={fileError} setFileError={setFileError} acceptedFileTypes={acceptedFormats} selectedFile={selectedFile} hideLabel={true} />
+        
       </div>
       
-      {displayedFiles.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <FileDisplay
-            files={displayedFiles}
-            bucketName="event_attachments"
-            allowDelete={true}
-            onFileDeleted={onFileDeleted}
-            parentType="event"
-          />
-        </div>
-      )}
-    </>
-  );
+      {displayedFiles.length > 0 && <div className="flex flex-col gap-2">
+          <FileDisplay files={displayedFiles} bucketName="event_attachments" allowDelete={true} onFileDeleted={onFileDeleted} parentType="event" />
+        </div>}
+    </>;
 };
