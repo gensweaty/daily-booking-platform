@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,11 @@ export const CustomerDialog = ({
   const [isLoading, setIsLoading] = useState(false);
   // Add state for delete confirmation dialog
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  // Add state for event date/time pickers
+  const [eventStartDate, setEventStartDate] = useState<Date>(new Date());
+  const [eventEndDate, setEventEndDate] = useState<Date>(new Date());
+  const [createEvent, setCreateEvent] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -307,17 +313,38 @@ export const CustomerDialog = ({
           </DialogTitle>
           <form onSubmit={handleSubmit} className="space-y-4">
             <CustomerDialogFields
-              formData={formData}
-              setFormData={setFormData}
+              title={formData.title}
+              setTitle={(value) => setFormData({ ...formData, title: value })}
+              userSurname=""
+              setUserSurname={() => {}}
+              userNumber={formData.user_number}
+              setUserNumber={(value) => setFormData({ ...formData, user_number: value })}
+              socialNetworkLink={formData.social_network_link}
+              setSocialNetworkLink={(value) => setFormData({ ...formData, social_network_link: value })}
+              createEvent={createEvent}
+              setCreateEvent={setCreateEvent}
+              paymentStatus={formData.payment_status}
+              setPaymentStatus={(value) => setFormData({ ...formData, payment_status: value })}
+              paymentAmount={formData.payment_amount}
+              setPaymentAmount={(value) => setFormData({ ...formData, payment_amount: value })}
+              customerNotes={formData.event_notes}
+              setCustomerNotes={(value) => setFormData({ ...formData, event_notes: value })}
               selectedFile={selectedFile}
               setSelectedFile={setSelectedFile}
               fileError={fileError}
               setFileError={setFileError}
+              isEventBased={customerId?.startsWith('event-') || false}
+              startDate={formData.startDate}
+              endDate={formData.endDate}
               customerId={customerId}
               displayedFiles={displayedFiles}
               onFileDeleted={(fileId) => {
                 setDisplayedFiles((prev) => prev.filter((file) => file.id !== fileId));
               }}
+              eventStartDate={eventStartDate}
+              setEventStartDate={setEventStartDate}
+              eventEndDate={eventEndDate}
+              setEventEndDate={setEventEndDate}
             />
 
             <div className="flex justify-between">
