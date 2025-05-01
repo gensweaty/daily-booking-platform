@@ -26,6 +26,15 @@ interface CustomerDialogFieldsProps {
   customerId?: string;
   displayedFiles: FileRecord[];
   onFileDeleted: (fileId: string) => void;
+  // Added these properties to make it compatible with CustomerDialog
+  title?: string;
+  setTitle?: (value: any) => void;
+  userSurname?: string;
+  setUserSurname?: (value: any) => void;
+  userNumber?: string;
+  setUserNumber?: (value: string) => void;
+  eventNotes?: string; 
+  setEventNotes?: (value: string) => void;
 }
 
 export const CustomerDialogFields = ({
@@ -44,12 +53,52 @@ export const CustomerDialogFields = ({
   customerId,
   displayedFiles,
   onFileDeleted,
+  // Use new props if provided, otherwise fall back to original ones
+  title,
+  setTitle,
+  userSurname,
+  setUserSurname,
+  userNumber,
+  setUserNumber,
+  eventNotes,
+  setEventNotes
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const { theme } = useTheme();
   const isGeorgian = language === 'ka';
   
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
+  
+  // Handle the name field based on which props are provided
+  const effectiveFullName = userSurname !== undefined ? userSurname : fullName;
+  const setEffectiveFullName = (value: string) => {
+    if (setUserSurname) {
+      setUserSurname(value);
+      if (setTitle) setTitle(value);
+    } else {
+      setFullName(value);
+    }
+  };
+
+  // Handle the phone field based on which props are provided
+  const effectivePhoneNumber = userNumber !== undefined ? userNumber : phoneNumber;
+  const setEffectivePhoneNumber = (value: string) => {
+    if (setUserNumber) {
+      setUserNumber(value);
+    } else {
+      setPhoneNumber(value);
+    }
+  };
+
+  // Handle the notes field based on which props are provided
+  const effectiveNotes = eventNotes !== undefined ? eventNotes : customerNotes;
+  const setEffectiveNotes = (value: string) => {
+    if (setEventNotes) {
+      setEventNotes(value);
+    } else {
+      setCustomerNotes(value);
+    }
+  };
   
   return (
     <>
@@ -59,8 +108,8 @@ export const CustomerDialogFields = ({
         </Label>
         <Input
           id="fullName"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
+          value={effectiveFullName}
+          onChange={(e) => setEffectiveFullName(e.target.value)}
           placeholder={t("crm.fullName")}
         />
       </div>
@@ -71,8 +120,8 @@ export const CustomerDialogFields = ({
         </Label>
         <Input
           id="phoneNumber"
-          value={phoneNumber}
-          onChange={(e) => setPhoneNumber(e.target.value)}
+          value={effectivePhoneNumber}
+          onChange={(e) => setEffectivePhoneNumber(e.target.value)}
           placeholder={t("crm.phoneNumber")}
         />
       </div>
@@ -96,8 +145,8 @@ export const CustomerDialogFields = ({
         </Label>
         <Textarea
           id="customerNotes"
-          value={customerNotes}
-          onChange={(e) => setCustomerNotes(e.target.value)}
+          value={effectiveNotes}
+          onChange={(e) => setEffectiveNotes(e.target.value)}
           placeholder={t("crm.addCustomerNotes")}
           className="min-h-[100px] resize-none"
         />

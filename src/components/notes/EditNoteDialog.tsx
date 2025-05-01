@@ -1,4 +1,3 @@
-
 import { Note } from "@/lib/types";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
@@ -143,6 +142,8 @@ export const EditNoteDialog = ({
             onChange={setSelectedFile}
             fileError={fileError}
             setFileError={setFileError}
+            selectedFile={selectedFile}
+            acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
           />
           <Button onClick={handleSave} className="w-full">
             Save Changes

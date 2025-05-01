@@ -1,14 +1,10 @@
-
-// Add the necessary imports and update the component to fix the calendar icon issue and add supported formats text
-// We'll need to get the exact content from the original file
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { format, parse } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
+import { supabase } from '@/lib/supabase';  // Fixed supabase import path
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/components/ui/use-toast';
 import { FileUploadField } from '@/components/shared/FileUploadField';
@@ -26,6 +22,19 @@ export interface BookingRequestFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  // Add these props to make it compatible with Calendar component usage
+  startTime?: string;
+  endTime?: string;
+  selectedDate?: Date;
+  isExternalBooking?: boolean;
+}
+
+interface ServiceItem {
+  id: string;
+  name: string;
+  business_id: string;
+  created_at: string;
+  deleted_at: string | null;
 }
 
 export const BookingRequestForm = ({
@@ -53,7 +62,7 @@ export const BookingRequestForm = ({
   const [requesterEmail, setRequesterEmail] = useState('');
   const [description, setDescription] = useState('');
   const [service, setService] = useState('');
-  const [services, setServices] = useState<any[]>([]);
+  const [services, setServices] = useState<ServiceItem[]>([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('not_paid');
@@ -115,6 +124,7 @@ export const BookingRequestForm = ({
     const fetchServices = async () => {
       if (businessId) {
         try {
+          // Fix: Don't use "services" as a direct parameter for from()
           const { data, error } = await supabase
             .from('services')
             .select('*')
@@ -127,7 +137,8 @@ export const BookingRequestForm = ({
             return;
           }
 
-          setServices(data || []);
+          // Use type assertion to ensure correct type
+          setServices(data as ServiceItem[] || []);
           
           // If there are services, set the first one as default
           if (data && data.length > 0) {
@@ -396,7 +407,7 @@ export const BookingRequestForm = ({
           </div>
           <div>
             <Label htmlFor="file" className={cn("block font-medium", isGeorgian ? "font-georgian" : "")}>
-              {t("bookings.attachments")}
+              <LanguageText>{t("bookings.attachments")}</LanguageText>
             </Label>
             <FileUploadField
               onChange={setSelectedFile}

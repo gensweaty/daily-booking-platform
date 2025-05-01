@@ -10,20 +10,34 @@ interface FileUploadFieldProps {
   onChange: (file: File | null) => void;
   fileError: string;
   setFileError: (error: string) => void;
-  acceptedFileTypes: string;
+  acceptedFileTypes?: string;
   selectedFile: File | null;
   maxSizeInMB?: number;
   hideLabel?: boolean;
+  // Support for BusinessProfileForm
+  imageUrl?: string;
+  onUpload?: (...event: any[]) => void;
+  bucket?: string;
+  uploadText?: string;
+  chooseFileText?: string;
+  noFileText?: string;
 }
 
 export const FileUploadField: React.FC<FileUploadFieldProps> = ({
   onChange,
   fileError,
   setFileError,
-  acceptedFileTypes,
+  acceptedFileTypes = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt", // Default value
   selectedFile,
   maxSizeInMB = 10, // Default to 10MB
-  hideLabel = false
+  hideLabel = false,
+  // Ignored props for backward compatibility
+  imageUrl,
+  onUpload,
+  bucket,
+  uploadText,
+  chooseFileText,
+  noFileText
 }) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
@@ -63,6 +77,10 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
 
     setFileError('');
     onChange(file);
+    // If onUpload is provided (for BusinessProfileForm), call it as well
+    if (onUpload) {
+      onUpload(file);
+    }
   };
 
   const handleRemoveFile = () => {
@@ -111,7 +129,7 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
               className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-input bg-background hover:bg-accent hover:text-accent-foreground px-4 py-2 w-full"
             >
               <span className={isGeorgian ? "font-georgian" : ""}>
-                <LanguageText>{t('common.chooseFile')}</LanguageText>
+                <LanguageText>{uploadText || t('common.chooseFile')}</LanguageText>
               </span>
             </label>
             {fileError && <p className="text-sm text-destructive">{fileError}</p>}

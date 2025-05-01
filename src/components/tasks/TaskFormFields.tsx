@@ -7,6 +7,9 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import { cn } from "@/lib/utils";
 import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { TaskFormTitle } from "./TaskFormTitle";
+import { TaskFormDescription } from "./TaskFormDescription";
+import { Task } from "@/lib/types";
 
 interface TaskFormFieldsProps {
   selectedFile: File | null;
@@ -14,8 +17,14 @@ interface TaskFormFieldsProps {
   fileError: string;
   setFileError: (error: string) => void;
   taskId?: string;
-  displayedFiles: FileRecord[];
-  onFileDeleted: (fileId: string) => void;
+  displayedFiles?: FileRecord[];
+  onFileDeleted?: (fileId: string) => void;
+  editingTask?: Task | null;
+  // Add these props to match usage in AddTaskForm
+  title?: string;
+  setTitle?: (title: string) => void;
+  description?: string;
+  setDescription?: (description: string) => void;
 }
 
 export const TaskFormFields = ({
@@ -24,8 +33,14 @@ export const TaskFormFields = ({
   fileError,
   setFileError,
   taskId,
-  displayedFiles,
-  onFileDeleted,
+  displayedFiles = [],
+  onFileDeleted = () => {},
+  editingTask,
+  // Use the new props
+  title,
+  setTitle,
+  description,
+  setDescription
 }: TaskFormFieldsProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
@@ -34,6 +49,14 @@ export const TaskFormFields = ({
   
   return (
     <>
+      {title !== undefined && setTitle !== undefined && (
+        <TaskFormTitle title={title} setTitle={setTitle} />
+      )}
+      
+      {description !== undefined && setDescription !== undefined && (
+        <TaskFormDescription description={description} setDescription={setDescription} />
+      )}
+      
       <div>
         <Label htmlFor="file" className={labelClass}>
           <LanguageText>{t("common.attachments")}</LanguageText>
