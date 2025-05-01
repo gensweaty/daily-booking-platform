@@ -19,7 +19,6 @@ export interface Note {
 }
 
 export type { CalendarEventType as CalendarEvent } from './types/calendar';
-export type { Customer } from './types/customer';
 
 export interface Reminder {
   id: string;

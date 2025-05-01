@@ -13,11 +13,10 @@ interface TaskCardProps {
   task: Task;
   index: number;
   onEdit: (task: Task) => void;
-  onView: (task: Task) => void; // Added the missing onView prop
   onDelete: (id: string) => void;
 }
 
-export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProps) => {
+export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const { t } = useLanguage();
   
@@ -63,10 +62,7 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProp
             className={`p-4 bg-background dark:bg-gray-800 rounded-lg shadow ${getTaskStyle(task.status)}`}
           >
             <div className="flex justify-between items-start">
-              <div 
-                className={`${task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'} cursor-pointer`}
-                onClick={() => onView(task)} // Using the onView prop
-              >
+              <div className={task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}>
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold">{task.title}</h3>
                   {files && files.length > 0 && (
