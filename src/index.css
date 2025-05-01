@@ -92,6 +92,19 @@
     color-scheme: dark;
     color: white;
   }
+
+  /* Enhanced calendar icon styling for better visibility in dark mode */
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    cursor: pointer;
+    opacity: 0.8;
+  }
+
+  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
 }
 
 /* TipTap placeholder styling */

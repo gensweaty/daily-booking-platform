@@ -62,6 +62,8 @@ export const TaskFormFields = ({
     });
   };
 
+  const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
+
   return (
     <div className="space-y-4">
       <TaskFormTitle title={title} setTitle={setTitle} />
@@ -83,8 +85,11 @@ export const TaskFormFields = ({
         onChange={setSelectedFile}
         fileError={fileError}
         setFileError={setFileError}
-        acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+        acceptedFileTypes={acceptedFormats}
       />
+      <p className="text-xs text-muted-foreground mt-1">
+        {t("common.supportedFormats", { defaultValue: "Supported formats" })}: JPG, PNG, PDF, DOC, XLS, TXT
+      </p>
     </div>
   );
 };

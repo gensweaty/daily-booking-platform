@@ -74,6 +74,8 @@ export const EventDialogFields = ({
   
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
   
+  const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
+  
   return (
     <>
       <div>
@@ -219,10 +221,13 @@ export const EventDialogFields = ({
           onChange={setSelectedFile}
           fileError={fileError}
           setFileError={setFileError}
-          acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+          acceptedFileTypes={acceptedFormats}
           selectedFile={selectedFile}
           hideLabel={true}
         />
+        <p className="text-xs text-muted-foreground mt-1">
+          {t("common.supportedFormats")}: JPG, PNG, PDF, DOC, XLS, TXT
+        </p>
       </div>
       
       {displayedFiles.length > 0 && (
