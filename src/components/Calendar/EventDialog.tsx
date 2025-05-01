@@ -108,6 +108,18 @@ export const EventDialog = ({ event, isOpen, onClose }) => {
     setIsDeleteConfirmOpen(true);
   };
 
+  // Map from EventDialog fields to EventDialogFields props
+  const title = eventData.title || eventData.user_surname || '';
+  const userSurname = eventData.user_surname || eventData.title || '';
+  const userNumber = eventData.user_number || '';
+  const socialNetworkLink = eventData.social_network_link || '';
+  const eventNotes = eventData.event_notes || eventData.description || '';
+  const startDate = eventData.start || eventData.start_date || '';
+  const endDate = eventData.end || eventData.end_date || '';
+  const paymentStatus = eventData.payment_status || 'not_paid';
+  const paymentAmount = eventData.payment_amount ? String(eventData.payment_amount) : '';
+  const displayedFiles = eventData.files || [];
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -134,12 +146,31 @@ export const EventDialog = ({ event, isOpen, onClose }) => {
             </div>
             <form onSubmit={handleSubmit}>
               <EventDialogFields
-                eventData={eventData}
-                setEventData={setEventData}
+                title={title}
+                setTitle={(value) => setEventData({...eventData, title: value, user_surname: value})}
+                userSurname={userSurname}
+                setUserSurname={(value) => setEventData({...eventData, user_surname: value, title: value})}
+                userNumber={userNumber}
+                setUserNumber={(value) => setEventData({...eventData, user_number: value})}
+                socialNetworkLink={socialNetworkLink}
+                setSocialNetworkLink={(value) => setEventData({...eventData, social_network_link: value})}
+                eventNotes={eventNotes}
+                setEventNotes={(value) => setEventData({...eventData, event_notes: value, description: value})}
+                startDate={startDate}
+                setStartDate={(value) => setEventData({...eventData, start: value, start_date: value})}
+                endDate={endDate}
+                setEndDate={(value) => setEventData({...eventData, end: value, end_date: value})}
+                paymentStatus={paymentStatus}
+                setPaymentStatus={(value) => setEventData({...eventData, payment_status: value})}
+                paymentAmount={paymentAmount}
+                setPaymentAmount={(value) => setEventData({...eventData, payment_amount: value ? parseFloat(value) : null})}
                 selectedFile={selectedFile}
                 setSelectedFile={setSelectedFile}
                 fileError={fileError}
                 setFileError={setFileError}
+                eventId={event?.id}
+                displayedFiles={displayedFiles}
+                onFileDeleted={() => {/* Handle file deletion if needed */}}
               />
               <div className="flex justify-end mt-4">
                 <Button type="submit" className="w-full">

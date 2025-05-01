@@ -11,10 +11,10 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 import { LanguageText } from "../shared/LanguageText";
 import { supabase } from "@/lib/supabase";
+import * as XLSX from 'xlsx';
 
 // Helper function for Excel export
 const exportToExcel = (data: any[], filename: string) => {
-  const XLSX = require('xlsx');
   const worksheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
@@ -181,7 +181,9 @@ export const CustomerList = () => {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[550px]">
               <CustomerDialog 
-                customer={editingCustomer}
+                initialData={editingCustomer || undefined}
+                open={isDialogOpen}
+                onOpenChange={setIsDialogOpen}
                 onClose={onDialogClose}
               />
             </DialogContent>
