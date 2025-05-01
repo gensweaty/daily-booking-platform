@@ -76,9 +76,6 @@ export const EventDialogFields = ({
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
   
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
-
-  // Determine icon color based on theme
-  const iconColor = theme === 'dark' ? "white" : "currentColor";
   
   return (
     <>
@@ -137,11 +134,7 @@ export const EventDialogFields = ({
                 onChange={(e) => setStartDate(e.target.value)}
                 required
                 className="w-full"
-                style={{ colorScheme: 'auto' }}
-              />
-              <CalendarIcon 
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" 
-                color={iconColor}
+                style={{ colorScheme: theme === 'dark' ? 'dark' : 'light' }}
               />
             </div>
           </div>
@@ -157,11 +150,7 @@ export const EventDialogFields = ({
                 onChange={(e) => setEndDate(e.target.value)}
                 required
                 className="w-full"
-                style={{ colorScheme: 'auto' }}
-              />
-              <CalendarIcon 
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" 
-                color={iconColor}
+                style={{ colorScheme: theme === 'dark' ? 'dark' : 'light' }}
               />
             </div>
           </div>
@@ -237,6 +226,11 @@ export const EventDialogFields = ({
           selectedFile={selectedFile}
           hideLabel={true}
         />
+        <p className="text-xs text-muted-foreground mt-1">
+          {language === 'en' && "Supported formats: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
+          {language === 'es' && "Formatos admitidos: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
+          {language === 'ka' && "მხარდაჭერილი ფორმატები: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX, TXT"}
+        </p>
       </div>
       
       {displayedFiles.length > 0 && (
@@ -253,3 +247,4 @@ export const EventDialogFields = ({
     </>
   );
 };
+
