@@ -1,4 +1,5 @@
-export default {
+
+const en = {
   common: {
     success: "Success",
     error: "Error",
@@ -33,3 +34,6 @@ export default {
     approvedBooking: "Approved Booking"
   },
 };
+
+export default en;
+export { en };
