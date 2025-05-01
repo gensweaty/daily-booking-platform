@@ -6,15 +6,19 @@ import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LanguageText } from './LanguageText';
 
-interface FileUploadFieldProps {
+export interface FileUploadFieldProps {
+  // Required props
   onChange: (file: File | null) => void;
   fileError: string;
   setFileError: (error: string) => void;
-  acceptedFileTypes?: string;
   selectedFile: File | null;
+  
+  // Optional props
+  acceptedFileTypes?: string;
   maxSizeInMB?: number;
   hideLabel?: boolean;
-  // Support for BusinessProfileForm
+  
+  // Backward compatibility props for BusinessProfileForm
   imageUrl?: string;
   onUpload?: (...event: any[]) => void;
   bucket?: string;
@@ -31,7 +35,7 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
   selectedFile,
   maxSizeInMB = 10, // Default to 10MB
   hideLabel = false,
-  // Ignored props for backward compatibility
+  // Backward compatibility props for BusinessProfileForm
   imageUrl,
   onUpload,
   bucket,
