@@ -40,8 +40,13 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
     }
   };
 
+  const getDroppableId = (status: string) => {
+    // Convert status for droppability - this is the key fix!
+    return status === 'in-progress' ? 'inprogress' : status;
+  };
+
   return (
-    <Droppable droppableId={status}>
+    <Droppable droppableId={getDroppableId(status)}>
       {(provided) => (
         <div
           ref={provided.innerRef}

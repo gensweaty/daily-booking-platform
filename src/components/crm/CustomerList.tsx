@@ -1,10 +1,8 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Trash2, Pencil, Search, X, FileDown, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { CustomerDialog } from "./CustomerDialog";
-import { exportToExcel } from "@/components/Statistics/ExcelExport";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useCRMData } from "@/hooks/useCRMData";
@@ -12,6 +10,16 @@ import { Customer } from "@/lib/types";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 import { LanguageText } from "../shared/LanguageText";
+import { supabase } from "@/lib/supabase";
+
+// Helper function for Excel export
+const exportToExcel = (data: any[], filename: string) => {
+  const XLSX = require('xlsx');
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+  XLSX.writeFile(workbook, `${filename}.xlsx`);
+};
 
 export const CustomerList = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -22,7 +30,30 @@ export const CustomerList = () => {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
   
-  const { customers, isLoading, deleteCustomer, refetch } = useCRMData();
+  const today = new Date();
+  const oneMonthAgo = new Date(today);
+  oneMonthAgo.setMonth(today.getMonth() - 1);
+  
+  const { customers, isLoading } = useCRMData(undefined, { start: oneMonthAgo, end: today });
+  
+  const deleteCustomer = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+        
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+      throw error;
+    }
+  };
+  
+  const refetch = async () => {
+    // This will be handled by React Query's invalidation
+  };
 
   const onDialogClose = () => {
     setIsDialogOpen(false);
@@ -61,11 +92,34 @@ export const CustomerList = () => {
     }
   };
 
+  // Map customer fields correctly
+  const mapCustomerForDisplay = (customer: any): Customer => {
+    return {
+      id: customer.id,
+      fullName: customer.user_surname || customer.title,
+      phoneNumber: customer.user_number,
+      socialLink: customer.social_network_link,
+      paymentStatus: customer.payment_status,
+      paymentAmount: customer.payment_amount,
+      comments: customer.event_notes,
+      createdAt: customer.created_at,
+      // Keep original fields too
+      user_surname: customer.user_surname,
+      user_number: customer.user_number,
+      social_network_link: customer.social_network_link,
+      payment_status: customer.payment_status,
+      payment_amount: customer.payment_amount,
+      event_notes: customer.event_notes,
+      created_at: customer.created_at,
+      customer_files_new: customer.customer_files_new,
+    };
+  };
+
   const filteredCustomers = customers?.filter(customer => 
-    customer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phoneNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.socialLink?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+    (customer.user_surname || customer.title || '')?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (customer.user_number || '')?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (customer.social_network_link || '')?.toLowerCase().includes(searchTerm.toLowerCase())
+  ).map(mapCustomerForDisplay) || [];
 
   const handleExportToExcel = () => {
     if (!filteredCustomers.length) {
@@ -127,7 +181,7 @@ export const CustomerList = () => {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[550px]">
               <CustomerDialog 
-                editingCustomer={editingCustomer}
+                customer={editingCustomer}
                 onClose={onDialogClose}
               />
             </DialogContent>

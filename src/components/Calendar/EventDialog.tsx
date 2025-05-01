@@ -1,7 +1,7 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { updateEvent, deleteEvent } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { EventDialogFields } from "./EventDialogFields";
 import { AlertCircle, Trash2 } from "lucide-react";
@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "../shared/LanguageText";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 
 export const EventDialog = ({ event, isOpen, onClose }) => {
   const [eventData, setEventData] = useState(event || {});
@@ -18,6 +19,7 @@ export const EventDialog = ({ event, isOpen, onClose }) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const { updateEvent, deleteEvent } = useCalendarEvents();
 
   const isNewEvent = !event?.id;
   
@@ -80,7 +82,10 @@ export const EventDialog = ({ event, isOpen, onClose }) => {
         });
         onClose();
       } else {
-        await updateEvent(event.id, eventData);
+        await updateEvent({
+          ...eventData,
+          id: event.id
+        });
         toast({
           title: t("common.success"),
           description: t("events.eventUpdated"),
