@@ -112,11 +112,12 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     console.log("Processing combined data from", customers.length, "customers and", events.length, "events");
     
     const combined = [];
-    const existingIds = new Set(customers.map(c => 
-      `${c.title}-${c.start_date}-${c.end_date}`
-    ));
-
-    // Add customers with default create_event property if missing
+    
+    // Create a map of customer titles to track which events are associated with existing customers
+    // We'll use this to filter out events that were created from the "create_event" checkbox
+    const customerTitles = new Set(customers.map(c => c.title));
+    
+    // Add all customers to the combined array
     for (const customer of customers) {
       combined.push({
         ...customer,
@@ -124,10 +125,10 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       });
     }
 
+    // Only add events that aren't already represented by a customer with the same title
     events.forEach(event => {
-      const eventKey = `${event.title}-${event.start_date}-${event.end_date}`;
-      
-      if (!existingIds.has(eventKey)) {
+      // Skip events that have the same title as a customer (these were likely created from the checkbox)
+      if (!customerTitles.has(event.title)) {
         combined.push({
           ...event,
           id: `event-${event.id}`,
