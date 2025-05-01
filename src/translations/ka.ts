@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const ka: TranslationType = {
@@ -340,7 +341,8 @@ export const ka: TranslationType = {
     and: "და",
     supportedFormats: "მხარდაჭერილი ფორმატები: .jpg, .jpeg, .png, .pdf, .docx, .xls",
     deleteConfirmMessage: "დარწმუნებული ხართ, რომ გსურთ წაშლა? ეს ქმედება შეუქცევადია.",
-    noDescription: "აღწერა არ არის"
+    noDescription: "აღწერა არ არის",
+    deleteConfirmTitle: "გსურთ წაშლა?"
   },
   auth: {
     welcome: "მოგესალმებით SmartBookly-ში",

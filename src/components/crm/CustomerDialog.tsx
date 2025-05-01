@@ -377,7 +377,7 @@ export const CustomerDialog = ({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
-              {t("common.deleteConfirmTitle")}
+              {t("common.delete")}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t("common.deleteConfirmMessage")}
