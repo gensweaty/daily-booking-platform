@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,6 @@ import { FileUploadField } from '@/components/shared/FileUploadField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { CalendarIcon } from 'lucide-react';
 
 export interface BookingRequestFormProps {
   businessId: string;
@@ -349,9 +349,9 @@ export const BookingRequestForm = ({
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   required
-                  className="pr-8"
+                  className="w-full"
+                  style={{ colorScheme: 'auto' }}
                 />
-                <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               </div>
             </div>
             <div>
@@ -365,9 +365,9 @@ export const BookingRequestForm = ({
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   required
-                  className="pr-8"
+                  className="w-full"
+                  style={{ colorScheme: 'auto' }}
                 />
-                <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               </div>
             </div>
           </div>
@@ -429,7 +429,7 @@ export const BookingRequestForm = ({
           />
         </div>
         
-        {/* File Upload Field - preserving existing file upload functionality */}
+        {/* File Upload Field - Fix label duplication */}
         <div>
           <Label htmlFor="file" className={labelClass}>
             {t("common.attachments")}
@@ -441,6 +441,7 @@ export const BookingRequestForm = ({
             selectedFile={selectedFile}
             ref={fileInputRef}
             acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+            hideLabel={true}
           />
         </div>
         
