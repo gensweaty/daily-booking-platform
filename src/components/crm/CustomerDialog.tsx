@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -206,6 +207,82 @@ export const CustomerDialog = ({
     }
   };
 
+  // New function to check if a time slot is available
+  const checkTimeSlotAvailability = async (startDate: Date, endDate: Date): Promise<{available: boolean, conflictDetails?: string}> => {
+    if (!user) {
+      return { available: false, conflictDetails: "User not authenticated" };
+    }
+    
+    try {
+      console.log("Checking availability for:", startDate.toISOString(), "to", endDate.toISOString());
+      
+      // Check for conflicts with existing events
+      const { data: existingEvents, error: eventsError } = await supabase
+        .from('events')
+        .select('id, title, start_date, end_date')
+        .eq('user_id', user.id)
+        .filter('start_date', 'lt', endDate.toISOString())
+        .filter('end_date', 'gt', startDate.toISOString())
+        .is('deleted_at', null);
+      
+      if (eventsError) {
+        console.error("Error checking event conflicts:", eventsError);
+        return { available: false, conflictDetails: "Error checking schedule" };
+      }
+      
+      if (existingEvents && existingEvents.length > 0) {
+        console.log("Found conflicting events:", existingEvents);
+        
+        const firstConflict = existingEvents[0];
+        return {
+          available: false,
+          conflictDetails: `Conflicts with "${firstConflict.title}" from ${
+            new Date(firstConflict.start_date).toLocaleTimeString()} to ${
+            new Date(firstConflict.end_date).toLocaleTimeString()}`
+        };
+      }
+      
+      // Check for conflicts with approved booking requests
+      const businessProfileQuery = await supabase
+        .from('business_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+        
+      if (!businessProfileQuery.error && businessProfileQuery.data?.id) {
+        const businessId = businessProfileQuery.data.id;
+        
+        const { data: approvedBookings, error: bookingsError } = await supabase
+          .from('booking_requests')
+          .select('id, title, start_date, end_date')
+          .eq('business_id', businessId)
+          .eq('status', 'approved')
+          .filter('start_date', 'lt', endDate.toISOString())
+          .filter('end_date', 'gt', startDate.toISOString())
+          .is('deleted_at', null);
+          
+        if (bookingsError) {
+          console.error("Error checking booking conflicts:", bookingsError);
+        } else if (approvedBookings && approvedBookings.length > 0) {
+          console.log("Found conflicting bookings:", approvedBookings);
+          
+          const firstConflict = approvedBookings[0];
+          return {
+            available: false,
+            conflictDetails: `Conflicts with approved booking "${firstConflict.title}" from ${
+              new Date(firstConflict.start_date).toLocaleTimeString()} to ${
+              new Date(firstConflict.end_date).toLocaleTimeString()}`
+          };
+        }
+      }
+      
+      return { available: true };
+    } catch (error) {
+      console.error("Error checking time slot availability:", error);
+      return { available: false, conflictDetails: "Error checking availability" };
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title) return;
@@ -217,6 +294,20 @@ export const CustomerDialog = ({
       // Always synchronize title and user_surname to be the same value
       // This ensures the full name is consistently displayed across the application
       const fullName = title;
+      
+      // If creating an event, check time slot availability first
+      if (createEvent) {
+        const { available, conflictDetails } = await checkTimeSlotAvailability(eventStartDate, eventEndDate);
+        if (!available) {
+          toast({
+            title: t("common.error"),
+            description: t("events.timeSlotNotAvailable") + ": " + conflictDetails,
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
       
       const customerData: CustomerType = {
         title: fullName,
@@ -387,7 +478,7 @@ export const CustomerDialog = ({
             const eventFileData = {
               event_id: eventId,
               filename: selectedFile.name,
-              file_path: filePath,
+              file_path: filePath, // Use the same file path to prevent duplication
               content_type: selectedFile.type,
               size: selectedFile.size,
               user_id: user?.id
