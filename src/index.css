@@ -78,14 +78,14 @@
     /* cursor: none; */
   }
   
-  /* Better Georgian font rendering */
+  /* Enhanced Georgian font rendering with !important to override any conflicting styles */
   .font-georgian {
     font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-    font-display: swap;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    letter-spacing: -0.2px;
+    font-display: swap !important;
+    text-rendering: optimizeLegibility !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    letter-spacing: -0.2px !important;
   }
   
   /* Fix calendar icon color in dark mode */
@@ -117,7 +117,7 @@
   height: 0;
 }
 
-/* Better Georgian text styling for dialogs, inputs, buttons and other UI elements */
+/* Expanded Georgian text styling for all relevant UI elements with !important */
 [lang="ka"] .dialog-title,
 [lang="ka"] .form-label,
 [lang="ka"] .input-placeholder,
@@ -133,14 +133,51 @@
 [lang="ka"] .label,
 [lang="ka"] .select-item,
 [lang="ka"] .select-trigger,
-[lang="ka"] th {
+[lang="ka"] th,
+[lang="ka"] span,
+[lang="ka"] div,
+[lang="ka"] p,
+[lang="ka"] a,
+[lang="ka"] input,
+[lang="ka"] textarea,
+[lang="ka"] select,
+[lang="ka"] option {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  letter-spacing: -0.2px;
+  letter-spacing: -0.2px !important;
 }
 
-/* Ensure consistent Georgian font in dialog titles */
+/* Ensure consistent Georgian font in dialog titles and all popup content */
 [lang="ka"] .dialog-header h2,
 [lang="ka"] .dialog-content h2,
-[lang="ka"] .dialog-content h3 {
+[lang="ka"] .dialog-content h3,
+[lang="ka"] .dialog-content p,
+[lang="ka"] .dialog-content span,
+[lang="ka"] .dialog-content button,
+[lang="ka"] .dialog-content label,
+[lang="ka"] .dialog-content input,
+[lang="ka"] .dialog-content select,
+[lang="ka"] .dialog-content textarea {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}
+
+/* Georgian font for public booking page */
+[lang="ka"] .booking-form h1,
+[lang="ka"] .booking-form h2,
+[lang="ka"] .booking-form h3,
+[lang="ka"] .booking-form button,
+[lang="ka"] .booking-form span,
+[lang="ka"] .booking-form label,
+[lang="ka"] .booking-form input,
+[lang="ka"] .booking-form textarea {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}
+
+/* Dashboard content Georgian styling */
+[lang="ka"] .dashboard-title,
+[lang="ka"] .dashboard-tabs,
+[lang="ka"] .tabs-content,
+[lang="ka"] .task-title,
+[lang="ka"] .crm-title,
+[lang="ka"] .business-title {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
 }

@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "../shared/LanguageText";
+import { cn } from "@/lib/utils";
 
 interface TaskFormTitleProps {
   title: string;
@@ -15,7 +16,11 @@ export const TaskFormTitle = ({ title, setTitle }: TaskFormTitleProps) => {
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="title">
+      <Label 
+        htmlFor="title"
+        className={cn(isGeorgian ? "font-georgian" : "")}
+        style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+      >
         <LanguageText>{t("tasks.title")}</LanguageText>
       </Label>
       <Input
@@ -24,7 +29,8 @@ export const TaskFormTitle = ({ title, setTitle }: TaskFormTitleProps) => {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
-        className={`bg-background border-input ${isGeorgian ? "placeholder:font-georgian" : ""}`}
+        className={cn("bg-background border-input", isGeorgian ? "placeholder:font-georgian" : "")}
+        style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
       />
     </div>
   );

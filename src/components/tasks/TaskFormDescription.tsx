@@ -16,10 +16,17 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="description" className={cn(isGeorgian ? "font-georgian" : "")}>
+      <Label 
+        htmlFor="description" 
+        className={cn(isGeorgian ? "font-georgian" : "")}
+        style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+      >
         <LanguageText>{t("tasks.descriptionLabel")}</LanguageText>
       </Label>
-      <div className={cn(isGeorgian ? "is-editor-empty:before:font-georgian" : "")}>
+      <div 
+        className={cn(isGeorgian ? "is-editor-empty:before:font-georgian" : "")}
+        style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+      >
         <RichTextEditor
           content={description}
           onChange={setDescription}

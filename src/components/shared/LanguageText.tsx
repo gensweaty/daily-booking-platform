@@ -24,7 +24,9 @@ export const LanguageText = ({
       withFont && isGeorgian ? 'font-georgian' : '',
       fixLetterSpacing && isGeorgian ? 'tracking-tight' : '',
       className
-    )}>
+    )}
+    style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+    >
       {children}
     </span>
   );

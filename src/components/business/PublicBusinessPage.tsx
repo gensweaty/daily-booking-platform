@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
@@ -176,6 +175,13 @@ export const PublicBusinessPage = () => {
   const defaultCoverUrl = 'https://placehold.co/1200x400/e2e8f0/64748b?text=Business+Cover';
   const displayCoverUrl = coverPhotoUrl || defaultCoverUrl;
 
+  // Add this function to ensure proper font rendering for Georgian text
+  const applyGeorgianFont = (isGeorgian: boolean) => {
+    return isGeorgian ? {
+      fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"
+    } : undefined;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="fixed top-4 right-4 z-50">
@@ -192,11 +198,17 @@ export const PublicBusinessPage = () => {
         <div className="absolute inset-0 bg-black bg-opacity-50"></div>
         
         <div className="container mx-auto px-4 relative">
-          <h1 className={cn("text-4xl md:text-5xl font-bold mb-4", isGeorgian ? "font-georgian" : "")}>
+          <h1 
+            className={cn("text-4xl md:text-5xl font-bold mb-4", isGeorgian ? "font-georgian" : "")}
+            style={applyGeorgianFont(isGeorgian)}
+          >
             {business.business_name}
           </h1>
           {business.description && (
-            <p className={cn("text-lg opacity-90 max-w-2xl", isGeorgian ? "font-georgian" : "")}>
+            <p 
+              className={cn("text-lg opacity-90 max-w-2xl", isGeorgian ? "font-georgian" : "")}
+              style={applyGeorgianFont(isGeorgian)}
+            >
               {business.description}
             </p>
           )}
@@ -205,6 +217,7 @@ export const PublicBusinessPage = () => {
             <Button 
               size="lg" 
               className={cn("bg-white text-blue-700 hover:bg-blue-50", isGeorgian ? "font-georgian" : "")}
+              style={applyGeorgianFont(isGeorgian)}
               onClick={() => {
                 document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
               }}
@@ -228,10 +241,16 @@ export const PublicBusinessPage = () => {
       <div className="container mx-auto px-4 py-12">
         <div className="mb-8" id="calendar-section">
           <div className="flex justify-between items-center mb-4">
-            <h2 className={cn("text-2xl font-bold", isGeorgian ? "font-georgian" : "")}>
+            <h2 
+              className={cn("text-2xl font-bold", isGeorgian ? "font-georgian" : "")}
+              style={applyGeorgianFont(isGeorgian)}
+            >
               <LanguageText>{t("business.availableTimes")}</LanguageText>
             </h2>
-            <div className={cn("text-sm text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
+            <div 
+              className={cn("text-sm text-muted-foreground", isGeorgian ? "font-georgian" : "")}
+              style={applyGeorgianFont(isGeorgian)}
+            >
               <LanguageText>{t("business.clickToRequest")}</LanguageText>
             </div>
           </div>

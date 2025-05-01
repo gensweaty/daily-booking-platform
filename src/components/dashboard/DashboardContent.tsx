@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -77,6 +76,7 @@ export const DashboardContent = ({
             "flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95",
             isGeorgian ? "font-georgian" : ""
           )}
+          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
         >
           <motion.div
             whileHover={{ rotate: 15 }}
@@ -84,7 +84,10 @@ export const DashboardContent = ({
           >
             <CalendarIcon className="w-4 h-4" />
           </motion.div>
-          <span className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}>
+          <span 
+            className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}
+            style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+          >
             <LanguageText>{t("dashboard.bookingCalendar")}</LanguageText>
           </span>
         </TabsTrigger>
@@ -111,6 +114,7 @@ export const DashboardContent = ({
             "flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95",
             isGeorgian ? "font-georgian" : ""
           )}
+          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
         >
           <motion.div
             whileHover={{ rotate: 15 }}
@@ -118,7 +122,10 @@ export const DashboardContent = ({
           >
             <ListTodo className="w-4 h-4" />
           </motion.div>
-          <span className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}>
+          <span 
+            className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}
+            style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+          >
             <LanguageText>{t("dashboard.tasks")}</LanguageText>
           </span>
         </TabsTrigger>
@@ -145,6 +152,7 @@ export const DashboardContent = ({
             "flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 relative",
             isGeorgian ? "font-georgian" : ""
           )}
+          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
         >
           <motion.div
             whileHover={{ rotate: 15 }}
@@ -152,7 +160,10 @@ export const DashboardContent = ({
           >
             <Briefcase className="w-4 h-4" />
           </motion.div>
-          <span className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}>
+          <span 
+            className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}
+            style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+          >
             <LanguageText>{t("business.myBusiness")}</LanguageText>
           </span>
           {pendingCount > 0 && (

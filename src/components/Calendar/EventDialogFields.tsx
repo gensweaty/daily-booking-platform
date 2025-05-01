@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -77,7 +76,11 @@ export const EventDialogFields = ({
   
   return <>
       <div>
-        <Label htmlFor="userSurname" className={cn(isGeorgian ? "font-georgian" : "")}>
+        <Label 
+          htmlFor="userSurname" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+        >
           <LanguageText>{t("events.fullName")}</LanguageText>
         </Label>
         <Input 
@@ -89,11 +92,16 @@ export const EventDialogFields = ({
           }} 
           placeholder={t("events.fullName")} 
           required 
-          className={cn(isGeorgian ? "placeholder:font-georgian" : "")} 
+          className={cn(isGeorgian ? "placeholder:font-georgian" : "")}
+          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined} 
         />
       </div>
       <div>
-        <Label htmlFor="userNumber" className={cn(isGeorgian ? "font-georgian" : "")}>
+        <Label 
+          htmlFor="userNumber" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+        >
           <LanguageText>{t("events.phoneNumber")}</LanguageText>
         </Label>
         <Input 
@@ -102,10 +110,15 @@ export const EventDialogFields = ({
           onChange={e => setUserNumber(e.target.value)} 
           placeholder={t("events.phoneNumber")} 
           className={cn(isGeorgian ? "placeholder:font-georgian" : "")}  
+          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined} 
         />
       </div>
       <div>
-        <Label htmlFor="socialNetworkLink" className={cn(isGeorgian ? "font-georgian" : "")}>
+        <Label 
+          htmlFor="socialNetworkLink" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+        >
           <LanguageText>{t("events.socialLinkEmail")}</LanguageText>
         </Label>
         <Input 
@@ -117,12 +130,20 @@ export const EventDialogFields = ({
         />
       </div>
       <div>
-        <Label htmlFor="dateTime" className={cn(isGeorgian ? "font-georgian" : "")}>
+        <Label 
+          htmlFor="dateTime" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+        >
           <LanguageText>{t("events.dateAndTime")}</LanguageText>
         </Label>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
+            <Label 
+              htmlFor="startDate" 
+              className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
+              style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+            >
               <LanguageText>{t("events.start")}</LanguageText>
             </Label>
             <div className="relative">
@@ -138,7 +159,11 @@ export const EventDialogFields = ({
             </div>
           </div>
           <div>
-            <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
+            <Label 
+              htmlFor="endDate" 
+              className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
+              style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+            >
               <LanguageText>{t("events.end")}</LanguageText>
             </Label>
             <div className="relative">
@@ -158,7 +183,11 @@ export const EventDialogFields = ({
       
       {!isBookingRequest && <>
           <div>
-            <Label htmlFor="paymentStatus" className={cn(isGeorgian ? "font-georgian" : "")}>
+            <Label 
+              htmlFor="paymentStatus" 
+              className={cn(isGeorgian ? "font-georgian" : "")}
+              style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+            >
               <LanguageText>{t("events.paymentStatus")}</LanguageText>
             </Label>
             <Select value={paymentStatus} onValueChange={setPaymentStatus}>
@@ -180,7 +209,11 @@ export const EventDialogFields = ({
           </div>
           
           {showPaymentAmount && <div>
-              <Label htmlFor="paymentAmount" className={cn(isGeorgian ? "font-georgian" : "")}>
+              <Label 
+                htmlFor="paymentAmount" 
+                className={cn(isGeorgian ? "font-georgian" : "")}
+                style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+              >
                 <LanguageText>{t("events.paymentAmount")}</LanguageText>
               </Label>
               <Input 
@@ -200,7 +233,11 @@ export const EventDialogFields = ({
         </>}
       
       <div>
-        <Label htmlFor="eventNotes" className={cn(isGeorgian ? "font-georgian" : "")}>
+        <Label 
+          htmlFor="eventNotes" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+        >
           <LanguageText>{t("events.eventNotes")}</LanguageText>
         </Label>
         <Textarea 
@@ -213,7 +250,11 @@ export const EventDialogFields = ({
       </div>
       
       <div>
-        <Label htmlFor="file" className={cn(isGeorgian ? "font-georgian" : "")}>
+        <Label 
+          htmlFor="file" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+        >
           <LanguageText>{t("common.attachments")}</LanguageText>
         </Label>
         <FileUploadField 

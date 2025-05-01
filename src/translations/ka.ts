@@ -349,7 +349,7 @@ export const ka: TranslationType = {
     signInCta: "Შესვლა",
     signUpCta: "Რეგისტრაცია",
     agreeToTerms: "ვეთანხმები წესებსა და პირობებს",
-    requiredField: "ეს ვე���ი სა��ა��დებულოა",
+    requiredField: "ეს ვე���ი ს����ა��დებულოა",
     invalidEmail: "გთხოვთ, შეიყვანოთ ს���ორი ელფოსტა",
     passwordMinLength: "პაროლი უნდა შედგებოდეს მინიმუმ 6 სიმბოლოსგან",
     passwordMatch: "პაროლები არ ემთხვევა",
