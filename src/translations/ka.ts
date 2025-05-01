@@ -81,7 +81,7 @@ export const ka: TranslationType = {
     actions: "მოქმედებები",
     customersPerPage: "კლიენტები თითო გვერდზე",
     noCustomers: "კლიენტები ვერ მოიძებნა",
-    noCustomersDescription: "დაამატეთ თქვენი პირველი კლიენტი დასაწყებად",
+    noCustomersDescription: "დაამატეთ თქვე��ი პირველი კლიენტი დასაწყებად",
     refreshing: "მონაცემების განახლება...",
     yes: "კი",
     no: "არა",
@@ -109,7 +109,10 @@ export const ka: TranslationType = {
     descriptionLabel: "აღწერა",
     todo: "გასაკეთებელი",
     inProgress: "მიმდინარე",
-    done: "დასრულებული"
+    done: "დასრულებული",
+    deleteTaskConfirmTitle: "ამოცანის წაშლა",
+    taskUpdated: "ამოცანა წარმატებით განახლდა",
+    taskDeleted: "ამოცანა წარმატებით წაიშალა"
   },
   website: {
     title: "უფასო ვებ-გვერდი თქვენი ბიზნესისთვის",
@@ -130,7 +133,7 @@ export const ka: TranslationType = {
     copyright: "© 2023 თქვენი კომპანიის სახელი. Ყველა უფლება დაცულია.",
     terms: "მომსახურების პირობები",
     privacy: "კონფიდენციალურობის პოლიტიკა",
-    description: "ბიზნესის მართვის პლატფორმა სერვისის პროვაიდერებისთვის",
+    description: "ბიზნესის მართვის პლატფორმა სერვისის ���როვაიდერებისთვის",
     navigation: "ნავიგაცია",
     legal: "იურიდიული",
     termsAndPrivacy: "პირობები და კონფიდენციალურობა",
@@ -167,7 +170,7 @@ export const ka: TranslationType = {
     supportedFormats: "მხარდაჭერილი ფორმატები: .jpg, .jpeg, .png, .pdf, .docx, .xls",
     uploadImageCover: "ატვირთეთ სურათი თქვენი ბიზნესის ყდისთვის (JPEG, PNG, WebP)",
     publicPageUrl: "ეს გამოყენებული იქნება თქვენი საჯარო გვერდის URL-ისთვის:",
-    notFound: "ბიზნესი ვერ მოიძებნა",
+    notFound: "ბიზნ��სი ვერ მოიძებნა",
     notFoundDescription: "ბოდიშს გიხდით, ჩვენ ვერ ვიპოვეთ ბიზნესი ამ URL-ით. გთხოვთ, გადაამოწმოთ URL და სცადოთ ხელახლა.",
     viewPublicPage: "საჯარო გვერდის ნახვა",
     customer: "მომხმარებელი",
@@ -229,7 +232,7 @@ export const ka: TranslationType = {
     fromAllEvents: "ყველა ღონისძიებიდან",
     exportSuccessful: "ექსპორტი წარმატებულია",
     exportSuccessMessage: "თქვენი მონაცემები წარმატებით ექსპორტირებულია",
-    changePassword: "პაროლის შეცვლა",
+    changePassword: "��აროლის შეცვლა",
     subtitle: "თქვენი პროდუქტიულობის ცენტრი",
     profile: "პროფილი",
     category: "კატეგორია",
@@ -335,11 +338,13 @@ export const ka: TranslationType = {
     update: "განახლება",
     delete: "წაშლა",
     and: "და",
-    supportedFormats: "მხარდაჭერილი ფორმატები: .jpg, .jpeg, .png, .pdf, .docx, .xls"
+    supportedFormats: "მხარდაჭერილი ფორმატები: .jpg, .jpeg, .png, .pdf, .docx, .xls",
+    deleteConfirmMessage: "დარწმუნებული ხართ, რომ გსურთ წაშლა? ეს ქმედება შეუქცევადია.",
+    noDescription: "აღწერა არ არის"
   },
   auth: {
     welcome: "მოგესალმებით SmartBookly-ში",
-    description: "მართეთ თქვენი ბიზნესი ჩვენი ყოვლისმომცველი გადაწყვეტით",
+    description: "მართეთ თქვენი ბიზნეს ჩვენი ყოვლისმომცველი გადაწყვეტით",
     signInButton: "Შესვლა",
     signUpButton: "Რეგისტრაცია",
     emailLabel: "Ელექტრონული ფოსტა",
@@ -388,7 +393,7 @@ export const ka: TranslationType = {
     title: "Წესები და კონფიდენციალურობის პოლიტიკა",
     lastUpdated: "ბოლო განახლება: {{date}}",
     termsOfService: "მომსახურების პირობები",
-    welcomeText: "მოგესალმებით SmartBookly-ში. ეს მომსახურების პირობები ('პირობები') არეგულირებს ჩვენი SaaS პლატფორმისა და სერვისების ('სერვისები') გამოყენებას. ჩვენს სერვისებზე წვდომით ან გამოყენებით, თქვენ ეთანხმებით ამ პირობებს. თუ არ ეთანხმებით, გთხოვთ, არ გამოიყენოთ ჩვენი სერვისები.",
+    welcomeText: "მოგესალმებით SmartBookly-ში. ეს მომსახურების პირობები ('პირობები') არეგულირებს ჩვენი SaaS პლატფორმისა და სერვისების ('სერვისები') გამოყენებას. ჩვენს სერვისებზე წვდომით ან გამოყენები��, თქვენ ეთანხმებით ამ პირობებს. თუ არ ეთანხმებით, გთხოვთ, არ გამოიყენოთ ჩვენი სერვისები.",
     generalInfo: {
       title: "1. Ზოგადი ინფორმაცია",
       companyName: "კომპანიის სახელი: SmartBookly",
