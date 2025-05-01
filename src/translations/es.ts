@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -339,7 +340,8 @@ export const es: TranslationType = {
     and: "y",
     supportedFormats: "Formatos admitidos: .jpg, .jpeg, .png, .pdf, .docx, .xls",
     deleteConfirmMessage: "Esta acción no se puede deshacer. ¿Está seguro de que desea eliminar este elemento?",
-    noDescription: "No se proporcionó descripción"
+    noDescription: "No se proporcionó descripción",
+    deleteConfirmTitle: "¿Confirmar eliminación?"
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",

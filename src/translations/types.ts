@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -339,7 +340,6 @@ export interface TranslationType {
     request: string;
     requests: string;
     backToHome: string;
-    warning: string;
     and: string;
     create: string;
     update: string;
@@ -423,3 +423,4 @@ export interface TranslationType {
 }
 
 export type TranslationKey = keyof TranslationType;
+
