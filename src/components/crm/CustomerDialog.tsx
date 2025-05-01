@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -9,6 +8,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { AlertCircle } from "lucide-react";
 
 export interface CustomerType {
   id?: string;
@@ -236,8 +237,8 @@ export const CustomerDialog = ({
         const firstConflict = existingEvents[0];
         return {
           available: false,
-          conflictDetails: `Conflicts with "${firstConflict.title}" from ${
-            new Date(firstConflict.start_date).toLocaleTimeString()} to ${
+          conflictDetails: `"${firstConflict.title}" - ${
+            new Date(firstConflict.start_date).toLocaleTimeString()} - ${
             new Date(firstConflict.end_date).toLocaleTimeString()}`
         };
       }
@@ -269,8 +270,8 @@ export const CustomerDialog = ({
           const firstConflict = approvedBookings[0];
           return {
             available: false,
-            conflictDetails: `Conflicts with approved booking "${firstConflict.title}" from ${
-              new Date(firstConflict.start_date).toLocaleTimeString()} to ${
+            conflictDetails: `${t("bookings.approvedBooking")}: "${firstConflict.title}" - ${
+              new Date(firstConflict.start_date).toLocaleTimeString()} - ${
               new Date(firstConflict.end_date).toLocaleTimeString()}`
           };
         }
@@ -299,10 +300,17 @@ export const CustomerDialog = ({
       if (createEvent) {
         const { available, conflictDetails } = await checkTimeSlotAvailability(eventStartDate, eventEndDate);
         if (!available) {
+          // Show a more user-friendly message with better styling
           toast({
-            title: t("common.error"),
-            description: t("events.timeSlotNotAvailable") + ": " + conflictDetails,
-            variant: "destructive",
+            title: t("events.timeSlotUnavailable"),
+            description: (
+              <div className="flex items-center gap-2 font-medium text-amber-800 bg-amber-50 p-2 rounded-md border border-amber-200">
+                <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                <span>{t("events.timeSlotConflict")}: {conflictDetails}</span>
+              </div>
+            ),
+            variant: "default",
+            duration: 5000,
           });
           setIsSubmitting(false);
           return;

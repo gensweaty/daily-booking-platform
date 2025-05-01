@@ -262,7 +262,10 @@ export const es: TranslationType = {
     start: "Inicio",
     end: "Fin",
     eventDetails: "Detalles del Evento",
-    title: "Título del Evento"
+    title: "Título del Evento",
+    timeSlotUnavailable: "Horario No Disponible",
+    timeSlotConflict: "Conflicto de Horario",
+    timeSlotNotAvailable: "Este horario no está disponible"
   },
   contact: {
     email: "Correo electrónico",
@@ -370,5 +373,8 @@ export const es: TranslationType = {
         "Notifícanos inmediatamente de cualquier acceso no autorizado a tu cuenta."
       ]
     }
+  },
+  bookings: {
+    approvedBooking: "Reserva Aprobada"
   }
 };
