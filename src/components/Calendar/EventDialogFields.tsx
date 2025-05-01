@@ -9,7 +9,6 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import { cn } from "@/lib/utils";
 import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { CalendarIcon } from "lucide-react";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -132,6 +131,7 @@ export const EventDialogFields = ({
                 onChange={(e) => setStartDate(e.target.value)}
                 required
                 className="w-full"
+                style={{ colorScheme: 'auto' }}
               />
             </div>
           </div>
@@ -147,6 +147,7 @@ export const EventDialogFields = ({
                 onChange={(e) => setEndDate(e.target.value)}
                 required
                 className="w-full"
+                style={{ colorScheme: 'auto' }}
               />
             </div>
           </div>
