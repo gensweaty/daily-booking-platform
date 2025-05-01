@@ -131,9 +131,8 @@ export const EventDialogFields = ({
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 required
-                className="pr-8"
+                className="w-full"
               />
-              <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             </div>
           </div>
           <div>
@@ -147,9 +146,8 @@ export const EventDialogFields = ({
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 required
-                className="pr-8"
+                className="w-full"
               />
-              <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             </div>
           </div>
         </div>
