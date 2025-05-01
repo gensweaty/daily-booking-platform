@@ -287,7 +287,7 @@ export const BookingRequestForm = ({
     <div className="space-y-4 p-1">
       <h3 className="text-xl font-semibold">
         <LanguageText withFont={true} fixLetterSpacing={true}>
-          {t('events.bookAppointment')}
+          {t('booking.bookAppointment')}
         </LanguageText>
       </h3>
       
