@@ -36,7 +36,8 @@ export const es: TranslationType = {
     feature4: "Sincronización automática de eventos con CRM",
     feature5: "Notificaciones de reservas por correo electrónico y panel",
     requestSubmitted: "¡Tu solicitud de reserva ha sido enviada con éxito!",
-    yourEmailPlaceholder: "Ingresa tu correo electrónico"
+    yourEmailPlaceholder: "Ingresa tu correo electrónico",
+    bookAppointment: "Reservar Cita"
   },
   analytics: {
     title: "Análisis Integral",
