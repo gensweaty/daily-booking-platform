@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useState, useEffect, forwardRef } from "react";
@@ -50,7 +51,7 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   maxSizeMB,
   selectedFile
 }, ref) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [localFileError, setLocalFileError] = useState("");
   const [fileSelected, setFileSelected] = useState<string>("");
 
@@ -128,7 +129,10 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
       
       {!hideDescription && !actualFileError && (
         <p className="text-xs text-muted-foreground mt-1">
-          <LanguageText>{t("common.supportedFormats")}</LanguageText>
+          {language === 'en' ? 
+            "Supported Formats: .jpg, .jpeg, .png, .pdf, .docx, .xls" :
+            <LanguageText>{t("common.supportedFormats")}</LanguageText>
+          }
         </p>
       )}
     </div>;
