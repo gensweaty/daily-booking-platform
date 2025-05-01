@@ -454,7 +454,7 @@ export const BookingRequestForm = ({
           disabled={isSubmitting}
         >
           <LanguageText withFont={true} fixLetterSpacing={true}>
-            {isSubmitting ? t('Submitting...') : t('events.submitRequest')}
+            {isSubmitting ? t('common.submitting') : t('events.submitRequest')}
           </LanguageText>
         </Button>
       </form>
