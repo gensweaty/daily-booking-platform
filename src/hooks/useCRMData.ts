@@ -119,26 +119,23 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     const combined = [];
     
     // Create a map of customer titles to track which events are associated with existing customers
-    // We'll use this to filter out events that were created from the "create_event" checkbox
-    const customerTitles = new Set();
+    const customerTitleMap = new Map();
     
-    // Add all customers to the combined array
+    // Add all customers to the combined array and to the title map
     for (const customer of customers) {
       combined.push({
         ...customer,
         create_event: customer.create_event !== undefined ? customer.create_event : false
       });
-      // Only add customer titles to the set if the create_event flag is false
-      // This way we'll still show events that were created via create_event checkbox
-      if (!customer.create_event) {
-        customerTitles.add(customer.title);
-      }
+      
+      // Add customer title to the map
+      customerTitleMap.set(customer.title, true);
     }
 
     // Only add events that aren't already represented by a customer with the same title
-    events.forEach(event => {
-      // Skip events that have the same title as a customer (these were likely created from the checkbox)
-      if (!customerTitles.has(event.title)) {
+    for (const event of events) {
+      // Skip events that have the same title as a customer (these were created from customers)
+      if (!customerTitleMap.has(event.title)) {
         combined.push({
           ...event,
           id: `event-${event.id}`,
@@ -146,7 +143,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
           create_event: false // Add default create_event property
         });
       }
-    });
+    }
     
     return combined;
   }, [customers, events, isLoadingCustomers, isLoadingEvents]);
