@@ -331,7 +331,8 @@ export const ka: TranslationType = {
     request: "მოთხოვნა",
     requests: "მოთხოვნები",
     backToHome: "Სახლში დაბრუნება",
-    and: "და"
+    and: "და",
+    supportedFormats: "მხარდაჭერილი ფორმატები: სურათები (jpg, png, webp) 50 მბ-მდე, დოკუმენტები (pdf, docx, xlsx, pptx) 1 მბ-მდე"
   },
   auth: {
     welcome: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში",
