@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
 
@@ -154,8 +155,6 @@ function toast({ ...props }: Toast) {
       },
     },
   })
-
-  setTimeout(dismiss, TOAST_REMOVE_DELAY)
 
   return {
     id: id,

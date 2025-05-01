@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -381,16 +380,19 @@ export const CustomerDialog = ({
       await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
 
+      // Use the actual translated text instead of translation keys
       toast({
         title: t("common.success"),
-        description: customerId ? t("common.updateSuccess") : t("crm.customerAddSuccess"),
+        description: customerId 
+          ? t("crm.customerUpdated") // Use actual customer updated message
+          : t("crm.customerCreated"), // Use actual customer created message
       });
       onOpenChange(false);
     } catch (error: any) {
       console.error("Error updating data:", error);
       toast({
         title: t("common.error"),
-        description: error.message || t("common.updateError"),
+        description: error.message || t("common.errorOccurred"),
         variant: "destructive",
       });
     } finally {

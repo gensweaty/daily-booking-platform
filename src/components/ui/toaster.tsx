@@ -1,3 +1,4 @@
+
 import { useToast } from "@/hooks/use-toast"
 import {
   Toast,
@@ -7,6 +8,7 @@ import {
   ToastTitle,
   ToastViewport,
 } from "@/components/ui/toast"
+import { LanguageText } from "../shared/LanguageText"
 
 export function Toaster() {
   const { toasts } = useToast()
@@ -17,9 +19,9 @@ export function Toaster() {
         return (
           <Toast key={id} {...props}>
             <div className="grid gap-1">
-              {title && <ToastTitle>{title}</ToastTitle>}
+              {title && <ToastTitle><LanguageText>{title}</LanguageText></ToastTitle>}
               {description && (
-                <ToastDescription>{description}</ToastDescription>
+                <ToastDescription><LanguageText>{description}</LanguageText></ToastDescription>
               )}
             </div>
             {action}

@@ -93,7 +93,9 @@ export const ka: TranslationType = {
     customerCreated: "კლიენტი წარმატებით შეიქმნა",
     customerUpdated: "კლიენტი წარმატებით განახლდა",
     noDataToExport: "ექსპორტისთვის მონაცემები არ არის",
-    error: "შეცდომა"
+    error: "შეცდომა",
+    eventCreationFailed: "ღონისძიების შექმნა ვერ მოხერხდა",
+    eventUpdateFailed: "ღონისძიების განახლება ვერ მოხერხდა"
   },
   tasks: {
     title: "ამოცანების მართვა",
@@ -341,7 +343,8 @@ export const ka: TranslationType = {
     supportedFormats: "მხარდაჭერილი ფორმატები: .jpg, .jpeg, .png, .pdf, .docx, .xls",
     deleteConfirmMessage: "დარწმუნებული ხართ, რომ გსურთ წაშლა? ეს ქმედება შეუქცევადია.",
     noDescription: "აღწერა არ არის",
-    deleteConfirmTitle: "გსურთ წაშლა?"
+    deleteConfirmTitle: "გსურთ წაშლა?",
+    updateSuccess: "მონაცემები წარმატებით განახლდა"
   },
   auth: {
     welcome: "მოგესალმებით SmartBookly-ში",
