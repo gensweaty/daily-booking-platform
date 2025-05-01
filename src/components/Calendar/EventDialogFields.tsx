@@ -9,8 +9,6 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import { cn } from "@/lib/utils";
 import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { useTheme } from "next-themes";
-import { CalendarIcon } from "lucide-react";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -71,14 +69,10 @@ export const EventDialogFields = ({
 }: EventDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
-  const { theme } = useTheme();
   
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
   
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
-  
-  // Determine icon color based on theme
-  const iconColor = theme === 'dark' ? "white" : "currentColor";
   
   return (
     <>
@@ -139,10 +133,6 @@ export const EventDialogFields = ({
                 className="w-full"
                 style={{ colorScheme: 'auto' }}
               />
-              <CalendarIcon 
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" 
-                color={iconColor}
-              />
             </div>
           </div>
           <div>
@@ -158,10 +148,6 @@ export const EventDialogFields = ({
                 required
                 className="w-full"
                 style={{ colorScheme: 'auto' }}
-              />
-              <CalendarIcon 
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" 
-                color={iconColor}
               />
             </div>
           </div>
@@ -237,13 +223,6 @@ export const EventDialogFields = ({
           selectedFile={selectedFile}
           hideLabel={true}
         />
-        <p className="text-xs text-muted-foreground mt-1">
-          {language === 'ka' 
-            ? "მხარდაჭერილი ფორმატები: .jpg, .jpeg, .png, .pdf, .docx, .xls"
-            : language === 'es'
-              ? "Formatos admitidos: .jpg, .jpeg, .png, .pdf, .docx, .xls"
-              : "Supported formats: .jpg, .jpeg, .png, .pdf, .docx, .xls"}
-        </p>
       </div>
       
       {displayedFiles.length > 0 && (

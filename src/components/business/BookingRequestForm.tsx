@@ -11,8 +11,6 @@ import { FileUploadField } from '@/components/shared/FileUploadField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { useTheme } from "next-themes";
-import { CalendarIcon } from "lucide-react";
 
 export interface BookingRequestFormProps {
   businessId: string;
@@ -36,7 +34,6 @@ export const BookingRequestForm = ({
   onOpenChange
 }: BookingRequestFormProps) => {
   const { t, language } = useLanguage();
-  const { theme } = useTheme();
   const isGeorgian = language === 'ka';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -55,9 +52,6 @@ export const BookingRequestForm = ({
   const [endDate, setEndDate] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('not_paid');
   const [paymentAmount, setPaymentAmount] = useState('');
-
-  // Determine icon color based on theme
-  const iconColor = theme === 'dark' ? "white" : "currentColor";
 
   // Move date initialization to useEffect
   useEffect(() => {
@@ -358,10 +352,6 @@ export const BookingRequestForm = ({
                   className="w-full"
                   style={{ colorScheme: 'auto' }}
                 />
-                <CalendarIcon 
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" 
-                  color={iconColor}
-                />
               </div>
             </div>
             <div>
@@ -377,10 +367,6 @@ export const BookingRequestForm = ({
                   required
                   className="w-full"
                   style={{ colorScheme: 'auto' }}
-                />
-                <CalendarIcon 
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" 
-                  color={iconColor}
                 />
               </div>
             </div>
