@@ -337,7 +337,8 @@ const en = {
     backToHome: "Back to home page",
     supportedFormats: ".jpg, .jpeg, .png, .pdf, .docx, .xls",
     deleteConfirmMessage: "This action cannot be undone. Are you sure you want to delete this item?",
-    noDescription: "No description provided"
+    noDescription: "No description provided",
+    deleteConfirmTitle: "Confirm deletion?"
   },
   auth: {
     welcome: "Welcome to SmartBookly",
