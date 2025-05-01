@@ -68,8 +68,9 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
+        // Use event_attachments bucket for all files
         const { error: uploadError } = await supabase.storage
-          .from('task_attachments')
+          .from('event_attachments')
           .upload(filePath, selectedFile);
 
         if (uploadError) throw uploadError;

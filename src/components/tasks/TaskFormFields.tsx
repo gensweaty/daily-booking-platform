@@ -41,7 +41,7 @@ export const TaskFormFields = ({
     queryFn: async () => {
       if (!editingTask?.id) return [];
       const { data, error } = await supabase
-        .from('files')  // Task files are stored in the 'files' table
+        .from('files')
         .select('*')
         .eq('task_id', editingTask.id);
       
@@ -70,7 +70,7 @@ export const TaskFormFields = ({
         <div className="space-y-2">
           <FileDisplay 
             files={existingFiles} 
-            bucketName="task_attachments"
+            bucketName="event_attachments"
             allowDelete
             onFileDeleted={handleFileDeleted}
             parentId={editingTask.id}

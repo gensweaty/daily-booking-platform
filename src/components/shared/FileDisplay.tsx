@@ -45,13 +45,14 @@ export const FileDisplay = ({
     uniqueFiles.forEach(file => {
       if (file.file_path) {
         const normalizedPath = normalizeFilePath(file.file_path);
-        const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
+        // Always use event_attachments for all files regardless of the type
+        const effectiveBucket = "event_attachments";
         console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path}`);
         newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
       }
     });
     setFileURLs(newURLs);
-  }, [uniqueFiles, parentType]);
+  }, [uniqueFiles]);
 
   const getFileExtension = (filename: string): string => {
     return filename.split('.').pop()?.toLowerCase() || '';
@@ -77,8 +78,7 @@ export const FileDisplay = ({
   };
 
   const determineEffectiveBucket = (filePath: string, parentType?: string, source?: string): string => {
-    // Always default to event_attachments bucket for all files from this app
-    // This ensures consistency since all files are now uploaded to event_attachments
+    // Always return event_attachments for all file operations
     return "event_attachments";
   };
 
@@ -87,11 +87,8 @@ export const FileDisplay = ({
       console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
       
       // Always use event_attachments bucket for all files
-      const effectiveBucket = "event_attachments";
-      console.log(`Download: Using bucket ${effectiveBucket} for path ${filePath}`);
-      
       const directUrl = fileURLs[fileId] || 
-        `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(filePath)}`;
+        `${getStorageUrl()}/object/public/event_attachments/${normalizeFilePath(filePath)}`;
       
       console.log('Using direct URL for download:', directUrl);
       
@@ -146,10 +143,7 @@ export const FileDisplay = ({
     
     const normalizedPath = normalizeFilePath(filePath);
     // Always use event_attachments bucket
-    const effectiveBucket = "event_attachments";
-    console.log(`Open: Using bucket ${effectiveBucket} for path ${filePath}`);
-    
-    return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
+    return `${getStorageUrl()}/object/public/event_attachments/${normalizedPath}`;
   };
 
   const handleOpenFile = async (filePath: string, fileId: string) => {
@@ -251,7 +245,6 @@ export const FileDisplay = ({
 
   return (
     <div className="space-y-2">
-      {/* We already have the heading in some places, so let's not duplicate it */}
       <div className="space-y-2">
         {uniqueFiles.map((file) => {
           if (!file.file_path) return null;
@@ -260,9 +253,9 @@ export const FileDisplay = ({
             ? file.filename.substring(0, 20) + '...' 
             : file.filename;
           
-          const effectiveBucket = determineEffectiveBucket(file.file_path, parentType, file.source);
+          // Always use event_attachments for the URL
           const imageUrl = fileURLs[file.id] || 
-            `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizeFilePath(file.file_path)}`;
+            `${getStorageUrl()}/object/public/event_attachments/${normalizeFilePath(file.file_path)}`;
             
           return (
             <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">

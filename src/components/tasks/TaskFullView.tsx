@@ -26,7 +26,7 @@ export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
     queryKey: ['taskFiles', task.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('files')  // Task files are stored in the 'files' table
+        .from('files')
         .select('*')
         .eq('task_id', task.id);
       
@@ -69,7 +69,7 @@ export const TaskFullView = ({ task, isOpen, onClose }: TaskFullViewProps) => {
             <div className="p-4 rounded-lg border border-input bg-muted/50">
               <FileDisplay 
                 files={files} 
-                bucketName="task_attachments" 
+                bucketName="event_attachments" 
                 allowDelete 
                 onFileDeleted={handleFileDeleted}
                 parentId={task.id}
