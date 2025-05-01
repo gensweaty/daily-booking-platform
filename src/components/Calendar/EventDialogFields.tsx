@@ -221,6 +221,7 @@ export const EventDialogFields = ({
           setFileError={setFileError}
           acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
           selectedFile={selectedFile}
+          hideLabel={true}
         />
       </div>
       
