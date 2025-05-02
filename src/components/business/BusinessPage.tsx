@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { BookingRequestsList } from "./BookingRequestsList";
 import { useBookingRequests } from "@/hooks/useBookingRequests";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, ExternalLink } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 
@@ -59,6 +59,22 @@ export const BusinessPage = () => {
     }
   };
 
+  // Helper function for the View Public Page button
+  const renderViewPublicPageButton = () => {
+    if (!publicUrl) return null;
+    
+    return (
+      <Button 
+        variant="outline"
+        onClick={() => window.open(publicUrl, '_blank')}
+        className="flex items-center gap-2"
+      >
+        <LanguageText>{t("business.viewPublicPage")}</LanguageText>
+        <ExternalLink className="h-4 w-4" />
+      </Button>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
@@ -84,33 +100,29 @@ export const BusinessPage = () => {
             <h1 className="text-2xl font-bold">
               <LanguageText>{t("business.myBusiness")}</LanguageText>
             </h1>
-            {publicUrl && (
-              <Button 
-                variant="outline"
-                onClick={() => window.open(publicUrl, '_blank')}
-              >
-                <LanguageText>{t("business.viewPublicPage")}</LanguageText>
-              </Button>
-            )}
+            {renderViewPublicPageButton()}
           </div>
 
           <BusinessProfileForm />
         </TabsContent>
 
         <TabsContent value="bookings" className="space-y-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">
-              <LanguageText>{t("business.bookingRequests")}</LanguageText>
-            </h1>
-            {pendingCount > 0 && (
-              <div className="flex items-center gap-2 text-destructive bg-destructive/10 px-3 py-1 rounded-full">
-                <MessageSquare className="h-4 w-4" />
-                <span className="font-medium">
-                  {pendingCount} <LanguageText>{pendingCount === 1 ? t("common.new") : t("common.new")}</LanguageText>{" "}
-                  <LanguageText>{pendingCount === 1 ? t("common.request") : t("common.requests")}</LanguageText>
-                </span>
-              </div>
-            )}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold">
+                <LanguageText>{t("business.bookingRequests")}</LanguageText>
+              </h1>
+              {pendingCount > 0 && (
+                <div className="flex items-center gap-2 text-destructive bg-destructive/10 px-3 py-1 rounded-full">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="font-medium">
+                    {pendingCount} <LanguageText>{pendingCount === 1 ? t("common.new") : t("common.new")}</LanguageText>{" "}
+                    <LanguageText>{pendingCount === 1 ? t("common.request") : t("common.requests")}</LanguageText>
+                  </span>
+                </div>
+              )}
+            </div>
+            {renderViewPublicPageButton()}
           </div>
 
           <div className="space-y-8">
