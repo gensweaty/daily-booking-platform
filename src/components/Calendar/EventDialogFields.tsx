@@ -9,6 +9,7 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import { cn } from "@/lib/utils";
 import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { getCurrencySymbol } from "@/lib/currency";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -74,6 +75,7 @@ export const EventDialogFields = ({
   const isGeorgian = language === 'ka';
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
+  const currencySymbol = getCurrencySymbol(language);
   
   const georgianStyle = isGeorgian ? {
     fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
@@ -225,19 +227,25 @@ export const EventDialogFields = ({
               >
                 <LanguageText>{t("events.paymentAmount")}</LanguageText>
               </Label>
-              <Input 
-                id="paymentAmount" 
-                value={paymentAmount} 
-                onChange={e => {
-                  const value = e.target.value;
-                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                    setPaymentAmount(value);
-                  }
-                }} 
-                placeholder="0.00" 
-                type="text" 
-                inputMode="decimal" 
-              />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <span className="text-gray-500">{currencySymbol}</span>
+                </div>
+                <Input 
+                  id="paymentAmount" 
+                  value={paymentAmount} 
+                  onChange={e => {
+                    const value = e.target.value;
+                    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                      setPaymentAmount(value);
+                    }
+                  }} 
+                  className="pl-7" 
+                  placeholder="0.00" 
+                  type="text" 
+                  inputMode="decimal" 
+                />
+              </div>
             </div>}
         </>}
       

@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { useToast } from "../ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMemo } from 'react';
+import { getCurrencySymbol } from "@/lib/currency";
 
 interface StatsData {
   taskStats: {
@@ -25,17 +26,8 @@ export const useExcelExport = () => {
   const { toast } = useToast();
   const { t, language } = useLanguage();
   
-  // Currency symbol and formatting based on language
-  const getCurrencySymbol = () => {
-    switch (language) {
-      case 'es':
-        return '€';
-      case 'ka':
-        return '₾';
-      default:
-        return '$';
-    }
-  };
+  // Get currency symbol based on language
+  const currencySymbol = useMemo(() => getCurrencySymbol(language), [language]);
 
   const exportToExcel = useMemo(() => (data: StatsData) => {
     if (!data.eventStats?.events) {
@@ -46,8 +38,6 @@ export const useExcelExport = () => {
       });
       return;
     }
-
-    const currencySymbol = getCurrencySymbol();
 
     // Create statistics summary data with properly translated values
     const statsData = [{
@@ -136,7 +126,7 @@ export const useExcelExport = () => {
       title: t("dashboard.exportSuccessful"),
       description: t("dashboard.exportSuccessMessage"),
     });
-  }, [toast, t, language]);
+  }, [toast, t, language, currencySymbol]);
 
   return { exportToExcel };
 };

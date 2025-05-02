@@ -8,8 +8,10 @@ import {
   CalendarCheck,
   DollarSign,
   EuroIcon,
+  BanknoteIcon,
 } from "lucide-react";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { getCurrencySymbol } from "@/lib/currency";
 
 interface StatsCardsProps {
   taskStats: {
@@ -28,17 +30,24 @@ interface StatsCardsProps {
 
 export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
   const { t, language } = useLanguage();
-  const isSpanish = language === 'es';
+  
+  // Get the appropriate currency symbol based on language
+  const currencySymbol = getCurrencySymbol(language);
 
   // Format the income value to have 2 decimal places and add currency symbol
-  const formattedIncome = `${isSpanish ? '€' : '$'}${eventStats.totalIncome.toFixed(2)}`;
+  const formattedIncome = `${currencySymbol}${eventStats.totalIncome.toFixed(2)}`;
+  
+  // Choose the appropriate currency icon based on language
+  const CurrencyIcon = language === 'es' ? EuroIcon : 
+                       language === 'ka' ? BanknoteIcon : DollarSign;
   
   // For debugging
   console.log("StatsCards - Rendering with event stats:", {
     total: eventStats.total,
     partlyPaid: eventStats.partlyPaid,
     fullyPaid: eventStats.fullyPaid,
-    totalIncome: eventStats.totalIncome
+    totalIncome: eventStats.totalIncome,
+    currency: currencySymbol
   });
 
   return (
@@ -65,7 +74,7 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
         title={t("dashboard.totalIncome")}
         value={formattedIncome}
         description={t("dashboard.fromAllEvents")}
-        icon={isSpanish ? EuroIcon : DollarSign}
+        icon={CurrencyIcon}
         valueClassName="text-2xl"
       />
     </div>
