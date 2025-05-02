@@ -198,45 +198,6 @@ export const BookingRequestForm = ({
         console.error("Exception calling get_business_owner_email RPC:", rpcError);
       }
 
-      // If RPC failed, try profiles table
-      if (!businessEmail && businessData?.user_id) {
-        console.log('RPC did not return email, trying profiles table...');
-        
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('id', businessData.user_id)
-          .single();
-        
-        if (profileError) {
-          console.error('Error fetching user email from profiles:', profileError);
-        } else if (profileData?.email) {
-          businessEmail = profileData.email;
-          console.log("Retrieved business email from profiles table:", businessEmail);
-        }
-      }
-      
-      // Last resort: try direct access to auth.users if possible
-      if (!businessEmail && businessData?.user_id) {
-        console.log('Both RPC and profiles failed, trying direct auth query...');
-        
-        try {
-          // This might not work due to RLS policies but worth trying
-          const { data: authUserData, error: authError } = await supabase.auth.admin.getUserById(
-            businessData.user_id
-          );
-          
-          if (authError) {
-            console.warn('Could not access auth.users directly:', authError);
-          } else if (authUserData?.user?.email) {
-            businessEmail = authUserData.user.email;
-            console.log("Retrieved business email from auth direct query:", businessEmail);
-          }
-        } catch (authError) {
-          console.warn('Exception during direct auth query:', authError);
-        }
-      }
-
       console.log('Final business data gathered:', {
         businessEmail,
         businessName,
