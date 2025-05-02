@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -256,6 +255,17 @@ export const Calendar = ({
     });
   };
 
+  const handleDeleteEvent = async () => {
+    if (!selectedEvent) throw new Error("No event selected");
+    
+    await handleDeleteEvent(selectedEvent.id);
+  };
+
+  const handleEventDelete = async () => {
+    if (!selectedEvent) return;
+    await handleDeleteEvent();
+  };
+
   if (error && !directEvents) {
     console.error("Calendar error:", error);
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
@@ -323,7 +333,7 @@ export const Calendar = ({
               selectedDate={new Date(selectedEvent.start_date)}
               event={selectedEvent}
               onSubmit={handleUpdateEvent}
-              onDelete={() => handleDeleteEvent(selectedEvent.id)}
+              onDelete={handleEventDelete}
             />
           )}
         </>

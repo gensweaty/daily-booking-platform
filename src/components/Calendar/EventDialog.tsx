@@ -26,7 +26,7 @@ interface EventDialogProps {
   eventId?: string | null;
   initialData?: any;
   date?: Date;
-  // Add these props to match what Calendar.tsx is passing
+  // Modified to use Date type
   selectedDate?: Date;
   event?: any;
   onSubmit?: (data: any) => Promise<any>;
@@ -39,10 +39,10 @@ export const EventDialog = ({
   eventId,
   initialData,
   date,
-  selectedDate, // Add this prop
-  event, // Add this prop
-  onSubmit, // Add this prop
-  onDelete, // Add this prop
+  selectedDate, 
+  event, 
+  onSubmit, 
+  onDelete,
 }: EventDialogProps) => {
   const { t } = useLanguage();
   const { user } = useAuth();
