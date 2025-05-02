@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { LanguageText } from '@/components/shared/LanguageText';
+import { Asterisk } from 'lucide-react';
 
 export interface BookingRequestFormProps {
   businessId: string;
@@ -75,6 +77,11 @@ export const BookingRequestForm = ({
 
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
+
+  // Create a required field indicator component
+  const RequiredFieldIndicator = () => (
+    <Asterisk className="inline h-3 w-3 text-destructive ml-1" />
+  );
 
   const combineDateAndTime = (date: Date, timeString: string) => {
     if (!timeString) return new Date(date);
@@ -306,6 +313,7 @@ export const BookingRequestForm = ({
         <div>
           <Label htmlFor="fullName" className={labelClass}>
             <LanguageText>{t("events.fullName")}</LanguageText>
+            <RequiredFieldIndicator />
           </Label>
           <Input
             id="fullName"
@@ -320,6 +328,7 @@ export const BookingRequestForm = ({
         <div>
           <Label htmlFor="userNumber" className={labelClass}>
             <LanguageText>{t("events.phoneNumber")}</LanguageText>
+            <RequiredFieldIndicator />
           </Label>
           <Input
             id="userNumber"
@@ -334,6 +343,7 @@ export const BookingRequestForm = ({
         <div>
           <Label htmlFor="socialNetworkLink" className={labelClass}>
             <LanguageText>{t("events.socialLinkEmail")}</LanguageText>
+            <RequiredFieldIndicator />
           </Label>
           <Input
             id="socialNetworkLink"
@@ -349,6 +359,7 @@ export const BookingRequestForm = ({
         <div>
           <Label htmlFor="dateTime" className={labelClass}>
             <LanguageText>{t("events.dateAndTime")}</LanguageText>
+            <RequiredFieldIndicator />
           </Label>
           <div className="grid grid-cols-2 gap-2">
             <div>
