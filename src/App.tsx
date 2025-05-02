@@ -101,9 +101,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <RouteAwareThemeProvider>
-          <AuthProvider>
-            <LanguageProvider>
+        <LanguageProvider>
+          <RouteAwareThemeProvider>
+            <AuthProvider>
               <SessionRecoveryWrapper>
                 <Routes>
                   <Route path="/" element={<Landing />} />
@@ -121,13 +121,12 @@ function App() {
                 </Routes>
                 <Toaster />
               </SessionRecoveryWrapper>
-            </LanguageProvider>
-          </AuthProvider>
-        </RouteAwareThemeProvider>
+            </AuthProvider>
+          </RouteAwareThemeProvider>
+        </LanguageProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );
 }
 
 export default App;
-
