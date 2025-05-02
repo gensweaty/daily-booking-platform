@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -172,10 +173,25 @@ export const BookingRequestForm = ({
           .rpc('get_business_owner_email', { business_id_param: businessId });
           
         if (emailError) {
-          console.error("Error getting business email:", emailError);
+          console.error("Error getting business email via RPC:", emailError);
+          
+          // Fallback: Query business_profiles and auth.users directly
+          const { data: businessData } = await supabase
+            .from('business_profiles')
+            .select('user_id')
+            .eq('id', businessId)
+            .single();
+            
+          if (businessData && businessData.user_id) {
+            const { data: userData } = await supabase.auth.admin.getUserById(businessData.user_id);
+            if (userData && userData.user && userData.user.email) {
+              businessEmail = userData.user.email;
+              console.log("Retrieved business email via user lookup:", businessEmail);
+            }
+          }
         } else if (emailData && emailData.email) {
           businessEmail = emailData.email;
-          console.log("Retrieved business email:", businessEmail);
+          console.log("Retrieved business email via RPC:", businessEmail);
         }
       } catch (emailLookupError) {
         console.error("Failed to retrieve business email:", emailLookupError);

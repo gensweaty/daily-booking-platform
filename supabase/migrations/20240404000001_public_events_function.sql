@@ -12,6 +12,22 @@ AS $$
   ORDER BY start_date ASC;
 $$;
 
+-- Fix the return type mismatch in the get_business_owner_email function
+CREATE OR REPLACE FUNCTION public.get_business_owner_email(business_id_param uuid)
+RETURNS TABLE(email text)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT au.email::text
+  FROM auth.users au
+  JOIN public.business_profiles bp ON bp.user_id = au.id
+  WHERE bp.id = business_id_param;
+END;
+$$;
+
 -- Update RLS on events table to ensure proper protection
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 
@@ -77,4 +93,3 @@ BEGIN
   END IF;
 END
 $$;
-

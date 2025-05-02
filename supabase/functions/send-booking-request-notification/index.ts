@@ -136,17 +136,30 @@ const handler = async (req: Request): Promise<Response> => {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`❌ Error from email lookup API: ${response.status} ${errorText}`);
-          throw new Error(`Failed to get business owner email: ${errorText}`);
-        }
-        
-        const result = await response.json();
-        console.log("📧 Email lookup result:", result);
-        
-        if (result && result.email) {
-          businessEmail = result.email;
-          console.log(`📧 Found business owner email: ${businessEmail}`);
+          
+          // Try a different approach - query business_profiles and auth.users directly
+          const { businessEmail: altEmail, error: altError } = await getBusinessOwnerEmailDirect(requestData.businessId);
+          
+          if (altError) {
+            throw new Error(`Failed to get business owner email using alternative method: ${altError}`);
+          }
+          
+          if (altEmail) {
+            businessEmail = altEmail;
+            console.log(`📧 Found business owner email (alternative method): ${businessEmail}`);
+          } else {
+            throw new Error("No email found for business owner through any method");
+          }
         } else {
-          throw new Error("No email found for business owner");
+          const result = await response.json();
+          console.log("📧 Email lookup result:", result);
+          
+          if (result && result.email) {
+            businessEmail = result.email;
+            console.log(`📧 Found business owner email: ${businessEmail}`);
+          } else {
+            throw new Error("No email found for business owner");
+          }
         }
       } catch (error) {
         console.error("❌ Error getting business owner email:", error);
@@ -387,6 +400,74 @@ If you did not sign up for SmartBookly, please disregard this email.
     );
   }
 };
+
+// Helper function to get business email directly if the RPC function fails
+async function getBusinessOwnerEmailDirect(businessId: string): Promise<{businessEmail: string | null, error: string | null}> {
+  try {
+    console.log("🔍 Attempting alternative method to get business owner email");
+    
+    // First get the user_id from business_profiles
+    const businessProfileResponse = await fetch(
+      `https://mrueqpffzauvdxmuwhfa.supabase.co/rest/v1/business_profiles?id=eq.${businessId}&select=user_id`,
+      {
+        headers: {
+          "apikey": Deno.env.get("SUPABASE_ANON_KEY") || "",
+        }
+      }
+    );
+    
+    if (!businessProfileResponse.ok) {
+      const errorText = await businessProfileResponse.text();
+      console.error(`❌ Error fetching business profile: ${businessProfileResponse.status} ${errorText}`);
+      return { businessEmail: null, error: `Business profile fetch failed: ${errorText}` };
+    }
+    
+    const businessProfiles = await businessProfileResponse.json();
+    console.log("🔍 Business profiles result:", businessProfiles);
+    
+    if (!businessProfiles || businessProfiles.length === 0) {
+      console.error("❌ No business profile found with ID:", businessId);
+      return { businessEmail: null, error: "No business profile found" };
+    }
+    
+    const userId = businessProfiles[0].user_id;
+    console.log("🔍 Found user ID:", userId);
+    
+    if (!userId) {
+      return { businessEmail: null, error: "No user ID associated with business profile" };
+    }
+    
+    // Use the Admin API with service role key to get user email directly
+    // This is a fallback method when the RPC function fails
+    const userResponse = await fetch(
+      `https://mrueqpffzauvdxmuwhfa.supabase.co/auth/v1/admin/users/${userId}`,
+      {
+        headers: {
+          "apikey": Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""}`,
+        }
+      }
+    );
+    
+    if (!userResponse.ok) {
+      const errorText = await userResponse.text();
+      console.error(`❌ Error fetching user: ${userResponse.status} ${errorText}`);
+      return { businessEmail: null, error: `User fetch failed: ${errorText}` };
+    }
+    
+    const userData = await userResponse.json();
+    console.log("🔍 User data result (email masked for logs):", { ...userData, email: "***" });
+    
+    if (!userData || !userData.email) {
+      return { businessEmail: null, error: "No email found in user data" };
+    }
+    
+    return { businessEmail: userData.email, error: null };
+  } catch (error) {
+    console.error("❌ Error in alternative email lookup:", error);
+    return { businessEmail: null, error: error instanceof Error ? error.message : "Unknown error in alternative email lookup" };
+  }
+}
 
 // Start server and make sure all promises resolve before shutdown
 serve(handler);
