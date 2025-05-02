@@ -1,4 +1,3 @@
-
 import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -85,11 +84,9 @@ export const CalendarGrid = ({
     // Display vertically on mobile for internal calendar
     if (isMobile) {
       return (
-        <div className="w-full flex flex-col">
-          <div className="flex justify-center">
-            <CalendarIcon className="h-4 w-4" />
-          </div>
-          <span className="block font-medium text-xs truncate text-center mt-1">
+        <div className="w-full flex flex-col items-center">
+          <CalendarIcon className="h-4 w-4 mb-1" />
+          <span className="block font-medium text-xs truncate text-center">
             {name}
           </span>
           <span className="block text-xs opacity-80 truncate text-center">
@@ -418,12 +415,7 @@ export const CalendarGrid = ({
                           onEventClick?.(event);
                         }}
                       >
-                        {isMobile ? renderEventContent(event) : (
-                          <div className="flex items-center gap-1">
-                            <CalendarIcon className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5 sm:mr-1.5 shrink-0" />
-                            {renderEventContent(event)}
-                          </div>
-                        )}
+                        {renderEventContent(event)}
                       </div>
                     ))}
                     {dayEvents.length > 2 && (
