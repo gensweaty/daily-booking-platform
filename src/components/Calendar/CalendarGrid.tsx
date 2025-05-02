@@ -1,3 +1,4 @@
+
 import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -80,6 +81,25 @@ export const CalendarGrid = ({
     
     // For internal (dashboard) calendar
     const name = event.requester_name || event.title || "";
+    
+    // Display vertically on mobile for internal calendar
+    if (isMobile) {
+      return (
+        <div className="w-full flex flex-col">
+          <div className="flex justify-center">
+            <CalendarIcon className="h-4 w-4" />
+          </div>
+          <span className="block font-medium text-xs truncate text-center mt-1">
+            {name}
+          </span>
+          <span className="block text-xs opacity-80 truncate text-center">
+            {bookingHours}
+          </span>
+        </div>
+      );
+    }
+    
+    // Default horizontal layout for desktop
     return (
       <div className="w-full">
         <span className="block font-medium text-xs sm:text-sm truncate">
@@ -185,10 +205,14 @@ export const CalendarGrid = ({
                             onEventClick?.(event);
                           }}
                         >
-                          <div className="flex items-center mb-0.5">
-                            <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
-                            {renderEventContent(event)}
-                          </div>
+                          {isMobile ? (
+                            renderEventContent(event)
+                          ) : (
+                            <div className="flex items-center mb-0.5">
+                              <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
+                              {renderEventContent(event)}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -250,10 +274,14 @@ export const CalendarGrid = ({
                               onEventClick?.(event);
                             }}
                           >
-                            <div className="flex items-center mb-0.5">
-                              <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
-                              {renderEventContent(event)}
-                            </div>
+                            {isMobile ? (
+                              renderEventContent(event)
+                            ) : (
+                              <div className="flex items-center mb-0.5">
+                                <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
+                                {renderEventContent(event)}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -382,7 +410,7 @@ export const CalendarGrid = ({
                     {dayEvents.slice(0, 2).map((event) => (
                       <div
                         key={event.id}
-                        className={`text-[0.65rem] sm:text-sm p-1 sm:p-2 rounded flex items-center gap-1 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
+                        className={`text-[0.65rem] sm:text-sm p-1 sm:p-2 rounded ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
                           isOtherMonth ? 'opacity-60' : ''
                         }`}
                         onClick={(e) => {
@@ -390,8 +418,12 @@ export const CalendarGrid = ({
                           onEventClick?.(event);
                         }}
                       >
-                        <CalendarIcon className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5 sm:mr-1.5 shrink-0" />
-                        {renderEventContent(event)}
+                        {isMobile ? renderEventContent(event) : (
+                          <div className="flex items-center gap-1">
+                            <CalendarIcon className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5 sm:mr-1.5 shrink-0" />
+                            {renderEventContent(event)}
+                          </div>
+                        )}
                       </div>
                     ))}
                     {dayEvents.length > 2 && (
