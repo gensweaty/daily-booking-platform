@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -8,14 +9,18 @@ const corsHeaders = {
 };
 
 interface BookingNotificationRequest {
-  businessEmail: string;
+  businessId: string;
   requesterName: string;
-  requestDate: string;
+  startDate: string;
   endDate: string;
-  phoneNumber?: string;
+  requesterPhone?: string;
   notes?: string;
   businessName?: string;
   requesterEmail?: string;
+  businessEmail?: string; // Added to support direct email specification
+  hasAttachment?: boolean;
+  paymentStatus?: string;
+  paymentAmount?: number;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -84,14 +89,13 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Validate required fields
-    const { businessEmail, requesterName, requestDate, endDate, phoneNumber = "", notes = "", businessName = "Your Business", requesterEmail = "" } = requestData;
-    
-    if (!businessEmail || !requesterName || !requestDate || !endDate) {
+    // Using businessEmail if directly provided, otherwise we need businessId
+    if ((!requestData.businessEmail && !requestData.businessId) || !requestData.requesterName || !requestData.startDate || !requestData.endDate) {
       const missingFields = [];
-      if (!businessEmail) missingFields.push("businessEmail");
-      if (!requesterName) missingFields.push("requesterName");
-      if (!requestDate) missingFields.push("requestDate");
-      if (!endDate) missingFields.push("endDate");
+      if (!requestData.businessEmail && !requestData.businessId) missingFields.push("businessEmail or businessId");
+      if (!requestData.requesterName) missingFields.push("requesterName");
+      if (!requestData.startDate) missingFields.push("startDate");
+      if (!requestData.endDate) missingFields.push("endDate");
       
       console.error("❌ Missing required fields:", missingFields.join(", "));
       return new Response(
@@ -109,13 +113,67 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Validate email format
-    if (!businessEmail.includes('@')) {
-      console.error("❌ Invalid email format:", businessEmail);
+    // Get business owner email from RPC function if not directly provided
+    let businessEmail = requestData.businessEmail;
+    
+    if (!businessEmail && requestData.businessId) {
+      try {
+        console.log(`🔍 Looking up email for business ID: ${requestData.businessId}`);
+        
+        // Make a direct request to our RPC function
+        const response = await fetch(
+          `https://mrueqpffzauvdxmuwhfa.supabase.co/rest/v1/rpc/get_business_owner_email`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": Deno.env.get("SUPABASE_ANON_KEY") || "",
+            },
+            body: JSON.stringify({ business_id_param: requestData.businessId }),
+          }
+        );
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ Error from email lookup API: ${response.status} ${errorText}`);
+          throw new Error(`Failed to get business owner email: ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log("📧 Email lookup result:", result);
+        
+        if (result && result.email) {
+          businessEmail = result.email;
+          console.log(`📧 Found business owner email: ${businessEmail}`);
+        } else {
+          throw new Error("No email found for business owner");
+        }
+      } catch (error) {
+        console.error("❌ Error getting business owner email:", error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Failed to get business owner email",
+            details: error.message 
+          }),
+          { 
+            status: 500, 
+            headers: { 
+              "Content-Type": "application/json",
+              ...corsHeaders 
+            }
+          }
+        );
+      }
+    }
+
+    // Ensure we have an email to send to
+    if (!businessEmail || !businessEmail.includes('@')) {
+      console.error("❌ Invalid or missing business email:", businessEmail);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Invalid email format" 
+          error: "Invalid business email format or missing email address" 
         }),
         { 
           status: 400, 
@@ -127,6 +185,32 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    const { requesterName, startDate, endDate, requesterPhone = "", notes = "", businessName = "Your Business", requesterEmail = "" } = requestData;
+
+    // Format dates for display
+    const formatDate = (isoString: string) => {
+      try {
+        const date = new Date(isoString);
+        return date.toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric',
+          hour12: true
+        });
+      } catch (e) {
+        console.error("❌ Date formatting error:", e, "for date:", isoString);
+        return isoString; // Fallback to the original string if parsing fails
+      }
+    };
+
+    const formattedStartDate = formatDate(startDate);
+    const formattedEndDate = formatDate(endDate);
+    
+    console.log("📅 Formatted start date:", formattedStartDate);
+    console.log("📅 Formatted end date:", formattedEndDate);
+
     // Create email content - improve formatting for better deliverability
     const emailHtml = `
       <!DOCTYPE html>
@@ -137,14 +221,15 @@ const handler = async (req: Request): Promise<Response> => {
         <title>New Booking Request</title>
         <style>
           body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
-          .container { border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; }
-          .header { color: #0070f3; margin-top: 0; }
-          .details { margin: 20px 0; background-color: #f9f9f9; padding: 15px; border-radius: 4px; }
+          .container { border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; background-color: #1d1f21; color: #e6e6e6; }
+          .header { color: #3b82f6; margin-top: 0; }
+          .details { margin: 20px 0; background-color: #2d2f33; padding: 15px; border-radius: 4px; }
           .detail { margin: 8px 0; }
           .button { text-align: center; margin: 25px 0; }
-          .button a { background-color: #0070f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; }
-          .footer { color: #666; font-size: 14px; text-align: center; margin-top: 20px; }
-          .small { font-size: 12px; color: #666; }
+          .button a { background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; }
+          .footer { color: #a0a0a0; font-size: 14px; text-align: center; margin-top: 20px; }
+          .small { font-size: 12px; color: #a0a0a0; }
+          hr { border: none; border-top: 1px solid #444; margin: 20px 0; }
         </style>
       </head>
       <body>
@@ -153,17 +238,20 @@ const handler = async (req: Request): Promise<Response> => {
           <p>Hello,</p>
           <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
           <div class="details">
-            <p class="detail"><strong>Start Date:</strong> ${requestDate}</p>
-            <p class="detail"><strong>End Date:</strong> ${endDate}</p>
-            ${phoneNumber ? `<p class="detail"><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
-            ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
+            <p class="detail"><strong>Start Date:</strong> ${formattedStartDate}</p>
+            <p class="detail"><strong>End Date:</strong> ${formattedEndDate}</p>
+            ${requesterPhone ? `<p class="detail"><strong>Phone:</strong> ${requesterPhone}</p>` : ''}
             ${requesterEmail ? `<p class="detail"><strong>Email:</strong> ${requesterEmail}</p>` : ''}
+            ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
+            ${requestData.hasAttachment ? `<p class="detail"><strong>Has attachment:</strong> Yes</p>` : ''}
+            ${requestData.paymentStatus ? `<p class="detail"><strong>Payment status:</strong> ${requestData.paymentStatus}</p>` : ''}
+            ${requestData.paymentAmount ? `<p class="detail"><strong>Payment amount:</strong> ${requestData.paymentAmount}</p>` : ''}
           </div>
           <p>Please log in to your dashboard to view and respond to this request:</p>
           <div class="button">
             <a href="https://smartbookly.com/dashboard">Go to Dashboard</a>
           </div>
-          <hr style="border: none; border-top: 1px solid #e1e1e1; margin: 20px 0;">
+          <hr>
           <p class="footer">This is an automated message from SmartBookly</p>
           <p class="small">If you did not sign up for SmartBookly, please disregard this email.</p>
         </div>
@@ -179,11 +267,14 @@ Hello,
 
 You have received a new booking request from ${requesterName}.
 
-Start Date: ${requestDate}
-End Date: ${endDate}
-${phoneNumber ? `Phone: ${phoneNumber}` : ''}
-${notes ? `Notes: ${notes}` : ''}
+Start Date: ${formattedStartDate}
+End Date: ${formattedEndDate}
+${requesterPhone ? `Phone: ${requesterPhone}` : ''}
 ${requesterEmail ? `Email: ${requesterEmail}` : ''}
+${notes ? `Notes: ${notes}` : ''}
+${requestData.hasAttachment ? `Has attachment: Yes` : ''}
+${requestData.paymentStatus ? `Payment status: ${requestData.paymentStatus}` : ''}
+${requestData.paymentAmount ? `Payment amount: ${requestData.paymentAmount}` : ''}
 
 Please log in to your dashboard to view and respond to this request:
 https://smartbookly.com/dashboard

@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -163,6 +162,25 @@ export const BookingRequestForm = ({
         }
       }
 
+      // First, fetch the business owner's email using the RPC function to ensure we have it
+      let businessEmail = null;
+      try {
+        console.log("Fetching business owner email for ID:", businessId);
+        
+        // Call the RPC function directly to get the email
+        const { data: emailData, error: emailError } = await supabase
+          .rpc('get_business_owner_email', { business_id_param: businessId });
+          
+        if (emailError) {
+          console.error("Error getting business email:", emailError);
+        } else if (emailData && emailData.email) {
+          businessEmail = emailData.email;
+          console.log("Retrieved business email:", businessEmail);
+        }
+      } catch (emailLookupError) {
+        console.error("Failed to retrieve business email:", emailLookupError);
+      }
+
       const bookingData = {
         business_id: businessId,
         requester_name: fullName,
@@ -194,6 +212,9 @@ export const BookingRequestForm = ({
       const bookingId = data.id;
       console.log('Booking request created with ID:', bookingId);
 
+      // Track if file was uploaded for notification purposes
+      let fileUploaded = false;
+
       if (selectedFile && bookingId) {
         try {
           const fileExt = selectedFile.name.split('.').pop();
@@ -210,6 +231,7 @@ export const BookingRequestForm = ({
           }
 
           console.log('File uploaded successfully to path:', filePath);
+          fileUploaded = true;
 
           const fileRecord = {
             filename: selectedFile.name,
@@ -234,6 +256,71 @@ export const BookingRequestForm = ({
       }
 
       console.log('Booking request submitted successfully!');
+      
+      try {
+        console.log('Sending notification email...');
+        
+        // Get a business name if possible
+        let businessNameToUse = "Business";
+        
+        try {
+          const { data: businessData } = await supabase
+            .from('business_profiles')
+            .select('business_name')
+            .eq('id', businessId)
+            .single();
+            
+          if (businessData && businessData.business_name) {
+            businessNameToUse = businessData.business_name;
+            console.log("Using business name:", businessNameToUse);
+          }
+        } catch (err) {
+          console.warn("Could not get business name:", err);
+        }
+        
+        // Prepare notification data with the business email if we have it
+        const notificationData = {
+          businessId: businessId,
+          businessEmail: businessEmail, // Include the email if we have it
+          requesterName: fullName,
+          requesterEmail: socialNetworkLink,
+          requesterPhone: userNumber,
+          notes: eventNotes || "No additional notes",
+          startDate: startDateTime.toISOString(),
+          endDate: endDateTime.toISOString(),
+          hasAttachment: fileUploaded,
+          paymentStatus: paymentStatus,
+          paymentAmount: finalPaymentAmount,
+          businessName: businessNameToUse
+        };
+        
+        // Log notification data
+        console.log("Sending email notification with data:", JSON.stringify(notificationData));
+        
+        // Use the full function URL
+        const response = await fetch(
+          "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(notificationData),
+          }
+        );
+        
+        console.log("Email notification response status:", response.status);
+        
+        const responseData = await response.text();
+        try {
+          const parsedResponse = JSON.parse(responseData);
+          console.log("Email notification response:", parsedResponse);
+        } catch (e) {
+          console.log("Raw email notification response:", responseData);
+        }
+        
+      } catch (emailError) {
+        console.error("Failed to send email notification:", emailError);
+      }
+      
       setIsSubmitting(false);
       
       // Reset form
@@ -261,32 +348,6 @@ export const BookingRequestForm = ({
 
       if (onOpenChange) {
         onOpenChange(false);
-      }
-
-      try {
-        console.log('Sending notification email...');
-        await fetch(
-          "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              businessId: businessId,
-              requesterName: fullName,
-              requesterEmail: socialNetworkLink,
-              requesterPhone: userNumber,
-              notes: eventNotes || "No additional notes",
-              startDate: startDateTime.toISOString(),
-              endDate: endDateTime.toISOString(),
-              hasAttachment: !!selectedFile,
-              paymentStatus: paymentStatus,
-              paymentAmount: finalPaymentAmount
-            }),
-          }
-        );
-        console.log("Email notification sent to business owner");
-      } catch (emailError) {
-        console.error("Failed to send email notification:", emailError);
       }
 
     } catch (error) {
