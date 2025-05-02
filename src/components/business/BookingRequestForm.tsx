@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -8,9 +7,31 @@ import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn, formatDate, isSameDay } from "@/lib/utils";
 
-const BookingRequestForm = ({ businessData }) => {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [selectedTime, setSelectedTime] = useState("09:00");
+export interface BookingRequestFormProps {
+  businessData?: any;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  businessId?: string;
+  selectedDate?: Date;
+  startTime?: string;
+  endTime?: string;
+  onSuccess?: () => void;
+  isExternalBooking?: boolean;
+}
+
+export const BookingRequestForm = ({ 
+  businessData, 
+  open, 
+  onOpenChange, 
+  businessId: propBusinessId,
+  selectedDate: initialDate,
+  startTime: initialTime,
+  endTime: initialEndTime,
+  onSuccess,
+  isExternalBooking
+}: BookingRequestFormProps) => {
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialDate || undefined);
+  const [selectedTime, setSelectedTime] = useState(initialTime || "09:00");
   const [selectedDuration, setSelectedDuration] = useState(60);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -23,6 +44,9 @@ const BookingRequestForm = ({ businessData }) => {
   const { toast } = useToast();
   const { slug } = useParams();
   const { t, language } = useLanguage();
+  
+  // Use either the prop businessId or the one from businessData
+  const effectiveBusinessId = propBusinessId || businessData?.id;
 
   // Fetch business events on initial load
   useEffect(() => {
@@ -130,11 +154,18 @@ const BookingRequestForm = ({ businessData }) => {
     try {
       setIsSubmitting(true);
       
+      // Determine which business ID to use
+      const targetBusinessId = effectiveBusinessId || businessData?.id;
+      
+      if (!targetBusinessId) {
+        throw new Error("No business ID available for booking");
+      }
+      
       // First, create the booking request in the database
       const { data: bookingData, error: bookingError } = await supabase
         .from('booking_requests')
         .insert({
-          business_id: businessData.id,
+          business_id: targetBusinessId,
           requester_name: name,
           requester_email: email,
           requester_phone: phone,
@@ -152,48 +183,74 @@ const BookingRequestForm = ({ businessData }) => {
       
       // Send email notification to business owner
       try {
-        console.log("Sending booking notification email to:", businessData.contact_email);
+        // Get business contact email if we don't have businessData yet
+        let businessEmail = businessData?.contact_email;
+        let businessName = businessData?.business_name;
         
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData.session?.access_token;
-        
-        if (!accessToken) {
-          console.warn("No access token available for authenticated request, proceeding without authentication");
-        }
-        
-        const headers: HeadersInit = {
-          "Content-Type": "application/json"
-        };
-        
-        if (accessToken) {
-          headers["Authorization"] = `Bearer ${accessToken}`;
-        }
-        
-        const response = await fetch(
-          "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
-          {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              businessEmail: businessData.contact_email,
-              businessName: businessData.business_name,
-              requesterName: name,
-              requesterEmail: email,
-              requestDate: startDate.toISOString(),
-              endDate: endDate.toISOString(),
-              phoneNumber: phone,
-              notes: notes,
-              language: language
-            }),
+        if (!businessEmail && targetBusinessId) {
+          console.log("Fetching business details for business ID:", targetBusinessId);
+          const { data: businessDetails, error: businessError } = await supabase
+            .from('business_profiles')
+            .select('business_name, contact_email')
+            .eq('id', targetBusinessId)
+            .single();
+            
+          if (businessError) {
+            console.error("Error fetching business details:", businessError);
+          } else if (businessDetails) {
+            businessEmail = businessDetails.contact_email;
+            businessName = businessDetails.business_name;
+            console.log("Found business details:", businessDetails);
           }
-        );
+        }
         
-        const responseData = await response.json();
-        
-        if (!response.ok) {
-          console.error("Error sending booking notification:", responseData);
+        if (!businessEmail) {
+          console.warn("No business email available for notification");
+          // Continue without sending email
         } else {
-          console.log("Booking notification sent successfully:", responseData);
+          console.log("Sending booking notification email to:", businessEmail);
+          
+          const { data: sessionData } = await supabase.auth.getSession();
+          const accessToken = sessionData.session?.access_token;
+          
+          if (!accessToken) {
+            console.warn("No access token available for authenticated request, proceeding without authentication");
+          }
+          
+          const headers: HeadersInit = {
+            "Content-Type": "application/json"
+          };
+          
+          if (accessToken) {
+            headers["Authorization"] = `Bearer ${accessToken}`;
+          }
+          
+          const response = await fetch(
+            "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
+            {
+              method: "POST",
+              headers,
+              body: JSON.stringify({
+                businessEmail: businessEmail,
+                businessName: businessName || "Your Business",
+                requesterName: name,
+                requesterEmail: email,
+                requestDate: startDate.toISOString(),
+                endDate: endDate.toISOString(),
+                phoneNumber: phone,
+                notes: notes,
+                language: language
+              }),
+            }
+          );
+          
+          const responseData = await response.json();
+          
+          if (!response.ok) {
+            console.error("Error sending booking notification:", responseData);
+          } else {
+            console.log("Booking notification sent successfully:", responseData);
+          }
         }
       } catch (emailError) {
         console.error("Error sending booking notification email:", emailError);
@@ -211,6 +268,16 @@ const BookingRequestForm = ({ businessData }) => {
       setEmail("");
       setPhone("");
       setNotes("");
+      
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
+      
+      // Close dialog if applicable
+      if (onOpenChange) {
+        onOpenChange(false);
+      }
       
     } catch (error) {
       console.error("Error submitting booking request:", error);
@@ -375,5 +442,3 @@ const BookingRequestForm = ({ businessData }) => {
     </div>
   );
 };
-
-export default BookingRequestForm;
