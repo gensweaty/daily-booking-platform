@@ -67,14 +67,33 @@ export const CalendarGrid = ({
 
     // For external calendar - always show "Booked" instead of event title for privacy
     if (isExternalCalendar) {
+      // For mobile view in external calendar
+      if (isMobile) {
+        return (
+          <div className="w-full flex flex-col items-center text-center justify-center space-y-0.5">
+            <CalendarIcon className="h-4 w-4" />
+            <span className="block font-medium text-[0.7rem] leading-tight truncate max-w-[90%]">
+              Booked
+            </span>
+            <span className="block text-[0.65rem] opacity-80 leading-tight truncate max-w-[90%]">
+              {bookingHours}
+            </span>
+          </div>
+        );
+      }
+      
+      // For desktop view in external calendar
       return (
-        <div className="w-full">
-          <span className="block font-medium text-xs sm:text-sm truncate">
-            Booked
-          </span>
-          <span className="block text-xs sm:text-sm opacity-80 truncate">
-            {bookingHours}
-          </span>
+        <div className="w-full flex items-center">
+          <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
+          <div className="min-w-0">
+            <span className="block font-medium text-xs sm:text-sm truncate">
+              Booked
+            </span>
+            <span className="block text-xs sm:text-sm opacity-80 truncate">
+              {bookingHours}
+            </span>
+          </div>
         </div>
       );
     }
