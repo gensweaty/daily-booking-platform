@@ -178,7 +178,7 @@ export const BookingRequestForm = ({
       let businessName = businessData?.business_name || null;
 
       if (businessData?.user_id) {
-        // Fetch the user's email from the user account
+        // First try to get email from profiles table
         const { data: userData, error: userError } = await supabase
           .from('profiles')
           .select('email')
@@ -186,9 +186,10 @@ export const BookingRequestForm = ({
           .single();
           
         if (userError) {
-          console.error('Error fetching user email:', userError);
-        } else if (userData) {
+          console.error('Error fetching user email from profiles:', userError);
+        } else if (userData && userData.email) {
           businessEmail = userData.email;
+          console.log("Retrieved business email from profiles:", businessEmail);
         }
       }
 
@@ -270,7 +271,7 @@ export const BookingRequestForm = ({
 
       console.log('Booking request submitted successfully!');
       
-      // Reset form
+      // Reset form and show success toast
       setFullName('');
       setUserSurname('');
       setUserNumber('');
@@ -303,22 +304,41 @@ export const BookingRequestForm = ({
         
         // Make sure we have all the data needed for the notification
         if (!businessEmail) {
-          // If we couldn't get the email from profiles, try directly from auth.users
-          const { data: sessionData } = await supabase.auth.getSession();
-          if (sessionData?.session) {
-            // Get business owner's email directly
-            const { data: authUser } = await supabase.rpc('get_business_owner_email', {
-              business_id_param: businessId
-            });
-            
-            if (authUser && authUser.length > 0) {
-              businessEmail = authUser[0].email;
-              console.log("Retrieved business email via RPC:", businessEmail);
+          // If we couldn't get the email from profiles, try directly from auth.users via RPC
+          const { data: authUser, error: rpcError } = await supabase.rpc('get_business_owner_email', {
+            business_id_param: businessId
+          });
+          
+          if (rpcError) {
+            console.error("Error getting business owner email via RPC:", rpcError);
+          } else if (authUser && authUser.length > 0) {
+            businessEmail = authUser[0].email;
+            console.log("Retrieved business email via RPC:", businessEmail);
+          } else {
+            console.error("No email found via RPC function");
+          }
+          
+          // If still no email, try one more approach - get directly from auth.users if we have a session
+          if (!businessEmail && businessData?.user_id) {
+            // This is a last resort and may not work due to RLS policies
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData?.session) {
+              // Try to get user data if the current user is an admin or the business owner
+              const { data: authUserData } = await supabase.auth.admin.getUserById(businessData.user_id);
+              if (authUserData?.user?.email) {
+                businessEmail = authUserData.user.email;
+                console.log("Retrieved business email via admin API:", businessEmail);
+              }
             }
           }
           
           if (!businessEmail) {
             console.error("Could not retrieve business email through any method");
+            toast({
+              title: t('common.error'),
+              description: t('Could not send notification to business owner. Your booking is still submitted.'),
+              variant: 'destructive'
+            });
           }
         }
         
@@ -337,6 +357,11 @@ export const BookingRequestForm = ({
         
         console.log("Notification data:", notificationData);
         
+        if (!businessEmail) {
+          console.error("Missing business email, cannot send notification");
+          return; // Skip sending if no email available
+        }
+        
         const response = await fetch(
           "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
           {
@@ -351,11 +376,21 @@ export const BookingRequestForm = ({
         
         if (!response.ok) {
           console.error("Email notification failed:", responseData);
+          toast({
+            title: t('common.warning'),
+            description: t('Your booking was submitted, but the notification email failed to send.'),
+            variant: 'default'
+          });
         } else {
           console.log("Email notification sent to business owner");
         }
       } catch (emailError) {
         console.error("Failed to send email notification:", emailError);
+        toast({
+          title: t('common.warning'),
+          description: t('Your booking was submitted, but we could not notify the business owner.'),
+          variant: 'default'
+        });
       }
       
       setIsSubmitting(false);
