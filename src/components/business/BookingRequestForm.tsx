@@ -162,7 +162,7 @@ export const BookingRequestForm = ({
         }
       }
 
-      // First fetch business information including the email
+      // First fetch business information including the email with more robust handling
       const { data: businessData, error: businessError } = await supabase
         .from('business_profiles')
         .select('business_name, user_id')
@@ -173,27 +173,71 @@ export const BookingRequestForm = ({
         console.error('Error fetching business data:', businessError);
       }
 
-      // Get the user's email from the auth.users table using the user_id from business_profiles
+      // Enhanced email retrieval with multiple fallbacks
       let businessEmail = null;
       let businessName = businessData?.business_name || null;
+      
+      console.log('Looking up business data for ID:', businessId);
+      
+      // First try to get email via RPC function
+      try {
+        console.log('Attempting to get business owner email via RPC...');
+        const { data: emailData, error: rpcError } = await supabase.rpc('get_business_owner_email', {
+          business_id_param: businessId
+        });
+        
+        if (rpcError) {
+          console.error("Error getting business owner email via RPC:", rpcError);
+        } else if (emailData && emailData.length > 0) {
+          businessEmail = emailData[0].email;
+          console.log("Retrieved business email via RPC:", businessEmail);
+        } else {
+          console.warn("No email found via RPC function");
+        }
+      } catch (rpcError) {
+        console.error("Exception calling get_business_owner_email RPC:", rpcError);
+      }
 
-      if (businessData?.user_id) {
-        // First try to get email from profiles table
-        const { data: userData, error: userError } = await supabase
+      // If RPC failed, try profiles table
+      if (!businessEmail && businessData?.user_id) {
+        console.log('RPC did not return email, trying profiles table...');
+        
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('email')
           .eq('id', businessData.user_id)
           .single();
+        
+        if (profileError) {
+          console.error('Error fetching user email from profiles:', profileError);
+        } else if (profileData?.email) {
+          businessEmail = profileData.email;
+          console.log("Retrieved business email from profiles table:", businessEmail);
+        }
+      }
+      
+      // Last resort: try direct access to auth.users if possible
+      if (!businessEmail && businessData?.user_id) {
+        console.log('Both RPC and profiles failed, trying direct auth query...');
+        
+        try {
+          // This might not work due to RLS policies but worth trying
+          const { data: authUserData, error: authError } = await supabase.auth.admin.getUserById(
+            businessData.user_id
+          );
           
-        if (userError) {
-          console.error('Error fetching user email from profiles:', userError);
-        } else if (userData && userData.email) {
-          businessEmail = userData.email;
-          console.log("Retrieved business email from profiles:", businessEmail);
+          if (authError) {
+            console.warn('Could not access auth.users directly:', authError);
+          } else if (authUserData?.user?.email) {
+            businessEmail = authUserData.user.email;
+            console.log("Retrieved business email from auth direct query:", businessEmail);
+          }
+        } catch (authError) {
+          console.warn('Exception during direct auth query:', authError);
         }
       }
 
-      console.log('Fetched business data:', {
+      console.log('Final business data gathered:', {
         businessEmail,
         businessName,
         businessId
@@ -298,49 +342,22 @@ export const BookingRequestForm = ({
         onOpenChange(false);
       }
 
+      // Enhanced email notification section with better error handling and logging
       try {
         console.log('Sending notification email...');
-        console.log('Business email to notify:', businessEmail);
         
-        // Make sure we have all the data needed for the notification
         if (!businessEmail) {
-          // If we couldn't get the email from profiles, try directly from auth.users via RPC
-          const { data: authUser, error: rpcError } = await supabase.rpc('get_business_owner_email', {
-            business_id_param: businessId
+          console.error("No business email found after all lookup methods, cannot send notification");
+          toast({
+            title: t('common.warning'),
+            description: t('Your booking was submitted, but we could not notify the business owner.'),
+            variant: 'default'
           });
-          
-          if (rpcError) {
-            console.error("Error getting business owner email via RPC:", rpcError);
-          } else if (authUser && authUser.length > 0) {
-            businessEmail = authUser[0].email;
-            console.log("Retrieved business email via RPC:", businessEmail);
-          } else {
-            console.error("No email found via RPC function");
-          }
-          
-          // If still no email, try one more approach - get directly from auth.users if we have a session
-          if (!businessEmail && businessData?.user_id) {
-            // This is a last resort and may not work due to RLS policies
-            const { data: sessionData } = await supabase.auth.getSession();
-            if (sessionData?.session) {
-              // Try to get user data if the current user is an admin or the business owner
-              const { data: authUserData } = await supabase.auth.admin.getUserById(businessData.user_id);
-              if (authUserData?.user?.email) {
-                businessEmail = authUserData.user.email;
-                console.log("Retrieved business email via admin API:", businessEmail);
-              }
-            }
-          }
-          
-          if (!businessEmail) {
-            console.error("Could not retrieve business email through any method");
-            toast({
-              title: t('common.error'),
-              description: t('Could not send notification to business owner. Your booking is still submitted.'),
-              variant: 'destructive'
-            });
-          }
+          setIsSubmitting(false);
+          return;
         }
+        
+        console.log('Email will be sent to:', businessEmail);
         
         // Prepare notification data with all required fields
         const notificationData = {
@@ -355,34 +372,48 @@ export const BookingRequestForm = ({
           language: language
         };
         
-        console.log("Notification data:", notificationData);
+        console.log("Notification data being sent:", notificationData);
         
-        if (!businessEmail) {
-          console.error("Missing business email, cannot send notification");
-          return; // Skip sending if no email available
-        }
-        
-        const response = await fetch(
-          "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(notificationData),
+        // Call the Edge Function with proper error handling
+        try {
+          const response = await fetch(
+            "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
+            {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(notificationData),
+            }
+          );
+          
+          const responseText = await response.text();
+          console.log(`Email notification response status: ${response.status}`);
+          console.log(`Email notification response body: ${responseText}`);
+          
+          let responseData;
+          try {
+            responseData = JSON.parse(responseText);
+            console.log("Parsed response data:", responseData);
+          } catch (parseError) {
+            console.error("Could not parse response as JSON:", parseError);
+            responseData = { error: true, message: "Invalid response format" };
           }
-        );
-
-        const responseData = await response.text();
-        console.log(`Email notification response (${response.status}):`, responseData);
-        
-        if (!response.ok) {
-          console.error("Email notification failed:", responseData);
+          
+          if (!response.ok || (responseData && responseData.error)) {
+            console.error("Email notification API error:", responseData?.error || responseData?.details || response.statusText);
+            throw new Error(responseData?.error || responseData?.details || "Email notification failed");
+          } else {
+            console.log("Email notification sent successfully to business owner:", responseData);
+            // Success - already shown booking success toast
+          }
+        } catch (fetchError) {
+          console.error("Fetch error during email notification:", fetchError);
           toast({
             title: t('common.warning'),
-            description: t('Your booking was submitted, but the notification email failed to send.'),
+            description: t('Your booking was submitted, but the notification email could not be sent.'),
             variant: 'default'
           });
-        } else {
-          console.log("Email notification sent to business owner");
         }
       } catch (emailError) {
         console.error("Failed to send email notification:", emailError);
@@ -391,9 +422,9 @@ export const BookingRequestForm = ({
           description: t('Your booking was submitted, but we could not notify the business owner.'),
           variant: 'default'
         });
+      } finally {
+        setIsSubmitting(false);
       }
-      
-      setIsSubmitting(false);
     } catch (error) {
       console.error('Error submitting form:', error);
       setIsSubmitting(false);
