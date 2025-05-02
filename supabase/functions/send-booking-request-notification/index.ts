@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -16,6 +17,7 @@ interface BookingNotificationRequest {
   notes?: string;
   businessName?: string;
   requesterEmail?: string;
+  language?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -84,7 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Validate required fields
-    const { businessEmail, requesterName, requestDate, endDate, phoneNumber = "", notes = "", businessName = "Your Business", requesterEmail = "" } = requestData;
+    const { businessEmail, requesterName, requestDate, endDate, phoneNumber = "", notes = "", businessName = "Your Business", requesterEmail = "", language = "en" } = requestData;
     
     if (!businessEmail || !requesterName || !requestDate || !endDate) {
       const missingFields = [];
@@ -130,7 +132,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Create email content - improve formatting for better deliverability
     const emailHtml = `
       <!DOCTYPE html>
-      <html lang="en">
+      <html lang="${language || "en"}">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">

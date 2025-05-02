@@ -163,6 +163,26 @@ export const BookingRequestForm = ({
         }
       }
 
+      // First fetch business information including the email
+      const { data: businessData, error: businessError } = await supabase
+        .from('business_profiles')
+        .select('business_name, user_email')
+        .eq('id', businessId)
+        .single();
+
+      if (businessError) {
+        console.error('Error fetching business data:', businessError);
+      }
+
+      const businessEmail = businessData?.user_email || null;
+      const businessName = businessData?.business_name || null;
+
+      console.log('Fetched business data:', {
+        businessEmail,
+        businessName,
+        businessId
+      });
+
       const bookingData = {
         business_id: businessId,
         requester_name: fullName,
@@ -234,7 +254,6 @@ export const BookingRequestForm = ({
       }
 
       console.log('Booking request submitted successfully!');
-      setIsSubmitting(false);
       
       // Reset form
       setFullName('');
@@ -265,30 +284,50 @@ export const BookingRequestForm = ({
 
       try {
         console.log('Sending notification email...');
-        await fetch(
+        console.log('Business email to notify:', businessEmail);
+        
+        // Make sure we have all the data needed for the notification
+        if (!businessEmail) {
+          console.error("Missing business email for sending notification");
+        }
+        
+        // Prepare notification data with all required fields
+        const notificationData = {
+          businessEmail: businessEmail,
+          businessName: businessName || "",
+          requesterName: fullName,
+          requesterEmail: socialNetworkLink,
+          requestDate: startDateTime.toISOString(),
+          endDate: endDateTime.toISOString(),
+          phoneNumber: userNumber,
+          notes: eventNotes || "",
+          language: language
+        };
+        
+        console.log("Notification data:", notificationData);
+        
+        const response = await fetch(
           "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              businessId: businessId,
-              requesterName: fullName,
-              requesterEmail: socialNetworkLink,
-              requesterPhone: userNumber,
-              notes: eventNotes || "No additional notes",
-              startDate: startDateTime.toISOString(),
-              endDate: endDateTime.toISOString(),
-              hasAttachment: !!selectedFile,
-              paymentStatus: paymentStatus,
-              paymentAmount: finalPaymentAmount
-            }),
+            body: JSON.stringify(notificationData),
           }
         );
-        console.log("Email notification sent to business owner");
+
+        const responseData = await response.text();
+        console.log(`Email notification response (${response.status}):`, responseData);
+        
+        if (!response.ok) {
+          console.error("Email notification failed:", responseData);
+        } else {
+          console.log("Email notification sent to business owner");
+        }
       } catch (emailError) {
         console.error("Failed to send email notification:", emailError);
       }
-
+      
+      setIsSubmitting(false);
     } catch (error) {
       console.error('Error submitting form:', error);
       setIsSubmitting(false);
