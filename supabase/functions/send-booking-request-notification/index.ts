@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -17,7 +16,6 @@ interface BookingNotificationRequest {
   notes?: string;
   businessName?: string;
   requesterEmail?: string;
-  language?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -86,17 +84,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Validate required fields
-    const { 
-      businessEmail, 
-      requesterName, 
-      requestDate, 
-      endDate, 
-      phoneNumber = "", 
-      notes = "", 
-      businessName = "Your Business", 
-      requesterEmail = "",
-      language = "en"
-    } = requestData;
+    const { businessEmail, requesterName, requestDate, endDate, phoneNumber = "", notes = "", businessName = "Your Business", requesterEmail = "" } = requestData;
     
     if (!businessEmail || !requesterName || !requestDate || !endDate) {
       const missingFields = [];
@@ -139,94 +127,14 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get email subject and content based on language
-    const subjectByLang = {
-      en: "New Booking Request - Action Required",
-      es: "Nueva Solicitud de Reserva - Acción Requerida",
-      ka: "ახალი ჯავშნის მოთხოვნა - საჭიროა ქმედება"
-    };
-    
-    const buttonTextByLang = {
-      en: "Go to Dashboard",
-      es: "Ir al Panel",
-      ka: "დაფაზე გადასვლა"
-    };
-    
-    const headerByLang = {
-      en: "New Booking Request",
-      es: "Nueva Solicitud de Reserva",
-      ka: "ახალი ჯავშნის მოთხოვნა"
-    };
-    
-    const greetingByLang = {
-      en: "Hello,",
-      es: "Hola,",
-      ka: "გამარჯობა,"
-    };
-    
-    const messageByLang = {
-      en: `You have received a new booking request from <strong>${requesterName}</strong>.`,
-      es: `Ha recibido una nueva solicitud de reserva de <strong>${requesterName}</strong>.`,
-      ka: `თქვენ მიიღეთ ახალი ჯავშნის მოთხოვნა <strong>${requesterName}</strong>-სგან.`
-    };
-    
-    const detailsByLang = {
-      startDate: {
-        en: "Start Date",
-        es: "Fecha de Inicio",
-        ka: "დაწყების თარიღი"
-      },
-      endDate: {
-        en: "End Date",
-        es: "Fecha de Finalización",
-        ka: "დასრულების თარიღი"
-      },
-      phone: {
-        en: "Phone",
-        es: "Teléfono",
-        ka: "ტელეფონი"
-      },
-      notes: {
-        en: "Notes",
-        es: "Notas",
-        ka: "შენიშვნები"
-      },
-      email: {
-        en: "Email",
-        es: "Correo Electrónico",
-        ka: "ელ.ფოსტა"
-      }
-    };
-    
-    const actionTextByLang = {
-      en: "Please log in to your dashboard to view and respond to this request:",
-      es: "Inicie sesión en su panel para ver y responder a esta solicitud:",
-      ka: "გთხოვთ, შეხვიდეთ თქვენს დაფაზე, რათა ნახოთ და უპასუხოთ ამ მოთხოვნას:"
-    };
-    
-    const footerByLang = {
-      en: "This is an automated message from SmartBookly",
-      es: "Este es un mensaje automático de SmartBookly",
-      ka: "ეს არის SmartBookly-ის ავტომატური შეტყობინება"
-    };
-    
-    const disclaimerByLang = {
-      en: "If you did not sign up for SmartBookly, please disregard this email.",
-      es: "Si no se registró en SmartBookly, ignore este correo electrónico.",
-      ka: "თუ თქვენ არ დარეგისტრირებულხართ SmartBookly-ში, გთხოვთ არ მიაქციოთ ყურადღება ამ წერილს."
-    };
-    
-    // Select the appropriate language or default to English
-    const validLanguage = ['en', 'es', 'ka'].includes(language) ? language : 'en';
-
     // Create email content - improve formatting for better deliverability
     const emailHtml = `
       <!DOCTYPE html>
-      <html lang="${validLanguage}">
+      <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${headerByLang[validLanguage]}</title>
+        <title>New Booking Request</title>
         <style>
           body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
           .container { border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; }
@@ -241,23 +149,23 @@ const handler = async (req: Request): Promise<Response> => {
       </head>
       <body>
         <div class="container">
-          <h2 class="header">${headerByLang[validLanguage]}</h2>
-          <p>${greetingByLang[validLanguage]}</p>
-          <p>${messageByLang[validLanguage]}</p>
+          <h2 class="header">New Booking Request</h2>
+          <p>Hello,</p>
+          <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
           <div class="details">
-            <p class="detail"><strong>${detailsByLang.startDate[validLanguage]}:</strong> ${requestDate}</p>
-            <p class="detail"><strong>${detailsByLang.endDate[validLanguage]}:</strong> ${endDate}</p>
-            ${phoneNumber ? `<p class="detail"><strong>${detailsByLang.phone[validLanguage]}:</strong> ${phoneNumber}</p>` : ''}
-            ${notes ? `<p class="detail"><strong>${detailsByLang.notes[validLanguage]}:</strong> ${notes}</p>` : ''}
-            ${requesterEmail ? `<p class="detail"><strong>${detailsByLang.email[validLanguage]}:</strong> ${requesterEmail}</p>` : ''}
+            <p class="detail"><strong>Start Date:</strong> ${requestDate}</p>
+            <p class="detail"><strong>End Date:</strong> ${endDate}</p>
+            ${phoneNumber ? `<p class="detail"><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
+            ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
+            ${requesterEmail ? `<p class="detail"><strong>Email:</strong> ${requesterEmail}</p>` : ''}
           </div>
-          <p>${actionTextByLang[validLanguage]}</p>
+          <p>Please log in to your dashboard to view and respond to this request:</p>
           <div class="button">
-            <a href="https://smartbookly.com/dashboard">${buttonTextByLang[validLanguage]}</a>
+            <a href="https://smartbookly.com/dashboard">Go to Dashboard</a>
           </div>
           <hr style="border: none; border-top: 1px solid #e1e1e1; margin: 20px 0;">
-          <p class="footer">${footerByLang[validLanguage]}</p>
-          <p class="small">${disclaimerByLang[validLanguage]}</p>
+          <p class="footer">This is an automated message from SmartBookly</p>
+          <p class="small">If you did not sign up for SmartBookly, please disregard this email.</p>
         </div>
       </body>
       </html>
@@ -265,24 +173,24 @@ const handler = async (req: Request): Promise<Response> => {
     
     // Create plain text version for better deliverability
     const plainText = `
-${headerByLang[validLanguage]}
+New Booking Request
 
-${greetingByLang[validLanguage]}
+Hello,
 
-${messageByLang[validLanguage].replace(/<\/?strong>/g, '')}
+You have received a new booking request from ${requesterName}.
 
-${detailsByLang.startDate[validLanguage]}: ${requestDate}
-${detailsByLang.endDate[validLanguage]}: ${endDate}
-${phoneNumber ? `${detailsByLang.phone[validLanguage]}: ${phoneNumber}` : ''}
-${notes ? `${detailsByLang.notes[validLanguage]}: ${notes}` : ''}
-${requesterEmail ? `${detailsByLang.email[validLanguage]}: ${requesterEmail}` : ''}
+Start Date: ${requestDate}
+End Date: ${endDate}
+${phoneNumber ? `Phone: ${phoneNumber}` : ''}
+${notes ? `Notes: ${notes}` : ''}
+${requesterEmail ? `Email: ${requesterEmail}` : ''}
 
-${actionTextByLang[validLanguage]}
+Please log in to your dashboard to view and respond to this request:
 https://smartbookly.com/dashboard
 
-${footerByLang[validLanguage]}
+This is an automated message from SmartBookly
 
-${disclaimerByLang[validLanguage]}
+If you did not sign up for SmartBookly, please disregard this email.
     `;
     
     console.log("📧 Sending email to:", businessEmail);
@@ -292,7 +200,7 @@ ${disclaimerByLang[validLanguage]}
     
     console.log("📧 Final recipient:", businessEmail);
     console.log("📧 Sending from:", fromEmail);
-    console.log("📧 Subject:", subjectByLang[validLanguage]);
+    console.log("📧 Subject: New Booking Request - Action Required");
     
     let emailResult;
     try {
@@ -302,7 +210,7 @@ ${disclaimerByLang[validLanguage]}
       emailResult = await resend.emails.send({
         from: fromEmail,
         to: [businessEmail],
-        subject: subjectByLang[validLanguage],
+        subject: "New Booking Request - Action Required",
         html: emailHtml,
         text: plainText,
         reply_to: "no-reply@smartbookly.com",
