@@ -864,12 +864,6 @@ export type Database = {
           event_id: string
         }[]
       }
-      get_business_owner_email: {
-        Args: { business_id_param: string }
-        Returns: {
-          email: string
-        }[]
-      }
       get_public_events_by_user_id: {
         Args: { user_id_param: string }
         Returns: {

@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -17,7 +16,6 @@ interface BookingNotificationRequest {
   notes?: string;
   businessName?: string;
   requesterEmail?: string;
-  language?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -86,7 +84,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Validate required fields
-    const { businessEmail, requesterName, requestDate, endDate, phoneNumber = "", notes = "", businessName = "Your Business", requesterEmail = "", language = "en" } = requestData;
+    const { businessEmail, requesterName, requestDate, endDate, phoneNumber = "", notes = "", businessName = "Your Business", requesterEmail = "" } = requestData;
     
     if (!businessEmail || !requesterName || !requestDate || !endDate) {
       const missingFields = [];
@@ -132,7 +130,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Create email content - improve formatting for better deliverability
     const emailHtml = `
       <!DOCTYPE html>
-      <html lang="${language || "en"}">
+      <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -155,11 +153,11 @@ const handler = async (req: Request): Promise<Response> => {
           <p>Hello,</p>
           <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
           <div class="details">
-            <p class="detail"><strong>Start Date:</strong> ${new Date(requestDate).toLocaleString()}</p>
-            <p class="detail"><strong>End Date:</strong> ${new Date(endDate).toLocaleString()}</p>
+            <p class="detail"><strong>Start Date:</strong> ${requestDate}</p>
+            <p class="detail"><strong>End Date:</strong> ${endDate}</p>
             ${phoneNumber ? `<p class="detail"><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
-            ${requesterEmail ? `<p class="detail"><strong>Email:</strong> ${requesterEmail}</p>` : ''}
             ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
+            ${requesterEmail ? `<p class="detail"><strong>Email:</strong> ${requesterEmail}</p>` : ''}
           </div>
           <p>Please log in to your dashboard to view and respond to this request:</p>
           <div class="button">
@@ -181,11 +179,11 @@ Hello,
 
 You have received a new booking request from ${requesterName}.
 
-Start Date: ${new Date(requestDate).toLocaleString()}
-End Date: ${new Date(endDate).toLocaleString()}
+Start Date: ${requestDate}
+End Date: ${endDate}
 ${phoneNumber ? `Phone: ${phoneNumber}` : ''}
-${requesterEmail ? `Email: ${requesterEmail}` : ''}
 ${notes ? `Notes: ${notes}` : ''}
+${requesterEmail ? `Email: ${requesterEmail}` : ''}
 
 Please log in to your dashboard to view and respond to this request:
 https://smartbookly.com/dashboard

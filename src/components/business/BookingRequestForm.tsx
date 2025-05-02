@@ -163,57 +163,6 @@ export const BookingRequestForm = ({
         }
       }
 
-      // First fetch business information
-      const { data: businessData, error: businessError } = await supabase
-        .from('business_profiles')
-        .select('business_name, user_id')
-        .eq('id', businessId)
-        .single();
-
-      if (businessError) {
-        console.error('Error fetching business data:', businessError);
-        throw businessError;
-      }
-
-      // Get business email via RPC function
-      let businessEmail = null;
-      let businessName = businessData?.business_name || "Your Business";
-      
-      try {
-        console.log('Getting business owner email via RPC function for business ID:', businessId);
-        const { data: emailData, error: rpcError } = await supabase.rpc(
-          'get_business_owner_email',
-          { business_id_param: businessId }
-        );
-        
-        if (rpcError) {
-          console.error("Error getting business owner email via RPC:", rpcError);
-          throw rpcError;
-        } 
-        
-        if (emailData && emailData.length > 0) {
-          businessEmail = emailData[0].email;
-          console.log("Retrieved business email via RPC:", businessEmail);
-        } else {
-          console.error("No email found via RPC function");
-          throw new Error("Could not retrieve business owner email");
-        }
-      } catch (rpcError) {
-        console.error("Error calling get_business_owner_email RPC:", rpcError);
-        throw rpcError;
-      }
-
-      if (!businessEmail) {
-        console.error("Failed to retrieve business owner email");
-        throw new Error("Could not retrieve business owner email");
-      }
-
-      console.log('Final business data gathered:', {
-        businessEmail,
-        businessName,
-        businessId
-      });
-
       const bookingData = {
         business_id: businessId,
         requester_name: fullName,
@@ -285,8 +234,9 @@ export const BookingRequestForm = ({
       }
 
       console.log('Booking request submitted successfully!');
+      setIsSubmitting(false);
       
-      // Reset form fields before sending email notification
+      // Reset form
       setFullName('');
       setUserSurname('');
       setUserNumber('');
@@ -300,85 +250,45 @@ export const BookingRequestForm = ({
         fileInputRef.current.value = '';
       }
 
-      // Send email notification
+      toast({
+        title: t('common.success'),
+        description: t('Your booking request has been submitted successfully')
+      });
+
+      if (onSuccess) {
+        onSuccess();
+      }
+
+      if (onOpenChange) {
+        onOpenChange(false);
+      }
+
       try {
-        console.log('Sending notification email to:', businessEmail);
-        
-        // Prepare notification data with all required fields
-        const notificationData = {
-          businessEmail,
-          businessName,
-          requesterName: fullName,
-          requesterEmail: socialNetworkLink,
-          requestDate: startDateTime.toISOString(),
-          endDate: endDateTime.toISOString(),
-          phoneNumber: userNumber,
-          notes: eventNotes || "",
-          language
-        };
-        
-        console.log("Notification data being sent:", notificationData);
-        
-        // Call the Edge Function with the full URL
-        const edgeFunctionUrl = "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification";
-        console.log("Using edge function URL:", edgeFunctionUrl);
-        
-        const response = await fetch(edgeFunctionUrl, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(notificationData),
-        });
-        
-        const responseText = await response.text();
-        console.log(`Email notification response status: ${response.status}`);
-        console.log(`Email notification response body: ${responseText}`);
-        
-        let responseData;
-        try {
-          responseData = JSON.parse(responseText);
-        } catch (e) {
-          console.error("Failed to parse response as JSON:", e);
-          responseData = { text: responseText };
-        }
-        
-        if (!response.ok) {
-          throw new Error(`Email notification failed: ${response.status} ${JSON.stringify(responseData)}`);
-        }
-        
-        console.log("Email notification sent successfully to business owner:", responseData);
-
-        toast({
-          title: t('common.success'),
-          description: t('Your booking request has been submitted successfully')
-        });
-
-        if (onSuccess) {
-          onSuccess();
-        }
-
-        if (onOpenChange) {
-          onOpenChange(false);
-        }
-        
+        console.log('Sending notification email...');
+        await fetch(
+          "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              businessId: businessId,
+              requesterName: fullName,
+              requesterEmail: socialNetworkLink,
+              requesterPhone: userNumber,
+              notes: eventNotes || "No additional notes",
+              startDate: startDateTime.toISOString(),
+              endDate: endDateTime.toISOString(),
+              hasAttachment: !!selectedFile,
+              paymentStatus: paymentStatus,
+              paymentAmount: finalPaymentAmount
+            }),
+          }
+        );
+        console.log("Email notification sent to business owner");
       } catch (emailError) {
         console.error("Failed to send email notification:", emailError);
-        
-        // Still show success since the booking was created
-        toast({
-          title: t('common.success'),
-          description: t('Your booking request has been submitted successfully')
-        });
-        
-        if (onSuccess) {
-          onSuccess();
-        }
-        
-        if (onOpenChange) {
-          onOpenChange(false);
-        }
       }
+
     } catch (error) {
       console.error('Error submitting form:', error);
       setIsSubmitting(false);
@@ -387,8 +297,6 @@ export const BookingRequestForm = ({
         description: t('There was a problem submitting your request. Please try again.'),
         variant: 'destructive'
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
