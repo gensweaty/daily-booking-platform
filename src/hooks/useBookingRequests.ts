@@ -4,13 +4,11 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { BookingRequest } from "@/types/database";
-import { useLanguage } from "@/contexts/LanguageContext";
 
 export const useBookingRequests = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [businessId, setBusinessId] = useState<string | null>(null);
-  const { language } = useLanguage(); // Get the current language
   
   useEffect(() => {
     const fetchBusinessProfile = async () => {
@@ -56,13 +54,12 @@ export const useBookingRequests = () => {
   const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
   const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
   
-  async function sendApprovalEmail({ email, fullName, businessName, startDate, endDate, language }: {
+  async function sendApprovalEmail({ email, fullName, businessName, startDate, endDate }: {
     email: string;
     fullName: string;
     businessName: string;
     startDate: string;
     endDate: string;
-    language?: string; // Added language parameter
   }) {
     if (!email || !email.includes('@')) {
       console.error("Invalid email format or missing email:", email);
@@ -73,7 +70,6 @@ export const useBookingRequests = () => {
       console.log(`Sending approval email to ${email} for booking at ${businessName}`);
       console.log(`Raw start date: ${startDate}`);
       console.log(`Raw end date: ${endDate}`);
-      console.log(`Using language: ${language || 'en'}`);
       
       // Prepare the request with all required data - passing the original ISO strings directly
       const requestBody = JSON.stringify({
@@ -82,7 +78,6 @@ export const useBookingRequests = () => {
         businessName: businessName || "Our Business",
         startDate: startDate, // Pass the ISO string directly
         endDate: endDate,     // Pass the ISO string directly
-        language: language || 'en' // Include the language
       });
       
       console.log("Request body for email function:", requestBody);
@@ -412,7 +407,6 @@ export const useBookingRequests = () => {
           businessName,
           startDate: booking.start_date,
           endDate: booking.end_date,
-          language: booking.language || language || "en" // Use booking language, fallback to current UI language
         });
         
         const emailResult = await sendApprovalEmail({
@@ -421,7 +415,6 @@ export const useBookingRequests = () => {
           businessName,
           startDate: booking.start_date,
           endDate: booking.end_date,
-          language: booking.language || language || "en" // Use booking language, fallback to current UI language
         });
         
         if (emailResult.success) {

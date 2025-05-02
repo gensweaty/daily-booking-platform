@@ -205,7 +205,6 @@ export const EventDialog = ({
         businessName,
         startDate: startDateTime.toISOString(),
         endDate: endDateTime.toISOString(),
-        language // Include the current language
       });
       
       const { data: sessionData } = await supabase.auth.getSession();
@@ -230,7 +229,6 @@ export const EventDialog = ({
             businessName,
             startDate: startDateTime.toISOString(),
             endDate: endDateTime.toISOString(),
-            language // Include the current language
           }),
         }
       );

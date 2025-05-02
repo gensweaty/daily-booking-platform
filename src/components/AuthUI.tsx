@@ -60,18 +60,18 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
           </div>
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-1 text-center">
-          {t('auth.signIn')}
+          {t("auth.welcome")}
         </h1>
         <p className="text-foreground/80 text-center text-sm mb-4">
-          {t('auth.description') || 'Sign in to your account to continue'}
+          {t("auth.description")}
         </p>
       </header>
 
       <div className="w-full max-w-sm mx-auto">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "signin" | "signup")} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="signin">{t('auth.signIn')}</TabsTrigger>
-            <TabsTrigger value="signup">{t('auth.signUp')}</TabsTrigger>
+            <TabsTrigger value="signin">{t("auth.signInButton")}</TabsTrigger>
+            <TabsTrigger value="signup">{t("auth.signUpButton")}</TabsTrigger>
           </TabsList>
           <TabsContent value="signin">
             <SignIn />

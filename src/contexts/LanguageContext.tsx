@@ -8,19 +8,17 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export const LanguageProvider = ({ children }: { children: React.ReactNode }) => {
   const [language, setLanguage] = useState<Language>(() => {
     // Try to get language from URL first
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlLang = urlParams.get('lang');
-      if (urlLang && ['en', 'es', 'ka'].includes(urlLang)) {
-        localStorage.setItem('language', urlLang as Language);
-        return urlLang as Language;
-      }
-      
-      // Then try localStorage
-      const saved = localStorage.getItem('language');
-      if (saved && ['en', 'es', 'ka'].includes(saved)) {
-        return saved as Language;
-      }
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlLang = urlParams.get('lang');
+    if (urlLang && ['en', 'es', 'ka'].includes(urlLang)) {
+      localStorage.setItem('language', urlLang as Language);
+      return urlLang as Language;
+    }
+    
+    // Then try localStorage
+    const saved = localStorage.getItem('language');
+    if (saved && ['en', 'es', 'ka'].includes(saved)) {
+      return saved as Language;
     }
     
     // Default to 'en'
@@ -28,17 +26,15 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
   });
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('language', language);
-      
-      // Update URL without reloading the page
-      const url = new URL(window.location.href);
-      url.searchParams.set('lang', language);
-      window.history.replaceState({}, '', url);
-      
-      // Update the lang attribute on the HTML element
-      document.documentElement.setAttribute('lang', language);
-    }
+    localStorage.setItem('language', language);
+    
+    // Update URL without reloading the page
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', language);
+    window.history.replaceState({}, '', url);
+    
+    // Update the lang attribute on the HTML element
+    document.documentElement.setAttribute('lang', language);
   }, [language]);
 
   const t = (key: string, params?: Record<string, string | number>): string => {
