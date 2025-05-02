@@ -14,7 +14,36 @@ interface BookingApprovalEmailRequest {
   businessName: string;
   startDate: string;
   endDate: string;
+  language?: string; // Added language parameter
 }
+
+// Email translation templates
+const emailTranslations = {
+  en: {
+    subject: "Booking Approved",
+    heading: "Hello",
+    message: "Your booking has been approved at",
+    bookingDate: "Booking date and time",
+    lookingForward: "We look forward to seeing you!",
+    automatedApproval: "This is an automated message."
+  },
+  es: {
+    subject: "Reserva aprobada",
+    heading: "Hola",
+    message: "Su reserva ha sido aprobada en",
+    bookingDate: "Fecha y hora de la reserva",
+    lookingForward: "¡Esperamos verte!",
+    automatedApproval: "Este es un mensaje automatizado."
+  },
+  ka: {
+    subject: "ჯავშანი დადასტურებულია",
+    heading: "გამარჯობა",
+    message: "თქვენი ჯავშანი დადასტურებულია",
+    bookingDate: "ჯავშნის თარიღი და დრო",
+    lookingForward: "გელოდებით!",
+    automatedApproval: "ეს არის ავტომატური შეტყობინება."
+  }
+};
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -38,11 +67,12 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    const { recipientEmail, fullName, businessName, startDate, endDate } = parsedBody;
+    const { recipientEmail, fullName, businessName, startDate, endDate, language = "en" } = parsedBody;
 
     console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName}`);
     console.log(`Start date (raw ISO string): ${startDate}`);
     console.log(`End date (raw ISO string): ${endDate}`);
+    console.log(`Using language: ${language}`);
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -75,17 +105,23 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     console.log(`Attempting to send email via SMTP to ${recipientEmail}`);
+
+    // Get translations for the specified language
+    const lang = (language && emailTranslations[language]) ? language : "en";
+    const t = emailTranslations[lang];
+
+    console.log(`Using language: ${lang} for email`);
     
     try {
-      // Create HTML email content
+      // Create HTML email content with the specified language
       const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-          <h2 style="color: #333;">Hello ${fullName},</h2>
-          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
-          <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          <p>We look forward to seeing you!</p>
+          <h2 style="color: #333;">${t.heading} ${fullName},</h2>
+          <p>${t.message} <b>${businessName}</b>.</p>
+          <p><strong>${t.bookingDate}:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          <p>${t.lookingForward}</p>
           <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-          <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
+          <p style="color: #777; font-size: 14px;"><i>${t.automatedApproval}</i></p>
         </div>
       `;
       
@@ -93,8 +129,8 @@ const handler = async (req: Request): Promise<Response> => {
       await client.send({
         from: `${businessName} <info@smartbookly.com>`,
         to: recipientEmail,
-        subject: `Booking Approved at ${businessName}`,
-        content: "Your booking has been approved",
+        subject: t.subject,
+        content: `${t.heading} ${fullName}, ${t.message} ${businessName}.`,
         html: htmlContent,
       });
       
@@ -105,7 +141,8 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(
         JSON.stringify({ 
           message: "Email sent successfully",
-          to: recipientEmail
+          to: recipientEmail,
+          language: lang
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );

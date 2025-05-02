@@ -55,11 +55,25 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
       throw new Error("Rate limit reached. Please wait before submitting another booking request.");
     }
     
+    // Get current language from URL or localStorage 
+    // This ensures we send emails in the correct language
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlLang = urlParams.get('lang');
+    const storedLang = localStorage.getItem('language');
+    const language = (urlLang && ['en', 'es', 'ka'].includes(urlLang)) ? 
+      urlLang : 
+      (storedLang && ['en', 'es', 'ka'].includes(storedLang)) ? 
+        storedLang : 
+        'en';
+    
+    console.log(`Using language for booking request email: ${language}`);
+    
     // Ensure payment_amount is properly handled when saving to the database
     const bookingData = {
       ...request,
       status: 'pending',
-      user_id: userData?.user?.id || null // Allow null for public bookings
+      user_id: userData?.user?.id || null, // Allow null for public bookings
+      language // Add the language to the booking request
     };
     
     // Make sure payment_amount is correctly formatted as a number or null

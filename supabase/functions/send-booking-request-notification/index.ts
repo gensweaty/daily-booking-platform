@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -16,7 +17,57 @@ interface BookingNotificationRequest {
   notes?: string;
   businessName?: string;
   requesterEmail?: string;
+  language?: string; // Added language parameter
 }
+
+// Email translation templates
+const emailTranslations = {
+  en: {
+    subject: "New Booking Request - Action Required",
+    heading: "New Booking Request",
+    intro: "Hello,",
+    details: "You have received a new booking request from",
+    startDate: "Start Date",
+    endDate: "End Date",
+    phone: "Phone",
+    notes: "Notes",
+    email: "Email",
+    viewDashboard: "Please log in to your dashboard to view and respond to this request:",
+    buttonText: "Go to Dashboard",
+    automatedMessage: "This is an automated message from SmartBookly",
+    disclaimer: "If you did not sign up for SmartBookly, please disregard this email."
+  },
+  es: {
+    subject: "Nueva solicitud de reserva - Acción requerida",
+    heading: "Nueva solicitud de reserva",
+    intro: "Hola,",
+    details: "Has recibido una nueva solicitud de reserva de",
+    startDate: "Fecha de inicio",
+    endDate: "Fecha de finalización",
+    phone: "Teléfono",
+    notes: "Notas",
+    email: "Correo electrónico",
+    viewDashboard: "Por favor inicie sesión en su panel para ver y responder a esta solicitud:",
+    buttonText: "Ir al panel",
+    automatedMessage: "Este es un mensaje automatizado de SmartBookly",
+    disclaimer: "Si no se registró para SmartBookly, ignore este correo electrónico."
+  },
+  ka: {
+    subject: "ახალი ჯავშნის მოთხოვნა - საჭიროა ქმედება",
+    heading: "ახალი ჯავშნის მოთხოვნა",
+    intro: "გამარჯობა,",
+    details: "თქვენ მიიღეთ ახალი ჯავშნის მოთხოვნა მომხმარებლისგან",
+    startDate: "დაწყების თარიღი",
+    endDate: "დასრულების თარიღი",
+    phone: "ტელეფონი",
+    notes: "შენიშვნები",
+    email: "ელ-ფოსტა",
+    viewDashboard: "დასათვალიერებლად და პასუხის გასაცემად შედით თქვენს პანელში:",
+    buttonText: "გადადით პანელზე",
+    automatedMessage: "ეს არის ავტომატური შეტყობინება SmartBookly-სგან",
+    disclaimer: "თუ არ დარეგისტრირებულხართ SmartBookly-ში, გთხოვთ, უგულებელყოთ ეს წერილი."
+  }
+};
 
 const handler = async (req: Request): Promise<Response> => {
   console.log(`🔔 Booking notification function invoked with method: ${req.method}`);
@@ -84,7 +135,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Validate required fields
-    const { businessEmail, requesterName, requestDate, endDate, phoneNumber = "", notes = "", businessName = "Your Business", requesterEmail = "" } = requestData;
+    const { businessEmail, requesterName, requestDate, endDate, phoneNumber = "", notes = "", businessName = "Your Business", requesterEmail = "", language = "en" } = requestData;
     
     if (!businessEmail || !requesterName || !requestDate || !endDate) {
       const missingFields = [];
@@ -127,14 +178,20 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Get the correct translations based on language
+    const lang = (language && emailTranslations[language]) ? language : "en";
+    const t = emailTranslations[lang];
+
+    console.log(`💬 Using language: ${lang} for email`);
+
     // Create email content - improve formatting for better deliverability
     const emailHtml = `
       <!DOCTYPE html>
-      <html lang="en">
+      <html lang="${lang}">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>New Booking Request</title>
+        <title>${t.subject}</title>
         <style>
           body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
           .container { border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; }
@@ -149,23 +206,23 @@ const handler = async (req: Request): Promise<Response> => {
       </head>
       <body>
         <div class="container">
-          <h2 class="header">New Booking Request</h2>
-          <p>Hello,</p>
-          <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
+          <h2 class="header">${t.heading}</h2>
+          <p>${t.intro}</p>
+          <p>${t.details} <strong>${requesterName}</strong>.</p>
           <div class="details">
-            <p class="detail"><strong>Start Date:</strong> ${requestDate}</p>
-            <p class="detail"><strong>End Date:</strong> ${endDate}</p>
-            ${phoneNumber ? `<p class="detail"><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
-            ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
-            ${requesterEmail ? `<p class="detail"><strong>Email:</strong> ${requesterEmail}</p>` : ''}
+            <p class="detail"><strong>${t.startDate}:</strong> ${requestDate}</p>
+            <p class="detail"><strong>${t.endDate}:</strong> ${endDate}</p>
+            ${phoneNumber ? `<p class="detail"><strong>${t.phone}:</strong> ${phoneNumber}</p>` : ''}
+            ${notes ? `<p class="detail"><strong>${t.notes}:</strong> ${notes}</p>` : ''}
+            ${requesterEmail ? `<p class="detail"><strong>${t.email}:</strong> ${requesterEmail}</p>` : ''}
           </div>
-          <p>Please log in to your dashboard to view and respond to this request:</p>
+          <p>${t.viewDashboard}</p>
           <div class="button">
-            <a href="https://smartbookly.com/dashboard">Go to Dashboard</a>
+            <a href="https://smartbookly.com/dashboard">${t.buttonText}</a>
           </div>
           <hr style="border: none; border-top: 1px solid #e1e1e1; margin: 20px 0;">
-          <p class="footer">This is an automated message from SmartBookly</p>
-          <p class="small">If you did not sign up for SmartBookly, please disregard this email.</p>
+          <p class="footer">${t.automatedMessage}</p>
+          <p class="small">${t.disclaimer}</p>
         </div>
       </body>
       </html>
@@ -173,24 +230,24 @@ const handler = async (req: Request): Promise<Response> => {
     
     // Create plain text version for better deliverability
     const plainText = `
-New Booking Request
+${t.heading}
 
-Hello,
+${t.intro}
 
-You have received a new booking request from ${requesterName}.
+${t.details} ${requesterName}.
 
-Start Date: ${requestDate}
-End Date: ${endDate}
-${phoneNumber ? `Phone: ${phoneNumber}` : ''}
-${notes ? `Notes: ${notes}` : ''}
-${requesterEmail ? `Email: ${requesterEmail}` : ''}
+${t.startDate}: ${requestDate}
+${t.endDate}: ${endDate}
+${phoneNumber ? `${t.phone}: ${phoneNumber}` : ''}
+${notes ? `${t.notes}: ${notes}` : ''}
+${requesterEmail ? `${t.email}: ${requesterEmail}` : ''}
 
-Please log in to your dashboard to view and respond to this request:
+${t.viewDashboard}
 https://smartbookly.com/dashboard
 
-This is an automated message from SmartBookly
+${t.automatedMessage}
 
-If you did not sign up for SmartBookly, please disregard this email.
+${t.disclaimer}
     `;
     
     console.log("📧 Sending email to:", businessEmail);
@@ -200,7 +257,7 @@ If you did not sign up for SmartBookly, please disregard this email.
     
     console.log("📧 Final recipient:", businessEmail);
     console.log("📧 Sending from:", fromEmail);
-    console.log("📧 Subject: New Booking Request - Action Required");
+    console.log(`📧 Subject: ${t.subject}`);
     
     let emailResult;
     try {
@@ -210,7 +267,7 @@ If you did not sign up for SmartBookly, please disregard this email.
       emailResult = await resend.emails.send({
         from: fromEmail,
         to: [businessEmail],
-        subject: "New Booking Request - Action Required",
+        subject: t.subject,
         html: emailHtml,
         text: plainText,
         reply_to: "no-reply@smartbookly.com",
@@ -263,7 +320,8 @@ If you did not sign up for SmartBookly, please disregard this email.
         success: true, 
         message: "Email notification sent successfully",
         id: emailResult.data?.id,
-        email: businessEmail
+        email: businessEmail,
+        language: lang
       }),
       { 
         status: 200, 

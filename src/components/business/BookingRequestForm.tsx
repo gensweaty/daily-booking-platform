@@ -1,486 +1,429 @@
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { format } from "date-fns";
+import { CalendarIcon, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { createBookingRequest, checkRateLimitStatus } from "@/lib/api";
+import { useToast } from "@/components/ui/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-import { useState, useRef, useEffect } from 'react';
-import { format } from 'date-fns';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/lib/supabase';
-import { toast } from '@/components/ui/use-toast';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { FileUploadField } from '@/components/shared/FileUploadField';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-import { LanguageText } from '@/components/shared/LanguageText';
-import { Asterisk } from 'lucide-react';
+// Define the form schema with Zod
+const formSchema = z.object({
+  requester_name: z.string().min(2, {
+    message: "Name must be at least 2 characters.",
+  }),
+  requester_email: z.string().email({
+    message: "Please enter a valid email address.",
+  }),
+  requester_phone: z.string().optional(),
+  description: z.string().optional(),
+  start_date: z.date({
+    required_error: "Please select a start date and time.",
+  }),
+  end_date: z.date({
+    required_error: "Please select an end date and time.",
+  }),
+});
 
-export interface BookingRequestFormProps {
+type FormValues = z.infer<typeof formSchema>;
+
+interface BookingRequestFormProps {
   businessId: string;
-  selectedDate: Date;
-  startTime?: string;
-  endTime?: string;
   onSuccess?: () => void;
-  isExternalBooking?: boolean;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
+  onError?: (error: Error) => void;
+  minDate?: Date;
+  maxDate?: Date;
+  disabledDates?: Date[];
+  disabledTimes?: {
+    startTime: string;
+    endTime: string;
+  }[];
 }
 
 export const BookingRequestForm = ({
   businessId,
-  selectedDate,
-  startTime = '09:00',
-  endTime = '10:00',
   onSuccess,
-  isExternalBooking = false,
-  open,
-  onOpenChange
+  onError,
+  minDate,
+  maxDate,
+  disabledDates = [],
+  disabledTimes = [],
 }: BookingRequestFormProps) => {
-  const { t, language } = useLanguage();
-  const isGeorgian = language === 'ka';
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Replace useState with fullName state
-  const [fullName, setFullName] = useState('');
-  
-  // Add new state variables to match EventDialog structure
-  const [userSurname, setUserSurname] = useState('');
-  const [userNumber, setUserNumber] = useState('');
-  const [socialNetworkLink, setSocialNetworkLink] = useState('');
-  const [eventNotes, setEventNotes] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState('not_paid');
-  const [paymentAmount, setPaymentAmount] = useState('');
+  const [rateLimited, setRateLimited] = useState(false);
+  const [remainingTime, setRemainingTime] = useState(0);
+  const { t, language } = useLanguage();
 
-  // Move date initialization to useEffect
+  // Initialize the form
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      requester_name: "",
+      requester_email: "",
+      requester_phone: "",
+      description: "",
+    },
+  });
+
+  // Check rate limit status on component mount
   useEffect(() => {
-    try {
-      const start = combineDateAndTime(selectedDate, startTime);
-      const end = combineDateAndTime(selectedDate, endTime);
-      
-      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-    } catch (error) {
-      console.error('Error initializing dates:', error);
-      // Set fallback dates in case of error
-      const now = new Date();
-      const oneHourLater = new Date(now);
-      oneHourLater.setHours(oneHourLater.getHours() + 1);
-      
-      setStartDate(format(now, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(oneHourLater, "yyyy-MM-dd'T'HH:mm"));
+    const checkRateLimit = async () => {
+      const { isLimited, remainingTime } = await checkRateLimitStatus();
+      setRateLimited(isLimited);
+      setRemainingTime(remainingTime);
+    };
+
+    checkRateLimit();
+
+    // Set up countdown timer if rate limited
+    let timer: number | undefined;
+    if (rateLimited && remainingTime > 0) {
+      timer = window.setInterval(() => {
+        setRemainingTime((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setRateLimited(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     }
-  }, [selectedDate, startTime, endTime]);
 
-  const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
-  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [rateLimited]);
 
-  // Create a required field indicator component
-  const RequiredFieldIndicator = () => (
-    <Asterisk className="inline h-3 w-3 text-destructive ml-1" />
-  );
-
-  const combineDateAndTime = (date: Date, timeString: string) => {
-    if (!timeString) return new Date(date);
-    const [hours, minutes] = timeString.split(':').map(Number);
-    const newDate = new Date(date);
-    newDate.setHours(hours, minutes, 0, 0);
-    return newDate;
+  // Format remaining time for display
+  const formatRemainingTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
-  // Handle name change to update both fullName and userSurname
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setFullName(value);
-    setUserSurname(value);
-  };
+  // Handle form submission
+  const onSubmit = async (data: FormValues) => {
+    if (rateLimited) {
+      toast({
+        title: "Rate limit reached",
+        description: `Please wait ${formatRemainingTime(
+          remainingTime
+        )} before submitting another request.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const handleFileChange = (file: File | null) => {
-    setSelectedFile(file);
-    setFileError('');
-  };
+    setIsSubmitting(true);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
     try {
-      setIsSubmitting(true);
-      console.log("Starting form submission...");
-
-      // Validate required fields
-      if (!fullName) {
-        toast({
-          title: t('common.error'),
-          description: t('Name is required'),
-          variant: 'destructive'
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (!userNumber) {
-        toast({
-          title: t('common.error'),
-          description: t('Phone number is required'),
-          variant: 'destructive'
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (!socialNetworkLink || !socialNetworkLink.includes('@')) {
-        toast({
-          title: t('common.error'),
-          description: t('Valid email address is required'),
-          variant: 'destructive'
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      const startDateTime = new Date(startDate);
-      const endDateTime = new Date(endDate);
-
-      // Additional validation for dates
-      if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-        toast({
-          title: t('common.error'),
-          description: t('Valid start and end dates are required'),
-          variant: 'destructive'
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Process payment amount
-      let finalPaymentAmount = null;
-      if (showPaymentAmount && paymentAmount) {
-        const amount = parseFloat(paymentAmount);
-        if (!isNaN(amount)) {
-          finalPaymentAmount = amount;
-        }
-      }
-
+      // Format dates as ISO strings
       const bookingData = {
         business_id: businessId,
-        requester_name: fullName,
-        requester_email: socialNetworkLink,
-        requester_phone: userNumber,
-        // Use fullName for both title and requester_name to ensure consistency
-        title: `${fullName}`,
-        description: eventNotes || null,
-        start_date: startDateTime.toISOString(),
-        end_date: endDateTime.toISOString(),
-        payment_status: paymentStatus,
-        payment_amount: finalPaymentAmount,
-        status: 'pending',
+        requester_name: data.requester_name,
+        requester_email: data.requester_email,
+        requester_phone: data.requester_phone || null,
+        description: data.description || null,
+        start_date: data.start_date.toISOString(),
+        end_date: data.end_date.toISOString(),
+        title: `Booking for ${data.requester_name}`,
+        language: language, // Pass the current language
       };
 
-      console.log('Submitting booking request:', bookingData);
+      console.log("Submitting booking request:", bookingData);
+      await createBookingRequest(bookingData);
 
-      const { data, error } = await supabase
-        .from('booking_requests')
-        .insert(bookingData)
-        .select()
-        .single();
+      toast({
+        title: t("common.success"),
+        description: "Your booking request has been submitted successfully.",
+      });
 
-      if (error) {
-        console.error('Error submitting booking request:', error);
-        throw error;
-      }
-
-      const bookingId = data.id;
-      console.log('Booking request created with ID:', bookingId);
-
-      if (selectedFile && bookingId) {
-        try {
-          const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${bookingId}/${Date.now()}.${fileExt}`;
-
-          console.log('Uploading file to path:', filePath);
-          const { error: uploadError } = await supabase.storage
-            .from('booking_attachments')
-            .upload(filePath, selectedFile);
-
-          if (uploadError) {
-            console.error('Error uploading file:', uploadError);
-            throw uploadError;
-          }
-
-          console.log('File uploaded successfully to path:', filePath);
-
-          const fileRecord = {
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            event_id: bookingId
-          };
-
-          const { error: fileRecordError } = await supabase
-            .from('event_files')
-            .insert(fileRecord);
-
-          if (fileRecordError) {
-            console.error('Error creating file record:', fileRecordError);
-          } else {
-            console.log('File record created successfully in event_files');
-          }
-        } catch (fileError) {
-          console.error('Error handling file upload:', fileError);
-        }
-      }
-
-      console.log('Booking request submitted successfully!');
-      setIsSubmitting(false);
-      
       // Reset form
-      setFullName('');
-      setUserSurname('');
-      setUserNumber('');
-      setSocialNetworkLink('');
-      setEventNotes('');
-      setPaymentStatus('not_paid');
-      setPaymentAmount('');
-      setSelectedFile(null);
-      
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-
-      toast({
-        title: t('common.success'),
-        description: t('Your booking request has been submitted successfully')
+      form.reset({
+        requester_name: "",
+        requester_email: "",
+        requester_phone: "",
+        description: "",
       });
 
-      if (onSuccess) {
-        onSuccess();
-      }
-
-      if (onOpenChange) {
-        onOpenChange(false);
-      }
-
-      try {
-        console.log('Sending notification email...');
-        await fetch(
-          "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              businessId: businessId,
-              requesterName: fullName,
-              requesterEmail: socialNetworkLink,
-              requesterPhone: userNumber,
-              notes: eventNotes || "No additional notes",
-              startDate: startDateTime.toISOString(),
-              endDate: endDateTime.toISOString(),
-              hasAttachment: !!selectedFile,
-              paymentStatus: paymentStatus,
-              paymentAmount: finalPaymentAmount
-            }),
-          }
-        );
-        console.log("Email notification sent to business owner");
-      } catch (emailError) {
-        console.error("Failed to send email notification:", emailError);
-      }
-
+      // Call success callback if provided
+      if (onSuccess) onSuccess();
     } catch (error) {
-      console.error('Error submitting form:', error);
-      setIsSubmitting(false);
+      console.error("Error submitting booking request:", error);
       toast({
-        title: t('common.error'),
-        description: t('There was a problem submitting your request. Please try again.'),
-        variant: 'destructive'
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to submit booking request",
+        variant: "destructive",
       });
+
+      // Call error callback if provided
+      if (onError && error instanceof Error) onError(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-4 p-1">
-      <h3 className="text-xl font-semibold">
-        <LanguageText withFont={true} fixLetterSpacing={true}>
-          {t('booking.bookAppointment')}
-        </LanguageText>
-      </h3>
-      
-      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-        {/* Full Name Field */}
-        <div>
-          <Label htmlFor="fullName" className={labelClass}>
-            <LanguageText>{t("events.fullName")}</LanguageText>
-            <RequiredFieldIndicator />
-          </Label>
-          <Input
-            id="fullName"
-            value={fullName}
-            onChange={handleNameChange}
-            placeholder={t("events.fullName")}
-            required
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="requester_name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("common.name")}</FormLabel>
+              <FormControl>
+                <Input placeholder="John Doe" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="requester_email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("common.email")}</FormLabel>
+              <FormControl>
+                <Input placeholder="john@example.com" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="requester_phone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("common.phone")} ({t("common.optional")})</FormLabel>
+              <FormControl>
+                <Input placeholder="+1 234 567 8900" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="start_date"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>{t("common.startDate")}</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value ? (
+                          format(field.value, "PPP HH:mm")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      disabled={(date) => {
+                        // Disable dates before today
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        
+                        // Apply minDate if provided
+                        if (minDate) {
+                          const min = new Date(minDate);
+                          min.setHours(0, 0, 0, 0);
+                          if (date < min) return true;
+                        }
+                        
+                        // Apply maxDate if provided
+                        if (maxDate) {
+                          const max = new Date(maxDate);
+                          max.setHours(0, 0, 0, 0);
+                          if (date > max) return true;
+                        }
+                        
+                        // Check if date is in disabledDates
+                        return date < today || disabledDates.some(
+                          (disabledDate) => 
+                            disabledDate.getDate() === date.getDate() &&
+                            disabledDate.getMonth() === date.getMonth() &&
+                            disabledDate.getFullYear() === date.getFullYear()
+                        );
+                      }}
+                      initialFocus
+                    />
+                    <div className="p-3 border-t border-border">
+                      <Input
+                        type="time"
+                        value={field.value ? format(field.value, "HH:mm") : ""}
+                        onChange={(e) => {
+                          const [hours, minutes] = e.target.value.split(":");
+                          const newDate = field.value
+                            ? new Date(field.value)
+                            : new Date();
+                          newDate.setHours(parseInt(hours, 10));
+                          newDate.setMinutes(parseInt(minutes, 10));
+                          field.onChange(newDate);
+                        }}
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="end_date"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>{t("common.endDate")}</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value ? (
+                          format(field.value, "PPP HH:mm")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      disabled={(date) => {
+                        // Disable dates before start date
+                        const startDate = form.getValues("start_date");
+                        if (startDate) {
+                          const start = new Date(startDate);
+                          start.setHours(0, 0, 0, 0);
+                          if (date < start) return true;
+                        }
+                        
+                        // Apply maxDate if provided
+                        if (maxDate) {
+                          const max = new Date(maxDate);
+                          max.setHours(0, 0, 0, 0);
+                          if (date > max) return true;
+                        }
+                        
+                        // Check if date is in disabledDates
+                        return disabledDates.some(
+                          (disabledDate) => 
+                            disabledDate.getDate() === date.getDate() &&
+                            disabledDate.getMonth() === date.getMonth() &&
+                            disabledDate.getFullYear() === date.getFullYear()
+                        );
+                      }}
+                      initialFocus
+                    />
+                    <div className="p-3 border-t border-border">
+                      <Input
+                        type="time"
+                        value={field.value ? format(field.value, "HH:mm") : ""}
+                        onChange={(e) => {
+                          const [hours, minutes] = e.target.value.split(":");
+                          const newDate = field.value
+                            ? new Date(field.value)
+                            : new Date();
+                          newDate.setHours(parseInt(hours, 10));
+                          newDate.setMinutes(parseInt(minutes, 10));
+                          field.onChange(newDate);
+                        }}
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
           />
         </div>
 
-        {/* Phone Number Field */}
-        <div>
-          <Label htmlFor="userNumber" className={labelClass}>
-            <LanguageText>{t("events.phoneNumber")}</LanguageText>
-            <RequiredFieldIndicator />
-          </Label>
-          <Input
-            id="userNumber"
-            value={userNumber}
-            onChange={(e) => setUserNumber(e.target.value)}
-            placeholder={t("events.phoneNumber")}
-            required
-          />
-        </div>
-
-        {/* Email Field */}
-        <div>
-          <Label htmlFor="socialNetworkLink" className={labelClass}>
-            <LanguageText>{t("events.socialLinkEmail")}</LanguageText>
-            <RequiredFieldIndicator />
-          </Label>
-          <Input
-            id="socialNetworkLink"
-            value={socialNetworkLink}
-            onChange={(e) => setSocialNetworkLink(e.target.value)}
-            placeholder="email@example.com"
-            type="email"
-            required
-          />
-        </div>
-
-        {/* Date and Time Fields */}
-        <div>
-          <Label htmlFor="dateTime" className={labelClass}>
-            <LanguageText>{t("events.dateAndTime")}</LanguageText>
-            <RequiredFieldIndicator />
-          </Label>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
-                <LanguageText>{t("events.start")}</LanguageText>
-              </Label>
-              <div className="relative">
-                <Input
-                  id="startDate"
-                  type="datetime-local"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  required
-                  className="w-full"
-                  style={{ colorScheme: 'auto' }}
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("common.notes")} ({t("common.optional")})</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Any special requests or additional information"
+                  className="resize-none"
+                  {...field}
                 />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
-                <LanguageText>{t("events.end")}</LanguageText>
-              </Label>
-              <div className="relative">
-                <Input
-                  id="endDate"
-                  type="datetime-local"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  required
-                  className="w-full"
-                  style={{ colorScheme: 'auto' }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Payment Status Dropdown */}
-        <div>
-          <Label htmlFor="paymentStatus" className={labelClass}>
-            <LanguageText>{t("events.paymentStatus")}</LanguageText>
-          </Label>
-          <Select
-            value={paymentStatus}
-            onValueChange={setPaymentStatus}
-          >
-            <SelectTrigger id="paymentStatus" className={isGeorgian ? "font-georgian" : ""}>
-              <SelectValue placeholder={t("events.selectPaymentStatus")} />
-            </SelectTrigger>
-            <SelectContent className="bg-background">
-              <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.notPaid")}</SelectItem>
-              <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidPartly")}</SelectItem>
-              <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidFully")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        {/* Payment Amount Field - conditionally visible */}
-        {showPaymentAmount && (
-          <div>
-            <Label htmlFor="paymentAmount" className={labelClass}>
-              <LanguageText>{t("events.paymentAmount")}</LanguageText>
-            </Label>
-            <Input
-              id="paymentAmount"
-              value={paymentAmount}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                  setPaymentAmount(value);
-                }
-              }}
-              placeholder="0.00"
-              type="text"
-              inputMode="decimal"
-            />
-          </div>
-        )}
-        
-        {/* Notes Field */}
-        <div>
-          <Label htmlFor="eventNotes" className={labelClass}>
-            <LanguageText>{t("events.eventNotes")}</LanguageText>
-          </Label>
-          <Textarea
-            id="eventNotes"
-            value={eventNotes}
-            onChange={(e) => setEventNotes(e.target.value)}
-            placeholder={t("events.addEventNotes")}
-            className="min-h-[100px] resize-none"
-          />
-        </div>
-        
-        {/* File Upload Field - Fix label duplication */}
-        <div>
-          <Label htmlFor="file" className={labelClass}>
-            <LanguageText>{t("common.attachments")}</LanguageText>
-          </Label>
-          <FileUploadField
-            onChange={handleFileChange}
-            fileError={fileError}
-            setFileError={setFileError}
-            selectedFile={selectedFile}
-            ref={fileInputRef}
-            acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-            hideLabel={true}
-          />
-        </div>
-        
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={isSubmitting}
-        >
-          <LanguageText withFont={true} fixLetterSpacing={true}>
-            {isSubmitting ? t('common.submitting') : t('events.submitRequest')}
-          </LanguageText>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <Button type="submit" className="w-full" disabled={isSubmitting || rateLimited}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {t("common.loading")}
+            </>
+          ) : rateLimited ? (
+            `Please wait ${formatRemainingTime(remainingTime)}`
+          ) : (
+            "Submit Booking Request"
+          )}
         </Button>
       </form>
-    </div>
+    </Form>
   );
 };
-
-export default BookingRequestForm;
