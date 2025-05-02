@@ -224,6 +224,31 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("📅 Formatted start date:", formattedStartDate);
     console.log("📅 Formatted end date:", formattedEndDate);
 
+    // Format payment status for display - Convert keys to readable text
+    const formatPaymentStatus = (status?: string, amount?: number): string => {
+      if (!status) return "Not specified";
+      
+      switch (status) {
+        case "not_paid":
+          return "Not Paid";
+        case "partly_paid":
+        case "partly":
+          return amount ? `Partly Paid ($${amount})` : "Partly Paid";
+        case "fully_paid":
+        case "fully":
+          return amount ? `Fully Paid ($${amount})` : "Fully Paid";
+        default:
+          return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+      }
+    };
+
+    const formattedPaymentStatus = formatPaymentStatus(
+      requestData.paymentStatus, 
+      requestData.paymentAmount
+    );
+    
+    console.log("💰 Formatted payment status:", formattedPaymentStatus);
+
     // Create email content - improve formatting for better deliverability
     const emailHtml = `
       <!DOCTYPE html>
@@ -257,8 +282,7 @@ const handler = async (req: Request): Promise<Response> => {
             ${requesterEmail ? `<p class="detail"><strong>Email:</strong> ${requesterEmail}</p>` : ''}
             ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
             ${requestData.hasAttachment ? `<p class="detail"><strong>Has attachment:</strong> Yes</p>` : ''}
-            ${requestData.paymentStatus ? `<p class="detail"><strong>Payment status:</strong> ${requestData.paymentStatus}</p>` : ''}
-            ${requestData.paymentAmount ? `<p class="detail"><strong>Payment amount:</strong> ${requestData.paymentAmount}</p>` : ''}
+            <p class="detail"><strong>Payment status:</strong> ${formattedPaymentStatus}</p>
           </div>
           <p>Please log in to your dashboard to view and respond to this request:</p>
           <div class="button">
@@ -286,8 +310,7 @@ ${requesterPhone ? `Phone: ${requesterPhone}` : ''}
 ${requesterEmail ? `Email: ${requesterEmail}` : ''}
 ${notes ? `Notes: ${notes}` : ''}
 ${requestData.hasAttachment ? `Has attachment: Yes` : ''}
-${requestData.paymentStatus ? `Payment status: ${requestData.paymentStatus}` : ''}
-${requestData.paymentAmount ? `Payment amount: ${requestData.paymentAmount}` : ''}
+Payment status: ${formattedPaymentStatus}
 
 Please log in to your dashboard to view and respond to this request:
 https://smartbookly.com/dashboard
