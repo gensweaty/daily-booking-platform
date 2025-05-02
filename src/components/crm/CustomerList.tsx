@@ -12,6 +12,7 @@ import { SearchCommand } from "./SearchCommand";
 import { DateRangeSelect } from "@/components/Statistics/DateRangeSelect";
 import * as XLSX from 'xlsx';
 import { LanguageText } from "@/components/shared/LanguageText";
+import { getCurrencySymbol } from "@/lib/currency";
 import {
   Table,
   TableBody,
@@ -105,6 +106,9 @@ export const CustomerList = () => {
   const searchValueRef = useRef("");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<any>(null);
+  
+  // Get currency symbol based on language
+  const currencySymbol = useMemo(() => getCurrencySymbol(language), [language]);
 
   const { combinedData, isLoading, isFetching } = useCRMData(user?.id, dateRange);
 
@@ -280,12 +284,12 @@ export const CustomerList = () => {
         <LanguageText>{displayStatus}</LanguageText>
         {(normalizedStatus === 'partly' || normalizedStatus === 'fully') && amount && (
           <div className="text-xs mt-0.5">
-            ({language === 'es' ? '€' : '$'}{amount.toFixed(2)})
+            ({currencySymbol}{amount.toFixed(2)})
           </div>
         )}
       </div>
     );
-  }, [t, language]);
+  }, [t, currencySymbol]);
 
   const openCreateDialog = useCallback(() => {
     setSelectedCustomer(null);
@@ -321,6 +325,9 @@ export const CustomerList = () => {
   const handleExcelDownload = useCallback(() => {
     if (!filteredData.length) return;
 
+    // Get currency symbol based on current language
+    const currencySymbol = getCurrencySymbol(language);
+
     const excelData = filteredData.map(customer => {
       const paymentStatusText = customer.payment_status ? 
         customer.payment_status === 'not_paid' ? t("crm.notPaid") :
@@ -333,7 +340,7 @@ export const CustomerList = () => {
         [t("crm.phoneNumber")]: customer.user_number || '',
         [t("crm.socialLinkEmail")]: customer.social_network_link || '',
         [t("crm.paymentStatus")]: paymentStatusText,
-        [t("crm.paymentAmount")]: customer.payment_amount ? `${language === 'es' ? '€' : '$'}${customer.payment_amount}` : '',
+        [t("crm.paymentAmount")]: customer.payment_amount ? `${currencySymbol}${customer.payment_amount}` : '',
         [t("events.date")]: customer.start_date ? format(new Date(customer.start_date), 'dd.MM.yyyy') : '',
         [t("events.time")]: customer.start_date && customer.end_date ? 
           formatTimeRange(customer.start_date, customer.end_date) : '',
