@@ -158,8 +158,8 @@ const handler = async (req: Request): Promise<Response> => {
             <p class="detail"><strong>Start Date:</strong> ${requestDate}</p>
             <p class="detail"><strong>End Date:</strong> ${endDate}</p>
             ${phoneNumber ? `<p class="detail"><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
-            ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
             ${requesterEmail ? `<p class="detail"><strong>Email:</strong> ${requesterEmail}</p>` : ''}
+            ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
           </div>
           <p>Please log in to your dashboard to view and respond to this request:</p>
           <div class="button">
@@ -184,8 +184,8 @@ You have received a new booking request from ${requesterName}.
 Start Date: ${requestDate}
 End Date: ${endDate}
 ${phoneNumber ? `Phone: ${phoneNumber}` : ''}
-${notes ? `Notes: ${notes}` : ''}
 ${requesterEmail ? `Email: ${requesterEmail}` : ''}
+${notes ? `Notes: ${notes}` : ''}
 
 Please log in to your dashboard to view and respond to this request:
 https://smartbookly.com/dashboard

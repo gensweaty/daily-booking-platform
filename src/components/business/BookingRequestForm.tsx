@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -166,7 +165,7 @@ export const BookingRequestForm = ({
       // First fetch business information including the email
       const { data: businessData, error: businessError } = await supabase
         .from('business_profiles')
-        .select('business_name, user_email')
+        .select('business_name, user_id')
         .eq('id', businessId)
         .single();
 
@@ -174,8 +173,24 @@ export const BookingRequestForm = ({
         console.error('Error fetching business data:', businessError);
       }
 
-      const businessEmail = businessData?.user_email || null;
-      const businessName = businessData?.business_name || null;
+      // Get the user's email from the auth.users table using the user_id from business_profiles
+      let businessEmail = null;
+      let businessName = businessData?.business_name || null;
+
+      if (businessData?.user_id) {
+        // Fetch the user's email from the user account
+        const { data: userData, error: userError } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', businessData.user_id)
+          .single();
+          
+        if (userError) {
+          console.error('Error fetching user email:', userError);
+        } else if (userData) {
+          businessEmail = userData.email;
+        }
+      }
 
       console.log('Fetched business data:', {
         businessEmail,
@@ -288,7 +303,23 @@ export const BookingRequestForm = ({
         
         // Make sure we have all the data needed for the notification
         if (!businessEmail) {
-          console.error("Missing business email for sending notification");
+          // If we couldn't get the email from profiles, try directly from auth.users
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData?.session) {
+            // Get business owner's email directly
+            const { data: authUser } = await supabase.rpc('get_business_owner_email', {
+              business_id_param: businessId
+            });
+            
+            if (authUser && authUser.length > 0) {
+              businessEmail = authUser[0].email;
+              console.log("Retrieved business email via RPC:", businessEmail);
+            }
+          }
+          
+          if (!businessEmail) {
+            console.error("Could not retrieve business email through any method");
+          }
         }
         
         // Prepare notification data with all required fields
