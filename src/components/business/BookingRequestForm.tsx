@@ -113,6 +113,16 @@ export const BookingRequestForm = ({
         return;
       }
 
+      if (!userNumber) {
+        toast({
+          title: t('common.error'),
+          description: t('Phone number is required'),
+          variant: 'destructive'
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       if (!socialNetworkLink || !socialNetworkLink.includes('@')) {
         toast({
           title: t('common.error'),
@@ -150,7 +160,7 @@ export const BookingRequestForm = ({
         business_id: businessId,
         requester_name: fullName,
         requester_email: socialNetworkLink,
-        requester_phone: userNumber || null,
+        requester_phone: userNumber,
         // Use fullName for both title and requester_name to ensure consistency
         title: `${fullName}`,
         description: eventNotes || null,
@@ -257,7 +267,7 @@ export const BookingRequestForm = ({
               businessId: businessId,
               requesterName: fullName,
               requesterEmail: socialNetworkLink,
-              requesterPhone: userNumber || "Not provided",
+              requesterPhone: userNumber,
               notes: eventNotes || "No additional notes",
               startDate: startDateTime.toISOString(),
               endDate: endDateTime.toISOString(),
@@ -316,6 +326,7 @@ export const BookingRequestForm = ({
             value={userNumber}
             onChange={(e) => setUserNumber(e.target.value)}
             placeholder={t("events.phoneNumber")}
+            required
           />
         </div>
 
