@@ -155,8 +155,8 @@ const handler = async (req: Request): Promise<Response> => {
           <p>Hello,</p>
           <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
           <div class="details">
-            <p class="detail"><strong>Start Date:</strong> ${requestDate}</p>
-            <p class="detail"><strong>End Date:</strong> ${endDate}</p>
+            <p class="detail"><strong>Start Date:</strong> ${new Date(requestDate).toLocaleString()}</p>
+            <p class="detail"><strong>End Date:</strong> ${new Date(endDate).toLocaleString()}</p>
             ${phoneNumber ? `<p class="detail"><strong>Phone:</strong> ${phoneNumber}</p>` : ''}
             ${requesterEmail ? `<p class="detail"><strong>Email:</strong> ${requesterEmail}</p>` : ''}
             ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
@@ -181,8 +181,8 @@ Hello,
 
 You have received a new booking request from ${requesterName}.
 
-Start Date: ${requestDate}
-End Date: ${endDate}
+Start Date: ${new Date(requestDate).toLocaleString()}
+End Date: ${new Date(endDate).toLocaleString()}
 ${phoneNumber ? `Phone: ${phoneNumber}` : ''}
 ${requesterEmail ? `Email: ${requesterEmail}` : ''}
 ${notes ? `Notes: ${notes}` : ''}

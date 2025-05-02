@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -162,7 +163,7 @@ export const BookingRequestForm = ({
         }
       }
 
-      // First fetch business information including the email with more robust handling
+      // First fetch business information
       const { data: businessData, error: businessError } = await supabase
         .from('business_profiles')
         .select('business_name, user_id')
@@ -171,31 +172,40 @@ export const BookingRequestForm = ({
 
       if (businessError) {
         console.error('Error fetching business data:', businessError);
+        throw businessError;
       }
 
-      // Enhanced email retrieval with multiple fallbacks
+      // Get business email directly from the RPC function
       let businessEmail = null;
-      let businessName = businessData?.business_name || null;
+      let businessName = businessData?.business_name || "Your Business";
       
-      console.log('Looking up business data for ID:', businessId);
-      
-      // First try to get email via RPC function
       try {
-        console.log('Attempting to get business owner email via RPC...');
-        const { data: emailData, error: rpcError } = await supabase.rpc('get_business_owner_email', {
-          business_id_param: businessId
-        });
+        console.log('Getting business owner email via RPC function for business ID:', businessId);
+        const { data: emailData, error: rpcError } = await supabase.rpc(
+          'get_business_owner_email',
+          { business_id_param: businessId }
+        );
         
         if (rpcError) {
           console.error("Error getting business owner email via RPC:", rpcError);
-        } else if (emailData && emailData.length > 0) {
+          throw rpcError;
+        } 
+        
+        if (emailData && emailData.length > 0) {
           businessEmail = emailData[0].email;
           console.log("Retrieved business email via RPC:", businessEmail);
         } else {
-          console.warn("No email found via RPC function");
+          console.error("No email found via RPC function");
+          throw new Error("Could not retrieve business owner email");
         }
       } catch (rpcError) {
-        console.error("Exception calling get_business_owner_email RPC:", rpcError);
+        console.error("Error calling get_business_owner_email RPC:", rpcError);
+        throw rpcError;
+      }
+
+      if (!businessEmail) {
+        console.error("Failed to retrieve business owner email");
+        throw new Error("Could not retrieve business owner email");
       }
 
       console.log('Final business data gathered:', {
@@ -303,27 +313,14 @@ export const BookingRequestForm = ({
         onOpenChange(false);
       }
 
-      // Enhanced email notification section with better error handling and logging
+      // Send email notification
       try {
-        console.log('Sending notification email...');
-        
-        if (!businessEmail) {
-          console.error("No business email found after all lookup methods, cannot send notification");
-          toast({
-            title: t('common.warning'),
-            description: t('Your booking was submitted, but we could not notify the business owner.'),
-            variant: 'default'
-          });
-          setIsSubmitting(false);
-          return;
-        }
-        
-        console.log('Email will be sent to:', businessEmail);
+        console.log('Sending notification email to:', businessEmail);
         
         // Prepare notification data with all required fields
         const notificationData = {
           businessEmail: businessEmail,
-          businessName: businessName || "",
+          businessName: businessName,
           requesterName: fullName,
           requesterEmail: socialNetworkLink,
           requestDate: startDateTime.toISOString(),
@@ -335,47 +332,27 @@ export const BookingRequestForm = ({
         
         console.log("Notification data being sent:", notificationData);
         
-        // Call the Edge Function with proper error handling
-        try {
-          const response = await fetch(
-            "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
-            {
-              method: "POST",
-              headers: { 
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify(notificationData),
-            }
-          );
-          
-          const responseText = await response.text();
-          console.log(`Email notification response status: ${response.status}`);
-          console.log(`Email notification response body: ${responseText}`);
-          
-          let responseData;
-          try {
-            responseData = JSON.parse(responseText);
-            console.log("Parsed response data:", responseData);
-          } catch (parseError) {
-            console.error("Could not parse response as JSON:", parseError);
-            responseData = { error: true, message: "Invalid response format" };
+        // Call the Edge Function
+        const response = await fetch(
+          "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
+          {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(notificationData),
           }
-          
-          if (!response.ok || (responseData && responseData.error)) {
-            console.error("Email notification API error:", responseData?.error || responseData?.details || response.statusText);
-            throw new Error(responseData?.error || responseData?.details || "Email notification failed");
-          } else {
-            console.log("Email notification sent successfully to business owner:", responseData);
-            // Success - already shown booking success toast
-          }
-        } catch (fetchError) {
-          console.error("Fetch error during email notification:", fetchError);
-          toast({
-            title: t('common.warning'),
-            description: t('Your booking was submitted, but the notification email could not be sent.'),
-            variant: 'default'
-          });
+        );
+        
+        const responseText = await response.text();
+        console.log(`Email notification response status: ${response.status}`);
+        console.log(`Email notification response body: ${responseText}`);
+        
+        if (!response.ok) {
+          throw new Error(`Email notification failed: ${response.status} ${responseText}`);
         }
+        
+        console.log("Email notification sent successfully to business owner");
       } catch (emailError) {
         console.error("Failed to send email notification:", emailError);
         toast({
