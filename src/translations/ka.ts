@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const ka: TranslationType = {
@@ -93,9 +94,7 @@ export const ka: TranslationType = {
     customerCreated: "კლიენტი წარმატებით შეიქმნა",
     customerUpdated: "კლიენტი წარმატებით განახლდა",
     noDataToExport: "ექსპორტისთვის მონაცემები არ არის",
-    error: "შეცდომა",
-    eventCreationFailed: "ღონისძიების შექმნა ვერ მოხერხდა",
-    eventUpdateFailed: "ღონისძიების განახლება ვერ მოხერხდა"
+    error: "შეცდომა"
   },
   tasks: {
     title: "ამოცანების მართვა",
@@ -344,6 +343,8 @@ export const ka: TranslationType = {
     deleteConfirmMessage: "დარწმუნებული ხართ, რომ გსურთ წაშლა? ეს ქმედება შეუქცევადია.",
     noDescription: "აღწერა არ არის",
     deleteConfirmTitle: "გსურთ წაშლა?",
+    uploadError: "ფაილის ატვირთვის შეცდომა",
+    updateError: "განახლების შეცდომა",
     updateSuccess: "მონაცემები წარმატებით განახლდა"
   },
   auth: {

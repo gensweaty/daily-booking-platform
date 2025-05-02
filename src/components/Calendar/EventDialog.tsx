@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,11 @@ interface EventDialogProps {
   eventId?: string | null;
   initialData?: any;
   date?: Date;
+  // Add these props to match what Calendar.tsx is passing
+  selectedDate?: Date;
+  event?: any;
+  onSubmit?: (data: any) => Promise<any>;
+  onDelete?: () => Promise<void>;
 }
 
 export const EventDialog = ({
@@ -33,6 +39,10 @@ export const EventDialog = ({
   eventId,
   initialData,
   date,
+  selectedDate, // Add this prop
+  event, // Add this prop
+  onSubmit, // Add this prop
+  onDelete, // Add this prop
 }: EventDialogProps) => {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -50,31 +60,34 @@ export const EventDialog = ({
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [startDate, setStartDate] = useState<Date>(date || new Date());
+  const [startDate, setStartDate] = useState<Date>(date || selectedDate || new Date());
   const [endDate, setEndDate] = useState<Date>(() => {
-    const end = new Date(date || new Date());
+    const end = new Date(date || selectedDate || new Date());
     end.setHours(end.getHours() + 1);
     return end;
   });
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const isEditMode = !!eventId;
+  const isEditMode = !!eventId || !!event;
 
   useEffect(() => {
-    if (initialData) {
+    // Use event prop if available (used in Calendar component)
+    const dataToUse = event || initialData;
+    
+    if (dataToUse) {
       setFormData({
-        title: initialData.title || "",
-        user_number: initialData.user_number || "",
-        social_network_link: initialData.social_network_link || "",
-        event_notes: initialData.event_notes || "",
-        payment_status: initialData.payment_status || "not_paid",
-        payment_amount: initialData.payment_amount?.toString() || "",
+        title: dataToUse.title || "",
+        user_number: dataToUse.user_number || "",
+        social_network_link: dataToUse.social_network_link || "",
+        event_notes: dataToUse.event_notes || "",
+        payment_status: dataToUse.payment_status || "not_paid",
+        payment_amount: dataToUse.payment_amount?.toString() || "",
       });
 
-      if (initialData.start_date) {
-        setStartDate(new Date(initialData.start_date));
+      if (dataToUse.start_date) {
+        setStartDate(new Date(dataToUse.start_date));
       }
-      if (initialData.end_date) {
-        setEndDate(new Date(initialData.end_date));
+      if (dataToUse.end_date) {
+        setEndDate(new Date(dataToUse.end_date));
       }
     } else {
       setFormData({
@@ -85,9 +98,12 @@ export const EventDialog = ({
         payment_status: "not_paid",
         payment_amount: "",
       });
-      if (date) {
-        setStartDate(date);
-        const end = new Date(date);
+      
+      // Use selectedDate from Calendar component if available
+      const dateToUse = date || selectedDate;
+      if (dateToUse) {
+        setStartDate(dateToUse);
+        const end = new Date(dateToUse);
         end.setHours(end.getHours() + 1);
         setEndDate(end);
       } else {
@@ -97,11 +113,14 @@ export const EventDialog = ({
         setEndDate(end);
       }
     }
-  }, [initialData, date]);
+  }, [initialData, date, selectedDate, event]);
 
   useEffect(() => {
+    // Handle loading files for the event
+    const targetEventId = eventId || (event?.id);
+    
     const loadFiles = async () => {
-      if (!eventId) {
+      if (!targetEventId) {
         setDisplayedFiles([]);
         return;
       }
@@ -110,7 +129,7 @@ export const EventDialog = ({
         const { data: eventFiles, error: eventFilesError } = await supabase
           .from('event_files')
           .select('*')
-          .eq('event_id', eventId);
+          .eq('event_id', targetEventId);
 
         if (eventFilesError) {
           console.error("Error loading event files:", eventFilesError);
@@ -124,12 +143,12 @@ export const EventDialog = ({
       }
     };
 
-    if (open && eventId) {
+    if (open && targetEventId) {
       loadFiles();
       setSelectedFile(null);
       setFileError("");
     }
-  }, [open, eventId]);
+  }, [open, eventId, event]);
 
   const uploadFile = async (eventId: string, file: File) => {
     try {
@@ -178,6 +197,34 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // If using the onSubmit prop from Calendar component
+    if (onSubmit) {
+      try {
+        setIsLoading(true);
+        const eventData = {
+          ...formData,
+          start_date: startDate.toISOString(),
+          end_date: endDate.toISOString(),
+          // If we have event, use its id for update
+          ...(event?.id ? { id: event.id } : {})
+        };
+        
+        await onSubmit(eventData);
+        onOpenChange(false);
+      } catch (error: any) {
+        console.error("Error handling event:", error);
+        toast({
+          title: t("common.error"),
+          description: error.message || t("common.updateError"),
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Default behavior when not using Calendar's onSubmit
     if (!user?.id) {
       toast({
         title: t("common.error"),
@@ -262,11 +309,48 @@ export const EventDialog = ({
   };
 
   const handleDelete = async () => {
+    // If using onDelete from Calendar
+    if (onDelete) {
+      try {
+        setIsDeleteConfirmOpen(true);
+      } catch (error: any) {
+        console.error("Error with delete:", error);
+        toast({
+          title: t("common.error"),
+          description: error.message || t("common.deleteError"),
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+    
+    // Default delete behavior
     setIsDeleteConfirmOpen(true);
   };
 
   const handleConfirmDelete = async () => {
-    if (!eventId || !user?.id) return;
+    if (onDelete) {
+      try {
+        setIsLoading(true);
+        await onDelete();
+        onOpenChange(false);
+        setIsDeleteConfirmOpen(false);
+      } catch (error: any) {
+        console.error("Error deleting event:", error);
+        toast({
+          title: t("common.error"),
+          description: error.message || t("common.deleteError"),
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+    
+    // Default delete implementation
+    const targetEventId = eventId || (event?.id);
+    if (!targetEventId || !user?.id) return;
 
     try {
       setIsLoading(true);
@@ -274,7 +358,7 @@ export const EventDialog = ({
       const { error } = await supabase
         .from('events')
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', eventId)
+        .eq('id', targetEventId)
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -306,7 +390,7 @@ export const EventDialog = ({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl">
           <DialogTitle>
-            {eventId ? t("events.editEvent") : t("events.addNewEvent")}
+            {isEditMode ? t("events.editEvent") : t("events.addNewEvent")}
           </DialogTitle>
           <form onSubmit={handleSubmit} className="space-y-4">
             <EventDialogFields
@@ -330,7 +414,7 @@ export const EventDialog = ({
               setStartDate={setStartDate}
               endDate={endDate}
               setEndDate={setEndDate}
-              eventId={eventId}
+              eventId={eventId || (event?.id)}
               displayedFiles={displayedFiles}
               onFileDeleted={(fileId) => {
                 setDisplayedFiles((prev) => prev.filter((file) => file.id !== fileId));
@@ -343,9 +427,9 @@ export const EventDialog = ({
                 disabled={isLoading}
                 className="flex-1 mr-2"
               >
-                {eventId ? t("events.updateEvent") : t("events.createEvent")}
+                {isEditMode ? t("events.updateEvent") : t("events.createEvent")}
               </Button>
-              {eventId && (
+              {isEditMode && (
                 <Button
                   type="button"
                   variant="destructive"
