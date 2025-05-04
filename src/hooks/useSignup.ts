@@ -100,16 +100,17 @@ export const useSignup = () => {
         codeId = validationResult.code_id;
       }
 
-      // Get stable redirect URL - CRITICAL FIX
+      // Get stable redirect URL
       const redirectUrl = getRedirectUrl();
-      console.log('Using email confirmation redirect URL:', redirectUrl);
+      console.log('Using redirect URL:', redirectUrl);
       
-      // Step 2: Create user account with email confirmation redirect
+      // Step 2: Create user account without email confirmation
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { username },
+          // We're not using emailRedirectTo because we'll handle confirmation ourselves
           emailRedirectTo: redirectUrl,
         },
       });
@@ -142,23 +143,6 @@ export const useSignup = () => {
           setIsLoading(false);
           return;
         }
-
-        // Specific handling for SMTP/email provider errors
-        if (signUpError.message.includes("535") || 
-            signUpError.message.includes("UNDEFINED_VALUE") ||
-            signUpError.message.includes("confirmation") ||
-            signUpError.message.includes("send")) {
-          console.error('Email provider error during signup:', signUpError);
-          toast({
-            title: "Email System Issue",
-            description: "We're having trouble sending the confirmation email. Please try again later or contact support.",
-            variant: "destructive",
-            duration: 7000,
-          });
-          setErrorType("email_system");
-          setIsLoading(false);
-          return;
-        }
         
         throw signUpError;
       }
@@ -167,7 +151,36 @@ export const useSignup = () => {
         throw new Error('Failed to create user account');
       }
 
-      // Step 3: Create subscription
+      // Step 3: Send custom confirmation email using our edge function
+      const confirmationResponse = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabase.auth.anon}`
+        },
+        body: JSON.stringify({
+          email,
+          redirectUrl: redirectUrl
+        })
+      });
+
+      const confirmationResult = await confirmationResponse.json();
+      console.log('Custom confirmation email result:', confirmationResult);
+
+      if (!confirmationResponse.ok) {
+        console.error('Error sending custom confirmation email:', confirmationResult.error);
+        toast({
+          title: "Email System Issue",
+          description: "We're having trouble sending the confirmation email. Please try again later or contact support.",
+          variant: "destructive",
+          duration: 7000,
+        });
+        setErrorType("email_system");
+        setIsLoading(false);
+        return;
+      }
+
+      // Step 4: Create subscription
       const { error: subError } = await supabase
         .rpc('create_user_subscription', {
           p_user_id: authData.user.id,
@@ -180,7 +193,7 @@ export const useSignup = () => {
         // Continue with signup flow even if subscription has an issue
       }
 
-      // Step 4: If we have a valid code, update it with user details
+      // Step 5: If we have a valid code, update it with user details
       if (codeId) {
         await supabase
           .from('redeem_codes')
@@ -204,7 +217,6 @@ export const useSignup = () => {
     } catch (error: any) {
       console.error('Signup error:', error);
       
-      // Comprehensive error detection for email confirmation issues
       const errorMessage = error.message?.toLowerCase() || '';
       
       if (
@@ -242,20 +254,28 @@ export const useSignup = () => {
     try {
       console.log('Attempting to resend confirmation email to:', email);
       
-      // Get the stable redirect URL
+      // Get the redirect URL
       const redirectUrl = getRedirectUrl();
-      console.log('Using email confirmation redirect URL for resend:', redirectUrl);
+      console.log('Using redirect URL for resend:', redirectUrl);
       
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-        options: {
-          emailRedirectTo: redirectUrl,
-        }
+      // Use our custom edge function to resend the confirmation email
+      const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabase.auth.anon}`
+        },
+        body: JSON.stringify({
+          email,
+          redirectUrl
+        })
       });
       
-      if (error) {
-        console.error('Resend confirmation error:', error);
+      const result = await response.json();
+      console.log('Custom resend confirmation result:', result);
+      
+      if (!response.ok) {
+        console.error('Error resending confirmation email:', result.error);
         toast({
           title: "Error",
           description: "Failed to resend confirmation email. Please try again later.",
