@@ -48,11 +48,11 @@ serve(async (req) => {
       }
 
       try {
-        // Create the user with email confirmation enabled using Supabase's built-in email service
+        // Create the user with email confirmation enabled
         const { data, error } = await supabaseAdmin.auth.admin.createUser({
           email,
           password,
-          email_confirm: false, // We'll send confirmation email separately
+          email_confirm: false, // We'll send confirmation email using the configured SMTP
           user_metadata: { username }
         });
 
@@ -88,15 +88,18 @@ serve(async (req) => {
 
         console.log(`Successfully created user with ID ${data.user.id}`);
 
-        // Generate and send the confirmation email
+        // Get the base URL for the app
+        const baseUrl = new URL(req.url).origin;
+        console.log("Base URL for app:", baseUrl);
+
+        // Generate the verification email
         console.log("Generating confirmation email...");
         const { data: linkData, error: emailError } = await supabaseAdmin.auth.admin.generateLink({
           type: 'signup',
           email,
           options: {
-            // Make sure the redirect URL is correctly set to your frontend
-            // This should match the site URL configured in Supabase Auth settings
-            redirectTo: `${new URL(req.url).origin}/dashboard?verified=true`,
+            // Use domain from request for redirect (works in both development and production)
+            redirectTo: `${baseUrl}/dashboard?verified=true`,
           }
         });
 
