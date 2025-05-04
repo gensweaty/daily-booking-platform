@@ -73,16 +73,14 @@ export const useSignup = () => {
       
       console.log('Email confirmation redirect URL:', emailRedirectTo);
 
-      // IMPORTANT: Set autoconfirm=true to bypass the email confirmation requirement
-      // This will automatically confirm the user's email address
+      // Sign up the user - without trying to auto-confirm
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { username },
           emailRedirectTo: emailRedirectTo,
-          // Add this parameter to automatically confirm users
-          emailConfirm: true
+          // Remove the emailConfirm property as it's not supported
         },
       });
 
