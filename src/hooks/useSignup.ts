@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -73,14 +72,13 @@ export const useSignup = () => {
       
       console.log('Email confirmation redirect URL:', emailRedirectTo);
 
-      // Sign up the user - without trying to auto-confirm
+      // Sign up the user without requiring email confirmation
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { username },
           emailRedirectTo: emailRedirectTo,
-          // Remove the emailConfirm property as it's not supported
         },
       });
 
@@ -97,20 +95,42 @@ export const useSignup = () => {
           return;
         }
         
-        if (signUpError.message.includes('confirmation email')) {
+        // If the error is about not sending the confirmation email but the user was created
+        if (signUpError.message.includes('confirmation email') || 
+            signUpError.message.includes('confirmation system')) {
           console.warn('Email confirmation failed but proceeding with account creation:', signUpError.message);
           
-          // If we can get the user data despite the email error, we proceed
           if (authData?.user) {
-            // The account was created successfully despite the email error
-            console.log('User account created successfully:', authData.user.id);
+            // Account created successfully despite confirmation email failure
+            console.log('User account created despite email confirmation issues:', authData.user.id);
+            toast({
+              title: "Account Created",
+              description: "Your account was created successfully. Email confirmation is currently experiencing issues but you can still sign in.",
+              duration: 8000,
+            });
             
-            // Continue with account setup despite email confirmation failure
-          } else {
-            // We couldn't get user data, which is unusual
-            throw new Error('Unable to create user account due to confirmation system issues');
+            // Try to auto-sign in the user right away
+            try {
+              const { error: signInError } = await supabase.auth.signInWithPassword({
+                email,
+                password
+              });
+              
+              if (!signInError) {
+                console.log('Auto sign-in successful after account creation');
+                clearForm();
+                window.location.href = '/dashboard';
+                return;
+              }
+            } catch (err) {
+              console.error('Auto sign-in failed after account creation:', err);
+            }
+            
+            clearForm();
+            return;
           }
         } else {
+          // Other signup errors
           throw signUpError;
         }
       }
@@ -124,7 +144,7 @@ export const useSignup = () => {
 
       // Wait longer to ensure the user and profile records are created in the database
       // The auth webhook and trigger should create the profile
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 5000));  // Increased from 3000 to 5000 ms
       
       // Step 3: Create subscription with proper error handling
       try {
@@ -222,6 +242,13 @@ export const useSignup = () => {
           description: "An account with this email already exists. Please log in instead.",
           variant: "destructive",
           duration: 5000,
+        });
+      } else if (error.message?.includes('confirmation') || error.message?.includes('Unable to create user')) {
+        toast({
+          title: "Account Creation Issue",
+          description: "There's an issue with our email confirmation system. Please try again later or contact support.",
+          variant: "destructive",
+          duration: 8000,
         });
       } else {
         toast({
