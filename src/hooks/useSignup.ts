@@ -101,15 +101,10 @@ export const useSignup = () => {
       }
 
       // Get current site URL for redirects
-      // For production, we need to ensure redirects go to the correct domain
-      // Don't use window.location.origin as it will differ between development and production
-      const origin = window.location.host.includes('localhost') || 
-                     window.location.host.includes('lovable.app') 
-                     ? window.location.origin 
-                     : 'https://smartbookly.com';
-      
-      // Ensure the redirect URL explicitly includes the full path to avoid 404 errors
-      const emailRedirectTo = `${origin}/dashboard`;
+      // Updated: Use a more reliable approach for getting the base URL
+      const baseUrl = window.location.origin;
+      // For email redirections, create full path to dashboard
+      const emailRedirectTo = `${baseUrl}/dashboard`;
       
       console.log('Email confirmation redirect URL:', emailRedirectTo);
 
@@ -203,14 +198,15 @@ export const useSignup = () => {
     } catch (error: any) {
       console.error('Signup error:', error);
       
-      // Check if this looks like an email confirmation error from logs
+      // Enhanced error detection for email confirmation issues
       if (error.message?.includes("confirmation") || 
           error.message?.includes("email") || 
-          error.message?.includes("535")) {
+          error.message?.includes("535") || 
+          error.message?.includes("UNDEFINED_VALUE")) {
         setErrorType("email_confirmation_failed");
         toast({
-          title: "Email Confirmation Error",
-          description: "There was an issue sending the confirmation email. Please try a different email address.",
+          title: "Email Confirmation Issue",
+          description: "There was an issue with the confirmation email system. Please try again or contact support.",
           variant: "destructive",
           duration: 7000,
         });
@@ -233,11 +229,17 @@ export const useSignup = () => {
     setErrorType(null);
     
     try {
+      console.log('Attempting to resend confirmation email to:', email);
+      
+      // Get the current origin for redirects
+      const origin = window.location.origin;
+      const redirectTo = `${origin}/dashboard`;
+      
       const { data, error } = await supabase.auth.resend({
         type: 'signup',
         email: email,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: redirectTo,
         }
       });
       
@@ -252,6 +254,8 @@ export const useSignup = () => {
         setErrorType("resend_failed");
         return;
       }
+      
+      console.log('Resend confirmation response:', data);
       
       toast({
         title: "Confirmation Email Sent",

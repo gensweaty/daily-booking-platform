@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -191,7 +192,8 @@ supabase.auth.onAuthStateChange((event, session) => {
 });
 
 // Specific handling for production environment - needed for smartbookly.com
-const isProdEnv = window.location.host === 'smartbookly.com';
+// UPDATED: More robust hostname check to handle www and subdomains
+const isProdEnv = window.location.hostname.includes('smartbookly.com');
 
 if (isProdEnv) {
   console.log("Production environment detected - applying special handling for auth flows");
@@ -223,3 +225,4 @@ if (isProdEnv) {
     })();
   }
 }
+

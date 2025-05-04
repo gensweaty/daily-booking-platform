@@ -19,6 +19,7 @@ interface AuthUIProps {
 export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -34,8 +35,12 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
     // Show alert if there was a previous error
     const searchParams = new URLSearchParams(location.search);
     const error = searchParams.get('error');
-    if (error === 'confirmation_failed' || error === 'email_error') {
+    if (error === 'confirmation_failed') {
       setShowAlert(true);
+      setAlertMessage("Email confirmation failed. If you don't receive a confirmation email, please check your spam folder or try signing up with a different email address.");
+    } else if (error === 'email_error') {
+      setShowAlert(true);
+      setAlertMessage("There seems to be an issue with our email delivery system. Please try again later or contact support.");
     }
   }, [location.pathname, location.search]);
 
@@ -80,8 +85,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
         <Alert className="max-w-sm mx-auto mb-6 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="text-center">
-            If you don't receive a confirmation email, please check your spam folder 
-            or try signing up with a different email address.
+            {alertMessage || "If you don't receive a confirmation email, please check your spam folder or try signing up with a different email address."}
           </AlertDescription>
         </Alert>
       )}
