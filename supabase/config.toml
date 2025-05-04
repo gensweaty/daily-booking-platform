@@ -9,3 +9,4 @@ schemas_cache_max_age = 0
 [functions.send-confirmation-email]
 # Remove auth verification for email sending (required for registration)
 verify_jwt = false
+

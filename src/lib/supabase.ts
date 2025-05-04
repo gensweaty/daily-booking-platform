@@ -248,8 +248,7 @@ if (isProdEnv) {
 
 // Export a dedicated function for signup operations with proper URL handling
 export const getRedirectUrl = () => {
-  // We intentionally use a fixed production URL for the smartbookly.com domain
-  // to prevent the UNDEFINED_VALUE errors
+  // FIXED: Using hardcoded URLs to prevent UNDEFINED_VALUE errors
   if (window.location.hostname.includes('smartbookly.com')) {
     return 'https://smartbookly.com/dashboard';
   }
