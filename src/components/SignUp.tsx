@@ -5,7 +5,7 @@ import { SignUpFields } from "./signup/SignUpFields";
 import { useSignup } from "@/hooks/useSignup";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle } from "lucide-react";
 
 export const SignUp = () => {
   const [email, setEmail] = useState("");

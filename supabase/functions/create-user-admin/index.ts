@@ -94,11 +94,9 @@ serve(async (req) => {
           type: 'signup',
           email,
           options: {
-            redirectTo: `${new URL(supabaseUrl).origin.replace('.supabase.co', '')}/dashboard?verified=true`,
-            // Make sure Supabase sends the email automatically
-            data: {
-              username: username
-            }
+            // Make sure the redirect URL is correctly set to your frontend
+            // This should match the site URL configured in Supabase Auth settings
+            redirectTo: `${new URL(req.url).origin}/dashboard?verified=true`,
           }
         });
 
@@ -125,9 +123,7 @@ serve(async (req) => {
           JSON.stringify({ 
             success: true, 
             message: "User created successfully. Please check your email (including spam folder) for the verification link.",
-            user: data.user,
-            // We still include the confirmation link for development, but the email should be sent
-            confirmationLink: actionUrl
+            user: data.user
           }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
