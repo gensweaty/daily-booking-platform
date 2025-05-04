@@ -26,6 +26,7 @@ console.log("Clients initialized");
 
 serve(async (req: Request) => {
   console.log("Request received:", req.method, req.url);
+  console.log("Request headers:", Object.fromEntries([...req.headers.entries()]));
   
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -36,16 +37,23 @@ serve(async (req: Request) => {
   try {
     console.log("Processing request body");
     
+    // Log the raw request body for debugging
+    const rawBody = await req.text();
+    console.log("Raw request body:", rawBody);
+    
     // Parse the request body
     let email: string;
-    let redirectUrl: string;
+    let redirectUrl: string = 'https://smartbookly.com/dashboard'; // Default value
     
     try {
-      const body = await req.json();
-      console.log("Request body parsed:", JSON.stringify(body));
+      // Re-parse the text as JSON
+      const body = JSON.parse(rawBody);
+      console.log("Parsed body:", body);
       
       email = body.email;
-      redirectUrl = body.redirectUrl || 'https://smartbookly.com/dashboard';
+      if (body.redirectUrl) {
+        redirectUrl = body.redirectUrl;
+      }
       
       console.log("Email:", email);
       console.log("Redirect URL:", redirectUrl);
@@ -88,12 +96,15 @@ serve(async (req: Request) => {
     }
 
     console.log("Link generation successful");
+    console.log("Link generation data:", data);
     const magicLink = data.properties.action_link;
     console.log("Magic link generated successfully");
     console.log("Magic link starts with:", magicLink?.substring(0, 30) + "...");
 
     // Send the email using Resend
     try {
+      console.log("Sending email with Resend to:", email);
+      
       const emailResult = await resend.emails.send({
         from: "SmartBookly <no-reply@smartbookly.com>",
         to: email,

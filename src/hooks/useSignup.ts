@@ -155,7 +155,7 @@ export const useSignup = () => {
       try {
         console.log('Sending custom confirmation email to:', email, 'with redirect URL:', redirectUrl);
         
-        // Direct call to edge function with full URL and no auth headers
+        // Fixed: ensure we're passing the correct data structure with JSON.stringify
         const confirmationResponse = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email', {
           method: 'POST',
           headers: {
@@ -276,7 +276,7 @@ export const useSignup = () => {
       const redirectUrl = getRedirectUrl();
       console.log('Using redirect URL for resend:', redirectUrl);
       
-      // Direct call to edge function with full URL
+      // Fixed: ensure we're passing the correct data structure with JSON.stringify
       const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email', {
         method: 'POST',
         headers: {

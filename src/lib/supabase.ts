@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -252,9 +251,9 @@ export const getRedirectUrl = () => {
   // We intentionally use a fixed production URL for the smartbookly.com domain
   // to prevent the UNDEFINED_VALUE errors
   if (window.location.hostname.includes('smartbookly.com')) {
-    return 'https://smartbookly.com';
+    return 'https://smartbookly.com/dashboard';
   }
   
-  // For development or preview environments, use the current origin
-  return window.location.origin;
+  // For development or preview environments, use the current origin with the desired redirect path
+  return `${window.location.origin}/dashboard`;
 };
