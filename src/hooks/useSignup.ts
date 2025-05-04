@@ -104,27 +104,49 @@ export const useSignup = () => {
         throw new Error('Failed to create user account');
       }
 
-      // Step 3: Create subscription
-      const { data: subscription, error: subError } = await supabase
-        .rpc('create_user_subscription', {
-          p_user_id: authData.user.id,
-          p_plan_type: redeemCode ? 'ultimate' : 'monthly',
-          p_is_redeem_code: !!redeemCode
-        });
+      // Wait to ensure the user and profile records are created in the database
+      // The auth webhook and trigger should create the profile
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Step 3: Create subscription with proper error handling
+      try {
+        const { data: subscription, error: subError } = await supabase
+          .rpc('create_user_subscription', {
+            p_user_id: authData.user.id,
+            p_plan_type: redeemCode ? 'ultimate' : 'monthly',
+            p_is_redeem_code: !!redeemCode
+          });
 
-      if (subError) {
-        throw new Error('Failed to setup subscription: ' + subError.message);
+        if (subError) {
+          console.error('Subscription creation error:', subError);
+          // Don't throw here - we still created the user account successfully
+          toast({
+            title: "Account Created",
+            description: "Your account was created but there was an issue with subscription setup. Please contact support.",
+            duration: 5000,
+          });
+        } else {
+          console.log('Subscription created successfully:', subscription);
+        }
+      } catch (subError: any) {
+        console.error('Subscription creation exception:', subError);
+        // Don't throw here - we still created the user account successfully
       }
 
       // Step 4: If we have a valid code, update it with user details
       if (codeId) {
-        await supabase
-          .from('redeem_codes')
-          .update({
-            used_by: authData.user.id,
-            used_at: new Date().toISOString()
-          })
-          .eq('id', codeId);
+        try {
+          await supabase
+            .from('redeem_codes')
+            .update({
+              used_by: authData.user.id,
+              used_at: new Date().toISOString()
+            })
+            .eq('id', codeId);
+        } catch (codeUpdateError) {
+          console.error('Error updating redeem code:', codeUpdateError);
+          // Non-fatal, don't throw
+        }
       }
 
       toast({
