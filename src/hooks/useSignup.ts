@@ -102,8 +102,8 @@ export const useSignup = () => {
         codeId = validationResult.code_id;
       }
 
-      // Create user using admin API (which will send confirmation email)
-      console.log('Creating user with confirmation email requirement...');
+      // Create user using admin API
+      console.log('Creating user and sending verification email...');
       
       try {
         const { data: adminData, error: adminError } = await supabase.functions.invoke('create-user-admin', {
@@ -154,33 +154,18 @@ export const useSignup = () => {
 
         console.log('User created successfully, confirmation email sent:', adminData);
         
-        // Check if Resend was in test mode (which only allows sending to your own email)
-        const isResendTestMode = adminData.resendError?.statusCode === 403 && 
-                                adminData.resendError?.message?.includes("You can only send testing emails to your own email address");
-        
-        let toastMessage = "Account created! ";
-        
-        if (isResendTestMode) {
-          toastMessage += "Since Resend is in test mode, please use the confirmation link shown below.";
-        } else if (adminData.resendError) {
-          toastMessage += "Please check your email (including spam folder) to confirm your account.";
-        } else {
-          toastMessage += "Please check your email to confirm your account.";
-        }
-        
         toast({
-          title: "Success",
-          description: toastMessage,
+          title: "Account Created",
+          description: "Your account has been created. Please check your email (including spam folder) to verify your account.",
           duration: 8000,
         });
         
         clearForm();
         
-        // Return the confirmation link if available (for development/testing)
+        // Return the confirmation link if available
         return {
           success: true,
-          confirmationLink: adminData.confirmationLink,
-          isResendTestMode: !!isResendTestMode
+          confirmationLink: adminData.confirmationLink
         };
       } catch (adminError: any) {
         console.error('Admin API error:', adminError);

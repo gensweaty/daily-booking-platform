@@ -92,7 +92,7 @@ serve(async (req) => {
 
         console.log(`Successfully created user with ID ${data.user.id}, confirmation email sent`);
 
-        // Now generate the confirmation link - this will be used directly rather than relying on Resend
+        // Generate the confirmation link
         console.log("Generating confirmation link...");
         const { data: linkData, error: emailError } = await supabaseAdmin.auth.admin.generateLink({
           type: 'signup',
@@ -121,78 +121,19 @@ serve(async (req) => {
         const actionUrl = linkData?.properties?.action_link;
         console.log("Action URL:", actionUrl || "No action link provided");
 
-        // First try using Resend if available
         let usedResend = false;
         let resendError = null;
 
-        if (resendApiKey && actionUrl) {
-          try {
-            const resend = new Resend(resendApiKey);
-            // In Resend test mode, we should send emails to the owner's email
-            // This allows testing without domain verification
-            const ownerEmail = "gensweaty@gmail.com"; // This is the email associated with the Resend account
-            
-            // Determine if we're likely in Resend test mode
-            const isTestMode = !resendApiKey.startsWith('re_'); // Production keys start with re_
-            const recipient = isTestMode ? ownerEmail : email;
-            
-            console.log(`Sending email via Resend to ${recipient} (${isTestMode ? 'test mode' : 'production mode'})`);
-            
-            const emailResult = await resend.emails.send({
-              from: "SmartBookly <onboarding@resend.dev>", // Use the default domain allowed in testing
-              to: recipient,
-              subject: "Confirm your SmartBookly account",
-              html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                  <h2>Welcome to SmartBookly!</h2>
-                  <p>Thank you for registering. Please confirm your email address to activate your account.</p>
-                  <p>User email: ${email}</p>
-                  <p style="margin: 30px 0;">
-                    <a href="${actionUrl}" style="background-color: #4CAF50; color: white; padding: 14px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">
-                      Confirm Email Address
-                    </a>
-                  </p>
-                  <p>If you didn't request this email, you can safely ignore it.</p>
-                  <p>The link will expire in 24 hours.</p>
-                  <p>Best regards,<br>The SmartBookly Team</p>
-                  <p>If the button doesn't work, copy and paste this URL into your browser: ${actionUrl}</p>
-                </div>
-              `,
-            });
-            
-            if (emailResult.error) {
-              console.error("Resend email error:", emailResult.error);
-              resendError = emailResult.error;
-              console.log("Falling back to Supabase's default email service");
-            } else {
-              usedResend = true;
-              console.log("Resend email sent successfully:", emailResult);
-              
-              // If we're in test mode and sent to owner instead of user,
-              // make note of this so UI can show the link directly
-              if (isTestMode && recipient !== email) {
-                console.log("NOTE: In test mode - email sent to owner account instead of user");
-              }
-            }
-          } catch (resendErr) {
-            console.error("Error sending email with Resend:", resendErr);
-            resendError = resendErr;
-            console.log("Falling back to Supabase's default email service");
-          }
-        }
-
-        // If Resend failed or wasn't available, we'll rely on Supabase's default email service
-        // The good news is that even if our custom email failed, Supabase has already sent its own
-        // confirmation email when we created the user with email_confirm: false
+        // Always use Supabase's email service
+        // We'll just return the link for display in the UI for testing purposes
         
         return new Response(
           JSON.stringify({ 
             success: true, 
-            message: "User created successfully, confirmation email sent",
+            message: "User created successfully, check your email for verification link",
             user: data.user,
             confirmationLink: actionUrl, // Include the confirmation link in the response
-            usedResend: usedResend,
-            resendError: resendError
+            usedResend: false
           }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },

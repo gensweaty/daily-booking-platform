@@ -60,7 +60,7 @@ export const SignUp = () => {
       try {
         await navigator.clipboard.writeText(result.confirmationLink);
         toast({
-          title: "Confirmation Link Copied",
+          title: "Verification Link Ready",
           description: "The verification link has been copied to your clipboard",
           duration: 5000,
         });
@@ -100,15 +100,15 @@ export const SignUp = () => {
         <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-md">
           <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
           <div>
-            <p>After signing up, please check your inbox (and spam folder) for a confirmation email.</p>
-            <p className="mt-1">You'll need to click the confirmation link to activate your account.</p>
+            <p><strong>Important:</strong> After signing up, you MUST click the verification link sent to your email to activate your account.</p>
+            <p className="mt-1">Please check both your inbox and spam folders for the confirmation email.</p>
           </div>
         </div>
         
         {confirmationLink && (
           <div className="p-3 mt-4 border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-900 rounded-md">
             <div className="flex items-center justify-between">
-              <p className="font-medium text-blue-800 dark:text-blue-300">Development Mode: Confirmation Link</p>
+              <p className="font-medium text-blue-800 dark:text-blue-300">Verification Link</p>
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -127,9 +127,7 @@ export const SignUp = () => {
               </Button>
             </div>
             <p className="text-xs mt-1 text-blue-700 dark:text-blue-400">
-              For testing only - click this link to confirm your account
-              <br />
-              <span className="opacity-75">(Normally this would be sent by email, but Resend is in test mode)</span>
+              Click this link to verify your email and activate your account
             </p>
             <a 
               href={confirmationLink} 
@@ -145,4 +143,3 @@ export const SignUp = () => {
     </div>
   );
 };
-
