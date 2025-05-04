@@ -53,6 +53,7 @@ export const useSignup = () => {
       }
       
       let codeId: string | null = null;
+      let isRedeemCodeValid = false;
 
       // Step 1: Validate redeem code if provided
       if (redeemCode) {
@@ -76,6 +77,19 @@ export const useSignup = () => {
           return;
         }
 
+        // Additional validation for the response structure
+        if (!codeResult || !Array.isArray(codeResult) || codeResult.length === 0) {
+          console.error('Invalid redeem code response:', codeResult);
+          toast({
+            title: "Redeem Code Error",
+            description: "Unexpected response from server when validating redeem code.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          setIsLoading(false);
+          return;
+        }
+
         // The function always returns exactly one row
         const validationResult = codeResult[0];
         console.log('Code validation result:', validationResult);
@@ -92,6 +106,7 @@ export const useSignup = () => {
         }
 
         codeId = validationResult.code_id;
+        isRedeemCodeValid = true;
       }
 
       // Get current site URL for redirects
@@ -156,25 +171,65 @@ export const useSignup = () => {
       const userId = signUpResult.user.id;
 
       // If we have a valid code, update it with user details
-      if (codeId) {
+      // Also check permissions by inspecting the result
+      if (codeId && isRedeemCodeValid) {
         try {
           console.log('Updating redeem code with user details...');
-          await supabase
+          const { error: updateError } = await supabase
             .from('redeem_codes')
             .update({
               used_by: userId,
               used_at: new Date().toISOString()
             })
             .eq('id', codeId);
+            
+          if (updateError) {
+            console.error('Error updating redeem code:', updateError);
+            // Non-fatal, continue with user creation but log the issue
+          }
         } catch (codeUpdateError) {
-          console.error('Error updating redeem code:', codeUpdateError);
-          // Non-fatal, don't throw
+          console.error('Exception updating redeem code:', codeUpdateError);
+          // Non-fatal, continue with user creation
         }
       }
 
-      // Wait longer to ensure the user and profile records are created in the database
+      // Poll for profile creation instead of using a fixed timeout
       console.log('Waiting for profile creation...');
-      await new Promise(resolve => setTimeout(resolve, 7000));
+      
+      let profileFound = false;
+      let profileAttempts = 0;
+      const maxAttempts = 5;
+      
+      while (!profileFound && profileAttempts < maxAttempts) {
+        try {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', userId)
+            .maybeSingle();
+            
+          if (profile) {
+            console.log('Profile found after attempt:', profileAttempts + 1);
+            profileFound = true;
+            break;
+          } else {
+            console.log(`Profile not found yet. Attempt ${profileAttempts + 1}/${maxAttempts}`);
+            if (profileError) {
+              console.error('Error checking profile:', profileError);
+            }
+          }
+        } catch (err) {
+          console.error('Error polling for profile:', err);
+        }
+        
+        // Wait before trying again
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        profileAttempts++;
+      }
+      
+      if (!profileFound) {
+        console.warn('Could not verify profile creation after max attempts');
+      }
       
       // Create subscription with proper error handling
       try {
