@@ -109,11 +109,15 @@ export const useSignup = () => {
         password,
         options: {
           data: { username },
-          emailRedirectTo: null, // Explicitly set to null to prevent default email confirmation
+          // Use default email confirmation flow unless it's disabled in the project
+          // (our edge function will handle confirmation instead)
         },
       });
 
+      // Handle specific signup errors
       if (signUpError) {
+        console.error('Signup error:', signUpError);
+        
         if (signUpError.status === 429) {
           toast({
             title: "Rate Limit Exceeded",
@@ -121,10 +125,31 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
-          setIsLoading(false);
-          return;
+        } else if (signUpError.message === 'Email signups are disabled') {
+          toast({
+            title: "Email Signups Disabled",
+            description: "Email signups are currently disabled in this project. Please contact support.",
+            variant: "destructive",
+            duration: 5000,
+          });
+        } else if (signUpError.message.includes('confirmation email')) {
+          toast({
+            title: "Email Confirmation Error",
+            description: "There was an issue sending the confirmation email. Please try again or contact support.",
+            variant: "destructive",
+            duration: 5000,
+          });
+        } else {
+          toast({
+            title: "Signup Error",
+            description: signUpError.message || "An unexpected error occurred during signup",
+            variant: "destructive",
+            duration: 5000,
+          });
         }
-        throw signUpError;
+        
+        setIsLoading(false);
+        return;
       }
 
       if (!authData?.user) {
@@ -144,8 +169,27 @@ export const useSignup = () => {
       console.log('Full confirm response:', confirmResponse);
       
       if (confirmResponse.error || !confirmResponse.data?.success) {
-        console.error("Edge function confirm error raw:", confirmResponse);
-        throw new Error(`Failed to confirm email: ${confirmResponse.error || confirmResponse.data?.error}`);
+        console.error("Edge function confirm error:", confirmResponse);
+        
+        // More specific error handling based on the response
+        if (confirmResponse.error?.message?.includes('disabled')) {
+          toast({
+            title: "Email Confirmation Error",
+            description: "Email confirmation is currently disabled. Contact support for assistance.",
+            variant: "destructive",
+            duration: 5000,
+          });
+        } else {
+          toast({
+            title: "Email Confirmation Error", 
+            description: "Failed to confirm email automatically. Please check your inbox for a confirmation email.",
+            variant: "destructive",
+            duration: 5000,
+          });
+        }
+        
+        setIsLoading(false);
+        return;
       }
 
       console.log('Email confirmation response:', confirmResponse.data);
@@ -187,9 +231,9 @@ export const useSignup = () => {
 
       toast({
         title: "Success",
-        description: redeemCode 
-          ? "Account created with Ultimate plan! You can now sign in."
-          : "Account created! You can now sign in.",
+        description: signInError 
+          ? "Account created! Please sign in manually."
+          : "Account created successfully! You are now signed in.",
         duration: 5000,
       });
       

@@ -49,6 +49,38 @@ serve(async (req) => {
         throw new Error('Missing required parameters (user_id or email)');
       }
 
+      // First check if user exists and needs confirmation
+      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(user_id);
+      
+      if (userError) {
+        console.error('Error fetching user:', userError);
+        throw userError;
+      }
+      
+      if (!userData?.user) {
+        throw new Error(`User ${user_id} not found`);
+      }
+      
+      console.log('User email confirmation status:', {
+        email: userData.user.email,
+        emailConfirmedAt: userData.user.email_confirmed_at,
+        lastSignInAt: userData.user.last_sign_in_at
+      });
+      
+      // If email is already confirmed, return success
+      if (userData.user.email_confirmed_at) {
+        console.log(`Email for user ${user_id} is already confirmed`);
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: "Email already confirmed",
+          user: userData.user,
+          alreadyConfirmed: true
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
       // Update the user's email_confirmed_at field directly to bypass email verification
       const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
         user_id,
