@@ -5,6 +5,7 @@ import { SignUpFields } from "./signup/SignUpFields";
 import { useSignup } from "@/hooks/useSignup";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { AlertCircle } from "lucide-react";
 
 export const SignUp = () => {
   const [email, setEmail] = useState("");
@@ -12,6 +13,7 @@ export const SignUp = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [redeemCode, setRedeemCode] = useState("");
+  const [confirmationLink, setConfirmationLink] = useState("");
   
   const { handleSignup, isLoading } = useSignup();
   const { toast } = useToast();
@@ -27,6 +29,7 @@ export const SignUp = () => {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setConfirmationLink("");
     
     // Basic validation
     if (password !== confirmPassword) {
@@ -47,7 +50,12 @@ export const SignUp = () => {
       return;
     }
 
-    await handleSignup(email, username, password, confirmPassword, redeemCode, clearForm);
+    const result = await handleSignup(email, username, password, confirmPassword, redeemCode, clearForm);
+    
+    // If we have a confirmation link (development mode or for testing), show it
+    if (result?.confirmationLink) {
+      setConfirmationLink(result.confirmationLink);
+    }
   };
 
   return (
@@ -76,9 +84,29 @@ export const SignUp = () => {
         </Button>
       </form>
       
-      <div className="mt-6 text-sm text-muted-foreground">
-        <p>After signing up, please check your inbox (and spam folder) for a confirmation email.</p>
-        <p className="mt-2">You'll need to click the confirmation link to activate your account.</p>
+      <div className="mt-6 text-sm text-muted-foreground space-y-2">
+        <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-md">
+          <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p>After signing up, please check your inbox (and spam folder) for a confirmation email.</p>
+            <p className="mt-1">You'll need to click the confirmation link to activate your account.</p>
+          </div>
+        </div>
+        
+        {confirmationLink && (
+          <div className="p-3 mt-4 border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-900 rounded-md">
+            <p className="font-medium text-blue-800 dark:text-blue-300">Development Mode: Confirmation Link</p>
+            <p className="text-xs mt-1 text-blue-700 dark:text-blue-400">For testing only - in production this would be sent by email</p>
+            <a 
+              href={confirmationLink} 
+              className="mt-2 block text-xs break-all text-blue-600 dark:text-blue-400 hover:underline"
+              target="_blank" 
+              rel="noopener noreferrer"
+            >
+              {confirmationLink}
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

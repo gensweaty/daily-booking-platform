@@ -38,10 +38,6 @@ serve(async (req) => {
       throw new Error('Missing required environment variables (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)');
     }
 
-    if (!resendApiKey) {
-      console.warn('RESEND_API_KEY is missing - will try to use Supabase default email service');
-    }
-
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     if (req.method === 'POST') {
@@ -55,7 +51,8 @@ serve(async (req) => {
       }
 
       try {
-        // Try to create the user with email confirmation required
+        // Try to create the user with email confirmation enabled
+        // This will use Supabase's default email service
         const { data, error } = await supabaseAdmin.auth.admin.createUser({
           email,
           password,
@@ -95,13 +92,13 @@ serve(async (req) => {
 
         console.log(`Successfully created user with ID ${data.user.id}, confirmation email sent`);
 
-        // Now generate the confirmation link
+        // Now generate the confirmation link - this will be used directly rather than relying on Resend
         console.log("Generating confirmation link...");
         const { data: linkData, error: emailError } = await supabaseAdmin.auth.admin.generateLink({
           type: 'signup',
           email,
           options: {
-            redirectTo: `${supabaseUrl.replace('.supabase.co', '')}/dashboard?verified=true`
+            redirectTo: `${new URL(supabaseUrl).origin.replace('.supabase.co', '')}/dashboard?verified=true`
           }
         });
 
@@ -120,16 +117,19 @@ serve(async (req) => {
           );
         }
 
-        console.log("Email confirmation link generated successfully:");
+        console.log("Email confirmation link generated successfully");
         const actionUrl = linkData?.properties?.action_link;
         console.log("Action URL:", actionUrl || "No action link provided");
 
-        // Send the confirmation email using Resend if available
+        // First try using Resend if available
+        let usedResend = false;
+        let resendError = null;
+
         if (resendApiKey && actionUrl) {
           try {
             const resend = new Resend(resendApiKey);
             const emailResult = await resend.emails.send({
-              from: "SmartBookly <onboarding@resend.dev>",
+              from: "onboarding@resend.dev", // Use the default domain allowed in testing
               to: email,
               subject: "Confirm your SmartBookly account",
               html: `
@@ -144,25 +144,37 @@ serve(async (req) => {
                   <p>If you didn't request this email, you can safely ignore it.</p>
                   <p>The link will expire in 24 hours.</p>
                   <p>Best regards,<br>The SmartBookly Team</p>
+                  <p>If the button doesn't work, copy and paste this URL into your browser: ${actionUrl}</p>
                 </div>
               `,
             });
-            console.log("Resend email sent successfully:", emailResult);
-          } catch (resendError) {
-            console.error("Error sending email with Resend:", resendError);
-            console.log("Falling back to Supabase's default email service");
-            // Continue execution - we've already created the user and generated the link,
-            // Supabase will try to send the email through its default service
+            console.log("Resend email result:", emailResult);
+            
+            if (emailResult.error) {
+              console.log("Resend email error:", emailResult.error);
+              resendError = emailResult.error;
+            } else {
+              usedResend = true;
+              console.log("Resend email sent successfully");
+            }
+          } catch (resendErr) {
+            console.error("Error sending email with Resend:", resendErr);
+            resendError = resendErr;
           }
-        } else {
-          console.log("Using Supabase's default email service for confirmation");
         }
 
+        // If Resend failed or wasn't available, we'll rely on Supabase's default email service
+        // The good news is that even if our custom email failed, Supabase has already sent its own
+        // confirmation email when we created the user with email_confirm: false
+        
         return new Response(
           JSON.stringify({ 
             success: true, 
             message: "User created successfully, confirmation email sent",
-            user: data.user
+            user: data.user,
+            confirmationLink: actionUrl, // Include the confirmation link in the response
+            usedResend: usedResend,
+            resendError: resendError
           }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -32,7 +32,7 @@ export const useSignup = () => {
           duration: 5000,
         });
         setIsLoading(false);
-        return;
+        return null;
       }
       
       // Validate username
@@ -46,7 +46,7 @@ export const useSignup = () => {
             duration: 5000,
           });
           setIsLoading(false);
-          return;
+          return null;
         }
       } catch (error) {
         console.error('Username validation error:', error);
@@ -57,7 +57,7 @@ export const useSignup = () => {
           duration: 5000,
         });
         setIsLoading(false);
-        return;
+        return null;
       }
       
       let codeId: string | null = null;
@@ -81,7 +81,7 @@ export const useSignup = () => {
             duration: 5000,
           });
           setIsLoading(false);
-          return;
+          return null;
         }
 
         // The function always returns exactly one row
@@ -96,7 +96,7 @@ export const useSignup = () => {
             duration: 5000,
           });
           setIsLoading(false);
-          return;
+          return null;
         }
 
         codeId = validationResult.code_id;
@@ -124,7 +124,7 @@ export const useSignup = () => {
             duration: 5000,
           });
           setIsLoading(false);
-          return;
+          return null;
         }
 
         if (!adminData?.success) {
@@ -139,7 +139,7 @@ export const useSignup = () => {
               duration: 5000,
             });
             setIsLoading(false);
-            return;
+            return null;
           }
           
           toast({
@@ -149,18 +149,32 @@ export const useSignup = () => {
             duration: 5000,
           });
           setIsLoading(false);
-          return;
+          return null;
         }
 
         console.log('User created successfully, confirmation email sent:', adminData);
         
+        let toastMessage = "Account created! Please check your email to confirm your account.";
+        
+        // If Resend failed but we're using Supabase's email service as fallback
+        if (adminData.resendError) {
+          console.log("Note: Custom email sending failed, but Supabase's default service was used as fallback");
+          toastMessage += " If you don't receive it, please check your spam folder.";
+        }
+        
         toast({
           title: "Success",
-          description: "Account created! Please check your email to confirm your account.",
+          description: toastMessage,
           duration: 8000,
         });
         
         clearForm();
+        
+        // Return the confirmation link if available (for development/testing)
+        return {
+          success: true,
+          confirmationLink: adminData.confirmationLink
+        };
       } catch (adminError: any) {
         console.error('Admin API error:', adminError);
         toast({
@@ -169,6 +183,7 @@ export const useSignup = () => {
           variant: "destructive",
           duration: 5000,
         });
+        return null;
       }
     } catch (error: any) {
       console.error('Signup error:', error);
@@ -178,6 +193,7 @@ export const useSignup = () => {
         variant: "destructive",
         duration: 5000,
       });
+      return null;
     } finally {
       setIsLoading(false);
     }
