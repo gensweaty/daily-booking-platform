@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase, getRedirectUrl } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -104,7 +105,6 @@ export const useSignup = () => {
       console.log('[Signup] Using redirect URL:', redirectUrl);
       
       // Step 2: Create user account WITHOUT checking email confirmation by default
-      // IMPORTANT: emailRedirectTo is completely removed to prevent Supabase from sending its own confirmation email
       console.log('[Signup] Creating user account with email:', email, 'and username:', username);
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -159,9 +159,15 @@ export const useSignup = () => {
       // Step 3: Send custom confirmation email using our edge function
       try {
         const functionUrl = 'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email';
-        const requestBody = JSON.stringify({ email, redirectUrl });
         
-        console.log(`[Signup] Attempting to call Edge Function: ${functionUrl} with body:`, requestBody);
+        console.log(`[Signup] Calling Edge Function directly at: ${functionUrl}`);
+        
+        const requestBody = JSON.stringify({ 
+          email, 
+          redirectUrl: 'https://smartbookly.com/dashboard' // Use hardcoded URL to avoid UNDEFINED_VALUE errors
+        });
+        
+        console.log(`[Signup] Edge Function request body:`, requestBody);
         
         const confirmationResponse = await fetch(functionUrl, {
           method: 'POST',
@@ -278,13 +284,12 @@ export const useSignup = () => {
     try {
       console.log('[Resend] Attempting to resend confirmation email to:', email);
       
-      // Get the redirect URL
-      const redirectUrl = getRedirectUrl();
-      console.log('[Resend] Using redirect URL for resend:', redirectUrl);
-      
       // Call our Edge Function directly for resending
       const functionUrl = 'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email';
-      const requestBody = JSON.stringify({ email, redirectUrl });
+      const requestBody = JSON.stringify({ 
+        email, 
+        redirectUrl: 'https://smartbookly.com/dashboard' // Hardcoded to avoid UNDEFINED_VALUE errors
+      });
       
       console.log(`[Resend] Calling Edge Function: ${functionUrl} with body:`, requestBody);
       
