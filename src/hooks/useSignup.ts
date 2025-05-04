@@ -110,7 +110,7 @@ export const useSignup = () => {
         password,
         options: {
           data: { username },
-          // We're not using emailRedirectTo because we'll handle confirmation ourselves
+          // We'll handle confirmation separately via our edge function
           emailRedirectTo: redirectUrl,
         },
       });
@@ -155,7 +155,7 @@ export const useSignup = () => {
       try {
         console.log('Sending custom confirmation email to:', email, 'with redirect URL:', redirectUrl);
         
-        // Call our edge function without auth headers since it's configured as public
+        // Direct call to edge function with full URL and no auth headers
         const confirmationResponse = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email', {
           method: 'POST',
           headers: {
@@ -169,14 +169,22 @@ export const useSignup = () => {
         
         console.log('Confirmation email response status:', confirmationResponse.status);
         
-        if (!confirmationResponse.ok) {
-          const errorText = await confirmationResponse.text();
-          console.error('Error response from confirmation endpoint:', errorText);
-          throw new Error(`Failed to send confirmation email: ${confirmationResponse.status} ${errorText}`);
+        const responseText = await confirmationResponse.text();
+        console.log('Confirmation email raw response:', responseText);
+        
+        let confirmationResult;
+        try {
+          confirmationResult = JSON.parse(responseText);
+          console.log('Parsed confirmation result:', confirmationResult);
+        } catch (parseError) {
+          console.error('Error parsing confirmation response:', parseError);
+          console.log('Raw response body was:', responseText);
         }
-
-        const confirmationResult = await confirmationResponse.json();
-        console.log('Custom confirmation email result:', confirmationResult);
+        
+        if (!confirmationResponse.ok) {
+          console.error('Error response from confirmation endpoint:', responseText);
+          throw new Error(`Failed to send confirmation email: ${confirmationResponse.status} ${responseText}`);
+        }
       } catch (error) {
         console.error('Error sending confirmation email:', error);
         toast({
@@ -268,7 +276,7 @@ export const useSignup = () => {
       const redirectUrl = getRedirectUrl();
       console.log('Using redirect URL for resend:', redirectUrl);
       
-      // Use our custom edge function to resend the confirmation email
+      // Direct call to edge function with full URL
       const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email', {
         method: 'POST',
         headers: {
@@ -282,14 +290,22 @@ export const useSignup = () => {
       
       console.log('Resend response status:', response.status);
       
+      const responseText = await response.text();
+      console.log('Raw response from resend endpoint:', responseText);
+      
+      let result;
+      try {
+        result = JSON.parse(responseText);
+        console.log('Parsed resend result:', result);
+      } catch (parseError) {
+        console.error('Error parsing resend response:', parseError);
+      }
+      
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = responseText;
         console.error('Error response from resend endpoint:', errorText);
         throw new Error(`Failed to resend confirmation email: ${response.status} ${errorText}`);
       }
-      
-      const result = await response.json();
-      console.log('Custom resend confirmation result:', result);
       
       toast({
         title: "Confirmation Email Sent",
