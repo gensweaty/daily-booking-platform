@@ -101,15 +101,15 @@ export const useSignup = () => {
       }
 
       // Get current site URL for redirects
-      // Updated to use a more robust approach for getting the base URL with proper hostname check
       const baseUrl = window.location.origin;
       
-      // For email redirections, include error parameter to handle confirmation failures
+      // For email redirections, always include error parameter to handle confirmation failures
       const emailRedirectTo = `${baseUrl}/signup?error=confirmation_failed`;
       
       console.log('Email confirmation redirect URL:', emailRedirectTo);
 
       // Step 2: Create user account with email confirmation redirect
+      console.log('Calling supabase.auth.signUp with emailRedirectTo:', emailRedirectTo);
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -118,6 +118,8 @@ export const useSignup = () => {
           emailRedirectTo: emailRedirectTo,
         },
       });
+      
+      console.log('Signup response:', { data: authData, error: signUpError });
 
       if (signUpError) {
         console.error('Signup error:', signUpError);
