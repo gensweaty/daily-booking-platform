@@ -104,13 +104,13 @@ export const useSignup = () => {
 
       // Step 2: Create user account WITHOUT relying on email confirmation
       console.log('Creating user account...');
-      // We disable email confirmation by using the emailRedirect option with a dummy value
+      // We disable email confirmation by using the emailRedirectTo option with a dummy value
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { username },
-          emailRedirect: 'https://example.com', // This is just a dummy value - we won't use it
+          emailRedirectTo: 'https://example.com', // This is just a dummy value - we won't use it
         },
       });
 
