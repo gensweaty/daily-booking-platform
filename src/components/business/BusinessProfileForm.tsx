@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -10,8 +11,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
+import { useBusinessProfile } from "@/hooks/useBusinessProfile";
+import { BusinessProfile } from "@/types/database";
 
 const formSchema = z.object({
   businessName: z.string().min(2, {
@@ -31,10 +32,9 @@ const formSchema = z.object({
 export const BusinessProfileForm = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
-  const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [baseUrl, setBaseUrl] = useState<string | null>(null);
+  const { businessProfile, isLoading, createBusinessProfile, updateBusinessProfile, uploadCoverPhoto } = useBusinessProfile();
 
   useEffect(() => {
     setBaseUrl(`${window.location.protocol}//${window.location.host}/business`);
@@ -54,62 +54,61 @@ export const BusinessProfileForm = () => {
     },
   });
 
+  // Update form with business profile data when it's loaded
   useEffect(() => {
-    const fetchBusinessProfile = async () => {
-      if (!user?.id) return;
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from("business_profiles")
-          .select("*")
-          .eq("user_id", user.id)
-          .single();
+    if (businessProfile) {
+      form.reset({
+        businessName: businessProfile.business_name || "",
+        slug: businessProfile.slug || "",
+        description: businessProfile.description || "",
+        coverPhoto: businessProfile.cover_photo_url || "",
+        phone: businessProfile.contact_phone || "",
+        email: businessProfile.contact_email || "",
+        website: businessProfile.contact_website || "",
+        address: businessProfile.contact_address || "",
+      });
+    }
+  }, [businessProfile, form]);
 
-        if (error && error.code !== 'PGRST116') {
-          throw error;
-        }
+  const handleCoverPhotoUpload = async (file: File) => {
+    if (!file) return;
 
-        if (data) {
-          form.reset(data);
-        }
-      } catch (error: any) {
-        console.error("Error fetching business profile:", error);
-        toast({
-          title: t("common.error"),
-          description: error.message || t("common.errorOccurred"),
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
+    setIsUploading(true);
+    try {
+      const { url } = await uploadCoverPhoto(file);
+      if (url) {
+        form.setValue("coverPhoto", url);
       }
-    };
-
-    fetchBusinessProfile();
-  }, [user?.id, form, toast, t]);
+    } catch (error) {
+      console.error("Error uploading cover photo:", error);
+      toast({
+        title: t("common.error"),
+        description: t("business.uploadError"),
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("business_profiles")
-        .upsert(
-          {
-            ...values,
-            user_id: user?.id,
-          },
-          { onConflict: "user_id" }
-        )
-        .select()
-        .single();
+      const profileData = {
+        business_name: values.businessName,
+        slug: values.slug,
+        description: values.description,
+        cover_photo_url: values.coverPhoto,
+        contact_phone: values.phone,
+        contact_email: values.email,
+        contact_website: values.website,
+        contact_address: values.address,
+      };
 
-      if (error) {
-        throw error;
+      if (businessProfile) {
+        await updateBusinessProfile(profileData);
+      } else {
+        await createBusinessProfile(profileData);
       }
-
-      toast({
-        title: t("common.success"),
-        description: t("business.updateProfile"),
-      });
     } catch (error: any) {
       console.error("Error updating business profile:", error);
       toast({
@@ -117,8 +116,6 @@ export const BusinessProfileForm = () => {
         description: error.message || t("common.errorOccurred"),
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -192,13 +189,15 @@ export const BusinessProfileForm = () => {
               <FormControl>
                 <FileUploadField
                   imageUrl={value}
-                  onUpload={onChange}
+                  onUpload={(url) => onChange(url)}
+                  onFileSelect={handleCoverPhotoUpload}
                   bucket="business_covers"
                   uploadText={t("business.uploadImageCover")}
                   chooseFileText={t("business.chooseFile")}
                   noFileText={t("business.noFileChosen")}
                   maxSizeMB={5}
                   acceptedFileTypes="image/*"
+                  isUploading={isUploading}
                   {...field}
                 />
               </FormControl>
