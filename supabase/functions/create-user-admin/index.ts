@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
+import { Resend } from "https://esm.sh/resend@4.3.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,14 +26,20 @@ serve(async (req) => {
     // Create a Supabase client with the Admin key
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
     
     console.log("Environment variables check:", {
       hasUrl: !!supabaseUrl,
       hasServiceKey: !!supabaseServiceRoleKey && supabaseServiceRoleKey.length > 20,
+      hasResendKey: !!resendApiKey && resendApiKey.length > 10,
     });
 
     if (!supabaseUrl || !supabaseServiceRoleKey) {
       throw new Error('Missing required environment variables (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)');
+    }
+
+    if (!resendApiKey) {
+      console.warn('RESEND_API_KEY is missing - will try to use Supabase default email service');
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
@@ -88,7 +95,7 @@ serve(async (req) => {
 
         console.log(`Successfully created user with ID ${data.user.id}, confirmation email sent`);
 
-        // Now send the confirmation email
+        // Now generate the confirmation link
         console.log("Generating confirmation link...");
         const { data: linkData, error: emailError } = await supabaseAdmin.auth.admin.generateLink({
           type: 'signup',
@@ -99,11 +106,11 @@ serve(async (req) => {
         });
 
         if (emailError) {
-          console.error('Error sending confirmation email:', emailError);
+          console.error('Error generating confirmation link:', emailError);
           return new Response(
             JSON.stringify({
               success: false,
-              message: "User created but failed to send confirmation email",
+              message: "User created but failed to generate confirmation link",
               error: emailError
             }),
             {
@@ -114,7 +121,42 @@ serve(async (req) => {
         }
 
         console.log("Email confirmation link generated successfully:");
-        console.log("Action URL:", linkData?.properties?.action_link || "No action link provided");
+        const actionUrl = linkData?.properties?.action_link;
+        console.log("Action URL:", actionUrl || "No action link provided");
+
+        // Send the confirmation email using Resend if available
+        if (resendApiKey && actionUrl) {
+          try {
+            const resend = new Resend(resendApiKey);
+            const emailResult = await resend.emails.send({
+              from: "SmartBookly <onboarding@resend.dev>",
+              to: email,
+              subject: "Confirm your SmartBookly account",
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2>Welcome to SmartBookly!</h2>
+                  <p>Thank you for registering. Please confirm your email address to activate your account.</p>
+                  <p style="margin: 30px 0;">
+                    <a href="${actionUrl}" style="background-color: #4CAF50; color: white; padding: 14px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">
+                      Confirm Email Address
+                    </a>
+                  </p>
+                  <p>If you didn't request this email, you can safely ignore it.</p>
+                  <p>The link will expire in 24 hours.</p>
+                  <p>Best regards,<br>The SmartBookly Team</p>
+                </div>
+              `,
+            });
+            console.log("Resend email sent successfully:", emailResult);
+          } catch (resendError) {
+            console.error("Error sending email with Resend:", resendError);
+            console.log("Falling back to Supabase's default email service");
+            // Continue execution - we've already created the user and generated the link,
+            // Supabase will try to send the email through its default service
+          }
+        } else {
+          console.log("Using Supabase's default email service for confirmation");
+        }
 
         return new Response(
           JSON.stringify({ 

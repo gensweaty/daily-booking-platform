@@ -75,6 +75,11 @@ export const SignUp = () => {
           {isLoading ? t("auth.signingUp") : t("auth.signUpButton")}
         </Button>
       </form>
+      
+      <div className="mt-6 text-sm text-muted-foreground">
+        <p>After signing up, please check your inbox (and spam folder) for a confirmation email.</p>
+        <p className="mt-2">You'll need to click the confirmation link to activate your account.</p>
+      </div>
     </div>
   );
 };

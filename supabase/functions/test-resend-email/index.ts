@@ -39,34 +39,53 @@ serve(async (req) => {
     // Create Resend client
     const resend = new Resend(RESEND_API_KEY);
     
-    // Test API key by listing API keys
+    // Parse email address from request if provided
+    let testEmail = "test@example.com"; // Default
     try {
-      const apiKeysResponse = await resend.apiKeys.list();
-      console.log("API keys list response:", apiKeysResponse);
+      const body = await req.json();
+      if (body && body.email) {
+        testEmail = body.email;
+        console.log(`Using provided email: ${testEmail}`);
+      }
+    } catch (e) {
+      console.log("No valid JSON body provided, using default test email");
+    }
+    
+    // Send a test email
+    try {
+      const emailResult = await resend.emails.send({
+        from: "SmartBookly <onboarding@resend.dev>",
+        to: [testEmail],
+        subject: "Test Email from SmartBookly",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>This is a test email from SmartBookly</h2>
+            <p>If you're seeing this, Resend is configured correctly!</p>
+            <p>Time sent: ${new Date().toISOString()}</p>
+          </div>
+        `,
+      });
+      
+      console.log("Test email sent:", emailResult);
       
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: "Resend API key is valid",
-          data: {
-            keyInfo: {
-              keyPrefix: maskedKey,
-              apiKeyCount: apiKeysResponse.data?.length || 0
-            }
-          }
+          message: "Test email sent successfully",
+          emailResult: emailResult
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
         }
       );
-    } catch (resendError) {
-      console.error("Error testing Resend API key:", resendError);
+    } catch (emailError) {
+      console.error("Error sending test email:", emailError);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: "Failed to validate Resend API key",
-          error: resendError?.message || "Unknown error"
+          message: "Failed to send test email",
+          error: emailError?.message || "Unknown error"
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
