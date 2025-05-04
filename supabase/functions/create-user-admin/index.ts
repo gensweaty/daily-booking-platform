@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,17 +26,24 @@ serve(async (req) => {
     // Create a Supabase client with the Admin key
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
     
     console.log("Environment variables check:", {
       hasUrl: !!supabaseUrl,
       hasServiceKey: !!supabaseServiceRoleKey && supabaseServiceRoleKey.length > 20,
+      hasResendKey: !!resendApiKey && resendApiKey.length > 10,
     });
 
     if (!supabaseUrl || !supabaseServiceRoleKey) {
       throw new Error('Missing required environment variables (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)');
     }
 
+    if (!resendApiKey) {
+      throw new Error('Missing required environment variable RESEND_API_KEY');
+    }
+
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+    const resend = new Resend(resendApiKey);
 
     if (req.method === 'POST') {
       // Parse the request body
@@ -48,11 +56,11 @@ serve(async (req) => {
       }
 
       try {
-        // Create the user with email confirmation enabled
+        // Create the user with email confirmation disabled (we'll handle it manually)
         const { data, error } = await supabaseAdmin.auth.admin.createUser({
           email,
           password,
-          email_confirm: false, // We'll send confirmation email using the configured SMTP
+          email_confirm: false, // We'll send our own email using Resend
           user_metadata: { username }
         });
 
@@ -89,17 +97,18 @@ serve(async (req) => {
         console.log(`Successfully created user with ID ${data.user.id}`);
 
         // Get the base URL for the app
-        const baseUrl = new URL(req.url).origin;
-        console.log("Base URL for app:", baseUrl);
+        const domain = req.url.includes('localhost') || req.url.includes('lovable.app') 
+          ? new URL(req.url).origin 
+          : 'https://smartbookly.com';
+        console.log("Base URL for app:", domain);
 
-        // Generate the verification email
+        // Generate the verification link
         console.log("Generating confirmation email...");
         const { data: linkData, error: emailError } = await supabaseAdmin.auth.admin.generateLink({
           type: 'signup',
           email,
           options: {
-            // Use domain from request for redirect (works in both development and production)
-            redirectTo: `${baseUrl}/dashboard?verified=true`,
+            redirectTo: `${domain}/dashboard?verified=true`,
           }
         });
 
@@ -121,6 +130,36 @@ serve(async (req) => {
         console.log("Email confirmation link generated successfully");
         const actionUrl = linkData?.properties?.action_link;
         console.log("Action URL:", actionUrl || "No action link provided");
+        
+        if (!actionUrl) {
+          throw new Error('No verification link was generated');
+        }
+
+        // Send the email using Resend
+        console.log("Sending email via Resend...");
+        const emailResult = await resend.emails.send({
+          from: 'SmartBookly <no-reply@smartbookly.com>',
+          to: email,
+          subject: 'Verify your SmartBookly account',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #4f46e5;">Welcome to SmartBookly!</h2>
+              <p>Thank you for signing up. Please verify your email address to get started.</p>
+              <div style="margin: 30px 0;">
+                <a href="${actionUrl}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                  Verify your email
+                </a>
+              </div>
+              <p>Or copy and paste this link in your browser:</p>
+              <p style="word-break: break-all; color: #4f46e5;"><a href="${actionUrl}">${actionUrl}</a></p>
+              <p>If you didn't sign up for SmartBookly, you can ignore this email.</p>
+              <hr style="margin: 30px 0; border: none; height: 1px; background-color: #eaeaea;">
+              <p style="color: #6b7280; font-size: 14px;">© SmartBookly</p>
+            </div>
+          `,
+        });
+        
+        console.log("Email sending result:", emailResult);
         
         return new Response(
           JSON.stringify({ 
