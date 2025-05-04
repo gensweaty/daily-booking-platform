@@ -103,8 +103,9 @@ export const useSignup = () => {
       // Get current site URL for redirects
       const baseUrl = window.location.origin;
       
-      // For email redirections, always include error parameter to handle confirmation failures
-      const emailRedirectTo = `${baseUrl}/signup?error=confirmation_failed`;
+      // This is crucial - we need to handle potential email failures
+      // Using the site URL will ensure proper redirection
+      const emailRedirectTo = baseUrl;
       
       console.log('Email confirmation redirect URL:', emailRedirectTo);
 
@@ -115,7 +116,7 @@ export const useSignup = () => {
         password,
         options: {
           data: { username },
-          emailRedirectTo: emailRedirectTo,
+          emailRedirectTo,
         },
       });
       
@@ -156,7 +157,7 @@ export const useSignup = () => {
       }
 
       // Step 3: Create subscription
-      const { data: subscription, error: subError } = await supabase
+      const { error: subError } = await supabase
         .rpc('create_user_subscription', {
           p_user_id: authData.user.id,
           p_plan_type: redeemCode ? 'ultimate' : 'monthly',
@@ -164,7 +165,8 @@ export const useSignup = () => {
         });
 
       if (subError) {
-        throw new Error('Failed to setup subscription: ' + subError.message);
+        console.error('Subscription creation error:', subError);
+        // Continue with signup flow even if subscription has an issue
       }
 
       // Step 4: If we have a valid code, update it with user details
@@ -178,38 +180,33 @@ export const useSignup = () => {
           .eq('id', codeId);
       }
 
-      // Check if the user was created but email confirmation might have failed
-      if (authData?.user && !authData.user.email_confirmed_at) {
-        setErrorType("email_confirmation_pending");
-        toast({
-          title: "Account Created",
-          description: "Please check your email (including spam folder) to confirm your account.",
-          duration: 7000,
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: redeemCode 
-            ? "Account created with Ultimate plan! Please check your email to confirm your account."
-            : "Account created! Please check your email to confirm your account.",
-          duration: 5000,
-        });
-      }
+      // Even if account was created successfully, we need to handle email confirmation issues
+      // Always assume there might be email delivery problems
+      setErrorType("email_confirmation_pending");
+      toast({
+        title: "Account Created",
+        description: "Please check your email (including spam folder) to confirm your account. If you don't receive an email within 5 minutes, use the resend option.",
+        duration: 7000,
+      });
       
       clearForm();
 
     } catch (error: any) {
       console.error('Signup error:', error);
       
-      // Enhanced error detection for email confirmation issues
-      if (error.message?.includes("confirmation") || 
-          error.message?.includes("email") || 
-          error.message?.includes("535") || 
-          error.message?.includes("UNDEFINED_VALUE")) {
+      // Comprehensive error detection for email confirmation issues
+      const errorMessage = error.message?.toLowerCase() || '';
+      
+      if (
+        errorMessage.includes("confirmation") || 
+        errorMessage.includes("email") || 
+        errorMessage.includes("535") || 
+        errorMessage.includes("undefined_value")
+      ) {
         setErrorType("email_confirmation_failed");
         toast({
-          title: "Email Confirmation Issue",
-          description: "There was an issue with the confirmation email system. Please try again or contact support.",
+          title: "Email System Issue",
+          description: "We're having trouble sending confirmation emails. Please try again or contact support.",
           variant: "destructive",
           duration: 7000,
         });
@@ -234,15 +231,14 @@ export const useSignup = () => {
     try {
       console.log('Attempting to resend confirmation email to:', email);
       
-      // Get the current origin for redirects
+      // Get the current origin for redirects - use direct domain without parameters
       const origin = window.location.origin;
-      const redirectTo = `${origin}/signup?error=confirmation_failed`;
       
-      const { data, error } = await supabase.auth.resend({
+      const { error } = await supabase.auth.resend({
         type: 'signup',
         email: email,
         options: {
-          emailRedirectTo: redirectTo,
+          emailRedirectTo: origin,
         }
       });
       
@@ -257,8 +253,6 @@ export const useSignup = () => {
         setErrorType("resend_failed");
         return;
       }
-      
-      console.log('Resend confirmation response:', data);
       
       toast({
         title: "Confirmation Email Sent",

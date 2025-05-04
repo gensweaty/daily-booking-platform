@@ -159,34 +159,43 @@ supabase.auth.onAuthStateChange((event, session) => {
     }
   }
 
-  // Special handling for email confirmation code on dashboard
-  if (window.location.pathname === '/dashboard' && window.location.search.includes('code=')) {
-    const searchParams = new URLSearchParams(window.location.search);
-    const code = searchParams.get('code');
+  // Special handling for email confirmation parameters
+  const searchParams = new URLSearchParams(window.location.search);
+  const code = searchParams.get('code');
+  const errorParam = searchParams.get('error');
+  const typeParam = searchParams.get('type');
+  
+  if (code) {
+    console.log("Auth code detected, attempting exchange:", code.substring(0, 5) + '...');
     
-    if (code) {
-      console.log("Dashboard detected with confirmation code:", code.substring(0, 5) + '...');
-      
-      // Process the code to exchange for a session
-      (async () => {
-        try {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-          
-          if (error) {
-            console.error("Error exchanging code for session:", error);
-            // Redirect to login on error with the proper error parameter
-            window.location.href = '/login?error=confirmation_failed';
-          } else if (data?.session) {
-            console.log("Successfully exchanged code for session on dashboard");
-            // Refresh dashboard without the code parameter
-            window.location.href = '/dashboard';
-          }
-        } catch (err) {
-          console.error("Exception exchanging code:", err);
+    // Process the code to exchange for a session
+    (async () => {
+      try {
+        console.log("Starting code exchange");
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        
+        if (error) {
+          console.error("Error exchanging code for session:", error);
           window.location.href = '/login?error=confirmation_failed';
+        } else if (data?.session) {
+          console.log("Successfully exchanged code for session");
+          // Clean URL and redirect to dashboard
+          const cleanUrl = window.location.pathname === '/signup' || window.location.pathname === '/login' 
+            ? '/dashboard' 
+            : window.location.pathname;
+          
+          window.location.href = cleanUrl;
         }
-      })();
-    }
+      } catch (err) {
+        console.error("Exception exchanging code:", err);
+        window.location.href = '/login?error=confirmation_failed';
+      }
+    })();
+  }
+  
+  // Enhanced error handling for auth redirects
+  if (errorParam === 'confirmation_failed') {
+    console.error("Email confirmation failed, showing error message");
   }
 });
 

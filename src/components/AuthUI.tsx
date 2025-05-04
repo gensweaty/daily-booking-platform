@@ -10,7 +10,7 @@ import { ArrowLeft, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface AuthUIProps {
   defaultTab?: "signin" | "signup";
@@ -20,6 +20,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
+  const [alertTitle, setAlertTitle] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -27,8 +28,6 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
 
   useEffect(() => {
     console.log("AuthUI effect ran. Path:", location.pathname, "Search:", location.search);
-    console.log("AuthUI - Current path:", location.pathname);
-    console.log("AuthUI - Current search params:", location.search);
     
     if (location.pathname === "/signup") {
       setActiveTab("signup");
@@ -36,21 +35,24 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
       setActiveTab("signin");
     }
 
-    // More reliable way to parse search params and detect errors
+    // Parse search params to detect different error types
     const searchParams = new URLSearchParams(location.search);
     const error = searchParams.get('error');
     console.log("AuthUI - Parsed error param:", error);
     
     if (error === 'confirmation_failed') {
       setShowAlert(true);
+      setAlertTitle("Email Confirmation Failed");
       setAlertMessage("Email confirmation failed. If you don't receive a confirmation email, please check your spam folder or try signing up with a different email address.");
     } else if (error === 'email_error') {
       setShowAlert(true);
+      setAlertTitle("Email System Issue");
       setAlertMessage("There seems to be an issue with our email delivery system. Please try again later or contact support.");
     } else {
       // Reset alert state if no errors
       setShowAlert(false);
       setAlertMessage("");
+      setAlertTitle("");
     }
   }, [location]); // Using location as dependency to ensure it runs on any location change
 
@@ -94,8 +96,9 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
       {showAlert && (
         <Alert className="max-w-sm mx-auto mb-6 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
           <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{alertTitle}</AlertTitle>
           <AlertDescription className="text-center">
-            {alertMessage || "If you don't receive a confirmation email, please check your spam folder or try signing up with a different email address."}
+            {alertMessage}
           </AlertDescription>
         </Alert>
       )}
