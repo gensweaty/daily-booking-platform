@@ -21,6 +21,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertTitle, setAlertTitle] = useState("");
+  const [alertSeverity, setAlertSeverity] = useState<"warning" | "error" | "info">("warning");
   const location = useLocation();
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -38,16 +39,34 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
     // Parse search params to detect different error types
     const searchParams = new URLSearchParams(location.search);
     const error = searchParams.get('error');
-    console.log("AuthUI - Parsed error param:", error);
+    const success = searchParams.get('success');
+    console.log("AuthUI - Parsed error param:", error, "success param:", success);
     
+    // Handle success confirmations first
+    if (success === 'email_confirmed') {
+      setShowAlert(true);
+      setAlertTitle("Email Confirmed");
+      setAlertMessage("Your email has been confirmed successfully. You can now log in to your account.");
+      setAlertSeverity("info");
+      return;
+    }
+    
+    // Handle various error scenarios
     if (error === 'confirmation_failed') {
       setShowAlert(true);
       setAlertTitle("Email Confirmation Failed");
       setAlertMessage("Email confirmation failed. If you don't receive a confirmation email, please check your spam folder or try signing up with a different email address.");
+      setAlertSeverity("error");
     } else if (error === 'email_error') {
       setShowAlert(true);
       setAlertTitle("Email System Issue");
       setAlertMessage("There seems to be an issue with our email delivery system. Please try again later or contact support.");
+      setAlertSeverity("error");
+    } else if (error === 'invalid_code') {
+      setShowAlert(true);
+      setAlertTitle("Invalid Code");
+      setAlertMessage("The confirmation link you used is invalid or has expired. Please try signing up again.");
+      setAlertSeverity("error");
     } else {
       // Reset alert state if no errors
       setShowAlert(false);
@@ -94,7 +113,13 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
       </header>
 
       {showAlert && (
-        <Alert className="max-w-sm mx-auto mb-6 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
+        <Alert className={`max-w-sm mx-auto mb-6 ${
+          alertSeverity === "error" 
+            ? "border-red-500 bg-red-50 dark:bg-red-900/20" 
+            : alertSeverity === "info"
+              ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+              : "border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20"
+        }`}>
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>{alertTitle}</AlertTitle>
           <AlertDescription className="text-center">

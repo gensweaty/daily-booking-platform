@@ -100,27 +100,25 @@ export const useSignup = () => {
         codeId = validationResult.code_id;
       }
 
-      // Get current site URL for redirects
+      // Get current site URL for redirects - SIMPLIFIED for reliability
       const baseUrl = window.location.origin;
       
-      // This is crucial - we need to handle potential email failures
-      // Using the site URL will ensure proper redirection
-      const emailRedirectTo = baseUrl;
-      
-      console.log('Email confirmation redirect URL:', emailRedirectTo);
+      // Ensure email redirects go directly to the base URL without query params
+      // This prevents the "undefined values" error with email providers
+      console.log('Email confirmation redirect URL:', baseUrl);
 
       // Step 2: Create user account with email confirmation redirect
-      console.log('Calling supabase.auth.signUp with emailRedirectTo:', emailRedirectTo);
+      console.log('Calling supabase.auth.signUp with emailRedirectTo:', baseUrl);
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { username },
-          emailRedirectTo,
+          emailRedirectTo: baseUrl,
         },
       });
       
-      console.log('Signup response:', { data: authData, error: signUpError });
+      console.log('Signup response:', { data: authData, hasUser: !!authData?.user, error: signUpError });
 
       if (signUpError) {
         console.error('Signup error:', signUpError);
@@ -145,6 +143,22 @@ export const useSignup = () => {
             duration: 5000,
           });
           setErrorType("email");
+          setIsLoading(false);
+          return;
+        }
+
+        // Specific handling for SMTP/email provider errors
+        if (signUpError.message.includes("535") || 
+            signUpError.message.includes("UNDEFINED_VALUE") ||
+            signUpError.message.includes("confirmation")) {
+          console.error('Email provider error during signup:', signUpError);
+          toast({
+            title: "Email System Issue",
+            description: "We're having trouble sending the confirmation email. Please try again later or contact support.",
+            variant: "destructive",
+            duration: 7000,
+          });
+          setErrorType("email_system");
           setIsLoading(false);
           return;
         }
@@ -180,8 +194,7 @@ export const useSignup = () => {
           .eq('id', codeId);
       }
 
-      // Even if account was created successfully, we need to handle email confirmation issues
-      // Always assume there might be email delivery problems
+      // If account was created successfully, we show confirmation pending message
       setErrorType("email_confirmation_pending");
       toast({
         title: "Account Created",
