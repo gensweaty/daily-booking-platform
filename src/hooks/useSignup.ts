@@ -156,7 +156,8 @@ export const useSignup = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.auth.anon}`
+          // Fix: Don't use supabase.auth.anon which doesn't exist
+          // We'll use a public endpoint without auth header
         },
         body: JSON.stringify({
           email,
@@ -263,7 +264,7 @@ export const useSignup = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.auth.anon}`
+          // Fix: Remove the auth header that was using supabase.auth.anon
         },
         body: JSON.stringify({
           email,
