@@ -77,8 +77,8 @@ export const useSignup = () => {
           return;
         }
 
-        // Additional validation for the response structure
-        if (!codeResult || !Array.isArray(codeResult) || codeResult.length === 0) {
+        // Updated validation for object response structure
+        if (!codeResult || typeof codeResult !== 'object') {
           console.error('Invalid redeem code response:', codeResult);
           toast({
             title: "Redeem Code Error",
@@ -90,8 +90,8 @@ export const useSignup = () => {
           return;
         }
 
-        // The function always returns exactly one row
-        const validationResult = codeResult[0];
+        // Handle the object response directly
+        const validationResult = codeResult;
         console.log('Code validation result:', validationResult);
 
         if (!validationResult.is_valid) {
@@ -171,7 +171,6 @@ export const useSignup = () => {
       const userId = signUpResult.user.id;
 
       // If we have a valid code, update it with user details
-      // Also check permissions by inspecting the result
       if (codeId && isRedeemCodeValid) {
         try {
           console.log('Updating redeem code with user details...');
