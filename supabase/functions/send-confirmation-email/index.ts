@@ -14,11 +14,6 @@ const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const resend = new Resend(Deno.env.get("RESEND_API_KEY")!);
 
-interface SignupRequest {
-  email: string;
-  redirectUrl: string;
-}
-
 serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -26,10 +21,35 @@ serve(async (req: Request) => {
   }
 
   try {
+    console.log("Received request to send-confirmation-email");
+    
     // Parse the request body
-    const { email, redirectUrl }: SignupRequest = await req.json();
+    const bodyText = await req.text();
+    console.log("Request body:", bodyText);
+    
+    let email: string;
+    let redirectUrl: string;
+    
+    try {
+      const body = JSON.parse(bodyText);
+      email = body.email;
+      redirectUrl = body.redirectUrl || 'https://smartbookly.com/dashboard';
+      
+      console.log("Parsed email:", email);
+      console.log("Parsed redirectUrl:", redirectUrl);
+    } catch (parseError) {
+      console.error("Error parsing request body:", parseError);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
     
     if (!email) {
+      console.error("Missing required parameter: email");
       return new Response(
         JSON.stringify({ error: "Email is required" }),
         { 
@@ -63,6 +83,7 @@ serve(async (req: Request) => {
 
     const magicLink = data.properties.action_link;
     console.log("Magic link generated successfully");
+    console.log("Magic link starts with:", magicLink?.substring(0, 30) + "...");
 
     // Send the email using Resend
     const emailResult = await resend.emails.send({
