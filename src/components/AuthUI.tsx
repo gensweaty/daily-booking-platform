@@ -26,23 +26,32 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const { t } = useLanguage();
 
   useEffect(() => {
+    console.log("AuthUI - Current path:", location.pathname);
+    console.log("AuthUI - Current search params:", location.search);
+    
     if (location.pathname === "/signup") {
       setActiveTab("signup");
     } else if (location.pathname === "/login") {
       setActiveTab("signin");
     }
 
-    // Show alert if there was a previous error
+    // More reliable way to parse search params and detect errors
     const searchParams = new URLSearchParams(location.search);
     const error = searchParams.get('error');
+    console.log("AuthUI - Parsed error param:", error);
+    
     if (error === 'confirmation_failed') {
       setShowAlert(true);
       setAlertMessage("Email confirmation failed. If you don't receive a confirmation email, please check your spam folder or try signing up with a different email address.");
     } else if (error === 'email_error') {
       setShowAlert(true);
       setAlertMessage("There seems to be an issue with our email delivery system. Please try again later or contact support.");
+    } else {
+      // Reset alert state if no errors
+      setShowAlert(false);
+      setAlertMessage("");
     }
-  }, [location.pathname, location.search]);
+  }, [location]); // Using location as dependency to ensure it runs on any location change
 
   return (
     <div className="min-h-screen bg-background p-4">

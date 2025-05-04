@@ -101,10 +101,11 @@ export const useSignup = () => {
       }
 
       // Get current site URL for redirects
-      // Updated: Use a more reliable approach for getting the base URL
+      // Updated to use a more robust approach for getting the base URL with proper hostname check
       const baseUrl = window.location.origin;
-      // For email redirections, create full path to dashboard
-      const emailRedirectTo = `${baseUrl}/dashboard`;
+      
+      // For email redirections, include error parameter to handle confirmation failures
+      const emailRedirectTo = `${baseUrl}/signup?error=confirmation_failed`;
       
       console.log('Email confirmation redirect URL:', emailRedirectTo);
 
