@@ -1,12 +1,10 @@
 
 import { useState } from "react";
-import { supabase, getRedirectUrl } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
-import { validatePassword, validateUsername } from "@/utils/signupValidation";
 
 export const useSignup = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [errorType, setErrorType] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleSignup = async (
@@ -19,49 +17,16 @@ export const useSignup = () => {
   ) => {
     if (isLoading) return;
     setIsLoading(true);
-    setErrorType(null);
 
     try {
-      console.log('[Signup] Starting signup process...');
-      
-      // Password validation
-      const passwordError = validatePassword(password);
-      if (passwordError) {
-        toast({
-          title: "Password Error",
-          description: passwordError,
-          variant: "destructive",
-          duration: 5000,
-        });
-        setErrorType("password_validation");
-        setIsLoading(false);
-        return;
-      }
-      
-      // Username validation
-      try {
-        const usernameError = await validateUsername(username, supabase);
-        if (usernameError) {
-          toast({
-            title: "Username Error",
-            description: usernameError,
-            variant: "destructive",
-            duration: 5000,
-          });
-          setErrorType("username_validation");
-          setIsLoading(false);
-          return;
-        }
-      } catch (error) {
-        console.error("[Signup] Username validation error:", error);
-      }
+      console.log('Starting signup process...');
       
       let codeId: string | null = null;
 
       // Step 1: Validate redeem code if provided
       if (redeemCode) {
         const trimmedCode = redeemCode.trim();
-        console.log('[Signup] Checking redeem code:', trimmedCode);
+        console.log('Checking redeem code:', trimmedCode);
 
         const { data: codeResult, error: codeError } = await supabase
           .rpc('check_and_lock_redeem_code', {
@@ -69,21 +34,20 @@ export const useSignup = () => {
           });
 
         if (codeError) {
-          console.error('[Signup] Redeem code check error:', codeError);
+          console.error('Redeem code check error:', codeError);
           toast({
             title: "Error",
             description: "Error checking redeem code",
             variant: "destructive",
             duration: 5000,
           });
-          setErrorType("redeem_code");
           setIsLoading(false);
           return;
         }
 
         // The function always returns exactly one row
         const validationResult = codeResult[0];
-        console.log('[Signup] Code validation result:', validationResult);
+        console.log('Code validation result:', validationResult);
 
         if (!validationResult.is_valid) {
           toast({
@@ -92,7 +56,6 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
-          setErrorType("redeem_code");
           setIsLoading(false);
           return;
         }
@@ -100,31 +63,30 @@ export const useSignup = () => {
         codeId = validationResult.code_id;
       }
 
-      // Get stable redirect URL
-      const redirectUrl = getRedirectUrl();
-      console.log('[Signup] Using redirect URL:', redirectUrl);
+      // Get current site URL for redirects
+      // For production, we need to ensure redirects go to the correct domain
+      // Don't use window.location.origin as it will differ between development and production
+      const origin = window.location.host.includes('localhost') || 
+                     window.location.host.includes('lovable.app') 
+                     ? window.location.origin 
+                     : 'https://smartbookly.com';
       
-      // Step 2: Create user account WITHOUT checking email confirmation by default
-      console.log('[Signup] Creating user account with email:', email, 'and username:', username);
+      // Ensure the redirect URL explicitly includes the full path to avoid 404 errors
+      const emailRedirectTo = `${origin}/dashboard`;
+      
+      console.log('Email confirmation redirect URL:', emailRedirectTo);
+
+      // Step 2: Create user account with email confirmation redirect
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { username }
-          // No emailRedirectTo to prevent Supabase from sending confirmation email
+          data: { username },
+          emailRedirectTo: emailRedirectTo,
         },
-      });
-      
-      console.log('[Signup] Signup response:', { 
-        data: authData, 
-        hasUser: !!authData?.user, 
-        userId: authData?.user?.id,
-        error: signUpError 
       });
 
       if (signUpError) {
-        console.error('[Signup] Signup error:', signUpError);
-        
         if (signUpError.status === 429) {
           toast({
             title: "Rate Limit Exceeded",
@@ -132,23 +94,9 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
-          setErrorType("rate_limit");
           setIsLoading(false);
           return;
         }
-        
-        if (signUpError.message.includes("email")) {
-          toast({
-            title: "Email Error",
-            description: signUpError.message || "This email address cannot be used or is already taken.",
-            variant: "destructive",
-            duration: 5000,
-          });
-          setErrorType("email");
-          setIsLoading(false);
-          return;
-        }
-        
         throw signUpError;
       }
 
@@ -156,62 +104,8 @@ export const useSignup = () => {
         throw new Error('Failed to create user account');
       }
 
-      // Step 3: Send custom confirmation email using our edge function
-      try {
-        const functionUrl = 'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email';
-        
-        console.log(`[Signup] Calling Edge Function directly at: ${functionUrl}`);
-        
-        const requestBody = JSON.stringify({ 
-          email, 
-          redirectUrl: 'https://smartbookly.com/dashboard' // Use hardcoded URL to avoid UNDEFINED_VALUE errors
-        });
-        
-        console.log(`[Signup] Edge Function request body:`, requestBody);
-        
-        const confirmationResponse = await fetch(functionUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: requestBody
-        });
-        
-        console.log(`[Signup] Edge Function Response Status: ${confirmationResponse.status}`);
-        
-        const responseText = await confirmationResponse.text();
-        console.log('[Signup] Edge Function Raw Response Text:', responseText);
-        
-        if (!confirmationResponse.ok) {
-          console.error(`[Signup] Edge Function Call Failed. Status: ${confirmationResponse.status}, Body: ${responseText}`);
-          throw new Error(`Failed to send confirmation email via Edge Function: Status ${confirmationResponse.status}`);
-        }
-        
-        console.log('[Signup] Edge Function call successful.');
-        
-        // Try to parse the response as JSON if possible
-        let confirmationResult;
-        try {
-          confirmationResult = JSON.parse(responseText);
-          console.log('[Signup] Parsed confirmation result:', confirmationResult);
-        } catch (parseError) {
-          console.error('[Signup] Error parsing confirmation response:', parseError);
-        }
-      } catch (error: any) {
-        console.error('[Signup] Error DURING/AFTER Edge Function call:', error);
-        toast({
-          title: "Email System Issue",
-          description: "We encountered an issue sending the confirmation email after account creation. Please use the resend option or contact support.",
-          variant: "destructive",
-          duration: 7000,
-        });
-        setErrorType("email_system_fetch_error");
-        setIsLoading(false);
-        return;
-      }
-
-      // Step 4: Create subscription
-      const { error: subError } = await supabase
+      // Step 3: Create subscription
+      const { data: subscription, error: subError } = await supabase
         .rpc('create_user_subscription', {
           p_user_id: authData.user.id,
           p_plan_type: redeemCode ? 'ultimate' : 'monthly',
@@ -219,11 +113,10 @@ export const useSignup = () => {
         });
 
       if (subError) {
-        console.error('[Signup] Subscription creation error:', subError);
-        // Continue with signup flow even if subscription has an issue
+        throw new Error('Failed to setup subscription: ' + subError.message);
       }
 
-      // Step 5: If we have a valid code, update it with user details
+      // Step 4: If we have a valid code, update it with user details
       if (codeId) {
         await supabase
           .from('redeem_codes')
@@ -234,110 +127,28 @@ export const useSignup = () => {
           .eq('id', codeId);
       }
 
-      // If account was created successfully, we show confirmation pending message
-      setErrorType("email_confirmation_pending");
       toast({
-        title: "Account Created",
-        description: "Please check your email (including spam folder) to confirm your account. If you don't receive an email within 5 minutes, use the resend option.",
-        duration: 7000,
+        title: "Success",
+        description: redeemCode 
+          ? "Account created with Ultimate plan! Please check your email to confirm your account."
+          : "Account created! Please check your email to confirm your account.",
+        duration: 5000,
       });
       
       clearForm();
 
     } catch (error: any) {
-      console.error('[Signup] Signup error:', error);
-      
-      const errorMessage = error.message?.toLowerCase() || '';
-      
-      if (
-        errorMessage.includes("confirmation") || 
-        errorMessage.includes("email") || 
-        errorMessage.includes("535") || 
-        errorMessage.includes("undefined_value") ||
-        errorMessage.includes("send")
-      ) {
-        setErrorType("email_confirmation_failed");
-        toast({
-          title: "Email System Issue",
-          description: "We're having trouble sending confirmation emails. Please try again or contact support.",
-          variant: "destructive",
-          duration: 7000,
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: error.message || "An error occurred during sign up",
-          variant: "destructive",
-          duration: 5000,
-        });
-        setErrorType("unknown");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const resendConfirmationEmail = async (email: string) => {
-    setIsLoading(true);
-    setErrorType(null);
-    
-    try {
-      console.log('[Resend] Attempting to resend confirmation email to:', email);
-      
-      // Call our Edge Function directly for resending
-      const functionUrl = 'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email';
-      const requestBody = JSON.stringify({ 
-        email, 
-        redirectUrl: 'https://smartbookly.com/dashboard' // Hardcoded to avoid UNDEFINED_VALUE errors
-      });
-      
-      console.log(`[Resend] Calling Edge Function: ${functionUrl} with body:`, requestBody);
-      
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: requestBody
-      });
-      
-      console.log('[Resend] Response status:', response.status);
-      
-      const responseText = await response.text();
-      console.log('[Resend] Raw response from resend endpoint:', responseText);
-      
-      if (!response.ok) {
-        console.error('[Resend] Error response from endpoint:', responseText);
-        throw new Error(`Failed to resend confirmation email: ${response.status} ${responseText}`);
-      }
-      
-      let result;
-      try {
-        result = JSON.parse(responseText);
-        console.log('[Resend] Parsed resend result:', result);
-      } catch (parseError) {
-        console.error('[Resend] Error parsing resend response:', parseError);
-      }
-      
-      toast({
-        title: "Confirmation Email Sent",
-        description: "Please check your inbox and spam folder.",
-        duration: 5000,
-      });
-      
-    } catch (error: any) {
-      console.error('[Resend] Resend error:', error);
+      console.error('Signup error:', error);
       toast({
         title: "Error",
-        description: error.message || "An error occurred while resending the email",
+        description: error.message || "An error occurred during sign up",
         variant: "destructive",
         duration: 5000,
       });
-      setErrorType("resend_exception");
     } finally {
       setIsLoading(false);
     }
   };
 
-  return { handleSignup, resendConfirmationEmail, isLoading, errorType };
+  return { handleSignup, isLoading };
 };

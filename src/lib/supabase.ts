@@ -7,18 +7,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-// Get the current base URL for redirects - handling both dev and production environments
-const getBaseUrl = () => {
-  // For development or preview deployments
-  if (window.location.hostname.includes('localhost') || 
-      window.location.hostname.includes('.lovableproject.com')) {
-    return window.location.origin;
-  }
-  
-  // For production - smartbookly.com - explicitly set to avoid UNDEFINED_VALUE errors
-  return 'https://smartbookly.com';
-};
-
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
@@ -171,49 +159,39 @@ supabase.auth.onAuthStateChange((event, session) => {
     }
   }
 
-  // Special handling for email confirmation parameters
-  const searchParams = new URLSearchParams(window.location.search);
-  const code = searchParams.get('code');
-  const errorParam = searchParams.get('error');
-  const typeParam = searchParams.get('type');
-  
-  if (code) {
-    console.log("Auth code detected, attempting exchange:", code.substring(0, 5) + '...');
+  // Special handling for email confirmation code on dashboard
+  if (window.location.pathname === '/dashboard' && window.location.search.includes('code=')) {
+    const searchParams = new URLSearchParams(window.location.search);
+    const code = searchParams.get('code');
     
-    // Process the code to exchange for a session
-    (async () => {
-      try {
-        console.log("Starting code exchange");
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-        
-        if (error) {
-          console.error("Error exchanging code for session:", error);
-          window.location.href = '/login?error=confirmation_failed';
-        } else if (data?.session) {
-          console.log("Successfully exchanged code for session");
-          // Clean URL and redirect to dashboard
-          const cleanUrl = window.location.pathname === '/signup' || window.location.pathname === '/login' 
-            ? '/dashboard' 
-            : window.location.pathname;
+    if (code) {
+      console.log("Dashboard detected with confirmation code:", code.substring(0, 5) + '...');
+      
+      // Process the code to exchange for a session
+      (async () => {
+        try {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
           
-          window.location.href = cleanUrl;
+          if (error) {
+            console.error("Error exchanging code for session:", error);
+            // Redirect to login on error
+            window.location.href = '/login?error=confirmation_failed';
+          } else if (data?.session) {
+            console.log("Successfully exchanged code for session on dashboard");
+            // Refresh dashboard without the code parameter
+            window.location.href = '/dashboard';
+          }
+        } catch (err) {
+          console.error("Exception exchanging code:", err);
+          window.location.href = '/login?error=confirmation_failed';
         }
-      } catch (err) {
-        console.error("Exception exchanging code:", err);
-        window.location.href = '/login?error=confirmation_failed';
-      }
-    })();
-  }
-  
-  // Enhanced error handling for auth redirects
-  if (errorParam === 'confirmation_failed') {
-    console.error("Email confirmation failed, showing error message");
+      })();
+    }
   }
 });
 
 // Specific handling for production environment - needed for smartbookly.com
-// UPDATED: More robust hostname check to handle www and subdomains
-const isProdEnv = window.location.hostname.includes('smartbookly.com');
+const isProdEnv = window.location.host === 'smartbookly.com';
 
 if (isProdEnv) {
   console.log("Production environment detected - applying special handling for auth flows");
@@ -222,7 +200,7 @@ if (isProdEnv) {
   const url = new URL(window.location.href);
   const code = url.searchParams.get('code');
   
-  if (code && (url.pathname === '/dashboard' || url.pathname === '/login' || url.pathname === '/signup')) {
+  if (code && (url.pathname === '/dashboard' || url.pathname === '/login')) {
     console.log(`Auth code detected in URL on ${url.pathname}, attempting exchange...`);
     
     (async () => {
@@ -245,14 +223,3 @@ if (isProdEnv) {
     })();
   }
 }
-
-// Export a dedicated function for signup operations with proper URL handling
-export const getRedirectUrl = () => {
-  // FIXED: Using hardcoded URLs to prevent UNDEFINED_VALUE errors
-  if (window.location.hostname.includes('smartbookly.com')) {
-    return 'https://smartbookly.com/dashboard';
-  }
-  
-  // For development or preview environments, use the current origin with the desired redirect path
-  return `${window.location.origin}/dashboard`;
-};
