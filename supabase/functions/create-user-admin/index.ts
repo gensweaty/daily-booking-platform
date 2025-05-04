@@ -47,48 +47,93 @@ serve(async (req) => {
         throw new Error('Missing required parameters (email, password, or username)');
       }
 
-      // Create the user with email confirmation required
-      const { data, error } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: false, // Require email confirmation
-        user_metadata: { username }
-      });
+      try {
+        // Try to create the user with email confirmation required
+        const { data, error } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: false, // Require email confirmation
+          user_metadata: { username }
+        });
 
-      if (error) {
-        console.error('Error creating user:', error);
+        if (error) {
+          // Check if error is because user already exists
+          if (error.status === 422 && error.message.includes('already been registered')) {
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                message: "This email is already registered. Please try signing in instead.",
+                errorCode: "email_exists"
+              }),
+              {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 422, // Return proper status for this type of error
+              }
+            );
+          } else {
+            console.error('Error creating user:', error);
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                message: error.message,
+                error: error
+              }),
+              {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 400,
+              }
+            );
+          }
+        }
+
+        console.log(`Successfully created user with ID ${data.user.id}, confirmation email sent`);
+
+        // Now send the confirmation email
+        console.log("Generating confirmation link...");
+        const { data: linkData, error: emailError } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'signup',
+          email,
+          options: {
+            redirectTo: `${supabaseUrl.replace('.supabase.co', '')}/dashboard?verified=true`
+          }
+        });
+
+        if (emailError) {
+          console.error('Error sending confirmation email:', emailError);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              message: "User created but failed to send confirmation email",
+              error: emailError
+            }),
+            {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 500,
+            }
+          );
+        }
+
+        console.log("Email confirmation link generated successfully:");
+        console.log("Action URL:", linkData?.properties?.action_link || "No action link provided");
+
         return new Response(
           JSON.stringify({ 
-            success: false, 
-            message: error.message,
-            error: error
+            success: true, 
+            message: "User created successfully, confirmation email sent",
+            user: data.user
           }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 400,
+            status: 200,
           }
         );
-      }
-
-      console.log(`Successfully created user with ID ${data.user.id}, confirmation email sent`);
-
-      // Now send the confirmation email
-      console.log("Generating confirmation link...");
-      const { data: linkData, error: emailError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'signup',
-        email,
-        options: {
-          redirectTo: `${supabaseUrl.replace('.supabase.co', '')}/dashboard?verified=true`
-        }
-      });
-
-      if (emailError) {
-        console.error('Error sending confirmation email:', emailError);
+      } catch (createError) {
+        console.error('Error in user creation process:', createError);
         return new Response(
-          JSON.stringify({
-            success: false,
-            message: "User created but failed to send confirmation email",
-            error: emailError
+          JSON.stringify({ 
+            success: false, 
+            message: createError.message || "Error creating user",
+            error: createError
           }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -96,21 +141,6 @@ serve(async (req) => {
           }
         );
       }
-
-      console.log("Email confirmation link generated successfully:");
-      console.log("Action URL:", linkData?.properties?.action_link || "No action link provided");
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "User created successfully, confirmation email sent",
-          user: data.user
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        }
-      );
     } else {
       return new Response(
         JSON.stringify({ 

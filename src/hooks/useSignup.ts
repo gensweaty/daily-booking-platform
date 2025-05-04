@@ -129,6 +129,19 @@ export const useSignup = () => {
 
         if (!adminData?.success) {
           console.error('User creation failed:', adminData);
+          
+          // Special handling for email already exists error
+          if (adminData?.errorCode === "email_exists") {
+            toast({
+              title: "Email Already Registered",
+              description: "This email address is already registered. Please try signing in or use a different email.",
+              variant: "destructive",
+              duration: 5000,
+            });
+            setIsLoading(false);
+            return;
+          }
+          
           toast({
             title: "Signup Failed",
             description: adminData?.message || "Failed to create user account",
