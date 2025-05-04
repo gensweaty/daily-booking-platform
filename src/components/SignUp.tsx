@@ -5,7 +5,7 @@ import { SignUpFields } from "./signup/SignUpFields";
 import { useSignup } from "@/hooks/useSignup";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { AlertCircle, Link as LinkIcon } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 export const SignUp = () => {
   const [email, setEmail] = useState("");
@@ -13,7 +13,6 @@ export const SignUp = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [redeemCode, setRedeemCode] = useState("");
-  const [confirmationLink, setConfirmationLink] = useState("");
   
   const { handleSignup, isLoading } = useSignup();
   const { toast } = useToast();
@@ -29,7 +28,6 @@ export const SignUp = () => {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setConfirmationLink("");
     
     // Basic validation
     if (password !== confirmPassword) {
@@ -50,24 +48,7 @@ export const SignUp = () => {
       return;
     }
 
-    const result = await handleSignup(email, username, password, confirmPassword, redeemCode, clearForm);
-    
-    // If we have a confirmation link (development mode or for testing), show it
-    if (result?.confirmationLink) {
-      setConfirmationLink(result.confirmationLink);
-      
-      // Copy link to clipboard for convenience
-      try {
-        await navigator.clipboard.writeText(result.confirmationLink);
-        toast({
-          title: "Verification Link Ready",
-          description: "The verification link has been copied to your clipboard",
-          duration: 5000,
-        });
-      } catch (e) {
-        console.error("Could not copy to clipboard:", e);
-      }
-    }
+    await handleSignup(email, username, password, confirmPassword, redeemCode, clearForm);
   };
 
   return (
@@ -104,41 +85,6 @@ export const SignUp = () => {
             <p className="mt-1">Please check both your inbox and spam folders for the confirmation email.</p>
           </div>
         </div>
-        
-        {confirmationLink && (
-          <div className="p-3 mt-4 border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-900 rounded-md">
-            <div className="flex items-center justify-between">
-              <p className="font-medium text-blue-800 dark:text-blue-300">Verification Link</p>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 px-2 text-blue-600 hover:text-blue-800 dark:text-blue-400"
-                onClick={() => {
-                  navigator.clipboard.writeText(confirmationLink);
-                  toast({
-                    title: "Copied!",
-                    description: "Link copied to clipboard",
-                    duration: 2000,
-                  });
-                }}
-              >
-                <LinkIcon className="h-4 w-4 mr-1" />
-                Copy
-              </Button>
-            </div>
-            <p className="text-xs mt-1 text-blue-700 dark:text-blue-400">
-              Click this link to verify your email and activate your account
-            </p>
-            <a 
-              href={confirmationLink} 
-              className="mt-2 block text-xs break-all text-blue-600 dark:text-blue-400 hover:underline"
-              target="_blank" 
-              rel="noopener noreferrer"
-            >
-              {confirmationLink}
-            </a>
-          </div>
-        )}
       </div>
     </div>
   );

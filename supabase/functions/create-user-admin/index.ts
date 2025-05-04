@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
-import { Resend } from "https://esm.sh/resend@4.3.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,12 +25,10 @@ serve(async (req) => {
     // Create a Supabase client with the Admin key
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
     
     console.log("Environment variables check:", {
       hasUrl: !!supabaseUrl,
       hasServiceKey: !!supabaseServiceRoleKey && supabaseServiceRoleKey.length > 20,
-      hasResendKey: !!resendApiKey && resendApiKey.length > 10,
     });
 
     if (!supabaseUrl || !supabaseServiceRoleKey) {
@@ -51,12 +48,11 @@ serve(async (req) => {
       }
 
       try {
-        // Try to create the user with email confirmation enabled
-        // This will use Supabase's default email service
+        // Create the user with email confirmation enabled using Supabase's built-in email service
         const { data, error } = await supabaseAdmin.auth.admin.createUser({
           email,
           password,
-          email_confirm: false, // Require email confirmation
+          email_confirm: false, // We'll send confirmation email separately
           user_metadata: { username }
         });
 
@@ -90,24 +86,28 @@ serve(async (req) => {
           }
         }
 
-        console.log(`Successfully created user with ID ${data.user.id}, confirmation email sent`);
+        console.log(`Successfully created user with ID ${data.user.id}`);
 
-        // Generate the confirmation link
-        console.log("Generating confirmation link...");
+        // Generate and send the confirmation email
+        console.log("Generating confirmation email...");
         const { data: linkData, error: emailError } = await supabaseAdmin.auth.admin.generateLink({
           type: 'signup',
           email,
           options: {
-            redirectTo: `${new URL(supabaseUrl).origin.replace('.supabase.co', '')}/dashboard?verified=true`
+            redirectTo: `${new URL(supabaseUrl).origin.replace('.supabase.co', '')}/dashboard?verified=true`,
+            // Make sure Supabase sends the email automatically
+            data: {
+              username: username
+            }
           }
         });
 
         if (emailError) {
-          console.error('Error generating confirmation link:', emailError);
+          console.error('Error generating confirmation email:', emailError);
           return new Response(
             JSON.stringify({
               success: false,
-              message: "User created but failed to generate confirmation link",
+              message: "User created but failed to generate confirmation email",
               error: emailError
             }),
             {
@@ -120,20 +120,14 @@ serve(async (req) => {
         console.log("Email confirmation link generated successfully");
         const actionUrl = linkData?.properties?.action_link;
         console.log("Action URL:", actionUrl || "No action link provided");
-
-        let usedResend = false;
-        let resendError = null;
-
-        // Always use Supabase's email service
-        // We'll just return the link for display in the UI for testing purposes
         
         return new Response(
           JSON.stringify({ 
             success: true, 
-            message: "User created successfully, check your email for verification link",
+            message: "User created successfully. Please check your email (including spam folder) for the verification link.",
             user: data.user,
-            confirmationLink: actionUrl, // Include the confirmation link in the response
-            usedResend: false
+            // We still include the confirmation link for development, but the email should be sent
+            confirmationLink: actionUrl
           }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },

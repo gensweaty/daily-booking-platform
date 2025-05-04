@@ -152,7 +152,7 @@ export const useSignup = () => {
           return null;
         }
 
-        console.log('User created successfully, confirmation email sent:', adminData);
+        console.log('User created successfully, confirmation email sent');
         
         toast({
           title: "Account Created",
@@ -162,10 +162,8 @@ export const useSignup = () => {
         
         clearForm();
         
-        // Return the confirmation link if available
         return {
-          success: true,
-          confirmationLink: adminData.confirmationLink
+          success: true
         };
       } catch (adminError: any) {
         console.error('Admin API error:', adminError);
