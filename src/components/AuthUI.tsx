@@ -6,10 +6,11 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useEffect, useState } from "react";
 import { useLocation, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface AuthUIProps {
   defaultTab?: "signin" | "signup";
@@ -17,6 +18,7 @@ interface AuthUIProps {
 
 export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const [activeTab, setActiveTab] = useState(defaultTab);
+  const [showAlert, setShowAlert] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -28,7 +30,14 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
     } else if (location.pathname === "/login") {
       setActiveTab("signin");
     }
-  }, [location.pathname]);
+
+    // Show alert if there was a previous error
+    const searchParams = new URLSearchParams(location.search);
+    const error = searchParams.get('error');
+    if (error === 'confirmation_failed' || error === 'email_error') {
+      setShowAlert(true);
+    }
+  }, [location.pathname, location.search]);
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -66,6 +75,16 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
           {t("auth.description")}
         </p>
       </header>
+
+      {showAlert && (
+        <Alert className="max-w-sm mx-auto mb-6 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-center">
+            If you don't receive a confirmation email, please check your spam folder 
+            or try signing up with a different email address.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="w-full max-w-sm mx-auto">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "signin" | "signup")} className="w-full">

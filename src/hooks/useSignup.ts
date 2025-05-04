@@ -2,9 +2,11 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { validatePassword, validateUsername } from "@/utils/signupValidation";
 
 export const useSignup = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [errorType, setErrorType] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleSignup = async (
@@ -17,9 +19,42 @@ export const useSignup = () => {
   ) => {
     if (isLoading) return;
     setIsLoading(true);
+    setErrorType(null);
 
     try {
       console.log('Starting signup process...');
+      
+      // Password validation
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        toast({
+          title: "Password Error",
+          description: passwordError,
+          variant: "destructive",
+          duration: 5000,
+        });
+        setErrorType("password_validation");
+        setIsLoading(false);
+        return;
+      }
+      
+      // Username validation
+      try {
+        const usernameError = await validateUsername(username, supabase);
+        if (usernameError) {
+          toast({
+            title: "Username Error",
+            description: usernameError,
+            variant: "destructive",
+            duration: 5000,
+          });
+          setErrorType("username_validation");
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.error("Username validation error:", error);
+      }
       
       let codeId: string | null = null;
 
@@ -41,6 +76,7 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
+          setErrorType("redeem_code");
           setIsLoading(false);
           return;
         }
@@ -56,6 +92,7 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
+          setErrorType("redeem_code");
           setIsLoading(false);
           return;
         }
@@ -87,6 +124,8 @@ export const useSignup = () => {
       });
 
       if (signUpError) {
+        console.error('Signup error:', signUpError);
+        
         if (signUpError.status === 429) {
           toast({
             title: "Rate Limit Exceeded",
@@ -94,9 +133,23 @@ export const useSignup = () => {
             variant: "destructive",
             duration: 5000,
           });
+          setErrorType("rate_limit");
           setIsLoading(false);
           return;
         }
+        
+        if (signUpError.message.includes("email")) {
+          toast({
+            title: "Email Error",
+            description: signUpError.message || "This email address cannot be used or is already taken.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          setErrorType("email");
+          setIsLoading(false);
+          return;
+        }
+        
         throw signUpError;
       }
 
@@ -127,28 +180,98 @@ export const useSignup = () => {
           .eq('id', codeId);
       }
 
-      toast({
-        title: "Success",
-        description: redeemCode 
-          ? "Account created with Ultimate plan! Please check your email to confirm your account."
-          : "Account created! Please check your email to confirm your account.",
-        duration: 5000,
-      });
+      // Check if the user was created but email confirmation might have failed
+      if (authData?.user && !authData.user.email_confirmed_at) {
+        setErrorType("email_confirmation_pending");
+        toast({
+          title: "Account Created",
+          description: "Please check your email (including spam folder) to confirm your account.",
+          duration: 7000,
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: redeemCode 
+            ? "Account created with Ultimate plan! Please check your email to confirm your account."
+            : "Account created! Please check your email to confirm your account.",
+          duration: 5000,
+        });
+      }
       
       clearForm();
 
     } catch (error: any) {
       console.error('Signup error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "An error occurred during sign up",
-        variant: "destructive",
-        duration: 5000,
-      });
+      
+      // Check if this looks like an email confirmation error from logs
+      if (error.message?.includes("confirmation") || 
+          error.message?.includes("email") || 
+          error.message?.includes("535")) {
+        setErrorType("email_confirmation_failed");
+        toast({
+          title: "Email Confirmation Error",
+          description: "There was an issue sending the confirmation email. Please try a different email address.",
+          variant: "destructive",
+          duration: 7000,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "An error occurred during sign up",
+          variant: "destructive",
+          duration: 5000,
+        });
+        setErrorType("unknown");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  return { handleSignup, isLoading };
+  const resendConfirmationEmail = async (email: string) => {
+    setIsLoading(true);
+    setErrorType(null);
+    
+    try {
+      const { data, error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        }
+      });
+      
+      if (error) {
+        console.error('Resend confirmation error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to resend confirmation email. Please try again later.",
+          variant: "destructive",
+          duration: 5000,
+        });
+        setErrorType("resend_failed");
+        return;
+      }
+      
+      toast({
+        title: "Confirmation Email Sent",
+        description: "Please check your inbox and spam folder.",
+        duration: 5000,
+      });
+      
+    } catch (error: any) {
+      console.error('Resend error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "An error occurred while resending the email",
+        variant: "destructive",
+        duration: 5000,
+      });
+      setErrorType("resend_exception");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return { handleSignup, resendConfirmationEmail, isLoading, errorType };
 };
