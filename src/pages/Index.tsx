@@ -53,16 +53,17 @@ const Index = () => {
       
       (async () => {
         try {
+          // Use a hardcoded URL for the confirmation to ensure it works correctly on any domain
+          // This ensures that emails have the right redirect URL
           const { data, error } = await supabase.auth.exchangeCodeForSession(code);
           
           if (error) {
             console.error('Error exchanging confirmation code:', error);
             toast({
               title: "Confirmation Error",
-              description: "Could not confirm your email. Please try again or contact support.",
+              description: "Could not confirm your email. Please contact support.",
               variant: "destructive",
             });
-            navigate('/login', { replace: true });
           } else {
             console.log('Email confirmation successful:', data.session ? 'Session created' : 'No session');
             if (data.session) {
@@ -71,6 +72,7 @@ const Index = () => {
                 description: "Your email has been successfully confirmed!",
               });
               
+              // Always navigate to dashboard after successful confirmation
               navigate('/dashboard', { replace: true });
             }
           }
@@ -81,7 +83,6 @@ const Index = () => {
             description: "An unexpected error occurred. Please try again later.",
             variant: "destructive",
           });
-          navigate('/login', { replace: true });
         } finally {
           setProcessingCode(false);
         }

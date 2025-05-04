@@ -21,3 +21,6 @@ verify_jwt = false
 
 [functions.verify-paypal-payment]
 verify_jwt = false
+
+[functions.confirm-signup]
+verify_jwt = false

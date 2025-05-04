@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { validateUsername, validatePassword } from "@/utils/signupValidation";
 
 export const useSignup = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -20,6 +21,44 @@ export const useSignup = () => {
 
     try {
       console.log('Starting signup process...');
+      
+      // Basic validation
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        toast({
+          title: "Password Error",
+          description: passwordError,
+          variant: "destructive",
+          duration: 5000,
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Validate username
+      try {
+        const usernameError = await validateUsername(username, supabase);
+        if (usernameError) {
+          toast({
+            title: "Username Error",
+            description: usernameError,
+            variant: "destructive",
+            duration: 5000,
+          });
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Username validation error:', error);
+        toast({
+          title: "Error",
+          description: "Error validating username",
+          variant: "destructive",
+          duration: 5000,
+        });
+        setIsLoading(false);
+        return;
+      }
       
       let codeId: string | null = null;
 
@@ -63,26 +102,14 @@ export const useSignup = () => {
         codeId = validationResult.code_id;
       }
 
-      // Get current site URL for redirects
-      // For production, we need to ensure redirects go to the correct domain
-      // Don't use window.location.origin as it will differ between development and production
-      const origin = window.location.host.includes('localhost') || 
-                     window.location.host.includes('lovable.app') 
-                     ? window.location.origin 
-                     : 'https://smartbookly.com';
-      
-      // Ensure the redirect URL explicitly includes the full path to avoid 404 errors
-      const emailRedirectTo = `${origin}/dashboard`;
-      
-      console.log('Email confirmation redirect URL:', emailRedirectTo);
-
-      // Step 2: Create user account with email confirmation redirect
+      // Step 2: Create user account WITHOUT email confirmation
+      console.log('Creating user account...');
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { username },
-          emailRedirectTo: emailRedirectTo,
+          // Remove emailRedirectTo since we're handling confirmation ourselves
         },
       });
 
@@ -104,7 +131,22 @@ export const useSignup = () => {
         throw new Error('Failed to create user account');
       }
 
-      // Step 3: Create subscription
+      // Step 3: Confirm the user's email using our custom edge function
+      console.log('Confirming email manually...');
+      const confirmResponse = await supabase.functions.invoke('confirm-signup', {
+        body: {
+          user_id: authData.user.id,
+          email: email
+        }
+      });
+
+      if (confirmResponse.error) {
+        console.error('Error confirming email:', confirmResponse.error);
+        throw new Error(`Failed to confirm email: ${confirmResponse.error.message}`);
+      }
+
+      // Step 4: Create subscription
+      console.log('Creating subscription...');
       const { data: subscription, error: subError } = await supabase
         .rpc('create_user_subscription', {
           p_user_id: authData.user.id,
@@ -116,7 +158,7 @@ export const useSignup = () => {
         throw new Error('Failed to setup subscription: ' + subError.message);
       }
 
-      // Step 4: If we have a valid code, update it with user details
+      // Step 5: If we have a valid code, update it with user details
       if (codeId) {
         await supabase
           .from('redeem_codes')
@@ -127,11 +169,22 @@ export const useSignup = () => {
           .eq('id', codeId);
       }
 
+      // Step 6: Auto-sign in the user
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInError) {
+        console.error('Auto sign-in error:', signInError);
+        // Don't throw here, we'll just tell the user to sign in manually
+      }
+
       toast({
         title: "Success",
         description: redeemCode 
-          ? "Account created with Ultimate plan! Please check your email to confirm your account."
-          : "Account created! Please check your email to confirm your account.",
+          ? "Account created with Ultimate plan! You can now sign in."
+          : "Account created! You can now sign in.",
         duration: 5000,
       });
       
