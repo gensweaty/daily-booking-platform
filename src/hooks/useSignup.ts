@@ -109,6 +109,7 @@ export const useSignup = () => {
         password,
         options: {
           data: { username },
+          emailRedirectTo: null, // Explicitly set to null to prevent default email confirmation
         },
       });
 

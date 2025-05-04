@@ -19,15 +19,29 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Confirm-signup function called");
+    
     // Create a Supabase client with the Admin key
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    console.log("Environment variables check:", {
+      hasUrl: !!supabaseUrl,
+      hasServiceKey: !!supabaseServiceRoleKey && supabaseServiceRoleKey.length > 20,
+    });
+
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      throw new Error('Missing required environment variables (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)');
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     if (req.method === 'POST') {
       // Parse the request body
-      const { user_id, email } = await req.json() as ConfirmSignupRequest;
+      const requestBody = await req.json();
+      console.log("Request body received:", requestBody);
+      
+      const { user_id, email } = requestBody as ConfirmSignupRequest;
 
       console.log(`Processing confirmation for user ${user_id} with email ${email}`);
 
