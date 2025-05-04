@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -83,6 +84,28 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+// Test function to manually trigger email confirmation
+// This can be helpful for debugging email confirmation issues
+export const testSendConfirmationEmail = async (email: string) => {
+  try {
+    console.log(`Attempting to manually resend confirmation to ${email}`);
+    
+    const { data, error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/dashboard`,
+      }
+    });
+    
+    console.log('Confirmation resend response:', { data, error });
+    return { success: !error, error: error?.message };
+  } catch (err) {
+    console.error('Error in manual confirmation send:', err);
+    return { success: false, error: 'Error sending confirmation email' };
+  }
+};
+
 // Improved bucket verification - only checks if it exists and logs the settings
 const ensureStorageBuckets = async () => {
   try {
@@ -126,6 +149,28 @@ export const normalizeFilePath = (filePath: string) => {
   if (!filePath) return "";
   // Remove any leading slashes
   return filePath.replace(/^\/+/, '');
+};
+
+// Check if email provider seems to be working properly
+export const checkEmailProvider = async () => {
+  try {
+    console.log("Testing email provider connectivity...");
+    
+    // We can't directly test the email provider, but we can check if auth endpoints work
+    const { data, error } = await supabase.auth.getSession();
+    
+    console.log("Auth session check:", { hasSession: !!data.session, error });
+    
+    if (error) {
+      console.error("Auth system connectivity issue:", error);
+      return { working: false, error: error.message };
+    }
+    
+    return { working: true };
+  } catch (error) {
+    console.error("Error checking email provider:", error);
+    return { working: false, error: String(error) };
+  }
 };
 
 // Enhanced debug listener for auth events with more detailed information

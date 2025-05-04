@@ -6,6 +6,12 @@ import { validatePassword, validateUsername } from "@/utils/signupValidation";
 import { logSignupDebug, logSignupError, logSignupStep } from "@/utils/signupLogger";
 import { validateRedeemCode } from "@/utils/redeemCodeUtils";
 
+interface SignupResult {
+  success: boolean;
+  error: string | null;
+  user?: any;
+}
+
 export const useSignup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -17,8 +23,8 @@ export const useSignup = () => {
     confirmPassword: string,
     redeemCode: string,
     clearForm: () => void
-  ) => {
-    if (isLoading) return;
+  ): Promise<SignupResult> => {
+    if (isLoading) return { success: false, error: "Already processing request" };
     setIsLoading(true);
 
     try {
@@ -34,7 +40,7 @@ export const useSignup = () => {
           duration: 5000,
         });
         setIsLoading(false);
-        return;
+        return { success: false, error: passwordError };
       }
 
       // Validate username before proceeding
@@ -48,7 +54,7 @@ export const useSignup = () => {
             duration: 5000,
           });
           setIsLoading(false);
-          return;
+          return { success: false, error: usernameError };
         }
       } catch (error: any) {
         logSignupError('Username validation', error);
@@ -71,7 +77,7 @@ export const useSignup = () => {
             });
           }
           setIsLoading(false);
-          return;
+          return { success: false, error: codeValidation.errorMessage || "Invalid redeem code" };
         }
         
         codeId = codeValidation.codeId;
@@ -107,36 +113,48 @@ export const useSignup = () => {
         
         // Special case for existing user
         if (signUpError.message?.includes('User already registered')) {
+          const errorMsg = "An account with this email already exists. Please log in instead.";
           toast({
             title: "Account Already Exists",
-            description: "An account with this email already exists. Please log in instead.",
+            description: errorMsg,
             variant: "destructive",
             duration: 5000,
           });
           setIsLoading(false);
-          return;
+          return { success: false, error: errorMsg };
+        }
+        
+        // Handle email confirmation errors
+        if (signUpError.message?.includes('confirmation email')) {
+          setIsLoading(false);
+          return { 
+            success: false, 
+            error: "Error sending confirmation email. Please try using a different email address or check with support."
+          };
         }
         
         // Handle other signup errors
+        const errorMsg = signUpError.message || "An error occurred during sign up";
         toast({
           title: "Signup Error",
-          description: signUpError.message || "An error occurred during sign up",
+          description: errorMsg,
           variant: "destructive", 
           duration: 5000,
         });
         setIsLoading(false);
-        return;
+        return { success: false, error: errorMsg };
       }
 
       if (!signUpResult?.user) {
+        const errorMsg = "Failed to create user account";
         toast({
           title: "Error",
-          description: "Failed to create user account",
+          description: errorMsg,
           variant: "destructive",
           duration: 5000,
         });
         setIsLoading(false);
-        return;
+        return { success: false, error: errorMsg };
       }
 
       logSignupStep('Signup successful', {
@@ -303,6 +321,7 @@ export const useSignup = () => {
         
         clearForm();
         window.location.href = '/dashboard';
+        return { success: true, error: null, user: signUpResult.user };
       } else {
         // Email confirmation required - show clear instructions
         toast({
@@ -311,17 +330,25 @@ export const useSignup = () => {
           duration: 10000,
         });
         clearForm();
+        return { 
+          success: true, 
+          error: null, 
+          user: signUpResult.user 
+        };
       }
 
     } catch (error: any) {
       logSignupError('Signup general error', error);
       
+      const errorMsg = error.message || "An error occurred during sign up";
       toast({
         title: "Error",
-        description: error.message || "An error occurred during sign up",
+        description: errorMsg,
         variant: "destructive",
         duration: 5000,
       });
+      
+      return { success: false, error: errorMsg };
     } finally {
       setIsLoading(false);
     }

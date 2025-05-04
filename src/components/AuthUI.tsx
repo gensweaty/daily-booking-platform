@@ -6,12 +6,11 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useEffect, useState } from "react";
 import { useLocation, Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
 
 interface AuthUIProps {
   defaultTab?: "signin" | "signup";
@@ -82,11 +81,21 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
       </header>
 
       {showEmailAlert && (
-        <Alert className="mb-6 max-w-sm mx-auto bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+        <Alert className="mb-6 max-w-md mx-auto bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
           <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           <AlertTitle className="text-blue-800 dark:text-blue-300">Check your email</AlertTitle>
           <AlertDescription className="text-blue-700 dark:text-blue-400">
-            A confirmation email has been sent. Please check both your inbox and spam folder to verify your account.
+            <p className="mb-2">
+              A confirmation email has been sent. Please check both your <strong>inbox and spam folder</strong> to verify your account.
+            </p>
+            <p className="text-xs">
+              If you don't receive the email within a few minutes:
+            </p>
+            <ul className="list-disc ml-5 text-xs">
+              <li>Check your spam/junk folder</li>
+              <li>Make sure you entered the correct email address</li>
+              <li>Try signing up with a different email provider</li>
+            </ul>
           </AlertDescription>
         </Alert>
       )}
