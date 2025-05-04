@@ -17,3 +17,8 @@ export const logSignupError = (step: string, error: any) => {
 export const logSignupDebug = (message: string, data?: any) => {
   console.log(`🔍 SIGNUP DEBUG: ${message}`, data || '');
 };
+
+// Email debug log for tracking email-specific issues
+export const logEmailDebug = (message: string, data?: any) => {
+  console.log(`📧 EMAIL DEBUG: ${message}`, data || '');
+};
