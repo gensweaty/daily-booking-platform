@@ -102,12 +102,10 @@ export const useSignup = () => {
         codeId = validationResult.code_id;
       }
 
-      // NEW APPROACH: Use admin API to create user directly
-      // This completely bypasses the email confirmation process
-      console.log('Creating user with service role (admin API)...');
+      // Create user using admin API (which will send confirmation email)
+      console.log('Creating user with confirmation email requirement...');
       
       try {
-        // First, create the user using admin API
         const { data: adminData, error: adminError } = await supabase.functions.invoke('create-user-admin', {
           body: {
             email,
@@ -129,7 +127,7 @@ export const useSignup = () => {
           return;
         }
 
-        if (!adminData?.user || !adminData?.success) {
+        if (!adminData?.success) {
           console.error('User creation failed:', adminData);
           toast({
             title: "Signup Failed",
@@ -141,63 +139,13 @@ export const useSignup = () => {
           return;
         }
 
-        console.log('User created successfully:', adminData.user);
+        console.log('User created successfully, confirmation email sent:', adminData);
         
-        const userId = adminData.user.id;
-
-        // Step 4: Create subscription
-        console.log('Creating subscription...');
-        const { data: subscription, error: subError } = await supabase
-          .rpc('create_user_subscription', {
-            p_user_id: userId,
-            p_plan_type: redeemCode ? 'ultimate' : 'monthly',
-            p_is_redeem_code: !!redeemCode
-          });
-
-        if (subError) {
-          console.error('Subscription creation error:', subError);
-          toast({
-            title: "Warning",
-            description: "User account created, but subscription setup failed. Please contact support.",
-            variant: "destructive",
-            duration: 5000,
-          });
-          // Continue anyway since the user was created
-        } else {
-          console.log('Subscription created:', subscription);
-        }
-
-        // Step 5: If we have a valid code, update it with user details
-        if (codeId) {
-          await supabase
-            .from('redeem_codes')
-            .update({
-              used_by: userId,
-              used_at: new Date().toISOString()
-            })
-            .eq('id', codeId);
-        }
-
-        // Step 6: Auto-sign in the user
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password
+        toast({
+          title: "Success",
+          description: "Account created! Please check your email to confirm your account.",
+          duration: 8000,
         });
-
-        if (signInError) {
-          console.error('Auto sign-in error:', signInError);
-          toast({
-            title: "Success",
-            description: "Account created! Please sign in manually.",
-            duration: 5000,
-          });
-        } else {
-          toast({
-            title: "Success",
-            description: "Account created successfully! You are now signed in.",
-            duration: 5000,
-          });
-        }
         
         clearForm();
       } catch (adminError: any) {

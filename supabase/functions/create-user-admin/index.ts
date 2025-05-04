@@ -47,11 +47,11 @@ serve(async (req) => {
         throw new Error('Missing required parameters (email, password, or username)');
       }
 
-      // Create the user directly with admin API - email will be automatically confirmed
+      // Create the user with email confirmation required
       const { data, error } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
-        email_confirm: true,
+        email_confirm: false, // Changed to false to require email confirmation
         user_metadata: { username }
       });
 
@@ -70,12 +70,36 @@ serve(async (req) => {
         );
       }
 
-      console.log(`Successfully created user with ID ${data.user.id}`);
+      console.log(`Successfully created user with ID ${data.user.id}, confirmation email sent`);
+
+      // Now send the confirmation email
+      const { error: emailError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'signup',
+        email,
+        options: {
+          redirectTo: `${supabaseUrl}/dashboard?verified=true`
+        }
+      });
+
+      if (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "User created but failed to send confirmation email",
+            error: emailError
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500,
+          }
+        );
+      }
 
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: "User created successfully",
+          message: "User created successfully, confirmation email sent",
           user: data.user
         }),
         {
