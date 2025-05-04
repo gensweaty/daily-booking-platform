@@ -31,6 +31,9 @@ verify_jwt = false
 [functions.create-user-admin]
 verify_jwt = false
 
+[functions.password-reset]
+verify_jwt = false
+
 [global.env]
 PAYPAL_CLIENT_ID = "env(PAYPAL_CLIENT_ID)"
 PAYPAL_SECRET_KEY = "env(PAYPAL_SECRET_KEY)"
