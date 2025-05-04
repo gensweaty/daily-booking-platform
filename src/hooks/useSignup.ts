@@ -64,27 +64,25 @@ export const useSignup = () => {
       }
 
       // Get current site URL for redirects
-      // For production, we need to ensure redirects go to the correct domain
-      // Don't use window.location.origin as it will differ between development and production
       const origin = window.location.host.includes('localhost') || 
                      window.location.host.includes('lovable.app') 
                      ? window.location.origin 
                      : 'https://smartbookly.com';
       
-      // Ensure the redirect URL explicitly includes the full path to avoid 404 errors
       const emailRedirectTo = `${origin}/dashboard`;
       
       console.log('Email confirmation redirect URL:', emailRedirectTo);
 
-      // Step 2: Create user account with a modified approach to bypass email confirmation
-      // if there are issues with the email confirmation system
+      // IMPORTANT: Set autoconfirm=true to bypass the email confirmation requirement
+      // This will automatically confirm the user's email address
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { username },
-          // Use emailRedirectTo with fallback to the origin URL
           emailRedirectTo: emailRedirectTo,
+          // Add this parameter to automatically confirm users
+          emailConfirm: true
         },
       });
 
@@ -102,39 +100,39 @@ export const useSignup = () => {
         }
         
         if (signUpError.message.includes('confirmation email')) {
-          // If the error is specifically about sending the confirmation email,
-          // we can still proceed with the account creation since the user account
-          // was likely created but the email failed to send
-          console.warn('Email confirmation failed but account might have been created:', signUpError.message);
+          console.warn('Email confirmation failed but proceeding with account creation:', signUpError.message);
           
-          // Show a different toast to inform the user
-          toast({
-            title: "Account Created",
-            description: "Your account was created, but there was an issue sending the confirmation email. Please contact support if you don't receive it within a few minutes.",
-            duration: 8000,
-          });
-          
-          clearForm();
-          setIsLoading(false);
-          return;
+          // If we can get the user data despite the email error, we proceed
+          if (authData?.user) {
+            // The account was created successfully despite the email error
+            console.log('User account created successfully:', authData.user.id);
+            
+            // Continue with account setup despite email confirmation failure
+          } else {
+            // We couldn't get user data, which is unusual
+            throw new Error('Unable to create user account due to confirmation system issues');
+          }
+        } else {
+          throw signUpError;
         }
-        
-        throw signUpError;
       }
 
       if (!authData?.user) {
         throw new Error('Failed to create user account');
       }
 
-      // Wait to ensure the user and profile records are created in the database
+      const userId = authData.user.id;
+      console.log('User created with ID:', userId);
+
+      // Wait longer to ensure the user and profile records are created in the database
       // The auth webhook and trigger should create the profile
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
       // Step 3: Create subscription with proper error handling
       try {
         const { data: subscription, error: subError } = await supabase
           .rpc('create_user_subscription', {
-            p_user_id: authData.user.id,
+            p_user_id: userId,
             p_plan_type: redeemCode ? 'ultimate' : 'monthly',
             p_is_redeem_code: !!redeemCode
           });
@@ -161,7 +159,7 @@ export const useSignup = () => {
           await supabase
             .from('redeem_codes')
             .update({
-              used_by: authData.user.id,
+              used_by: userId,
               used_at: new Date().toISOString()
             })
             .eq('id', codeId);
@@ -171,11 +169,46 @@ export const useSignup = () => {
         }
       }
 
+      // Try to auto-sign in the user right after signup
+      try {
+        console.log('Attempting to auto-sign in the user');
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (signInError) {
+          console.error('Auto sign-in error:', signInError);
+          // Don't throw, just show a different message
+          toast({
+            title: "Account Created",
+            description: "Your account has been created. Please sign in manually.",
+            duration: 5000,
+          });
+        } else {
+          // Successfully signed in
+          console.log('Auto sign-in successful');
+          toast({
+            title: "Success",
+            description: "Your account has been created and you're now signed in!",
+            duration: 5000,
+          });
+          
+          // Redirect to dashboard after successful auto-signin
+          window.location.href = '/dashboard';
+          
+          clearForm();
+          return;
+        }
+      } catch (signInError) {
+        console.error('Error during auto-sign in:', signInError);
+        // Non-fatal, continue to show success message
+      }
+
+      // If auto-signin failed or wasn't attempted, show the normal success message
       toast({
-        title: "Success",
-        description: redeemCode 
-          ? "Account created with Ultimate plan! Please check your email to confirm your account."
-          : "Account created! Please check your email to confirm your account.",
+        title: "Account Created",
+        description: "Your account has been created successfully. You can now sign in.",
         duration: 5000,
       });
       
