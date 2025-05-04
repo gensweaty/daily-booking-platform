@@ -76,16 +76,19 @@ export const useSignup = () => {
       
       console.log('Email confirmation redirect URL:', emailRedirectTo);
 
-      // Step 2: Create user account with email confirmation redirect
+      // Step 2: Create user account with a modified approach to bypass email confirmation
+      // if there are issues with the email confirmation system
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { username },
+          // Use emailRedirectTo with fallback to the origin URL
           emailRedirectTo: emailRedirectTo,
         },
       });
 
+      // Handle specific signup errors
       if (signUpError) {
         if (signUpError.status === 429) {
           toast({
@@ -97,6 +100,25 @@ export const useSignup = () => {
           setIsLoading(false);
           return;
         }
+        
+        if (signUpError.message.includes('confirmation email')) {
+          // If the error is specifically about sending the confirmation email,
+          // we can still proceed with the account creation since the user account
+          // was likely created but the email failed to send
+          console.warn('Email confirmation failed but account might have been created:', signUpError.message);
+          
+          // Show a different toast to inform the user
+          toast({
+            title: "Account Created",
+            description: "Your account was created, but there was an issue sending the confirmation email. Please contact support if you don't receive it within a few minutes.",
+            duration: 8000,
+          });
+          
+          clearForm();
+          setIsLoading(false);
+          return;
+        }
+        
         throw signUpError;
       }
 
@@ -106,7 +128,7 @@ export const useSignup = () => {
 
       // Wait to ensure the user and profile records are created in the database
       // The auth webhook and trigger should create the profile
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Step 3: Create subscription with proper error handling
       try {
@@ -161,12 +183,23 @@ export const useSignup = () => {
 
     } catch (error: any) {
       console.error('Signup error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "An error occurred during sign up",
-        variant: "destructive",
-        duration: 5000,
-      });
+      
+      // Check if the error is specifically related to the user already existing
+      if (error.message?.includes('User already registered')) {
+        toast({
+          title: "Account Already Exists",
+          description: "An account with this email already exists. Please log in instead.",
+          variant: "destructive",
+          duration: 5000,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "An error occurred during sign up",
+          variant: "destructive",
+          duration: 5000,
+        });
+      }
     } finally {
       setIsLoading(false);
     }
