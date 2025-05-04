@@ -22,7 +22,7 @@ export const useSignup = () => {
     setErrorType(null);
 
     try {
-      console.log('Starting signup process...');
+      console.log('[Signup] Starting signup process...');
       
       // Password validation
       const passwordError = validatePassword(password);
@@ -53,7 +53,7 @@ export const useSignup = () => {
           return;
         }
       } catch (error) {
-        console.error("Username validation error:", error);
+        console.error("[Signup] Username validation error:", error);
       }
       
       let codeId: string | null = null;
@@ -61,7 +61,7 @@ export const useSignup = () => {
       // Step 1: Validate redeem code if provided
       if (redeemCode) {
         const trimmedCode = redeemCode.trim();
-        console.log('Checking redeem code:', trimmedCode);
+        console.log('[Signup] Checking redeem code:', trimmedCode);
 
         const { data: codeResult, error: codeError } = await supabase
           .rpc('check_and_lock_redeem_code', {
@@ -69,7 +69,7 @@ export const useSignup = () => {
           });
 
         if (codeError) {
-          console.error('Redeem code check error:', codeError);
+          console.error('[Signup] Redeem code check error:', codeError);
           toast({
             title: "Error",
             description: "Error checking redeem code",
@@ -83,7 +83,7 @@ export const useSignup = () => {
 
         // The function always returns exactly one row
         const validationResult = codeResult[0];
-        console.log('Code validation result:', validationResult);
+        console.log('[Signup] Code validation result:', validationResult);
 
         if (!validationResult.is_valid) {
           toast({
@@ -102,24 +102,29 @@ export const useSignup = () => {
 
       // Get stable redirect URL
       const redirectUrl = getRedirectUrl();
-      console.log('Using redirect URL:', redirectUrl);
+      console.log('[Signup] Using redirect URL:', redirectUrl);
       
-      // Step 2: Create user account without email confirmation
-      // IMPORTANT: Removed emailRedirectTo to prevent Supabase from sending its own confirmation email
+      // Step 2: Create user account WITHOUT checking email confirmation by default
+      // IMPORTANT: emailRedirectTo is completely removed to prevent Supabase from sending its own confirmation email
+      console.log('[Signup] Creating user account with email:', email, 'and username:', username);
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { username },
-          // We'll handle confirmation separately via our edge function
-          // Removed emailRedirectTo to prevent conflict with our custom email function
+          data: { username }
+          // No emailRedirectTo to prevent Supabase from sending confirmation email
         },
       });
       
-      console.log('Signup response:', { data: authData, hasUser: !!authData?.user, error: signUpError });
+      console.log('[Signup] Signup response:', { 
+        data: authData, 
+        hasUser: !!authData?.user, 
+        userId: authData?.user?.id,
+        error: signUpError 
+      });
 
       if (signUpError) {
-        console.error('Signup error:', signUpError);
+        console.error('[Signup] Signup error:', signUpError);
         
         if (signUpError.status === 429) {
           toast({
@@ -154,47 +159,48 @@ export const useSignup = () => {
 
       // Step 3: Send custom confirmation email using our edge function
       try {
-        console.log('Sending custom confirmation email to:', email, 'with redirect URL:', redirectUrl);
+        const functionUrl = 'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email';
+        const requestBody = JSON.stringify({ email, redirectUrl });
         
-        // Fixed: ensure we're passing the correct data structure with JSON.stringify
-        const confirmationResponse = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email', {
+        console.log(`[Signup] Attempting to call Edge Function: ${functionUrl} with body:`, requestBody);
+        
+        const confirmationResponse = await fetch(functionUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            email,
-            redirectUrl
-          })
+          body: requestBody
         });
         
-        console.log('Confirmation email response status:', confirmationResponse.status);
+        console.log(`[Signup] Edge Function Response Status: ${confirmationResponse.status}`);
         
         const responseText = await confirmationResponse.text();
-        console.log('Confirmation email raw response:', responseText);
+        console.log('[Signup] Edge Function Raw Response Text:', responseText);
         
+        if (!confirmationResponse.ok) {
+          console.error(`[Signup] Edge Function Call Failed. Status: ${confirmationResponse.status}, Body: ${responseText}`);
+          throw new Error(`Failed to send confirmation email via Edge Function: Status ${confirmationResponse.status}`);
+        }
+        
+        console.log('[Signup] Edge Function call successful.');
+        
+        // Try to parse the response as JSON if possible
         let confirmationResult;
         try {
           confirmationResult = JSON.parse(responseText);
-          console.log('Parsed confirmation result:', confirmationResult);
+          console.log('[Signup] Parsed confirmation result:', confirmationResult);
         } catch (parseError) {
-          console.error('Error parsing confirmation response:', parseError);
-          console.log('Raw response body was:', responseText);
+          console.error('[Signup] Error parsing confirmation response:', parseError);
         }
-        
-        if (!confirmationResponse.ok) {
-          console.error('Error response from confirmation endpoint:', responseText);
-          throw new Error(`Failed to send confirmation email: ${confirmationResponse.status} ${responseText}`);
-        }
-      } catch (error) {
-        console.error('Error sending confirmation email:', error);
+      } catch (error: any) {
+        console.error('[Signup] Error DURING/AFTER Edge Function call:', error);
         toast({
           title: "Email System Issue",
-          description: "We're having trouble sending the confirmation email. Please try again later or contact support.",
+          description: "We encountered an issue sending the confirmation email after account creation. Please use the resend option or contact support.",
           variant: "destructive",
           duration: 7000,
         });
-        setErrorType("email_system");
+        setErrorType("email_system_fetch_error");
         setIsLoading(false);
         return;
       }
@@ -208,7 +214,7 @@ export const useSignup = () => {
         });
 
       if (subError) {
-        console.error('Subscription creation error:', subError);
+        console.error('[Signup] Subscription creation error:', subError);
         // Continue with signup flow even if subscription has an issue
       }
 
@@ -234,7 +240,7 @@ export const useSignup = () => {
       clearForm();
 
     } catch (error: any) {
-      console.error('Signup error:', error);
+      console.error('[Signup] Signup error:', error);
       
       const errorMessage = error.message?.toLowerCase() || '';
       
@@ -271,41 +277,42 @@ export const useSignup = () => {
     setErrorType(null);
     
     try {
-      console.log('Attempting to resend confirmation email to:', email);
+      console.log('[Resend] Attempting to resend confirmation email to:', email);
       
       // Get the redirect URL
       const redirectUrl = getRedirectUrl();
-      console.log('Using redirect URL for resend:', redirectUrl);
+      console.log('[Resend] Using redirect URL for resend:', redirectUrl);
       
-      // Fixed: ensure we're passing the correct data structure with JSON.stringify
-      const response = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email', {
+      // Call our Edge Function directly for resending
+      const functionUrl = 'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email';
+      const requestBody = JSON.stringify({ email, redirectUrl });
+      
+      console.log(`[Resend] Calling Edge Function: ${functionUrl} with body:`, requestBody);
+      
+      const response = await fetch(functionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          email,
-          redirectUrl
-        })
+        body: requestBody
       });
       
-      console.log('Resend response status:', response.status);
+      console.log('[Resend] Response status:', response.status);
       
       const responseText = await response.text();
-      console.log('Raw response from resend endpoint:', responseText);
+      console.log('[Resend] Raw response from resend endpoint:', responseText);
+      
+      if (!response.ok) {
+        console.error('[Resend] Error response from endpoint:', responseText);
+        throw new Error(`Failed to resend confirmation email: ${response.status} ${responseText}`);
+      }
       
       let result;
       try {
         result = JSON.parse(responseText);
-        console.log('Parsed resend result:', result);
+        console.log('[Resend] Parsed resend result:', result);
       } catch (parseError) {
-        console.error('Error parsing resend response:', parseError);
-      }
-      
-      if (!response.ok) {
-        const errorText = responseText;
-        console.error('Error response from resend endpoint:', errorText);
-        throw new Error(`Failed to resend confirmation email: ${response.status} ${errorText}`);
+        console.error('[Resend] Error parsing resend response:', parseError);
       }
       
       toast({
@@ -315,7 +322,7 @@ export const useSignup = () => {
       });
       
     } catch (error: any) {
-      console.error('Resend error:', error);
+      console.error('[Resend] Resend error:', error);
       toast({
         title: "Error",
         description: error.message || "An error occurred while resending the email",
