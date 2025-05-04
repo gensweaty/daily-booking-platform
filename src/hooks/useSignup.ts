@@ -234,7 +234,7 @@ export const useSignup = () => {
       
       // Get the current origin for redirects
       const origin = window.location.origin;
-      const redirectTo = `${origin}/dashboard`;
+      const redirectTo = `${origin}/signup?error=confirmation_failed`;
       
       const { data, error } = await supabase.auth.resend({
         type: 'signup',

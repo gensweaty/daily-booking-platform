@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -174,7 +175,7 @@ supabase.auth.onAuthStateChange((event, session) => {
           
           if (error) {
             console.error("Error exchanging code for session:", error);
-            // Redirect to login on error
+            // Redirect to login on error with the proper error parameter
             window.location.href = '/login?error=confirmation_failed';
           } else if (data?.session) {
             console.log("Successfully exchanged code for session on dashboard");
@@ -201,7 +202,7 @@ if (isProdEnv) {
   const url = new URL(window.location.href);
   const code = url.searchParams.get('code');
   
-  if (code && (url.pathname === '/dashboard' || url.pathname === '/login')) {
+  if (code && (url.pathname === '/dashboard' || url.pathname === '/login' || url.pathname === '/signup')) {
     console.log(`Auth code detected in URL on ${url.pathname}, attempting exchange...`);
     
     (async () => {

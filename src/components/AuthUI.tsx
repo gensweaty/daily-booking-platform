@@ -26,6 +26,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const { t } = useLanguage();
 
   useEffect(() => {
+    console.log("AuthUI effect ran. Path:", location.pathname, "Search:", location.search);
     console.log("AuthUI - Current path:", location.pathname);
     console.log("AuthUI - Current search params:", location.search);
     
