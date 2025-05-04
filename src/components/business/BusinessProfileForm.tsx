@@ -12,7 +12,6 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useEffect, useState } from "react";
 import { useBusinessProfile } from "@/hooks/useBusinessProfile";
-import { BusinessProfile } from "@/types/database";
 
 const formSchema = z.object({
   businessName: z.string().min(2, {
@@ -198,6 +197,7 @@ export const BusinessProfileForm = () => {
                   maxSizeMB={5}
                   acceptedFileTypes="image/*"
                   isUploading={isUploading}
+                  disabled={isUploading}
                   {...field}
                 />
               </FormControl>

@@ -16,7 +16,8 @@ const ALLOWED_DOC_TYPES = ["application/pdf", "application/vnd.openxmlformats-of
 
 interface FileUploadFieldProps {
   onChange?: (file: File | null) => void;
-  onUpload?: (url: string) => void; // Added for backward compatibility
+  onUpload?: (url: string) => void;
+  onFileSelect?: (file: File) => Promise<void> | void; // Added this prop to match how it's being used
   onFileChange?: (file: File | null) => void; // For backward compatibility
   fileError?: string;
   setFileError?: (error: string) => void;
@@ -24,19 +25,21 @@ interface FileUploadFieldProps {
   hideLabel?: boolean;
   hideDescription?: boolean;
   disabled?: boolean;
-  imageUrl?: string; // Added this prop to support BusinessProfileForm
-  bucket?: string; // Added to support BusinessProfileForm
-  uploadText?: string; // Added to support BusinessProfileForm
-  chooseFileText?: string; // Added to support BusinessProfileForm
-  noFileText?: string; // Added to support BusinessProfileForm
-  maxSizeMB?: number; // Added to support BusinessProfileForm
-  selectedFile?: File | null; // Added to support explicit passing of selected file
+  imageUrl?: string;
+  bucket?: string;
+  uploadText?: string;
+  chooseFileText?: string;
+  noFileText?: string;
+  maxSizeMB?: number;
+  selectedFile?: File | null;
+  isUploading?: boolean; // Added to support the isUploading prop being passed from BusinessProfileForm
 }
 
 export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps>(({
   onChange,
   onUpload,
   onFileChange,
+  onFileSelect,
   fileError = "",
   setFileError = () => {},
   acceptedFileTypes,
@@ -49,7 +52,8 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   chooseFileText,
   noFileText,
   maxSizeMB,
-  selectedFile
+  selectedFile,
+  isUploading
 }, ref) => {
   const { t, language } = useLanguage();
   const [localFileError, setLocalFileError] = useState("");
@@ -101,6 +105,7 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
       setFileSelected(selectedFile.name);
       if (onChange) onChange(selectedFile);
       if (onFileChange) onFileChange(selectedFile);
+      if (onFileSelect) onFileSelect(selectedFile); // Call onFileSelect if provided
     } else {
       setFileSelected("");
     }
@@ -121,7 +126,7 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
       <Input id="file" type="file" onChange={handleFileChange} accept={acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")} className="cursor-pointer bg-background border-gray-300" onClick={e => {
       // Reset value before opening to ensure onChange triggers even if same file is selected
       (e.target as HTMLInputElement).value = '';
-    }} disabled={disabled} ref={ref} />
+    }} disabled={disabled || isUploading} ref={ref} />
       
       {fileSelected && <p className="text-xs text-gray-500 mt-1">Selected: {fileSelected}</p>}
       
