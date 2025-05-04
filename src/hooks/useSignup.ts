@@ -155,7 +155,7 @@ export const useSignup = () => {
       try {
         console.log('Sending custom confirmation email to:', email, 'with redirect URL:', redirectUrl);
         
-        // Call edge function without auth header since it's configured as public
+        // Call our edge function without auth headers since it's configured as public
         const confirmationResponse = await fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-confirmation-email', {
           method: 'POST',
           headers: {
