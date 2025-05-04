@@ -105,13 +105,14 @@ export const useSignup = () => {
       console.log('Using redirect URL:', redirectUrl);
       
       // Step 2: Create user account without email confirmation
+      // IMPORTANT: Removed emailRedirectTo to prevent Supabase from sending its own confirmation email
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { username },
           // We'll handle confirmation separately via our edge function
-          emailRedirectTo: redirectUrl,
+          // Removed emailRedirectTo to prevent conflict with our custom email function
         },
       });
       
