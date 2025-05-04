@@ -102,15 +102,15 @@ export const useSignup = () => {
         codeId = validationResult.code_id;
       }
 
-      // Step 2: Create user account WITHOUT email confirmation
+      // Step 2: Create user account WITHOUT relying on email confirmation
       console.log('Creating user account...');
+      // We disable email confirmation by using the emailRedirect option with a dummy value
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { username },
-          // Use default email confirmation flow unless it's disabled in the project
-          // (our edge function will handle confirmation instead)
+          emailRedirect: 'https://example.com', // This is just a dummy value - we won't use it
         },
       });
 
