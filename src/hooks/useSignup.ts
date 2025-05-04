@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, getRedirectUrl } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { validatePassword, validateUsername } from "@/utils/signupValidation";
 
@@ -100,21 +100,17 @@ export const useSignup = () => {
         codeId = validationResult.code_id;
       }
 
-      // Get current site URL for redirects - SIMPLIFIED for reliability
-      const baseUrl = window.location.origin;
+      // Get stable redirect URL - CRITICAL FIX
+      const redirectUrl = getRedirectUrl();
+      console.log('Using email confirmation redirect URL:', redirectUrl);
       
-      // Ensure email redirects go directly to the base URL without query params
-      // This prevents the "undefined values" error with email providers
-      console.log('Email confirmation redirect URL:', baseUrl);
-
       // Step 2: Create user account with email confirmation redirect
-      console.log('Calling supabase.auth.signUp with emailRedirectTo:', baseUrl);
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { username },
-          emailRedirectTo: baseUrl,
+          emailRedirectTo: redirectUrl,
         },
       });
       
@@ -150,7 +146,8 @@ export const useSignup = () => {
         // Specific handling for SMTP/email provider errors
         if (signUpError.message.includes("535") || 
             signUpError.message.includes("UNDEFINED_VALUE") ||
-            signUpError.message.includes("confirmation")) {
+            signUpError.message.includes("confirmation") ||
+            signUpError.message.includes("send")) {
           console.error('Email provider error during signup:', signUpError);
           toast({
             title: "Email System Issue",
@@ -214,7 +211,8 @@ export const useSignup = () => {
         errorMessage.includes("confirmation") || 
         errorMessage.includes("email") || 
         errorMessage.includes("535") || 
-        errorMessage.includes("undefined_value")
+        errorMessage.includes("undefined_value") ||
+        errorMessage.includes("send")
       ) {
         setErrorType("email_confirmation_failed");
         toast({
@@ -244,14 +242,15 @@ export const useSignup = () => {
     try {
       console.log('Attempting to resend confirmation email to:', email);
       
-      // Get the current origin for redirects - use direct domain without parameters
-      const origin = window.location.origin;
+      // Get the stable redirect URL
+      const redirectUrl = getRedirectUrl();
+      console.log('Using email confirmation redirect URL for resend:', redirectUrl);
       
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: email,
         options: {
-          emailRedirectTo: origin,
+          emailRedirectTo: redirectUrl,
         }
       });
       

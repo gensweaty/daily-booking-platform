@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -6,6 +7,18 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
+
+// Get the current base URL for redirects - handling both dev and production environments
+const getBaseUrl = () => {
+  // For development or preview deployments
+  if (window.location.hostname.includes('localhost') || 
+      window.location.hostname.includes('.lovableproject.com')) {
+    return window.location.origin;
+  }
+  
+  // For production - smartbookly.com - explicitly set to avoid UNDEFINED_VALUE errors
+  return 'https://smartbookly.com';
+};
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -233,3 +246,15 @@ if (isProdEnv) {
     })();
   }
 }
+
+// Export a dedicated function for signup operations with proper URL handling
+export const getRedirectUrl = () => {
+  // We intentionally use a fixed production URL for the smartbookly.com domain
+  // to prevent the UNDEFINED_VALUE errors
+  if (window.location.hostname.includes('smartbookly.com')) {
+    return 'https://smartbookly.com';
+  }
+  
+  // For development or preview environments, use the current origin
+  return window.location.origin;
+};
