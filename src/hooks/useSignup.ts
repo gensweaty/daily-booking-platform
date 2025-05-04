@@ -135,7 +135,7 @@ export const useSignup = () => {
         } else if (signUpError.message.includes('confirmation email')) {
           toast({
             title: "Email Confirmation Error",
-            description: "There was an issue sending the confirmation email. Please try again or contact support.",
+            description: "There was an issue sending the confirmation email. Please try again later or contact support.",
             variant: "destructive",
             duration: 5000,
           });
@@ -156,43 +156,58 @@ export const useSignup = () => {
         throw new Error('Failed to create user account');
       }
 
+      console.log('User account created:', authData.user);
+
       // Step 3: Confirm the user's email using our custom edge function
       console.log('Confirming email manually using edge function...');
-      const confirmResponse = await supabase.functions.invoke('confirm-signup', {
-        body: {
-          user_id: authData.user.id,
-          email: email
-        }
-      });
+      try {
+        const confirmResponse = await supabase.functions.invoke('confirm-signup', {
+          body: {
+            user_id: authData.user.id,
+            email: email
+          }
+        });
 
-      // Enhanced debugging for confirmation response
-      console.log('Full confirm response:', confirmResponse);
-      
-      if (confirmResponse.error || !confirmResponse.data?.success) {
-        console.error("Edge function confirm error:", confirmResponse);
+        // Enhanced debugging for confirmation response
+        console.log('Full confirm response:', confirmResponse);
         
-        // More specific error handling based on the response
-        if (confirmResponse.error?.message?.includes('disabled')) {
-          toast({
-            title: "Email Confirmation Error",
-            description: "Email confirmation is currently disabled. Contact support for assistance.",
-            variant: "destructive",
-            duration: 5000,
-          });
-        } else {
-          toast({
-            title: "Email Confirmation Error", 
-            description: "Failed to confirm email automatically. Please check your inbox for a confirmation email.",
-            variant: "destructive",
-            duration: 5000,
-          });
+        if (confirmResponse.error || !confirmResponse.data?.success) {
+          console.error("Edge function confirm error:", confirmResponse);
+          
+          // More specific error handling based on the response
+          if (confirmResponse.error?.message?.includes('disabled')) {
+            toast({
+              title: "Email Confirmation Error",
+              description: "Email confirmation is currently disabled. Contact support for assistance.",
+              variant: "destructive",
+              duration: 5000,
+            });
+          } else {
+            toast({
+              title: "Email Confirmation Error", 
+              description: "Failed to confirm email automatically: " + 
+                (confirmResponse.error?.message || confirmResponse.data?.error || "Unknown error"),
+              variant: "destructive",
+              duration: 5000,
+            });
+          }
+          
+          setIsLoading(false);
+          return;
         }
-        
+
+        console.log('Email confirmation response:', confirmResponse.data);
+      } catch (confirmError: any) {
+        console.error('Edge function invocation error:', confirmError);
+        toast({
+          title: "System Error",
+          description: "Failed to connect to confirmation service. Please try again later.",
+          variant: "destructive",
+          duration: 5000,
+        });
         setIsLoading(false);
         return;
       }
-
-      console.log('Email confirmation response:', confirmResponse.data);
 
       // Step 4: Create subscription
       console.log('Creating subscription...');
