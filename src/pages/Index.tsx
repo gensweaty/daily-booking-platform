@@ -53,8 +53,7 @@ const Index = () => {
       
       (async () => {
         try {
-          // Use a hardcoded URL for the confirmation to ensure it works correctly on any domain
-          // This ensures that emails have the right redirect URL
+          console.log('Exchanging code for session...');
           const { data, error } = await supabase.auth.exchangeCodeForSession(code);
           
           if (error) {

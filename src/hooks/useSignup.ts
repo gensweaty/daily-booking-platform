@@ -109,7 +109,6 @@ export const useSignup = () => {
         password,
         options: {
           data: { username },
-          // Remove emailRedirectTo since we're handling confirmation ourselves
         },
       });
 
@@ -132,7 +131,7 @@ export const useSignup = () => {
       }
 
       // Step 3: Confirm the user's email using our custom edge function
-      console.log('Confirming email manually...');
+      console.log('Confirming email manually using edge function...');
       const confirmResponse = await supabase.functions.invoke('confirm-signup', {
         body: {
           user_id: authData.user.id,
@@ -142,8 +141,10 @@ export const useSignup = () => {
 
       if (confirmResponse.error) {
         console.error('Error confirming email:', confirmResponse.error);
-        throw new Error(`Failed to confirm email: ${confirmResponse.error.message}`);
+        throw new Error(`Failed to confirm email: ${confirmResponse.error}`);
       }
+
+      console.log('Email confirmation response:', confirmResponse.data);
 
       // Step 4: Create subscription
       console.log('Creating subscription...');
