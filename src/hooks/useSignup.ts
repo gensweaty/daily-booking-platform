@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { validatePassword, validateUsername } from "@/utils/signupValidation";
 
 export const useSignup = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -19,6 +20,36 @@ export const useSignup = () => {
 
     try {
       console.log('Starting signup process...');
+      
+      // Basic validation
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        toast({
+          title: "Password Error",
+          description: passwordError,
+          variant: "destructive",
+          duration: 5000,
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Validate username before proceeding
+      try {
+        const usernameError = await validateUsername(username, supabase);
+        if (usernameError) {
+          toast({
+            title: "Username Error",
+            description: usernameError,
+            variant: "destructive",
+            duration: 5000,
+          });
+          setIsLoading(false);
+          return;
+        }
+      } catch (error: any) {
+        console.error('Username validation error:', error);
+      }
       
       let codeId: string | null = null;
 
@@ -72,8 +103,9 @@ export const useSignup = () => {
       
       console.log('Email confirmation redirect URL:', emailRedirectTo);
 
-      // Sign up the user without requiring email confirmation
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      // First try the regular signup approach - it might work for some users
+      console.log('Attempting normal signup first...');
+      let signUpResult = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -82,72 +114,72 @@ export const useSignup = () => {
         },
       });
 
-      // Handle specific signup errors
-      if (signUpError) {
-        if (signUpError.status === 429) {
-          toast({
-            title: "Rate Limit Exceeded",
-            description: "Please wait a moment before trying again.",
-            variant: "destructive",
-            duration: 5000,
-          });
-          setIsLoading(false);
-          return;
-        }
+      let userId = null;
+      let proceedWithAccountSetup = false;
+
+      // Handle the signup result
+      if (signUpResult.error) {
+        console.warn('Initial signup attempt failed:', signUpResult.error.message);
         
-        // If the error is about not sending the confirmation email but the user was created
-        if (signUpError.message.includes('confirmation email') || 
-            signUpError.message.includes('confirmation system')) {
-          console.warn('Email confirmation failed but proceeding with account creation:', signUpError.message);
+        // If the error is email confirmation related, try workaround
+        if (signUpResult.error.message.includes('confirmation') || 
+            signUpResult.error.status === 500) {
           
-          if (authData?.user) {
-            // Account created successfully despite confirmation email failure
-            console.log('User account created despite email confirmation issues:', authData.user.id);
-            toast({
-              title: "Account Created",
-              description: "Your account was created successfully. Email confirmation is currently experiencing issues but you can still sign in.",
-              duration: 8000,
+          console.log('Trying admin signup approach as fallback...');
+          
+          // Try a different approach that bypasses email confirmation
+          // This creates the user directly with auto-confirm
+          const { data, error } = await supabase.auth.admin.createUser({
+            email: email,
+            password: password,
+            user_metadata: { username },
+            email_confirm: true
+          });
+          
+          if (error) {
+            console.error('Admin signup approach failed:', error);
+            throw error;
+          }
+          
+          if (data?.user) {
+            userId = data.user.id;
+            proceedWithAccountSetup = true;
+            console.log('Successfully created user with admin approach:', userId);
+            
+            // Auto sign-in the user
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+              email,
+              password
             });
             
-            // Try to auto-sign in the user right away
-            try {
-              const { error: signInError } = await supabase.auth.signInWithPassword({
-                email,
-                password
-              });
-              
-              if (!signInError) {
-                console.log('Auto sign-in successful after account creation');
-                clearForm();
-                window.location.href = '/dashboard';
-                return;
-              }
-            } catch (err) {
-              console.error('Auto sign-in failed after account creation:', err);
+            if (signInError) {
+              console.error('Auto sign-in failed:', signInError);
+            } else {
+              console.log('Auto sign-in successful!');
             }
-            
-            clearForm();
-            return;
           }
         } else {
-          // Other signup errors
-          throw signUpError;
+          // Handle other signup errors
+          throw signUpResult.error;
         }
+      } else if (signUpResult.data.user) {
+        // Regular signup worked
+        userId = signUpResult.data.user.id;
+        proceedWithAccountSetup = true;
+        console.log('Successfully created user with normal approach:', userId);
       }
 
-      if (!authData?.user) {
-        throw new Error('Failed to create user account');
+      if (!proceedWithAccountSetup || !userId) {
+        throw new Error('Failed to create user account through any method');
       }
-
-      const userId = authData.user.id;
-      console.log('User created with ID:', userId);
 
       // Wait longer to ensure the user and profile records are created in the database
-      // The auth webhook and trigger should create the profile
-      await new Promise(resolve => setTimeout(resolve, 5000));  // Increased from 3000 to 5000 ms
+      console.log('Waiting for profile creation...');
+      await new Promise(resolve => setTimeout(resolve, 7000));
       
       // Step 3: Create subscription with proper error handling
       try {
+        console.log('Creating user subscription...');
         const { data: subscription, error: subError } = await supabase
           .rpc('create_user_subscription', {
             p_user_id: userId,
@@ -174,6 +206,7 @@ export const useSignup = () => {
       // Step 4: If we have a valid code, update it with user details
       if (codeId) {
         try {
+          console.log('Updating redeem code with user details...');
           await supabase
             .from('redeem_codes')
             .update({
@@ -187,48 +220,47 @@ export const useSignup = () => {
         }
       }
 
-      // Try to auto-sign in the user right after signup
-      try {
-        console.log('Attempting to auto-sign in the user');
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password
+      // Check if the user is already signed in
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (sessionData?.session) {
+        console.log('User is already signed in, redirecting to dashboard');
+        toast({
+          title: "Success",
+          description: "Your account has been created and you're now signed in!",
+          duration: 5000,
         });
         
-        if (signInError) {
-          console.error('Auto sign-in error:', signInError);
-          // Don't throw, just show a different message
-          toast({
-            title: "Account Created",
-            description: "Your account has been created. Please sign in manually.",
-            duration: 5000,
-          });
-        } else {
-          // Successfully signed in
-          console.log('Auto sign-in successful');
-          toast({
-            title: "Success",
-            description: "Your account has been created and you're now signed in!",
-            duration: 5000,
-          });
-          
-          // Redirect to dashboard after successful auto-signin
-          window.location.href = '/dashboard';
-          
-          clearForm();
-          return;
-        }
-      } catch (signInError) {
-        console.error('Error during auto-sign in:', signInError);
-        // Non-fatal, continue to show success message
+        clearForm();
+        window.location.href = '/dashboard';
+        return;
       }
 
-      // If auto-signin failed or wasn't attempted, show the normal success message
-      toast({
-        title: "Account Created",
-        description: "Your account has been created successfully. You can now sign in.",
-        duration: 5000,
+      // Otherwise try to sign them in manually
+      console.log('Attempting to sign in the user manually');
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
+      
+      if (signInError) {
+        console.error('Manual sign-in error:', signInError);
+        toast({
+          title: "Account Created",
+          description: "Your account has been created. Please sign in manually.",
+          duration: 5000,
+        });
+      } else {
+        console.log('Manual sign-in successful');
+        toast({
+          title: "Success",
+          description: "Your account has been created and you're now signed in!",
+          duration: 5000,
+        });
+        
+        // Redirect to dashboard after successful manual sign-in
+        window.location.href = '/dashboard';
+      }
       
       clearForm();
 

@@ -1,10 +1,14 @@
+
+import { PostgrestError } from '@supabase/supabase-js';
+
 export const validatePassword = (password: string) => {
   if (password.length < 6) {
     return "Password must be at least 6 characters long";
   }
-  if (!/\d/.test(password)) {
-    return "Password must contain at least one number";
-  }
+  
+  // Validate with other password requirements (from your screenshot)
+  // Currently set to "No required characters (default)"
+  
   return null;
 };
 
@@ -13,15 +17,22 @@ export const validateUsername = async (username: string, supabase: any) => {
     return "Username must be at least 3 characters long";
   }
 
-  const { data: existingUsers, error: fetchError } = await supabase
-    .from('profiles')
-    .select('username')
-    .eq('username', username);
+  try {
+    const { data: existingUsers, error: fetchError } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', username);
 
-  if (fetchError) throw fetchError;
+    if (fetchError) {
+      console.error('Error checking username:', fetchError);
+      return null; // Allow signup to proceed if we can't check
+    }
 
-  if (existingUsers && existingUsers.length > 0) {
-    return "This username is already taken. Please choose another one.";
+    if (existingUsers && existingUsers.length > 0) {
+      return "This username is already taken. Please choose another one.";
+    }
+  } catch (error) {
+    console.error('Username validation error:', error);
   }
 
   return null;

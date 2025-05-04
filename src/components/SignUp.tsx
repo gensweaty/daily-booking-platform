@@ -5,6 +5,7 @@ import { SignUpFields } from "./signup/SignUpFields";
 import { useSignup } from "@/hooks/useSignup";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { validatePassword } from "@/utils/signupValidation";
 
 export const SignUp = () => {
   const [email, setEmail] = useState("");
@@ -38,10 +39,12 @@ export const SignUp = () => {
       return;
     }
 
-    if (password.length < 6) {
+    // Use the shared validation function
+    const passwordError = validatePassword(password);
+    if (passwordError) {
       toast({
         title: "Error",
-        description: t("auth.passwordTooShort"),
+        description: passwordError,
         variant: "destructive",
       });
       return;
