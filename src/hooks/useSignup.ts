@@ -140,9 +140,12 @@ export const useSignup = () => {
         }
       });
 
-      if (confirmResponse.error) {
-        console.error('Error confirming email:', confirmResponse.error);
-        throw new Error(`Failed to confirm email: ${confirmResponse.error}`);
+      // Enhanced debugging for confirmation response
+      console.log('Full confirm response:', confirmResponse);
+      
+      if (confirmResponse.error || !confirmResponse.data?.success) {
+        console.error("Edge function confirm error raw:", confirmResponse);
+        throw new Error(`Failed to confirm email: ${confirmResponse.error || confirmResponse.data?.error}`);
       }
 
       console.log('Email confirmation response:', confirmResponse.data);
