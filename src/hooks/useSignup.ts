@@ -295,6 +295,15 @@ export const useSignup = () => {
             hint: subError.hint,
             code: subError.code
           });
+          
+          // Show more detailed error to the user
+          toast({
+            title: "Subscription Error",
+            description: `${subError.message ?? "An error occurred"} — ${subError.details ?? ""}`,
+            variant: "destructive",
+            duration: 8000,
+          });
+          
           // Don't throw here - we still created the user account successfully
           toast({
             title: "Account Created",
@@ -306,6 +315,13 @@ export const useSignup = () => {
         }
       } catch (subError: any) {
         console.error('Subscription creation exception:', subError);
+        // Display error to user
+        toast({
+          title: "Subscription Error",
+          description: subError.message || "An unexpected error occurred during subscription setup",
+          variant: "destructive", 
+          duration: 8000,
+        });
         // Don't throw here - we still created the user account successfully
       }
 
