@@ -128,14 +128,25 @@ serve(async (req) => {
         if (resendApiKey && actionUrl) {
           try {
             const resend = new Resend(resendApiKey);
+            // In Resend test mode, we should send emails to the owner's email
+            // This allows testing without domain verification
+            const ownerEmail = "gensweaty@gmail.com"; // This is the email associated with the Resend account
+            
+            // Determine if we're likely in Resend test mode
+            const isTestMode = !resendApiKey.startsWith('re_'); // Production keys start with re_
+            const recipient = isTestMode ? ownerEmail : email;
+            
+            console.log(`Sending email via Resend to ${recipient} (${isTestMode ? 'test mode' : 'production mode'})`);
+            
             const emailResult = await resend.emails.send({
-              from: "onboarding@resend.dev", // Use the default domain allowed in testing
-              to: email,
+              from: "SmartBookly <onboarding@resend.dev>", // Use the default domain allowed in testing
+              to: recipient,
               subject: "Confirm your SmartBookly account",
               html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2>Welcome to SmartBookly!</h2>
                   <p>Thank you for registering. Please confirm your email address to activate your account.</p>
+                  <p>User email: ${email}</p>
                   <p style="margin: 30px 0;">
                     <a href="${actionUrl}" style="background-color: #4CAF50; color: white; padding: 14px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">
                       Confirm Email Address
@@ -148,18 +159,25 @@ serve(async (req) => {
                 </div>
               `,
             });
-            console.log("Resend email result:", emailResult);
             
             if (emailResult.error) {
-              console.log("Resend email error:", emailResult.error);
+              console.error("Resend email error:", emailResult.error);
               resendError = emailResult.error;
+              console.log("Falling back to Supabase's default email service");
             } else {
               usedResend = true;
-              console.log("Resend email sent successfully");
+              console.log("Resend email sent successfully:", emailResult);
+              
+              // If we're in test mode and sent to owner instead of user,
+              // make note of this so UI can show the link directly
+              if (isTestMode && recipient !== email) {
+                console.log("NOTE: In test mode - email sent to owner account instead of user");
+              }
             }
           } catch (resendErr) {
             console.error("Error sending email with Resend:", resendErr);
             resendError = resendErr;
+            console.log("Falling back to Supabase's default email service");
           }
         }
 

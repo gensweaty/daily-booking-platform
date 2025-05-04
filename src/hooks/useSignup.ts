@@ -154,12 +154,18 @@ export const useSignup = () => {
 
         console.log('User created successfully, confirmation email sent:', adminData);
         
-        let toastMessage = "Account created! Please check your email to confirm your account.";
+        // Check if Resend was in test mode (which only allows sending to your own email)
+        const isResendTestMode = adminData.resendError?.statusCode === 403 && 
+                                adminData.resendError?.message?.includes("You can only send testing emails to your own email address");
         
-        // If Resend failed but we're using Supabase's email service as fallback
-        if (adminData.resendError) {
-          console.log("Note: Custom email sending failed, but Supabase's default service was used as fallback");
-          toastMessage += " If you don't receive it, please check your spam folder.";
+        let toastMessage = "Account created! ";
+        
+        if (isResendTestMode) {
+          toastMessage += "Since Resend is in test mode, please use the confirmation link shown below.";
+        } else if (adminData.resendError) {
+          toastMessage += "Please check your email (including spam folder) to confirm your account.";
+        } else {
+          toastMessage += "Please check your email to confirm your account.";
         }
         
         toast({
@@ -173,7 +179,8 @@ export const useSignup = () => {
         // Return the confirmation link if available (for development/testing)
         return {
           success: true,
-          confirmationLink: adminData.confirmationLink
+          confirmationLink: adminData.confirmationLink,
+          isResendTestMode: !!isResendTestMode
         };
       } catch (adminError: any) {
         console.error('Admin API error:', adminError);
