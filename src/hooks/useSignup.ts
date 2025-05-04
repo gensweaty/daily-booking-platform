@@ -232,13 +232,26 @@ export const useSignup = () => {
       
       // Create subscription with proper error handling
       try {
-        console.log('Creating user subscription...');
+        const planType = redeemCode ? 'ultimate' : 'monthly';
+        const isRedeemCodeFlag = !!redeemCode;
+        
+        console.log('Creating user subscription with params:', {
+          userId,
+          planType,
+          isRedeemCodeFlag
+        });
+        
         const { data: subscription, error: subError } = await supabase
           .rpc('create_user_subscription', {
             p_user_id: userId,
-            p_plan_type: redeemCode ? 'ultimate' : 'monthly',
-            p_is_redeem_code: !!redeemCode
+            p_plan_type: planType,
+            p_is_redeem_code: isRedeemCodeFlag
           });
+
+        console.log('Subscription RPC returned:', {
+          data: subscription,
+          error: subError ? { message: subError.message, details: subError.details } : null
+        });
 
         if (subError) {
           console.error('Subscription creation error:', subError);
