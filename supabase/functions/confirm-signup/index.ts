@@ -7,11 +7,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface ConfirmSignupRequest {
-  user_id: string;
-  email: string;
-}
-
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -19,7 +14,15 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Confirm-signup function called");
+    console.log("Confirm signup function called");
+    
+    // Get the verification token from the query string
+    const url = new URL(req.url);
+    const token = url.searchParams.get('token');
+    
+    if (!token) {
+      throw new Error('Missing verification token');
+    }
     
     // Create a Supabase client with the Admin key
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -35,81 +38,37 @@ serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+    
+    // Verify the token
+    const { data, error } = await supabaseAdmin.auth.verifyOtp({
+      token_hash: token,
+      type: 'signup',
+    });
 
-    if (req.method === 'POST') {
-      // Parse the request body
-      const requestBody = await req.json();
-      console.log("Request body received:", requestBody);
-      
-      const { user_id, email } = requestBody as ConfirmSignupRequest;
-
-      console.log(`Processing confirmation for user ${user_id} with email ${email}`);
-
-      if (!user_id || !email) {
-        throw new Error('Missing required parameters (user_id or email)');
-      }
-
-      // First check if user exists and needs confirmation
-      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(user_id);
-      
-      if (userError) {
-        console.error('Error fetching user:', userError);
-        throw userError;
-      }
-      
-      if (!userData?.user) {
-        throw new Error(`User ${user_id} not found`);
-      }
-      
-      console.log('User email confirmation status:', {
-        email: userData.user.email,
-        emailConfirmedAt: userData.user.email_confirmed_at,
-        lastSignInAt: userData.user.last_sign_in_at
-      });
-      
-      // If email is already confirmed, return success
-      if (userData.user.email_confirmed_at) {
-        console.log(`Email for user ${user_id} is already confirmed`);
-        return new Response(JSON.stringify({ 
-          success: true, 
-          message: "Email already confirmed",
-          user: userData.user,
-          alreadyConfirmed: true
-        }), {
+    if (error) {
+      console.error('Error verifying token:', error);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          message: error.message 
+        }),
+        {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
-
-      // Update the user's email_confirmed_at field directly to bypass email verification
-      const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
-        user_id,
-        { email_confirmed_at: new Date().toISOString() }
+          status: 400,
+        }
       );
-
-      if (error) {
-        console.error('Error confirming user email:', error);
-        throw error;
-      }
-
-      console.log(`Successfully confirmed email for user ${user_id}`);
-
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: "Email confirmed successfully",
-        user: data.user
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    } else {
-      return new Response(JSON.stringify({ 
-        error: "Method not allowed" 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 405,
-      });
     }
+
+    console.log('User verified successfully:', data);
+    
+    // Redirect to dashboard
+    return new Response(null, {
+      headers: {
+        ...corsHeaders,
+        "Location": `${supabaseUrl.replace('.supabase.co', '')}/dashboard?verified=true`,
+      },
+      status: 302,
+    });
   } catch (error) {
     console.error('Error in confirm-signup function:', error);
     

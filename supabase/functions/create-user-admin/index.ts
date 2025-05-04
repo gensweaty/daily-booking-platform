@@ -51,7 +51,7 @@ serve(async (req) => {
       const { data, error } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
-        email_confirm: false, // Changed to false to require email confirmation
+        email_confirm: false, // Require email confirmation
         user_metadata: { username }
       });
 
@@ -73,11 +73,12 @@ serve(async (req) => {
       console.log(`Successfully created user with ID ${data.user.id}, confirmation email sent`);
 
       // Now send the confirmation email
-      const { error: emailError } = await supabaseAdmin.auth.admin.generateLink({
+      console.log("Generating confirmation link...");
+      const { data: linkData, error: emailError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'signup',
         email,
         options: {
-          redirectTo: `${supabaseUrl}/dashboard?verified=true`
+          redirectTo: `${supabaseUrl.replace('.supabase.co', '')}/dashboard?verified=true`
         }
       });
 
@@ -95,6 +96,9 @@ serve(async (req) => {
           }
         );
       }
+
+      console.log("Email confirmation link generated successfully:");
+      console.log("Action URL:", linkData?.properties?.action_link || "No action link provided");
 
       return new Response(
         JSON.stringify({ 
