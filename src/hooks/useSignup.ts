@@ -3,6 +3,8 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { validatePassword, validateUsername } from "@/utils/signupValidation";
+import { logSignupDebug, logSignupError, logSignupStep } from "@/utils/signupLogger";
+import { validateRedeemCode } from "@/utils/redeemCodeUtils";
 
 export const useSignup = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -20,7 +22,7 @@ export const useSignup = () => {
     setIsLoading(true);
 
     try {
-      console.log('Starting signup process...');
+      logSignupStep('Starting signup process');
       
       // Basic validation
       const passwordError = validatePassword(password);
@@ -49,7 +51,7 @@ export const useSignup = () => {
           return;
         }
       } catch (error: any) {
-        console.error('Username validation error:', error);
+        logSignupError('Username validation', error);
       }
       
       let codeId: string | null = null;
@@ -57,72 +59,38 @@ export const useSignup = () => {
 
       // Step 1: Validate redeem code if provided
       if (redeemCode) {
-        const trimmedCode = redeemCode.trim();
-        console.log('Checking redeem code:', trimmedCode);
-
-        const { data: codeResult, error: codeError } = await supabase
-          .rpc('check_and_lock_redeem_code', {
-            p_code: trimmedCode
-          });
-
-        console.log('Raw redeem code RPC response:', codeResult);
-
-        if (codeError) {
-          console.error('Redeem code check error:', codeError);
-          toast({
-            title: "Error",
-            description: "Error checking redeem code",
-            variant: "destructive",
-            duration: 5000,
-          });
+        const codeValidation = await validateRedeemCode(supabase, redeemCode);
+        
+        if (!codeValidation.isValid) {
+          if (codeValidation.errorMessage) {
+            toast({
+              title: "Invalid Redeem Code",
+              description: codeValidation.errorMessage,
+              variant: "destructive",
+              duration: 5000,
+            });
+          }
           setIsLoading(false);
           return;
         }
-
-        // Updated validation for object response structure
-        if (!codeResult || typeof codeResult !== 'object') {
-          console.error('Invalid redeem code response:', codeResult);
-          toast({
-            title: "Redeem Code Error",
-            description: "Unexpected response from server when validating redeem code.",
-            variant: "destructive",
-            duration: 5000,
-          });
-          setIsLoading(false);
-          return;
-        }
-
-        // Handle the object response directly
-        const validationResult = codeResult;
-        console.log('Code validation result:', validationResult);
-
-        if (!validationResult.is_valid) {
-          toast({
-            title: "Invalid Redeem Code",
-            description: validationResult.error_message,
-            variant: "destructive",
-            duration: 5000,
-          });
-          setIsLoading(false);
-          return;
-        }
-
-        codeId = validationResult.code_id;
+        
+        codeId = codeValidation.codeId;
         isRedeemCodeValid = true;
       }
 
-      // Get current site URL for redirects
-      const origin = window.location.host.includes('localhost') || 
-                     window.location.host.includes('lovable.app') 
-                     ? window.location.origin 
-                     : 'https://smartbookly.com';
+      // Get current site URL for redirects - CRUCIAL for email confirmations
+      let origin = window.location.origin;
+      
+      // Handle special production cases
+      if (window.location.host === 'smartbookly.com') {
+        origin = 'https://smartbookly.com';
+      }
       
       const emailRedirectTo = `${origin}/dashboard`;
-      
-      console.log('Email confirmation redirect URL:', emailRedirectTo);
+      logSignupDebug('Email confirmation redirect URL:', emailRedirectTo);
 
       // Standard signup approach
-      console.log('Performing signup...');
+      logSignupStep('Performing signup');
       const { data: signUpResult, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -132,10 +100,10 @@ export const useSignup = () => {
         },
       });
 
-      console.log('Signup result:', signUpResult);
+      logSignupDebug('Signup result:', signUpResult);
 
       if (signUpError) {
-        console.error('Signup error:', signUpError);
+        logSignupError('Signup error', signUpError);
         
         // Special case for existing user
         if (signUpError.message?.includes('User already registered')) {
@@ -171,13 +139,17 @@ export const useSignup = () => {
         return;
       }
 
-      console.log('Signup successful:', signUpResult);
+      logSignupStep('Signup successful', {
+        userId: signUpResult.user.id,
+        hasSession: !!signUpResult.session
+      });
+      
       const userId = signUpResult.user.id;
 
       // If we have a valid code, update it with user details
       if (codeId && isRedeemCodeValid) {
         try {
-          console.log('Updating redeem code with user details...');
+          logSignupStep('Updating redeem code with user details');
           const { error: updateError } = await supabase
             .from('redeem_codes')
             .update({
@@ -187,38 +159,34 @@ export const useSignup = () => {
             .eq('id', codeId);
             
           if (updateError) {
-            console.error('Error updating redeem code:', updateError, {
-              codeId,
-              userId,
-              timestamp: new Date().toISOString()
+            logSignupError('Error updating redeem code', {
+              codeId, userId, timestamp: new Date().toISOString(), error: updateError
             });
-            // Non-fatal, continue with user creation but log the issue
           }
         } catch (codeUpdateError) {
-          console.error('Exception updating redeem code:', codeUpdateError);
-          // Non-fatal, continue with user creation
+          logSignupError('Exception updating redeem code', codeUpdateError);
         }
       }
 
-      // Poll for profile creation instead of using a fixed timeout
-      console.log('Waiting for profile creation...');
-      
-      let profileFound = false;
-      let profileAttempts = 0;
-      const maxAttempts = 5;
-      
-      // First check permissions without RLS to debug
+      // First check permissions without RLS to debug profiles access
       try {
-        console.log('Checking if profiles table is accessible...');
+        logSignupDebug('Checking if profiles table is accessible...');
         const { data: debugProfile, error } = await supabase
           .from('profiles')
           .select('*')
           .limit(1);
           
-        console.log('Profile debug fetch:', debugProfile, error);
+        logSignupDebug('Profile debug fetch:', { debugProfile, error });
       } catch (err) {
-        console.error('Error during profiles table check:', err);
+        logSignupError('Error during profiles table check', err);
       }
+      
+      // Poll for profile creation
+      logSignupStep('Waiting for profile creation');
+      
+      let profileFound = false;
+      let profileAttempts = 0;
+      const maxAttempts = 5;
       
       while (!profileFound && profileAttempts < maxAttempts) {
         try {
@@ -228,7 +196,7 @@ export const useSignup = () => {
             .eq('id', userId)
             .maybeSingle();
             
-          console.log(`Profile polling attempt ${profileAttempts + 1}:`, { 
+          logSignupDebug(`Profile polling attempt ${profileAttempts + 1}:`, { 
             profile, 
             error: profileError ? {
               message: profileError.message,
@@ -238,17 +206,14 @@ export const useSignup = () => {
           });
             
           if (profile) {
-            console.log('Profile found after attempt:', profileAttempts + 1);
+            logSignupStep('Profile found after attempt:', profileAttempts + 1);
             profileFound = true;
             break;
           } else {
-            console.log(`Profile not found yet. Attempt ${profileAttempts + 1}/${maxAttempts}`);
-            if (profileError) {
-              console.error('Error checking profile:', profileError);
-            }
+            logSignupDebug(`Profile not found yet. Attempt ${profileAttempts + 1}/${maxAttempts}`);
           }
         } catch (err) {
-          console.error('Error polling for profile:', err);
+          logSignupError('Error polling for profile', err);
         }
         
         // Wait before trying again
@@ -257,7 +222,7 @@ export const useSignup = () => {
       }
       
       if (!profileFound) {
-        console.warn('Could not verify profile creation after max attempts');
+        logSignupDebug('Could not verify profile creation after max attempts');
       }
       
       // Create subscription with proper error handling
@@ -265,7 +230,7 @@ export const useSignup = () => {
         const planType = redeemCode ? 'ultimate' : 'monthly';
         const isRedeemCodeFlag = !!redeemCode;
         
-        console.log('Creating user subscription with params:', {
+        logSignupStep('Creating user subscription', {
           userId,
           planType,
           isRedeemCodeFlag
@@ -278,7 +243,7 @@ export const useSignup = () => {
             p_is_redeem_code: isRedeemCodeFlag
           });
 
-        console.log('Subscription RPC returned:', {
+        logSignupDebug('Subscription RPC returned:', {
           data: subscription,
           error: subError ? { 
             message: subError.message, 
@@ -289,7 +254,7 @@ export const useSignup = () => {
         });
 
         if (subError) {
-          console.error('Subscription creation error:', {
+          logSignupError('Subscription creation error', {
             message: subError.message,
             details: subError.details,
             hint: subError.hint,
@@ -311,10 +276,10 @@ export const useSignup = () => {
             duration: 5000,
           });
         } else {
-          console.log('Subscription created successfully:', subscription);
+          logSignupStep('Subscription created successfully', subscription);
         }
       } catch (subError: any) {
-        console.error('Subscription creation exception:', subError);
+        logSignupError('Subscription creation exception', subError);
         // Display error to user
         toast({
           title: "Subscription Error",
@@ -326,7 +291,7 @@ export const useSignup = () => {
       }
 
       // Show different message based on email confirmation setting
-      console.log('Final redirect decision based on session:', signUpResult.session);
+      logSignupDebug('Final redirect decision based on session:', signUpResult.session);
       
       if (signUpResult.session) {
         // User was auto-confirmed (email confirmation disabled in Supabase)
@@ -339,17 +304,17 @@ export const useSignup = () => {
         clearForm();
         window.location.href = '/dashboard';
       } else {
-        // Email confirmation required
+        // Email confirmation required - show clear instructions
         toast({
-          title: "Account Created",
-          description: "Please check your email to confirm your account.",
-          duration: 8000,
+          title: "Email Confirmation Required",
+          description: "Please check your email inbox and spam folder to confirm your account. The email may take a few minutes to arrive.",
+          duration: 10000,
         });
         clearForm();
       }
 
     } catch (error: any) {
-      console.error('Signup error:', error);
+      logSignupError('Signup general error', error);
       
       toast({
         title: "Error",

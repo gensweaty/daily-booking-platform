@@ -6,8 +6,13 @@ import { useSignup } from "@/hooks/useSignup";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { validatePassword } from "@/utils/signupValidation";
+import { useNavigate } from "react-router-dom";
 
-export const SignUp = () => {
+interface SignUpProps {
+  setShowEmailAlert?: (show: boolean) => void;
+}
+
+export const SignUp = ({ setShowEmailAlert }: SignUpProps) => {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -17,6 +22,7 @@ export const SignUp = () => {
   const { handleSignup, isLoading } = useSignup();
   const { toast } = useToast();
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   const clearForm = () => {
     setEmail("");
@@ -24,6 +30,14 @@ export const SignUp = () => {
     setPassword("");
     setConfirmPassword("");
     setRedeemCode("");
+    
+    // Show email alert and update URL to indicate email was sent
+    if (setShowEmailAlert) {
+      setShowEmailAlert(true);
+    }
+    
+    // Redirect to login page with email_sent parameter
+    navigate('/login?email_sent=true');
   };
 
   const onSubmit = async (e: React.FormEvent) => {
