@@ -65,6 +65,8 @@ export const useSignup = () => {
             p_code: trimmedCode
           });
 
+        console.log('Raw redeem code RPC response:', codeResult);
+
         if (codeError) {
           console.error('Redeem code check error:', codeError);
           toast({
@@ -130,6 +132,8 @@ export const useSignup = () => {
         },
       });
 
+      console.log('Signup result:', signUpResult);
+
       if (signUpError) {
         console.error('Signup error:', signUpError);
         
@@ -183,7 +187,11 @@ export const useSignup = () => {
             .eq('id', codeId);
             
           if (updateError) {
-            console.error('Error updating redeem code:', updateError);
+            console.error('Error updating redeem code:', updateError, {
+              codeId,
+              userId,
+              timestamp: new Date().toISOString()
+            });
             // Non-fatal, continue with user creation but log the issue
           }
         } catch (codeUpdateError) {
@@ -199,6 +207,19 @@ export const useSignup = () => {
       let profileAttempts = 0;
       const maxAttempts = 5;
       
+      // First check permissions without RLS to debug
+      try {
+        console.log('Checking if profiles table is accessible...');
+        const { data: debugProfile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .limit(1);
+          
+        console.log('Profile debug fetch:', debugProfile, error);
+      } catch (err) {
+        console.error('Error during profiles table check:', err);
+      }
+      
       while (!profileFound && profileAttempts < maxAttempts) {
         try {
           const { data: profile, error: profileError } = await supabase
@@ -206,6 +227,15 @@ export const useSignup = () => {
             .select('id')
             .eq('id', userId)
             .maybeSingle();
+            
+          console.log(`Profile polling attempt ${profileAttempts + 1}:`, { 
+            profile, 
+            error: profileError ? {
+              message: profileError.message,
+              details: profileError.details,
+              code: profileError.code
+            } : null 
+          });
             
           if (profile) {
             console.log('Profile found after attempt:', profileAttempts + 1);
@@ -250,11 +280,21 @@ export const useSignup = () => {
 
         console.log('Subscription RPC returned:', {
           data: subscription,
-          error: subError ? { message: subError.message, details: subError.details } : null
+          error: subError ? { 
+            message: subError.message, 
+            details: subError.details,
+            hint: subError.hint, 
+            code: subError.code
+          } : null
         });
 
         if (subError) {
-          console.error('Subscription creation error:', subError);
+          console.error('Subscription creation error:', {
+            message: subError.message,
+            details: subError.details,
+            hint: subError.hint,
+            code: subError.code
+          });
           // Don't throw here - we still created the user account successfully
           toast({
             title: "Account Created",
@@ -270,6 +310,8 @@ export const useSignup = () => {
       }
 
       // Show different message based on email confirmation setting
+      console.log('Final redirect decision based on session:', signUpResult.session);
+      
       if (signUpResult.session) {
         // User was auto-confirmed (email confirmation disabled in Supabase)
         toast({
