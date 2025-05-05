@@ -14,9 +14,8 @@ interface BookingApprovalEmailRequest {
   businessName: string;
   startDate: string;
   endDate: string;
-  paymentStatus?: string; // Still kept in interface for backward compatibility
-  paymentAmount?: number; // Still kept in interface for backward compatibility
-  businessAddress?: string; // Field for business address
+  paymentStatus?: string; // Added payment status
+  paymentAmount?: number; // Added payment amount
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -41,12 +40,13 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    const { recipientEmail, fullName, businessName, startDate, endDate, businessAddress } = parsedBody;
+    const { recipientEmail, fullName, businessName, startDate, endDate, paymentStatus, paymentAmount } = parsedBody;
 
     console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName}`);
     console.log(`Start date (raw ISO string): ${startDate}`);
     console.log(`End date (raw ISO string): ${endDate}`);
-    console.log(`Business address raw: ${businessAddress}`);
+    console.log(`Payment status: ${paymentStatus}`);
+    console.log(`Payment amount: ${paymentAmount}`);
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -81,26 +81,20 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Attempting to send email via SMTP to ${recipientEmail}`);
     
     try {
-      // Process and sanitize the business address if available
-      let addressSection = "";
-      if (businessAddress) {
-        // Convert to string explicitly, strip all non-standard characters and normalize whitespace
-        const cleanAddress = String(businessAddress)
-          .trim()
-          .replace(/=20/g, " ")  // Replace =20 with space
-          .replace(/\s+/g, " ")  // Normalize multiple spaces to single space
-          .replace(/[^\x20-\x7E]/g, "");  // Remove non-printable characters
-
-        console.log(`Processed business address: "${cleanAddress}"`);
+      // Format payment information if available
+      let paymentInfo = "";
+      if (paymentStatus) {
+        const formattedStatus = formatPaymentStatus(paymentStatus);
         
-        // Only add the address section if we have a valid address after cleaning
-        if (cleanAddress && cleanAddress.length > 0) {
-          addressSection = `<p><strong>Address:</strong> ${cleanAddress}</p>`;
-          console.log(`Final address HTML section: ${addressSection}`);
+        if (paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') {
+          const amountDisplay = paymentAmount ? `$${paymentAmount}` : "";
+          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus} ${amountDisplay}</p>`;
+        } else {
+          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus}</p>`;
         }
       }
       
-      // Create HTML email content with simpler formatting and explicit encoding declaration
+      // Create HTML email content with simpler formatting
       const htmlContent = `
         <!DOCTYPE html>
         <html lang="en">
@@ -113,7 +107,7 @@ const handler = async (req: Request): Promise<Response> => {
           <h2 style="color: #333;">Hello ${fullName},</h2>
           <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
           <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          ${addressSection}
+          ${paymentInfo}
           <p>We look forward to seeing you!</p>
           <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
           <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
@@ -175,7 +169,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-// Format payment status for display - kept for backward compatibility
+// Format payment status for display
 function formatPaymentStatus(status: string): string {
   switch (status) {
     case "not_paid":
