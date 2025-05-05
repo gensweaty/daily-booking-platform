@@ -176,34 +176,34 @@ export const BookingRequestsList = ({
     );
   }
 
-  // Responsive table view
+  // Responsive table view with improved mobile styling
   return (
     <>
       <div className="rounded-md border overflow-hidden">
         <ScrollArea className="w-full">
-          <div className={`min-w-full ${isMobile ? "min-w-[700px]" : ""}`}>
+          <div className={isMobile ? "min-w-[800px]" : "min-w-full"}>
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
-                  <TableHead>{renderGeorgianText("business.customer")}</TableHead>
-                  <TableHead>{renderGeorgianText("business.paymentStatus")}</TableHead>
-                  <TableHead>{renderGeorgianText("business.dateTime")}</TableHead>
-                  <TableHead className="text-right">{renderGeorgianText("business.actions")}</TableHead>
+                  <TableHead className="w-1/4">{renderGeorgianText("business.customer")}</TableHead>
+                  <TableHead className="w-1/4">{renderGeorgianText("business.paymentStatus")}</TableHead>
+                  <TableHead className="w-1/4">{renderGeorgianText("business.dateTime")}</TableHead>
+                  <TableHead className="w-1/4 text-right">{renderGeorgianText("business.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {requests.map((request) => (
                   <TableRow key={request.id}>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium w-1/4">
                       <div className="overflow-hidden">
                         <div className="font-medium truncate">{request.requester_name}</div>
                         <div className="text-sm text-muted-foreground truncate">{request.requester_email || request.requester_phone}</div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-1/4">
                       {renderPaymentStatus(request.payment_status, request.payment_amount)}
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="text-sm w-1/4">
                       {request.start_date && (
                         <>
                           {formatDate(new Date(request.start_date), 'MMM d, yyyy')}
@@ -212,7 +212,7 @@ export const BookingRequestsList = ({
                         </>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right w-1/4">
                       <div className="flex justify-end gap-2 flex-wrap">
                         {type === 'pending' && onApprove && (
                           <Button 
