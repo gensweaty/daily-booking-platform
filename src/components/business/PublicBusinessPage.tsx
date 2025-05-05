@@ -10,6 +10,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { cn } from "@/lib/utils";
+import { getGeorgianFontStyle } from "@/lib/font-utils";
 
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -177,9 +178,7 @@ export const PublicBusinessPage = () => {
 
   // Add this function to ensure proper font rendering for Georgian text
   const applyGeorgianFont = (isGeorgian: boolean) => {
-    return isGeorgian ? {
-      fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"
-    } : undefined;
+    return isGeorgian ? getGeorgianFontStyle() : undefined;
   };
 
   return (
@@ -199,14 +198,14 @@ export const PublicBusinessPage = () => {
         
         <div className="container mx-auto px-4 relative">
           <h1 
-            className={cn("text-4xl md:text-5xl font-bold mb-4", isGeorgian ? "font-georgian" : "")}
+            className={cn("text-4xl md:text-5xl font-bold mb-4", isGeorgian ? "font-georgian georgian-text-fix" : "")}
             style={applyGeorgianFont(isGeorgian)}
           >
             {business.business_name}
           </h1>
           {business.description && (
             <p 
-              className={cn("text-lg opacity-90 max-w-2xl", isGeorgian ? "font-georgian" : "")}
+              className={cn("text-lg opacity-90 max-w-2xl", isGeorgian ? "font-georgian georgian-text-fix" : "")}
               style={applyGeorgianFont(isGeorgian)}
             >
               {business.description}
@@ -216,13 +215,13 @@ export const PublicBusinessPage = () => {
           <div className="flex gap-4 mt-6">
             <Button 
               size="lg" 
-              className={cn("bg-white text-blue-700 hover:bg-blue-50", isGeorgian ? "font-georgian" : "")}
+              className={cn("bg-white text-blue-700 hover:bg-blue-50 calendar-book-now", isGeorgian ? "font-georgian georgian-text-fix" : "")}
               style={applyGeorgianFont(isGeorgian)}
               onClick={() => {
                 document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
               }}
             >
-              <LanguageText>{t("calendar.bookNow")}</LanguageText>
+              <LanguageText className="georgian-text-fix">{t("calendar.bookNow")}</LanguageText>
             </Button>
           </div>
         </div>
@@ -242,16 +241,16 @@ export const PublicBusinessPage = () => {
         <div className="mb-8" id="calendar-section">
           <div className="flex justify-between items-center mb-4">
             <h2 
-              className={cn("text-2xl font-bold", isGeorgian ? "font-georgian" : "")}
+              className={cn("text-2xl font-bold", isGeorgian ? "font-georgian georgian-text-fix" : "")}
               style={applyGeorgianFont(isGeorgian)}
             >
-              <LanguageText>{t("business.availableTimes")}</LanguageText>
+              <LanguageText className="georgian-text-fix">{t("business.availableTimes")}</LanguageText>
             </h2>
             <div 
-              className={cn("text-sm text-muted-foreground", isGeorgian ? "font-georgian" : "")}
+              className={cn("text-sm text-muted-foreground", isGeorgian ? "font-georgian georgian-text-fix" : "")}
               style={applyGeorgianFont(isGeorgian)}
             >
-              <LanguageText>{t("business.clickToRequest")}</LanguageText>
+              <LanguageText className="georgian-text-fix">{t("business.clickToRequest")}</LanguageText>
             </div>
           </div>
           

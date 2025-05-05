@@ -10,6 +10,7 @@ import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { getCurrencySymbol } from "@/lib/currency";
+import { getGeorgianFontStyle, getGeorgianInputStyle } from "@/lib/font-utils";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -77,29 +78,26 @@ export const EventDialogFields = ({
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
   const currencySymbol = getCurrencySymbol(language);
   
-  const georgianStyle = isGeorgian ? {
-    fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-    letterSpacing: '-0.2px',
-    WebkitFontSmoothing: 'antialiased',
-    MozOsxFontSmoothing: 'grayscale'
-  } : undefined;
+  // Use the enhanced Georgian styling from our utility function
+  const georgianStyle = isGeorgian ? getGeorgianFontStyle() : undefined;
+  const georgianInputStyle = isGeorgian ? getGeorgianInputStyle() : undefined;
   
-  // Helper function for Georgian label text
+  // Helper function for Georgian label text with improved consistency
   const renderGeorgianLabel = (text: string) => {
     if (isGeorgian) {
-      if (text === "events.fullName") return <GeorgianAuthText>სრული სახელი</GeorgianAuthText>;
-      if (text === "events.phoneNumber") return <GeorgianAuthText>ტელეფონის ნომერი</GeorgianAuthText>;
-      if (text === "events.socialLinkEmail") return <GeorgianAuthText>ელფოსტა</GeorgianAuthText>; 
-      if (text === "events.eventNotes") return <GeorgianAuthText>შენიშვნები</GeorgianAuthText>;
+      if (text === "events.fullName") return <GeorgianAuthText className="georgian-text-fix">სრული სახელი</GeorgianAuthText>;
+      if (text === "events.phoneNumber") return <GeorgianAuthText className="georgian-text-fix">ტელეფონის ნომერი</GeorgianAuthText>;
+      if (text === "events.socialLinkEmail") return <GeorgianAuthText className="georgian-text-fix">ელფოსტა</GeorgianAuthText>; 
+      if (text === "events.eventNotes") return <GeorgianAuthText className="georgian-text-fix">შენიშვნები</GeorgianAuthText>;
     }
-    return <LanguageText>{t(text)}</LanguageText>;
+    return <LanguageText className="georgian-text-fix">{t(text)}</LanguageText>;
   };
   
   return <>
       <div>
         <Label 
           htmlFor="userSurname" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
+          className={cn(isGeorgian ? "font-georgian georgian-text-fix" : "")}
           style={georgianStyle}
         >
           {renderGeorgianLabel("events.fullName")}
@@ -113,14 +111,14 @@ export const EventDialogFields = ({
           }} 
           placeholder={t("events.fullName")} 
           required 
-          className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-          style={georgianStyle} 
+          className={cn(isGeorgian ? "font-georgian georgian-text-fix" : "", "placeholder:georgian-text-fix")}
+          style={georgianInputStyle} 
         />
       </div>
       <div>
         <Label 
           htmlFor="userNumber" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
+          className={cn(isGeorgian ? "font-georgian georgian-text-fix" : "")}
           style={georgianStyle}
         >
           {renderGeorgianLabel("events.phoneNumber")}
@@ -130,14 +128,14 @@ export const EventDialogFields = ({
           value={userNumber} 
           onChange={e => setUserNumber(e.target.value)} 
           placeholder={t("events.phoneNumber")} 
-          className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}  
-          style={georgianStyle} 
+          className={cn(isGeorgian ? "font-georgian georgian-text-fix" : "")}  
+          style={georgianInputStyle} 
         />
       </div>
       <div>
         <Label 
           htmlFor="socialNetworkLink" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
+          className={cn(isGeorgian ? "font-georgian georgian-text-fix" : "")}
           style={georgianStyle}
         >
           {renderGeorgianLabel("events.socialLinkEmail")}
@@ -148,25 +146,25 @@ export const EventDialogFields = ({
           onChange={e => setSocialNetworkLink(e.target.value)} 
           placeholder="email@example.com" 
           type="email" 
-          style={isGeorgian ? { ...georgianStyle } : undefined}
+          style={isGeorgian ? georgianInputStyle : undefined}
         />
       </div>
       <div>
         <Label 
           htmlFor="dateTime" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
+          className={cn(isGeorgian ? "font-georgian georgian-text-fix" : "")}
           style={georgianStyle}
         >
-          <LanguageText>{t("events.dateAndTime")}</LanguageText>
+          <LanguageText className="georgian-text-fix">{t("events.dateAndTime")}</LanguageText>
         </Label>
         <div className="grid grid-cols-2 gap-2">
           <div>
             <Label 
               htmlFor="startDate" 
-              className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
+              className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian georgian-text-fix" : "")}
               style={georgianStyle}
             >
-              <LanguageText>{t("events.start")}</LanguageText>
+              <LanguageText className="georgian-text-fix">{t("events.start")}</LanguageText>
             </Label>
             <div className="relative">
               <Input 
@@ -183,10 +181,10 @@ export const EventDialogFields = ({
           <div>
             <Label 
               htmlFor="endDate" 
-              className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
+              className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian georgian-text-fix" : "")}
               style={georgianStyle}
             >
-              <LanguageText>{t("events.end")}</LanguageText>
+              <LanguageText className="georgian-text-fix">{t("events.end")}</LanguageText>
             </Label>
             <div className="relative">
               <Input 
@@ -207,24 +205,24 @@ export const EventDialogFields = ({
           <div>
             <Label 
               htmlFor="paymentStatus" 
-              className={cn(isGeorgian ? "font-georgian" : "")}
+              className={cn(isGeorgian ? "font-georgian georgian-text-fix" : "")}
               style={georgianStyle}
             >
-              <LanguageText>{t("events.paymentStatus")}</LanguageText>
+              <LanguageText className="georgian-text-fix">{t("events.paymentStatus")}</LanguageText>
             </Label>
             <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-              <SelectTrigger id="paymentStatus" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+              <SelectTrigger id="paymentStatus" className={cn(isGeorgian ? "font-georgian georgian-text-fix" : "")} style={georgianStyle}>
                 <SelectValue placeholder={t("events.selectPaymentStatus")} />
               </SelectTrigger>
-              <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
-                <SelectItem value="not_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  <LanguageText>{t("crm.notPaid")}</LanguageText>
+              <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian georgian-text-fix" : "")}>
+                <SelectItem value="not_paid" className={cn(isGeorgian ? "font-georgian georgian-text-fix" : "")} style={georgianStyle}>
+                  <LanguageText className="georgian-text-fix">{t("crm.notPaid")}</LanguageText>
                 </SelectItem>
-                <SelectItem value="partly_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  <LanguageText>{t("crm.paidPartly")}</LanguageText>
+                <SelectItem value="partly_paid" className={cn(isGeorgian ? "font-georgian georgian-text-fix" : "")} style={georgianStyle}>
+                  <LanguageText className="georgian-text-fix">{t("crm.paidPartly")}</LanguageText>
                 </SelectItem>
-                <SelectItem value="fully_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  <LanguageText>{t("crm.paidFully")}</LanguageText>
+                <SelectItem value="fully_paid" className={cn(isGeorgian ? "font-georgian georgian-text-fix" : "")} style={georgianStyle}>
+                  <LanguageText className="georgian-text-fix">{t("crm.paidFully")}</LanguageText>
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -233,10 +231,10 @@ export const EventDialogFields = ({
           {showPaymentAmount && <div>
               <Label 
                 htmlFor="paymentAmount" 
-                className={cn(isGeorgian ? "font-georgian" : "")}
+                className={cn(isGeorgian ? "font-georgian georgian-text-fix" : "")}
                 style={georgianStyle}
               >
-                <LanguageText>{t("events.paymentAmount")}</LanguageText>
+                <LanguageText className="georgian-text-fix">{t("events.paymentAmount")}</LanguageText>
               </Label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -263,7 +261,7 @@ export const EventDialogFields = ({
       <div>
         <Label 
           htmlFor="eventNotes" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
+          className={cn(isGeorgian ? "font-georgian georgian-text-fix" : "")}
           style={georgianStyle}
         >
           {renderGeorgianLabel("events.eventNotes")}
@@ -273,18 +271,18 @@ export const EventDialogFields = ({
           value={eventNotes} 
           onChange={e => setEventNotes(e.target.value)} 
           placeholder={t("events.addEventNotes")} 
-          className={cn("min-h-[100px] resize-none", isGeorgian ? "placeholder:font-georgian font-georgian" : "")} 
-          style={georgianStyle}
+          className={cn("min-h-[100px] resize-none", isGeorgian ? "placeholder:font-georgian font-georgian georgian-text-fix" : "")} 
+          style={georgianInputStyle}
         />
       </div>
       
       <div>
         <Label 
           htmlFor="file" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
+          className={cn(isGeorgian ? "font-georgian georgian-text-fix" : "")}
           style={georgianStyle}
         >
-          <LanguageText>{t("common.attachments")}</LanguageText>
+          <LanguageText className="georgian-text-fix">{t("common.attachments")}</LanguageText>
         </Label>
         <FileUploadField 
           onChange={setSelectedFile} 
