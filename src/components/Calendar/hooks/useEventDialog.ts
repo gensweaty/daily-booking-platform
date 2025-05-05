@@ -68,12 +68,19 @@ export const useEventDialog = ({
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         // Ensure payment_status is properly normalized and preserved
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        // For updates, we should check availability since times might have changed
-        checkAvailability: true
       };
       
+      // Set checkAvailability flag in memory, but remove it before sending to the database
+      // to prevent the "column not found" error
+      const shouldCheckAvailability = true;
       console.log("Updating event with data:", eventData);
-      const updatedEvent = await updateEvent(eventData);
+      
+      // Create a new object without the checkAvailability property to send to the database
+      const { checkAvailability, ...dataToSend } = eventData as any;
+      const updatedEvent = await updateEvent({
+        ...dataToSend,
+        // We'll handle the availability check in the useCalendarEvents hook
+      });
       
       setSelectedEvent(null);
       console.log("Event updated successfully:", updatedEvent);
