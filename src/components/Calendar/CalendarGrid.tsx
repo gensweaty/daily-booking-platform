@@ -115,7 +115,7 @@ export const CalendarGrid = ({
       );
     }
     
-    // Desktop layout with icon and text side by side - fixed to show only one icon
+    // Desktop layout with only text for day and week views (no icon, will be added at the container level)
     return (
       <div className="min-w-0">
         <span className="block font-medium text-xs sm:text-sm truncate">
