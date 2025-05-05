@@ -403,14 +403,6 @@ export const BookingRequestForm = ({
     }
   };
 
-  // Get the correct Georgian placeholder text for event notes
-  const getEventNotesPlaceholder = () => {
-    if (isGeorgian) {
-      return "დაამატეთ შენიშვნები თქვენი მოთხოვნის შესახებ";
-    }
-    return t("events.addEventNotes");
-  };
-
   return (
     <div className="space-y-4 p-1">
       <h3 className="text-xl font-semibold">
