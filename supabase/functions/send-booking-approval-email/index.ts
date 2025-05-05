@@ -14,8 +14,9 @@ interface BookingApprovalEmailRequest {
   businessName: string;
   startDate: string;
   endDate: string;
-  paymentStatus?: string; // Added payment status
-  paymentAmount?: number; // Added payment amount
+  businessAddress?: string; // Added business address
+  paymentStatus?: string;
+  paymentAmount?: number;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -40,11 +41,12 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    const { recipientEmail, fullName, businessName, startDate, endDate, paymentStatus, paymentAmount } = parsedBody;
+    const { recipientEmail, fullName, businessName, startDate, endDate, businessAddress, paymentStatus, paymentAmount } = parsedBody;
 
     console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName}`);
     console.log(`Start date (raw ISO string): ${startDate}`);
     console.log(`End date (raw ISO string): ${endDate}`);
+    console.log(`Business address: ${businessAddress}`);
     console.log(`Payment status: ${paymentStatus}`);
     console.log(`Payment amount: ${paymentAmount}`);
 
@@ -81,17 +83,13 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Attempting to send email via SMTP to ${recipientEmail}`);
     
     try {
-      // Format payment information if available
-      let paymentInfo = "";
-      if (paymentStatus) {
-        const formattedStatus = formatPaymentStatus(paymentStatus);
-        
-        if (paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') {
-          const amountDisplay = paymentAmount ? `$${paymentAmount}` : "";
-          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus} ${amountDisplay}</p>`;
-        } else {
-          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus}</p>`;
-        }
+      // Check if business address is provided
+      let addressInfo = "";
+      if (businessAddress && businessAddress.trim()) {
+        addressInfo = `<p><strong>Address:</strong> ${businessAddress}</p>`;
+        console.log(`Business address used in email: ${businessAddress}`);
+      } else {
+        console.log("No business address provided or address is empty");
       }
       
       // Create HTML email content with simpler formatting
@@ -107,13 +105,15 @@ const handler = async (req: Request): Promise<Response> => {
           <h2 style="color: #333;">Hello ${fullName},</h2>
           <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
           <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          ${paymentInfo}
+          ${addressInfo}
           <p>We look forward to seeing you!</p>
           <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
           <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
         </body>
         </html>
       `;
+      
+      console.log("HTML email content:", htmlContent);
       
       // Send email using SMTP with simpler content type headers
       await client.send({
