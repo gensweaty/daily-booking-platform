@@ -52,7 +52,9 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
         >
           <h3 className="font-semibold mb-4 capitalize text-foreground">
             {isGeorgian ? (
-              <GeorgianAuthText>{getColumnTitle(status)}</GeorgianAuthText>
+              <GeorgianAuthText className="capitalize">
+                {getColumnTitle(status)}
+              </GeorgianAuthText>
             ) : (
               <LanguageText>{getColumnTitle(status)}</LanguageText>
             )}

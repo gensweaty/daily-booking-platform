@@ -12,7 +12,7 @@ export const GeorgianAuthText = ({ children, className = '' }: GeorgianAuthTextP
   // with all the styling needed to ensure proper rendering of bold text
   return (
     <span 
-      className={cn('georgian-fix-text font-bold', className)}
+      className={cn('georgian-auth-text font-bold', className)}
       style={{
         fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
         letterSpacing: '-0.2px',

@@ -19,7 +19,9 @@ export const TaskFormHeader = ({ onAddTask, editingTask }: TaskFormHeaderProps) 
     <div className="flex items-center justify-between mb-6">
       <h2 className="text-xl font-bold">
         {isGeorgian ? (
-          <GeorgianAuthText>{editingTask ? t("tasks.editTask") : t("tasks.addTask")}</GeorgianAuthText>
+          <GeorgianAuthText className="text-xl">
+            {editingTask ? t("tasks.editTask") : t("tasks.addTask")}
+          </GeorgianAuthText>
         ) : (
           <LanguageText>{editingTask ? t("tasks.editTask") : t("tasks.addTask")}</LanguageText>
         )}
