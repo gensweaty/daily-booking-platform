@@ -41,6 +41,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`- Business: ${parsedBody.businessName}`);
       console.log(`- Dates: ${parsedBody.startDate} to ${parsedBody.endDate}`);
       console.log(`- Payment: ${parsedBody.paymentStatus} (${parsedBody.paymentAmount || 'N/A'})`);
+      console.log(`- Business Address: ${parsedBody.businessAddress || '(No address provided)'}`);
       
       // ENHANCED ADDRESS DEBUGGING
       console.log("ADDRESS DIAGNOSTICS:");
@@ -122,21 +123,20 @@ const handler = async (req: Request): Promise<Response> => {
       let addressInfo = "";
       let addressDisplay = ""; // For logging purposes
       
-      // Explicit checks for valid address
-      if (businessAddress) {
+      // Always attempt to use the address if it exists in any form
+      if (businessAddress !== undefined && businessAddress !== null) {
         // Convert to string and clean (handle any potential undefined/null stringified values)
-        const addressStr = String(businessAddress);
+        const addressStr = String(businessAddress).trim();
         console.log(`Address converted to string: "${addressStr}"`);
         
-        // Check if it's a valid usable address (not "null" or "undefined" strings)
+        // Check if it's a valid usable address (not "null" or "undefined" strings or empty)
         if (
-          addressStr && 
-          addressStr.trim().length > 0 && 
+          addressStr.length > 0 && 
           addressStr !== "null" && 
           addressStr !== "undefined"
         ) {
           // This is a valid address we can use
-          addressDisplay = addressStr.trim();
+          addressDisplay = addressStr;
           addressInfo = `<p style="margin: 8px 0;"><strong>Address:</strong> ${addressDisplay}</p>`;
           console.log(`Valid address found, will display: "${addressDisplay}"`);
         } else {
