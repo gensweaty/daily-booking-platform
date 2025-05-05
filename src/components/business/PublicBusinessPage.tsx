@@ -203,9 +203,9 @@ export const PublicBusinessPage = () => {
       >
         <div className="absolute inset-0 bg-black bg-opacity-50"></div>
         
-        <div className="container mx-auto px-4 relative h-full flex flex-col justify-between">
-          {/* Business info at top */}
-          <div className="pt-4">
+        <div className="container mx-auto px-4 relative h-full flex flex-col justify-center">
+          {/* Business info moved to center */}
+          <div className="py-8">
             <h1 
               className={cn("text-4xl md:text-5xl font-bold mb-6", isGeorgian ? "font-georgian" : "")}
               style={applyGeorgianFont(isGeorgian)}
