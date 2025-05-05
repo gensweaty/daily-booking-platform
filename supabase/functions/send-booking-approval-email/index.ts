@@ -90,6 +90,10 @@ const handler = async (req: Request): Promise<Response> => {
         subject: emailSubject,
         content: "Your booking has been approved", // Fallback plain text
         html: emailContent,
+        // Add proper UTF-8 encoding headers for all emails, especially important for Georgian
+        headers: {
+          "Content-Type": "text/html; charset=UTF-8",
+        },
       });
       
       console.log(`Email successfully sent to ${recipientEmail}`);
