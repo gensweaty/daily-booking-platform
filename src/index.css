@@ -2,466 +2,93 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
+ 
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
+    --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
     --radius: 0.5rem;
   }
-
+ 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
   }
 }
-
+ 
 @layer base {
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground;
-    /* Temporarily removed for debugging */
-    /* cursor: none; */
-  }
-  
-  /* Enhanced Georgian text rendering across all elements */
-  .ka-text,
-  [lang="ka"] .ka-text {
-    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-    font-display: swap !important;
-    text-rendering: optimizeLegibility !important;
-    -webkit-font-smoothing: antialiased !important;
-    -moz-osx-font-smoothing: grayscale !important;
-    letter-spacing: -0.2px !important;
-  }
-
-  /* Georgian font styling - globally applied */
-  .font-georgian {
-    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-    font-display: swap !important;
-    text-rendering: optimizeLegibility !important;
-    -webkit-font-smoothing: antialiased !important;
-    -moz-osx-font-smoothing: grayscale !important;
-    letter-spacing: -0.2px !important;
-  }
-  
-  /* Fix for specific Georgian auth text component */
-  .georgian-auth-text {
-    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-    letter-spacing: -0.2px !important;
-    -webkit-font-smoothing: antialiased !important;
-    -moz-osx-font-smoothing: grayscale !important;
-    text-rendering: optimizeLegibility !important;
-  }
-  
-  /* Fixed Georgian bold text - ensure all letters including first are bold */
-  .georgian-bold-fix,
-  .georgian-bold-fix * {
-    font-weight: inherit !important;
-  }
-  
-  /* Fixed Georgian bold text - first letter fix */
-  .georgian-bold-fix::first-letter {
-    font-weight: inherit !important;
-  }
-  
-  /* New class for fixing Georgian text inconsistencies */
-  .georgian-text-fix,
-  .georgian-text-fix * {
-    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-    letter-spacing: -0.2px !important;
-    -webkit-font-smoothing: antialiased !important;
-    -moz-osx-font-smoothing: grayscale !important;
-    text-rendering: optimizeLegibility !important;
-    font-weight: inherit !important;
-  }
-  
-  .georgian-text-fix::first-letter {
-    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-    font-weight: inherit !important;
-    letter-spacing: -0.2px !important;
-  }
-  
-  /* Ensure first letter of Georgian text is also bold when parent is bold */
-  [lang="ka"] .font-bold *,
-  [lang="ka"] .font-semibold *,
-  [lang="ka"] h1 *, 
-  [lang="ka"] h2 *, 
-  [lang="ka"] h3 *,
-  [lang="ka"] .georgian-auth-text[style*="font-weight: bold"] *,
-  [lang="ka"] .georgian-auth-text[style*="font-weight: bold"]::first-letter {
-    font-weight: inherit !important;
-  }
-  
-  /* Fix calendar icon color in dark mode */
-  .dark input[type="datetime-local"] {
-    color-scheme: dark;
-    color: white;
-  }
-
-  /* Enhanced calendar icon styling for better visibility in dark mode */
-  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: contain;
-    cursor: pointer;
-    opacity: 0.8;
-  }
-
-  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-  }
-
-  /* Fix for Georgian tabs in auth UI */
-  .georgian-tab {
-    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-    letter-spacing: -0.2px !important;
-    font-weight: normal !important;
-    text-rendering: optimizeLegibility !important;
-    -webkit-font-smoothing: antialiased !important;
-    -moz-osx-font-smoothing: grayscale !important;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-/* TipTap placeholder styling */
-.is-editor-empty:first-child::before {
-  content: attr(data-placeholder);
-  float: left;
-  color: #adb5bd;
-  pointer-events: none;
-  height: 0;
+@font-face {
+  font-family: 'BPG Glaho WEB Caps';
+  src: url('/fonts/bpg-glaho-web-caps.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
 }
 
-/* Expanded Georgian text styling for all relevant UI elements with !important */
-[lang="ka"] span,
-[lang="ka"] div,
-[lang="ka"] p,
-[lang="ka"] a,
-[lang="ka"] button,
-[lang="ka"] h1,
-[lang="ka"] h2,
-[lang="ka"] h3,
-[lang="ka"] h4,
-[lang="ka"] h5,
-[lang="ka"] h6,
-[lang="ka"] label,
-[lang="ka"] input,
-[lang="ka"] textarea,
-[lang="ka"] .tabs-trigger,
-[lang="ka"] [role="tab"] {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+.font-georgian {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif;
 }
 
-/* Special fix for Georgian Auth UI text - fixed buttons */
-[lang="ka"] .georgian-fix-text {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  letter-spacing: -0.2px !important;
-  font-weight: normal !important;
-  text-rendering: optimizeLegibility !important;
-  -webkit-font-smoothing: antialiased !important;
-  -moz-osx-font-smoothing: grayscale !important;
+.georgian-text-fix {
+  letter-spacing: -0.2px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Override for TabsTrigger components - targeting tabs in auth UI */
-[lang="ka"] [data-orientation="horizontal"] [data-radix-collection-item] {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+.georgian-bold-fix {
+  font-optical-sizing: auto;
 }
 
-/* Fix for first letter styling issues in Georgian text */
-[lang="ka"] *::first-letter {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  text-transform: none !important;
-  font-weight: normal !important;
+.custom-emoji-mart-category {
+  margin-top: -8px !important;
 }
 
-/* Specific TabsTrigger first letter fix */
-[lang="ka"] [data-radix-collection-item]::first-letter {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  text-transform: none !important;
-  font-weight: normal !important;
-}
-
-/* Auth component specific fixes */
-[lang="ka"] .auth-tab-trigger,
-[lang="ka"] .auth-button {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  letter-spacing: -0.2px !important;
-}
-
-/* Auth sign in text and labels */
-[lang="ka"] [role="tablist"] button,
-[lang="ka"] [role="tab"],
-[lang="ka"] [role="tabpanel"] button {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  letter-spacing: -0.2px !important;
-}
-
-/* Very specific overrides for the signin/signup tabs */
-[lang="ka"] div[role="tablist"] button[data-state],
-[lang="ka"] div[role="tablist"] button[data-state] span,
-[lang="ka"] div[role="tablist"] button[data-state]::first-letter,
-[lang="ka"] div[role="tablist"] button[data-state] span::first-letter {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  letter-spacing: -0.2px !important;
-}
-
-/* Button text in auth forms */
-[lang="ka"] form button,
-[lang="ka"] form button span,
-[lang="ka"] form button::first-letter,
-[lang="ka"] form button span::first-letter {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  letter-spacing: -0.2px !important;
-}
-
-/* Ensure consistent Georgian font in dialog titles and all popup content */
-[lang="ka"] .dialog-header h2,
-[lang="ka"] .dialog-content h2,
-[lang="ka"] .dialog-content h3,
-[lang="ka"] .dialog-content p,
-[lang="ka"] .dialog-content span,
-[lang="ka"] .dialog-content button,
-[lang="ka"] .dialog-content label,
-[lang="ka"] .dialog-content input,
-[lang="ka"] .dialog-content select,
-[lang="ka"] .dialog-content textarea,
-[lang="ka"] .dialog-content input::placeholder,
-[lang="ka"] .dialog-content textarea::placeholder {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-}
-
-/* Georgian font for public booking page */
-[lang="ka"] .booking-form h1,
-[lang="ka"] .booking-form h2,
-[lang="ka"] .booking-form h3,
-[lang="ka"] .booking-form button,
-[lang="ka"] .booking-form span,
-[lang="ka"] .booking-form label,
-[lang="ka"] .booking-form input,
-[lang="ka"] .booking-form textarea,
-[lang="ka"] .booking-form input::placeholder,
-[lang="ka"] .booking-form textarea::placeholder {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  letter-spacing: -0.2px !important;
-}
-
-/* Public booking page specific fixes */
-[lang="ka"] .public-booking-form label,
-[lang="ka"] .public-booking-form input, 
-[lang="ka"] .public-booking-form input::placeholder,
-[lang="ka"] .public-booking-form textarea,
-[lang="ka"] .public-booking-form textarea::placeholder,
-[lang="ka"] .public-booking-form select,
-[lang="ka"] .public-booking-form button {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  letter-spacing: -0.2px !important;
-}
-
-/* Dashboard content Georgian styling */
-[lang="ka"] .dashboard-title,
-[lang="ka"] .dashboard-tabs,
-[lang="ka"] .tabs-content,
-[lang="ka"] .task-title,
-[lang="ka"] .crm-title,
-[lang="ka"] .business-title {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-}
-
-/* Add specific targeting for event popup components and their children */
-[lang="ka"] .dialog-content,
-[lang="ka"] .dialog-content *,
-[lang="ka"] [role="dialog"] .title,
-[lang="ka"] [role="dialog"] .label,
-[lang="ka"] [role="dialog"] .button,
-[lang="ka"] [role="dialog"] input::placeholder,
-[lang="ka"] [role="dialog"] textarea::placeholder {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-}
-
-/* Fix for first letter styling issues in Georgian text */
-[lang="ka"] *::first-letter {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  text-transform: none !important;
-}
-
-/* More specific selectors to target first letters in specific elements */
-[lang="ka"] .tabs-trigger::first-letter,
-[lang="ka"] button::first-letter, 
-[lang="ka"] h1::first-letter, 
-[lang="ka"] h2::first-letter, 
-[lang="ka"] h3::first-letter,
-[lang="ka"] h4::first-letter, 
-[lang="ka"] h5::first-letter, 
-[lang="ka"] h6::first-letter, 
-[lang="ka"] p::first-letter, 
-[lang="ka"] label::first-letter, 
-[lang="ka"] a::first-letter, 
-[lang="ka"] span::first-letter, 
-[lang="ka"] div::first-letter {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  letter-spacing: -0.2px !important;
-  font-weight: normal !important;
-}
-
-/* Ensure placeholder text in inputs also uses the Georgian font */
-[lang="ka"] input::placeholder,
-[lang="ka"] textarea::placeholder {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-}
-
-/* Additional specific fixes for auth tabs and buttons */
-[lang="ka"] .tabs-list button,
-[lang="ka"] .tabs-trigger,
-[lang="ka"] button[type="submit"] {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-}
-
-/* Ensure all text within the auth UI uses the Georgian font */
-[lang="ka"] [role="tablist"] button,
-[lang="ka"] [role="tabpanel"] * {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-}
-
-/* Fix for pseudo elements in the auth UI */
-[lang="ka"] [role="tablist"] button::first-letter,
-[lang="ka"] [role="tabpanel"] *::first-letter {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-}
-
-/* Update landing page Georgian font styles */
-[lang="ka"] .hero-title,
-[lang="ka"] .hero-subtitle,
-[lang="ka"] .hero-description,
-[lang="ka"] .feature-title,
-[lang="ka"] .feature-description,
-[lang="ka"] .business-category,
-[lang="ka"] .business-description,
-[lang="ka"] .footer *,
-[lang="ka"] nav button,
-[lang="ka"] nav a {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  letter-spacing: -0.2px !important;
-}
-
-/* Fix Georgian font in feature cards and buttons */
-[lang="ka"] .feature-card *,
-[lang="ka"] .cta-section *,
-[lang="ka"] .landing-button * {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  letter-spacing: -0.2px !important;
-}
-
-/* Extra specific selectors for auth UI components */
-[lang="ka"] .TabsTrigger::first-letter,
-[lang="ka"] .TabsTrigger,
-[lang="ka"] [role="tab"]::first-letter,
-[lang="ka"] [role="tab"] {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  font-weight: normal !important;
-  letter-spacing: -0.2px !important;
-}
-
-/* Direct targeting for tabs in auth UI */
-[lang="ka"] [data-radix-collection-item] {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  font-weight: normal !important;
-}
-
-/* Target the first letter of each Georgian word */
-[lang="ka"] [data-radix-collection-item]::first-letter {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  font-weight: normal !important;
-}
-
-/* Additional fixes for the first letter bolding issue in Georgian text */
-[lang="ka"] .font-bold::first-letter,
-[lang="ka"] .font-semibold::first-letter,
-[lang="ka"] h1::first-letter, 
-[lang="ka"] h2::first-letter, 
-[lang="ka"] h3::first-letter,
-[lang="ka"] b::first-letter,
-[lang="ka"] strong::first-letter,
-[lang="ka"] [class*="font-bold"]::first-letter,
-[lang="ka"] button.font-medium::first-letter,
-[lang="ka"] .font-bold > *::first-letter,
-[lang="ka"] .font-semibold > *::first-letter,
-[lang="ka"] [class*="font-bold"] > *::first-letter {
-  font-weight: inherit !important;
-  font-family: inherit !important;
-}
-
-/* Special case for buttons and task titles with Georgian text */
-[lang="ka"] button::first-letter,
-[lang="ka"] button > *::first-letter,
-[lang="ka"] button > span::first-letter,
-[lang="ka"] .georgian-auth-text::first-letter,
-[lang="ka"] .georgian-auth-text > *::first-letter {
-  font-weight: inherit !important;
-  font-family: inherit !important;
-}
-
-/* Fix for select component and dropdown in Georgian language */
-[lang="ka"] .select-trigger span,
-[lang="ka"] .select-content button,
-[lang="ka"] .select-item-text,
-[lang="ka"] .select-trigger,
-[lang="ka"] .select-content,
-[lang="ka"] .select-item {
-  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  letter-spacing: -0.2px !important;
+/* Fix for calendar icon position in datetime inputs */
+.datetime-input-fix::-webkit-calendar-picker-indicator {
+  margin-left: -8px; /* Move calendar icon closer to text */
+  padding-right: 4px; /* Add a bit of padding on the right */
 }
 

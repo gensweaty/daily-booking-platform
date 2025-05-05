@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -175,7 +176,7 @@ export const EventDialogFields = ({
                 value={startDate} 
                 onChange={e => setStartDate(e.target.value)} 
                 required 
-                className="w-full dark:text-white dark:[color-scheme:dark]" 
+                className="w-full dark:text-white dark:[color-scheme:dark] datetime-input-fix" 
                 style={{ colorScheme: 'auto' }} 
               />
             </div>
@@ -195,7 +196,7 @@ export const EventDialogFields = ({
                 value={endDate} 
                 onChange={e => setEndDate(e.target.value)} 
                 required 
-                className="w-full dark:text-white dark:[color-scheme:dark]" 
+                className="w-full dark:text-white dark:[color-scheme:dark] datetime-input-fix" 
                 style={{ colorScheme: 'auto' }} 
               />
             </div>
