@@ -57,6 +57,28 @@ export function ThemeProvider({
     console.log("[ThemeProvider] Initialized with theme:", initialTheme);
   }, [storageKey, defaultTheme, forcedTheme, enableSystem]);
 
+  // Add another effect to handle transitions between pages
+  React.useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === storageKey && e.newValue) {
+        // Sync theme if storage was changed in another tab/window
+        const newTheme = e.newValue;
+        console.log("[ThemeProvider] Theme changed in another window:", newTheme);
+        
+        // Apply the theme change immediately
+        document.documentElement.classList.toggle('dark', newTheme === 'dark');
+        document.documentElement.setAttribute('data-theme', newTheme);
+        
+        // Notify components of theme change
+        const event = new CustomEvent('themeChanged', { detail: { theme: newTheme } });
+        document.dispatchEvent(event);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [storageKey]);
+
   return (
     <NextThemesProvider 
       attribute="class" 

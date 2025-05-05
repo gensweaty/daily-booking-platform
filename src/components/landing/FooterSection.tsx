@@ -4,10 +4,21 @@ import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Facebook, Twitter, Instagram, Linkedin, Github } from "lucide-react";
 import { LanguageText } from "../shared/LanguageText";
+import { useEffect, useState } from "react";
 
 export const FooterSection = () => {
-  const { theme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
   const { t } = useLanguage();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Determine the correct logo to use based on theme
+  const logoSrc = mounted && (resolvedTheme || theme) === 'dark' 
+    ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" 
+    : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
 
   return (
     <footer className="bg-muted/30 border-t">
@@ -16,7 +27,7 @@ export const FooterSection = () => {
           <div className="space-y-4">
             <Link to="/" className="inline-block">
               <img 
-                src={theme === 'dark' ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"} 
+                src={logoSrc}
                 alt="SmartBookly Logo" 
                 className="h-10" 
               />
@@ -82,4 +93,4 @@ export const FooterSection = () => {
       </div>
     </footer>
   );
-};
+}

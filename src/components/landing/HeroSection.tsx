@@ -5,7 +5,7 @@ import { ImageCarousel } from "./ImageCarousel";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Menu, X, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -30,12 +30,39 @@ const productImages = [{
 
 export const HeroSection = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { theme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
   const { t } = useLanguage();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleMenuClose = () => {
     setIsMobileMenuOpen(false);
   };
+
+  // Determine the correct logo to use based on theme
+  const logoSrc = mounted && (resolvedTheme || theme) === 'dark' 
+    ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" 
+    : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
+
+  // Listen for theme changes to update logo
+  useEffect(() => {
+    if (!mounted) return;
+
+    const handleThemeChange = () => {
+      console.log("[HeroSection] Theme change detected");
+    };
+
+    document.addEventListener('themeChanged', handleThemeChange);
+    document.addEventListener('themeInit', handleThemeChange);
+    
+    return () => {
+      document.removeEventListener('themeChanged', handleThemeChange);
+      document.removeEventListener('themeInit', handleThemeChange);
+    };
+  }, [mounted]);
 
   return <>
       <header className="relative overflow-hidden">
@@ -45,7 +72,15 @@ export const HeroSection = () => {
           <nav className="relative" aria-label="Main navigation">
             <div className="flex justify-between items-center">
               <Link to="/" className="flex items-center gap-2" aria-label="SmartBookly Home">
-                <img src={theme === 'dark' ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"} alt="SmartBookly Logo" className="h-8 md:h-10 w-auto" width="160" height="40" loading="eager" fetchPriority="high" />
+                <img 
+                  src={logoSrc}
+                  alt="SmartBookly Logo" 
+                  className="h-8 md:h-10 w-auto" 
+                  width="160" 
+                  height="40" 
+                  loading="eager" 
+                  fetchPriority="high" 
+                />
               </Link>
               
               <div className="flex items-center gap-4 md:hidden">

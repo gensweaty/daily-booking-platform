@@ -3,11 +3,16 @@ import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const { t } = useLanguage();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const toggleTheme = () => {
     const newTheme = (resolvedTheme || theme) === "dark" ? "light" : "dark";
@@ -26,8 +31,10 @@ export function ThemeToggle() {
     console.log("[ThemeToggle] Theme toggled to:", newTheme);
   };
 
-  // Force calendar to update when theme changes
+  // Force calendar to update when theme changes and on component mount
   useEffect(() => {
+    if (!mounted) return;
+    
     // Check if theme is already initialized
     const currentTheme = resolvedTheme || theme;
     if (currentTheme) {
@@ -50,11 +57,26 @@ export function ThemeToggle() {
       const event = new CustomEvent('themeChanged', { detail: { theme: currentTheme } });
       document.dispatchEvent(event);
     }
-  }, [theme, resolvedTheme]);
+  }, [theme, resolvedTheme, mounted]);
 
   // Determine current theme accounting for potential uninitialized state
-  const currentTheme = resolvedTheme || theme || 
-    (typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+  const currentTheme = mounted ? resolvedTheme || theme || 
+    (typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light') : 'light';
+
+  if (!mounted) {
+    return (
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-9 w-9"
+        aria-label="Theme toggle"
+      >
+        <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+        <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+        <span className="sr-only">Toggle theme</span>
+      </Button>
+    );
+  }
 
   return (
     <Button

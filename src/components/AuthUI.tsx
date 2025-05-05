@@ -20,8 +20,13 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const location = useLocation();
   const navigate = useNavigate();
-  const { theme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
   const { t, language } = useLanguage();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (location.pathname === "/signup") {
@@ -30,6 +35,28 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
       setActiveTab("signin");
     }
   }, [location.pathname]);
+
+  // Determine the correct logo to use based on theme
+  const logoSrc = mounted && (resolvedTheme || theme) === 'dark' 
+    ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+    : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
+
+  // Listen for theme changes to update logo
+  useEffect(() => {
+    if (!mounted) return;
+
+    const handleThemeChange = () => {
+      console.log("[AuthUI] Theme changed detected");
+    };
+
+    document.addEventListener('themeChanged', handleThemeChange);
+    document.addEventListener('themeInit', handleThemeChange);
+    
+    return () => {
+      document.removeEventListener('themeChanged', handleThemeChange);
+      document.removeEventListener('themeInit', handleThemeChange);
+    };
+  }, [mounted]);
 
   return (
     <div className="min-h-screen bg-background p-4" lang={language}>
@@ -46,10 +73,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
             </Button>
             <Link to="/" className="flex items-center gap-2">
               <img 
-                src={theme === 'dark' 
-                  ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
-                  : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
-                }
+                src={logoSrc}
                 alt="SmartBookly Logo" 
                 className="h-8 md:h-10 w-auto"
               />
