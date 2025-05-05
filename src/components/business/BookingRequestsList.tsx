@@ -10,6 +10,7 @@ import { AlertCircle, Check, X, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { Badge } from "@/components/ui/badge";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
@@ -44,25 +45,64 @@ export const BookingRequestsList = ({
     }
   };
 
-  // Format payment status for display
-  const formatPaymentStatus = (status?: string, amount?: number | null) => {
-    let statusDisplay = '';
+  // Format payment status for display with proper styling
+  const renderPaymentStatus = (status?: string, amount?: number | null) => {
+    let statusDisplay: React.ReactNode;
     
     if (!status || status === 'not_paid') {
-      statusDisplay = t("business.notPaid");
+      // Red for not paid
+      statusDisplay = (
+        <Badge variant="outline" className="text-[#ea384c] border-[#ea384c] bg-transparent">
+          {language === 'en' ? 'Not Paid' : 
+           language === 'es' ? 'No Pagado' : 
+           <GeorgianAuthText>არ არის გადახდილი</GeorgianAuthText>}
+        </Badge>
+      );
     } else if (status === 'partly_paid' || status === 'partly') {
-      statusDisplay = `${t("business.partlyPaid")}`;
+      // Orange for partly paid
+      let text = language === 'en' ? 'Partly Paid' : 
+                 language === 'es' ? 'Pagado Parcialmente' : 
+                 <GeorgianAuthText>ნაწილობრივ გადახდილი</GeorgianAuthText>;
+      
       if (amount) {
-        statusDisplay += ` ($${amount})`;
+        text = (
+          <>
+            {text} <span className="ml-1">(${amount})</span>
+          </>
+        );
       }
+      
+      statusDisplay = (
+        <Badge variant="outline" className="text-[#F97316] border-[#F97316] bg-transparent">
+          {text}
+        </Badge>
+      );
     } else if (status === 'fully_paid' || status === 'fully') {
-      statusDisplay = `${t("business.fullyPaid")}`;
+      // Green for fully paid
+      let text = language === 'en' ? 'Fully Paid' : 
+                 language === 'es' ? 'Pagado Completamente' : 
+                 <GeorgianAuthText>სრულად გადახდილი</GeorgianAuthText>;
+      
       if (amount) {
-        statusDisplay += ` ($${amount})`;
+        text = (
+          <>
+            {text} <span className="ml-1">(${amount})</span>
+          </>
+        );
       }
+      
+      statusDisplay = (
+        <Badge variant="outline" className="text-[#10b981] border-[#10b981] bg-transparent">
+          {text}
+        </Badge>
+      );
     } else {
-      // Handle any other status
-      statusDisplay = status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+      // Default case
+      statusDisplay = (
+        <Badge variant="outline">
+          {status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ')}
+        </Badge>
+      );
     }
     
     return statusDisplay;
@@ -140,7 +180,7 @@ export const BookingRequestsList = ({
                 <div className="text-sm text-muted-foreground truncate">{request.requester_email || request.requester_phone}</div>
               </div>
               <div className="truncate pr-4">
-                {formatPaymentStatus(request.payment_status, request.payment_amount)}
+                {renderPaymentStatus(request.payment_status, request.payment_amount)}
               </div>
               <div className="text-sm">
                 {request.start_date && (
@@ -211,4 +251,3 @@ export const BookingRequestsList = ({
     </>
   );
 };
-
