@@ -123,7 +123,7 @@ export const useBookingRequests = () => {
             endDate: booking.end_date,
             paymentStatus: booking.payment_status,
             paymentAmount: booking.payment_amount,
-            businessAddress: businessProfile.contact_address, // Added business address
+            businessAddress: businessProfile.contact_address, 
           }),
         });
 
@@ -192,6 +192,21 @@ export const useBookingRequests = () => {
   // Function to reject a booking request
   const rejectRequest = async (id: string) => {
     await updateBookingRequestMutation.mutate({ id, updates: { status: "rejected" } });
+  };
+
+  // Create an adapter function that accepts a string ID and calls approveBooking with the full request object
+  const approveRequestById = async (id: string) => {
+    const request = allRequests.find(req => req.id === id);
+    if (!request) {
+      toast({
+        title: "Error",
+        description: "Booking request not found",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    await approveBookingMutation.mutate(request);
   };
 
   const createBookingRequestMutation = useMutation({
@@ -276,7 +291,7 @@ export const useBookingRequests = () => {
     rejectedRequests,
     
     // Return helper functions
-    approveRequest: approveBookingMutation.mutate,
+    approveRequest: approveRequestById, // Now returns a function that takes a string ID
     rejectRequest,
   };
 };
