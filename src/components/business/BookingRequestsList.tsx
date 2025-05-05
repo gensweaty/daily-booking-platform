@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -180,7 +179,9 @@ export const BookingRequestsList = ({
   return (
     <>
       <div className="rounded-md border overflow-hidden">
+        {/* Fixed scrolling on mobile: always show scrollbars */}
         <ScrollArea className="w-full" type="always">
+          {/* Ensure table has enough width on mobile */}
           <div className={isMobile ? "min-w-[800px]" : "min-w-full"}>
             <Table>
               <TableHeader className="bg-muted/50">
@@ -213,7 +214,8 @@ export const BookingRequestsList = ({
                       )}
                     </TableCell>
                     <TableCell className="text-right w-1/4">
-                      <div className="flex justify-end gap-2 flex-wrap">
+                      {/* Fixed action buttons layout for mobile */}
+                      <div className={`flex ${isMobile ? 'flex-col' : 'justify-end'} gap-2 flex-wrap`}>
                         {type === 'pending' && onApprove && (
                           <Button 
                             variant="approve" 
@@ -222,7 +224,9 @@ export const BookingRequestsList = ({
                             onClick={() => onApprove(request.id)}
                           >
                             <Check className="h-4 w-4" />
-                            <span className={isMobile ? "sr-only" : ""}>{renderGeorgianText("business.approve")}</span>
+                            <span className={isMobile ? "" : ""}>
+                              {renderGeorgianText("business.approve")}
+                            </span>
                           </Button>
                         )}
                         {type === 'pending' && onReject && (
@@ -233,7 +237,9 @@ export const BookingRequestsList = ({
                             onClick={() => onReject(request.id)}
                           >
                             <X className="h-4 w-4 text-red-600" />
-                            <span className={isMobile ? "sr-only" : ""}>{renderGeorgianText("business.reject")}</span>
+                            <span className={isMobile ? "" : ""}>
+                              {renderGeorgianText("business.reject")}
+                            </span>
                           </Button>
                         )}
                         <Button 
@@ -243,7 +249,9 @@ export const BookingRequestsList = ({
                           onClick={() => handleDeleteClick(request.id)}
                         >
                           <Trash2 className="h-4 w-4" />
-                          <span className={isMobile ? "sr-only" : ""}>{renderGeorgianText("business.delete")}</span>
+                          <span className={isMobile ? "" : ""}>
+                            {renderGeorgianText("business.delete")}
+                          </span>
                         </Button>
                       </div>
                     </TableCell>
@@ -277,4 +285,3 @@ export const BookingRequestsList = ({
     </>
   );
 };
-

@@ -136,7 +136,7 @@ export const BusinessPage = () => {
         </TabsContent>
 
         <TabsContent value="bookings" className="space-y-6">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">
                 <LanguageText>{t("business.bookingRequests")}</LanguageText>
@@ -151,10 +151,14 @@ export const BusinessPage = () => {
                 </div>
               )}
             </div>
+            
+            {/* View Public Page button for mobile - positioned below heading */}
             {isMobile && publicUrl && (
-              <div className="w-full mt-2">{renderViewPublicPageButton()}</div>
+              <div className="w-full mt-3 mb-2">{renderViewPublicPageButton()}</div>
             )}
-            {!isMobile && renderViewPublicPageButton()}
+            
+            {/* View Public Page button for desktop - positioned to the right */}
+            {!isMobile && publicUrl && renderViewPublicPageButton()}
           </div>
 
           <div className="space-y-8">
