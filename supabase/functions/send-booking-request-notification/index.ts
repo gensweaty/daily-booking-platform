@@ -285,10 +285,10 @@ const handler = async (req: Request): Promise<Response> => {
         html: emailHtml,
         text: plainText,
         reply_to: "no-reply@smartbookly.com",
-        // Add proper UTF-8 encoding headers for all emails, especially important for Georgian
+        // Improved UTF-8 encoding setup for proper character display
         headers: {
           "Content-Type": "text/html; charset=UTF-8",
-          "Content-Transfer-Encoding": "quoted-printable",
+          "Content-Transfer-Encoding": "base64",
           "MIME-Version": "1.0"
         },
       });
