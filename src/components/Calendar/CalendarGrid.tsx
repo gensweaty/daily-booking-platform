@@ -61,7 +61,7 @@ export const CalendarGrid = ({
     }
   };
 
-  const renderEventContent = (event: CalendarEventType) => {
+  const renderEventContent = (event: CalendarEventType, includeIcon = false) => {
     const bookingHours = getBookingHours(event);
 
     // For external calendar - always show "Booked" instead of event title for privacy
@@ -115,9 +115,9 @@ export const CalendarGrid = ({
       );
     }
     
-    // Desktop layout with only text for day and week views (no icon, will be added at the container level)
+    // Desktop layout based on view type and whether to include icon
     return (
-      <div className="min-w-0">
+      <div className={`min-w-0 ${includeIcon ? 'flex-1' : 'w-full'}`}>
         <span className="block font-medium text-xs sm:text-sm truncate">
           {name}
         </span>
@@ -357,7 +357,8 @@ export const CalendarGrid = ({
                             onEventClick?.(event);
                           }}
                         >
-                          {renderEventContent(event)}
+                          <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
+                          {renderEventContent(event, true)}
                         </div>
                       ))}
                     </div>
@@ -441,7 +442,7 @@ export const CalendarGrid = ({
                       }}
                     >
                       <CalendarIcon className="h-4 w-4" />
-                      {renderEventContent(event)}
+                      {renderEventContent(event, true)}
                     </div>
                   ))
                 )
