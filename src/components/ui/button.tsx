@@ -58,24 +58,21 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     
     const Component = asChild ? Slot : "button"
     
-    // For Georgian text, wrap children with GeorgianAuthText to ensure proper font rendering
-    const wrappedChildren = isGeorgian && typeof children === 'string' ? (
-      <GeorgianAuthText 
-        fontWeight={props.disabled ? 'normal' : 'bold'}
-        className="georgian-text-fix"
-      >
-        {children}
-      </GeorgianAuthText>
-    ) : children;
+    // For Georgian text, apply special handling
+    let wrappedChildren = children;
+    let buttonClasses = cn(
+      buttonVariants({ variant, size, className }),
+      isGeorgian ? "ka-text georgian-text-fix georgian-button-fix" : ""
+    );
+    
+    // No need to wrap text in GeorgianAuthText component as it was causing issues
+    // Instead, we'll rely on CSS classes to fix the font rendering
     
     const georgianStyle = isGeorgian ? getGeorgianFontStyle() : undefined;
     
     return (
       <Component
-        className={cn(
-          buttonVariants({ variant, size, className }),
-          isGeorgian ? "ka-text georgian-text-fix" : ""
-        )}
+        className={buttonClasses}
         ref={ref}
         style={georgianStyle}
         {...props}

@@ -90,6 +90,26 @@
     font-variant: normal !important;
   }
 
+  /* Special fix for Georgian buttons to ensure first letter is the same font */
+  .georgian-button-fix,
+  .georgian-button-fix * {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+    letter-spacing: -0.2px !important;
+    font-feature-settings: "case" 0 !important;
+    text-transform: none !important;
+    font-variant: normal !important;
+  }
+  
+  /* Special fix for first letter in Georgian buttons */
+  .georgian-button-fix::first-letter {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+    font-weight: inherit !important;
+    letter-spacing: -0.2px !important;
+    font-feature-settings: "case" 0 !important;
+    text-transform: none !important;
+    font-variant: normal !important;
+  }
+  
   /* Georgian font styling - globally applied */
   .font-georgian {
     font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;

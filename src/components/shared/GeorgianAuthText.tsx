@@ -25,7 +25,7 @@ export const GeorgianAuthText = ({
   
   return (
     <span 
-      className={cn("georgian-auth-text georgian-bold-fix georgian-text-fix", className)}
+      className={cn("georgian-auth-text georgian-bold-fix georgian-text-fix georgian-button-fix", className)}
       style={{
         ...baseStyles,
         fontWeight: fontWeightValue,

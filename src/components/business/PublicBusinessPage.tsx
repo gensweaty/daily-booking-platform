@@ -152,7 +152,8 @@ export const PublicBusinessPage = () => {
 
   // Add this function to ensure proper font rendering for Georgian text
   const applyGeorgianFont = (isGeorgian: boolean) => {
-    return isGeorgian ? getGeorgianFontStyle() : undefined;
+    if (!isGeorgian) return undefined;
+    return getGeorgianFontStyle();
   };
 
   if (isLoading) {
@@ -213,16 +214,27 @@ export const PublicBusinessPage = () => {
           )}
           
           <div className="flex gap-4 mt-6">
-            <Button 
-              size="lg" 
-              className={cn("bg-white text-blue-700 hover:bg-blue-50 calendar-book-now", isGeorgian ? "font-georgian georgian-text-fix" : "")}
-              style={applyGeorgianFont(isGeorgian)}
-              onClick={() => {
-                document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-            >
-              <LanguageText className="georgian-text-fix">{t("calendar.bookNow")}</LanguageText>
-            </Button>
+            {isGeorgian ? (
+              <Button 
+                size="lg" 
+                className="bg-white text-blue-700 hover:bg-blue-50 calendar-book-now georgian-button-fix"
+                onClick={() => {
+                  document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                დაჯავშნე ახლა
+              </Button>
+            ) : (
+              <Button 
+                size="lg" 
+                className="bg-white text-blue-700 hover:bg-blue-50 calendar-book-now"
+                onClick={() => {
+                  document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                {t("calendar.bookNow")}
+              </Button>
+            )}
           </div>
         </div>
       </div>
