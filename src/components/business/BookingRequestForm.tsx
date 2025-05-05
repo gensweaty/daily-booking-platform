@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { LanguageText } from '@/components/shared/LanguageText';
 import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
-import { Asterisk } from 'lucide-react';
+import { Asterisk, Calendar } from 'lucide-react';
 import { getGeorgianFontStyle } from '@/lib/font-utils';
 
 export interface BookingRequestFormProps {
@@ -119,6 +119,14 @@ export const BookingRequestForm = ({
         {text}
       </span>
     );
+  };
+
+  // Fixed Georgian placeholder for event notes
+  const getEventNotesPlaceholder = () => {
+    if (isGeorgian) {
+      return "დაამატეთ შენიშვნები თქვენი მოთხოვნის შესახებ";
+    }
+    return t("events.addEventNotes");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -527,9 +535,10 @@ export const BookingRequestForm = ({
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   required
-                  className="w-full"
+                  className="w-full pr-8"
                   style={{ colorScheme: 'auto' }}
                 />
+                <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
               </div>
             </div>
             <div>
@@ -547,9 +556,10 @@ export const BookingRequestForm = ({
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   required
-                  className="w-full"
+                  className="w-full pr-8"
                   style={{ colorScheme: 'auto' }}
                 />
+                <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
               </div>
             </div>
           </div>
@@ -613,7 +623,7 @@ export const BookingRequestForm = ({
           </div>
         )}
         
-        {/* Notes Field - UPDATE THIS SECTION */}
+        {/* Notes Field */}
         <div>
           <Label htmlFor="eventNotes" className={labelClass} style={georgianFontStyle}>
             {isGeorgian ? (
@@ -632,7 +642,7 @@ export const BookingRequestForm = ({
           />
         </div>
         
-        {/* File Upload Field - Fix label duplication */}
+        {/* File Upload Field */}
         <div>
           <Label htmlFor="file" className={labelClass} style={georgianFontStyle}>
             {isGeorgian ? (
