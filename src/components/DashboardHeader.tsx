@@ -151,7 +151,13 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
               </DialogHeader>
               <div className="py-4 space-y-4">
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">{t('auth.emailLabel')}</p>
+                  <p className="text-sm font-medium">
+                    {isGeorgian ? (
+                      <GeorgianAuthText fontWeight="medium">ელექტრონული ფოსტა</GeorgianAuthText>
+                    ) : (
+                      t('auth.emailLabel')
+                    )}
+                  </p>
                   <p className="text-sm text-muted-foreground">{user?.email}</p>
                 </div>
                 <div className="space-y-2">
@@ -196,7 +202,11 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             onClick={handleSignOut}
           >
             <LogOut className="w-4 h-4" />
-            {t('dashboard.signOut')}
+            {isGeorgian ? (
+              <GeorgianAuthText fontWeight="bold">გამოსვლა</GeorgianAuthText>
+            ) : (
+              t('dashboard.signOut')
+            )}
           </Button>
         </div>
       </div>
