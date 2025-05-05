@@ -59,7 +59,8 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
     const bookingData = {
       ...request,
       status: 'pending',
-      user_id: userData?.user?.id || null // Allow null for public bookings
+      user_id: userData?.user?.id || null, // Allow null for public bookings
+      language: document.documentElement.lang || 'en' // Get current page language
     };
     
     // Make sure payment_amount is correctly formatted as a number or null

@@ -4,9 +4,11 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { BookingRequest } from "@/types/database";
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export const useBookingRequests = () => {
   const { user } = useAuth();
+  const { language } = useLanguage();
   const queryClient = useQueryClient();
   const [businessId, setBusinessId] = useState<string | null>(null);
   
@@ -70,6 +72,7 @@ export const useBookingRequests = () => {
       console.log(`Sending approval email to ${email} for booking at ${businessName}`);
       console.log(`Raw start date: ${startDate}`);
       console.log(`Raw end date: ${endDate}`);
+      console.log(`Language: ${language}`);
       
       // Prepare the request with all required data - passing the original ISO strings directly
       const requestBody = JSON.stringify({
@@ -78,6 +81,7 @@ export const useBookingRequests = () => {
         businessName: businessName || "Our Business",
         startDate: startDate, // Pass the ISO string directly
         endDate: endDate,     // Pass the ISO string directly
+        language: language,   // Add the language parameter
       });
       
       console.log("Request body for email function:", requestBody);
