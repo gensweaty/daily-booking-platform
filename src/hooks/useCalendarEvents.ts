@@ -348,50 +348,65 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       throw error;
     }
     
-    // Get business address for notification email
-    try {
-      // Fetch business profile for the user
-      const { data: businessProfile, error: profileError } = await supabase
-        .from('business_profiles')
-        .select('contact_address, business_name')
-        .eq('user_id', user.id)
-        .maybeSingle();
+    // MODIFIED: Only send email if we have a recipient email AND no recent email was sent for this event ID
+    // This prevents duplicate emails when creating events from the dashboard
+    const recipientEmail = event.social_network_link;
+    if (recipientEmail && isValidEmail(recipientEmail)) {
+      try {
+        // Create a deduplication key for this event
+        const eventEmailKey = `calendar_event_${data.id}_${Date.now()}`;
         
-      if (profileError) {
-        console.error('Error fetching business address:', profileError);
-      } else if (businessProfile && (event.user_number || event.social_network_link)) {
-        // Only send email if we have customer contact info
-        console.log('Sending booking confirmation email with:');
-        console.log(`- Address: ${businessProfile.contact_address || 'None'}`);
-        console.log(`- Business name: ${businessProfile.business_name || 'None'}`);
-        
-        const recipientEmail = event.social_network_link;
-        if (recipientEmail && isValidEmail(recipientEmail)) {
-          // Send booking confirmation email
-          const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
+        // Check if we already sent an email for this event recently (from another component)
+        const recentEmailSent = localStorage.getItem(`dashboard_customer_${data.id}_${Date.now()}`) ||
+                                  localStorage.getItem(`newcustomer_event_${data.id}_${Date.now()}`);
+                                  
+        if (!recentEmailSent) {
+          console.log("No recent email detected for this event, sending from calendar event creation");
+          localStorage.setItem(eventEmailKey, 'true');
           
-          await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-            },
-            body: JSON.stringify({
-              recipientEmail: recipientEmail,
-              fullName: event.title || event.user_surname || '',
-              businessName: businessProfile.business_name || '',
-              startDate: event.start_date,
-              endDate: event.end_date,
-              paymentStatus: event.payment_status || 'not_paid',
-              paymentAmount: event.payment_amount || 0,
-              businessAddress: businessProfile.contact_address || ''
-            })
-          });
+          // Get business address for the email
+          const { data: businessProfile, error: profileError } = await supabase
+            .from('business_profiles')
+            .select('contact_address, business_name')
+            .eq('user_id', user.id)
+            .maybeSingle();
+            
+          if (profileError) {
+            console.error('Error fetching business profile for email:', profileError);
+          } else {
+            console.log('Sending booking confirmation email from calendar with:');
+            console.log(`- Address: ${businessProfile?.contact_address || 'None'}`);
+            console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
+            
+            const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
+            
+            await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+              },
+              body: JSON.stringify({
+                recipientEmail: recipientEmail,
+                fullName: event.title || event.user_surname || '',
+                businessName: businessProfile?.business_name || '',
+                startDate: event.start_date,
+                endDate: event.end_date,
+                paymentStatus: event.payment_status || 'not_paid',
+                paymentAmount: event.payment_amount || 0,
+                businessAddress: businessProfile?.contact_address || '',
+                eventId: data.id,
+                source: 'CalendarEvents'
+              })
+            });
+          }
+        } else {
+          console.log("Skipping email send from calendar because another component already sent it");
         }
+      } catch (emailError) {
+        console.error('Error sending booking confirmation email:', emailError);
+        // Don't throw error here, the event was created successfully
       }
-    } catch (emailError) {
-      console.error('Error sending booking confirmation email:', emailError);
-      // Don't throw error here, the event was created successfully
     }
     
     return data;

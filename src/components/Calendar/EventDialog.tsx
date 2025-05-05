@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -195,23 +194,28 @@ export const EventDialog = ({
     try {
       console.log("Sending booking approval email to", socialNetworkLink);
       
-      // IMPORTANT FIX: Check if an email was recently sent for this event to prevent duplicates
+      // IMPROVED: Create a more robust deduplication key
       if (eventId) {
-        const emailDedupeKey = `email_sent_${eventId}_${Date.now().toString().slice(0, -3)}`;
-        const recentlySent = localStorage.getItem(emailDedupeKey);
+        // Check for multiple possible deduplication keys with consistent naming
+        const hasRecentEmail = 
+          localStorage.getItem(`calendar_event_${eventId}_${Math.floor(Date.now()/10000)}`) ||
+          localStorage.getItem(`dashboard_customer_${eventId}_${Math.floor(Date.now()/10000)}`) ||
+          localStorage.getItem(`newcustomer_event_${eventId}_${Math.floor(Date.now()/10000)}`) ||
+          localStorage.getItem(`event_dialog_${eventId}_${Math.floor(Date.now()/10000)}`);
         
-        if (recentlySent) {
+        if (hasRecentEmail) {
           console.log("Email already sent recently for this event, skipping duplicate", eventId);
           return;
         }
         
-        // Mark as sent for the next minute
+        // Mark as sent with a specific key for EventDialog
+        const emailDedupeKey = `event_dialog_${eventId}_${Math.floor(Date.now()/10000)}`;
         localStorage.setItem(emailDedupeKey, 'true');
         
-        // Set expiration after 1 minute to clean up
+        // Set expiration after 5 minutes to clean up
         setTimeout(() => {
           localStorage.removeItem(emailDedupeKey);
-        }, 60000);
+        }, 300000);
       }
       
       const { data: businessProfile } = await supabase

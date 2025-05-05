@@ -17,19 +17,20 @@ interface BookingApprovalEmailRequest {
   paymentStatus?: string; 
   paymentAmount?: number;
   businessAddress?: string;
-  eventId?: string; // Added for deduplication
-  source?: string; // Added to track source of request
+  eventId?: string; // Used for deduplication
+  source?: string; // Used to track source of request
 }
 
 // For deduplication: Store a map of recently sent emails with expiring entries
+// The key is eventId_recipientEmail
 const recentlySentEmails = new Map<string, number>();
 
 // Clean up old entries from the deduplication map every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [key, timestamp] of recentlySentEmails.entries()) {
-    // Remove entries older than 2 minutes
-    if (now - timestamp > 120000) {
+    // Remove entries older than 10 minutes (increased from 2 minutes)
+    if (now - timestamp > 600000) {
       recentlySentEmails.delete(key);
     }
   }
@@ -106,29 +107,45 @@ const handler = async (req: Request): Promise<Response> => {
       source
     } = parsedBody;
 
-    // IMPORTANT FIX: Check for duplicate email - if eventId is provided, use it for deduplication
+    // Build a unique deduplication key - combine eventId (if available) with email and add source
+    let dedupeKey: string;
+    
     if (eventId) {
-      const dedupeKey = `${eventId}_${recipientEmail}`;
-      const now = Date.now();
-      
-      if (recentlySentEmails.has(dedupeKey)) {
-        console.log(`Duplicate email detected for event ${eventId} to ${recipientEmail}. Skipping.`);
-        return new Response(
-          JSON.stringify({ 
-            message: "Email request was identified as a duplicate and skipped",
-            to: recipientEmail,
-            id: null,
-            isDuplicate: true,
-            eventId: eventId
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-        );
-      }
-      
-      // Mark as recently sent
-      recentlySentEmails.set(dedupeKey, now);
-      console.log(`Setting deduplication key: ${dedupeKey} (tracked ${recentlySentEmails.size} emails)`);
+      dedupeKey = `${eventId}_${recipientEmail}`;
+    } else {
+      // If no eventId, use a combination of email and timestamps as a fallback
+      dedupeKey = `${recipientEmail}_${startDate}_${endDate}`;
     }
+    
+    // Add source for additional tracking in logs
+    if (source) {
+      dedupeKey += `_${source}`;
+    }
+    
+    const now = Date.now();
+    
+    // Check if this exact email was sent recently
+    if (recentlySentEmails.has(dedupeKey)) {
+      const lastSent = recentlySentEmails.get(dedupeKey);
+      const timeAgo = now - (lastSent || 0);
+      console.log(`Duplicate email detected for key ${dedupeKey}. Last sent ${timeAgo}ms ago. Skipping.`);
+      
+      return new Response(
+        JSON.stringify({ 
+          message: "Email request was identified as a duplicate and skipped",
+          to: recipientEmail,
+          id: null,
+          isDuplicate: true,
+          dedupeKey: dedupeKey,
+          timeAgo: timeAgo
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+      );
+    }
+    
+    // Mark as recently sent
+    recentlySentEmails.set(dedupeKey, now);
+    console.log(`Setting deduplication key: ${dedupeKey} (tracking ${recentlySentEmails.size} emails)`);
 
     console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName || "Unknown Business"}`);
     console.log(`Start date (raw ISO string): ${startDate}`);
@@ -164,7 +181,7 @@ const handler = async (req: Request): Promise<Response> => {
       if (paymentStatus) {
         const formattedStatus = formatPaymentStatus(paymentStatus);
         
-        if (paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') {
+        if (paymentStatus === 'partly_paid' || paymentStatus === 'partly') {
           const amountDisplay = paymentAmount ? `$${paymentAmount}` : "";
           paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus} ${amountDisplay}</p>`;
         } else {
@@ -266,7 +283,8 @@ const handler = async (req: Request): Promise<Response> => {
           id: emailResult.data?.id,
           included_address: addressDisplay || null, // For debugging
           business_name_used: displayBusinessName,
-          source: source || 'unknown'
+          source: source || 'unknown',
+          dedupeKey: dedupeKey
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
