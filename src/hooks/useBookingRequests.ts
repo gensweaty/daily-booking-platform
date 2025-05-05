@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -79,7 +78,7 @@ export const useBookingRequests = () => {
       console.log(`Sending approval email to ${email} for booking at ${businessName}`);
       console.log(`Raw start date: ${startDate}`);
       console.log(`Raw end date: ${endDate}`);
-      console.log(`Business address to be included in email: ${businessAddress}`);
+      console.log(`Business address to be included in email: "${businessAddress}"`);
       
       // Prepare the request with all required data
       const requestBody = JSON.stringify({
@@ -418,7 +417,16 @@ export const useBookingRequests = () => {
             if (businessProfile.contact_address) {
               // Make sure the address is a clean string
               businessAddress = businessProfile.contact_address.trim();
-              console.log(`Retrieved business address: ${businessAddress}`);
+              
+              // Log the raw address for debugging
+              console.log(`Raw business address from database: "${businessAddress}"`);
+              
+              // Check for any obvious encoding issues
+              if (businessAddress.includes('=20')) {
+                console.log("Warning: Address contains =20 encoding artifacts");
+                businessAddress = businessAddress.replace(/=20/g, ' ').trim();
+                console.log(`Cleaned address: "${businessAddress}"`);
+              }
             } else {
               console.log("Business profile found but no address available");
             }
