@@ -200,6 +200,7 @@ export const EventDialog = ({
         .maybeSingle();
         
       const businessName = businessProfile?.business_name || "Our Business";
+      const { language } = useLanguage(); // Get current language
       
       console.log("Email data:", {
         recipientEmail: socialNetworkLink,
@@ -208,7 +209,8 @@ export const EventDialog = ({
         startDate: startDateTime.toISOString(),
         endDate: endDateTime.toISOString(),
         paymentStatus,
-        paymentAmount: paymentAmount ? parseFloat(paymentAmount) : undefined
+        paymentAmount: paymentAmount ? parseFloat(paymentAmount) : undefined,
+        language // Add language
       });
       
       const { data: sessionData } = await supabase.auth.getSession();
@@ -234,7 +236,8 @@ export const EventDialog = ({
             startDate: startDateTime.toISOString(),
             endDate: endDateTime.toISOString(),
             paymentStatus,
-            paymentAmount: paymentAmount ? parseFloat(paymentAmount) : undefined
+            paymentAmount: paymentAmount ? parseFloat(paymentAmount) : undefined,
+            language // Add language
           }),
         }
       );
