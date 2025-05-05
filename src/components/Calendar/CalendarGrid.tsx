@@ -1,3 +1,4 @@
+
 import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -70,7 +71,7 @@ export const CalendarGrid = ({
       if (isMobile) {
         return (
           <div className="w-full flex flex-col items-center text-center justify-center space-y-0.5">
-            <CalendarIcon className="h-4 w-4" />
+            {/* Don't include icon here, it will be added at the container level */}
             <span className="block font-medium text-[0.7rem] leading-tight truncate max-w-[90%]">
               Booked
             </span>
@@ -83,16 +84,13 @@ export const CalendarGrid = ({
       
       // For desktop view in external calendar
       return (
-        <div className="w-full flex items-center">
-          <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
-          <div className="min-w-0">
-            <span className="block font-medium text-xs sm:text-sm truncate">
-              Booked
-            </span>
-            <span className="block text-xs sm:text-sm opacity-80 truncate">
-              {bookingHours}
-            </span>
-          </div>
+        <div className={`${includeIcon ? 'flex-1' : 'w-full'} min-w-0`}>
+          <span className="block font-medium text-xs sm:text-sm truncate">
+            Booked
+          </span>
+          <span className="block text-xs sm:text-sm opacity-80 truncate">
+            {bookingHours}
+          </span>
         </div>
       );
     }
@@ -104,7 +102,7 @@ export const CalendarGrid = ({
     if (isMobile) {
       return (
         <div className="w-full flex flex-col items-center text-center justify-center space-y-0.5">
-          <CalendarIcon className="h-4 w-4" />
+          {/* Don't include icon here, it will be added at the container level */}
           <span className="block font-medium text-[0.7rem] leading-tight truncate max-w-[90%]">
             {name}
           </span>
@@ -115,9 +113,9 @@ export const CalendarGrid = ({
       );
     }
     
-    // Desktop layout based on view type and whether to include icon
+    // Desktop layout
     return (
-      <div className={`min-w-0 ${includeIcon ? 'flex-1' : 'w-full'}`}>
+      <div className={`${includeIcon ? 'flex-1' : 'w-full'} min-w-0`}>
         <span className="block font-medium text-xs sm:text-sm truncate">
           {name}
         </span>
@@ -222,11 +220,14 @@ export const CalendarGrid = ({
                           }}
                         >
                           {isMobile ? (
-                            renderEventContent(event)
+                            <div className="flex flex-col items-center">
+                              <CalendarIcon className="h-4 w-4 mb-0.5" />
+                              {renderEventContent(event)}
+                            </div>
                           ) : (
                             <div className="flex items-center mb-0.5">
                               <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
-                              {renderEventContent(event)}
+                              {renderEventContent(event, true)}
                             </div>
                           )}
                         </div>
@@ -291,11 +292,14 @@ export const CalendarGrid = ({
                             }}
                           >
                             {isMobile ? (
-                              renderEventContent(event)
+                              <div className="flex flex-col items-center">
+                                <CalendarIcon className="h-4 w-4 mb-0.5" />
+                                {renderEventContent(event)}
+                              </div>
                             ) : (
                               <div className="flex items-center mb-0.5">
                                 <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
-                                {renderEventContent(event)}
+                                {renderEventContent(event, true)}
                               </div>
                             )}
                           </div>
@@ -357,8 +361,17 @@ export const CalendarGrid = ({
                             onEventClick?.(event);
                           }}
                         >
-                          <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
-                          {renderEventContent(event, true)}
+                          {isMobile ? (
+                            <div className="flex flex-col items-center w-full">
+                              <CalendarIcon className="h-4 w-4 mb-0.5" />
+                              {renderEventContent(event)}
+                            </div>
+                          ) : (
+                            <div className="flex w-full items-center">
+                              <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
+                              {renderEventContent(event, true)}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -418,7 +431,10 @@ export const CalendarGrid = ({
                           onEventClick?.(event);
                         }}
                       >
-                        {renderEventContent(event)}
+                        <div className="flex flex-col items-center">
+                          <CalendarIcon className="h-4 w-4 mb-0.5" />
+                          {renderEventContent(event)}
+                        </div>
                       </div>
                     ))}
                     {dayEvents.length > 2 && (
