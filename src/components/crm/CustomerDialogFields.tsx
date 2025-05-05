@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -92,6 +93,18 @@ export const CustomerDialogFields = ({
   
   // Get the correct currency symbol based on language
   const currencySymbol = getCurrencySymbol(language);
+
+  // Add the formatDateTime function that was missing
+  const formatDateTime = (dateStr: string | null | undefined) => {
+    if (!dateStr) return "-";
+    try {
+      const date = new Date(dateStr);
+      return format(date, "PPp"); // Format using date-fns for localized date and time
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return dateStr;
+    }
+  };
 
   // Function to format payment status display
   const renderPaymentStatus = () => {
