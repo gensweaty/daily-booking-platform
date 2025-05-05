@@ -122,6 +122,13 @@ export const BookingRequestsList = ({
       if (key === "business.reject") return <GeorgianAuthText>უარყოფა</GeorgianAuthText>;
       if (key === "business.delete") return <GeorgianAuthText>წაშლა</GeorgianAuthText>;
     }
+    
+    // For English and Spanish, handle "Payment Status" explicitly
+    if (key === "business.paymentStatus") {
+      if (language === 'en') return "Payment Status";
+      if (language === 'es') return "Estado del pago";
+    }
+    
     return <LanguageText>{t(key)}</LanguageText>;
   };
 
