@@ -1,4 +1,3 @@
-
 import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -116,18 +115,15 @@ export const CalendarGrid = ({
       );
     }
     
-    // Desktop layout with icon and text side by side
+    // Desktop layout with icon and text side by side - fixed to show only one icon
     return (
-      <div className="w-full flex items-center">
-        <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
-        <div className="min-w-0">
-          <span className="block font-medium text-xs sm:text-sm truncate">
-            {name}
-          </span>
-          <span className="block text-xs sm:text-sm opacity-80 truncate">
-            {bookingHours}
-          </span>
-        </div>
+      <div className="min-w-0">
+        <span className="block font-medium text-xs sm:text-sm truncate">
+          {name}
+        </span>
+        <span className="block text-xs sm:text-sm opacity-80 truncate">
+          {bookingHours}
+        </span>
       </div>
     );
   };
@@ -444,6 +440,7 @@ export const CalendarGrid = ({
                         onEventClick?.(event);
                       }}
                     >
+                      <CalendarIcon className="h-4 w-4" />
                       {renderEventContent(event)}
                     </div>
                   ))
