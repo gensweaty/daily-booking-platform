@@ -259,13 +259,19 @@ export const CustomerList = () => {
     let displayStatus = '';
     switch (normalizedStatus) {
       case 'not_paid':
-        displayStatus = t("crm.notPaid");
+        displayStatus = language === 'en' ? 'Not Paid' : 
+                        language === 'es' ? 'No Pagado' : 
+                        'გადაუხდელი';
         break;
       case 'partly':
-        displayStatus = t("crm.paidPartly");
+        displayStatus = language === 'en' ? 'Partly Paid' : 
+                        language === 'es' ? 'Pagado Parcialmente' : 
+                        'ნაწილობრივ გადახდილი';
         break;
       case 'fully':
-        displayStatus = t("crm.paidFully");
+        displayStatus = language === 'en' ? 'Fully Paid' : 
+                        language === 'es' ? 'Pagado Completamente' : 
+                        'სრულად გადახდილი';
         break;
       default:
         displayStatus = status;
@@ -274,14 +280,14 @@ export const CustomerList = () => {
     if (normalizedStatus === 'not_paid') {
       return (
         <span className={textColorClass}>
-          <LanguageText>{displayStatus}</LanguageText>
+          {displayStatus}
         </span>
       );
     }
     
     return (
       <div className={`font-medium ${textColorClass}`}>
-        <LanguageText>{displayStatus}</LanguageText>
+        {displayStatus}
         {(normalizedStatus === 'partly' || normalizedStatus === 'fully') && amount && (
           <div className="text-xs mt-0.5">
             ({currencySymbol}{amount.toFixed(2)})
@@ -289,7 +295,7 @@ export const CustomerList = () => {
         )}
       </div>
     );
-  }, [t, currencySymbol]);
+  }, [language, currencySymbol]);
 
   const openCreateDialog = useCallback(() => {
     setSelectedCustomer(null);
@@ -438,7 +444,11 @@ export const CustomerList = () => {
                     <TableHead className="w-[180px]">{t("crm.fullNameRequired")}</TableHead>
                     <TableHead className="w-[130px]">{t("crm.phoneNumber")}</TableHead>
                     <TableHead className="w-[250px]">{t("crm.socialLinkEmail")}</TableHead>
-                    <TableHead className="w-[120px]">{t("crm.paymentStatus")}</TableHead>
+                    <TableHead className="w-[120px]">
+                      {language === 'en' ? 'Payment Status' : 
+                       language === 'es' ? 'Estado de Pago' : 
+                       'გადახდის სტატუსი'}
+                    </TableHead>
                     <TableHead className="w-[180px]">{t("crm.dates")}</TableHead>
                     <TableHead className="w-[120px]">{t("crm.comment")}</TableHead>
                     <TableHead className="w-[180px]">{t("common.attachments")}</TableHead>

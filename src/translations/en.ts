@@ -65,7 +65,7 @@ const en = {
     socialLinkEmailPlaceholder: "Enter email or social media link",
     createEventForCustomer: "Create event for this customer",
     customerFromEvent: "This customer was created from an event",
-    paymentStatus: "Payment Status",
+    paymentStatus: "Payment Status", 
     paymentAmount: "Payment Amount",
     selectPaymentStatus: "Select payment status",
     comment: "Comment",
