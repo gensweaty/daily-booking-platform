@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -21,6 +20,7 @@ interface BookingNotificationRequest {
   hasAttachment?: boolean;
   paymentStatus?: string;
   paymentAmount?: number;
+  businessAddress?: string; // Added for consistency
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -198,7 +198,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { requesterName, startDate, endDate, requesterPhone = "", notes = "", businessName = "Your Business", requesterEmail = "" } = requestData;
+    const { requesterName, startDate, endDate, requesterPhone = "", notes = "", businessName = "Your Business", requesterEmail = "", businessAddress = "" } = requestData;
 
     // Format dates for display
     const formatDate = (isoString: string) => {

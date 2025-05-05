@@ -73,7 +73,16 @@ export const useBookingRequests = () => {
       console.log(`Sending approval email to ${email} for booking at ${businessName}`);
       console.log(`Raw start date: ${startDate}`);
       console.log(`Raw end date: ${endDate}`);
-      console.log(`Business address: ${businessAddress || 'Not provided'}`);
+      
+      // Clean address and log it for debugging
+      let cleanAddress = businessAddress ? String(businessAddress).trim() : undefined;
+      if (cleanAddress) {
+        // Just log the raw address, don't try to clean it here
+        // We'll let the edge function handle the cleaning
+        console.log(`Business address (raw): "${cleanAddress}"`);
+      } else {
+        console.log(`Business address: Not provided`);
+      }
       
       // Prepare the request with all required data
       const requestBody = JSON.stringify({
@@ -84,7 +93,7 @@ export const useBookingRequests = () => {
         endDate: endDate,
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
-        businessAddress: businessAddress ? businessAddress.trim() : undefined
+        businessAddress: cleanAddress
       });
       
       console.log("Request body for email function:", requestBody);
@@ -406,10 +415,13 @@ export const useBookingRequests = () => {
             
           if (businessProfile) {
             businessName = businessProfile.business_name || businessName;
+            
+            // Just assign the raw address, don't process it here
             businessAddress = businessProfile.contact_address || null;
+            
             console.log("Fetched business profile details:", { 
               name: businessName, 
-              address: businessAddress || "Not available" 
+              address: businessAddress ? `"${businessAddress}"` : "Not available" 
             });
           }
         } catch (err) {
@@ -423,7 +435,7 @@ export const useBookingRequests = () => {
           businessName,
           startDate: booking.start_date,
           endDate: booking.end_date,
-          businessAddress: businessAddress || "Not provided",
+          businessAddress: businessAddress ? `"${businessAddress}"` : "Not provided",
         });
         
         // Make sure we're passing payment info and business address to the email function

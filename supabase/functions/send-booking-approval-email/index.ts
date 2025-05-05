@@ -57,7 +57,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`End date (raw ISO string): ${endDate}`);
     console.log(`Payment status: ${paymentStatus}`);
     console.log(`Payment amount: ${paymentAmount}`);
-    console.log(`Business address: ${businessAddress || 'Not provided'}`);
+    console.log(`Business address (raw): "${businessAddress || 'Not provided'}"`);
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -105,19 +105,29 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
-      // Process business address if available
+      // Process business address - Complete rewrite of the address processing logic
       let addressInfo = "";
       if (businessAddress) {
-        // Clean the address string to remove any =20 or similar encoding artifacts
-        let cleanAddress = businessAddress.trim();
-        cleanAddress = cleanAddress.replace(/=20/g, ' ');
-        cleanAddress = cleanAddress.replace(/\s+/g, ' '); // Normalize whitespace
+        // Thorough address cleaning
+        let cleanAddress = typeof businessAddress === 'string' ? businessAddress : '';
         
+        // Remove all special encoded characters and normalize whitespace
+        cleanAddress = cleanAddress
+          .replace(/=\d{2}/g, ' ')  // Replace =20 and similar encodings
+          .replace(/\s+/g, ' ')     // Normalize whitespace
+          .trim();                  // Remove leading/trailing whitespace
+          
         console.log(`Cleaned business address: "${cleanAddress}"`);
         
-        if (cleanAddress) {
+        // Only add the address if we have actual content after cleaning
+        if (cleanAddress && cleanAddress.length > 0) {
           addressInfo = `<p><strong>Address:</strong> ${cleanAddress}</p>`;
+          console.log(`Generated address HTML: ${addressInfo}`);
+        } else {
+          console.log("Address was empty after cleaning, not displaying");
         }
+      } else {
+        console.log("No business address provided in request");
       }
       
       // Create HTML email content with simpler formatting
