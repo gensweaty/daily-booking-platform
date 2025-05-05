@@ -11,6 +11,11 @@ import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { 
+  Table, TableHeader, TableRow, TableHead, TableBody, TableCell 
+} from "@/components/ui/table";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
@@ -31,6 +36,7 @@ export const BookingRequestsList = ({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
   const isGeorgian = language === 'ka';
+  const isMobile = useMediaQuery('(max-width: 640px)');
 
   const handleDeleteClick = (id: string) => {
     setRequestToDelete(id);
@@ -170,70 +176,83 @@ export const BookingRequestsList = ({
     );
   }
 
+  // Responsive table view
   return (
     <>
-      <div className="rounded-md border">
-        <div className="bg-muted/50 p-4 grid grid-cols-4 font-medium">
-          <div>{renderGeorgianText("business.customer")}</div>
-          <div>{renderGeorgianText("business.paymentStatus")}</div>
-          <div>{renderGeorgianText("business.dateTime")}</div>
-          <div className="text-right">{renderGeorgianText("business.actions")}</div>
-        </div>
-        <div className="divide-y">
-          {requests.map((request) => (
-            <div key={request.id} className="p-4 grid grid-cols-4 items-center">
-              <div className="overflow-hidden">
-                <div className="font-medium truncate">{request.requester_name}</div>
-                <div className="text-sm text-muted-foreground truncate">{request.requester_email || request.requester_phone}</div>
-              </div>
-              <div className="truncate pr-4">
-                {renderPaymentStatus(request.payment_status, request.payment_amount)}
-              </div>
-              <div className="text-sm">
-                {request.start_date && (
-                  <>
-                    {formatDate(new Date(request.start_date), 'MMM d, yyyy')}
-                    <br />
-                    {formatDate(new Date(request.start_date), 'h:mm a')} - {request.end_date ? formatDate(new Date(request.end_date), 'h:mm a') : ''}
-                  </>
-                )}
-              </div>
-              <div className="flex justify-end gap-2">
-                {type === 'pending' && onApprove && (
-                  <Button 
-                    variant="approve" 
-                    size="sm" 
-                    className="flex gap-1 items-center" 
-                    onClick={() => onApprove(request.id)}
-                  >
-                    <Check className="h-4 w-4" />
-                    <span>{renderGeorgianText("business.approve")}</span>
-                  </Button>
-                )}
-                {type === 'pending' && onReject && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex gap-1 items-center hover:bg-red-100 hover:text-red-700 hover:border-red-300" 
-                    onClick={() => onReject(request.id)}
-                  >
-                    <X className="h-4 w-4 text-red-600" />
-                    <span>{renderGeorgianText("business.reject")}</span>
-                  </Button>
-                )}
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="text-destructive flex gap-1 items-center hover:bg-destructive/10" 
-                  onClick={() => handleDeleteClick(request.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span>{renderGeorgianText("business.delete")}</span>
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="rounded-md border overflow-hidden">
+        <ScrollArea className="w-full">
+          <div className={`min-w-full ${isMobile ? "min-w-[700px]" : ""}`}>
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead>{renderGeorgianText("business.customer")}</TableHead>
+                  <TableHead>{renderGeorgianText("business.paymentStatus")}</TableHead>
+                  <TableHead>{renderGeorgianText("business.dateTime")}</TableHead>
+                  <TableHead className="text-right">{renderGeorgianText("business.actions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {requests.map((request) => (
+                  <TableRow key={request.id}>
+                    <TableCell className="font-medium">
+                      <div className="overflow-hidden">
+                        <div className="font-medium truncate">{request.requester_name}</div>
+                        <div className="text-sm text-muted-foreground truncate">{request.requester_email || request.requester_phone}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {renderPaymentStatus(request.payment_status, request.payment_amount)}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {request.start_date && (
+                        <>
+                          {formatDate(new Date(request.start_date), 'MMM d, yyyy')}
+                          <br />
+                          {formatDate(new Date(request.start_date), 'h:mm a')} - {request.end_date ? formatDate(new Date(request.end_date), 'h:mm a') : ''}
+                        </>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2 flex-wrap">
+                        {type === 'pending' && onApprove && (
+                          <Button 
+                            variant="approve" 
+                            size="sm" 
+                            className="flex gap-1 items-center" 
+                            onClick={() => onApprove(request.id)}
+                          >
+                            <Check className="h-4 w-4" />
+                            <span className={isMobile ? "sr-only" : ""}>{renderGeorgianText("business.approve")}</span>
+                          </Button>
+                        )}
+                        {type === 'pending' && onReject && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex gap-1 items-center hover:bg-red-100 hover:text-red-700 hover:border-red-300" 
+                            onClick={() => onReject(request.id)}
+                          >
+                            <X className="h-4 w-4 text-red-600" />
+                            <span className={isMobile ? "sr-only" : ""}>{renderGeorgianText("business.reject")}</span>
+                          </Button>
+                        )}
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="text-destructive flex gap-1 items-center hover:bg-destructive/10" 
+                          onClick={() => handleDeleteClick(request.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className={isMobile ? "sr-only" : ""}>{renderGeorgianText("business.delete")}</span>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </ScrollArea>
       </div>
 
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
