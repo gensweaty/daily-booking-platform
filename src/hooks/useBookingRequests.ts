@@ -53,19 +53,13 @@ export const useBookingRequests = () => {
   const pendingRequests = bookingRequests.filter(req => req.status === 'pending');
   const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
   const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
-
-  // Helper function to convert id to booking request object
-  const approveRequestById = (id: string) => {
-    return approveMutation.mutateAsync(id);
-  };
   
-  async function sendApprovalEmail({ email, fullName, businessName, startDate, endDate, businessAddress, paymentStatus, paymentAmount }: {
+  async function sendApprovalEmail({ email, fullName, businessName, startDate, endDate, paymentStatus, paymentAmount }: {
     email: string;
     fullName: string;
     businessName: string;
     startDate: string;
     endDate: string;
-    businessAddress?: string;
     paymentStatus?: string;
     paymentAmount?: number;
   }) {
@@ -78,7 +72,6 @@ export const useBookingRequests = () => {
       console.log(`Sending approval email to ${email} for booking at ${businessName}`);
       console.log(`Raw start date: ${startDate}`);
       console.log(`Raw end date: ${endDate}`);
-      console.log(`Business address to be included in email: "${businessAddress}"`);
       
       // Prepare the request with all required data
       const requestBody = JSON.stringify({
@@ -87,7 +80,6 @@ export const useBookingRequests = () => {
         businessName: businessName || "Our Business",
         startDate: startDate,
         endDate: endDate,
-        businessAddress: businessAddress || "",
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount
       });
@@ -399,37 +391,14 @@ export const useBookingRequests = () => {
       // Email notification processing
       if (booking && booking.requester_email) {
         let businessName = "Our Business";
-        let businessAddress = "";
-        
         try {
-          // Fetch business profile to get business name AND address
           const { data: businessProfile } = await supabase
             .from('business_profiles')
-            .select('business_name, contact_address')
+            .select('business_name')
             .eq('id', booking.business_id)
             .maybeSingle();
-          
-          if (businessProfile) {
-            if (businessProfile.business_name) {
-              businessName = businessProfile.business_name;
-            }
-            
-            if (businessProfile.contact_address) {
-              // Make sure the address is a clean string
-              businessAddress = businessProfile.contact_address.trim();
-              
-              // Log the raw address for debugging
-              console.log(`Raw business address from database: "${businessAddress}"`);
-              
-              // Check for any obvious encoding issues
-              if (businessAddress.includes('=20')) {
-                console.log("Warning: Address contains =20 encoding artifacts");
-                businessAddress = businessAddress.replace(/=20/g, ' ').trim();
-                console.log(`Cleaned address: "${businessAddress}"`);
-              }
-            } else {
-              console.log("Business profile found but no address available");
-            }
+          if (businessProfile && businessProfile.business_name) {
+            businessName = businessProfile.business_name;
           }
         } catch (err) {
           console.warn("Could not load business profile for email:", err);
@@ -440,17 +409,15 @@ export const useBookingRequests = () => {
           email: booking.requester_email,
           fullName: booking.requester_name || booking.user_surname || "",
           businessName,
-          businessAddress,
           startDate: booking.start_date,
           endDate: booking.end_date,
         });
         
-        // Include business address in the email
+        // Make sure we're passing payment info to the email function
         const emailResult = await sendApprovalEmail({
           email: booking.requester_email,
           fullName: booking.requester_name || booking.user_surname || "",
           businessName,
-          businessAddress,
           startDate: booking.start_date,
           endDate: booking.end_date,
           paymentStatus: booking.payment_status,
@@ -471,7 +438,7 @@ export const useBookingRequests = () => {
       return booking;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
+      queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
       queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
@@ -503,7 +470,7 @@ export const useBookingRequests = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
+      queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
       toast({
         title: "Success",
         description: "Booking request rejected"
@@ -528,7 +495,7 @@ export const useBookingRequests = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
+      queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
       toast({
         title: "Success",
         description: "Booking request deleted"
@@ -550,7 +517,7 @@ export const useBookingRequests = () => {
     rejectedRequests,
     isLoading,
     error,
-    approveRequest: approveRequestById,
+    approveRequest: approveMutation.mutateAsync,
     rejectRequest: rejectMutation.mutateAsync,
     deleteBookingRequest: deleteMutation.mutateAsync,
   };

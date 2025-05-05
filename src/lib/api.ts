@@ -107,19 +107,12 @@ export const testEmailSending = async (recipientEmail: string): Promise<any> => 
       throw new Error("Authentication error");
     }
     
-    // Get the current user's business profile for the test email
-    const { data: businessProfile } = await supabase
-      .from('business_profiles')
-      .select('business_name, contact_address')
-      .single();
-      
     const testData = {
       recipientEmail: recipientEmail.trim(),
       fullName: "Test User",
-      businessName: businessProfile?.business_name || "Test Business",
+      businessName: "Test Business",
       startDate: new Date().toISOString(),
       endDate: new Date(Date.now() + 3600000).toISOString(), // 1 hour later
-      businessAddress: businessProfile?.contact_address || "",
     };
     
     console.log("Sending test email with data:", testData);

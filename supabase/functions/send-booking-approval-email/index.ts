@@ -14,9 +14,8 @@ interface BookingApprovalEmailRequest {
   businessName: string;
   startDate: string;
   endDate: string;
-  businessAddress?: string; 
-  paymentStatus?: string;
-  paymentAmount?: number;
+  paymentStatus?: string; // Added payment status
+  paymentAmount?: number; // Added payment amount
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -41,12 +40,11 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    const { recipientEmail, fullName, businessName, startDate, endDate, businessAddress, paymentStatus, paymentAmount } = parsedBody;
+    const { recipientEmail, fullName, businessName, startDate, endDate, paymentStatus, paymentAmount } = parsedBody;
 
     console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName}`);
     console.log(`Start date (raw ISO string): ${startDate}`);
     console.log(`End date (raw ISO string): ${endDate}`);
-    console.log(`Business address (raw): ${businessAddress}`);
     console.log(`Payment status: ${paymentStatus}`);
     console.log(`Payment amount: ${paymentAmount}`);
 
@@ -83,32 +81,17 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Attempting to send email via SMTP to ${recipientEmail}`);
     
     try {
-      // Handle address with extra careful cleaning and validation
-      let addressSection = "";
-      
-      if (businessAddress) {
-        // More thorough cleaning - remove ALL potential encoding artifacts
-        let cleanAddress = businessAddress;
+      // Format payment information if available
+      let paymentInfo = "";
+      if (paymentStatus) {
+        const formattedStatus = formatPaymentStatus(paymentStatus);
         
-        // Remove all encoding artifacts and trim whitespace
-        cleanAddress = cleanAddress
-          .replace(/=20/g, ' ')   // Replace =20 with a space
-          .replace(/=\r\n/g, '')  // Remove soft line breaks
-          .replace(/=\n/g, '')    // Remove soft line breaks
-          .replace(/=$/g, '')     // Remove trailing equals
-          .replace(/\s+/g, ' ')   // Replace multiple spaces with a single space
-          .trim();                // Trim whitespace
-          
-        console.log(`Thoroughly cleaned address: "${cleanAddress}"`);
-        
-        if (cleanAddress) {
-          addressSection = `<p><strong>Address:</strong> ${cleanAddress}</p>`;
-          console.log(`Address section for email: "${addressSection}"`);
+        if (paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') {
+          const amountDisplay = paymentAmount ? `$${paymentAmount}` : "";
+          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus} ${amountDisplay}</p>`;
         } else {
-          console.log("Address is empty after cleaning");
+          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus}</p>`;
         }
-      } else {
-        console.log("No business address provided");
       }
       
       // Create HTML email content with simpler formatting
@@ -119,54 +102,18 @@ const handler = async (req: Request): Promise<Response> => {
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Booking Approved</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              max-width: 600px;
-              margin: 0 auto;
-              padding: 20px;
-              border: 1px solid #eaeaea;
-              border-radius: 5px;
-            }
-            h2 {
-              color: #333;
-            }
-            .success {
-              color: #4CAF50;
-              font-weight: bold;
-            }
-            .info-section {
-              margin: 15px 0;
-            }
-            hr {
-              border: none;
-              border-top: 1px solid #eaeaea;
-              margin: 20px 0;
-            }
-            .footer {
-              color: #777;
-              font-size: 14px;
-              font-style: italic;
-            }
-          </style>
         </head>
-        <body>
-          <h2>Hello ${fullName},</h2>
-          <p>Your booking has been <span class="success">approved</span> at <b>${businessName}</b>.</p>
-          
-          <div class="info-section">
-            <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-            ${addressSection}
-          </div>
-          
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+          <h2 style="color: #333;">Hello ${fullName},</h2>
+          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
+          <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          ${paymentInfo}
           <p>We look forward to seeing you!</p>
-          <hr>
-          <p class="footer">This is an automated message.</p>
+          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+          <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
         </body>
         </html>
       `;
-      
-      console.log("HTML email content:", htmlContent);
       
       // Send email using SMTP with simpler content type headers
       await client.send({
