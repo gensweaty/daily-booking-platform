@@ -130,7 +130,7 @@ export function CalendarView({
     <div className="h-full">
       <CalendarGrid
         days={daysToRender}
-        events={filteredEvents} // Use the filtered events
+        events={filteredEvents}
         formattedSelectedDate={formattedSelectedDate}
         view={view}
         onDayClick={onDayClick}

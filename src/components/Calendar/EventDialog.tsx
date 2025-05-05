@@ -41,7 +41,10 @@ export function EventDialog({
             {t("events.eventDetails")}
           </DialogDescription>
         </DialogHeader>
-        <EventDialogFields event={event} isExternalCalendar={isExternalCalendar} />
+        <EventDialogFields 
+          eventData={event} 
+          isExternalCalendar={isExternalCalendar} 
+        />
         <DialogFooter>
           <Button onClick={onClose}>
             {t("common.close")}

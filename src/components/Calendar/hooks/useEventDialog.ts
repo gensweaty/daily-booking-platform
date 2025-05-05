@@ -9,11 +9,10 @@ interface UseEventDialogProps {
   deleteEvent?: (id: string) => Promise<void>;
 }
 
-export const useEventDialog = ({
-  createEvent,
-  updateEvent,
-  deleteEvent,
-}: UseEventDialogProps) => {
+export const useEventDialog = (props?: UseEventDialogProps) => {
+  // Safely destructure props with defaults
+  const { createEvent, updateEvent, deleteEvent } = props || {};
+  
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -134,5 +133,7 @@ export const useEventDialog = ({
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
+    onOpen: () => setIsNewEventDialogOpen(true),
+    onClose: () => setIsNewEventDialogOpen(false)
   };
 };

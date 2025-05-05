@@ -128,12 +128,7 @@ const Calendar: React.FC<CalendarProps> = ({
     events: fetchedEvents,
     isLoading: isLoadingEvents,
     error,
-  } = useCalendarEvents(
-    selectedDate,
-    view,
-    user?.id || businessUserId,
-    showAllEvents
-  );
+  } = useCalendarEvents(businessId, businessUserId);
 
   useEffect(() => {
     setIsLoading(isLoadingEvents);
