@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -73,6 +74,8 @@
 
   body {
     @apply bg-background text-foreground;
+    /* Temporarily removed for debugging */
+    /* cursor: none; */
   }
   
   /* Enhanced Georgian text rendering across all elements */
@@ -84,32 +87,8 @@
     -webkit-font-smoothing: antialiased !important;
     -moz-osx-font-smoothing: grayscale !important;
     letter-spacing: -0.2px !important;
-    font-weight: normal !important;
-    font-feature-settings: "case" 0 !important;
-    text-transform: none !important;
-    font-variant: normal !important;
   }
 
-  /* Special fix for Georgian buttons to ensure first letter is the same font */
-  .georgian-button-fix,
-  .georgian-button-fix * {
-    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-    letter-spacing: -0.2px !important;
-    font-feature-settings: "case" 0 !important;
-    text-transform: none !important;
-    font-variant: normal !important;
-  }
-  
-  /* Special fix for first letter in Georgian buttons */
-  .georgian-button-fix::first-letter {
-    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-    font-weight: inherit !important;
-    letter-spacing: -0.2px !important;
-    font-feature-settings: "case" 0 !important;
-    text-transform: none !important;
-    font-variant: normal !important;
-  }
-  
   /* Georgian font styling - globally applied */
   .font-georgian {
     font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
@@ -118,10 +97,6 @@
     -webkit-font-smoothing: antialiased !important;
     -moz-osx-font-smoothing: grayscale !important;
     letter-spacing: -0.2px !important;
-    font-weight: normal !important;
-    font-feature-settings: "case" 0 !important;
-    text-transform: none !important;
-    font-variant: normal !important;
   }
   
   /* Fix for specific Georgian auth text component */
@@ -131,30 +106,20 @@
     -webkit-font-smoothing: antialiased !important;
     -moz-osx-font-smoothing: grayscale !important;
     text-rendering: optimizeLegibility !important;
-    font-weight: normal !important;
-    font-feature-settings: "case" 0 !important;
-    text-transform: none !important;
-    font-variant: normal !important;
   }
   
   /* Fixed Georgian bold text - ensure all letters including first are bold */
   .georgian-bold-fix,
   .georgian-bold-fix * {
     font-weight: inherit !important;
-    font-feature-settings: "case" 0 !important;
-    text-transform: none !important;
-    font-variant: normal !important;
   }
   
   /* Fixed Georgian bold text - first letter fix */
   .georgian-bold-fix::first-letter {
     font-weight: inherit !important;
-    font-feature-settings: "case" 0 !important;
-    text-transform: none !important;
-    font-variant: normal !important;
   }
   
-  /* More comprehensive Georgian text fix class */
+  /* New class for fixing Georgian text inconsistencies */
   .georgian-text-fix,
   .georgian-text-fix * {
     font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
@@ -163,18 +128,12 @@
     -moz-osx-font-smoothing: grayscale !important;
     text-rendering: optimizeLegibility !important;
     font-weight: inherit !important;
-    font-feature-settings: "case" 0 !important;
-    font-variant: normal !important;
-    text-transform: none !important;
   }
   
   .georgian-text-fix::first-letter {
     font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
     font-weight: inherit !important;
     letter-spacing: -0.2px !important;
-    font-feature-settings: "case" 0 !important;
-    font-variant: normal !important;
-    text-transform: none !important;
   }
   
   /* Ensure first letter of Georgian text is also bold when parent is bold */
@@ -186,9 +145,6 @@
   [lang="ka"] .georgian-auth-text[style*="font-weight: bold"] *,
   [lang="ka"] .georgian-auth-text[style*="font-weight: bold"]::first-letter {
     font-weight: inherit !important;
-    font-feature-settings: "case" 0 !important;
-    text-transform: none !important;
-    font-variant: normal !important;
   }
   
   /* Fix calendar icon color in dark mode */
@@ -204,17 +160,12 @@
     background-size: contain;
     cursor: pointer;
     opacity: 0.8;
-    width: 20px;
-    height: 20px;
-    margin-left: 8px;
-    filter: none;
   }
 
-  /* Explicitly set calendar icon color for dark mode */
   .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-    filter: invert(1) !important; /* Force white in dark mode */
+    filter: invert(1);
   }
-  
+
   /* Fix for Georgian tabs in auth UI */
   .georgian-tab {
     font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
@@ -223,67 +174,6 @@
     text-rendering: optimizeLegibility !important;
     -webkit-font-smoothing: antialiased !important;
     -moz-osx-font-smoothing: grayscale !important;
-    font-feature-settings: "case" 0 !important;
-    text-transform: none !important;
-    font-variant: normal !important;
-  }
-  
-  /* Adjust font size for datetime inputs to provide more space */
-  input[type="datetime-local"] {
-    font-size: 0.75rem; /* Smaller font size to leave more room for calendar icon */
-    padding-right: 25px; /* More space for calendar icon */
-  }
-  
-  /* Fix for Georgian text in buttons and form elements */
-  [lang="ka"] button,
-  [lang="ka"] .button,
-  [lang="ka"] .btn {
-    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-    letter-spacing: -0.2px !important;
-    font-feature-settings: "case" 0 !important;
-    text-transform: none !important;
-    font-variant: normal !important;
-  }
-  
-  /* Specific fix for public booking buttons */
-  [lang="ka"] .calendar-book-now,
-  [lang="ka"] .booking-button {
-    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-    letter-spacing: -0.2px !important;
-    font-feature-settings: "case" 0 !important;
-    text-transform: none !important;
-    font-variant: normal !important;
-  }
-  
-  /* First letter fix for booking buttons */
-  [lang="ka"] .calendar-book-now::first-letter,
-  [lang="ka"] .booking-button::first-letter,
-  [lang="ka"] button::first-letter {
-    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-    font-weight: inherit !important;
-    font-feature-settings: "case" 0 !important;
-    text-transform: none !important;
-    font-variant: normal !important;
-  }
-  
-  /* Specific fixes for form fields */
-  [lang="ka"] textarea,
-  [lang="ka"] input[type="text"],
-  [lang="ka"] input[type="email"] {
-    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-    letter-spacing: -0.2px !important;
-    font-feature-settings: "case" 0 !important;
-    text-transform: none !important;
-    font-variant: normal !important;
-  }
-  
-  /* Fix for textarea in event dialog */
-  [lang="ka"] textarea.font-georgian,
-  [lang="ka"] textarea.georgian-text-fix {
-    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-    text-transform: none !important;
-    font-variant: normal !important;
-    font-feature-settings: "case" 0 !important;
   }
 }
 
@@ -314,9 +204,6 @@
 [lang="ka"] .tabs-trigger,
 [lang="ka"] [role="tab"] {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  font-feature-settings: "case" 0 !important;
-  text-transform: none !important;
-  font-variant: normal !important;
 }
 
 /* Special fix for Georgian Auth UI text - fixed buttons */
@@ -327,17 +214,11 @@
   text-rendering: optimizeLegibility !important;
   -webkit-font-smoothing: antialiased !important;
   -moz-osx-font-smoothing: grayscale !important;
-  font-feature-settings: "case" 0 !important;
-  text-transform: none !important;
-  font-variant: normal !important;
 }
 
 /* Override for TabsTrigger components - targeting tabs in auth UI */
 [lang="ka"] [data-orientation="horizontal"] [data-radix-collection-item] {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
-  font-feature-settings: "case" 0 !important;
-  text-transform: none !important;
-  font-variant: normal !important;
 }
 
 /* Fix for first letter styling issues in Georgian text */
@@ -345,8 +226,13 @@
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
   text-transform: none !important;
   font-weight: normal !important;
-  font-feature-settings: "case" 0 !important;
-  font-variant: normal !important;
+}
+
+/* Specific TabsTrigger first letter fix */
+[lang="ka"] [data-radix-collection-item]::first-letter {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  text-transform: none !important;
+  font-weight: normal !important;
 }
 
 /* Auth component specific fixes */
@@ -423,9 +309,6 @@
 [lang="ka"] .public-booking-form button {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
   letter-spacing: -0.2px !important;
-  font-feature-settings: "case" 0 !important;
-  text-transform: none !important;
-  font-variant: normal !important;
 }
 
 /* Dashboard content Georgian styling */
@@ -471,10 +354,7 @@
 [lang="ka"] div::first-letter {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
   letter-spacing: -0.2px !important;
-  font-weight: inherit !important;
-  font-feature-settings: "case" 0 !important;
-  text-transform: none !important;
-  font-variant: normal !important;
+  font-weight: normal !important;
 }
 
 /* Ensure placeholder text in inputs also uses the Georgian font */
@@ -584,3 +464,4 @@
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
   letter-spacing: -0.2px !important;
 }
+

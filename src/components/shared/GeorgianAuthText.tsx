@@ -1,7 +1,5 @@
 
 import React from 'react';
-import { getGeorgianFontStyle } from '@/lib/font-utils';
-import { cn } from '@/lib/utils';
 
 interface GeorgianAuthTextProps {
   children: React.ReactNode;
@@ -14,6 +12,9 @@ export const GeorgianAuthText = ({
   className = '',
   fontWeight = 'normal'
 }: GeorgianAuthTextProps) => {
+  // This component specifically targets Georgian text
+  // with all the styling needed to ensure proper rendering
+  
   // Map fontWeight prop to actual CSS value
   const fontWeightValue = 
     fontWeight === 'bold' ? 'bold' : 
@@ -21,14 +22,16 @@ export const GeorgianAuthText = ({
     fontWeight === 'medium' ? '500' :
     'normal';
   
-  const baseStyles = getGeorgianFontStyle();
-  
   return (
     <span 
-      className={cn("georgian-auth-text georgian-bold-fix georgian-text-fix georgian-button-fix", className)}
+      className={`georgian-auth-text georgian-bold-fix georgian-text-fix ${className}`}
       style={{
-        ...baseStyles,
+        fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+        letterSpacing: '-0.2px',
         fontWeight: fontWeightValue,
+        WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale',
+        textRendering: 'optimizeLegibility' as const
       }}
     >
       {children}
