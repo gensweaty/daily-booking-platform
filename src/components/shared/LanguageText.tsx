@@ -2,6 +2,7 @@
 import React from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
+import { getGeorgianFontStyle, getGeorgianButtonStyle } from '@/lib/font-utils';
 
 interface LanguageTextProps {
   children: React.ReactNode;
@@ -33,14 +34,7 @@ export const LanguageText = ({
         isButton && "georgian-button-fix", 
         className
       )}
-      style={{
-        fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-        letterSpacing: fixLetterSpacing ? '-0.2px' : 'normal',
-        fontWeight: 'normal',
-        WebkitFontSmoothing: 'antialiased',
-        MozOsxFontSmoothing: 'grayscale',
-        textRendering: 'optimizeLegibility'
-      }}
+      style={isButton ? getGeorgianButtonStyle() : getGeorgianFontStyle()}
     >
       {children}
     </span>

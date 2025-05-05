@@ -504,3 +504,63 @@
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
   letter-spacing: -0.2px !important;
 }
+
+/* NEW - Very specific fix for "დაჯავშნე ახლა" button text */
+button:has(span:contains("დაჯავშნე")),
+button:has(span:contains("დაჯავშნე ახლა")) {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}
+
+button:has(span:contains("დაჯავშნე")) *,
+button:has(span:contains("დაჯავშნე ახლა")) * {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}
+
+button:has(span:contains("დაჯავშნე"))::first-letter,
+button:has(span:contains("დაჯავშნე ახლა"))::first-letter,
+button:has(span:contains("დაჯავშნე")) *::first-letter,
+button:has(span:contains("დაჯავშნე ახლა")) *::first-letter {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  font-weight: inherit !important;
+}
+
+/* Direct fix for the first letter of "დაჯავშნე" specifically */
+span:has(text="დაჯავშნე"),
+span:has(text="დაჯავშნე ახლა"),
+span:contains("დაჯავშნე"),
+span:contains("დაჯავშნე ახლა") {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}
+
+span:has(text="დაჯავშნე")::first-letter,
+span:has(text="დაჯავშნე ახლა")::first-letter,
+span:contains("დაჯავშნე")::first-letter,
+span:contains("დაჯავშნე ახლა")::first-letter {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  font-weight: inherit !important;
+}
+
+/* Extremely specific selectors for Georgian button text */
+[lang="ka"] button span {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}
+
+[lang="ka"] button span::first-letter {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  font-weight: inherit !important;
+}
+
+/* Target specific button text for the booking buttons */
+.georgian-button-fix,
+button:has(.georgian-button-fix),
+button:has(.georgian-button-fix) *,
+.georgian-button-fix::first-letter,
+button:has(.georgian-button-fix)::first-letter,
+button:has(.georgian-button-fix) *::first-letter {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
+  font-weight: inherit !important;
+  font-feature-settings: normal !important;
+  font-variant: normal !important;
+  text-transform: none !important;
+}

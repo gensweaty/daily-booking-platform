@@ -16,7 +16,9 @@ export const CTASection = () => {
         </p>
         <Link to="/signup">
           <Button size="lg" variant="secondary" className="georgian-button-fix">
-            <LanguageText isButton={true} className="georgian-button-fix">{t('cta.button')}</LanguageText>
+            <LanguageText isButton={true} className="georgian-button-fix">
+              {t('cta.button')}
+            </LanguageText>
           </Button>
         </Link>
       </div>

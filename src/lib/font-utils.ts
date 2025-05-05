@@ -22,6 +22,7 @@ export const getGeorgianButtonStyle = (): CSSProperties => ({
   WebkitFontSmoothing: 'antialiased',
   MozOsxFontSmoothing: 'grayscale',
   textRendering: 'optimizeLegibility' as const,
-  fontFeatureSettings: 'normal',
-  fontVariant: 'normal'
+  fontFeatureSettings: 'normal' as const,
+  fontVariant: 'normal' as const,
+  textTransform: 'none' as const
 });
