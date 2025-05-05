@@ -333,6 +333,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       event.type = 'event';
     }
     
+    // Create the event
     const { data, error } = await supabase
       .from('events')
       .insert({
@@ -347,7 +348,55 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       throw error;
     }
     
+    // Get business address for notification email
+    try {
+      // Fetch business profile for the user
+      const { data: businessProfile, error: profileError } = await supabase
+        .from('business_profiles')
+        .select('contact_address, name')
+        .eq('user_id', user.id)
+        .maybeSingle();
+        
+      if (profileError) {
+        console.error('Error fetching business address:', profileError);
+      } else if (businessProfile && (event.user_number || event.social_network_link)) {
+        // Only send email if we have customer contact info
+        console.log('Sending booking confirmation email with address:', businessProfile.contact_address);
+        
+        const recipientEmail = event.social_network_link;
+        if (recipientEmail && isValidEmail(recipientEmail)) {
+          // Send booking confirmation email
+          await fetch(`${supabase.supabaseUrl}/functions/v1/send-booking-approval-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabase.supabaseKey}`
+            },
+            body: JSON.stringify({
+              recipientEmail: recipientEmail,
+              fullName: event.title || event.user_surname || '',
+              businessName: businessProfile.name || '',
+              startDate: event.start_date,
+              endDate: event.end_date,
+              paymentStatus: event.payment_status || 'not_paid',
+              paymentAmount: event.payment_amount || 0,
+              businessAddress: businessProfile.contact_address || ''
+            })
+          });
+        }
+      }
+    } catch (emailError) {
+      console.error('Error sending booking confirmation email:', emailError);
+      // Don't throw error here, the event was created successfully
+    }
+    
     return data;
+  };
+
+  // Helper function to validate email format
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   };
 
   const updateEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
@@ -499,6 +548,44 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       } catch (customerError) {
         console.error("Error handling customer creation:", customerError);
+      }
+      
+      // Send confirmation email to customer with business address
+      try {
+        if (event.requester_email) {
+          // Fetch business profile details for the email
+          const { data: businessProfile, error: profileError } = await supabase
+            .from('business_profiles')
+            .select('contact_address, name')
+            .eq('user_id', user.id)
+            .maybeSingle();
+            
+          if (profileError) {
+            console.error('Error fetching business address for email:', profileError);
+          } else {
+            console.log('Sending booking approval email with address:', businessProfile?.contact_address);
+            
+            await fetch(`${supabase.supabaseUrl}/functions/v1/send-booking-approval-email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabase.supabaseKey}`
+              },
+              body: JSON.stringify({
+                recipientEmail: event.requester_email,
+                fullName: event.requester_name || event.title || '',
+                businessName: businessProfile?.name || '',
+                startDate: event.start_date,
+                endDate: event.end_date,
+                paymentStatus: event.payment_status || 'not_paid',
+                paymentAmount: event.payment_amount || 0,
+                businessAddress: businessProfile?.contact_address || ''
+              })
+            });
+          }
+        }
+      } catch (emailError) {
+        console.error('Error sending booking approval email:', emailError);
       }
       
       // Soft-delete or update the original booking request

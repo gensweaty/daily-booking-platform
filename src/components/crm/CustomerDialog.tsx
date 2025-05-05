@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -189,6 +188,12 @@ export const CustomerDialog = ({
     }
   };
 
+  // Helper function to validate email format
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -254,7 +259,7 @@ export const CustomerDialog = ({
           
           const eventData = {
             title: title,
-            user_number: user_number,
+            user_number: user_number, // Reuse fields for the event
             social_network_link: social_network_link,
             event_notes: event_notes,
             payment_status: payment_status,
@@ -360,9 +365,11 @@ export const CustomerDialog = ({
 
           console.log("Creating event from customer:", eventData);
 
-          const { error: eventError } = await supabase
+          const { data: eventResult, error: eventError } = await supabase
             .from('events')
-            .insert(eventData);
+            .insert(eventData)
+            .select()
+            .single();
 
           if (eventError) {
             console.error("Error creating event:", eventError);
@@ -371,6 +378,44 @@ export const CustomerDialog = ({
               description: t("crm.eventCreationFailed"),
               variant: "destructive",
             });
+          } else {
+            // Send booking confirmation email if email address is provided
+            if (social_network_link && isValidEmail(social_network_link)) {
+              try {
+                // Get business address for the email
+                const { data: businessProfile, error: profileError } = await supabase
+                  .from('business_profiles')
+                  .select('contact_address, name')
+                  .eq('user_id', user.id)
+                  .maybeSingle();
+                  
+                if (profileError) {
+                  console.error("Error fetching business profile for email:", profileError);
+                } else {
+                  console.log("Sending booking confirmation email with address:", businessProfile?.contact_address);
+                  
+                  await fetch(`${supabase.supabaseUrl}/functions/v1/send-booking-approval-email`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${supabase.supabaseKey}`
+                    },
+                    body: JSON.stringify({
+                      recipientEmail: social_network_link,
+                      fullName: title || '',
+                      businessName: businessProfile?.name || '',
+                      startDate: eventStartDate.toISOString(),
+                      endDate: eventEndDate.toISOString(),
+                      paymentStatus: payment_status || 'not_paid',
+                      paymentAmount: payment_amount ? parseFloat(payment_amount) : null,
+                      businessAddress: businessProfile?.contact_address || ''
+                    })
+                  });
+                }
+              } catch (emailError) {
+                console.error("Error sending booking confirmation email:", emailError);
+              }
+            }
           }
         }
       }
