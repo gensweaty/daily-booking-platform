@@ -29,7 +29,9 @@ export const useEventDialog = ({
         title: data.user_surname || data.title,
         user_surname: data.user_surname || data.title,
         // Ensure payment_status is properly set and normalized
-        payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid'
+        payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
+        // Don't check availability by default for faster creation
+        checkAvailability: false
       };
       
       if (!createEvent) throw new Error("Create event function not provided");
@@ -65,7 +67,9 @@ export const useEventDialog = ({
         title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         // Ensure payment_status is properly normalized and preserved
-        payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid'
+        payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
+        // For updates, we should check availability since times might have changed
+        checkAvailability: true
       };
       
       console.log("Updating event with data:", eventData);

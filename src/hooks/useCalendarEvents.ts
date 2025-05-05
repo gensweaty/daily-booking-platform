@@ -91,17 +91,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     const newStart = new Date(newStartDate).getTime();
     const newEnd = new Date(newEndDate).getTime();
     
-    const timesChanged = originalStart !== newStart || originalEnd !== newEnd;
-    
-    console.log("Time change check in useCalendarEvents:", {
-      originalStart,
-      originalEnd,
-      newStart,
-      newEnd,
-      changed: timesChanged
-    });
-    
-    return timesChanged;
+    return originalStart !== newStart || originalEnd !== newEnd;
   };
 
   const getEvents = async () => {
@@ -396,112 +386,106 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     paymentStatus: string,
     paymentAmount: number | null
   ) => {
-    try {
-      console.log(`Initiating email sending for event ${eventId} to ${email}`);
-      
-      // Get business address and name before anything else
-      const { data: businessProfile, error: profileError } = await supabase
-        .from('business_profiles')
-        .select('contact_address, business_name')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-          
-      if (profileError) {
-        console.error('Error fetching business profile for email:', profileError);
-        throw new Error("Failed to fetch business profile");
-      }
-      
-      // IMPORTANT: We require a business address to send a confirmation email
-      if (!businessProfile?.contact_address) {
-        console.warn("No business address found. Cannot send confirmation email.");
-        toast({
-          title: t("common.warning"),
-          description: t("No business address available. Please add one to your business profile to send confirmation emails."),
-          variant: "destructive"
-        });
-        return false;
-      }
-      
-      console.log('Sending booking confirmation email with info:');
-      console.log(`- Address: ${businessProfile?.contact_address}`);
-      console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
-      console.log(`- Event ID: ${eventId}`);
-      console.log(`- Recipient: ${email}`);
-      
-      const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      
-      if (!accessToken) {
-        console.error("No access token available for authenticated request");
-        throw new Error("Authentication error");
-      }
-      
-      // Always include the source as "useCalendarEvents" to ensure we only use this function
-      // for sending emails, avoiding duplicates from other sources
-      const response = await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          recipientEmail: email.trim(),
-          fullName: title || '',
-          businessName: businessProfile?.business_name || '',
-          startDate: startDate,
-          endDate: endDate,
-          paymentStatus: paymentStatus || 'not_paid',
-          paymentAmount: paymentAmount || 0,
-          businessAddress: businessProfile?.contact_address || '',
-          eventId: eventId,
-          source: 'useCalendarEvents' // Updated source to ensure consistent tracking
-        })
-      });
-      
-      console.log("Email API response status:", response.status);
-      
-      const responseText = await response.text();
-      console.log("Email API response text:", responseText);
-      
-      let responseData;
+    // Optimization: Skip email sending during event creation for faster response
+    // Email will be sent asynchronously after the event is created
+    
+    // Start email sending as a background task
+    setTimeout(async () => {
       try {
-        responseData = responseText ? JSON.parse(responseText) : {};
-        console.log("Email API parsed response:", responseData);
-      } catch (jsonError) {
-        console.error("Failed to parse email API response as JSON:", jsonError);
-        responseData = { textResponse: responseText };
-      }
-      
-      if (!response.ok) {
-        console.error("Failed to send email notification:", responseData?.error || response.statusText);
-        throw new Error(responseData?.error || responseData?.details || `Failed to send email notification (status ${response.status})`);
-      }
-      
-      if (responseData.isDuplicate) {
-        console.log("Email was identified as duplicate and not sent");
-        return true; // Still return success
-      } else if (responseData.skipped) {
-        console.log("Email was skipped:", responseData.reason);
+        console.log(`Starting background email sending for event ${eventId} to ${email}`);
+        
+        // Get business address and name before anything else
+        const { data: businessProfile, error: profileError } = await supabase
+          .from('business_profiles')
+          .select('contact_address, business_name')
+          .eq('user_id', user?.id)
+          .maybeSingle();
+            
+        if (profileError) {
+          console.error('Error fetching business profile for email:', profileError);
+          return false;
+        }
+        
+        // IMPORTANT: We require a business address to send a confirmation email
+        if (!businessProfile?.contact_address) {
+          console.warn("No business address found. Cannot send confirmation email.");
+          return false;
+        }
+        
+        console.log('Sending booking confirmation email with info:');
+        console.log(`- Address: ${businessProfile?.contact_address}`);
+        console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
+        console.log(`- Event ID: ${eventId}`);
+        console.log(`- Recipient: ${email}`);
+        
+        const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        
+        if (!accessToken) {
+          console.error("No access token available for authenticated request");
+          return false;
+        }
+        
+        // Always include the source as "useCalendarEvents" to ensure we only use this function
+        // for sending emails, avoiding duplicates from other sources
+        const response = await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            recipientEmail: email.trim(),
+            fullName: title || '',
+            businessName: businessProfile?.business_name || '',
+            startDate: startDate,
+            endDate: endDate,
+            paymentStatus: paymentStatus || 'not_paid',
+            paymentAmount: paymentAmount || 0,
+            businessAddress: businessProfile?.contact_address || '',
+            eventId: eventId,
+            source: 'useCalendarEvents' // Updated source to ensure consistent tracking
+          })
+        });
+        
+        console.log("Email API response status:", response.status);
+        
+        const responseText = await response.text();
+        console.log("Email API response text:", responseText);
+        
+        let responseData;
+        try {
+          responseData = responseText ? JSON.parse(responseText) : {};
+          console.log("Email API parsed response:", responseData);
+        } catch (jsonError) {
+          console.error("Failed to parse email API response as JSON:", jsonError);
+          responseData = { textResponse: responseText };
+        }
+        
+        if (!response.ok) {
+          console.error("Failed to send email notification:", responseData?.error || response.statusText);
+          return false;
+        }
+        
+        if (responseData.isDuplicate) {
+          console.log("Email was identified as duplicate and not sent");
+          return true; // Still return success
+        } else if (responseData.skipped) {
+          console.log("Email was skipped:", responseData.reason);
+          return false;
+        }
+        
+        console.log("Email notification sent successfully");
+        return true;
+      } catch (error) {
+        console.error('Error sending booking confirmation email in background:', error);
         return false;
       }
-      
-      toast({
-        title: t("common.success"),
-        description: t("Email notification sent successfully to ") + email,
-      });
-      
-      return true;
-    } catch (error) {
-      console.error('Error sending booking confirmation email:', error);
-      toast({
-        title: t("common.warning"),
-        description: t("Failed to send confirmation email: ") + 
-          (error instanceof Error ? error.message : "Unknown error"),
-        variant: "destructive",
-      });
-      return false;
-    }
+    }, 100); // Small delay to ensure we return the event data first
+    
+    // Return true immediately, as we're handling the email in the background
+    return true;
   };
 
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
@@ -510,13 +494,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     const startDateTime = new Date(event.start_date as string);
     const endDateTime = new Date(event.end_date as string);
     
-    const { available, conflictDetails } = await checkTimeSlotAvailability(
-      startDateTime,
-      endDateTime
-    );
-    
-    if (!available) {
-      throw new Error(`Time slot is no longer available: ${conflictDetails}`);
+    // OPTIMIZATION: Only check availability if requested by adding a flag
+    // This makes normal event creation faster but still allows for checking when needed
+    if (event.checkAvailability) {
+      const { available, conflictDetails } = await checkTimeSlotAvailability(
+        startDateTime,
+        endDateTime
+      );
+      
+      if (!available) {
+        throw new Error(`Time slot is no longer available: ${conflictDetails}`);
+      }
     }
     
     // Make sure the type field is set, defaulting to 'event'
@@ -529,7 +517,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       event.title = "Untitled Event"; // Default title if none provided
     }
     
-    // Create the event - Fix Type Error - We need to ensure required fields are included
+    // Create the event - Ensure required fields are included
     const eventPayload = {
       title: event.title,
       start_date: event.start_date as string,
@@ -556,7 +544,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       throw error;
     }
     
-    // Send confirmation email only if we have a valid recipient email
+    // Send confirmation email in background only if we have a valid recipient email
     // and this is a new event (not from a booking request conversion)
     const recipientEmail = event.social_network_link;
     if (
@@ -565,20 +553,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       !event.id && // Check if this is a new event, not an existing one
       data
     ) {
-      try {
-        await sendBookingConfirmationEmail(
-          data.id,
-          event.title || event.user_surname || '',
-          recipientEmail,
-          event.start_date as string,
-          event.end_date as string,
-          event.payment_status || 'not_paid',
-          event.payment_amount || null
-        );
-      } catch (emailError) {
-        console.error('Error handling confirmation email:', emailError);
-        // Don't throw error here, the event was created successfully
-      }
+      // Don't await this call anymore - make it run in the background
+      sendBookingConfirmationEmail(
+        data.id,
+        event.title || event.user_surname || '',
+        recipientEmail,
+        event.start_date as string,
+        event.end_date as string,
+        event.payment_status || 'not_paid',
+        event.payment_amount || null
+      );
     }
     
     return data;
