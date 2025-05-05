@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
@@ -12,25 +13,37 @@ import { LanguageText } from '@/components/shared/LanguageText';
 import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 import { getGeorgianFontStyle } from '@/lib/font-utils';
 import { cn } from '@/lib/utils';
+import { DateRangeSelect } from '@/components/Statistics/DateRangeSelect';
 
 interface CustomerListProps {
-  dateRange: { start: Date; end: Date };
+  dateRange?: { start: Date; end: Date };
 }
 
 export const CustomerList = ({ dateRange }: CustomerListProps) => {
   const { user } = useAuth();
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
-  const { combinedData, isLoading, isFetching } = useCRMData(user?.id, dateRange);
   
-  const [searchValue, setSearchValue] = useState('');
+  // Default date range: last 30 days to today
+  const [localDateRange, setLocalDateRange] = useState<{ start: Date; end: Date }>(() => {
+    if (dateRange) return dateRange;
+    
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30); // Last 30 days by default
+    return { start, end };
+  });
+  
+  const { combinedData, isLoading, isFetching } = useCRMData(user?.id, localDateRange);
+  
+  const [searchQuery, setSearchQuery] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [initialData, setInitialData] = useState<any>(null);
 
-  // Filter combined data based on search value
+  // Filter combined data based on search query
   const filteredData = combinedData.filter((item: any) => {
-    const searchLower = searchValue.toLowerCase();
+    const searchLower = searchQuery.toLowerCase();
     return (
       (item.title || '').toLowerCase().includes(searchLower) ||
       (item.user_number || '').toLowerCase().includes(searchLower) ||
@@ -50,22 +63,35 @@ export const CustomerList = ({ dateRange }: CustomerListProps) => {
     setDialogOpen(true);
   };
 
+  const handleDateRangeChange = (start: Date, end: Date | null) => {
+    setLocalDateRange({
+      start,
+      end: end || new Date()
+    });
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="text-2xl font-semibold">
           <LanguageText>{t('crm.customersAndEvents')}</LanguageText>
         </h2>
-        <div className="flex gap-2">
-          <SearchCommand
-            searchValue={searchValue}
-            setSearchValue={setSearchValue}
-            placeholder={t('crm.searchCustomers')}
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <DateRangeSelect
+            selectedDate={localDateRange}
+            onDateChange={handleDateRangeChange}
           />
-          <Button onClick={handleAddCustomer} size="sm">
-            <PlusIcon className="h-4 w-4 mr-2" />
-            <LanguageText>{t('crm.addCustomer')}</LanguageText>
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <SearchCommand
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={t('crm.searchCustomers')}
+            />
+            <Button onClick={handleAddCustomer} size="sm">
+              <PlusIcon className="h-4 w-4 mr-2" />
+              <LanguageText>{t('crm.addCustomer')}</LanguageText>
+            </Button>
+          </div>
         </div>
       </div>
 

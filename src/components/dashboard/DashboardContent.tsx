@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -15,7 +16,7 @@ import { useBusinessProfile } from "@/hooks/useBusinessProfile"
 import { useBookingRequests } from "@/hooks/useBookingRequests"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { LanguageText } from "@/components/shared/LanguageText"
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText"
 import { cn } from "@/lib/utils"
@@ -57,6 +58,14 @@ export const DashboardContent = ({
   const { toast } = useToast()
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
+  
+  // Create default date range for CRM tab
+  const [defaultDateRange] = useState(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30); // Last 30 days by default
+    return { start, end };
+  });
 
   useEffect(() => {
     if (pendingCount > 0) {
@@ -286,7 +295,7 @@ export const DashboardContent = ({
                   initial="hidden"
                   animate="visible"
                 >
-                  <CustomerList />
+                  <CustomerList dateRange={defaultDateRange} />
                 </motion.div>
               </CardContent>
             </Card>
