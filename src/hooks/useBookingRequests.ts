@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { BookingRequest, BusinessProfile } from "@/types/database";
@@ -164,21 +165,41 @@ export const useBookingRequests = () => {
       throw error;
     } finally {
       // Invalidate the query to refresh the data
-      queryClient.invalidateQueries(["bookingRequests", { businessId: booking.business_id }]);
+      queryClient.invalidateQueries({
+        queryKey: ["bookingRequests", { businessId: booking.business_id }]
+      });
     }
   };
 
-  const useBookingRequestsQuery = (params: BookingRequestParams) => {
+  // Create a query hook for fetching booking requests
+  const useBookingRequestsQuery = (params: BookingRequestParams = {}) => {
     return useQuery({
       queryKey: ["bookingRequests", params],
       queryFn: () => getBookingRequests(params),
     });
   };
 
+  // Get all booking requests for the current business
+  const { data: allRequests = [] } = useBookingRequestsQuery(
+    businessProfile ? { businessId: businessProfile.id } : {}
+  );
+
+  // Filter requests by status
+  const pendingRequests = allRequests.filter(req => req.status === "pending");
+  const approvedRequests = allRequests.filter(req => req.status === "approved");
+  const rejectedRequests = allRequests.filter(req => req.status === "rejected");
+
+  // Function to reject a booking request
+  const rejectRequest = async (id: string) => {
+    await updateBookingRequestMutation.mutate({ id, updates: { status: "rejected" } });
+  };
+
   const createBookingRequestMutation = useMutation({
     mutationFn: createBookingRequest,
     onSuccess: () => {
-      queryClient.invalidateQueries(["bookingRequests"]);
+      queryClient.invalidateQueries({
+        queryKey: ["bookingRequests"]
+      });
       toast({
         title: "Success",
         description: "Booking request created successfully",
@@ -197,7 +218,9 @@ export const useBookingRequests = () => {
     mutationFn: ({ id, updates }: { id: string; updates: Partial<BookingRequest> }) =>
       updateBookingRequest(id, updates),
     onSuccess: () => {
-      queryClient.invalidateQueries(["bookingRequests"]);
+      queryClient.invalidateQueries({
+        queryKey: ["bookingRequests"]
+      });
       toast({
         title: "Success",
         description: "Booking request updated successfully",
@@ -215,7 +238,9 @@ export const useBookingRequests = () => {
   const deleteBookingRequestMutation = useMutation({
     mutationFn: deleteBookingRequest,
     onSuccess: () => {
-      queryClient.invalidateQueries(["bookingRequests"]);
+      queryClient.invalidateQueries({
+        queryKey: ["bookingRequests"]
+      });
       toast({
         title: "Success",
         description: "Booking request deleted successfully",
@@ -235,10 +260,23 @@ export const useBookingRequests = () => {
   });
 
   return {
+    // Return the query hook for components that need to fetch with custom params
     useBookingRequestsQuery,
+    
+    // Return mutation functions
     createBookingRequest: createBookingRequestMutation.mutate,
     updateBookingRequest: updateBookingRequestMutation.mutate,
     deleteBookingRequest: deleteBookingRequestMutation.mutate,
     approveBooking: approveBookingMutation.mutate,
+    
+    // Return pre-filtered request lists for convenience
+    bookingRequests: allRequests,
+    pendingRequests,
+    approvedRequests,
+    rejectedRequests,
+    
+    // Return helper functions
+    approveRequest: approveBookingMutation.mutate,
+    rejectRequest,
   };
 };

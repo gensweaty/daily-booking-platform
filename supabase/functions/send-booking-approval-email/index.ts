@@ -16,7 +16,7 @@ interface BookingApprovalEmailRequest {
   endDate: string;
   paymentStatus?: string;
   paymentAmount?: number;
-  businessAddress?: string; // Added business address
+  businessAddress?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
