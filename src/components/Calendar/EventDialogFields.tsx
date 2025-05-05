@@ -104,6 +104,15 @@ export const EventDialogFields = ({
     return t("events.addEventNotes");
   };
   
+  // Helper function for Georgian placeholder text
+  const getGeorgianPlaceholder = (text: string) => {
+    if (isGeorgian) {
+      if (text === "events.fullName") return "სრული სახელი";
+      if (text === "events.phoneNumber") return "ტელეფონის ნომერი";
+    }
+    return t(text);
+  };
+  
   return <>
       <div>
         <Label 
@@ -120,7 +129,7 @@ export const EventDialogFields = ({
             setUserSurname(e.target.value);
             setTitle(e.target.value); // Set title to same as userSurname
           }} 
-          placeholder={t("events.fullName")} 
+          placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")} 
           required 
           className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
           style={georgianStyle} 
@@ -138,7 +147,7 @@ export const EventDialogFields = ({
           id="userNumber" 
           value={userNumber} 
           onChange={e => setUserNumber(e.target.value)} 
-          placeholder={t("events.phoneNumber")} 
+          placeholder={isGeorgian ? "ტელეფონის ნომერი" : t("events.phoneNumber")} 
           className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}  
           style={georgianStyle} 
         />
@@ -175,7 +184,7 @@ export const EventDialogFields = ({
               className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
               style={georgianStyle}
             >
-              <LanguageText>{t("events.start")}</LanguageText>
+              {isGeorgian ? <GeorgianAuthText>დაწყება</GeorgianAuthText> : <LanguageText>{t("events.start")}</LanguageText>}
             </Label>
             <div className="relative">
               <Input 
@@ -195,7 +204,7 @@ export const EventDialogFields = ({
               className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
               style={georgianStyle}
             >
-              <LanguageText>{t("events.end")}</LanguageText>
+              {isGeorgian ? <GeorgianAuthText>დასრულება</GeorgianAuthText> : <LanguageText>{t("events.end")}</LanguageText>}
             </Label>
             <div className="relative">
               <Input 
