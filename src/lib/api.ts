@@ -55,16 +55,11 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
       throw new Error("Rate limit reached. Please wait before submitting another booking request.");
     }
     
-    // Get current language
-    const currentLanguage = document.querySelector('html')?.lang || 'en';
-    console.log("Current language for booking request:", currentLanguage);
-    
     // Ensure payment_amount is properly handled when saving to the database
     const bookingData = {
       ...request,
       status: 'pending',
-      user_id: userData?.user?.id || null, // Allow null for public bookings
-      language: currentLanguage // Add language parameter
+      user_id: userData?.user?.id || null // Allow null for public bookings
     };
     
     // Make sure payment_amount is correctly formatted as a number or null
@@ -112,16 +107,12 @@ export const testEmailSending = async (recipientEmail: string): Promise<any> => 
       throw new Error("Authentication error");
     }
     
-    // Get current language
-    const currentLanguage = document.querySelector('html')?.lang || 'en';
-    
     const testData = {
       recipientEmail: recipientEmail.trim(),
       fullName: "Test User",
       businessName: "Test Business",
       startDate: new Date().toISOString(),
       endDate: new Date(Date.now() + 3600000).toISOString(), // 1 hour later
-      language: currentLanguage // Add language
     };
     
     console.log("Sending test email with data:", testData);

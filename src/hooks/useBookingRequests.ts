@@ -4,13 +4,11 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { BookingRequest } from "@/types/database";
-import { useLanguage } from "@/contexts/LanguageContext";
 
 export const useBookingRequests = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [businessId, setBusinessId] = useState<string | null>(null);
-  const { language } = useLanguage();
   
   useEffect(() => {
     const fetchBusinessProfile = async () => {
@@ -74,7 +72,6 @@ export const useBookingRequests = () => {
       console.log(`Sending approval email to ${email} for booking at ${businessName}`);
       console.log(`Raw start date: ${startDate}`);
       console.log(`Raw end date: ${endDate}`);
-      console.log(`Current language: ${language}`);
       
       // Prepare the request with all required data
       const requestBody = JSON.stringify({
@@ -84,8 +81,7 @@ export const useBookingRequests = () => {
         startDate: startDate,
         endDate: endDate,
         paymentStatus: paymentStatus,
-        paymentAmount: paymentAmount,
-        language: language
+        paymentAmount: paymentAmount
       });
       
       console.log("Request body for email function:", requestBody);
@@ -415,10 +411,9 @@ export const useBookingRequests = () => {
           businessName,
           startDate: booking.start_date,
           endDate: booking.end_date,
-          language: booking.language || language
         });
         
-        // Make sure we're passing payment info and language to the email function
+        // Make sure we're passing payment info to the email function
         const emailResult = await sendApprovalEmail({
           email: booking.requester_email,
           fullName: booking.requester_name || booking.user_surname || "",
