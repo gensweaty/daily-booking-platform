@@ -24,13 +24,16 @@ export const LanguageText = ({
     return <span className={className}>{children}</span>;
   }
   
-  // For Georgian text, apply enhanced styling
+  // For Georgian text, apply comprehensive styling to fix all letter issues
   return (
     <span 
       className={cn("ka-text georgian-text-fix", className)}
       style={{
         ...getGeorgianFontStyle(),
         letterSpacing: fixLetterSpacing ? '-0.2px' : 'normal',
+        fontFeatureSettings: '"case" 0',
+        textTransform: 'none',
+        fontVariant: 'normal'
       }}
     >
       {children}

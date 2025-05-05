@@ -150,6 +150,16 @@ export const PublicBusinessPage = () => {
     }
   };
 
+  // Add this function to ensure proper font rendering for Georgian text
+  const applyGeorgianFont = (isGeorgian: boolean) => {
+    return isGeorgian ? {
+      ...getGeorgianFontStyle(),
+      fontFeatureSettings: '"case" 0',
+      textTransform: 'none',
+      fontVariant: 'normal'
+    } : undefined;
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -175,11 +185,6 @@ export const PublicBusinessPage = () => {
 
   const defaultCoverUrl = 'https://placehold.co/1200x400/e2e8f0/64748b?text=Business+Cover';
   const displayCoverUrl = coverPhotoUrl || defaultCoverUrl;
-
-  // Add this function to ensure proper font rendering for Georgian text
-  const applyGeorgianFont = (isGeorgian: boolean) => {
-    return isGeorgian ? getGeorgianFontStyle() : undefined;
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -263,7 +268,7 @@ export const PublicBusinessPage = () => {
           <Card>
             <CardContent className="p-6 space-y-4">
               <h2 className={cn("text-xl font-semibold", isGeorgian ? "font-georgian" : "")}>
-                <LanguageText>{t("business.contactInformation")}</LanguageText>
+                <LanguageText className="georgian-text-fix">{t("business.contactInformation")}</LanguageText>
               </h2>
               
               <div className="grid md:grid-cols-2 gap-6">

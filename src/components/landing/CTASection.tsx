@@ -9,7 +9,12 @@ import { getGeorgianFontStyle } from "@/lib/font-utils";
 export const CTASection = () => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
-  const georgianStyle = isGeorgian ? getGeorgianFontStyle() : undefined;
+  const georgianStyle = isGeorgian ? {
+    ...getGeorgianFontStyle(),
+    fontFeatureSettings: '"case" 0',
+    textTransform: 'none',
+    fontVariant: 'normal'
+  } : undefined;
   
   return (
     <section className="py-20 bg-primary text-white">
