@@ -84,9 +84,11 @@ const handler = async (req: Request): Promise<Response> => {
       // Create address section if address is available
       let addressInfo = "";
       if (businessAddress) {
-        // Properly encode and format the address to prevent "=20" or other encoding issues
+        // Fix for the "=20" encoding issue - do proper processing of the address
+        // Strip all extra whitespace and normalize it
         const cleanAddress = businessAddress.trim().replace(/\s+/g, " ");
         addressInfo = `<p><strong>Address:</strong> ${cleanAddress}</p>`;
+        console.log(`Cleaned address for email: "${cleanAddress}"`);
       }
       
       // Create HTML email content with simpler formatting
