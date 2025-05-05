@@ -11,7 +11,6 @@ import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { getCurrencySymbol } from "@/lib/currency";
-import { Calendar } from "lucide-react";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -185,10 +184,9 @@ export const EventDialogFields = ({
                 value={startDate} 
                 onChange={e => setStartDate(e.target.value)} 
                 required 
-                className="w-full dark:text-white dark:[color-scheme:dark] pr-8" 
+                className="w-full dark:text-white dark:[color-scheme:dark]" 
                 style={{ colorScheme: 'auto' }} 
               />
-              <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
             </div>
           </div>
           <div>
@@ -206,10 +204,9 @@ export const EventDialogFields = ({
                 value={endDate} 
                 onChange={e => setEndDate(e.target.value)} 
                 required 
-                className="w-full dark:text-white dark:[color-scheme:dark] pr-8" 
+                className="w-full dark:text-white dark:[color-scheme:dark]" 
                 style={{ colorScheme: 'auto' }} 
               />
-              <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
             </div>
           </div>
         </div>
