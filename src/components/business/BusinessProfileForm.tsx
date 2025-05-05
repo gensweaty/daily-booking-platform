@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,11 +30,12 @@ const formSchema = z.object({
 });
 
 export const BusinessProfileForm = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [baseUrl, setBaseUrl] = useState<string | null>(null);
   const { businessProfile, isLoading, createBusinessProfile, updateBusinessProfile, uploadCoverPhoto } = useBusinessProfile();
+  const isGeorgian = language === 'ka';
 
   useEffect(() => {
     setBaseUrl(`${window.location.protocol}//${window.location.host}/business`);
@@ -118,6 +120,14 @@ export const BusinessProfileForm = () => {
     }
   };
 
+  // Helper function to render label with proper Georgian text handling
+  const renderFormLabel = (translationKey: string, georgianText?: string) => {
+    if (isGeorgian && georgianText) {
+      return <GeorgianAuthText>{georgianText}</GeorgianAuthText>;
+    }
+    return <LanguageText>{t(translationKey)}</LanguageText>;
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -128,7 +138,7 @@ export const BusinessProfileForm = () => {
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                <LanguageText>{t("business.businessName")}</LanguageText>
+                {renderFormLabel("business.businessName", "ბიზნესის სახელი")}
               </FormLabel>
               <FormControl>
                 <Input placeholder="Your Business Name" {...field} />
@@ -230,7 +240,7 @@ export const BusinessProfileForm = () => {
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                <LanguageText>{t("business.email")}</LanguageText>
+                {renderFormLabel("business.email", "ელექტრონული ფოსტა")}
               </FormLabel>
               <FormControl>
                 <Input placeholder="contact@yourbusiness.com" {...field} />
@@ -247,7 +257,7 @@ export const BusinessProfileForm = () => {
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                <LanguageText>{t("business.website")}</LanguageText>
+                {renderFormLabel("business.website", "ვებ გვერდი")}
               </FormLabel>
               <FormControl>
                 <Input placeholder="https://yourbusiness.com" {...field} />
