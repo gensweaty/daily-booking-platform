@@ -83,16 +83,22 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Attempting to send email via SMTP to ${recipientEmail}`);
     
     try {
-      // Check if business address is provided
+      // Check if business address is provided and clean it properly
       let addressInfo = "";
-      if (businessAddress && businessAddress.trim()) {
-        addressInfo = `<p><strong>Address:</strong> ${businessAddress}</p>`;
-        console.log(`Business address used in email: ${businessAddress}`);
+      if (businessAddress && typeof businessAddress === 'string' && businessAddress.trim()) {
+        // Remove any =20 or other encoding artifacts that might be present
+        const cleanAddress = businessAddress.replace(/=20/g, '').trim();
+        console.log(`Cleaned business address: ${cleanAddress}`);
+        
+        if (cleanAddress) {
+          addressInfo = `<p><strong>Address:</strong> ${cleanAddress}</p>`;
+          console.log(`Business address used in email: ${cleanAddress}`);
+        }
       } else {
         console.log("No business address provided or address is empty");
       }
       
-      // Create HTML email content with simpler formatting
+      // Create HTML email content with simpler formatting and explicit address display
       const htmlContent = `
         <!DOCTYPE html>
         <html lang="en">

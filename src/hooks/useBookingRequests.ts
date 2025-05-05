@@ -79,7 +79,7 @@ export const useBookingRequests = () => {
       console.log(`Sending approval email to ${email} for booking at ${businessName}`);
       console.log(`Raw start date: ${startDate}`);
       console.log(`Raw end date: ${endDate}`);
-      console.log(`Business address: ${businessAddress}`);
+      console.log(`Business address to be included in email: ${businessAddress}`);
       
       // Prepare the request with all required data
       const requestBody = JSON.stringify({
@@ -88,7 +88,7 @@ export const useBookingRequests = () => {
         businessName: businessName || "Our Business",
         startDate: startDate,
         endDate: endDate,
-        businessAddress: businessAddress,
+        businessAddress: businessAddress || "",
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount
       });
@@ -416,7 +416,8 @@ export const useBookingRequests = () => {
             }
             
             if (businessProfile.contact_address) {
-              businessAddress = businessProfile.contact_address;
+              // Make sure the address is a clean string
+              businessAddress = businessProfile.contact_address.trim();
               console.log(`Retrieved business address: ${businessAddress}`);
             } else {
               console.log("Business profile found but no address available");
