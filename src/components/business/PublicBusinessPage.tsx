@@ -314,5 +314,3 @@ export const PublicBusinessPage = () => {
     </div>
   );
 };
-
-export const PublicBusinessPage;
