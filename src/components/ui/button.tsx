@@ -57,39 +57,12 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     
     const Component = asChild ? Slot : "button"
     
-    // Special handling for common button texts in Georgian
-    let translatedChildren = children;
-    if (isGeorgian && typeof children === 'string') {
-      // Common button text translations for Georgian
-      const georgianTranslations: Record<string, string> = {
-        'add': 'დამატება',
-        'update': 'განახლება',
-        'delete': 'წაშლა',
-        'cancel': 'გაუქმება',
-        'save': 'შენახვა',
-        'edit': 'რედაქტირება',
-        'submit': 'გაგზავნა',
-        'search': 'ძიება',
-        'filter': 'ფილტრი',
-        'clear': 'გასუფთავება',
-        'next': 'შემდეგი',
-        'previous': 'წინა',
-        'continue': 'გაგრძელება',
-        'back': 'უკან'
-      };
-      
-      // Check if the button text is a common one that needs automatic translation
-      if (georgianTranslations[children.toLowerCase()]) {
-        translatedChildren = georgianTranslations[children.toLowerCase()];
-      }
-    }
-    
     // For Georgian text, wrap children with GeorgianAuthText to ensure proper font rendering
-    const wrappedChildren = isGeorgian && translatedChildren ? (
+    const wrappedChildren = isGeorgian && typeof children === 'string' ? (
       <GeorgianAuthText fontWeight={props.disabled ? 'normal' : 'bold'}>
-        {translatedChildren}
+        {children}
       </GeorgianAuthText>
-    ) : translatedChildren;
+    ) : children;
     
     return (
       <Component
