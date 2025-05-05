@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -89,6 +88,7 @@ export const EventDialogFields = ({
   const renderGeorgianLabel = (text: string) => {
     if (isGeorgian) {
       if (text === "events.fullName") return <GeorgianAuthText>სრული სახელი</GeorgianAuthText>;
+      if (text === "events.phoneNumber") return <GeorgianAuthText>ტელეფონის ნომერი</GeorgianAuthText>;
       if (text === "events.socialLinkEmail") return <GeorgianAuthText>ელფოსტა</GeorgianAuthText>; 
       if (text === "events.eventNotes") return <GeorgianAuthText>შენიშვნები</GeorgianAuthText>;
     }
@@ -123,7 +123,7 @@ export const EventDialogFields = ({
           className={cn(isGeorgian ? "font-georgian" : "")}
           style={georgianStyle}
         >
-          <LanguageText>{t("events.phoneNumber")}</LanguageText>
+          {renderGeorgianLabel("events.phoneNumber")}
         </Label>
         <Input 
           id="userNumber" 
