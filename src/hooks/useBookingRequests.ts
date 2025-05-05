@@ -74,8 +74,17 @@ export const useBookingRequests = () => {
       console.log(`Raw start date: ${startDate}`);
       console.log(`Raw end date: ${endDate}`);
       
-      // Log the address for debugging
-      console.log(`Business address being sent: "${businessAddress || 'Not provided'}"`);
+      // Log the address for debugging - making sure we print the exact value
+      console.log(`Email data:`, {
+        email,
+        fullName,
+        businessName,
+        startDate,
+        endDate,
+        businessAddress, // Just log the raw value to verify what's being passed
+        paymentStatus,
+        paymentAmount,
+      });
       
       // Prepare the request with all required data
       const requestBody = JSON.stringify({
@@ -86,7 +95,7 @@ export const useBookingRequests = () => {
         endDate: endDate,
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
-        businessAddress: businessAddress
+        businessAddress: businessAddress // Pass the address as is
       });
       
       console.log("Request body for email function:", requestBody);
@@ -114,16 +123,16 @@ export const useBookingRequests = () => {
         }
       );
 
-      console.log("Email function response status:", response.status);
+      console.log("Email API response status:", response.status);
       
       // Read the response as text first
       const responseText = await response.text();
-      console.log("Email function response body:", responseText);
+      console.log("Email API response text:", responseText);
       
       let data;
       try {
         data = responseText ? JSON.parse(responseText) : {};
-        console.log("Parsed response data:", data);
+        console.log("Email API parsed response:", data);
       } catch (e) {
         console.error("Failed to parse response JSON:", e);
         if (!response.ok) {
@@ -136,7 +145,7 @@ export const useBookingRequests = () => {
         console.error("Failed to send approval email:", data);
         return { success: false, error: data.error || data.details || "Failed to send email" };
       } else {
-        console.log("Approval email sent successfully:", data);
+        console.log("Email API response success:", data);
         return { success: true, data };
       }
     } catch (err) {
@@ -393,43 +402,39 @@ export const useBookingRequests = () => {
         }
       }
       
-      // Email notification processing
-      if (booking && booking.requester_email) {
-        let businessName = "Our Business";
-        let contactAddress = null;
+      // CRITICAL FIX: Fetch business information INCLUDING address before sending email
+      let businessName = "Our Business";
+      let contactAddress = null;
+      
+      try {
+        // Fetch business profile with name AND address
+        const { data: businessProfile, error: profileError } = await supabase
+          .from('business_profiles')
+          .select('business_name, contact_address')
+          .eq('id', booking.business_id)
+          .single();
         
-        try {
-          // Fetch business profile with name AND address
-          const { data: businessProfile } = await supabase
-            .from('business_profiles')
-            .select('business_name, contact_address')
-            .eq('id', booking.business_id)
-            .maybeSingle();
-            
-          if (businessProfile) {
-            businessName = businessProfile.business_name || businessName;
-            contactAddress = businessProfile.contact_address || null;
-            
-            console.log("Fetched business profile details:", { 
-              name: businessName, 
-              address: contactAddress ? `"${contactAddress}"` : "Not available" 
-            });
-          }
-        } catch (err) {
-          console.warn("Could not load business profile for email:", err);
+        if (profileError) {
+          console.error('Error fetching business profile for email:', profileError);
         }
-        
-        console.log(`Preparing to send email to ${booking.requester_email} for business ${businessName}`);
-        console.log("Email data:", {
-          email: booking.requester_email,
-          fullName: booking.requester_name || booking.user_surname || "",
-          businessName,
-          startDate: booking.start_date,
-          endDate: booking.end_date,
-          businessAddress: contactAddress,
-        });
-        
-        // Send the raw address without quotes - let the edge function handle it properly
+          
+        if (businessProfile) {
+          businessName = businessProfile.business_name || businessName;
+          contactAddress = businessProfile.contact_address || null;
+          
+          console.log("Fetched business profile details:", { 
+            name: businessName, 
+            address: contactAddress 
+          });
+        }
+      } catch (err) {
+        console.warn("Could not load business profile details for email:", err);
+      }
+      
+      console.log(`Preparing to send email to ${booking.requester_email} for business ${businessName}`);
+      
+      if (booking && booking.requester_email) {
+        // Send the approval email, passing the business address we just fetched
         const emailResult = await sendApprovalEmail({
           email: booking.requester_email,
           fullName: booking.requester_name || booking.user_surname || "",
@@ -438,7 +443,7 @@ export const useBookingRequests = () => {
           endDate: booking.end_date,
           paymentStatus: booking.payment_status,
           paymentAmount: booking.payment_amount,
-          businessAddress: contactAddress
+          businessAddress: contactAddress // Pass the address we just fetched
         });
         
         if (emailResult.success) {

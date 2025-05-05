@@ -57,7 +57,9 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`End date (raw ISO string): ${endDate}`);
     console.log(`Payment status: ${paymentStatus}`);
     console.log(`Payment amount: ${paymentAmount}`);
-    console.log(`Business address (raw): "${businessAddress || 'Not provided'}"`);
+    
+    // Debug log for address - CRITICAL
+    console.log(`Business address (raw): "${businessAddress}"`);
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -93,36 +95,32 @@ const handler = async (req: Request): Promise<Response> => {
       // --- Address Processing ---
       let addressInfo = "";
       
-      // Debug logging to check what's coming in
+      // Enhanced debugging for address
       console.log(`Exact business address value: "${businessAddress}"`);
       console.log(`Address type: ${typeof businessAddress}`);
       
       if (businessAddress) {
-        // Make sure we have a non-empty string
-        const addressStr = String(businessAddress).trim();
-        console.log(`Processing normalized address: "${addressStr}"`);
+        // Convert to string and trim in case we get a non-string or null
+        const addressStr = String(businessAddress || "").trim();
+        console.log(`Normalized address string: "${addressStr}"`);
         
-        if (addressStr.length > 0) {
-          // Simple clean-up - no need for complex parsing
+        if (addressStr && addressStr.length > 0 && addressStr !== "null" && addressStr !== "undefined") {
+          // Simplified cleaning logic - just normalize whitespace
           const cleanAddress = addressStr
-            // Replace encoded characters if any
-            .replace(/=([0-9A-F]{2})/gi, (match, hex) => {
-              try { return String.fromCharCode(parseInt(hex, 16)); }
-              catch { return ' '; }
-            })
-            // Normalize whitespace
             .replace(/\s+/g, ' ')
             .trim();
             
-          console.log(`Final cleaned address: "${cleanAddress}"`);
+          console.log(`Clean address for display: "${cleanAddress}"`);
           
           if (cleanAddress.length > 0) {
             addressInfo = `<p style="margin: 8px 0;"><strong>Address:</strong> ${cleanAddress}</p>`;
-            console.log(`Generated address HTML: ${addressInfo}`);
+            console.log(`Address HTML generated: ${addressInfo}`);
           }
+        } else {
+          console.log("Address was empty, null or undefined after normalization");
         }
       } else {
-        console.log("No business address provided");
+        console.log("No business address provided in request");
       }
       
       // Create HTML email content with simpler formatting
