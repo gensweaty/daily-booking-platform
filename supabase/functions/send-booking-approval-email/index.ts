@@ -105,30 +105,36 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
-      // Process business address - Complete rewrite of the address processing logic
-      let addressInfo = "";
-      if (businessAddress) {
-        // Thorough address cleaning
-        let cleanAddress = typeof businessAddress === 'string' ? businessAddress : '';
-        
-        // Remove all special encoded characters and normalize whitespace
-        cleanAddress = cleanAddress
-          .replace(/=\d{2}/g, ' ')  // Replace =20 and similar encodings
-          .replace(/\s+/g, ' ')     // Normalize whitespace
-          .trim();                  // Remove leading/trailing whitespace
-          
+      // --- ENHANCED Address Processing ---
+      let addressInfo = ""; // Holds the final HTML string part for the address
+      if (businessAddress && typeof businessAddress === 'string' && businessAddress.trim()) {
+        console.log(`Raw business address received: "${businessAddress}"`);
+
+        let cleanAddress = businessAddress
+          // 1. Replace common quoted-printable encodings explicitly
+          .replace(/=([0-9A-F]{2})/gi, (match, hex) => {
+              // Convert hex (like 20 for space, 0A for newline etc.) back to char
+              try { return String.fromCharCode(parseInt(hex, 16)); }
+              catch { return ' '; } // Default to space if invalid hex
+          })
+          // 2. Normalize all forms of whitespace (spaces, tabs, newlines) to a single space
+          .replace(/\s+/g, ' ')
+          // 3. Trim leading/trailing whitespace again after cleaning
+          .trim();
+
         console.log(`Cleaned business address: "${cleanAddress}"`);
-        
-        // Only add the address if we have actual content after cleaning
-        if (cleanAddress && cleanAddress.length > 0) {
-          addressInfo = `<p><strong>Address:</strong> ${cleanAddress}</p>`;
+
+        // Only include the address paragraph if the cleaned address is not empty
+        if (cleanAddress.length > 0) {
+          addressInfo = `<p style="margin: 8px 0;"><strong>Address:</strong> ${cleanAddress}</p>`;
           console.log(`Generated address HTML: ${addressInfo}`);
         } else {
           console.log("Address was empty after cleaning, not displaying");
         }
       } else {
-        console.log("No business address provided in request");
+        console.log("No business address provided or invalid type");
       }
+      // --- END ENHANCED Address Processing ---
       
       // Create HTML email content with simpler formatting
       const htmlContent = `
@@ -142,7 +148,7 @@ const handler = async (req: Request): Promise<Response> => {
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
           <h2 style="color: #333;">Hello ${fullName},</h2>
           <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
-          <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
           ${addressInfo}
           ${paymentInfo}
           <p>We look forward to seeing you!</p>
