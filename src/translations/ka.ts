@@ -40,7 +40,7 @@ export const ka: TranslationType = {
   },
   analytics: {
     title: "ინტეგრირებული ანალიტიკა",
-    description: "თვალყური ადევნე�� თქვენს შესრულებას და ზრდას",
+    description: "თვალყური ადევნეთ თქვენს შესრულებას და ზრდას",
     feature1: "ჯავშნებისა და შემოსავლების ანალიზი",
     feature2: "მორგებული ფილტრაცია თარიღების დიაპაზონის მიხედვით",
     feature3: "შემოსავლების შედარება თვეებს შორის",
@@ -81,7 +81,7 @@ export const ka: TranslationType = {
     actions: "მოქმედებები",
     customersPerPage: "კლიენტები თითო გვერდზე",
     noCustomers: "კლიენტები ვერ მოიძებნა",
-    noCustomersDescription: "დაამატეთ თქვე��� პირველი კლიენტი დასაწყებად",
+    noCustomersDescription: "დაამატეთ თქვენი პირველი კლიენტი დასაწყებად",
     refreshing: "მონაცემების განახლება...",
     yes: "კი",
     no: "არა",
@@ -131,7 +131,7 @@ export const ka: TranslationType = {
   },
   footer: {
     copyright: "© 2023 თქვენი კომპანიის სახელი. Ყველა უფლება დაცულია.",
-    terms: "მომს���ხურების პირობები",
+    terms: "მომსახურების პირობები",
     privacy: "კონფიდენციალურობის პოლიტიკა",
     description: "ბიზნესის მართვის პლატფორმა სერვისის როვაიდერებისთვის",
     navigation: "ნავიგაცია",
@@ -307,7 +307,7 @@ export const ka: TranslationType = {
     week: "Კვირა",
     month: "Თვე",
     addEvent: "ღონისძიების დამატება",
-    bookNow: "Დაჯავშნეთ ახლა",
+    bookNow: "დაჯავშნე ვიზიტი",
     weekOf: "კვირა"
   },
   common: {

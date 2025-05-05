@@ -68,7 +68,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <Component
         className={cn(
           buttonVariants({ variant, size, className }),
-          isGeorgian ? "ka-text" : ""
+          isGeorgian ? "ka-text georgian-text-fix" : ""
         )}
         ref={ref}
         {...props}

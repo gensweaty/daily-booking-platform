@@ -216,13 +216,13 @@ export const PublicBusinessPage = () => {
           <div className="flex gap-4 mt-6">
             <Button 
               size="lg" 
-              className={cn("bg-white text-blue-700 hover:bg-blue-50", isGeorgian ? "font-georgian" : "")}
+              className={cn("bg-white text-blue-700 hover:bg-blue-50", isGeorgian ? "georgian-text-fix font-georgian" : "")}
               style={applyGeorgianFont(isGeorgian)}
               onClick={() => {
                 document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
               }}
             >
-              <LanguageText>{t("calendar.bookNow")}</LanguageText>
+              <LanguageText withFont={true}>{t("calendar.bookNow")}</LanguageText>
             </Button>
           </div>
         </div>
@@ -314,3 +314,5 @@ export const PublicBusinessPage = () => {
     </div>
   );
 };
+
+export const PublicBusinessPage;
