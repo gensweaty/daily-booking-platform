@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -89,20 +88,33 @@
 /* Fix for calendar icon position in datetime inputs */
 .datetime-input-fix::-webkit-calendar-picker-indicator {
   position: absolute;
-  right: 16px; /* Moved further left from right edge to create space after AM */
+  right: 16px;
   opacity: 0.8;
   padding: 0;
   margin: 0;
-  filter: invert(0); /* Default for light mode - black icon */
+  filter: invert(0); /* Black icon for light mode */
+  width: 16px;
+  height: 16px;
 }
 
 /* Make calendar icon white in dark mode */
 .dark .datetime-input-fix::-webkit-calendar-picker-indicator {
-  filter: invert(1); /* Invert colors in dark mode - white icon */
+  filter: invert(1); /* White icon for dark mode */
 }
 
 /* Add additional styles to ensure the text doesn't overlap with the calendar icon */
 .datetime-input-fix {
-  padding-right: 36px; /* Increased padding to create more space between text and icon */
+  padding-right: 36px;
   position: relative;
+  font-size: 0.85rem; /* Reduce text size by approximately 30% */
+}
+
+/* Override datetime input styles for all themes */
+input[type="datetime-local"] {
+  color-scheme: light dark; /* Respect OS/browser color scheme */
+}
+
+/* Ensure dark mode styles are applied */
+.dark input[type="datetime-local"] {
+  color-scheme: dark;
 }
