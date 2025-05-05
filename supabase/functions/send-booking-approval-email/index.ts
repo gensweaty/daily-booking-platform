@@ -17,7 +17,23 @@ interface BookingApprovalEmailRequest {
   paymentStatus?: string; 
   paymentAmount?: number;
   businessAddress?: string;
+  eventId?: string; // Added for deduplication
+  source?: string; // Added to track source of request
 }
+
+// For deduplication: Store a map of recently sent emails with expiring entries
+const recentlySentEmails = new Map<string, number>();
+
+// Clean up old entries from the deduplication map every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamp] of recentlySentEmails.entries()) {
+    // Remove entries older than 2 minutes
+    if (now - timestamp > 120000) {
+      recentlySentEmails.delete(key);
+    }
+  }
+}, 300000); // Run every 5 minutes
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -42,6 +58,8 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`- Dates: ${parsedBody.startDate} to ${parsedBody.endDate}`);
       console.log(`- Payment: ${parsedBody.paymentStatus} (${parsedBody.paymentAmount || 'N/A'})`);
       console.log(`- Business Address: ${parsedBody.businessAddress || '(No address provided)'}`);
+      console.log(`- Event ID: ${parsedBody.eventId || '(No event ID)'}`);
+      console.log(`- Source: ${parsedBody.source || '(Unknown source)'}`);
       
       // ENHANCED ADDRESS DEBUGGING
       console.log("ADDRESS DIAGNOSTICS:");
@@ -83,8 +101,34 @@ const handler = async (req: Request): Promise<Response> => {
       endDate, 
       paymentStatus, 
       paymentAmount,
-      businessAddress 
+      businessAddress,
+      eventId,
+      source
     } = parsedBody;
+
+    // IMPORTANT FIX: Check for duplicate email - if eventId is provided, use it for deduplication
+    if (eventId) {
+      const dedupeKey = `${eventId}_${recipientEmail}`;
+      const now = Date.now();
+      
+      if (recentlySentEmails.has(dedupeKey)) {
+        console.log(`Duplicate email detected for event ${eventId} to ${recipientEmail}. Skipping.`);
+        return new Response(
+          JSON.stringify({ 
+            message: "Email request was identified as a duplicate and skipped",
+            to: recipientEmail,
+            id: null,
+            isDuplicate: true,
+            eventId: eventId
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+        );
+      }
+      
+      // Mark as recently sent
+      recentlySentEmails.set(dedupeKey, now);
+      console.log(`Setting deduplication key: ${dedupeKey} (tracked ${recentlySentEmails.size} emails)`);
+    }
 
     console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName || "Unknown Business"}`);
     console.log(`Start date (raw ISO string): ${startDate}`);
@@ -221,7 +265,8 @@ const handler = async (req: Request): Promise<Response> => {
           to: recipientEmail,
           id: emailResult.data?.id,
           included_address: addressDisplay || null, // For debugging
-          business_name_used: displayBusinessName
+          business_name_used: displayBusinessName,
+          source: source || 'unknown'
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );

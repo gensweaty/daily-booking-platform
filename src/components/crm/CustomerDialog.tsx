@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -350,6 +351,7 @@ export const CustomerDialog = ({
         }
 
         // Create corresponding event if checkbox was checked
+        let createdEventId = null;
         if (createEvent && customerData) {
           const eventData = {
             title: title,
@@ -380,7 +382,10 @@ export const CustomerDialog = ({
               variant: "destructive",
             });
           } else {
+            createdEventId = eventResult.id;
+            
             // Send booking confirmation email if email address is provided
+            // IMPORTANT FIX: Added a flag to prevent duplicate emails when an event is created
             if (social_network_link && isValidEmail(social_network_link)) {
               try {
                 // Get business address for the email
@@ -398,6 +403,10 @@ export const CustomerDialog = ({
                   
                   const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
                   
+                  // Store a flag in localStorage to prevent duplicate emails
+                  const emailDedupeKey = `email_sent_${eventResult.id}_${Date.now()}`;
+                  localStorage.setItem(emailDedupeKey, 'true');
+                  
                   await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
                     method: 'POST',
                     headers: {
@@ -412,7 +421,9 @@ export const CustomerDialog = ({
                       endDate: eventEndDate.toISOString(),
                       paymentStatus: payment_status || 'not_paid',
                       paymentAmount: payment_amount ? parseFloat(payment_amount) : null,
-                      businessAddress: businessProfile?.contact_address || ''
+                      businessAddress: businessProfile?.contact_address || '',
+                      eventId: createdEventId, // Add event ID to help with deduplication
+                      source: 'CustomerDialog' // Add source to track where the email was sent from
                     })
                   });
                 }

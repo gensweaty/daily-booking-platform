@@ -189,10 +189,30 @@ export const EventDialog = ({
     userSurname: string,
     socialNetworkLink: string,
     paymentStatus?: string, 
-    paymentAmount?: string
+    paymentAmount?: string,
+    eventId?: string
   ) => {
     try {
       console.log("Sending booking approval email to", socialNetworkLink);
+      
+      // IMPORTANT FIX: Check if an email was recently sent for this event to prevent duplicates
+      if (eventId) {
+        const emailDedupeKey = `email_sent_${eventId}_${Date.now().toString().slice(0, -3)}`;
+        const recentlySent = localStorage.getItem(emailDedupeKey);
+        
+        if (recentlySent) {
+          console.log("Email already sent recently for this event, skipping duplicate", eventId);
+          return;
+        }
+        
+        // Mark as sent for the next minute
+        localStorage.setItem(emailDedupeKey, 'true');
+        
+        // Set expiration after 1 minute to clean up
+        setTimeout(() => {
+          localStorage.removeItem(emailDedupeKey);
+        }, 60000);
+      }
       
       const { data: businessProfile } = await supabase
         .from('business_profiles')
@@ -211,7 +231,9 @@ export const EventDialog = ({
         startDate: startDateTime.toISOString(),
         endDate: endDateTime.toISOString(),
         paymentStatus,
-        paymentAmount: paymentAmount ? parseFloat(paymentAmount) : undefined
+        paymentAmount: paymentAmount ? parseFloat(paymentAmount) : undefined,
+        eventId,
+        source: 'EventDialog'
       });
       
       const { data: sessionData } = await supabase.auth.getSession();
@@ -238,7 +260,9 @@ export const EventDialog = ({
             startDate: startDateTime.toISOString(),
             endDate: endDateTime.toISOString(),
             paymentStatus,
-            paymentAmount: paymentAmount ? parseFloat(paymentAmount) : undefined
+            paymentAmount: paymentAmount ? parseFloat(paymentAmount) : undefined,
+            eventId,
+            source: 'EventDialog'
           }),
         }
       );
@@ -337,9 +361,11 @@ export const EventDialog = ({
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
 
-      let emailSent = false;
-
-      if ((isApprovingBookingRequest || !event?.id || event.type === 'booking_request') && 
+      let shouldSendEmail = false;
+      
+      // IMPORTANT FIX: Only send email if this is specifically approving a booking request
+      // or creating a new event from scratch with a valid email
+      if ((isApprovingBookingRequest || !event?.id) && 
           socialNetworkLink && 
           socialNetworkLink.includes("@")) {
             
@@ -351,22 +377,9 @@ export const EventDialog = ({
           email: socialNetworkLink
         });
         
-        try {
-          await sendApprovalEmail(
-            startDateTime,
-            endDateTime,
-            title,
-            userSurname,
-            socialNetworkLink,
-            normalizedPaymentStatus,
-            paymentAmount
-          );
-          emailSent = true;
-        } catch (emailError) {
-          console.error("Failed to send approval email:", emailError);
-        }
+        shouldSendEmail = true;
       }
-
+      
       // Handle file upload to event_files for the current event
       if (selectedFile && createdEvent?.id && user) {
         try {
@@ -408,12 +421,30 @@ export const EventDialog = ({
           console.error("Error handling file upload:", fileError);
         }
       }
+      
+      // IMPORTANT FIX: Send email after everything else is saved if needed
+      if (shouldSendEmail) {
+        try {
+          await sendApprovalEmail(
+            startDateTime,
+            endDateTime,
+            title,
+            userSurname,
+            socialNetworkLink,
+            normalizedPaymentStatus,
+            paymentAmount,
+            createdEvent.id
+          );
+        } catch (emailError) {
+          console.error("Failed to send approval email:", emailError);
+        }
+      }
 
       if (!isBookingEvent) {
         toast({
           title: t("common.success"),
           description: `${event?.id ? t("Event updated successfully") : t("Event created successfully")}${
-            emailSent ? " " + t("and notification email sent") : ""
+            shouldSendEmail ? " " + t("and notification email sent") : ""
           }`,
         });
       } else {
