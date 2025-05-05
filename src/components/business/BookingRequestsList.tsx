@@ -178,89 +178,86 @@ export const BookingRequestsList = ({
   // Responsive table view with improved mobile styling
   return (
     <>
-      <div className="rounded-md border overflow-hidden">
-        {/* Fixed scrolling on mobile: always show scrollbars */}
-        <ScrollArea className="w-full" type="always">
-          {/* Ensure table has enough width on mobile */}
-          <div className={isMobile ? "min-w-[800px]" : "min-w-full"}>
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead className="w-1/4">{renderGeorgianText("business.customer")}</TableHead>
-                  <TableHead className="w-1/4">{renderGeorgianText("business.paymentStatus")}</TableHead>
-                  <TableHead className="w-1/4">{renderGeorgianText("business.dateTime")}</TableHead>
-                  <TableHead className="w-1/4 text-right">{renderGeorgianText("business.actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {requests.map((request) => (
-                  <TableRow key={request.id}>
-                    <TableCell className="font-medium w-1/4">
-                      <div className="overflow-hidden">
-                        <div className="font-medium truncate">{request.requester_name}</div>
-                        <div className="text-sm text-muted-foreground truncate">{request.requester_email || request.requester_phone}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="w-1/4">
-                      {renderPaymentStatus(request.payment_status, request.payment_amount)}
-                    </TableCell>
-                    <TableCell className="text-sm w-1/4">
-                      {request.start_date && (
-                        <>
-                          {formatDate(new Date(request.start_date), 'MMM d, yyyy')}
-                          <br />
-                          {formatDate(new Date(request.start_date), 'h:mm a')} - {request.end_date ? formatDate(new Date(request.end_date), 'h:mm a') : ''}
-                        </>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right w-1/4">
-                      {/* Fixed action buttons layout for mobile */}
-                      <div className={`flex ${isMobile ? 'flex-col' : 'justify-end'} gap-2 flex-wrap`}>
-                        {type === 'pending' && onApprove && (
-                          <Button 
-                            variant="approve" 
-                            size="sm" 
-                            className="flex gap-1 items-center" 
-                            onClick={() => onApprove(request.id)}
-                          >
-                            <Check className="h-4 w-4" />
-                            <span className={isMobile ? "" : ""}>
-                              {renderGeorgianText("business.approve")}
-                            </span>
-                          </Button>
-                        )}
-                        {type === 'pending' && onReject && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex gap-1 items-center hover:bg-red-100 hover:text-red-700 hover:border-red-300 min-w-[32px]" 
-                            onClick={() => onReject(request.id)}
-                          >
-                            <X className="h-4 w-4 text-red-600" />
-                            <span className={isMobile ? "" : ""}>
-                              {renderGeorgianText("business.reject")}
-                            </span>
-                          </Button>
-                        )}
+      <div className="rounded-md border">
+        {/* Make the container scrollable horizontally on mobile */}
+        <div className="overflow-x-auto w-full">
+          <Table className="min-w-[650px]">
+            <TableHeader className="bg-muted/50">
+              <TableRow>
+                <TableHead className="w-1/4">{renderGeorgianText("business.customer")}</TableHead>
+                <TableHead className="w-1/4">{renderGeorgianText("business.paymentStatus")}</TableHead>
+                <TableHead className="w-1/4">{renderGeorgianText("business.dateTime")}</TableHead>
+                <TableHead className="w-1/4 text-right">{renderGeorgianText("business.actions")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {requests.map((request) => (
+                <TableRow key={request.id}>
+                  <TableCell className="font-medium w-1/4">
+                    <div className="overflow-hidden">
+                      <div className="font-medium truncate">{request.requester_name}</div>
+                      <div className="text-sm text-muted-foreground truncate">{request.requester_email || request.requester_phone}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="w-1/4">
+                    {renderPaymentStatus(request.payment_status, request.payment_amount)}
+                  </TableCell>
+                  <TableCell className="text-sm w-1/4">
+                    {request.start_date && (
+                      <>
+                        {formatDate(new Date(request.start_date), 'MMM d, yyyy')}
+                        <br />
+                        {formatDate(new Date(request.start_date), 'h:mm a')} - {request.end_date ? formatDate(new Date(request.end_date), 'h:mm a') : ''}
+                      </>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right w-1/4">
+                    {/* Improve action buttons layout - stack on mobile */}
+                    <div className="flex flex-wrap gap-2 justify-end sm:justify-end">
+                      {type === 'pending' && onApprove && (
                         <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="text-destructive flex gap-1 items-center hover:bg-destructive/10 min-w-[32px]" 
-                          onClick={() => handleDeleteClick(request.id)}
+                          variant="approve" 
+                          size="sm" 
+                          className="flex gap-1 items-center w-full sm:w-auto" 
+                          onClick={() => onApprove(request.id)}
                         >
-                          <Trash2 className="h-4 w-4" />
-                          <span className={isMobile ? "" : ""}>
-                            {renderGeorgianText("business.delete")}
+                          <Check className="h-4 w-4" />
+                          <span>
+                            {renderGeorgianText("business.approve")}
                           </span>
                         </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </ScrollArea>
+                      )}
+                      {type === 'pending' && onReject && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex gap-1 items-center hover:bg-red-100 hover:text-red-700 hover:border-red-300 w-full sm:w-auto" 
+                          onClick={() => onReject(request.id)}
+                        >
+                          <X className="h-4 w-4 text-red-600" />
+                          <span>
+                            {renderGeorgianText("business.reject")}
+                          </span>
+                        </Button>
+                      )}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="text-destructive flex gap-1 items-center hover:bg-destructive/10 w-full sm:w-auto" 
+                        onClick={() => handleDeleteClick(request.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span>
+                          {renderGeorgianText("business.delete")}
+                        </span>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
