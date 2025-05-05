@@ -496,7 +496,7 @@ export const BookingRequestForm = ({
           />
         </div>
 
-        {/* Date and Time Fields */}
+        {/* Date and Time Fields - Updated icon positioning */}
         <div>
           <Label htmlFor="dateTime" className={labelClass} style={georgianFontStyle}>
             {isGeorgian ? (
@@ -530,7 +530,7 @@ export const BookingRequestForm = ({
                   className="w-full pr-8"
                   style={{ colorScheme: 'auto' }}
                 />
-                <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
               </div>
             </div>
             <div>
@@ -551,7 +551,7 @@ export const BookingRequestForm = ({
                   className="w-full pr-8"
                   style={{ colorScheme: 'auto' }}
                 />
-                <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
               </div>
             </div>
           </div>
