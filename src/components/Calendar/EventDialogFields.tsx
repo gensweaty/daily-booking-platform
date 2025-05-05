@@ -11,6 +11,7 @@ import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { getCurrencySymbol } from "@/lib/currency";
+import { getGeorgianFontStyle } from "@/lib/font-utils";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -78,12 +79,8 @@ export const EventDialogFields = ({
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
   const currencySymbol = getCurrencySymbol(language);
   
-  const georgianStyle = isGeorgian ? {
-    fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-    letterSpacing: '-0.2px',
-    WebkitFontSmoothing: 'antialiased',
-    MozOsxFontSmoothing: 'grayscale'
-  } : undefined;
+  // Use consistent Georgian styling from font-utils
+  const georgianStyle = isGeorgian ? getGeorgianFontStyle() : undefined;
   
   // Helper function for Georgian label text
   const renderGeorgianLabel = (text: string) => {
@@ -149,7 +146,7 @@ export const EventDialogFields = ({
           onChange={e => setSocialNetworkLink(e.target.value)} 
           placeholder="email@example.com" 
           type="email" 
-          style={isGeorgian ? { ...georgianStyle } : undefined}
+          style={isGeorgian ? georgianStyle : undefined}
         />
       </div>
       <div>
@@ -177,7 +174,6 @@ export const EventDialogFields = ({
                 onChange={e => setStartDate(e.target.value)} 
                 required 
                 className="w-full dark:text-white dark:[color-scheme:dark] datetime-input-fix" 
-                style={{ colorScheme: 'auto' }} 
               />
             </div>
           </div>
@@ -197,7 +193,6 @@ export const EventDialogFields = ({
                 onChange={e => setEndDate(e.target.value)} 
                 required 
                 className="w-full dark:text-white dark:[color-scheme:dark] datetime-input-fix" 
-                style={{ colorScheme: 'auto' }} 
               />
             </div>
           </div>

@@ -89,14 +89,20 @@
 /* Fix for calendar icon position in datetime inputs */
 .datetime-input-fix::-webkit-calendar-picker-indicator {
   position: absolute;
-  right: 10px; /* Position closer to the text */
+  right: 16px; /* Moved further left from right edge to create space after AM */
   opacity: 0.8;
   padding: 0;
   margin: 0;
+  filter: invert(0); /* Default for light mode - black icon */
+}
+
+/* Make calendar icon white in dark mode */
+.dark .datetime-input-fix::-webkit-calendar-picker-indicator {
+  filter: invert(1); /* Invert colors in dark mode - white icon */
 }
 
 /* Add additional styles to ensure the text doesn't overlap with the calendar icon */
 .datetime-input-fix {
-  padding-right: 24px; /* Reduced padding to keep text and icon closer */
+  padding-right: 36px; /* Increased padding to create more space between text and icon */
   position: relative;
 }
