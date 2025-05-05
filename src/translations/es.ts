@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -388,7 +387,11 @@ export const es: TranslationType = {
     redeemCodeOptional: "Código de canje (Opcional)",
     enterRedeemCode: "Ingrese su código de canje",
     sendResetLink: "Enviar enlace de restablecimiento",
-    backToSignIn: "Volver a iniciar sesión"
+    backToSignIn: "Volver a iniciar sesión",
+    passwordsDoNotMatch: "Las contraseñas no coinciden",
+    passwordTooShort: "La contraseña es demasiado corta",
+    verificationRequired: "Importante: Después de registrarte, DEBES hacer clic en el enlace de verificación enviado a tu correo electrónico para activar tu cuenta.",
+    checkEmailFolders: "Por favor, revisa tanto tu bandeja de entrada como la carpeta de spam para el correo de confirmación."
   },
   legal: {
     title: "Términos y Política de Privacidad",

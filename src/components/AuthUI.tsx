@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 
 interface AuthUIProps {
   defaultTab?: "signin" | "signup";
@@ -122,10 +123,10 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "signin" | "signup")} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="signin" className={language === 'ka' ? 'ka-text georgian-tab' : ''}>
-              {language === 'ka' ? "შესვლა" : t("auth.signInButton")}
+              {language === 'ka' ? <GeorgianAuthText>შესვლა</GeorgianAuthText> : t("auth.signInButton")}
             </TabsTrigger>
             <TabsTrigger value="signup" className={language === 'ka' ? 'ka-text georgian-tab' : ''}>
-              {language === 'ka' ? "რეგისტრაცია" : t("auth.signUpButton")}
+              {language === 'ka' ? <GeorgianAuthText>რეგისტრაცია</GeorgianAuthText> : t("auth.signUpButton")}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="signin">
@@ -139,3 +140,4 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
     </div>
   );
 };
+
