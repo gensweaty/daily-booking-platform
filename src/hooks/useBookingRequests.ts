@@ -74,15 +74,8 @@ export const useBookingRequests = () => {
       console.log(`Raw start date: ${startDate}`);
       console.log(`Raw end date: ${endDate}`);
       
-      // Clean address and log it for debugging
-      let cleanAddress = businessAddress ? String(businessAddress).trim() : undefined;
-      if (cleanAddress) {
-        // Just log the raw address, don't try to clean it here
-        // We'll let the edge function handle the cleaning
-        console.log(`Business address (raw): "${cleanAddress}"`);
-      } else {
-        console.log(`Business address: Not provided`);
-      }
+      // Log the address for debugging
+      console.log(`Business address being sent: "${businessAddress || 'Not provided'}"`);
       
       // Prepare the request with all required data
       const requestBody = JSON.stringify({
@@ -93,7 +86,7 @@ export const useBookingRequests = () => {
         endDate: endDate,
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
-        businessAddress: cleanAddress
+        businessAddress: businessAddress
       });
       
       console.log("Request body for email function:", requestBody);
@@ -403,7 +396,7 @@ export const useBookingRequests = () => {
       // Email notification processing
       if (booking && booking.requester_email) {
         let businessName = "Our Business";
-        let businessAddress = null;
+        let contactAddress = null;
         
         try {
           // Fetch business profile with name AND address
@@ -415,13 +408,11 @@ export const useBookingRequests = () => {
             
           if (businessProfile) {
             businessName = businessProfile.business_name || businessName;
-            
-            // Just assign the raw address, don't process it here
-            businessAddress = businessProfile.contact_address || null;
+            contactAddress = businessProfile.contact_address || null;
             
             console.log("Fetched business profile details:", { 
               name: businessName, 
-              address: businessAddress ? `"${businessAddress}"` : "Not available" 
+              address: contactAddress ? `"${contactAddress}"` : "Not available" 
             });
           }
         } catch (err) {
@@ -435,10 +426,10 @@ export const useBookingRequests = () => {
           businessName,
           startDate: booking.start_date,
           endDate: booking.end_date,
-          businessAddress: businessAddress ? `"${businessAddress}"` : "Not provided",
+          businessAddress: contactAddress ? `"${contactAddress}"` : "Not provided",
         });
         
-        // Make sure we're passing payment info and business address to the email function
+        // Make sure we're passing contact_address to the email function
         const emailResult = await sendApprovalEmail({
           email: booking.requester_email,
           fullName: booking.requester_name || booking.user_surname || "",
@@ -447,7 +438,7 @@ export const useBookingRequests = () => {
           endDate: booking.end_date,
           paymentStatus: booking.payment_status,
           paymentAmount: booking.payment_amount,
-          businessAddress: businessAddress
+          businessAddress: contactAddress
         });
         
         if (emailResult.success) {
