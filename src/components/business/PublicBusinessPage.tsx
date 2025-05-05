@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
@@ -203,9 +202,9 @@ export const PublicBusinessPage = () => {
       >
         <div className="absolute inset-0 bg-black bg-opacity-50"></div>
         
-        <div className="container mx-auto px-4 relative h-full flex flex-col justify-center">
-          {/* Business info moved to center */}
-          <div className="py-8">
+        <div className="container mx-auto px-4 relative h-full flex flex-col justify-end">
+          {/* Business info moved lower in the cover section */}
+          <div className="py-16 mb-16">
             <h1 
               className={cn("text-4xl md:text-5xl font-bold mb-6", isGeorgian ? "font-georgian" : "")}
               style={applyGeorgianFont(isGeorgian)}
