@@ -62,7 +62,7 @@ export const SignIn = () => {
         <Input
           id="email"
           type="email"
-          placeholder={t("auth.emailLabel")}
+          placeholder={isGeorgian ? "ელექტრონული ფოსტა" : t("auth.emailLabel")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -86,7 +86,7 @@ export const SignIn = () => {
         <Input
           id="password"
           type="password"
-          placeholder={t("auth.passwordLabel")}
+          placeholder={isGeorgian ? "პაროლი" : t("auth.passwordLabel")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
