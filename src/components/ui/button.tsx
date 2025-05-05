@@ -27,7 +27,7 @@ const buttonVariants = cva(
         success: "bg-[#10b981] text-white hover:bg-[#059669]",
         info: "bg-[#3b82f6] text-white hover:bg-[#2563eb]",
         warning: "bg-[#f59e0b] text-white hover:bg-[#d97706]",
-        // Add new variant for approval buttons
+        // Approve variant with proper styling
         approve: "bg-[#10b981] text-white hover:bg-[#059669] border-green-500",
       },
       size: {

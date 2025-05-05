@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -43,6 +44,30 @@ export const BookingRequestsList = ({
     }
   };
 
+  // Format payment status for display
+  const formatPaymentStatus = (status?: string, amount?: number | null) => {
+    let statusDisplay = '';
+    
+    if (!status || status === 'not_paid') {
+      statusDisplay = t("business.notPaid");
+    } else if (status === 'partly_paid' || status === 'partly') {
+      statusDisplay = `${t("business.partlyPaid")}`;
+      if (amount) {
+        statusDisplay += ` ($${amount})`;
+      }
+    } else if (status === 'fully_paid' || status === 'fully') {
+      statusDisplay = `${t("business.fullyPaid")}`;
+      if (amount) {
+        statusDisplay += ` ($${amount})`;
+      }
+    } else {
+      // Handle any other status
+      statusDisplay = status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+    }
+    
+    return statusDisplay;
+  };
+
   // Helper to render Georgian text properly
   const renderGeorgianText = (key: string) => {
     if (isGeorgian) {
@@ -50,7 +75,7 @@ export const BookingRequestsList = ({
       if (key === "business.approvedRequests") return <GeorgianAuthText>დადასტურებული მოთხოვნები</GeorgianAuthText>;
       if (key === "business.rejectedRequests") return <GeorgianAuthText>უარყოფილი მოთხოვნები</GeorgianAuthText>;
       if (key === "business.customer") return <GeorgianAuthText>მომხმარებელი</GeorgianAuthText>;
-      if (key === "business.title") return <GeorgianAuthText>სათაური</GeorgianAuthText>;
+      if (key === "business.paymentStatus") return <GeorgianAuthText>გადახდის სტატუსი</GeorgianAuthText>;
       if (key === "business.dateTime") return <GeorgianAuthText>თარიღი და დრო</GeorgianAuthText>;
       if (key === "business.actions") return <GeorgianAuthText>მოქმედებები</GeorgianAuthText>;
       if (key === "business.approve") return <GeorgianAuthText>დადასტურება</GeorgianAuthText>;
@@ -103,7 +128,7 @@ export const BookingRequestsList = ({
       <div className="rounded-md border">
         <div className="bg-muted/50 p-4 grid grid-cols-4 font-medium">
           <div>{renderGeorgianText("business.customer")}</div>
-          <div>{renderGeorgianText("business.title")}</div>
+          <div>{renderGeorgianText("business.paymentStatus")}</div>
           <div>{renderGeorgianText("business.dateTime")}</div>
           <div className="text-right">{renderGeorgianText("business.actions")}</div>
         </div>
@@ -114,7 +139,9 @@ export const BookingRequestsList = ({
                 <div className="font-medium truncate">{request.requester_name}</div>
                 <div className="text-sm text-muted-foreground truncate">{request.requester_email || request.requester_phone}</div>
               </div>
-              <div className="truncate pr-4">{request.title}</div>
+              <div className="truncate pr-4">
+                {formatPaymentStatus(request.payment_status, request.payment_amount)}
+              </div>
               <div className="text-sm">
                 {request.start_date && (
                   <>
@@ -127,12 +154,12 @@ export const BookingRequestsList = ({
               <div className="flex justify-end gap-2">
                 {type === 'pending' && onApprove && (
                   <Button 
-                    variant="outline" 
+                    variant="approve" 
                     size="sm" 
-                    className="flex gap-1 items-center hover:bg-green-100 hover:text-green-700 hover:border-green-300" 
+                    className="flex gap-1 items-center" 
                     onClick={() => onApprove(request.id)}
                   >
-                    <Check className="h-4 w-4 text-green-600" />
+                    <Check className="h-4 w-4" />
                     <span>{renderGeorgianText("business.approve")}</span>
                   </Button>
                 )}
@@ -184,3 +211,4 @@ export const BookingRequestsList = ({
     </>
   );
 };
+
