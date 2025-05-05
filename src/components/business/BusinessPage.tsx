@@ -1,4 +1,3 @@
-
 import { BusinessProfileForm } from "./BusinessProfileForm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -12,13 +11,15 @@ import { Badge } from "@/components/ui/badge";
 import { MessageSquare, ExternalLink } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<"profile" | "bookings">("profile");
   const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest } = useBookingRequests();
   const pendingCount = pendingRequests?.length || 0;
+  const isGeorgian = language === 'ka';
 
   const { data: businessProfile, isLoading } = useQuery({
     queryKey: ["businessProfile", user?.id],
@@ -98,7 +99,11 @@ export const BusinessPage = () => {
         <TabsContent value="profile" className="space-y-6">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">
-              <LanguageText>{t("business.myBusiness")}</LanguageText>
+              {isGeorgian ? (
+                <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
+              ) : (
+                <LanguageText>{t("business.myBusiness")}</LanguageText>
+              )}
             </h1>
             {renderViewPublicPageButton()}
           </div>

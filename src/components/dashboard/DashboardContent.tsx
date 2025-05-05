@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useEffect } from "react"
 import { LanguageText } from "@/components/shared/LanguageText"
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText"
 import { cn } from "@/lib/utils"
 
 interface DashboardContentProps {
@@ -72,11 +73,7 @@ export const DashboardContent = ({
       <TabsList className="grid w-full grid-cols-5 mb-2">
         <TabsTrigger 
           value="calendar" 
-          className={cn(
-            "flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95",
-            isGeorgian ? "font-georgian" : ""
-          )}
-          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+          className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95"
         >
           <motion.div
             whileHover={{ rotate: 15 }}
@@ -84,19 +81,13 @@ export const DashboardContent = ({
           >
             <CalendarIcon className="w-4 h-4" />
           </motion.div>
-          <span 
-            className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}
-            style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
-          >
+          <span className="hidden sm:inline">
             <LanguageText>{t("dashboard.bookingCalendar")}</LanguageText>
           </span>
         </TabsTrigger>
         <TabsTrigger 
           value="statistics" 
-          className={cn(
-            "flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95",
-            isGeorgian ? "font-georgian" : ""
-          )}
+          className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95"
         >
           <motion.div
             whileHover={{ rotate: 15 }}
@@ -104,17 +95,13 @@ export const DashboardContent = ({
           >
             <BarChart className="w-4 h-4" />
           </motion.div>
-          <span className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}>
+          <span className="hidden sm:inline">
             <LanguageText>{t("dashboard.statistics")}</LanguageText>
           </span>
         </TabsTrigger>
         <TabsTrigger 
           value="tasks" 
-          className={cn(
-            "flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95",
-            isGeorgian ? "font-georgian" : ""
-          )}
-          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+          className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95"
         >
           <motion.div
             whileHover={{ rotate: 15 }}
@@ -122,19 +109,17 @@ export const DashboardContent = ({
           >
             <ListTodo className="w-4 h-4" />
           </motion.div>
-          <span 
-            className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}
-            style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
-          >
-            <LanguageText>{t("dashboard.tasks")}</LanguageText>
+          <span className="hidden sm:inline">
+            {isGeorgian ? (
+              <GeorgianAuthText>დავალებები</GeorgianAuthText>
+            ) : (
+              <LanguageText>{t("dashboard.tasks")}</LanguageText>
+            )}
           </span>
         </TabsTrigger>
         <TabsTrigger 
           value="crm" 
-          className={cn(
-            "flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95",
-            isGeorgian ? "font-georgian" : ""
-          )}
+          className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95"
         >
           <motion.div
             whileHover={{ rotate: 15 }}
@@ -142,17 +127,13 @@ export const DashboardContent = ({
           >
             <Users className="w-4 h-4" />
           </motion.div>
-          <span className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}>
+          <span className="hidden sm:inline">
             <LanguageText>{t("dashboard.crm")}</LanguageText>
           </span>
         </TabsTrigger>
         <TabsTrigger 
           value="business" 
-          className={cn(
-            "flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 relative",
-            isGeorgian ? "font-georgian" : ""
-          )}
-          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+          className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 relative"
         >
           <motion.div
             whileHover={{ rotate: 15 }}
@@ -160,11 +141,12 @@ export const DashboardContent = ({
           >
             <Briefcase className="w-4 h-4" />
           </motion.div>
-          <span 
-            className={cn("hidden sm:inline", isGeorgian ? "font-georgian" : "")}
-            style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
-          >
-            <LanguageText>{t("business.myBusiness")}</LanguageText>
+          <span className="hidden sm:inline">
+            {isGeorgian ? (
+              <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
+            ) : (
+              <LanguageText>{t("business.myBusiness")}</LanguageText>
+            )}
           </span>
           {pendingCount > 0 && (
             <motion.div
@@ -218,7 +200,7 @@ export const DashboardContent = ({
           >
             <Card className="min-h-[calc(100vh-12rem)]">
               <CardHeader>
-                <CardTitle className={isGeorgian ? "font-georgian" : ""}>
+                <CardTitle>
                   <LanguageText>{t("dashboard.statistics")}</LanguageText>
                 </CardTitle>
               </CardHeader>
@@ -244,16 +226,17 @@ export const DashboardContent = ({
           >
             <Card className="min-h-[calc(100vh-12rem)]">
               <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-                <CardTitle className={isGeorgian ? "font-georgian" : ""}>
-                  <LanguageText>{t("dashboard.tasks")}</LanguageText>
+                <CardTitle>
+                  {isGeorgian ? (
+                    <GeorgianAuthText>დავალებები</GeorgianAuthText>
+                  ) : (
+                    <LanguageText>{t("dashboard.tasks")}</LanguageText>
+                  )}
                 </CardTitle>
                 <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
                   <DialogTrigger asChild>
                     <Button 
-                      className={cn(
-                        "flex items-center gap-2 w-full sm:w-auto bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95",
-                        isGeorgian ? "font-georgian" : ""
-                      )}
+                      className="flex items-center gap-2 w-full sm:w-auto bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95"
                     >
                       <motion.div
                         whileHover={{ rotate: 180 }}
