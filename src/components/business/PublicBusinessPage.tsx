@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
@@ -189,19 +188,19 @@ export const PublicBusinessPage = () => {
         <LanguageSwitcher />
       </div>
       
-      {/* Hero section with cover photo - 20% smaller than previous version */}
+      {/* Hero section with cover photo - adjusted by 5% larger than previous version */}
       <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-20"
         style={{
           backgroundImage: `url(${displayCoverUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          minHeight: '40vh', // Reduced from 50vh to 40vh (20% smaller)
+          minHeight: '42vh', // Extended from 40vh to 42vh (5% increase)
         }}
       >
         <div className="absolute inset-0 bg-black bg-opacity-50"></div>
         
         <div className="container mx-auto px-4 relative h-full flex flex-col justify-between">
-          <div>
+          <div className="pt-4">
             <h1 
               className={cn("text-4xl md:text-5xl font-bold mb-6", isGeorgian ? "font-georgian" : "")}
               style={applyGeorgianFont(isGeorgian)}
@@ -231,46 +230,50 @@ export const PublicBusinessPage = () => {
             </div>
           </div>
           
-          {/* Contact information positioned at the bottom of the section */}
-          <div className="grid md:grid-cols-2 gap-6 mt-auto bg-white/10 backdrop-blur-sm p-6 rounded-lg mb-2">
-            {business.contact_email && (
-              <div className="flex items-center gap-3">
-                <Mail className="h-5 w-5 text-blue-100" />
-                <a href={`mailto:${business.contact_email}`} className="hover:underline text-white">
-                  {business.contact_email}
-                </a>
+          {/* Contact information positioned at the absolute bottom of the section */}
+          <div className="absolute bottom-0 left-0 right-0 bg-white/15 backdrop-blur-sm">
+            <div className="container mx-auto px-4">
+              <div className="grid md:grid-cols-2 gap-6 py-4">
+                {business.contact_email && (
+                  <div className="flex items-center gap-3">
+                    <Mail className="h-5 w-5 text-blue-100" />
+                    <a href={`mailto:${business.contact_email}`} className="hover:underline text-white">
+                      {business.contact_email}
+                    </a>
+                  </div>
+                )}
+                
+                {business.contact_phone && (
+                  <div className="flex items-center gap-3">
+                    <Phone className="h-5 w-5 text-blue-100" />
+                    <a href={`tel:${business.contact_phone}`} className="hover:underline text-white">
+                      {business.contact_phone}
+                    </a>
+                  </div>
+                )}
+                
+                {business.contact_address && (
+                  <div className="flex items-center gap-3">
+                    <MapPin className="h-5 w-5 text-blue-100" />
+                    <span className="text-white">{business.contact_address}</span>
+                  </div>
+                )}
+                
+                {business.contact_website && (
+                  <div className="flex items-center gap-3">
+                    <Globe className="h-5 w-5 text-blue-100" />
+                    <a 
+                      href={business.contact_website} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="hover:underline text-white"
+                    >
+                      {business.contact_website.replace(/^https?:\/\//, '')}
+                    </a>
+                  </div>
+                )}
               </div>
-            )}
-            
-            {business.contact_phone && (
-              <div className="flex items-center gap-3">
-                <Phone className="h-5 w-5 text-blue-100" />
-                <a href={`tel:${business.contact_phone}`} className="hover:underline text-white">
-                  {business.contact_phone}
-                </a>
-              </div>
-            )}
-            
-            {business.contact_address && (
-              <div className="flex items-center gap-3">
-                <MapPin className="h-5 w-5 text-blue-100" />
-                <span className="text-white">{business.contact_address}</span>
-              </div>
-            )}
-            
-            {business.contact_website && (
-              <div className="flex items-center gap-3">
-                <Globe className="h-5 w-5 text-blue-100" />
-                <a 
-                  href={business.contact_website} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="hover:underline text-white"
-                >
-                  {business.contact_website.replace(/^https?:\/\//, '')}
-                </a>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
