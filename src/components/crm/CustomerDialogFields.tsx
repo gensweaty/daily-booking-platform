@@ -94,7 +94,7 @@ export const CustomerDialogFields = ({
   // Get the correct currency symbol based on language
   const currencySymbol = getCurrencySymbol(language);
 
-  // Add the formatDateTime function that was missing
+  // Format dates with timezone awareness
   const formatDateTime = (dateStr: string | null | undefined) => {
     if (!dateStr) return "-";
     try {
