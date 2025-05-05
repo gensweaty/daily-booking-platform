@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -366,11 +367,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         const recipientEmail = event.social_network_link;
         if (recipientEmail && isValidEmail(recipientEmail)) {
           // Send booking confirmation email
-          await fetch(`${supabase.supabaseUrl}/functions/v1/send-booking-approval-email`, {
+          const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
+          
+          await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabase.supabaseKey}`
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
             },
             body: JSON.stringify({
               recipientEmail: recipientEmail,
@@ -565,11 +568,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           } else {
             console.log('Sending booking approval email with address:', businessProfile?.contact_address);
             
-            await fetch(`${supabase.supabaseUrl}/functions/v1/send-booking-approval-email`, {
+            const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
+            
+            await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${supabase.supabaseKey}`
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
               },
               body: JSON.stringify({
                 recipientEmail: event.requester_email,
