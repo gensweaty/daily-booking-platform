@@ -4,10 +4,9 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { associateBookingFilesWithEvent } from "@/integrations/supabase/client";
 
 // Helper function to associate booking files with a new event
-export const associateBookingFilesWithEvent = async (
+const associateBookingFilesWithEvent = async (
   bookingRequestId: string,
   newEventId: string,
   userId: string
@@ -525,12 +524,25 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       event.type = 'event';
     }
     
-    // Create the event - Fix Type Error - We need to ensure end_date is included
+    // Ensure title is set (title is required by the database)
+    if (!event.title) {
+      event.title = "Untitled Event"; // Default title if none provided
+    }
+    
+    // Create the event - Fix Type Error - We need to ensure required fields are included
     const eventPayload = {
-      ...event,
+      title: event.title,
+      start_date: event.start_date as string,
+      end_date: event.end_date as string,
       user_id: user.id,
-      start_date: event.start_date,
-      end_date: event.end_date
+      type: event.type,
+      // Add other optional fields
+      user_surname: event.user_surname,
+      user_number: event.user_number,
+      social_network_link: event.social_network_link,
+      event_notes: event.event_notes,
+      payment_status: event.payment_status,
+      payment_amount: event.payment_amount
     };
     
     const { data, error } = await supabase
@@ -550,7 +562,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     if (
       recipientEmail && 
       isValidEmail(recipientEmail) && 
-      !event.id && // Instead of checking booking_request_id which doesn't exist in the type
+      !event.id && // Check if this is a new event, not an existing one
       data
     ) {
       try {
@@ -924,3 +936,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     deleteEvent: deleteMutation.mutateAsync,
   };
 };
+
+// Export the associateBookingFilesWithEvent function for external use
+export { associateBookingFilesWithEvent };
