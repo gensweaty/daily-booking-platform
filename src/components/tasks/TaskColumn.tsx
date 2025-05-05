@@ -4,6 +4,7 @@ import { Droppable } from "@hello-pangea/dnd";
 import { TaskCard } from "./TaskCard";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "../shared/LanguageText";
+import { GeorgianAuthText } from "../shared/GeorgianAuthText";
 
 interface TaskColumnProps {
   status: string;
@@ -14,7 +15,8 @@ interface TaskColumnProps {
 }
 
 export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColumnProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
   
   const getColumnStyle = (status: string) => {
     switch (status) {
@@ -49,7 +51,13 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
           className={`p-4 rounded-lg min-h-[200px] border ${getColumnStyle(status)}`}
         >
           <h3 className="font-semibold mb-4 capitalize text-foreground">
-            <LanguageText>{getColumnTitle(status)}</LanguageText>
+            {isGeorgian ? (
+              <GeorgianAuthText fontWeight="bold">
+                <LanguageText>{getColumnTitle(status)}</LanguageText>
+              </GeorgianAuthText>
+            ) : (
+              <LanguageText>{getColumnTitle(status)}</LanguageText>
+            )}
           </h3>
           <div className="space-y-4">
             {tasks.map((task: Task, index: number) => (
