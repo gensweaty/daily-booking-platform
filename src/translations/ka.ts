@@ -306,7 +306,7 @@ export const ka: TranslationType = {
     day: "Დღე",
     week: "Კვირა",
     month: "Თვე",
-    addEvent: "ღონისძიების დამატება",
+    addEvent: "ივენთის დამატება",
     bookNow: "დაჯავშნე ვიზიტი",
     weekOf: "კვირა"
   },
