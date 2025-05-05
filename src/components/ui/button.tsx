@@ -59,7 +59,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     
     // For Georgian text, wrap children with GeorgianAuthText to ensure proper font rendering
     const wrappedChildren = isGeorgian && typeof children === 'string' ? (
-      <GeorgianAuthText fontWeight={props.disabled ? 'normal' : 'bold'}>
+      <GeorgianAuthText 
+        fontWeight={props.disabled ? 'normal' : 'bold'}
+        className="georgian-button-fix"
+      >
         {children}
       </GeorgianAuthText>
     ) : children;
@@ -68,7 +71,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <Component
         className={cn(
           buttonVariants({ variant, size, className }),
-          isGeorgian ? "ka-text" : ""
+          isGeorgian ? "ka-text georgian-button-fix" : ""
         )}
         ref={ref}
         {...props}

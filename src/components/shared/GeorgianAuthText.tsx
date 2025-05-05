@@ -24,7 +24,7 @@ export const GeorgianAuthText = ({
   
   return (
     <span 
-      className={`georgian-auth-text georgian-bold-fix georgian-text-fix ${className}`}
+      className={`georgian-auth-text georgian-bold-fix georgian-text-fix georgian-button-fix ${className}`}
       style={{
         fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
         letterSpacing: '-0.2px',

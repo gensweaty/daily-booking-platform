@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -136,17 +135,60 @@
     letter-spacing: -0.2px !important;
   }
   
-  /* Ensure first letter of Georgian text is also bold when parent is bold */
-  [lang="ka"] .font-bold *,
-  [lang="ka"] .font-semibold *,
-  [lang="ka"] h1 *, 
-  [lang="ka"] h2 *, 
-  [lang="ka"] h3 *,
-  [lang="ka"] .georgian-auth-text[style*="font-weight: bold"] *,
-  [lang="ka"] .georgian-auth-text[style*="font-weight: bold"]::first-letter {
+  /* NEW - Specific fix for Georgian button text */
+  .georgian-button-fix,
+  .georgian-button-fix * {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+    letter-spacing: -0.2px !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+    font-feature-settings: normal !important;
+    font-variant: normal !important;
+    text-transform: none !important;
+  }
+  
+  /* NEW - First letter fix specifically for buttons */
+  .georgian-button-fix::first-letter,
+  .georgian-button-fix *::first-letter {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+    font-weight: inherit !important;
+    letter-spacing: -0.2px !important;
+    font-feature-settings: normal !important;
+    font-variant: normal !important;
+    text-transform: none !important;
+  }
+  
+  /* NEW - Target for "დაჯავშნე ახლა" text specifically */
+  [lang="ka"] button:has(span:contains("დაჯავშნე ახლა")),
+  [lang="ka"] button:has(span:contains("დაჯავშნე")),
+  [lang="ka"] button:has(span:contains("ახლა")) {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  }
+  
+  [lang="ka"] button:has(span:contains("დაჯავშნე ახლა")) *,
+  [lang="ka"] button:has(span:contains("დაჯავშნე")) *,
+  [lang="ka"] button:has(span:contains("ახლა")) * {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  }
+  
+  [lang="ka"] button:has(span:contains("დაჯავშნე ახლა"))::first-letter,
+  [lang="ka"] button:has(span:contains("დაჯავშნე"))::first-letter,
+  [lang="ka"] button:has(span:contains("ახლა"))::first-letter,
+  [lang="ka"] button:has(span:contains("დაჯავშნე ახლა")) *::first-letter,
+  [lang="ka"] button:has(span:contains("დაჯავშნე")) *::first-letter,
+  [lang="ka"] button:has(span:contains("ახლა")) *::first-letter {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
     font-weight: inherit !important;
   }
   
+  /* Ensure first letter of Georgian text is also bold when parent is bold */
+  [lang="ka"] *::first-letter {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+    text-transform: none !important;
+    font-weight: normal !important;
+  }
+
   /* Fix calendar icon color in dark mode */
   .dark input[type="datetime-local"] {
     color-scheme: dark;
@@ -225,14 +267,12 @@
 [lang="ka"] *::first-letter {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
   text-transform: none !important;
-  font-weight: normal !important;
 }
 
 /* Specific TabsTrigger first letter fix */
 [lang="ka"] [data-radix-collection-item]::first-letter {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
   text-transform: none !important;
-  font-weight: normal !important;
 }
 
 /* Auth component specific fixes */
@@ -464,4 +504,3 @@
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
   letter-spacing: -0.2px !important;
 }
-
