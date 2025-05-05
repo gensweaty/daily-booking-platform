@@ -128,7 +128,11 @@ export const DashboardContent = ({
             <Users className="w-4 h-4" />
           </motion.div>
           <span className="hidden sm:inline">
-            <LanguageText>{t("dashboard.crm")}</LanguageText>
+            {isGeorgian ? (
+              <GeorgianAuthText>კლიენტები</GeorgianAuthText>
+            ) : (
+              <LanguageText>{t("dashboard.crm")}</LanguageText>
+            )}
           </span>
         </TabsTrigger>
         <TabsTrigger 

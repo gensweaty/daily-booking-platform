@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -147,12 +146,32 @@
     font-weight: inherit !important;
   }
   
+  /* Additional fixes for CRM page Georgian text */
+  [lang="ka"] .crm-label,
+  [lang="ka"] .crm-placeholder,
+  [lang="ka"] .crm-header,
+  [lang="ka"] .crm-header-text,
+  [lang="ka"] .crm-button-text {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+    letter-spacing: -0.2px !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+  }
+  
+  /* Fix placeholder text in search input for Georgian */
+  [lang="ka"] .search-input::placeholder,
+  [lang="ka"] input::placeholder {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+    letter-spacing: -0.2px !important;
+  }
+  
   /* Fix calendar icon color in dark mode */
   .dark input[type="datetime-local"] {
     color-scheme: dark;
     color: white;
   }
-
+  
   /* Enhanced calendar icon styling for better visibility in dark mode */
   input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     background-position: center;
@@ -465,3 +484,39 @@
   letter-spacing: -0.2px !important;
 }
 
+/* Special fixes for CRM component headers */
+[lang="ka"] th[data-column="fullName"],
+[lang="ka"] th[data-column="phoneNumber"] {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+/* Fix specifically for CRM dialog labels and placeholders */
+[lang="ka"] .dialog-content label,
+[lang="ka"] .dialog-content input::placeholder {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+/* Additional fix for column headers in CRM page */
+[lang="ka"] table th {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+/* Fix for table headers specifically */
+[lang="ka"] .crm-table-header,
+[lang="ka"] .crm-table-header * {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
+  font-weight: inherit !important;
+}

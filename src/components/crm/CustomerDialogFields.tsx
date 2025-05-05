@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import { PaymentStatus } from "@/lib/types";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -84,6 +85,7 @@ export const CustomerDialogFields = ({
   setEventEndDate,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
   
   // Show payment amount field if payment status is partly paid or fully paid
   const showPaymentAmount = paymentStatus === "partly" || paymentStatus === "fully";
@@ -168,10 +170,16 @@ export const CustomerDialogFields = ({
   return (
     <div className="space-y-4 mt-4">
       <div className="space-y-2">
-        <Label htmlFor="title">{t("crm.fullNameRequired")}</Label>
+        <Label htmlFor="title">
+          {isGeorgian ? (
+            <GeorgianAuthText>სრული სახელი</GeorgianAuthText>
+          ) : (
+            <LanguageText>{t("crm.fullNameRequired")}</LanguageText>
+          )}
+        </Label>
         <Input
           id="title"
-          placeholder={t("crm.fullNamePlaceholder")}
+          placeholder={isGeorgian ? "შეიყვანეთ კლიენტის სრული სახელი" : t("crm.fullNamePlaceholder")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
@@ -179,11 +187,17 @@ export const CustomerDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="number">{t("crm.phoneNumber")}</Label>
+        <Label htmlFor="number">
+          {isGeorgian ? (
+            <GeorgianAuthText>ტელეფონის ნომერი</GeorgianAuthText>
+          ) : (
+            <LanguageText>{t("crm.phoneNumber")}</LanguageText>
+          )}
+        </Label>
         <Input
           id="number"
           type="tel"
-          placeholder={t("crm.phoneNumberPlaceholder")}
+          placeholder={isGeorgian ? "შეიყვანეთ ტელეფონის ნომერი" : t("crm.phoneNumberPlaceholder")}
           value={userNumber}
           onChange={(e) => setUserNumber(e.target.value)}
         />
@@ -243,7 +257,11 @@ export const CustomerDialogFields = ({
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label htmlFor="startDate" className="text-xs text-muted-foreground">
-                  {t("events.start")}
+                  {isGeorgian ? (
+                    <GeorgianAuthText>დაწყება</GeorgianAuthText>
+                  ) : (
+                    <LanguageText>{t("events.start")}</LanguageText>
+                  )}
                 </Label>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -341,7 +359,11 @@ export const CustomerDialogFields = ({
               </div>
               <div className="space-y-1">
                 <Label htmlFor="endDate" className="text-xs text-muted-foreground">
-                  {t("events.end")}
+                  {isGeorgian ? (
+                    <GeorgianAuthText>დასრულება</GeorgianAuthText>
+                  ) : (
+                    <LanguageText>{t("events.end")}</LanguageText>
+                  )}
                 </Label>
                 <Popover>
                   <PopoverTrigger asChild>

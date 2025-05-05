@@ -7,6 +7,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
 import { Search } from "lucide-react"
+import { useLanguage } from "@/contexts/LanguageContext"
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText"
 
 interface SearchCommandProps {
   data: any[]
@@ -19,6 +21,8 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading, res
   // Use ref for the current data to avoid unnecessary re-renders
   const dataRef = React.useRef(data);
   const [searchValue, setSearchValue] = React.useState<string>("");
+  const { language } = useLanguage();
+  const isGeorgian = language === 'ka';
 
   // Update the ref when data changes
   React.useEffect(() => {
@@ -101,8 +105,8 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading, res
     <div className="w-full md:w-[200px] -mt-4">
       <Command className="rounded-lg border">
         <CommandInput
-          placeholder="Search..."
-          className="h-9"
+          placeholder={isGeorgian ? "ძიება..." : "Search..."}
+          className={`h-9 ${isGeorgian ? "georgian-text-fix" : ""}`}
           value={searchValue}
           onValueChange={handleSearch}
         />
